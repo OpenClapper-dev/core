@@ -24,7 +24,7 @@ import { ProjectSheet } from "./src/components/ProjectSheet";
 import { Day } from "./src/screens/Day";
 import { LoginWeb, ProjectGate, SignInGate } from "./src/screens/Gates";
 import { Offline } from "./src/screens/Offline";
-import { Review } from "./src/screens/Review";
+import { History } from "./src/screens/History";
 import { RigEditor, RigList } from "./src/screens/Rigs";
 import { Setup } from "./src/screens/Setup";
 import { Account, Calibration, CaptureSettings, DebugLog, ViewfinderSettings } from "./src/screens/SetupScreens";
@@ -36,7 +36,7 @@ import { Viewfinder } from "./src/screens/Viewfinder";
 
 const TABS: { tab: Tab; label: string; icon: string }[] = [
   { tab: "shoot", label: "Shoot", icon: "camera-iris" },
-  { tab: "review", label: "Review", icon: "checkbox-marked-outline" },
+  { tab: "history", label: "History", icon: "history" },
   { tab: "shots", label: "Shots", icon: "view-grid-outline" },
   { tab: "day", label: "Day", icon: "calendar-clock" },
   { tab: "setup", label: "Setup", icon: "cog-outline" },
@@ -191,7 +191,7 @@ function App() {
         {/* The open tab stays mounted under a pushed screen, so Back returns to where you were (scroll, open day). */}
         {tab !== "shoot" && (
           <View style={[{ flex: 1 }, chromeless && { display: "none" }]}>
-            {tab === "review" && <Review />}
+            {tab === "history" && <History />}
             {tab === "shots" && <Shots />}
             {tab === "day" && <Day />}
             {tab === "setup" && <Setup />}
@@ -241,12 +241,12 @@ function TabBar({ tab, onTab, unreviewed, portrait, pad }: { tab: Tab; onTab: (t
         const on = tab === t.tab;
         return (
           <Pressable key={t.tab} onPress={() => onTab(t.tab)} style={s.tab} accessibilityRole="tab" accessibilityState={{ selected: on }}
-            accessibilityLabel={t.tab === "review" && unreviewed ? `${t.label}, ${unreviewed} to review` : t.label}>
+            accessibilityLabel={t.tab === "history" && unreviewed ? `${t.label}, ${unreviewed} to review` : t.label}>
             <View style={[s.pill, on && { backgroundColor: c.accent }]}>
               <Icon name={t.icon} size={22} color={on ? c.onAccent : c.text} />
             </View>
             <Text style={[s.label, on && s.labelOn]} numberOfLines={1}>{t.label}</Text>
-            {t.tab === "review" && unreviewed > 0 && <Text style={s.badge}>{unreviewed}</Text>}
+            {t.tab === "history" && unreviewed > 0 && <Text style={s.badge}>{unreviewed}</Text>}
           </Pressable>
         );
       })}

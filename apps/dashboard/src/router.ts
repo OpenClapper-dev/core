@@ -33,7 +33,6 @@ function cutQuery(at: CutPosition | null | undefined): string {
 export type Route =
   | { page: "shots"; viewId: string | null }
   | { page: "shot"; shotId: string; stage: Stage }
-  | { page: "review"; timelineId: string | null; at?: CutPosition | null }
   | { page: "plan"; dayId: string | null }
   | { page: "metadata"; field: MetaField }
   | { page: "timeline"; timelineId: string | null; at?: CutPosition | null }
@@ -53,7 +52,6 @@ export function parseRoute(hash: string): Route {
         return { page: "shot", shotId: parts[1], stage: st === "rigs" || st === "position" || st === "compose" ? st : "photo" };
       }
       return { page: "shots", viewId: q.get("view") };
-    case "review": return { page: "review", timelineId: parts[1] ?? null, at: parts[1] ? parseCutPosition(q) : null };
     case "plan": return { page: "plan", dayId: parts[1] ?? null };
     case "metadata": return { page: "metadata", field: (META_FIELDS as readonly string[]).includes(parts[1]) ? (parts[1] as MetaField) : "location" };
     case "timeline": return { page: "timeline", timelineId: parts[1] ?? null, at: parts[1] ? parseCutPosition(q) : null };
@@ -70,7 +68,6 @@ export function routeHash(r: Route): string {
   switch (r.page) {
     case "shots": return r.viewId ? `#/shots?view=${r.viewId}` : "#/shots";
     case "shot": return `#/shots/${r.shotId}${r.stage === "photo" ? "" : `?stage=${r.stage}`}`;
-    case "review": return r.timelineId ? `#/review/${r.timelineId}${cutQuery(r.at)}` : "#/review";
     case "plan": return r.dayId ? `#/plan/${r.dayId}` : "#/plan";
     case "metadata": return `#/metadata/${r.field}`;
     case "timeline": return r.timelineId ? `#/timeline/${r.timelineId}${cutQuery(r.at)}` : "#/timeline";
@@ -96,10 +93,10 @@ export function useRoute(): [Route, (r: Route) => void, (r: Route) => void] {
  * Keep the cut position in the URL without a navigation: replaceState fires no hashchange, so
  * nothing re-renders and no history entry is added; reloading or copying the URL lands here.
  */
-export function writeCutPosition(page: "review" | "timeline", timelineId: string, at: CutPosition) {
+export function writeCutPosition(timelineId: string, at: CutPosition) {
   const [path] = location.hash.split("?");
   // Only while the URL still shows this cut (a late write must not land on the shot view).
-  if (decodeURIComponent(path) !== `#/${page}/${timelineId}`) return;
+  if (decodeURIComponent(path) !== `#/timeline/${timelineId}`) return;
   const h = path + cutQuery(at);
   if (h !== location.hash) history.replaceState(history.state, "", h);
 }

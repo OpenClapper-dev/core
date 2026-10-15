@@ -266,7 +266,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   /** Direct upload: queue without tags; if that fails the draft opens in Tag instead of being lost. */
   function finishDraft(d: CaptureDraft) {
     store.saveCaptureDraft(d);
-    if (queueDraft(d, EMPTY_TAGS, null)) { store.saveCaptureDraft(null); toast("Queued untagged · tag it later in Review", "neutral"); }
+    if (queueDraft(d, EMPTY_TAGS, null)) { store.saveCaptureDraft(null); toast("Queued untagged · tag it later in History", "neutral"); }
     else setDraft(d);
   }
 

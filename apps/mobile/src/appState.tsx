@@ -4,7 +4,7 @@ import type { ShotsData } from "./shots";
 import type { LocationEntry, ProjectEntry, Settings, SpotEntry } from "./types";
 
 /** The five tabs. Everything else is a pushed full screen (Route) or a sheet. */
-export type Tab = "shoot" | "review" | "shots" | "day" | "setup";
+export type Tab = "shoot" | "history" | "shots" | "day" | "setup";
 
 /**
  * Full screens pushed over the tabs (tab bar hidden). Android back pops one. Screens with their
