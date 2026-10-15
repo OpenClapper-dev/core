@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Phone against the LOCAL Worker: wrangler dev behind a Cloudflare quick tunnel (WSL2 in NAT
-# mode is not reachable from the phone), then Metro with the tunnel URL baked into the bundle.
+# make mobile: the phone against the LOCAL Worker. wrangler dev behind a Cloudflare quick tunnel
+# (WSL2 in NAT mode is not reachable from the phone), then Metro with the tunnel URL baked in.
 # The URL changes every run; the phone keeps its local data under the "local" storage scope,
 # apart from production's. Ctrl-C stops Metro and the Worker.
 set -euo pipefail
