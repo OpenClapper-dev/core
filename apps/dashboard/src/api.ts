@@ -1,5 +1,5 @@
 /** Same-origin API; the Access session cookie is sent automatically. */
-import type { Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
+import type { ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
 export type { ClipGroup } from "@fielder/vocab";
 export type { FieldDefinition };
 export type ShotState = "unreviewed" | "approved" | "archived";
@@ -312,3 +312,9 @@ export const deleteSpot = (id: string) => send<{ deleted: string }>("DELETE", `/
 export const fetchViews = () => get<{ views: SavedView[] }>("/api/views").then((r) => r.views);
 export const putView = (v: { id: string; project_id: string; name: string; filter: FilterGroup }) => send<{ view: SavedView }>("PUT", `/api/views/${v.id}`, { project_id: v.project_id, name: v.name, filter: v.filter }).then((r) => r.view);
 export const deleteView = (id: string) => send<{ deleted: string }>("DELETE", `/api/views/${id}`).then(() => undefined);
+
+/** A viewfinder layout made here for the phone (issue #49). */
+export interface LayoutRecord { id: string; name: string; layout: ViewfinderLayout; created_at: string; updated_at: string | null }
+export const fetchLayouts = () => get<{ layouts: LayoutRecord[] }>("/api/viewfinder-layouts").then((r) => r.layouts);
+export const putLayout = (l: { id: string; name: string; layout: ViewfinderLayout }) => send<{ layout: LayoutRecord }>("PUT", `/api/viewfinder-layouts/${l.id}`, { name: l.name, layout: l.layout }).then((r) => r.layout);
+export const deleteLayout = (id: string) => send<{ deleted: string }>("DELETE", `/api/viewfinder-layouts/${id}`).then(() => undefined);

@@ -10,10 +10,11 @@ import { clearLog, logCount, logText, setLogging } from "../log";
 import { useRigs } from "../rigs";
 import { store } from "../storage";
 import type { GpsMode, HudChips, Settings } from "../types";
-import { Block, BORDER, Button, Chip, ChipCell, ChipGrid, ChipRow, confirm, ErrorText, FIXED, Hint, Input, makeStyles, num, PushScreen, SectionLabel, Seg, toast, Toggle, type } from "../ui";
+import { Block, BORDER, Button, ListRow, Chip, ChipCell, ChipGrid, ChipRow, confirm, ErrorText, FIXED, Hint, Input, makeStyles, num, PushScreen, SectionLabel, Seg, toast, Toggle, type } from "../ui";
 import { HudChip } from "../components/Hud";
 import { Overlay } from "../components/Overlay";
 import { ShotFrame } from "../components/ShotFrame";
+import { OptionSheet } from "../components/OptionSheet";
 
 /** Frame colours on offer (values stored in settings; they draw over the camera image, not the UI). */
 export const BORDER_COLORS: { value: string; label: string }[] = [
@@ -54,6 +55,7 @@ export function ViewfinderSettings() {
   const W = 320, H = 240;
   const overlay = useMemo(() => (active ? computeOverlay(st, active, store.loadLensMm(), { width: W, height: H }, false) : null), [st, active]);
   const chip = (k: keyof HudChips, v: boolean) => set("hudChips", { ...st.hudChips, [k]: v });
+  const [layoutSheet, setLayoutSheet] = useState(false);
 
   return (
     <PushScreen title="Viewfinder" sub="Changes show on the preview" scroll={false}>
@@ -72,6 +74,8 @@ export function ViewfinderSettings() {
       </View>
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+          <ListRow icon="view-dashboard-edit-outline" title="Layout" meta={app.layouts.find((l) => l.id === st.viewfinderLayoutId)?.name ?? "Default"} onPress={() => setLayoutSheet(true)} />
+          <Block><Hint>Where the buttons go: layouts are made on the dashboard (Library › Viewfinder) and arrive with the next sync.</Hint></Block>
           <Block><SectionLabel>HUD chips · show on the camera image</SectionLabel></Block>
           {HUD.map((h) => <Toggle key={h.key} icon={h.icon} label={h.label} meta={h.meta} value={st.hudChips[h.key]} onChange={(v) => chip(h.key, v)} />)}
           <Toggle icon="fit-to-screen-outline" label="Fit to frame" meta="Digital zoom so the rig frame fills the screen; also the Fit button" value={st.fitToFrame} onChange={(v) => set("fitToFrame", v)} />
@@ -93,6 +97,8 @@ export function ViewfinderSettings() {
           </Block>
         </ScrollView>
       </View>
+      <OptionSheet visible={layoutSheet} title="Viewfinder layout" options={[{ id: "__default__", label: "Default" }, ...app.layouts.map((l) => ({ id: l.id, label: l.name }))]}
+        value={[st.viewfinderLayoutId ?? "__default__"]} onChange={(ids) => { set("viewfinderLayoutId", ids[0] && ids[0] !== "__default__" ? ids[0] : null); setLayoutSheet(false); }} onClose={() => setLayoutSheet(false)} />
     </PushScreen>
   );
 }

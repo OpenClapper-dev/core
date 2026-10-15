@@ -1,8 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
 
 export type Stage = "photo" | "rigs" | "position" | "compose";
-export type LibrarySection = "projects" | "fields" | "rigs" | "locations";
-export const LIBRARY_SECTIONS: readonly LibrarySection[] = ["projects", "fields", "rigs", "locations"];
+export type LibrarySection = "projects" | "fields" | "rigs" | "locations" | "viewfinder";
+export const LIBRARY_SECTIONS: readonly LibrarySection[] = ["projects", "fields", "rigs", "locations", "viewfinder"];
 
 /**
  * A position in a cut (issue #35): the playhead (`t`, seconds) and the inline tool open on the

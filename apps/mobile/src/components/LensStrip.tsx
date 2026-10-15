@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import { lensList } from "../lens";
-import { BORDER, makeStyles, num, RADIUS, type, useTheme } from "../ui";
+import { lensList, stepLens } from "../lens";
+import { BORDER, Icon, makeStyles, num, RADIUS, type, useTheme } from "../ui";
 import type { LensRange } from "../types";
 
 interface Props {
@@ -71,4 +71,35 @@ const useStyles = makeStyles((c) => ({
   mmOn: { fontFamily: type("title", "heavy").fontFamily, color: c.onAccent, lineHeight: 24 },
   unit: { ...type("caption", "bold"), fontSize: 11, lineHeight: 12, color: c.onAccent },
   struck: { textDecorationLine: "line-through" },
+  carousel: { alignItems: "center", gap: 4 },
+  arrow: { width: 48, height: 48, borderRadius: RADIUS.pill, alignItems: "center", justifyContent: "center" },
 }));
+
+/**
+ * The lens as one value between previous / next buttons (issue #49, "Carousel"): less room than the
+ * strip. Previous and next follow the strip's order (shorter first); tapping the value opens the Lens sheet.
+ */
+export function LensCarousel({ lensMm, onChange, vertical, range, onPressValue }: Props) {
+  const s = useStyles();
+  const { c } = useTheme();
+  const values = lensList(range);
+  const outside = !!range && (lensMm < range.min || lensMm > range.max);
+  const step = (dir: -1 | 1) => { const n = stepLens(values, lensMm, dir); if (n !== lensMm) onChange(n); };
+  const arrow = (dir: -1 | 1) => (
+    <Pressable onPress={() => step(dir)} accessibilityRole="button" accessibilityLabel={dir < 0 ? "Shorter lens" : "Longer lens"}
+      style={({ pressed }) => [s.arrow, pressed && { backgroundColor: c.surfaceSunken }]}>
+      <Icon name={vertical ? (dir < 0 ? "chevron-up" : "chevron-down") : dir < 0 ? "chevron-left" : "chevron-right"} size={28} color={c.chromeText} />
+    </Pressable>
+  );
+  return (
+    <View style={[s.carousel, vertical ? s.col : s.row]}>
+      {arrow(-1)}
+      <Pressable onPress={onPressValue} accessibilityRole="button" accessibilityLabel={`Lens ${lensMm} mm${outside ? ", outside the rig's range" : ""}. Tap for any focal length`}
+        style={[s.val, vertical && s.valCol, s.valOn]}>
+        <Text style={[s.mm, s.mmOn, outside && s.struck]}>{lensMm}</Text>
+        <Text style={[s.unit, outside && s.struck]}>mm</Text>
+      </Pressable>
+      {arrow(1)}
+    </View>
+  );
+}

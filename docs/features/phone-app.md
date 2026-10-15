@@ -35,7 +35,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 - Rows, each with its current value; every row opens a screen, and settings save on change:
   - **Project**: opens the Project sheet.
   - **Rigs & lenses**: the rig list; tap a rig to edit it, "New rig" is pinned.
-  - **Viewfinder**: a pinned preview (the latest shot, or black, with the current frame, blackout, human frame and HUD chips) above:
+  - **Viewfinder**: the **Layout** ([viewfinder layouts](viewfinder-layouts.md), made on the dashboard), a pinned preview (the latest shot, or black, with the current frame, blackout, human frame and HUD chips) above:
     - one switch per HUD chip (Project, Rig and lens, FOV, GPS accuracy, Warnings)
     - Fit
     - frame colour and width

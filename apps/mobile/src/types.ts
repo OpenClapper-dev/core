@@ -44,6 +44,8 @@ export interface Settings {
   phoneCalibration: "auto" | "manual";
   /** The phone model the auto value came from (EXIF), for Setup; null before the first capture. */
   phoneModel: string | null;
+  /** The viewfinder layout made on the dashboard (issue #49); null = the shipped default. */
+  viewfinderLayoutId: string | null;
   borderColor: string;
   borderWidthPx: number;
   blackoutEnabled: boolean;
@@ -130,6 +132,9 @@ export interface LocationEntry {
   /** false until the Worker has acknowledged the PUT. */
   synced: boolean;
 }
+
+/** A viewfinder layout as cached from the server (issue #49). */
+export interface LayoutEntry { id: string; name: string; layout: unknown }
 
 /** A named place within a location (issue #44). Created on the phone like locations, offline too. */
 export interface SpotEntry {

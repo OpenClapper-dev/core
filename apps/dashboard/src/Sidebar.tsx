@@ -46,9 +46,9 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
       {count !== undefined && (warn ? count > 0 && <span class="f-nav__count f-nav__count--warn">{count}</span> : !rail && <span class="f-nav__count">{count}</span>)}
     </a>
   );
-  const sub = (s: LibrarySection, text: string, count: number) => (
+  const sub = (s: LibrarySection, text: string, count?: number) => (
     <a class={cx("f-nav f-nav--sub", lib === s && "is-current")} href="#" onClick={(e) => { e.preventDefault(); onNavigate({ page: "library", section: s, id: null }); }}>
-      <span class="f-nav__txt">{text}</span><span class="f-nav__count">{count}</span>
+      <span class="f-nav__txt">{text}</span>{count !== undefined && <span class="f-nav__count">{count}</span>}
     </a>
   );
   return (
@@ -70,6 +70,7 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
           {sub("fields", "Fields", counts.fields)}
           {sub("rigs", "Rigs", counts.rigs)}
           {sub("locations", "Locations", counts.locations)}
+          {sub("viewfinder", "Viewfinder")}
         </>
       )}
       {!rail && (
