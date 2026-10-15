@@ -30,7 +30,7 @@
 - On the phone the buttons and the lens strip are inert (no capture, no toggles); a chip "Dashboard preview · buttons off · tap to leave" ends it from the phone. Closing the editor, or the phone going to the background, ends it too; a phone that comes back while the editor still previews gets the layout again.
 - Nothing is saved: the preview is a look at the draft, the phone's own layout choice is untouched.
 - Worker: `GET /api/preview/socket?role=phone|dashboard` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a dashboard is connected.
-- Test it against local data with `make mobile-local` + `make dashboard` ([development](../development.md)).
+- Test it against local data with `make mobile` + `make dashboard` ([development](../development.md)).
 
 ## Not done
 

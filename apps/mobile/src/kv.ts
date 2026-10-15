@@ -4,7 +4,7 @@ import { STORAGE_SCOPE } from "./config";
 
 /**
  * The phone's key-value store, scoped to the server it talks to. Expo Go keeps one store per
- * project, so a bundle pointed at the local Worker (`make mobile-local`) would otherwise see the
+ * project, so a bundle pointed at the local Worker (`make mobile`) would otherwise see the
  * production upload queue and upload those captures to the wrong server. Production keeps the
  * bare keys; any other scope prefixes them.
  */

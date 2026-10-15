@@ -9,8 +9,7 @@
     "dev:worker": "pnpm -C apps/worker dev",
     "dev:seed": "node scripts/seed-local.mjs",
     "dev:dashboard": "pnpm -C apps/dashboard dev",
-    "dev:mobile": "pnpm -C apps/mobile start",
-    "dev:mobile-local": "bash scripts/mobile-local.sh",
+    "dev:mobile": "bash scripts/mobile.sh",
     "wrangler": "wrangler"
   },
   "devDependencies": {
