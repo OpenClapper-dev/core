@@ -23,7 +23,15 @@
 - Lens strip **Carousel** (`LensCarousel`): previous · the value (tap: Lens sheet) · next, in the strip's order. **Fill** takes the bar's remaining length and scrolls; buttons next to it keep a fixed 56 dp cell. Without a filling strip the buttons share the bar, as before.
 - In landscape the first left bar gets the cutout clearance.
 
+## Live preview on the phone (#50)
+
+- While the app is in the foreground, signed in and not in offline mode, the phone keeps a websocket to the Worker (`src/preview.ts`, reconnects after 2 / 5 / 15 / 30 s). The layout editor opens one too (`phonePreview.ts`); the toolbar says "Phone connected" or not.
+- **Preview on phone** (editor head, needs a connected phone and a valid layout) shows the layout being edited on the phone: Shoot comes to the front with those bars, in the orientation picked in the editor (it overrides the phone's orientation setting), and follows every edit and orientation switch within ~120 ms, also after switching to another layout. **Stop phone preview** ends it.
+- On the phone the buttons and the lens strip are inert (no capture, no toggles); a chip "Dashboard preview · buttons off · tap to leave" ends it from the phone. Closing the editor, or the phone going to the background, ends it too; a phone that comes back while the editor still previews gets the layout again.
+- Nothing is saved: the preview is a look at the draft, the phone's own layout choice is untouched.
+- Worker: `GET /api/preview/socket?role=phone|dashboard` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a dashboard is connected.
+- Test it against local data with `make mobile-local` + `make dashboard` ([development](../development.md)).
+
 ## Not done
 
-- Live preview of an edited layout on the phone: [#50](https://github.com/bubulux/fielder/issues/50).
 - A magnification control (multi-lens, #26) joins the item list when it exists.

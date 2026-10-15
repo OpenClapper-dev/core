@@ -15,6 +15,7 @@ import { isSignedIn, onAuthChange } from "./src/auth";
 import { isConfigured } from "./src/config";
 import { setLogging } from "./src/log";
 import { setOfflineMode, useOnline } from "./src/net";
+import { useLivePreview } from "./src/preview";
 import { useShots } from "./src/shots";
 import { store, usePref } from "./src/storage";
 import type { LayoutEntry, LocationEntry, ProjectEntry, Settings, SpotEntry } from "./src/types";
@@ -80,6 +81,9 @@ function App() {
   const [mapFocus, setMapFocus] = useState<string | null>(null);
   const shots = useShots(project?.id ?? null);
   const online = useOnline();
+  const live = useLivePreview(!settings.offlineMode);
+  // A preview from the dashboard brings the Shoot screen to the front.
+  useEffect(() => { if (live.preview) { setStack([]); setTab("shoot"); } }, [!!live.preview]);
   // Sign-in gate on launch without a session, and again whenever a request finds the session gone.
   // "web" is the PIN page opened from the gate; "webApp" the same page opened from inside the app (cancel returns there).
   const [login, setLogin] = useState<"gate" | "web" | "webApp" | null>(() => (isConfigured && !isSignedIn() ? "gate" : null));
@@ -116,15 +120,17 @@ function App() {
   const wasOnline = useRef(online);
   useEffect(() => { if (online && !wasOnline.current && isSignedIn()) void shots.load(); wasOnline.current = online; }, [online]);
 
+  // The dashboard owns the orientation while it previews a layout.
+  const previewOrientation = live.preview?.orientation ?? null;
   useEffect(() => {
-    const lock = settings.orientationLock;
+    const lock = previewOrientation ?? settings.orientationLock;
     const p = lock === "landscape"
       ? ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
       : lock === "portrait"
         ? ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
         : ScreenOrientation.unlockAsync();
     p.catch((e) => console.warn("orientation lock failed", e));
-  }, [settings.orientationLock]);
+  }, [settings.orientationLock, previewOrientation]);
 
   const push = useCallback((r: Route) => setStack((s) => [...s, r]), []);
   const pop = useCallback(() => setStack((s) => s.slice(0, -1)), []);
@@ -158,12 +164,13 @@ function App() {
 
   const state: AppState = useMemo(() => ({
     settings, setSettings, project, projects, shots, locations, setLocations, spots, setSpots, layouts, countAt,
+    preview: live.preview, exitPreview: live.exit,
     tab, setTab: (t: Tab) => { setStack([]); setMapFocus(null); setTab(t); }, push, pop,
     openProjectSheet: () => setProjectSheet(true),
     signIn: () => setLogin("webApp"),
     shotsView, setShotsView, mapFocus,
     showOnMap: (id: string) => { setMapFocus(id); setShotsView("map"); setStack([]); setTab("shots"); },
-  }), [settings, project, projects, shots, locations, spots, layouts, countAt, tab, push, pop, shotsView, mapFocus]);
+  }), [settings, project, projects, shots, locations, spots, layouts, live.preview, countAt, tab, push, pop, shotsView, mapFocus]);
 
   const unreviewed = (shots.shots ?? []).filter((s) => s.state === "unreviewed").length;
   // The tab bar sits on the navigation-bar edge; keep at least the edge pad clear of it.

@@ -135,8 +135,9 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
     return () => { cancelled = true; sub?.remove(); };
   }, [tabActive, locPerm?.granted, gpsMode]);
 
-  // The bars come from the chosen viewfinder layout (issue #49); the preview fits between them.
-  const vfLayout = resolveLayout(settings.viewfinderLayoutId, app.layouts);
+  // The bars come from the chosen viewfinder layout (issue #49), or from the dashboard while it previews one (#50).
+  const vfLayout = app.preview?.layout ?? resolveLayout(settings.viewfinderLayoutId, app.layouts);
+  const inert = !!app.preview;
   const bars = portrait ? vfLayout.portrait : vfLayout.landscape;
   const startBars = bars.bars.filter((b) => b.edge === "start");
   const endBars = bars.bars.filter((b) => b.edge === "end");
@@ -402,7 +403,8 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   };
   const bar = (b: VfBar) => {
     const fixed = b.items.some((i) => i.control === "lens" && i.size !== "fit");
-    return <View key={b.id} style={vertical ? s.barV : [s.row, { height: rowHeight(b) }]}>{b.items.map((i) => barItem(i, fixed))}</View>;
+    // In a dashboard preview the buttons only show where they would be: no capture, no toggles.
+    return <View key={b.id} pointerEvents={inert ? "none" : "auto"} style={[vertical ? s.barV : [s.row, { height: rowHeight(b) }], inert && s.inert]}>{b.items.map((i) => barItem(i, fixed))}</View>;
   };
   const sideBar = (b: VfBar, start: boolean, first: boolean) => {
     const pad = start && first ? lensPad : 0;
@@ -412,6 +414,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
 
   const hud = (
     <View style={[s.hud, !portrait && { justifyContent: "center" }]} pointerEvents="box-none">
+      {inert && <HudChip icon="cellphone-play" kind="warn" onPress={app.exitPreview} label="Layout preview from the dashboard, buttons off. Tap to leave">Dashboard preview · buttons off · tap to leave</HudChip>}
       {project && chips.project && <HudChip icon="folder-outline" onPress={app.openProjectSheet} label={`Project ${project.name}, tap to switch`}>{project.name}</HudChip>}
       {!project && chips.warnings && <HudChip icon="folder-alert-outline" kind="danger" onPress={app.openProjectSheet} label="No project, tap to pick">No project</HudChip>}
       {rig && chips.rig && <HudChip icon="camera-outline">{rig.name} · {lensMm} mm{rig.speedboosterFactor !== 1 ? ` ×${rig.speedboosterFactor}` : ""}</HudChip>}
@@ -523,6 +526,7 @@ const useStyles = makeStyles((c) => ({
   side: { backgroundColor: c.chromeBg, borderColor: c.chromeBorder },
   sideStart: { borderRightWidth: BORDER.control },
   sideEnd: { borderLeftWidth: BORDER.control },
+  inert: { opacity: 0.85 },
   barV: { flex: 1, flexDirection: "column", alignItems: "center" },
   lensFill: { flex: 1, alignSelf: "stretch", justifyContent: "center", alignItems: "center" },
   lensFit: { justifyContent: "center", alignItems: "center" },

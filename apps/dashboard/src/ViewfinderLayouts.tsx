@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { DEFAULT_VIEWFINDER_LAYOUT, unplaced, validateViewfinderLayout, VF_CONTROL_LABELS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem, type VfOrientation, type VfOrientationName, type ViewfinderLayout } from "@fielder/vocab";
 import { deleteLayout, fetchLayouts, putLayout, type LayoutRecord } from "./api";
+import { usePhonePreview, type PhonePreview } from "./phonePreview";
 import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, Panel, PanelBody, PanelHead, promptDialog, ReorderButtons, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
 
 /**
  * Library › Viewfinder (issue #49): layouts for the phone's Shoot screen. Which controls show, in which
  * bars, per orientation; the phone picks one in Setup → Viewfinder. The built-in Default is today's
  * arrangement: it can't be changed, but every layout can be reset to it. The preview follows the
- * phone's sizes (vfLayout.ts there), on a phone, tablet or custom-size screen.
+ * phone's sizes (vfLayout.ts there), on a phone, tablet or custom-size screen. "Preview on phone"
+ * (issue #50) shows the layout being edited on the real phone, live, in the orientation picked here.
  */
 
 const DEFAULT_ID = "__default__";
@@ -28,6 +30,7 @@ function readPrefs(): { viewport: Viewport; w: number; h: number } {
 export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string | null) => void }) {
   const [list, setList] = useState<LayoutRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const phone = usePhonePreview();
   useEffect(() => { fetchLayouts().then(setList).catch((e: Error) => setError(e.message)); }, []);
   const sel = selectedId ?? DEFAULT_ID;
   const current = list?.find((l) => l.id === sel) ?? null;
@@ -51,6 +54,7 @@ export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: st
       <Toolbar>
         <ToolbarTitle count={list.length + 1}>Viewfinder layouts</ToolbarTitle>
         <span class="meta">The phone picks one in Setup → Viewfinder → Layout.</span>
+        <span class="meta">· {phone.phones ? "Phone connected" : "No phone connected"}</span>
         <ToolbarSpacer />
         <Button size="sm" icon="plus" onClick={() => void newLayout(DEFAULT_VIEWFINDER_LAYOUT, "My layout")}>New layout</Button>
       </Toolbar>
@@ -62,8 +66,8 @@ export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: st
           </PanelBody>
         </Panel>
         {sel === DEFAULT_ID || !current
-          ? <Editor key="default" record={null} onDuplicate={() => void newLayout(DEFAULT_VIEWFINDER_LAYOUT, "My layout")} />
-          : <Editor key={current.id} record={current} onDuplicate={() => void newLayout(current.layout, `${current.name} (copy)`)}
+          ? <Editor key="default" record={null} phone={phone} onDuplicate={() => void newLayout(DEFAULT_VIEWFINDER_LAYOUT, "My layout")} />
+          : <Editor key={current.id} record={current} phone={phone} onDuplicate={() => void newLayout(current.layout, `${current.name} (copy)`)}
               onSaved={(r) => setList((cur) => (cur ?? []).map((x) => (x.id === r.id ? r : x)))}
               onDeleted={() => { setList((cur) => (cur ?? []).filter((x) => x.id !== current.id)); onSelect(null); }} />}
       </div>
@@ -73,7 +77,7 @@ export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: st
 
 const summary = (l: ViewfinderLayout) => `${l.portrait.bars.length} bar${l.portrait.bars.length === 1 ? "" : "s"} portrait · ${l.landscape.bars.length} landscape`;
 
-function Editor({ record, onDuplicate, onSaved, onDeleted }: { record: LayoutRecord | null; onDuplicate: () => void; onSaved?: (r: LayoutRecord) => void; onDeleted?: () => void }) {
+function Editor({ record, phone, onDuplicate, onSaved, onDeleted }: { record: LayoutRecord | null; phone: PhonePreview; onDuplicate: () => void; onSaved?: (r: LayoutRecord) => void; onDeleted?: () => void }) {
   const [layout, setLayout] = useState<ViewfinderLayout>(() => clone(record?.layout ?? DEFAULT_VIEWFINDER_LAYOUT));
   const [name, setName] = useState(record?.name ?? "Default");
   const [orient, setOrient] = useState<VfOrientationName>("portrait");
@@ -97,6 +101,12 @@ function Editor({ record, onDuplicate, onSaved, onDeleted }: { record: LayoutRec
   };
   const change = (l: ViewfinderLayout) => { setLayout(l); persist(l, name); };
   const o = layout[orient];
+  // While the phone previews, it follows every edit and the orientation picked here (also after switching layouts).
+  useEffect(() => {
+    if (!phone.previewing || err) return;
+    const t = setTimeout(() => phone.show(layout, orient), 120);
+    return () => clearTimeout(t);
+  }, [phone.previewing, layout, orient, !!err]);
   const setO = (next: VfOrientation) => change({ ...layout, [orient]: next });
 
   async function remove() {
@@ -130,6 +140,11 @@ function Editor({ record, onDuplicate, onSaved, onDeleted }: { record: LayoutRec
               </span>
             )}
             <div class="plan-head__status">
+              {phone.previewing
+                ? <Button kind="secondary" size="sm" icon="cellphone-off" onClick={phone.stop}>Stop phone preview</Button>
+                : <Button kind="secondary" size="sm" icon="cellphone-play" disabled={!phone.phones || !!err}
+                    title={!phone.connected ? "Not connected to the server" : !phone.phones ? "No phone connected: open the app on the phone" : err ? "Fix the layout first" : "Show this layout on the phone, live"}
+                    onClick={() => phone.show(layout, orient)}>Preview on phone</Button>}
               {!readOnly && <SaveStatus state={save} onRetry={() => persist(layout, name)} />}
               {readOnly ? <Button size="sm" icon="content-copy" onClick={onDuplicate}>Duplicate to edit</Button> : (
                 <>

@@ -1,6 +1,7 @@
 import { createContext, useContext } from "react";
 import type { Shot, ShootingDay } from "./api";
 import type { ShotsData } from "./shots";
+import type { LivePreview } from "./preview";
 import type { LayoutEntry, LocationEntry, ProjectEntry, Settings, SpotEntry } from "./types";
 
 /** The five tabs. Everything else is a pushed full screen (Route) or a sheet. */
@@ -39,6 +40,9 @@ export interface AppState {
   setSpots: (l: SpotEntry[]) => void;
   /** Viewfinder layouts from the dashboard (cached; refreshed by every flush). */
   layouts: LayoutEntry[];
+  /** The dashboard is showing a layout on this phone (issue #50): Shoot renders it, inert. */
+  preview: LivePreview | null;
+  exitPreview: () => void;
   /** Shots at a location (uploaded + queued). */
   countAt: (locationId: string) => number;
   tab: Tab;
