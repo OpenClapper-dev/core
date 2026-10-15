@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { extraFilterFields, type FieldDef } from "@fielder/vocab";
-import { deleteView, onProjectCreated, fetchAllShots, fetchFields, fetchLocations, fetchPresets, fetchProjects, fetchViews, putView, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type ShootingDay } from "./api";
+import { deleteView, onProjectCreated, fetchAllShots, fetchFields, fetchLocations, fetchPresets, fetchProjects, fetchSpots, fetchViews, putView, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type ShootingDay, type Spot } from "./api";
 import { CommandPalette, ShortcutSheet, type Command } from "./CommandPalette";
 import { FieldsPage } from "./Fields";
 import { FRAME_MODES, isFrameMode } from "./format";
@@ -50,6 +50,8 @@ export function App() {
   const [presets, setPresets] = useState<Preset[] | null>(null);
   const [locations, setLocations] = useState<Location[] | null>(null);
   const [views, setViews] = useState<SavedView[] | null>(null);
+  const [spots, setSpotsState] = useState<Spot[] | null>(null);
+  const setSpots = (update: (cur: Spot[]) => Spot[]) => setSpotsState((cur) => update(cur ?? []));
   const [fields, setFields] = useState<FieldDefinition[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<Date | null>(null);
@@ -74,11 +76,11 @@ export function App() {
   const setMask = (m: MaskMode) => { setMaskState(m); writeStorage("maskMode", m); };
   const setScope = (s: string) => { setStoredScope(s); writeStorage("project", s); };
 
-  const load = () => Promise.all([fetchAllShots().then(setShots), fetchProjects().then(setProjects), fetchPresets().then(setPresets), fetchLocations().then(setLocations), fetchViews().then(setViews), fetchFields().then(setFields)])
+  const load = () => Promise.all([fetchAllShots().then(setShots), fetchProjects().then(setProjects), fetchPresets().then(setPresets), fetchLocations().then(setLocations), fetchSpots().then(setSpotsState), fetchViews().then(setViews), fetchFields().then(setFields)])
     .then(() => { setError(null); setLoadedAt(new Date()); })
     .catch((e: Error) => setError(e.message));
   const reload = () => { void load().then(() => toast("Reloaded", "info")); };
-  const refreshCounts = () => { void fetchLocations().then(setLocations).catch(() => {}); void fetchProjects().then(setProjects).catch(() => {}); };
+  const refreshCounts = () => { void fetchLocations().then(setLocations).catch(() => {}); void fetchSpots().then(setSpotsState).catch(() => {}); void fetchProjects().then(setProjects).catch(() => {}); };
   useEffect(() => { void load(); }, []);
   // A project created inline (move, bulk edit) joins the list at once; counts follow with the next refresh.
   useEffect(() => onProjectCreated((p) => setProjects((cur) => (cur ?? []).some((x) => x.id === p.id) ? cur : [...(cur ?? []), p].sort((a, b) => a.name.localeCompare(b.name)))), []);
@@ -101,7 +103,8 @@ export function App() {
   const projectFields = useMemo(() => (fields ?? []).filter((f) => f.project_id === scope), [fields, scope]);
   const setProjectFields = (list: FieldDefinition[]) => setFields((cur) => [...(cur ?? []).filter((f) => f.project_id !== scope), ...list]);
   const extra = useMemo(() => extraFilterFields(scope ? fieldsOf(scope) : []), [scope, fields]);
-  const ctx = { projects: projects ?? [], locations: projectLocations, presets: presets ?? [], extra };
+  const projectSpots = useMemo(() => { const ids = new Set(projectLocations.map((l) => l.id)); return (spots ?? []).filter((sp) => ids.has(sp.location_id)); }, [spots, projectLocations]);
+  const ctx = { projects: projects ?? [], locations: projectLocations, spots: projectSpots, presets: presets ?? [], extra };
 
   // Saved views: the route's view loads into the query; edits mark it "Edited" until saved or reverted.
   const viewId = route.page === "shots" ? route.viewId : null;
@@ -206,7 +209,7 @@ export function App() {
     },
   }, !palette && !sheet);
 
-  const loaded = !!shots && !!projects && !!presets && !!locations && !!views && !!fields;
+  const loaded = !!shots && !!projects && !!presets && !!locations && !!spots && !!views && !!fields;
   if (loaded && !scope) {
     return <><ProjectGate projects={projects!} onChange={setProjects} onActivate={setScope} /><ConfirmHost /><ToastHost /></>;
   }
@@ -229,7 +232,7 @@ export function App() {
     main = openShotObj
       ? <ShotView shot={openShotObj} list={listForShot} onNavigate={(s) => replace({ page: "shot", shotId: s.id, stage: route.stage })}
           context={{ line: shotLine, onBack: () => navigateRaw(returnTo), backLabel }} stage={route.stage} onStage={(st) => replace({ ...route, stage: st })}
-          mode={viewMode} onMode={setViewMode} projects={projects!} presets={presets!} fieldsOf={fieldsOf} locations={locationsOf(openShotObj.project_id)} onLocations={setLocationsOf(openShotObj.project_id)}
+          mode={viewMode} onMode={setViewMode} projects={projects!} presets={presets!} fieldsOf={fieldsOf} locations={locationsOf(openShotObj.project_id)} onLocations={setLocationsOf(openShotObj.project_id)} spots={spots ?? []} onSpots={setSpots}
           onUpdated={updated}
           onDeleted={(id) => { const i = listForShot.findIndex((s) => s.id === id); const n = listForShot[i + 1] ?? listForShot[i - 1]; deleted([id]); if (n) replace({ page: "shot", shotId: n.id, stage: "photo" }); else navigateRaw(returnTo); }}
           onShowOnMap={showOnMap} onOpenDay={openDay} onOpenTimeline={openTimeline} />
@@ -267,7 +270,7 @@ export function App() {
       main = <RigsPage presets={presets!} shots={shots!} onChange={setPresets} selectedId={sel} onSelect={setSel} />;
       hints = [{ k: "J/K", t: "Move" }, { k: "↵", t: "Edit" }, { k: "⌘S", t: "Save rig" }, { k: "Esc", t: "Close editor" }];
     } else {
-      main = <LocationsPage locations={projectLocations} shots={scoped} onChange={setProjectLocations} onShotsChanged={() => void fetchAllShots().then(setShots).catch(() => {})} onShowShots={showLocationShots} />;
+      main = <LocationsPage locations={projectLocations} shots={scoped} onChange={setProjectLocations} spots={spots ?? []} onSpots={setSpots} onShotsChanged={() => void fetchAllShots().then(setShots).catch(() => {})} onShowShots={showLocationShots} />;
       hints = [{ k: "J/K", t: "Move" }, { k: "F2", t: "Rename" }, { k: "↵", t: "Show shots" }, { k: "Del", t: "Delete" }, { k: "/", t: "Filter" }];
     }
   } else {

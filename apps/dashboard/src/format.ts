@@ -19,7 +19,7 @@ export function rigLabel(p: Photo): string {
 
 /** "Name" or, for shots without tags, the rig label. */
 export const shotTitle = (s: Shot): string => s.name?.trim() || rigLabel(cover(s));
-export const placeLabel = (s: Shot): string => s.location_name ?? "";
+export const placeLabel = (s: Shot): string => [s.location_name, s.spot_name].filter(Boolean).join(" · ");
 export const tagsLabel = (s: Shot): string =>
   [label(s.int_ext), lightLabel(s.light, s.artificial), label(s.weather), cameraLabel(s), extraLabel(s.extra)].filter(Boolean).join(" · ");
 /**
@@ -121,7 +121,7 @@ export function filterable(s: Shot): FilterableShot {
   const p = cover(s);
   const ffEq = p.framing?.full_frame_equivalent_mm;
   return {
-    state: s.state, project_id: s.project_id, name: s.name, location_id: s.location_id, int_ext: s.int_ext,
+    state: s.state, project_id: s.project_id, name: s.name, location_id: s.location_id, spot_id: s.spot_id, int_ext: s.int_ext,
     light: s.light, artificial: s.artificial ? "yes" : "no", weather: s.weather,
     shot_size: s.shot_size, camera_support: s.camera_support, movement: s.movement, has_position: positionOf(s) ? "yes" : "no",
     preset_id: p.preset_id, lens_mm: p.lens_mm, ff_eq_mm: typeof ffEq === "number" ? ffEq : null,

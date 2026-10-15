@@ -1,5 +1,5 @@
 import { emptyFilter, evaluateFilter, filterField, isGroup, label, OP_LABELS, type FilterField, type FilterGroup, type FilterRule } from "@fielder/vocab";
-import type { Location, Preset, Project, Shot, ShotState } from "./api";
+import type { Location, Preset, Project, Shot, ShotState, Spot } from "./api";
 import { cover, filterable, placeLabel, rigLabel, shotTitle } from "./format";
 
 export type StateFilter = ShotState | "all";
@@ -10,7 +10,7 @@ export type Layout = "grid" | "list" | "map";
 export interface ShotsQuery { filter: FilterGroup; state: StateFilter; search: string; sort: Sort }
 export const emptyQuery = (): ShotsQuery => ({ filter: emptyFilter(), state: "all", search: "", sort: "newest" });
 
-export interface RefLists { projects: Project[]; locations: Location[]; presets: Preset[]; extra: readonly FilterField[] }
+export interface RefLists { projects: Project[]; locations: Location[]; spots: Spot[]; presets: Preset[]; extra: readonly FilterField[] }
 
 const stateRule = (s: ShotState): FilterRule => ({ field: "state", op: "is", value: s });
 const isStateRule = (r: FilterRule | FilterGroup): r is FilterRule => !isGroup(r) && r.field === "state" && r.op === "is" && typeof r.value === "string";
@@ -61,7 +61,7 @@ export function runQuery(all: Shot[], q: ShotsQuery, extra: readonly FilterField
 export function fieldOptions(fieldId: string, ctx: RefLists): { value: string; label: string }[] {
   const f = filterField(fieldId, ctx.extra);
   if (!f) return [];
-  if (f.kind === "ref") return (f.ref === "location" ? ctx.locations : ctx.presets).map((x) => ({ value: x.id, label: x.name }));
+  if (f.kind === "ref") return (f.ref === "location" ? ctx.locations : f.ref === "spot" ? ctx.spots.map((sp) => ({ ...sp, name: `${ctx.locations.find((l) => l.id === sp.location_id)?.name ?? "?"} · ${sp.name}` })) : ctx.presets).map((x) => ({ value: x.id, label: x.name }));
   return (f.options ?? []).map((v) => ({ value: v, label: f.id.startsWith("extra.") ? v : label(v) }));
 }
 

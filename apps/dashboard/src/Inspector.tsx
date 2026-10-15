@@ -1,7 +1,7 @@
 import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { CAMERA_SUPPORTS, cameraLabel, droppedKeys, INT_EXT, label, lightLabel, MOVEMENTS, SHOT_SIZE_ABBR, SHOT_SIZES, WEATHER, type Extra, type FieldDef } from "@fielder/vocab";
-import { createProjectNamed, existingIdOf, fetchDays, fetchTimelines, patchShot, putLocation, type Location, type Photo, type Project, type Shot, type ShootingDay, type ShotState, type Timeline } from "./api";
+import { createProjectNamed, existingIdOf, fetchDays, fetchTimelines, patchShot, putLocation, putSpot, type Location, type Photo, type Project, type Shot, type ShootingDay, type ShotState, type Spot, type Timeline } from "./api";
 import { ExtraEditor } from "./ExtraEditor";
 import { coords, fovLabel, placeLabel, rigDescription, shotTitle, sourceLabel } from "./format";
 import { Button, Chip, Combobox, Icon, Input, LightChips, MarkdownField, SaveStatus, Seg, StateMarker, Switch, toast, type SaveState } from "./ui";
@@ -40,6 +40,9 @@ interface Props {
   fieldsOf: (projectId: string) => readonly FieldDef[];
   locations: Location[];
   onLocations: (l: Location[]) => void;
+  /** Every spot; the shot's location's are offered. */
+  spots: Spot[];
+  onSpots: (update: (cur: Spot[]) => Spot[]) => void;
   onUpdated: (s: Shot) => void;
   onState: (state: ShotState) => void;
   stateBusy: boolean;
@@ -51,7 +54,7 @@ interface Props {
 }
 
 /** Right-hand inspector of the shot view and Review: decision, tags (saved per change), facts. */
-export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, onLocations, onUpdated, onState, stateBusy, onCorrect, onCompose, onOpenDay, onOpenTimeline }: Props) {
+export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, onLocations, spots, onSpots, onUpdated, onState, stateBusy, onCorrect, onCompose, onOpenDay, onOpenTimeline }: Props) {
   const [save, setSave] = useState<SaveState>("idle");
   const last = useRef<Parameters<typeof patchShot>[1] | null>(null);
   const [name, setName] = useState(shot.name ?? "");
@@ -103,6 +106,21 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
     }
     void patch({ location_id: id });
   }
+  async function setSpot(id: string | null, createName?: string) {
+    if (createName && shot.location_id) {
+      setSave("saving");
+      try {
+        const created = await putSpot({ id: crypto.randomUUID(), location_id: shot.location_id, name: createName });
+        onSpots((list) => [...list, created]);
+        id = created.id;
+      } catch (err) {
+        const existing = existingIdOf(err);
+        if (!existing) { setSave("error"); return; }
+        id = existing;
+      }
+    }
+    void patch({ spot_id: id });
+  }
   async function createProject(name: string) {
     setSave("saving");
     try { pickProject((await createProjectNamed(name)).id); } catch (e) { setSave("error"); toast(`Could not create the project: ${(e as Error).message}`, "danger"); }
@@ -118,6 +136,7 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
   const unrev = shot.state === "unreviewed";
   const f = photo.framing ?? {};
   const dev = photo.device ?? {};
+  const spotOptions = spots.filter((sp) => sp.location_id === shot.location_id).sort((a, b) => a.name.localeCompare(b.name)).map((sp) => ({ value: sp.id, label: sp.name, hint: sp.shot_count ? `${sp.shot_count}` : undefined }));
   const locationOptions = locations.map((l) => ({ value: l.id, label: l.name, hint: l.shot_count ? `${l.shot_count}` : undefined }));
   const projectName = projects.find((p) => p.id === shot.project_id)?.name ?? shot.project_name ?? "";
 
@@ -165,6 +184,10 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
             <Input sm id="ins-name" value={name} maxLength={120} placeholder="e.g. Bridge from the east bank" onInput={(e) => setName((e.target as HTMLInputElement).value)} onBlur={commitName} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); if (e.key === "Escape") { setName(shot.name ?? ""); (e.target as HTMLInputElement).blur(); } }} />
             <label>Location</label>
             <Combobox small icon="map-marker-outline" options={locationOptions} value={shot.location_id} placeholder="Search or create…" onChange={(v) => void setLocation(v)} onCreate={(t) => void setLocation(null, t)} />
+            <label>Spot</label>
+            {shot.location_id
+              ? <Combobox small icon="map-marker-radius-outline" key={shot.location_id} options={spotOptions} value={shot.spot_id} placeholder="A place within the location…" onChange={(v) => void setSpot(v)} onCreate={(t) => void setSpot(null, t)} />
+              : <span class="f-field__help">Pick a location first.</span>}
             <label>INT/EXT</label>
             <Seg label="INT/EXT" value={shot.int_ext ?? "none"} onChange={(v) => void patch({ int_ext: v === "none" ? null : v })} options={[...INT_EXT.map((v) => ({ id: v, label: label(v).toUpperCase() })), { id: "none", label: "–", title: "Not set" }]} />
             <label style={{ alignSelf: "start", paddingTop: "8px" }}>Light</label>
@@ -203,9 +226,9 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
 
         <div class="f-sec">
           <div class="f-sec__head"><Icon name="crosshairs-gps" />Position<span class="f-sec__aside"><Button kind="secondary" size="sm" style={{ height: "26px" }} onClick={onCorrect}>{photo.lat === null ? "Set position" : "Correct"}</Button></span></div>
-          <Switch on={shot.position_from_location} onClick={() => void patch({ position_from_location: !shot.position_from_location })}>Use the location’s position</Switch>
+          <Switch on={shot.position_from_location} onClick={() => void patch({ position_from_location: !shot.position_from_location })}>Use the spot’s or location’s pin</Switch>
           {shot.position_from_location && (
-            <span class="f-field__help">{!shot.location_id ? "No location set: the shot keeps its own position." : shot.location_position ? `Maps use ${shot.location_name}: ${shot.location_position.lat.toFixed(5)}, ${shot.location_position.lon.toFixed(5)}. The photos keep their GPS below.` : `${shot.location_name} has no pin yet (Library › Locations). The shot keeps its own position until then.`}</span>
+            <span class="f-field__help">{!shot.location_id ? "No location set: the shot keeps its own position." : shot.location_position ? `Maps use ${placeLabel(shot)}: ${shot.location_position.lat.toFixed(5)}, ${shot.location_position.lon.toFixed(5)}. The photos keep their GPS below.` : `${placeLabel(shot)} has no pin yet (Library › Locations). The shot keeps its own position until then.`}</span>
           )}
           <dl class="f-facts">
             <dt>{shot.photos.length > 1 ? `Photo ${photo.ordinal + 1}` : "Photo"}</dt>
