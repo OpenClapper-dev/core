@@ -18,7 +18,7 @@ interface Props {
   views: SavedView[];
   /** The saved view with unsaved edits, if any. */
   editedViewId: string | null;
-  counts: { shots: number; unreviewed: number; projects: number; fields: number; rigs: number; locations: number };
+  counts: { shots: number; projects: number; fields: number; rigs: number; locations: number };
   theme: ThemeChoice;
   onTheme: (t: ThemeChoice) => void;
   onScope: (s: Scope) => void;
@@ -39,11 +39,11 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
   const section = route.page === "shot" ? "shots" : route.page;
   const lib = route.page === "library" ? route.section : null;
   const viewId = route.page === "shots" ? route.viewId : null;
-  const nav = (id: string, icon: string, text: string, to: Route, count?: number, warn?: boolean) => (
+  const nav = (id: string, icon: string, text: string, to: Route, count?: number) => (
     <a class={cx("f-nav", section === id && !(id === "shots" && viewId) && "is-current")} href="#" aria-label={rail ? `${text}${count ? `, ${count}` : ""}` : undefined} title={rail ? text : undefined}
       aria-current={section === id ? "page" : undefined} onClick={(e) => { e.preventDefault(); onNavigate(to); }}>
       <Icon name={icon} />{!rail && <span class="f-nav__txt">{text}</span>}
-      {count !== undefined && (warn ? count > 0 && <span class="f-nav__count f-nav__count--warn">{count}</span> : !rail && <span class="f-nav__count">{count}</span>)}
+      {count !== undefined && !rail && <span class="f-nav__count">{count}</span>}
     </a>
   );
   const sub = (s: LibrarySection, text: string, count?: number) => (
@@ -60,7 +60,7 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
       <ScopeSwitch rail={rail} scope={scope} name={scopeName} projects={projects} onScope={onScope} onManage={() => onNavigate({ page: "library", section: "projects", id: null })} />
       <div style={{ height: "10px" }} />
       {nav("shots", "view-grid-outline", "Shots", { page: "shots", viewId: null }, counts.shots)}
-      {nav("timeline", "filmstrip", "Timeline", { page: "timeline", timelineId: null }, counts.unreviewed, true)}
+      {nav("timeline", "filmstrip", "Timeline", { page: "timeline", timelineId: null })}
       {nav("metadata", "tag-multiple-outline", "Metadata", { page: "metadata", field: "location" })}
       {nav("plan", "calendar-clock", "Plan", { page: "plan", dayId: null })}
       {nav("library", "bookshelf", "Library", { page: "library", section: lib ?? "projects", id: null })}
