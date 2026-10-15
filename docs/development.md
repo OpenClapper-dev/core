@@ -36,20 +36,26 @@ Demo data: `pnpm dev:seed [count]` (worker running) uploads 40 shots by default 
 
 API smoke tests work with plain `curl` against `localhost:8787` (no auth needed locally). Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
 
-## Phone dev loop (Expo Go)
+## Phone dev loop (development build)
 
 ```sh
-make mobile         # local Worker behind a quick tunnel + Metro; the phone works on LOCAL data
+make dev-build      # once, and after every native change: "Fielder Dev" APK into the Windows Downloads folder
+make mobile         # local Worker behind a quick tunnel + Metro for Fielder Dev; the phone works on LOCAL data
+make mobile-go      # the same for Expo Go (CLIENT=go)
 make dashboard      # beside it: the dashboard on :5173 against the same local Worker
 ```
 
-- `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787 (stop `make dev`/`make worker` first), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --go --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
-- Open Expo Go and enter the `exp://….exp.direct` URL Metro prints. JS changes hot-reload; every native module the app uses ships in Expo Go.
+- **The development build** ("Fielder Dev", `app.fielder.scout.dev`) is this app with its native modules plus Expo's dev launcher and menu (`expo-dev-client`). It carries no JavaScript: it loads the bundle from Metro, so Fast Refresh works as in Expo Go. Rebuild only when the native side changes: a new native module, a plugin or permission in `app.json`, an SDK upgrade. A bundle that calls a native module the build lacks fails at runtime.
+- `APP_VARIANT=development` (eas.json `dev-client` profile, and `make mobile`) switches `app.config.ts` to the dev name, package id and scheme, so it installs next to the production app with its own storage.
+- `make dev-build` = `PROFILE=dev-client scripts/apk-local.sh`: `eas build --local` in the Docker toolchain, no EAS quota. The profile is a debug build (`:app:assembleDebug`, `withoutCredentials`): signed with the debug key, so no keystore from Expo, but the Expo login is still needed. Install the APK from Downloads once (allow installs from the file manager); later builds install over it.
+- In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
+
+- `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --go --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
+- Expo Go (`make mobile-go`): enter the `exp://….exp.direct` URL Metro prints. Works only while every native module the app uses ships in Expo Go.
 - Sign in once: under `ACCESS_DEV_BYPASS` `/auth/mobile` hands out an unsigned placeholder token for `dev@localhost`.
 - The `local` scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders), so a production build on the same phone never sees them.
 - The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL with auth bypassed.
 - Production is reached only by a built APK (`make apk-local` / `make apk-cloud`, `API_URL` defaults to the deployed Worker).
-- A native module that Expo Go lacks means switching to a dev client: `pnpm -C apps/mobile build:dev-client` once, then `pnpm -C apps/mobile start:dev-client`.
 - If the tunnel fails with `Cannot read properties of undefined (reading 'body')`, an old ngrok session is still registered: wait 30 s or set `EXPO_TUNNEL_SUBDOMAIN`.
 - Expo changed a lot. Read the versioned docs at https://docs.expo.dev/versions/v57.0.0/ before using an Expo API (`apps/mobile/AGENTS.md`). Example: `expo-file-system` exposes `File`/`Directory`/`Paths` with sync `copySync`, `textSync`, `write`, and `File.downloadFileAsync`.
 
@@ -68,7 +74,7 @@ pnpm -C apps/worker run deploy     # builds the dashboard, deploys Worker + asse
 
 ## APK builds
 
-Cloud: `pnpm -C apps/mobile eas build --platform android --profile apk` (EAS free plan has a monthly build quota).
+Cloud: `pnpm -C apps/mobile eas build --platform android --profile apk` (EAS free plan has a monthly build quota). The dev build in the cloud: `pnpm -C apps/mobile build:dev-client`.
 
 Local (same keystore, fetched from Expo): `make apk-local`, in a Docker container (`docker/android.Dockerfile`: JDK 17, Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1, Node 22.20.0, pnpm 11.13.1; nothing installed in WSL).
 - Once: Docker Desktop → Settings → Resources → WSL integration → enable this distro; `npx eas login` (the session in `~/.expo` is mounted into the container; `EXPO_TOKEN` works too).
