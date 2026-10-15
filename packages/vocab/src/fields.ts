@@ -202,3 +202,19 @@ Return only the JSON array. Example:
 [{ "key": "ubahn", "label": "U-Bahn", "type": "group", "fields": [
   { "key": "line", "label": "Line", "type": "select", "options": ["U1", "U4"] },
   { "key": "station", "label": "Station", "type": "select", "optionsBy": { "field": "line", "options": { "U1": ["Kurfürstendamm"], "U4": ["Nollendorfplatz", "Bayerischer Platz"] } } } ] }]`;
+
+/**
+ * Values as they fit another project's fields (a shot moving there): top-level keys it does not define,
+ * or whose value its definition rejects, are dropped. The client lists `droppedKeys` before the move.
+ */
+export function fitExtra(defs: readonly FieldDef[], extra: Extra): Extra {
+  const out: Extra = {};
+  for (const [k, v] of Object.entries(extra)) if (defs.some((d) => d.key === k) && !validateValues(defs, extra, "extra", [k])) out[k] = v;
+  return out;
+}
+
+/** Top-level keys `fitExtra` would drop. */
+export const droppedKeys = (defs: readonly FieldDef[], extra: Extra): string[] => {
+  const kept = fitExtra(defs, extra);
+  return Object.keys(extra).filter((k) => !(k in kept));
+};

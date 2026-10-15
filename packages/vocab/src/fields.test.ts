@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { extraSummary, patchExtra, pruneExtra, selectOptions, validateFieldDef, validateValues, type FieldDef } from "./fields.ts";
+import { droppedKeys, extraSummary, fitExtra, patchExtra, pruneExtra, selectOptions, validateFieldDef, validateValues, type FieldDef } from "./fields.ts";
 import { evaluateFilter, extraFilterFields, type FilterableShot } from "./filter.ts";
 
 const ubahn: FieldDef = {
@@ -72,4 +72,12 @@ test("validation can be limited to the edited keys", () => {
   const stale = { gone: "field removed from the project", access: "ok" };
   assert.match(validateValues([notes], stale) ?? "", /no such field/);
   assert.equal(validateValues([notes], stale, "extra", ["access"]), null);
+});
+
+test("moving to another project keeps only the values its fields accept", () => {
+  const shot = { ubahn: { line: "U4", station: "Nollendorfplatz" }, access: "gate code 1234", parking: "yard" };
+  const target: FieldDef[] = [ubahn, { key: "access", label: "Access", type: "number" }];
+  assert.deepEqual(fitExtra(target, shot), { ubahn: shot.ubahn });
+  assert.deepEqual(droppedKeys(target, shot), ["access", "parking"]);
+  assert.deepEqual(droppedKeys([ubahn, notes], shot), ["parking"]);
 });
