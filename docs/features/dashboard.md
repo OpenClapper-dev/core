@@ -6,7 +6,7 @@ Designed in Claude Design (2026-09-28): four sections plus a shot view, a sideba
 
 - **Sidebar**, 232 px, or a 56 px rail. Collapse and expand it with the button next to the brand (rail: at the bottom) or Ctrl B / ⌘B; the choice is remembered in `localStorage["sidebar"]`. Without a choice it is a rail below 1100 px. The scope menu opens as a fixed popup, so the rail does not clip it. It holds:
   - the **project switcher** (the projects, "Manage projects…"); the choice is remembered in `localStorage["project"]`. Every page works inside that one project
-  - the sections: Shots (count), Timeline (unreviewed count), Metadata, Plan, Library (with Projects · Fields · Rigs · Locations · Viewfinder under it; [viewfinder layouts](viewfinder-layouts.md))
+  - the sections: Shots (count), Timeline, Metadata, Plan, Library (with Projects · Fields · Rigs · Locations · Viewfinder under it; [viewfinder layouts](viewfinder-layouts.md))
   - **saved views**, with a dot while a view has unsaved edits, and "+" for a new view
   - footer: "Go to…" (⌘K), the theme button (Auto → Sun → Set), **Settings** and reload
 - **Hash routes**, so deep links survive a reload: `#/shots`, `#/shots?view=<id>`, `#/shots/<shotId>?stage=rigs|compose|position`, `#/metadata/<field>`, `#/plan/<dayId>`, `#/timeline/<timelineId>` (same `t` / `tool`), `#/settings`, `#/library/projects|fields|rigs|locations/<id>`.

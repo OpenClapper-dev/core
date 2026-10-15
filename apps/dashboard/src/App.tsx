@@ -212,7 +212,6 @@ export function App() {
   }
 
   const rail = sideChoice ? sideChoice === "rail" : narrow;
-  const unreviewed = scoped.filter((s) => s.state === "unreviewed").length;
   const openShotObj = route.page === "shot" ? (shots ?? []).find((s) => s.id === route.shotId) ?? null : null;
   const byId = new Map((shots ?? []).map((s) => [s.id, s]));
   const fromList = openList.map((id) => byId.get(id)).filter((s): s is Shot => !!s);
@@ -281,7 +280,7 @@ export function App() {
   const actions: Command[] = [
     { id: "a-shots", group: "Go to", icon: "view-grid-outline", title: "Shots", keys: "G S", run: () => void navigate({ page: "shots", viewId: null }) },
     { id: "a-plan", group: "Go to", icon: "calendar-clock", title: "Plan", keys: "G P", run: () => void navigate({ page: "plan", dayId: null }) },
-    { id: "a-timeline", group: "Go to", icon: "filmstrip", title: "Timeline", sub: `${unreviewed} to review`, keys: "G T", run: () => void navigate({ page: "timeline", timelineId: null }) },
+    { id: "a-timeline", group: "Go to", icon: "filmstrip", title: "Timeline", keys: "G T", run: () => void navigate({ page: "timeline", timelineId: null }) },
     { id: "a-map", group: "Go to", icon: "map-outline", title: "Map", keys: "G M", run: () => { setLayout("map"); void navigate({ page: "shots", viewId }); } },
     { id: "a-lib", group: "Go to", icon: "bookshelf", title: "Library: projects, fields, rigs, locations", keys: "G L", run: () => void navigate({ page: "library", section: "projects", id: null }) },
     { id: "a-mode", group: "Actions", icon: "vector-rectangle", title: "Change frame mode", sub: `Now ${mask === "off" ? "raw" : mask}`, keys: "M", run: () => setMask(nextMode(mask)) },
@@ -298,7 +297,7 @@ export function App() {
   return (
     <div class={cx("f-app", rail && "f-app--rail")}>
       <Sidebar route={route} rail={rail} onToggle={toggleSidebar} scope={scope ?? ""} projects={projects ?? []} views={projectViews} editedViewId={edited ? loadedView?.id ?? null : null}
-        counts={{ shots: scoped.length, unreviewed, projects: projects?.length ?? 0, fields: projectFields.length, rigs: presets?.length ?? 0, locations: projectLocations.length }}
+        counts={{ shots: scoped.length, projects: projects?.length ?? 0, fields: projectFields.length, rigs: presets?.length ?? 0, locations: projectLocations.length }}
         theme={theme} onTheme={setTheme} onScope={setScope} onNavigate={(r) => void navigate(r)} onNewView={() => void newView()} onPalette={openPalette} onReload={reload} loadedAt={loadedAt} />
       <main class="f-app__main">{main}</main>
       <div class="f-hints">

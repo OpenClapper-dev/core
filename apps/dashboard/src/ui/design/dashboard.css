@@ -28,12 +28,10 @@
 .f-nav:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:-2px}
 .f-nav.is-current{background:var(--accent-tint);font-weight:var(--weight-bold);box-shadow:inset 3px 0 0 var(--accent)}
 .f-nav__count{flex:none;font:var(--weight-bold) var(--text-caption)/1 var(--font-sans);font-variant-numeric:tabular-nums;color:var(--text-dim)}
-.f-nav__count--warn{min-width:22px;height:20px;padding:0 6px;border-radius:var(--radius-pill);background:var(--warn);color:var(--on-warn);display:inline-flex;align-items:center;justify-content:center}
 .f-nav--sub{height:30px;padding-left:39px;font-size:var(--text-small)}
 .f-nav__dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 1.5px var(--on-warn);flex:none}
 .f-app--rail .f-side{padding:12px 8px;align-items:center}
 .f-app--rail .f-nav{width:40px;height:40px;padding:0;justify-content:center;position:relative}
-.f-app--rail .f-nav__count--warn{position:absolute;top:0;right:-4px;min-width:18px;height:16px;padding:0 4px;font-size:10px}
 
 /* ---------- Key hint bar + Kbd ---------- */
 .f-hints{grid-column:1 / -1;display:flex;align-items:center;gap:18px;height:30px;padding:0 12px;background:var(--surface);border-top:var(--bw) solid var(--border-subtle);font-size:var(--text-caption);color:var(--text-dim);white-space:nowrap;overflow:hidden}
