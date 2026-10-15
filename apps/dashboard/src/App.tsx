@@ -18,6 +18,7 @@ import { NewShotDialog } from "./NewShot";
 import { SettingsPage } from "./SettingsPage";
 import { ShotsPage } from "./ShotsPage";
 import { TimelinePage } from "./Timeline";
+import { ViewfinderLayoutsPage } from "./ViewfinderLayouts";
 import { decodeView, emptyQuery, encodeView, runQuery, type Layout, type ShotsQuery } from "./shotsQuery";
 import { shotHints, ShotView } from "./ShotView";
 import { Sidebar } from "./Sidebar";
@@ -259,6 +260,9 @@ export function App() {
     } else if (route.section === "fields") {
       main = <FieldsPage project={scopeProject!} fields={projectFields} onChange={setProjectFields} selectedId={sel} onSelect={setSel} />;
       hints = hintsFor("fields");
+    } else if (route.section === "viewfinder") {
+      main = <ViewfinderLayoutsPage selectedId={sel} onSelect={setSel} />;
+      hints = [];
     } else if (route.section === "rigs") {
       main = <RigsPage presets={presets!} shots={shots!} onChange={setPresets} selectedId={sel} onSelect={setSel} />;
       hints = hintsFor("rigs", "rig");

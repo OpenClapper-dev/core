@@ -4,7 +4,7 @@ import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
 import type { Extra, FieldDefinition, Framing, Presentation } from "@fielder/vocab";
-import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry } from "./types";
+import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public body: unknown = null) {
@@ -226,6 +226,9 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ location_id: x.locationId, name: x.name }),
     }),
+
+  /** Viewfinder layouts made on the dashboard (issue #49); the phone only reads them. */
+  listLayouts: () => call<{ layouts: LayoutEntry[] }>("/api/viewfinder-layouts").then((r) => r.layouts.map((l) => ({ id: l.id, name: l.name, layout: l.layout }))),
 
   listDays: (projectId: string) => call<{ days: ShootingDay[] }>(`/api/days?project_id=${projectId}`).then((r) => r.days),
   listFields: () => call<{ fields: FieldDefinition[] }>("/api/fields").then((r) => r.fields),

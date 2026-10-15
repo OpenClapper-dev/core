@@ -24,6 +24,8 @@ The Shoot tab (`apps/mobile/src/screens/Viewfinder.tsx`) is a viewfinder for a c
 
 ## Controls
 
+The bars and their controls come from the chosen [viewfinder layout](viewfinder-layouts.md); the **default** is described here.
+
 **One control row**, icons only (the accessible name carries the label): **Uploads · Seq · Light · Shutter · Fit · Human · Rig**, left to right, under the lens strip. Each side control is a whole-cell target with a 46 × 56 visual; the shutter is 76 dp.
 
 In landscape the row becomes an 80 dp column next to the tab bar, read top to bottom as Rig · Human · Fit · Shutter · Light · Seq · Uploads. The lens strip becomes an 80 dp column on the other side, after the 32 dp cutout clearance. All chrome is opaque; a control that is on is filled with the accent colour.

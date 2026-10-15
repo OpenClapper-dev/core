@@ -148,6 +148,7 @@ export function flush(opts: { includeStuck?: boolean } = {}): Promise<FlushResul
       if (active && projects.remap[active]) store.saveActiveProjectId(projects.remap[active]);
     }
     try { store.saveFields(await api.listFields()); } catch { /* offline: keep the cached definitions */ }
+    try { store.saveLayouts(await api.listLayouts()); } catch { /* offline: keep the cached layouts */ }
     const locations = await syncLocations(store.loadLocations());
     if (locations) {
       store.saveLocations(mergeServerList(locations.items, store.loadLocations(), locations.remap));

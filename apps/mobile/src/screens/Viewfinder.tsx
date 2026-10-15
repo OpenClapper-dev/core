@@ -12,7 +12,9 @@ import { api } from "../api";
 import { useApp } from "../appState";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { isConfigured } from "../config";
+import { VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem } from "@fielder/vocab";
 import { calibrationFromExif } from "../calibration";
+import { edgeExtent, resolveLayout, rowHeight, VF_SIZES } from "../vfLayout";
 import { computeOverlay, formatDeg, previewBox, type Box } from "../framing";
 import { clampToRange } from "../lens";
 import { log } from "../log";
@@ -25,18 +27,13 @@ import { enqueue, flush } from "../uploads";
 import { Badge, BORDER, Button, Empty, FIXED, Icon, makeStyles, notice, num, RADIUS, SeqBadge, SIZE, toast, type, useTheme, useToastOffset } from "../ui";
 import { HudChip } from "../components/Hud";
 import { LensSheet } from "../components/LensSheet";
-import { LensStrip } from "../components/LensStrip";
+import { LensCarousel, LensStrip } from "../components/LensStrip";
 import { HUMAN_COLOR, Overlay } from "../components/Overlay";
 import { RigSheet } from "../components/RigSheet";
 import { EMPTY_TAGS } from "../components/TagEditor";
 import { retryAll } from "./Uploads";
 import { Tag } from "./Tag";
 
-/** Portrait chrome block: 10 pad · lens strip 56 · 10 gap · control row 76 · 12 pad, plus the 2 dp top edge. */
-const CHROME_H = 10 + 56 + 10 + SIZE.shutter + 12 + 2;
-/** Landscape columns: lens strip (after the cutout pad) and the control column next to the tab bar. */
-const LENS_COL = 80;
-const CONTROL_COL = 80;
 const MAX_UPLOAD_EDGE = 1280;
 /** A watched GPS fix younger than this is used as is; otherwise the capture waits briefly for a fresh one. */
 const FIX_MAX_AGE_MS = 15_000;
@@ -138,12 +135,19 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
     return () => { cancelled = true; sub?.remove(); };
   }, [tabActive, locPerm?.granted, gpsMode]);
 
-  // Toasts sit above the chrome block (portrait); in landscape the controls are a side column.
-  useToastOffset(portrait ? CHROME_H : 0, tabActive);
+  // The bars come from the chosen viewfinder layout (issue #49); the preview fits between them.
+  const vfLayout = resolveLayout(settings.viewfinderLayoutId, app.layouts);
+  const bars = portrait ? vfLayout.portrait : vfLayout.landscape;
+  const startBars = bars.bars.filter((b) => b.edge === "start");
+  const endBars = bars.bars.filter((b) => b.edge === "end");
+  const startExtent = edgeExtent(bars, "start", portrait, lensPad);
+  const endExtent = edgeExtent(bars, "end", portrait);
+  // Toasts sit above the bottom bars (portrait); in landscape the bars are side columns.
+  useToastOffset(portrait ? endExtent : 0, tabActive);
 
   const area: Box = portrait
-    ? { width: window.width, height: Math.max(0, window.height - CHROME_H) }
-    : { width: Math.max(0, window.width - CONTROL_COL - LENS_COL - lensPad), height: window.height };
+    ? { width: window.width, height: Math.max(0, window.height - startExtent - endExtent) }
+    : { width: Math.max(0, window.width - startExtent - endExtent), height: window.height };
   const preview = useMemo(() => previewBox(area), [area.width, area.height]);
   const overlay = useMemo(() => (rig ? computeOverlay(settings, rig, lensMm, preview) : null), [settings, rig, lensMm, preview]);
 
@@ -376,19 +380,35 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
           </View>}
     </Pressable>
   );
-  const cell = (key: string, node: ReactNode) => <View key={key} style={s.cell}>{node}</View>;
-  // Portrait, left → right. Landscape reads top → bottom as portrait right → left (phone turned counter-clockwise).
-  const controls = [
-    cell("uploads", <Control icon="cloud-upload-outline" label={n ? `Uploads, ${n} ${sync.state === "stuck" ? "stuck" : "waiting"}. Tap to retry, hold for the list` : "Uploads. Hold for the list"} vertical={!portrait}
-      onPress={() => void retryAll()} onLongPress={() => app.push({ name: "uploads" })} badge={n > 0 && sync.state !== "ok" ? <Badge n={n} stuck={sync.state === "stuck"} /> : null} />),
-    cell("seq", <Control icon="layers-triple-outline" label={sequence ? "End sequence" : "Start sequence"} on={!!sequence} disabled={busy} vertical={!portrait} onPress={toggleSequence} />),
-    cell("light", <Control icon={torch ? "flashlight" : "flashlight-off"} label="Light" on={torch} vertical={!portrait} onPress={() => setTorch((t) => !t)} />),
-    <View key="shutter" style={s.shutterCell}>{shutter}</View>,
-    cell("fit", <Control icon="fit-to-screen-outline" label="Fit to frame" on={settings.fitToFrame} vertical={!portrait} onPress={() => setSettings((x) => ({ ...x, fitToFrame: !x.fitToFrame }))} />),
-    cell("human", <Control icon="human-male" label={settings.humanViewEnabled ? `Human view ${settings.humanViewFocalMm} mm` : "Human view"} on={settings.humanViewEnabled} vertical={!portrait} onPress={pressHuman} />),
-    cell("rig", <Control icon="camera-control" label={rig ? `Rig ${rig.name}` : "Rig, none yet"} warn={!rig} vertical={!portrait} onPress={() => setSheet("rig")} />),
-  ];
-  const lensStrip = <LensStrip lensMm={lensMm} onChange={setLensMm} vertical={!portrait} range={lensRange} onPressValue={() => setSheet("lens")} />;
+  // One builder per button; the layout decides which appear, where, and with a text label or not.
+  const vertical = !portrait;
+  const buttons: Record<Exclude<VfControl, "shutter" | "lens">, (text?: string) => ReactNode> = {
+    uploads: (text) => <Control icon="cloud-upload-outline" text={text} label={n ? `Uploads, ${n} ${sync.state === "stuck" ? "stuck" : "waiting"}. Tap to retry, hold for the list` : "Uploads. Hold for the list"} vertical={vertical}
+      onPress={() => void retryAll()} onLongPress={() => app.push({ name: "uploads" })} badge={n > 0 && sync.state !== "ok" ? <Badge n={n} stuck={sync.state === "stuck"} /> : null} />,
+    seq: (text) => <Control icon="layers-triple-outline" text={text} label={sequence ? "End sequence" : "Start sequence"} on={!!sequence} disabled={busy} vertical={vertical} onPress={toggleSequence} />,
+    light: (text) => <Control icon={torch ? "flashlight" : "flashlight-off"} text={text} label="Light" on={torch} vertical={vertical} onPress={() => setTorch((t) => !t)} />,
+    fit: (text) => <Control icon="fit-to-screen-outline" text={text} label="Fit to frame" on={settings.fitToFrame} vertical={vertical} onPress={() => setSettings((x) => ({ ...x, fitToFrame: !x.fitToFrame }))} />,
+    human: (text) => <Control icon="human-male" text={text} label={settings.humanViewEnabled ? `Human view ${settings.humanViewFocalMm} mm` : "Human view"} on={settings.humanViewEnabled} vertical={vertical} onPress={pressHuman} />,
+    rig: (text) => <Control icon="camera-control" text={text} label={rig ? `Rig ${rig.name}` : "Rig, none yet"} warn={!rig} vertical={vertical} onPress={() => setSheet("rig")} />,
+  };
+  const barItem = (it: VfItem, fixed: boolean) => {
+    if (it.control === "shutter") return <View key="shutter" style={s.shutterCell}>{shutter}</View>;
+    if (it.control === "lens") {
+      const Strip = it.display === "carousel" ? LensCarousel : LensStrip;
+      return <View key="lens" style={it.size === "fit" ? s.lensFit : s.lensFill}><Strip lensMm={lensMm} onChange={setLensMm} vertical={vertical} range={lensRange} onPressValue={() => setSheet("lens")} /></View>;
+    }
+    // Next to a lens strip that fills the bar, buttons keep their own size; otherwise they share the bar.
+    return <View key={it.control} style={fixed ? (vertical ? s.cellV : s.cellH) : s.cell}>{buttons[it.control](it.label ? VF_SHORT_LABELS[it.control] : undefined)}</View>;
+  };
+  const bar = (b: VfBar) => {
+    const fixed = b.items.some((i) => i.control === "lens" && i.size !== "fit");
+    return <View key={b.id} style={vertical ? s.barV : [s.row, { height: rowHeight(b) }]}>{b.items.map((i) => barItem(i, fixed))}</View>;
+  };
+  const sideBar = (b: VfBar, start: boolean, first: boolean) => {
+    const pad = start && first ? lensPad : 0;
+    const lensOnly = b.items.length === 1 && b.items[0].control === "lens";
+    return <View key={b.id} style={[s.side, start ? s.sideStart : s.sideEnd, { width: VF_SIZES.column + pad, paddingLeft: pad }, !lensOnly && { paddingVertical: 8 }]}>{bar(b)}</View>;
+  };
 
   const hud = (
     <View style={[s.hud, !portrait && { justifyContent: "center" }]} pointerEvents="box-none">
@@ -418,7 +438,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   return (
     <View style={[s.root, { flexDirection: portrait ? "column" : "row" }]} onLayout={onLayout}>
       <StatusBar hidden={tabActive} />
-      {!portrait && <View style={[s.lensCol, { width: LENS_COL + lensPad, paddingLeft: lensPad }]}>{lensStrip}</View>}
+      {portrait ? startBars.length > 0 && <View style={[s.chrome, s.chromeTop]}>{startBars.map(bar)}</View> : startBars.map((b, i) => sideBar(b, true, i === 0))}
       <View style={[s.previewArea, { width: area.width, height: area.height }]}>
         <View style={{ width: preview.width, height: preview.height, backgroundColor: FIXED.photoBg, overflow: "hidden" }}>
           {window.width > 0 && (
@@ -439,14 +459,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
         </View>
         {hud}
       </View>
-      {portrait ? (
-        <View style={s.chrome}>
-          {lensStrip}
-          <View style={s.row}>{controls}</View>
-        </View>
-      ) : (
-        <View style={[s.chrome, s.column]}>{[...controls].reverse()}</View>
-      )}
+      {portrait ? endBars.length > 0 && <View style={s.chrome}>{endBars.map(bar)}</View> : endBars.map((b) => sideBar(b, false, false))}
 
       {/* Only on Shoot: a draft restored at launch waits until the gates are through. */}
       {draft && tabActive && (
@@ -460,7 +473,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
 }
 
 /** An icon-only viewfinder control: the whole cell is the target, the visual is 46 × 56 (56 × 46 in landscape). On = accent fill. */
-function Control({ icon, label, onPress, onLongPress, on, disabled, warn, badge, vertical }: { icon: string; label: string; onPress: () => void; onLongPress?: () => void; on?: boolean; disabled?: boolean; warn?: boolean; badge?: ReactNode; vertical: boolean }) {
+function Control({ icon, label, text, onPress, onLongPress, on, disabled, warn, badge, vertical }: { icon: string; label: string; /** A short label under the icon (layout option). */ text?: string; onPress: () => void; onLongPress?: () => void; on?: boolean; disabled?: boolean; warn?: boolean; badge?: ReactNode; vertical: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   const fg = disabled ? c.textDisabled : on ? c.onAccent : c.chromeText;
@@ -469,7 +482,8 @@ function Control({ icon, label, onPress, onLongPress, on, disabled, warn, badge,
       style={s.hit}>
       {({ pressed }) => (
         <View style={[s.ctl, vertical ? { width: 56, height: 46 } : { width: 46, height: 56 }, on && { backgroundColor: c.accent, borderColor: c.accent }, warn && { borderColor: c.warn }, pressed && s.ctlPressed, disabled && s.ctlOff]}>
-          <Icon name={icon} size={26} color={fg} />
+          <Icon name={icon} size={text ? 22 : 26} color={fg} />
+          {text ? <Text style={[s.ctlText, { color: fg }]} numberOfLines={1}>{text}</Text> : null}
           {badge}
         </View>
       )}
@@ -504,9 +518,17 @@ const useStyles = makeStyles((c) => ({
   card: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14, borderRadius: RADIUS.md, backgroundColor: c.surfaceRaised, borderWidth: BORDER.control, borderColor: c.borderStrong },
   cardTitle: { ...type("body", "bold"), color: c.text },
   cardBody: { ...type("small"), color: c.textDim },
-  chrome: { backgroundColor: c.chromeBg, borderColor: c.chromeBorder, borderTopWidth: BORDER.control, paddingTop: 10, paddingHorizontal: 8, paddingBottom: 12, gap: 10 },
-  column: { width: CONTROL_COL, borderTopWidth: 0, borderLeftWidth: BORDER.control, paddingHorizontal: 0, paddingVertical: 8, gap: 0 },
-  lensCol: { backgroundColor: c.chromeBg, borderRightWidth: BORDER.control, borderRightColor: c.chromeBorder },
+  chrome: { backgroundColor: c.chromeBg, borderColor: c.chromeBorder, borderTopWidth: BORDER.control, paddingTop: VF_SIZES.padStart, paddingHorizontal: 8, paddingBottom: VF_SIZES.padEnd, gap: VF_SIZES.gap },
+  chromeTop: { borderTopWidth: 0, borderBottomWidth: BORDER.control },
+  side: { backgroundColor: c.chromeBg, borderColor: c.chromeBorder },
+  sideStart: { borderRightWidth: BORDER.control },
+  sideEnd: { borderLeftWidth: BORDER.control },
+  barV: { flex: 1, flexDirection: "column", alignItems: "center" },
+  lensFill: { flex: 1, alignSelf: "stretch", justifyContent: "center", alignItems: "center" },
+  lensFit: { justifyContent: "center", alignItems: "center" },
+  cellH: { width: 56, alignSelf: "stretch" },
+  cellV: { height: 56, alignSelf: "stretch" },
+  ctlText: { ...type("caption", "bold"), fontSize: 10, lineHeight: 12 },
   row: { flexDirection: "row", alignItems: "center", height: SIZE.shutter },
   cell: { flex: 1, alignSelf: "stretch" },
   hit: { flex: 1, alignItems: "center", justifyContent: "center" },

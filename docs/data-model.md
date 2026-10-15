@@ -12,6 +12,7 @@ D1 (SQLite) database `fielder-db`, schema in `apps/worker/migrations/`. Images l
 | `0004_shooting_days.sql` | `shooting_days`, `day_shots` |
 | `0005_capture_flow.sql` | `shots.shot_size`, `camera_support`, `movement`; `photos` rebuilt with nullable `lat`/`lon` (copied row by row, both or neither set) |
 | `0006_compose.sql` | `shots.description`; `overlays`, `sketches` ([compose](features/compose.md)) |
+| `0017_viewfinder_layouts.sql` | `viewfinder_layouts` ([viewfinder layouts](features/viewfinder-layouts.md)) |
 | `0016_spots.sql` | `spots` (a place within a location, optional pin); `shots.spot_id` ([projects](features/projects.md)) |
 | `0015_project_scope.sql` | `locations.project_id`, `field_definitions.project_id` + `position`, `views.project_id`; shared rows copied per project, unused ones to the project with the most shots; `project_fields` folded in and dropped ([projects](features/projects.md)) |
 | `0014_sequence_blocks.sql` | `timelines.groups` (JSON), `timeline_clips.group_id`: sequence blocks ([timeline](features/timeline.md)) |
@@ -52,6 +53,8 @@ Add a new numbered file for every change; never edit one that was applied to pro
 `sketches(id, shot_id → shots CASCADE | null, name, kind, description, drawing JSON (look null), aspect REAL w/h, render_key UNIQUE, position, created_at, updated_at, timeline_id → timelines CASCADE, clip_id)`: a free canvas on the shot, or (shot null, timeline + clip set; a CHECK enforces one of the two) a sketch clip's own canvas. `kind` is free text; `SKETCH_KINDS` are only suggestions.
 
 `framings(id, photo_id → photos CASCADE, name, rig_id → presets SET NULL (null = as shot), lens_mm, frame JSON { width_fraction, height_fraction, x, y }, position, created_at, updated_at)` and `photos.root_framing_id → framings SET NULL` (null = as captured). The API embeds `framings` and `root_framing_id` in every photo. See [framing](features/rig-explorer.md).
+
+`viewfinder_layouts(id, name, layout JSON, created_at, updated_at)`: phone layouts made on the dashboard; global. The shipped default is in code.
 
 `views(id, project_id → projects CASCADE, name, filter JSON, …)`: a project's saved dashboard filters (model in `packages/vocab/src/filter.ts`).
 
