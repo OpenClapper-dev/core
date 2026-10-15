@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ApiError, deleteLocation, deleteSpot, existingIdOf, putLocation, putSpot, type Location, type Shot, type Spot } from "./api";
 import { ownPositionOf, shotTitle } from "./format";
-import { useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import { Button, confirmDialog, cx, EmptyNote, ErrorLine, IconButton, Input, Kbd, ListRow, Modal, Panel, PanelBody, PanelHead, promptDialog, SearchInput, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "./ui";
 
 interface Props {
@@ -54,15 +54,15 @@ export function LocationsPage({ locations, shots, onChange, spots, onSpots, onSh
     if (!ok) return;
     try { await deleteLocation(l.id); onChange(locations.filter((x) => x.id !== l.id)); onShotsChanged(); toast("Location deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
-  useKeys({
-    "/": () => search.current?.focus(),
-    j: () => setFocus((f) => Math.min(shown.length - 1, f + 1)), k: () => setFocus((f) => Math.max(0, f - 1)),
-    ArrowDown: () => setFocus((f) => Math.min(shown.length - 1, f + 1)), ArrowUp: () => setFocus((f) => Math.max(0, f - 1)),
-    F2: () => { if (cur) setEdit({ id: cur.id, name: cur.name, error: null }); },
-    p: () => { if (cur) setPinFor(cur); },
-    Enter: () => { if (cur) onShowShots(cur.id, "grid"); },
-    Delete: () => { if (cur) void remove(cur); },
-  }, !edit && !pinFor && !spotPin);
+  useKeys(bind("locations", {
+    search: () => search.current?.focus(),
+    down: () => setFocus((f) => Math.min(shown.length - 1, f + 1)),
+    up: () => setFocus((f) => Math.max(0, f - 1)),
+    rename: () => { if (cur) setEdit({ id: cur.id, name: cur.name, error: null }); },
+    pin: () => { if (cur) setPinFor(cur); },
+    open: () => { if (cur) onShowShots(cur.id, "grid"); },
+    remove: () => { if (cur) void remove(cur); },
+  }), !edit && !pinFor && !spotPin);
 
   return (
     <>

@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { patchPhotoPosition, type Photo, type Shot } from "./api";
 import { positionOf } from "./format";
-import { useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import { Button, Checkbox, Icon, Spinner, ToolbarSpacer } from "./ui";
 
 interface Props { shot: Shot; photo: Photo; onSaved: (s: Shot) => void; onCancel: () => void; onError: (msg: string) => void }
@@ -53,7 +53,7 @@ export function PositionStage({ shot, photo, onSaved, onCancel, onError }: Props
     setBusy(true);
     try { onSaved(await patchPhotoPosition(photo.id, pos[0], pos[1], all)); } catch (e) { onError(`Saving the position failed: ${(e as Error).message}`); } finally { setBusy(false); }
   }
-  useKeys({ Escape: onCancel, Enter: () => void save() });
+  useKeys(bind("position", { cancel: onCancel, save: () => void save() }));
 
   return (
     <>

@@ -31,6 +31,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/day-mode-offline.md](features/day-mode-offline.md) | Phone "Day" tab, offline days, offline project, offline mode, edits kept on the phone |
 | [features/phone-app.md](features/phone-app.md) | Phone shell: 5 tabs, gates, pushed screens, header and sync state, Setup hub, shared components |
 | [features/dashboard.md](features/dashboard.md) | Dashboard shell and sections: Shots (grid/list/map, filters, views), shot view, Timeline, Plan, Library |
+| [shortcuts.md](shortcuts.md) | Every dashboard keyboard shortcut, generated from `apps/dashboard/src/shortcuts.ts` |
 | [features/debug-log.md](features/debug-log.md) | The phone's background debug log |
 
 ## History

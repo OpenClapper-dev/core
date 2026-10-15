@@ -3,9 +3,9 @@ import { cameraLabel, label, lightLabel, SHOT_STATES, STATE_ICONS, type FieldDef
 import { deleteShot, type Location, type SavedView, type Shot } from "./api";
 import { BulkEditPanel, MoveDialog, type BulkDraft } from "./BulkEdit";
 import { FilterPanel } from "./FilterBuilder";
-import { cover, placeLabel, rigLabel, shotTitle, when } from "./format";
+import { cover, FRAME_MODES, placeLabel, rigLabel, shotTitle, when } from "./format";
 import { Framed, type MaskMode } from "./Framed";
-import { useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import { ShotsMap } from "./MapView";
 import { ModeSwitch } from "./ModeSwitch";
 import { ShotCard } from "./ShotCard";
@@ -56,12 +56,13 @@ export function ShotsPage(p: Props) {
   const setQuery = (q: Partial<ShotsQuery>) => onQuery({ ...query, ...q });
   const [menu, setMenu] = useState<"sort" | "view" | null>(null);
 
-  useKeys({
-    "/": () => search.current?.focus(),
-    f: () => p.onPanel(!p.panel),
-    "Shift+N": () => p.onNewShot(),
-    Escape: (e) => { if (e.target === search.current) { search.current?.blur(); return; } return false; },
-  });
+  useKeys(bind("shots", {
+    search: () => search.current?.focus(),
+    filter: () => p.onPanel(!p.panel),
+    frameMode: () => p.onMask(FRAME_MODES[(FRAME_MODES.indexOf(p.mask) + 1) % FRAME_MODES.length]),
+    newShot: () => p.onNewShot(),
+    leaveSearch: (e) => { if (e.target === search.current) { search.current?.blur(); return; } return false; },
+  }));
 
   const title = p.view ? p.view.name : "Shots";
   const total = p.shots?.length ?? 0;
@@ -238,25 +239,23 @@ function ShotsList({ shots, mask, onOpen, onDeleted, bulk, onBulkOpen }: { shots
     setDraft(null);
   }
 
-  useKeys({
-    j: () => setFocus((f) => Math.min(shots.length - 1, f + 1)),
-    k: () => setFocus((f) => Math.max(0, f - 1)),
-    ArrowDown: () => setFocus((f) => Math.min(shots.length - 1, f + 1)),
-    ArrowUp: () => setFocus((f) => Math.max(0, f - 1)),
-    x: () => toggle(focus, false),
-    "Shift+X": () => toggle(focus, true),
-    Enter: () => { if (shots[focus]) onOpen(shots[focus]); },
-    Delete: () => void removeSelected(),
-    e: () => openEdit(),
-    "Shift+M": () => { if (!picked.length) return false; setMoving(true); },
-    Escape: (e) => {
+  useKeys(bind("shots.list", {
+    down: () => setFocus((f) => Math.min(shots.length - 1, f + 1)),
+    up: () => setFocus((f) => Math.max(0, f - 1)),
+    select: () => toggle(focus, false),
+    range: () => toggle(focus, true),
+    open: () => { if (shots[focus]) onOpen(shots[focus]); },
+    remove: () => void removeSelected(),
+    bulk: () => openEdit(),
+    move: () => { if (!picked.length) return false; setMoving(true); },
+    clear: (e) => {
       const t = e.target as HTMLElement | null;
       if (t?.closest?.("[aria-label=\"Bulk edit\"]")) { t.blur(); return; }
       if (draft !== null) { void closeEdit(); return; }
       if (selected.size === 0) return false;
       setSelected(new Set());
     },
-  });
+  }));
 
   const all = shots.length > 0 && selected.size === shots.length;
   const some = selected.size > 0 && !all;
@@ -298,7 +297,7 @@ function ShotsList({ shots, mask, onOpen, onDeleted, bulk, onBulkOpen }: { shots
             <span class="f-selbar__sp" />
             <Button kind="ghost" size="sm" kbd={draft === null && "Esc"} onClick={() => setSelected(new Set())}>Clear</Button>
             <Button kind="secondary" size="sm" icon="folder-move-outline" kbd="⇧M" onClick={() => setMoving(true)}>Move to project…</Button>
-            <Button kind={draft === null ? "secondary" : "primary"} size="sm" icon="pencil-outline" kbd="E" aria-pressed={draft !== null} onClick={() => (draft === null ? openEdit() : void closeEdit())}>Edit…</Button>
+            <Button kind={draft === null ? "secondary" : "primary"} size="sm" icon="pencil-outline" kbd="B" aria-pressed={draft !== null} onClick={() => (draft === null ? openEdit() : void closeEdit())}>Edit…</Button>
             <Button kind="danger" size="sm" icon="delete-outline" disabled={busy} onClick={() => void removeSelected()}>{busy ? "Deleting…" : `Delete ${selected.size} shot${selected.size === 1 ? "" : "s"}…`}</Button>
           </div>
         </div>

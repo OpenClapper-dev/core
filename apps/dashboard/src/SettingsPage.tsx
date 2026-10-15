@@ -2,17 +2,28 @@ import type { ComponentChildren } from "preact";
 import { FRAME_MODES, frameModeLabel } from "./format";
 import type { MaskMode } from "./Framed";
 import { DEFAULT_SETTINGS, updateSettings, useSettings } from "./settings";
+import { ShortcutList } from "./CommandPalette";
+import type { SettingsTab } from "./router";
 import type { ThemeChoice } from "./theme";
 import { Icon, LinkButton, Seg, Toolbar, ToolbarTitle } from "./ui";
 
-interface Props { theme: ThemeChoice; onTheme: (t: ThemeChoice) => void; mask: MaskMode; onMask: (m: MaskMode) => void }
+interface Props { tab: SettingsTab; onTab: (t: SettingsTab) => void; theme: ThemeChoice; onTheme: (t: ThemeChoice) => void; mask: MaskMode; onMask: (m: MaskMode) => void }
 
-/** Settings (route #/settings): dashboard preferences, saved on change, per browser. */
-export function SettingsPage({ theme, onTheme, mask, onMask }: Props) {
+/** Settings (route #/settings): dashboard preferences, saved on change, per browser; and the shortcut reference (#/settings/shortcuts). */
+export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props) {
   const s = useSettings();
+  const tabs = <Seg label="Settings section" value={tab} onChange={onTab} options={[{ id: "general", label: "General" }, { id: "shortcuts", label: "Shortcuts" }]} />;
+  if (tab === "shortcuts") {
+    return (
+      <>
+        <Toolbar><ToolbarTitle icon="cog-outline">Settings</ToolbarTitle>{tabs}<span class="meta">Every keyboard shortcut, from the registry the pages use. Not rebindable yet.</span></Toolbar>
+        <div class="f-scroll"><div class="shortcut-grid settings__shortcuts"><ShortcutList /></div></div>
+      </>
+    );
+  }
   return (
     <>
-      <Toolbar><ToolbarTitle icon="cog-outline">Settings</ToolbarTitle><span class="meta">Saved on change, in this browser</span></Toolbar>
+      <Toolbar><ToolbarTitle icon="cog-outline">Settings</ToolbarTitle>{tabs}<span class="meta">Saved on change, in this browser</span></Toolbar>
       <div class="f-scroll">
         <div class="settings">
           <Section icon="theme-light-dark" title="Appearance">

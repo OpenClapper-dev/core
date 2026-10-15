@@ -8,19 +8,21 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { simplifyPoints, type Point, type Shape, type Stencil } from "@fielder/vocab";
 import { DrawingSvg } from "./Canvas";
 import { shapeAt, sizePx, toFrac, toPx, type CanvasRect } from "./geometry";
+import { shortcut } from "../shortcuts";
 
 export type Tool = "select" | "pen" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "eraser";
-export const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = [
-  { id: "select", icon: "cursor-default-outline", label: "Select / move", key: "V" },
-  { id: "pen", icon: "pencil-outline", label: "Freehand", key: "P" },
-  { id: "line", icon: "vector-line", label: "Line", key: "L" },
-  { id: "arrow", icon: "arrow-top-right", label: "Arrow", key: "A" },
-  { id: "rect", icon: "rectangle-outline", label: "Rectangle", key: "R" },
-  { id: "ellipse", icon: "ellipse-outline", label: "Ellipse", key: "O" },
-  { id: "text", icon: "format-text", label: "Text", key: "T" },
-  { id: "stencil", icon: "shape-outline", label: "Stencil", key: "S" },
-  { id: "eraser", icon: "eraser", label: "Eraser", key: "E" },
-];
+/** The tools in toolbar order; their keys come from the shortcut registry (scope "draw", action = tool id). */
+export const TOOLS: { id: Tool; icon: string; label: string; key: string }[] = ([
+  { id: "select", icon: "cursor-default-outline", label: "Select / move" },
+  { id: "pen", icon: "pencil-outline", label: "Freehand" },
+  { id: "line", icon: "vector-line", label: "Line" },
+  { id: "arrow", icon: "arrow-top-right", label: "Arrow" },
+  { id: "rect", icon: "rectangle-outline", label: "Rectangle" },
+  { id: "ellipse", icon: "ellipse-outline", label: "Ellipse" },
+  { id: "text", icon: "format-text", label: "Text" },
+  { id: "stencil", icon: "shape-outline", label: "Stencil" },
+  { id: "eraser", icon: "eraser", label: "Eraser" },
+] as const).map((t) => ({ ...t, key: (shortcut("draw", t.id)?.keys[0] ?? "").toUpperCase() }));
 
 /** Defaults for new shapes. */
 export interface Style { color: string; width: number; opacity: number; fill: boolean; stencil: Stencil; textSize: number; stencilSize: number }

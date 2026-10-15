@@ -4,7 +4,8 @@ import { deleteShot, patchShot, type Location, type Spot, type Preset, type Proj
 import { FRAME_MODES, positionOf, rigLabel, when } from "./format";
 import { downloadCrop, Framed, type MaskMode } from "./Framed";
 import { Inspector, projectTimelines, timelinesOfShot } from "./Inspector";
-import { afterG, useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
+import { hintsFor } from "./shortcuts";
 import { Compose, type ComposeGuard } from "./compose/Compose";
 import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
@@ -84,23 +85,23 @@ export function ShotView(p: Props) {
   const approveKey = () => { if (shot.state !== "approved") void setState("approved"); };
   const archiveKey = () => void setState(shot.state === "archived" ? "unreviewed" : "archived");
 
-  useKeys({
-    ArrowLeft: () => { if (prev) p.onNavigate(prev); },
-    ArrowRight: () => { if (next) p.onNavigate(next); },
-    ",": () => setPhotoIndex((i) => Math.max(0, i - 1)),
-    ".": () => setPhotoIndex((i) => Math.min(shot.photos.length - 1, i + 1)),
-    a: approveKey,
-    e: archiveKey,
-    r: () => { if (afterG()) return false; p.onStage("rigs"); },
-    c: () => { if (afterG()) return false; p.onStage("compose"); },
-    m: () => { if (afterG()) return false; p.onMode(nextMode(p.mode)); },
-    Escape: () => p.context.onBack(),
-  }, stage === "photo");
+  useKeys(bind("shot", {
+    prev: () => { if (prev) p.onNavigate(prev); },
+    next: () => { if (next) p.onNavigate(next); },
+    prevPhoto: () => setPhotoIndex((i) => Math.max(0, i - 1)),
+    nextPhoto: () => setPhotoIndex((i) => Math.min(shot.photos.length - 1, i + 1)),
+    approve: approveKey,
+    archive: archiveKey,
+    framing: () => p.onStage("rigs"),
+    compose: () => p.onStage("compose"),
+    frameMode: () => p.onMode(nextMode(p.mode)),
+    back: () => p.context.onBack(),
+  }), stage === "photo");
   // In Compose, ","/"." still switch the photo (overlays are per photo) but ask about unsaved work first.
-  useKeys({
-    ",": () => pickPhoto(Math.max(0, photoIndex - 1)),
-    ".": () => pickPhoto(Math.min(shot.photos.length - 1, photoIndex + 1)),
-  }, stage === "compose");
+  useKeys(bind("compose", {
+    prevPhoto: () => pickPhoto(Math.max(0, photoIndex - 1)),
+    nextPhoto: () => pickPhoto(Math.min(shot.photos.length - 1, photoIndex + 1)),
+  }), stage === "compose");
 
   const pos = index >= 0 ? `${index + 1} of ${list.length}` : "";
   return (
@@ -175,8 +176,5 @@ export function ShotView(p: Props) {
 
 /** Hints for the key bar, per stage. */
 export function shotHints(stage: Stage): { k: string; t: string }[] {
-  if (stage === "rigs") return [{ k: "Drag", t: "Move the frame" }, { k: "⇧ arrows", t: "Nudge" }, { k: "←/→", t: "Lens" }, { k: "⌘S", t: "Save framing" }, { k: "Esc", t: "Back to photo" }];
-  if (stage === "position") return [{ k: "Drag", t: "Move pin" }, { k: "↵", t: "Save position" }, { k: "Esc", t: "Cancel" }];
-  if (stage === "compose") return [{ k: "V P L A R O T S E", t: "Tools" }, { k: "1–0", t: "Colour" }, { k: "⌘Z", t: "Undo" }, { k: "Del", t: "Remove shape" }, { k: ", .", t: "Photos" }, { k: "⌘S", t: "Save" }, { k: "Esc", t: "Back" }];
-  return [{ k: "←/→", t: "Shots" }, { k: ", .", t: "Photos" }, { k: "A", t: "Approve" }, { k: "E", t: "Archive" }, { k: "R", t: "Framing" }, { k: "C", t: "Compose" }, { k: "M", t: "Frame mode" }, { k: "Esc", t: "Close" }];
+  return stage === "rigs" ? hintsFor("framing") : stage === "position" ? hintsFor("position") : stage === "compose" ? hintsFor("draw", "compose") : hintsFor("shot");
 }

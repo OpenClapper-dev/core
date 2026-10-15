@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { FIELD_PROMPT, validateFieldDef, type Extra, type FieldDef } from "@fielder/vocab";
 import { deleteField, importFields, putField, putProjectFields, type FieldDefinition, type Project } from "./api";
 import { ExtraEditor } from "./ExtraEditor";
-import { useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import { Banner, Button, confirmDialog, cx, Empty, EmptyNote, Icon, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
 
 /** The active project's fields: definitions belong to one project (issue #44). */
@@ -124,7 +124,7 @@ function Editor({ draft, projectId, fields, onChange, onSaved, onDeleted, onCanc
     if (!ok) return;
     try { await deleteField(def.id); onChange(fields.filter((x) => x.id !== def.id)); onDeleted(); toast("Field deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
-  useKeys({ "Mod+s": () => void saveField(), Escape: () => area.current?.blur() });
+  useKeys(bind("fields", { save: () => void saveField(), leave: () => area.current?.blur() }));
 
   const title = parsed.def ?? lastValid;
   return (

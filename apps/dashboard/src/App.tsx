@@ -6,7 +6,8 @@ import { FieldsPage } from "./Fields";
 import { FRAME_MODES, isFrameMode } from "./format";
 import type { MaskMode } from "./Framed";
 import { projectDays } from "./Inspector";
-import { afterG, useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
+import { hintsFor } from "./shortcuts";
 import { LocationsPage } from "./Locations";
 import { PlanPage } from "./Plan";
 import { ProjectGate, ProjectsPage } from "./Projects";
@@ -192,20 +193,17 @@ export function App() {
   }
   const openPalette = () => { setPalette(true); if (scope) void projectDays(scope).then(setPaletteDays); };
 
-  // Global keys: palette, shortcut sheet, G-then-section, frame mode on Shots.
-  useKeys({
-    "Mod+k": openPalette,
-    "?": () => setSheet(true),
-    "Mod+b": () => toggleSidebar(),
-    s: () => { if (!afterG()) return false; void navigate({ page: "shots", viewId: null }); },
-    p: () => { if (!afterG()) return false; void navigate({ page: "plan", dayId: null }); },
-    t: () => { if (!afterG()) return false; void navigate({ page: "timeline", timelineId: null }); },
-    l: () => { if (!afterG()) return false; void navigate({ page: "library", section: "projects", id: null }); },
-    m: () => {
-      if (afterG()) { setLayout("map"); void navigate({ page: "shots", viewId }); return; }
-      if (route.page === "shots") setMask(nextMode(mask)); else return false;
-    },
-  }, !palette && !sheet);
+  // Global keys: palette, shortcut sheet, sidebar, G then a section.
+  useKeys(bind("global", {
+    palette: openPalette,
+    sheet: () => setSheet(true),
+    sidebar: () => toggleSidebar(),
+    goShots: () => void navigate({ page: "shots", viewId: null }),
+    goPlan: () => void navigate({ page: "plan", dayId: null }),
+    goTimeline: () => void navigate({ page: "timeline", timelineId: null }),
+    goLibrary: () => void navigate({ page: "library", section: "projects", id: null }),
+    goMap: () => { setLayout("map"); void navigate({ page: "shots", viewId }); },
+  }), !palette && !sheet);
 
   const loaded = !!shots && !!projects && !!presets && !!locations && !!spots && !!views && !!fields;
   if (loaded && !scope) {
@@ -239,17 +237,17 @@ export function App() {
   } else if (route.page === "metadata") {
     main = <MetadataPage project={scopeProject!} shots={scoped} locations={projectLocations} onLocations={setProjectLocations} mask={mask}
       field={route.field} onField={(f) => replace({ page: "metadata", field: f })} onUpdated={updated} onOpen={openShot} />;
-    hints = [{ k: "Drag", t: "Set the value" }, { k: "Drag back", t: "Clear it" }, { k: "Double-click", t: "Open shot" }];
+    hints = hintsFor("metadata");
   } else if (route.page === "plan") {
     main = <PlanPage project={scopeProject!} shots={scoped} mask={mask} dayId={route.dayId} onDay={(id) => replace({ page: "plan", dayId: id })} onOpen={openShot} />;
-    hints = [{ k: "↑/↓", t: "Shots" }, { k: "Alt ↑/↓", t: "Reorder" }, { k: "T", t: "Planned time" }, { k: "Del", t: "Remove" }, { k: "N", t: "Add shots" }, { k: "⇧N", t: "New day" }, { k: "↵", t: "Open shot" }];
+    hints = hintsFor("plan");
   } else if (route.page === "timeline") {
     main = <TimelinePage project={scopeProject!} shots={scoped} presets={presets!} mask={mask} timelineId={route.timelineId} at={route.at} onTimeline={(id) => replace({ page: "timeline", timelineId: id })}
       onOpen={openShot} onUpdated={updated} onShowOnMap={showOnMap} onNewShot={() => setNewShot(true)} />;
-    hints = [{ k: "←/→", t: "Clip" }, { k: "Space", t: "Play" }, { k: "Drag", t: "Add / reorder" }, { k: "A/E", t: "Approve / archive" }, { k: "R/C", t: "Re-frame / compose" }, { k: "P", t: "Placeholder" }, { k: "N", t: "Shots panel" }, { k: "⇧N", t: "New timeline" }, { k: "Right-click", t: "Actions" }];
+    hints = hintsFor("timeline", "browser");
   } else if (route.page === "settings") {
-    main = <SettingsPage theme={theme} onTheme={setTheme} mask={mask} onMask={setMask} />;
-    hints = [{ k: "G S", t: "Back to Shots" }];
+    main = <SettingsPage tab={route.tab} onTab={(tab) => replace({ page: "settings", tab })} theme={theme} onTheme={setTheme} mask={mask} onMask={setMask} />;
+    hints = [];
   } else if (route.page === "library") {
     const sel = route.id;
     const setSel = (id: string | null) => replace({ page: "library", section: route.section, id });
@@ -257,25 +255,23 @@ export function App() {
       main = <ProjectsPage projects={projects!} onChange={setProjects} fields={fields!} scope={scope!} selectedId={sel} onSelect={setSel}
         onActivate={(id) => { setScope(id); toast(`Now working on ${projects!.find((p) => p.id === id)?.name ?? "the project"}`); }}
         onShowShots={(id) => { setScope(id); navigateRaw({ page: "shots", viewId: null }); }} onEditFields={(id) => { setScope(id); navigateRaw({ page: "library", section: "fields", id: null }); }} />;
-      hints = [{ k: "↵", t: "Save the field" }, { k: "Esc", t: "Leave the field" }];
+      hints = [];
     } else if (route.section === "fields") {
       main = <FieldsPage project={scopeProject!} fields={projectFields} onChange={setProjectFields} selectedId={sel} onSelect={setSel} />;
-      hints = [{ k: "⌘S", t: "Save field" }, { k: "Tab", t: "Indent" }, { k: "Esc", t: "Leave editor" }];
+      hints = hintsFor("fields");
     } else if (route.section === "rigs") {
       main = <RigsPage presets={presets!} shots={shots!} onChange={setPresets} selectedId={sel} onSelect={setSel} />;
-      hints = [{ k: "J/K", t: "Move" }, { k: "↵", t: "Edit" }, { k: "⌘S", t: "Save rig" }, { k: "Esc", t: "Close editor" }];
+      hints = hintsFor("rigs", "rig");
     } else {
       main = <LocationsPage locations={projectLocations} shots={scoped} onChange={setProjectLocations} spots={spots ?? []} onSpots={setSpots} onShotsChanged={() => void fetchAllShots().then(setShots).catch(() => {})} onShowShots={showLocationShots} />;
-      hints = [{ k: "J/K", t: "Move" }, { k: "F2", t: "Rename" }, { k: "↵", t: "Show shots" }, { k: "Del", t: "Delete" }, { k: "/", t: "Filter" }];
+      hints = hintsFor("locations");
     }
   } else {
     main = <ShotsPage shots={scoped} error={error} scopeName={scopeName} query={query} onQuery={setQuery} view={loadedView} edited={edited}
       onSaveView={() => void saveView()} onSaveAsNew={() => void saveAsNew()} onRevert={() => loadedView && setQuery({ ...query, ...decodeView(loadedView.filter) })} onViewMenu={(a) => void viewMenu(a)}
       panel={panel} onPanel={setPanel} layout={layout} onLayout={setLayout} mask={mask} onMask={setMask} ctx={ctx} onOpen={openShot}
       mapSelected={mapSelected} onMapSelected={setMapSelected} onDeleted={deleted} onUpdated={updated} onLocations={setProjectLocations} fieldsOf={fieldsOf} onReload={() => void load()} onSwitchScope={openPalette} onNewShot={() => setNewShot(true)} />;
-    hints = layout === "list" ? [{ k: "J/K", t: "Move" }, { k: "X", t: "Select" }, { k: "⇧X", t: "Select range" }, { k: "↵", t: "Open" }, { k: "E", t: "Edit selected" }, { k: "⇧M", t: "Move selected" }, { k: "Del", t: "Delete selected" }, { k: "F", t: "Filter" }]
-      : layout === "map" ? [{ k: "↑/↓", t: "Move in list" }, { k: "↵", t: "Open" }, { k: "F", t: "Filter" }, { k: "M", t: "Frame mode" }]
-      : [{ k: "←↑→↓", t: "Move" }, { k: "↵", t: "Open" }, { k: "F", t: "Filter" }, { k: "M", t: "Frame mode" }, { k: "/", t: "Search" }, { k: "⌘K", t: "Go to" }];
+    hints = [...hintsFor(layout === "list" ? "shots.list" : layout === "map" ? "map" : "shots.grid"), ...hintsFor("shots"), ...hintsFor("global")];
   }
 
   const actions: Command[] = [
@@ -289,7 +285,7 @@ export function App() {
     { id: "a-day", group: "Actions", icon: "calendar-plus", title: "New shooting day", sub: "In Plan", keys: "⇧N", run: () => void navigate({ page: "plan", dayId: null }) },
     { id: "a-rig", group: "Actions", icon: "camera-plus-outline", title: "New rig", sub: "Library › Rigs", run: () => navigateRaw({ page: "library", section: "rigs", id: null }) },
     { id: "a-theme", group: "Actions", icon: "theme-light-dark", title: "Toggle theme", sub: `Now ${theme === "auto" ? "Auto" : theme === "sun" ? "Sun" : "Set"}`, run: () => setTheme(theme === "set" ? "sun" : "set") },
-    { id: "a-settings", group: "Go to", icon: "cog-outline", title: "Settings", sub: "Theme, frame mode, new shots", run: () => void navigate({ page: "settings" }) },
+    { id: "a-settings", group: "Go to", icon: "cog-outline", title: "Settings", sub: "Theme, frame mode, new shots", run: () => void navigate({ page: "settings", tab: "general" }) },
     { id: "a-reload", group: "Actions", icon: "refresh", title: "Reload data", run: reload },
     { id: "a-side", group: "Actions", icon: rail ? "chevron-double-right" : "chevron-double-left", title: rail ? "Expand the sidebar" : "Collapse the sidebar", keys: "Ctrl B", run: toggleSidebar },
     { id: "a-keys", group: "Actions", icon: "keyboard-outline", title: "Keyboard shortcuts", keys: "?", run: () => setSheet(true) },

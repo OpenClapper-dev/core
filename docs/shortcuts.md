@@ -1,0 +1,238 @@
+# Keyboard shortcuts (dashboard)
+
+Generated from `apps/dashboard/src/shortcuts.ts` (issue #32); `shortcuts.test.ts` fails when this file drifts. Regenerate with `node apps/dashboard/src/shortcuts.docs.ts > docs/shortcuts.md`.
+The same list is in the app: `?`, and Settings › Shortcuts. Single keys never fire while you type in a field; plain letters wait while a G jump is pending.
+
+## Everywhere
+
+| Keys | What |
+| --- | --- |
+| ⌘K | Go to… (command palette) |
+| ? | All shortcuts |
+| ⌘B | Collapse or expand the sidebar |
+| G S | Go to Shots |
+| G T | Go to Timeline |
+| G P | Go to Plan |
+| G L | Go to the Library |
+| G M | Shots on the map |
+| Esc | Close or back out one level |
+
+## Shots
+
+| Keys | What |
+| --- | --- |
+| / | Focus the search |
+| F | Filter panel |
+| M | Cycle the frame mode |
+| ⇧N | New shot (upload or draw) |
+| Esc | Leave the search field |
+
+## Shots · grid
+
+| Keys | What |
+| --- | --- |
+| ← ↑ → ↓ | Move in the grid |
+| ↵ | Open the shot |
+
+## Shots · list
+
+| Keys | What |
+| --- | --- |
+| J / ↓ | Next row |
+| K / ↑ | Previous row |
+| X | Select the row |
+| ⇧X | Select a range |
+| ↵ | Open the shot |
+| B | Bulk edit the selected shots |
+| ⇧M | Move the selected shots to a project |
+| Del | Delete the selected shots |
+| Esc | Close bulk edit · clear the selection |
+
+## Shots · map
+
+| Keys | What |
+| --- | --- |
+| ↑ / ↓ | Move in the list |
+| ↵ | Open the shot |
+
+## Shot view
+
+| Keys | What |
+| --- | --- |
+| ← | Previous shot |
+| → | Next shot |
+| , | Previous photo of a sequence |
+| . | Next photo of a sequence |
+| A | Approve |
+| E | Archive (archived: back to review) |
+| R | Framing stage |
+| C | Compose stage |
+| M | Cycle the frame mode |
+| Esc | Back to where the shot was opened |
+
+## Shot view · Framing
+
+| Keys | What |
+| --- | --- |
+| Drag | Move the frame |
+| ← | Shorter lens |
+| → | Longer lens |
+| ⇧ arrows | Nudge the frame by 1 % |
+| ⌘S | Save the framing |
+| Esc | Back to the photo |
+
+## Shot view · Compose
+
+| Keys | What |
+| --- | --- |
+| , | Previous photo of a sequence |
+| . | Next photo of a sequence |
+
+## Drawing (Compose, and overlays or sketches on the timeline stage)
+
+| Keys | What |
+| --- | --- |
+| V | Select / move |
+| P | Freehand |
+| L | Line |
+| A | Arrow |
+| R | Rectangle |
+| O | Ellipse |
+| T | Text |
+| S | Stencil |
+| E | Eraser |
+| 1 – 0 | Colour |
+| ⌘Z | Undo |
+| ⌘⇧Z / ⌘Y | Redo |
+| Del / ⌫ | Remove the selected shape |
+| ← ↑ → ↓ | Nudge the selected shape |
+| ⌘S | Save now (inline drawings also save on their own) |
+| Esc | Stop editing text · deselect · leave |
+
+## Re-framing a clip on the timeline stage
+
+| Keys | What |
+| --- | --- |
+| Drag | Move the frame on the stage |
+| ← | Shorter lens |
+| → | Longer lens |
+| ⇧ arrows | Nudge the frame by 1 % |
+| Esc | Done |
+
+## Timeline
+
+| Keys | What |
+| --- | --- |
+| ← | Previous clip |
+| → | Next clip |
+| Home | First clip |
+| End | Last clip |
+| Space | Play / pause |
+| Alt ← | Move the clip earlier |
+| Alt → | Move the clip later |
+| Drag | Shots into the strip · reorder clips · scrub along the ruler |
+| N | Shot browser ⇄ clip panel |
+| P | Placeholder clip |
+| R | Re-frame the clip on the stage |
+| C | Draw the clip's overlay (or sketch it) |
+| ↵ | Open the clip's shot |
+| ⇧N | New timeline |
+| Right-click | Actions on shots, clips and timelines |
+
+## Timeline · shot browser
+
+| Keys | What |
+| --- | --- |
+| A | Approve the selected shot |
+| E | Archive the selected shot (archived: back to review) |
+
+## Timeline · clip panel
+
+| Keys | What |
+| --- | --- |
+| A | Approve the clip's shot |
+| E | Archive the clip's shot (archived: back to review) |
+| D | Focus the hold time |
+| Del | Remove the clip |
+
+## Plan
+
+| Keys | What |
+| --- | --- |
+| ↓ | Next planned shot |
+| ↑ | Previous planned shot |
+| Alt ↓ | Move later in the day |
+| Alt ↑ | Move earlier in the day |
+| T | Planned time |
+| Del | Remove from the day |
+| N | Add shots |
+| Esc | Close the Add shots panel |
+| ⇧N | New shooting day |
+| ↵ | Open the shot |
+
+## Metadata
+
+| Keys | What |
+| --- | --- |
+| Drag | Set the value |
+| Drag back | Clear the value |
+| Double-click | Open the shot |
+
+## Library · Rigs
+
+| Keys | What |
+| --- | --- |
+| J / ↓ | Next rig |
+| K / ↑ | Previous rig |
+| ↵ | Edit the rig |
+
+## Rig editor
+
+| Keys | What |
+| --- | --- |
+| ⌘S | Save the rig |
+| Esc | Close the editor |
+
+## Library · Locations
+
+| Keys | What |
+| --- | --- |
+| / | Filter the locations |
+| J / ↓ | Next location |
+| K / ↑ | Previous location |
+| F2 | Rename |
+| P | Set the position |
+| ↵ | Show its shots |
+| Del | Delete |
+
+## Library · Fields
+
+| Keys | What |
+| --- | --- |
+| ⌘S | Save the field |
+| Tab | Indent in the JSON editor |
+| Esc | Leave the editor |
+
+## Shot view · Position
+
+| Keys | What |
+| --- | --- |
+| Drag | Move the pin |
+| ↵ | Save the position |
+| Esc | Cancel |
+
+## New shot · drawing
+
+| Keys | What |
+| --- | --- |
+| ⌘Z | Undo the last shape |
+| Del | Remove the selected shape |
+
+## Combobox
+
+| Keys | What |
+| --- | --- |
+| ↑ / ↓ | Move |
+| ↵ / Tab | Take the highlighted entry |
+| Esc | Cancel |
+

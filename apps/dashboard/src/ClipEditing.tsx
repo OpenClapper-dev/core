@@ -9,7 +9,7 @@ import { BLUR_FRACTION, renderOverlay, renderSketch, vignetteCss } from "./compo
 import { frameModeLabel } from "./format";
 import { Framed, framedLayout, type MaskMode } from "./Framed";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
-import { useKeys } from "./keys";
+import { bind, NUDGE, useKeys } from "./keys";
 import { AS_SHOT, choiceLabel, DragFrame, frameForChoice, lensesFor, Pickers, type RigChoice } from "./RigExplorer";
 import { DRAWER_RESIZE, ownReframe, STAGE_H, type Cut, type ResolvedClip } from "./TimelineParts";
 import { Button, confirmDialog, Empty, Icon, Input, Panel, PanelBody, PanelHead, SaveStatus, Seg, Spinner, toast, type SaveState } from "./ui";
@@ -188,20 +188,20 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
     } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
 
-  // ----- keys: the edit mode owns them (#32 revisits the scoping) -----
+  // ----- keys: the edit mode owns them, the timeline's map is off meanwhile (modal scopes in shortcuts.ts) -----
   const drawing = !!editing && editing.kind !== "reframe";
-  useKeys({
-    ...drawingKeys(ed),
-    "Mod+s": () => { void saveNow(); },
-    Escape: () => { if (ed.textEdit) { ed.setTextEdit(null); return; } if (ed.selected) { ed.setSelected(null); return; } void stop(); },
-  }, drawing && !!doc);
+  useKeys(drawingKeys(ed, {
+    save: () => { void saveNow(); },
+    escape: () => { if (ed.textEdit) { ed.setTextEdit(null); return; } if (ed.selected) { ed.setSelected(null); return; } void stop(); },
+  }), drawing && !!doc);
   const reframe = editing?.kind === "reframe" && c?.kind === "photo" ? c : null;
   const rf = reframeOf(reframe, presets, (patch) => reframe && patchClip(reframe.clip.id, { presentation: { ...reframe.pres, ...patch } }));
-  useKeys({
-    ArrowLeft: () => rf?.stepLens(-1), ArrowRight: () => rf?.stepLens(1),
-    "Shift+ArrowLeft": () => rf?.nudge(-0.01, 0), "Shift+ArrowRight": () => rf?.nudge(0.01, 0), "Shift+ArrowUp": () => rf?.nudge(0, -0.01), "Shift+ArrowDown": () => rf?.nudge(0, 0.01),
-    Escape: () => { void stop(); },
-  }, !!reframe);
+  useKeys(bind("reframe", {
+    lensDown: () => rf?.stepLens(-1),
+    lensUp: () => rf?.stepLens(1),
+    nudge: (e) => { const d = NUDGE[e.key]; if (d) rf?.nudge(d[0], d[1]); },
+    done: () => { void stop(); },
+  }), !!reframe);
 
   if (!editing || !c) return { editing: null, start: (k, cl) => void start(k, cl), stop, stage: null, panel: null };
 

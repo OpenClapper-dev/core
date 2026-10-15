@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "preact/hooks";
+import { shortcut, type ActionOf, type ScopeId } from "./shortcuts";
 
 /** True while focus is in a text field: single-key shortcuts must not fire then. */
 export function isTyping(e: KeyboardEvent): boolean {
@@ -41,3 +42,29 @@ export function useKeys(map: Record<string, (e: KeyboardEvent) => void | boolean
     return () => window.removeEventListener("keydown", on);
   }, [enabled]);
 }
+
+type Handler = (e: KeyboardEvent) => void | boolean;
+
+/**
+ * A useKeys map for one scope of the registry (shortcuts.ts): each handler is put under its entry's
+ * keys. Plain letters step aside right after G (the next key is a section jump); chord entries fire
+ * only then. Handlers sharing a key run in turn until one does not return false.
+ */
+export function bind<S extends ScopeId>(scope: S, handlers: Partial<Record<ActionOf<S>, Handler>>): Record<string, Handler> {
+  const byKey = new Map<string, Handler[]>();
+  for (const [action, fn] of Object.entries(handlers) as [string, Handler | undefined][]) {
+    const s = shortcut(scope, action);
+    if (!fn || !s || s.info) continue;
+    for (const k of s.keys) {
+      const guarded: Handler = s.chord ? (e) => (afterG() ? fn(e) : false) : /^[a-z]$/i.test(k) ? (e) => (afterG() ? false : fn(e)) : fn;
+      byKey.set(k, [...(byKey.get(k) ?? []), guarded]);
+    }
+  }
+  return Object.fromEntries([...byKey].map(([k, fns]) => [k, (e: KeyboardEvent) => {
+    for (const fn of fns) if (fn(e) !== false) return;
+    return false;
+  }]));
+}
+
+/** ⇧ + an arrow moves a frame by 1 % of the photo (Framing stage and inline re-frame). */
+export const NUDGE: Record<string, [number, number]> = { ArrowLeft: [-0.01, 0], ArrowRight: [0.01, 0], ArrowUp: [0, -0.01], ArrowDown: [0, 0.01] };

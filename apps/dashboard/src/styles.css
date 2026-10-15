@@ -46,6 +46,7 @@ button { font: inherit; }
 
 /* Shortcut sheet */
 .shortcut-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; }
+.settings__shortcuts { padding: 20px 24px 32px; max-width: 1200px; }
 .shortcut-grid .f-facts { font-size: var(--text-small); }
 
 /* Shots */

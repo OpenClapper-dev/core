@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { CAMERAS, CUSTOM_CAMERA_ID, findFormat } from "@fielder/fov-math";
 import { deletePreset, putPreset, type Preset, type Shot } from "./api";
-import { useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import { Button, Combobox, confirmDialog, cx, ErrorLine, Field, IconButton, Input, Panel, PanelBody, PanelFoot, PanelHead, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "./ui";
 
 interface Props { presets: Preset[]; shots: Shot[]; onChange: (p: Preset[]) => void; selectedId: string | null; onSelect: (id: string | null) => void }
@@ -33,11 +33,11 @@ export function RigsPage({ presets, shots, onChange, selectedId, onSelect }: Pro
   const [focus, setFocus] = useState(0);
   useEffect(() => { const p = presets.find((x) => x.id === selectedId); if (p) setD(toDraft(p)); else if (!d?.isNew) setD(null); }, [selectedId]);
   const open = (i: number) => { const p = presets[i]; if (p) onSelect(p.id); };
-  useKeys({
-    j: () => setFocus((f) => Math.min(presets.length - 1, f + 1)), k: () => setFocus((f) => Math.max(0, f - 1)),
-    ArrowDown: () => setFocus((f) => Math.min(presets.length - 1, f + 1)), ArrowUp: () => setFocus((f) => Math.max(0, f - 1)),
-    Enter: () => open(focus),
-  }, !d);
+  useKeys(bind("rigs", {
+    down: () => setFocus((f) => Math.min(presets.length - 1, f + 1)),
+    up: () => setFocus((f) => Math.max(0, f - 1)),
+    open: () => open(focus),
+  }), !d);
   return (
     <>
       <Toolbar><ToolbarTitle count={presets.length}>Rigs</ToolbarTitle><ToolbarSpacer /><Button size="sm" icon="plus" onClick={() => { onSelect(null); setD(newDraft()); }}>New rig</Button></Toolbar>
@@ -100,7 +100,7 @@ function RigEditor({ draft: d, setDraft, presets, used, onChange, onClose, onSav
     if (!ok) return;
     try { await deletePreset(d.id); onChange(presets.filter((x) => x.id !== d.id)); onClose(); toast("Rig deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
-  useKeys({ "Mod+s": () => void save(), Escape: onClose });
+  useKeys(bind("rig", { save: () => void save(), close: onClose }));
 
   return (
     <Panel label={d.isNew ? "New rig" : "Edit rig"}>
