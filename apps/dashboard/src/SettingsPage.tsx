@@ -40,7 +40,10 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
             </Row>
           </Section>
           <Section icon="filmstrip" title="Timeline">
-            <Row label="Playhead while editing" help="When a clip is re-framed or drawn on inline. Pinned: the playhead stays on that clip until you are done. Leave: selecting, stepping or scrubbing to another clip ends the edit (saved first).">
+            <Row label="Open overlays right away" help="Landing on a clip that shows an overlay opens it in the inline editor, no C needed. Moving to another clip then always ends the edit (saved first), whatever the playhead setting below says.">
+              <Seg label="Open overlays right away" value={s.autoOverlay ? "on" : "off"} onChange={(v) => updateSettings({ autoOverlay: v === "on" })} options={[{ id: "off", label: "Off" }, { id: "on", label: "On" }]} />
+            </Row>
+            <Row label="Playhead while editing" help={`When a clip is re-framed or drawn on inline. Pinned: the playhead stays on that clip until you are done. Leave: selecting, stepping or scrubbing to another clip ends the edit (saved first).${s.autoOverlay ? " With overlays opening right away, it always leaves." : ""}`}>
               <Seg label="Playhead while editing a clip" value={s.inlinePlayhead} onChange={(v) => updateSettings({ inlinePlayhead: v })} options={[{ id: "pin", label: "Pinned to the clip" }, { id: "leave", label: "Leave ends the edit" }]} />
             </Row>
             <Row label="Removing a sequence's photo" help="Remove on a clip of a sequence block. Just the photo: the block keeps the rest in order (Restore all photos brings it back). Whole sequence: the block goes.">

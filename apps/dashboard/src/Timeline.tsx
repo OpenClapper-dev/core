@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fetchTimelines, patchShot, promoteClip, type Preset, type Project, type Shot, type Timeline, type TimelineClip } from "./api";
 import { guardCut, useClipEditing, type EditKind } from "./ClipEditing";
 import { placeLabel, shotTitle } from "./format";
@@ -135,10 +135,19 @@ function Workspace(p: WorkspaceProps) {
   const usage = useMemo(() => shotUsage(clips), [clips]);
 
   // While a clip is edited inline the playhead is pinned to it, or moving away ends the edit (Settings → Timeline).
-  const guarded = guardCut(cut, inline, settings.inlinePlayhead);
+  const guarded = guardCut(cut, inline, settings.autoOverlay ? "leave" : settings.inlinePlayhead);
   const selectClip = (id: string | null) => { guarded.select(id); if (id && !inline.editing) setPanel("clip"); };
   const guardedCut: Cut = { ...guarded, select: selectClip };
   const edit = (kind: EditKind, c: ResolvedClip) => { cut.select(c.clip.id); setPanel("clip"); inline.start(kind, c); };
+  // Settings → Timeline → "Open overlays right away" (issue #51): a clip that shows an overlay opens in the
+  // inline editor when the playhead lands on it (not while playing). Esc keeps it closed until you move on.
+  const autoOpened = useRef<string | null>(null);
+  useEffect(() => { if (autoOpened.current !== cur?.clip.id) autoOpened.current = null; }, [cur?.clip.id]);
+  useEffect(() => {
+    if (!settings.autoOverlay || cut.playing || inline.editing || cur?.kind !== "photo" || !cur.overlay || autoOpened.current === cur.clip.id) return;
+    autoOpened.current = cur.clip.id;
+    edit("overlay", cur);
+  }, [settings.autoOverlay, cur?.clip.id, cut.playing, !!inline.editing]);
   useCutUrl(t.id, clips, cut, inline.editing?.kind ?? null, edit, p.at);
   /** The browser's "in this timeline" badge: the shot's first clip, then the next one on each click. The browser stays open. */
   const jumpTo = (shotId: string) => {
