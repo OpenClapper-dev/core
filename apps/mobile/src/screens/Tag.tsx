@@ -21,13 +21,13 @@ interface Props {
   onDiscard: () => void;
 }
 
-/** Tags of the last upload (never the name; extra fields only within the same project) and which keys they filled. */
+/** Tags of the last upload (never the name; location and extra fields only within the same project) and which keys they filled. */
 function remembered(projectId: string | null): { tags: ShotTags; keys: Set<string> } {
   const last = store.loadLastTags();
   if (!last) return { tags: EMPTY_TAGS, keys: new Set() };
   const t = last.tags;
   const sameProject = last.projectId === projectId;
-  const known = !t.location_id || store.loadLocations().some((l) => l.id === t.location_id);
+  const known = !t.location_id || store.loadLocations().some((l) => l.id === t.location_id && l.projectId === projectId);
   const tags: ShotTags = { ...EMPTY_TAGS, ...t, name: null, location_id: known ? t.location_id : null, extra: sameProject ? t.extra ?? {} : {} };
   const keys = new Set<string>();
   if (tags.location_id) keys.add("location_id");
@@ -104,7 +104,7 @@ export function Tag({ draft, settings, project, locations, countAt, fields, onUp
     </ScrollView>
   );
   const editor = (
-    <TagEditor value={value} onChange={setValue} locations={locations} countAt={countAt} fields={fields} projectName={project?.name}
+    <TagEditor value={value} onChange={setValue} projectId={project?.id ?? ""} locations={locations} countAt={countAt} fields={fields} projectName={project?.name}
       remembered={keys} onTouched={(k) => setKeys((cur) => { if (!cur.has(k)) return cur; const nx = new Set(cur); nx.delete(k); return nx; })}
       lastLocationId={store.loadLastTags()?.tags.location_id ?? null} />
   );

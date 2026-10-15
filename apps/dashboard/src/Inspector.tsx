@@ -1,6 +1,6 @@
 import { Fragment } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { CAMERA_SUPPORTS, cameraLabel, INT_EXT, label, lightLabel, MOVEMENTS, SHOT_SIZE_ABBR, SHOT_SIZES, WEATHER, type Extra, type FieldDef } from "@fielder/vocab";
+import { CAMERA_SUPPORTS, cameraLabel, droppedKeys, INT_EXT, label, lightLabel, MOVEMENTS, SHOT_SIZE_ABBR, SHOT_SIZES, WEATHER, type Extra, type FieldDef } from "@fielder/vocab";
 import { createProjectNamed, existingIdOf, fetchDays, fetchTimelines, patchShot, putLocation, type Location, type Photo, type Project, type Shot, type ShootingDay, type ShotState, type Timeline } from "./api";
 import { ExtraEditor } from "./ExtraEditor";
 import { coords, fovLabel, placeLabel, rigDescription, shotTitle, sourceLabel } from "./format";
@@ -36,6 +36,8 @@ interface Props {
   projects: Project[];
   /** Extra-field definitions of the shot's project. */
   fields: readonly FieldDef[];
+  /** Another project's fields, to tell what a move drops. */
+  fieldsOf: (projectId: string) => readonly FieldDef[];
   locations: Location[];
   onLocations: (l: Location[]) => void;
   onUpdated: (s: Shot) => void;
@@ -49,7 +51,7 @@ interface Props {
 }
 
 /** Right-hand inspector of the shot view and Review: decision, tags (saved per change), facts. */
-export function Inspector({ shot, photo, projects, fields, locations, onLocations, onUpdated, onState, stateBusy, onCorrect, onCompose, onOpenDay, onOpenTimeline }: Props) {
+export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, onLocations, onUpdated, onState, stateBusy, onCorrect, onCompose, onOpenDay, onOpenTimeline }: Props) {
   const [save, setSave] = useState<SaveState>("idle");
   const last = useRef<Parameters<typeof patchShot>[1] | null>(null);
   const [name, setName] = useState(shot.name ?? "");
@@ -90,7 +92,7 @@ export function Inspector({ shot, photo, projects, fields, locations, onLocation
     if (createName) {
       setSave("saving");
       try {
-        const created = await putLocation({ id: crypto.randomUUID(), name: createName });
+        const created = await putLocation({ id: crypto.randomUUID(), project_id: shot.project_id, name: createName });
         onLocations([...locations, created].sort((a, b) => a.name.localeCompare(b.name)));
         id = created.id;
       } catch (err) {
@@ -105,11 +107,13 @@ export function Inspector({ shot, photo, projects, fields, locations, onLocation
     setSave("saving");
     try { pickProject((await createProjectNamed(name)).id); } catch (e) { setSave("error"); toast(`Could not create the project: ${(e as Error).message}`, "danger"); }
   }
+  const dropsOf = (projectId: string) => droppedKeys(fieldsOf(projectId), shot.extra).map((k) => fields.find((d) => d.key === k)?.label ?? k);
   const pickProject = (v: string | null) => {
     if (!v || v === shot.project_id) { setMoveTo(null); return; }
-    if (days.length === 0) void patch({ project_id: v });
+    if (days.length === 0 && dropsOf(v).length === 0) void patch({ project_id: v });
     else setMoveTo(v);
   };
+  const drops = moveTo ? dropsOf(moveTo) : [];
 
   const unrev = shot.state === "unreviewed";
   const f = photo.framing ?? {};
@@ -148,7 +152,8 @@ export function Inspector({ shot, photo, projects, fields, locations, onLocation
               <Combobox small options={projects.map((p) => ({ value: p.id, label: p.name }))} value={moveTo ?? shot.project_id} clearable={false} onChange={pickProject} onCreate={(t) => void createProject(t)} onCancel={() => setMoveTo(null)} />
               {moveTo && (
                 <div class="move-warn">
-                  <span class="f-field__help" style={{ color: "var(--warn-ink)", fontWeight: 600, display: "flex", gap: "4px" }}><Icon name="alert" />Leaves {days.length} shooting day{days.length === 1 ? "" : "s"} in {projectName}.</span>
+                  {days.length > 0 && <span class="f-field__help" style={{ color: "var(--warn-ink)", fontWeight: 600, display: "flex", gap: "4px" }}><Icon name="alert" />Leaves {days.length} shooting day{days.length === 1 ? "" : "s"} in {projectName}.</span>}
+                  {drops.length > 0 && <span class="f-field__help" style={{ color: "var(--warn-ink)", fontWeight: 600, display: "flex", gap: "4px" }}><Icon name="alert" />Drops {drops.join(", ")}: the other project's fields don't take {drops.length === 1 ? "it" : "them"}.</span>}
                   <div class="btn-row" style={{ gap: "6px" }}>
                     <Button size="sm" onClick={() => { const v = moveTo; setMoveTo(null); void patch({ project_id: v }); }}>Move</Button>
                     <Button kind="ghost" size="sm" onClick={() => setMoveTo(null)}>Cancel</Button>

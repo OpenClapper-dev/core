@@ -61,7 +61,7 @@ export function runQuery(all: Shot[], q: ShotsQuery, extra: readonly FilterField
 export function fieldOptions(fieldId: string, ctx: RefLists): { value: string; label: string }[] {
   const f = filterField(fieldId, ctx.extra);
   if (!f) return [];
-  if (f.kind === "ref") return (f.ref === "location" ? ctx.locations : f.ref === "project" ? ctx.projects : ctx.presets).map((x) => ({ value: x.id, label: x.name }));
+  if (f.kind === "ref") return (f.ref === "location" ? ctx.locations : ctx.presets).map((x) => ({ value: x.id, label: x.name }));
   return (f.options ?? []).map((v) => ({ value: v, label: f.id.startsWith("extra.") ? v : label(v) }));
 }
 

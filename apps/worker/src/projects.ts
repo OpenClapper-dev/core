@@ -8,14 +8,14 @@ export interface ProjectRow {
   created_at: string;
   updated_at: string | null;
   shot_count?: number;
-  /** JSON array of field definition ids, in order. */
+  /** JSON array of the project's own field definition ids, in order. */
   field_ids?: string;
 }
 
 const toApi = (p: ProjectRow) => ({ ...p, field_ids: JSON.parse(p.field_ids ?? "[]") as string[] });
 
 const LIST_SQL = `SELECT pr.*, (SELECT count(*) FROM shots s WHERE s.project_id = pr.id) AS shot_count,
-  (SELECT json_group_array(field_id) FROM (SELECT field_id FROM project_fields WHERE project_id = pr.id ORDER BY position)) AS field_ids
+  (SELECT json_group_array(id) FROM (SELECT id FROM field_definitions WHERE project_id = pr.id ORDER BY position, key)) AS field_ids
   FROM projects pr`;
 
 export async function assertProjectExists(env: Ctx["env"], id: string) {

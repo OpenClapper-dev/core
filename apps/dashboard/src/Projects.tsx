@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-import { deleteProject, existingIdOf, putProject, putProjectFields, type FieldDefinition, type Project } from "./api";
-import { Button, Combobox, confirmDialog, Empty, Field, Input, ListRow, Mark, MenuItem, Panel, PanelBody, PanelHead, ProjectTag, promptDialog, ReorderButtons, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { deleteProject, existingIdOf, putProject, type FieldDefinition, type Project } from "./api";
+import { Button, confirmDialog, Empty, Field, Input, ListRow, Mark, MenuItem, Panel, PanelBody, PanelHead, ProjectTag, promptDialog, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
 
 const sortByName = (list: Project[]) => [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 
@@ -47,7 +47,7 @@ interface Props {
   onSelect: (id: string | null) => void;
   onActivate: (id: string) => void;
   onShowShots: (id: string) => void;
-  onEditFields: () => void;
+  onEditFields: (projectId: string) => void;
 }
 
 /** Library › Projects: list with counts | detail (name, notes, ordered extra fields, delete when empty). */
@@ -72,7 +72,7 @@ export function ProjectsPage({ projects, onChange, fields, scope, selectedId, on
   );
 }
 
-function ProjectDetail({ project, projects, onChange, fields, active, onActivate, onShowShots, onEditFields, onDeleted }: { project: Project; projects: Project[]; onChange: (p: Project[]) => void; fields: FieldDefinition[]; active: boolean; onActivate: (id: string) => void; onShowShots: (id: string) => void; onEditFields: () => void; onDeleted: () => void }) {
+function ProjectDetail({ project, projects, onChange, fields, active, onActivate, onShowShots, onEditFields, onDeleted }: { project: Project; projects: Project[]; onChange: (p: Project[]) => void; fields: FieldDefinition[]; active: boolean; onActivate: (id: string) => void; onShowShots: (id: string) => void; onEditFields: (id: string) => void; onDeleted: () => void }) {
   const [name, setName] = useState(project.name);
   const [notes, setNotes] = useState(project.notes ?? "");
   const [save, setSave] = useState<SaveState>("idle");
@@ -87,18 +87,12 @@ function ProjectDetail({ project, projects, onChange, fields, active, onActivate
     try { const saved = await putProject({ id: project.id, name: n.trim(), notes: t.trim() || null }); replace({ ...saved, field_ids: project.field_ids }); setSave("saved"); }
     catch (err) { setSave("error"); setNameError(existingIdOf(err) ? `A project called “${n.trim()}” already exists. Names are unique, ignoring case.` : (err as Error).message); }
   }
-  async function setFieldIds(ids: string[]) {
-    setSave("saving");
-    try { const saved = await putProjectFields(project.id, ids); replace({ ...project, field_ids: saved }); setSave("saved"); } catch { setSave("error"); }
-  }
   async function remove() {
     const ok = await confirmDialog({ title: `Delete “${project.name}”?`, body: "The project is empty; nothing else is removed.", confirmLabel: "Delete project", danger: true });
     if (!ok) return;
     try { await deleteProject(project.id); onChange(projects.filter((x) => x.id !== project.id)); onDeleted(); toast("Project deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
-  const chosen = project.field_ids.map((id) => fields.find((f) => f.id === id)).filter((f): f is FieldDefinition => !!f);
-  const rest = fields.filter((f) => !project.field_ids.includes(f.id));
-  const moveField = (i: number, d: number) => { const l = [...project.field_ids]; const [x] = l.splice(i, 1); l.splice(i + d, 0, x); void setFieldIds(l); };
+  const own = project.field_ids.map((id) => fields.find((f) => f.id === id)).filter((f): f is FieldDefinition => !!f);
 
   return (
     <div class="f-scroll">
@@ -115,18 +109,12 @@ function ProjectDetail({ project, projects, onChange, fields, active, onActivate
         </Field>
         <Field label="Notes"><textarea class="f-textarea" rows={3} value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} onBlur={() => void saveMeta()} /></Field>
         <div class="f-field" style={{ gap: "8px" }}>
-          <div class="btn-row"><span class="f-field__label" style={{ flex: 1 }}>Extra fields, in order</span><a href="#" style={{ fontSize: "var(--text-caption)" }} onClick={(e) => { e.preventDefault(); onEditFields(); }}>Edit definitions</a></div>
-          {chosen.length > 0 && (
+          <div class="btn-row"><span class="f-field__label" style={{ flex: 1 }}>Extra fields, in order</span><a href="#" style={{ fontSize: "var(--text-caption)" }} onClick={(e) => { e.preventDefault(); onEditFields(project.id); }}>{active ? "Edit fields" : "Make active and edit fields"}</a></div>
+          {own.length > 0 ? (
             <div class="list-box">
-              {chosen.map((f, i) => (
-                <ListRow key={f.id} as="div" style={{ cursor: "default" }} title={f.definition.label} meta={`${f.key} · ${f.definition.type}`} metaClass="mono"
-                  trailing={<div class="btn-row" style={{ gap: "2px" }}><ReorderButtons index={i} count={chosen.length} onMove={moveField} onRemove={() => void setFieldIds(project.field_ids.filter((x) => x !== f.id))} remove={{ label: "Remove from project" }} /></div>} />
-              ))}
+              {own.map((f) => <ListRow key={f.id} as="div" style={{ cursor: "default" }} title={f.definition.label} meta={`${f.key} · ${f.definition.type}`} metaClass="mono" />)}
             </div>
-          )}
-          {fields.length === 0 ? <span class="meta">No fields defined yet. Define them in Library › Fields.</span> : rest.length > 0 && (
-            <div style={{ width: "320px" }}><Combobox small icon="plus" key={project.field_ids.join()} options={rest.map((f) => ({ value: f.id, label: f.definition.label, hint: f.definition.type }))} value={null} clearable={false} placeholder={`Add a field… (${rest.length} more defined)`} onChange={(v) => { if (v) void setFieldIds([...project.field_ids, v]); }} /></div>
-          )}
+          ) : <span class="meta">No extra fields in this project yet. They belong to it alone; define them in Library › Fields.</span>}
         </div>
         <div class="danger-zone">
           <Button kind="danger" icon="delete-outline" disabled={project.shot_count > 0} onClick={() => void remove()}>Delete project</Button>

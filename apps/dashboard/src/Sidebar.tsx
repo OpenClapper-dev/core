@@ -5,9 +5,8 @@ import type { LibrarySection, Route } from "./router";
 import type { ThemeChoice } from "./theme";
 import { Button, cx, Icon, IconButton, Kbd, Mark, MenuItem, useOutsideClick } from "./ui";
 
-export const ALL_PROJECTS = "all";
-/** The project the dashboard works on, or every project at once. */
-export type Scope = string;
+/** The id of the project the dashboard works in (issue #44: always one). */
+type Scope = string;
 
 interface Props {
   route: Route;
@@ -36,7 +35,7 @@ const THEME_ICON: Record<ThemeChoice, string> = { auto: "theme-light-dark", sun:
 
 /** Left sidebar (a 56 px rail when collapsed): scope, sections, saved views, palette, theme, reload, collapse. */
 export function Sidebar({ route, rail, onToggle, scope, projects, views, editedViewId, counts, theme, onTheme, onScope, onNavigate, onNewView, onPalette, onReload, loadedAt }: Props) {
-  const scopeName = scope === ALL_PROJECTS ? "All projects" : projects.find((p) => p.id === scope)?.name ?? "—";
+  const scopeName = projects.find((p) => p.id === scope)?.name ?? "—";
   const section = route.page === "shot" ? "shots" : route.page;
   const lib = route.page === "library" ? route.section : null;
   const viewId = route.page === "shots" ? route.viewId : null;
@@ -110,7 +109,7 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
   );
 }
 
-/** Scope switcher: a listbox of projects, "All projects" and "Manage projects…". */
+/** Project switcher: a listbox of projects and "Manage projects…". */
 function ScopeSwitch({ rail, scope, name, projects, onScope, onManage }: { rail: boolean; scope: Scope; name: string; projects: Project[]; onScope: (s: Scope) => void; onManage: () => void }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
@@ -118,7 +117,6 @@ function ScopeSwitch({ rail, scope, name, projects, onScope, onManage }: { rail:
   const box = useRef<HTMLDivElement>(null);
   const items: { id: string; label: string; icon: string; meta?: string }[] = [
     ...projects.map((p) => ({ id: p.id, label: p.name, icon: "folder-outline", meta: `${p.shot_count}` })),
-    { id: ALL_PROJECTS, label: "All projects", icon: "folder-multiple-outline" },
     { id: "__manage__", label: "Manage projects…", icon: "cog-outline" },
   ];
   useEffect(() => {
@@ -139,10 +137,10 @@ function ScopeSwitch({ rail, scope, name, projects, onScope, onManage }: { rail:
   return (
     <div ref={box} style={{ position: "relative", width: "100%" }} onKeyDown={onKey}>
       {rail ? (
-        <button type="button" class="f-nav" style={{ border: "1px solid var(--border)" }} aria-label={`Scope: ${name}`} title={name} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="folder-outline" /></button>
+        <button type="button" class="f-nav" style={{ border: "1px solid var(--border)" }} aria-label={`Project: ${name}`} title={name} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen(!open)}><Icon name="folder-outline" /></button>
       ) : (
-        <button type="button" class="f-scope" aria-haspopup="listbox" aria-expanded={open} title="Switch scope (⌘K → project)" onClick={() => setOpen(!open)}>
-          <span class="f-scope__main"><span class="f-scope__lbl">Scope</span><span class="f-scope__name">{name}</span></span>
+        <button type="button" class="f-scope" aria-haspopup="listbox" aria-expanded={open} title="Switch project (⌘K → project)" onClick={() => setOpen(!open)}>
+          <span class="f-scope__main"><span class="f-scope__lbl">Project</span><span class="f-scope__name">{name}</span></span>
           <Icon name="unfold-more-horizontal" />
         </button>
       )}
@@ -150,7 +148,7 @@ function ScopeSwitch({ rail, scope, name, projects, onScope, onManage }: { rail:
         <div class="f-menu" role="listbox" style={{ position: "fixed", top: `${at.top}px`, left: `${at.left}px`, zIndex: 60, width: `${at.width}px`, maxHeight: "60vh", overflow: "auto" }}>
           {items.map((it, i) => (
             <Fragment key={it.id}>
-              {it.id === ALL_PROJECTS && <div class="f-menu__sep" />}
+              {it.id === "__manage__" && <div class="f-menu__sep" />}
               <MenuItem role="option" aria-selected={it.id === scope} icon={it.id === scope ? "check" : it.icon} highlighted={i === hi} selected={it.id === scope} count={it.meta}
                 onMouseEnter={() => setHi(i)} onClick={() => take(it.id)}>{it.label}</MenuItem>
             </Fragment>

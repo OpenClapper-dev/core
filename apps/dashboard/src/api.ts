@@ -96,6 +96,8 @@ export interface Preset {
 }
 export interface Location {
   id: string;
+  /** Locations belong to one project. */
+  project_id: string;
   name: string;
   /** The location's pin; both null when none is set. */
   lat: number | null;
@@ -105,7 +107,7 @@ export interface Location {
   shot_count: number;
   approved_count: number;
 }
-export interface SavedView { id: string; name: string; filter: FilterGroup; created_at: string; updated_at: string | null }
+export interface SavedView { id: string; project_id: string; name: string; filter: FilterGroup; created_at: string; updated_at: string | null }
 /** null / [] / false = not specified. */
 export interface ShotTags {
   name: string | null; light: string[]; artificial: boolean; weather: string | null; int_ext: string | null; location_id: string | null; extra: Extra;
@@ -140,7 +142,7 @@ export const existingIdOf = (err: unknown): string | undefined =>
 type Cursor = { before: string; before_id: string } | null;
 interface ShotsPage { shots: Shot[]; next: Cursor }
 
-/** Every shot of every project; the UI narrows to the active project itself so "All projects" is free. */
+/** Every shot of every project; the UI narrows to the active project itself, so switching projects is instant. */
 export async function fetchAllShots(): Promise<Shot[]> {
   const all: Shot[] = [];
   let cursor: Cursor = null;
@@ -181,10 +183,10 @@ export async function createProjectNamed(name: string): Promise<Project> {
 export const deleteProject = (id: string) => send<{ deleted: string }>("DELETE", `/api/projects/${id}`).then(() => undefined);
 
 export const fetchFields = () => get<{ fields: FieldDefinition[] }>("/api/fields").then((r) => r.fields);
-export const putField = (id: string, definition: FieldDef) => send<{ field: FieldDefinition }>("PUT", `/api/fields/${id}`, { definition }).then((r) => r.field);
+export const putField = (id: string, projectId: string, definition: FieldDef) => send<{ field: FieldDefinition }>("PUT", `/api/fields/${id}`, { project_id: projectId, definition }).then((r) => r.field);
 export const deleteField = (id: string) => send<{ deleted: string }>("DELETE", `/api/fields/${id}`).then(() => undefined);
 /** Creates new keys, replaces existing ones; returns the full list. */
-export const importFields = (fields: unknown[]) => send<{ fields: FieldDefinition[]; created: number; updated: number }>("POST", "/api/fields/import", { fields });
+export const importFields = (projectId: string, fields: unknown[]) => send<{ fields: FieldDefinition[]; created: number; updated: number }>("POST", "/api/fields/import", { project_id: projectId, fields });
 export const putProjectFields = (projectId: string, fieldIds: string[]) => send<{ field_ids: string[] }>("PUT", `/api/projects/${projectId}/fields`, { field_ids: fieldIds }).then((r) => r.field_ids);
 
 /** A shooting day of a project with its planned shots in order. */
@@ -292,10 +294,10 @@ export const copySketch = (from: string, to: string, owner: ClipOwner) => send<{
 
 export const fetchLocations = () => get<{ locations: Location[] }>("/api/locations").then((r) => r.locations);
 /** Upsert; a 409 carries body.existing_id when another location already has the name. */
-export const putLocation = (l: { id: string; name: string; lat?: number | null; lon?: number | null }) =>
-  send<{ location: Location }>("PUT", `/api/locations/${l.id}`, l.lat === undefined ? { name: l.name } : { name: l.name, lat: l.lat, lon: l.lon }).then((r) => r.location);
+export const putLocation = (l: { id: string; project_id: string; name: string; lat?: number | null; lon?: number | null }) =>
+  send<{ location: Location }>("PUT", `/api/locations/${l.id}`, l.lat === undefined ? { project_id: l.project_id, name: l.name } : { project_id: l.project_id, name: l.name, lat: l.lat, lon: l.lon }).then((r) => r.location);
 export const deleteLocation = (id: string) => send<{ deleted: string }>("DELETE", `/api/locations/${id}`).then(() => undefined);
 
 export const fetchViews = () => get<{ views: SavedView[] }>("/api/views").then((r) => r.views);
-export const putView = (v: { id: string; name: string; filter: FilterGroup }) => send<{ view: SavedView }>("PUT", `/api/views/${v.id}`, { name: v.name, filter: v.filter }).then((r) => r.view);
+export const putView = (v: { id: string; project_id: string; name: string; filter: FilterGroup }) => send<{ view: SavedView }>("PUT", `/api/views/${v.id}`, { project_id: v.project_id, name: v.name, filter: v.filter }).then((r) => r.view);
 export const deleteView = (id: string) => send<{ deleted: string }>("DELETE", `/api/views/${id}`).then(() => undefined);

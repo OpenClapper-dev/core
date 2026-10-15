@@ -37,7 +37,7 @@ export function LocationsPage({ locations, shots, onChange, onShotsChanged, onSh
     const old = locations.find((l) => l.id === edit.id);
     if (!name || name === old?.name) { setEdit(null); return; }
     try {
-      const saved = await putLocation({ id: edit.id, name });
+      const saved = await putLocation({ id: edit.id, project_id: old!.project_id, name });
       onChange(sortByName([...locations.filter((l) => l.id !== saved.id), saved]));
       setEdit(null);
       onShotsChanged();
@@ -140,7 +140,7 @@ function PinDialog({ location, shots, onClose, onSaved }: { location: Location; 
   }, []);
   async function save(clear = false) {
     setBusy(true);
-    try { onSaved(await putLocation({ id: location.id, name: location.name, lat: clear ? null : pos[0], lon: clear ? null : pos[1] })); }
+    try { onSaved(await putLocation({ id: location.id, project_id: location.project_id, name: location.name, lat: clear ? null : pos[0], lon: clear ? null : pos[1] })); }
     catch (e) { toast(`Saving the position failed: ${(e as Error).message}`, "danger"); setBusy(false); }
   }
   return (

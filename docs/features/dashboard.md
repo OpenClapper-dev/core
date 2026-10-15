@@ -5,7 +5,7 @@ Designed in Claude Design (2026-09-28): four sections plus a shot view, a sideba
 ## Shell (`apps/dashboard/src/App.tsx`, `Sidebar.tsx`, `router.ts`)
 
 - **Sidebar**, 232 px, or a 56 px rail. Collapse and expand it with the button next to the brand (rail: at the bottom) or Ctrl B / ⌘B; the choice is remembered in `localStorage["sidebar"]`. Without a choice it is a rail below 1100 px. The scope menu opens as a fixed popup, so the rail does not clip it. It holds:
-  - the **scope switcher** (a project, "All projects", "Manage projects…"); the choice is remembered in `localStorage["project"]`
+  - the **project switcher** (the projects, "Manage projects…"); the choice is remembered in `localStorage["project"]`. Every page works inside that one project
   - the sections: Shots (count), Review (unreviewed count), Metadata, Plan, Timeline, Library (with Projects · Fields · Rigs · Locations under it)
   - **saved views**, with a dot while a view has unsaved edits, and "+" for a new view
   - footer: "Go to…" (⌘K), the theme button (Auto → Sun → Set), **Settings** and reload

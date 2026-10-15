@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { FIELD_PROMPT, validateFieldDef, type Extra, type FieldDef } from "@fielder/vocab";
-import { deleteField, importFields, putField, type FieldDefinition, type Project } from "./api";
+import { deleteField, importFields, putField, putProjectFields, type FieldDefinition, type Project } from "./api";
 import { ExtraEditor } from "./ExtraEditor";
 import { useKeys } from "./keys";
-import { Banner, Button, confirmDialog, cx, Empty, EmptyNote, Icon, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { Banner, Button, confirmDialog, cx, Empty, EmptyNote, Icon, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
 
-interface Props { fields: FieldDefinition[]; onChange: (f: FieldDefinition[]) => void; projects: Project[]; selectedId: string | null; onSelect: (id: string | null) => void }
+/** The active project's fields: definitions belong to one project (issue #44). */
+interface Props { project: Project; fields: FieldDefinition[]; onChange: (f: FieldDefinition[]) => void; selectedId: string | null; onSelect: (id: string | null) => void }
+
+const byPosition = (list: FieldDefinition[]) => [...list].sort((a, b) => a.position - b.position || a.key.localeCompare(b.key));
 
 const TEMPLATES: Record<string, { label: string; def: FieldDef }> = {
   text: { label: "Text", def: { key: "notes", label: "Notes", type: "text" } },
@@ -32,8 +35,9 @@ function errorLine(text: string, message: string): number | null {
   return null;
 }
 
-/** Library › Fields: list | JSON editor with line numbers and the error line | live preview of the form. */
-export function FieldsPage({ fields, onChange, projects, selectedId, onSelect }: Props) {
+/** Library › Fields: the project's fields in order | JSON editor with line numbers and the error line | live preview of the form. */
+export function FieldsPage({ project, fields: unsorted, onChange, selectedId, onSelect }: Props) {
+  const fields = byPosition(unsorted);
   const [menu, setMenu] = useState(false);
   const [importing, setImporting] = useState(false);
   const [draft, setDraft] = useState<{ id: string; isNew: boolean; text: string } | null>(null);
@@ -42,12 +46,20 @@ export function FieldsPage({ fields, onChange, projects, selectedId, onSelect }:
   useEffect(() => { if (!selectedId && !draft && fields[0]) onSelect(fields[0].id); }, [fields.length]);
 
   const copy = (text: string, what: string) => void navigator.clipboard.writeText(text).then(() => toast(`${what} copied`));
+  async function move(i: number, d: number) {
+    const list = [...fields];
+    const [x] = list.splice(i, 1);
+    list.splice(i + d, 0, x);
+    const next = list.map((f, position) => ({ ...f, position }));
+    onChange(next);
+    try { await putProjectFields(project.id, next.map((f) => f.id)); } catch (e) { onChange(fields); toast(`Reordering failed: ${(e as Error).message}`, "danger"); }
+  }
   const startNew = (t: FieldDef) => { setMenu(false); setImporting(false); onSelect(null); setDraft({ id: crypto.randomUUID(), isNew: true, text: pretty(t) }); };
 
   return (
     <>
       <Toolbar>
-        <ToolbarTitle count={fields.length}>Extra fields</ToolbarTitle>
+        <ToolbarTitle count={fields.length}>Extra fields · {project.name}</ToolbarTitle>
         <ToolbarSpacer />
         <div class="menu-anchor">
           <Button size="sm" icon="plus" iconAfter="chevron-down" aria-expanded={menu} onClick={() => setMenu(!menu)}>New field</Button>
@@ -60,20 +72,18 @@ export function FieldsPage({ fields, onChange, projects, selectedId, onSelect }:
       <div class="f-app__body">
         <Panel left width="260px">
           <PanelBody flush role="listbox" aria-label="Fields">
-            {fields.length === 0 && <EmptyNote>No fields yet. Start from a template or import JSON (e.g. written by an AI with the copied prompt).</EmptyNote>}
+            {fields.length === 0 && <EmptyNote>No fields in this project yet. Start from a template or import JSON (e.g. written by an AI with the copied prompt). To reuse another project's fields, “Copy all” there and import them here.</EmptyNote>}
             {draft?.isNew && <ListRow as="div" selected title="New field" meta="not saved yet" />}
-            {fields.map((f) => {
-              const used = projects.filter((p) => p.field_ids.includes(f.id)).length;
-              return (
-                <ListRow key={f.id} role="option" aria-selected={f.id === selectedId && !importing} selected={f.id === selectedId && !draft?.isNew && !importing} onClick={() => { setImporting(false); onSelect(f.id); }}
-                  title={f.definition.label}
-                  meta={<><span class="mono">{f.key}</span> · {f.definition.type}{f.definition.multiple ? " · multiple" : ""} · {used ? `${used} project${used === 1 ? "" : "s"}` : "unused"}</>} />
-              );
-            })}
+            {fields.map((f, i) => (
+              <ListRow key={f.id} role="option" aria-selected={f.id === selectedId && !importing} selected={f.id === selectedId && !draft?.isNew && !importing} onClick={() => { setImporting(false); onSelect(f.id); }}
+                title={f.definition.label}
+                meta={<><span class="mono">{f.key}</span> · {f.definition.type}{f.definition.multiple ? " · multiple" : ""}</>}
+                trailing={<div class="btn-row" style={{ gap: "2px" }} onClick={(e) => e.stopPropagation()}><ReorderButtons index={i} count={fields.length} onMove={(at, d) => void move(at, d)} /></div>} />
+            ))}
           </PanelBody>
         </Panel>
-        {importing ? <ImportPane onDone={(list) => { onChange(list); setImporting(false); }} onCancel={() => setImporting(false)} />
-          : draft ? <Editor key={draft.id} draft={draft} fields={fields} projects={projects} onChange={onChange}
+        {importing ? <ImportPane projectId={project.id} onDone={(list) => { onChange(list); setImporting(false); }} onCancel={() => setImporting(false)} />
+          : draft ? <Editor key={draft.id} draft={draft} projectId={project.id} fields={fields} onChange={onChange}
             onSaved={(f) => { setDraft({ id: f.id, isNew: false, text: pretty(f.definition) }); onSelect(f.id); }}
             onDeleted={() => { setDraft(null); onSelect(null); }} onCancelNew={() => { setDraft(null); onSelect(fields[0]?.id ?? null); }} />
           : <Empty icon="form-textbox" title="No field selected" />}
@@ -82,7 +92,7 @@ export function FieldsPage({ fields, onChange, projects, selectedId, onSelect }:
   );
 }
 
-function Editor({ draft, fields, projects, onChange, onSaved, onDeleted, onCancelNew }: { draft: { id: string; isNew: boolean; text: string }; fields: FieldDefinition[]; projects: Project[]; onChange: (f: FieldDefinition[]) => void; onSaved: (f: FieldDefinition) => void; onDeleted: () => void; onCancelNew: () => void }) {
+function Editor({ draft, projectId, fields, onChange, onSaved, onDeleted, onCancelNew }: { draft: { id: string; isNew: boolean; text: string }; projectId: string; fields: FieldDefinition[]; onChange: (f: FieldDefinition[]) => void; onSaved: (f: FieldDefinition) => void; onDeleted: () => void; onCancelNew: () => void }) {
   const [text, setText] = useState(draft.text);
   const [save, setSave] = useState<SaveState>("idle");
   const [preview, setPreview] = useState<Extra>({});
@@ -95,15 +105,14 @@ function Editor({ draft, fields, projects, onChange, onSaved, onDeleted, onCance
   }, [text]);
   useEffect(() => { if (parsed.def) setLastValid(parsed.def); }, [parsed.def]);
   const dirty = text !== draft.text || draft.isNew;
-  const used = projects.filter((p) => p.field_ids.includes(draft.id)).map((p) => p.name);
   const lines = text.split("\n").length;
 
   async function saveField() {
     if (!parsed.def) return;
     setSave("saving");
     try {
-      const saved = await putField(draft.id, parsed.def);
-      onChange([...fields.filter((f) => f.id !== saved.id), saved].sort((a, b) => a.key.localeCompare(b.key)));
+      const saved = await putField(draft.id, projectId, parsed.def);
+      onChange([...fields.filter((f) => f.id !== saved.id), saved]);
       setSave("saved");
       onSaved(saved);
     } catch (e) { setSave("error"); toast((e as Error).message, "danger"); }
@@ -111,7 +120,7 @@ function Editor({ draft, fields, projects, onChange, onSaved, onDeleted, onCance
   async function remove() {
     const def = fields.find((f) => f.id === draft.id);
     if (!def) return;
-    const ok = await confirmDialog({ title: `Delete “${def.definition.label}”?`, body: `${used.length ? `Used by ${used.join(", ")}. ` : ""}Values already stored on shots stay in the data but are no longer shown or edited.`, confirmLabel: "Delete field", danger: true });
+    const ok = await confirmDialog({ title: `Delete “${def.definition.label}”?`, body: "Values already stored on this project's shots stay in the data but are no longer shown or edited.", confirmLabel: "Delete field", danger: true });
     if (!ok) return;
     try { await deleteField(def.id); onChange(fields.filter((x) => x.id !== def.id)); onDeleted(); toast("Field deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
@@ -137,7 +146,6 @@ function Editor({ draft, fields, projects, onChange, onSaved, onDeleted, onCance
           <Button kbd="⌘S" disabled={!parsed.def || !dirty} onClick={() => void saveField()}>Save field</Button>
           {draft.isNew ? <Button kind="ghost" onClick={onCancelNew}>Cancel</Button> : <Button kind="ghost" disabled={!dirty} onClick={() => setText(draft.text)}>Revert</Button>}
           <span class="grow" />
-          {!draft.isNew && <span class="meta">{used.length ? `Used by ${used.join(", ")}` : "Not used by any project"}</span>}
           {!draft.isNew && <Button kind="danger" size="sm" icon="delete-outline" onClick={() => void remove()}>Delete…</Button>}
         </div>
       </div>
@@ -149,13 +157,13 @@ function Editor({ draft, fields, projects, onChange, onSaved, onDeleted, onCance
   );
 }
 
-function ImportPane({ onDone, onCancel }: { onDone: (f: FieldDefinition[]) => void; onCancel: () => void }) {
+function ImportPane({ projectId, onDone, onCancel }: { projectId: string; onDone: (f: FieldDefinition[]) => void; onCancel: () => void }) {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   async function run() {
     try {
       const v = JSON.parse(text) as unknown;
-      const r = await importFields(Array.isArray(v) ? v : [v]);
+      const r = await importFields(projectId, Array.isArray(v) ? v : [v]);
       onDone(r.fields);
       toast(`Imported: ${r.created} new, ${r.updated} replaced`);
     } catch (e) { setError((e as Error).message); }
@@ -163,7 +171,7 @@ function ImportPane({ onDone, onCancel }: { onDone: (f: FieldDefinition[]) => vo
   return (
     <div class="json-pane">
       <strong>Import field definitions</strong>
-      <span class="meta">A JSON array (or a single field). Existing keys are replaced, new keys are added. Tip: “Copy prompt for AI”, describe what you need, paste the answer here.</span>
+      <span class="meta">A JSON array (or a single field), into this project. Existing keys are replaced, new keys are added. Tip: “Copy prompt for AI”, describe what you need, paste the answer here.</span>
       <textarea class="f-textarea mono" style={{ flex: 1, fontSize: "12.5px" }} spellcheck={false} value={text} placeholder='[{ "key": "…", "label": "…", "type": "text" }]' onInput={(e) => { setText((e.target as HTMLTextAreaElement).value); setError(null); }} />
       {error && <Banner title="Not imported" meta={error} metaClass="mono" />}
       <div class="btn-row"><Button icon="file-import-outline" disabled={!text.trim()} onClick={() => void run()}>Import</Button><Button kind="ghost" onClick={onCancel}>Cancel</Button></div>

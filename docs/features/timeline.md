@@ -38,7 +38,7 @@ The same photo can be in a timeline several times. Deleting a shot removes its c
 
 ## Using it (`apps/dashboard/src/Timeline.tsx`, route `#/timeline/<id>`)
 
-- **Left**: the project's timelines with length and clip count; **New** (`⇧N`) makes "Cut n". The rail **collapses** to a strip of numbered buttons (remembered). "All projects" cannot cut: pick a project first.
+- **Left**: the project's timelines with length and clip count; **New** (`⇧N`) makes "Cut n". The rail **collapses** to a strip of numbered buttons (remembered).
 - **Head**: name, total length, the **Presentation lock** ("Per clip" or one mode for all), **Review**: "Approve all · n" while shots in the cut are unreviewed (approves those), else "Back to review · n" for the approved ones (archived shots are left alone; one bulk request, Undo in the toast), save status, menu (Delete timeline…). Changes **autosave** 600 ms after the last edit and at once when leaving the page; the server's answer replaces the clip list, so clips of deleted photos disappear on the next save.
 - **Preview**: the selected clip, large, in its presentation (the overlay's render when one is chosen; a sketch clip's sketch on white). The stage keeps **one height** for every clip (`--tl-stage-h`): shots, sketches and placeholders letterbox into it, so the layout never jumps. The grip under the stage **resizes** it (remembered per browser in `localStorage["timelineStageH"]`; double-click goes back to the default, which fills the window). Transport: first · previous · **Play/Pause** (`Space`) · next · last, the playhead clock over the total, "clip n of m · 3.0 s", and **Add shots** (`N`).
   Playback steps through the clips at their hold times (100 ms ticks) and stops at the end; Play at the end starts over.

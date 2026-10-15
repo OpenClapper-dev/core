@@ -5,14 +5,11 @@ import { cover, positionOf, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateDays } from "./Inspector";
 import { useKeys } from "./keys";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, Select, Spinner, toast, Toolbar, ToolbarTitle, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, Select, Spinner, toast, type SaveState } from "./ui";
 import { fetchForecast, weatherText, type HourForecast } from "./weather";
 
 interface Props {
-  /** null when browsing all projects: planning needs one project. */
-  project: Project | null;
-  projects: Project[];
-  onPickProject: (id: string) => void;
+  project: Project;
   /** The project's shots. */
   shots: Shot[];
   mask: MaskMode;
@@ -52,12 +49,11 @@ const atTime = (start: Date, hm: string) => { const [h, m] = hm.split(":").map(N
 const plannedFits = (planned: string | null, start: Date, w: Interval[]) => !planned || w.some((x) => atTime(start, planned) >= x.start && atTime(start, planned) < x.end);
 
 /** Plan: shooting days of the project against the light and the forecast. Changes autosave per day. */
-export function PlanPage({ project, projects, onPickProject, shots, mask, dayId, onDay, onOpen }: Props) {
+export function PlanPage({ project, shots, mask, dayId, onDay, onOpen }: Props) {
   const [days, setDays] = useState<ShootingDay[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const projectId = project?.id ?? null;
+  const projectId = project.id;
   useEffect(() => {
-    if (!projectId) return;
     setDays(null);
     fetchDays(projectId).then((d) => {
       setDays(d);
@@ -84,7 +80,6 @@ export function PlanPage({ project, projects, onPickProject, shots, mask, dayId,
     pending.current.set(d.id, { day: d, timer: setTimeout(() => flushDay(d), 600) });
   }
   async function create() {
-    if (!projectId) return;
     const d: ShootingDay = { id: crypto.randomUUID(), project_id: projectId, date: nextSaturday(), title: null, notes: null, shots: [], created_at: "", updated_at: null };
     try { const saved = await putDay(d); invalidateDays(projectId); setDays((cur) => [...(cur ?? []), saved].sort((a, b) => a.date.localeCompare(b.date))); onDay(saved.id); } catch (e) { toast(`Could not create the day: ${(e as Error).message}`, "danger"); }
   }
@@ -94,21 +89,8 @@ export function PlanPage({ project, projects, onPickProject, shots, mask, dayId,
     try { await deleteDay(d.id); invalidateDays(d.project_id); setDays((cur) => (cur ?? []).filter((x) => x.id !== d.id)); onDay(null); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
 
-  useKeys({ "Shift+N": () => void create() }, !!projectId);
+  useKeys({ "Shift+N": () => void create() });
 
-  if (!project) {
-    return (
-      <>
-        <Toolbar><ToolbarTitle>Plan</ToolbarTitle></Toolbar>
-        <Empty icon="folder-outline" title="Pick a project to plan">
-          Shooting days belong to one project. “All projects” can browse, but not plan.
-          <div class="f-menu" style={{ marginTop: "12px", width: "300px", textAlign: "left" }}>
-            {projects.map((p) => <MenuItem key={p.id} icon="folder-outline" count={`${p.shot_count} shots`} onClick={() => onPickProject(p.id)}>{p.name}</MenuItem>)}
-          </div>
-        </Empty>
-      </>
-    );
-  }
 
   const day = days?.find((d) => d.id === dayId) ?? null;
   const today = isoDate(new Date());

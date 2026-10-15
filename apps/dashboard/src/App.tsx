@@ -20,7 +20,7 @@ import { ShotsPage } from "./ShotsPage";
 import { TimelinePage } from "./Timeline";
 import { decodeView, emptyQuery, encodeView, runQuery, type Layout, type ShotsQuery } from "./shotsQuery";
 import { shotHints, ShotView } from "./ShotView";
-import { ALL_PROJECTS, Sidebar, type Scope } from "./Sidebar";
+import { Sidebar } from "./Sidebar";
 import { useTheme } from "./theme";
 import { Button, ConfirmHost, confirmDialog, cx, Empty, Kbd, Loading, promptDialog, toast, ToastHost } from "./ui";
 
@@ -53,7 +53,7 @@ export function App() {
   const [fields, setFields] = useState<FieldDefinition[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState<Date | null>(null);
-  const [storedScope, setStoredScope] = useState<Scope | null>(() => readStorage("project"));
+  const [storedScope, setStoredScope] = useState<string | null>(() => readStorage("project"));
   const [mask, setMaskState] = useState<MaskMode>(loadMask);
   /** The shot view starts from the global mode; a change there sticks for ←/→ until it closes. */
   const [viewMode, setViewMode] = useState<MaskMode>(mask);
@@ -72,7 +72,7 @@ export function App() {
 
   const setLayout = (l: Layout) => { setLayoutState(l); writeStorage("layout", l); };
   const setMask = (m: MaskMode) => { setMaskState(m); writeStorage("maskMode", m); };
-  const setScope = (s: Scope) => { setStoredScope(s); writeStorage("project", s); };
+  const setScope = (s: string) => { setStoredScope(s); writeStorage("project", s); };
 
   const load = () => Promise.all([fetchAllShots().then(setShots), fetchProjects().then(setProjects), fetchPresets().then(setPresets), fetchLocations().then(setLocations), fetchViews().then(setViews), fetchFields().then(setFields)])
     .then(() => { setError(null); setLoadedAt(new Date()); })
@@ -83,18 +83,25 @@ export function App() {
   // A project created inline (move, bulk edit) joins the list at once; counts follow with the next refresh.
   useEffect(() => onProjectCreated((p) => setProjects((cur) => (cur ?? []).some((x) => x.id === p.id) ? cur : [...(cur ?? []), p].sort((a, b) => a.name.localeCompare(b.name)))), []);
 
-  // A remembered project that no longer exists counts as "not chosen".
-  const scope: Scope | null = storedScope === ALL_PROJECTS || (storedScope && projects?.some((p) => p.id === storedScope)) ? storedScope : null;
-  const isAll = scope === ALL_PROJECTS;
+  // The dashboard always works inside one project (issue #44). A remembered project that no longer exists counts as "not chosen".
+  const scope: string | null = storedScope && projects?.some((p) => p.id === storedScope) ? storedScope : null;
   const scopeProject = projects?.find((p) => p.id === scope) ?? null;
-  const scopeName = isAll ? "All projects" : scopeProject?.name ?? "";
-  const scoped = useMemo(() => (shots ?? []).filter((s) => isAll || s.project_id === scope), [shots, scope]);
-  const fieldsOf = (projectId: string): FieldDef[] => {
-    const ids = projects?.find((p) => p.id === projectId)?.field_ids ?? [];
-    return ids.map((id) => fields?.find((f) => f.id === id)?.definition).filter((d): d is FieldDef => !!d);
+  const scopeName = scopeProject?.name ?? "";
+  const scoped = useMemo(() => (shots ?? []).filter((s) => s.project_id === scope), [shots, scope]);
+  const fieldsOf = (projectId: string): FieldDef[] => (fields ?? []).filter((f) => f.project_id === projectId).sort((a, b) => a.position - b.position).map((f) => f.definition);
+  const locationsOf = (projectId: string) => (locations ?? []).filter((l) => l.project_id === projectId);
+  /** A page hands back one project's list (after a create, rename or delete): it replaces that project's rows. */
+  const setLocationsOf = (projectId: string) => (list: Location[]) => {
+    const ids = new Set(list.map((l) => l.id));
+    setLocations((cur) => [...(cur ?? []).filter((l) => l.project_id !== projectId && !ids.has(l.id)), ...list]);
   };
-  const extra = useMemo(() => extraFilterFields(isAll ? (fields ?? []).map((f) => f.definition) : scope ? fieldsOf(scope) : []), [scope, fields, projects]);
-  const ctx = { projects: projects ?? [], locations: locations ?? [], presets: presets ?? [], extra };
+  const projectLocations = useMemo(() => locationsOf(scope ?? ""), [locations, scope]);
+  const setProjectLocations = setLocationsOf(scope ?? "");
+  const projectViews = useMemo(() => (views ?? []).filter((v) => v.project_id === scope), [views, scope]);
+  const projectFields = useMemo(() => (fields ?? []).filter((f) => f.project_id === scope), [fields, scope]);
+  const setProjectFields = (list: FieldDefinition[]) => setFields((cur) => [...(cur ?? []).filter((f) => f.project_id !== scope), ...list]);
+  const extra = useMemo(() => extraFilterFields(scope ? fieldsOf(scope) : []), [scope, fields]);
+  const ctx = { projects: projects ?? [], locations: projectLocations, presets: presets ?? [], extra };
 
   // Saved views: the route's view loads into the query; edits mark it "Edited" until saved or reverted.
   const viewId = route.page === "shots" ? route.viewId : null;
@@ -102,11 +109,11 @@ export function App() {
     if (route.page !== "shots") return;
     if (!viewId) { if (loadedView) { setLoadedView(null); setQuery(emptyQuery()); } return; }
     if (loadedView?.id === viewId) return;
-    const v = views?.find((x) => x.id === viewId);
+    const v = projectViews.find((x) => x.id === viewId);
     if (!v) return;
     setLoadedView(v);
     setQuery({ ...emptyQuery(), ...decodeView(v.filter), sort: query.sort });
-  }, [viewId, views]);
+  }, [viewId, projectViews]);
   const edited = !!loadedView && !sameFilter(encodeView(query), loadedView.filter);
 
   /** Navigation that asks before dropping unsaved view edits. */
@@ -138,18 +145,18 @@ export function App() {
     setMapSelected(s.id);
     navigateRaw({ page: "shots", viewId: visible ? loadedView?.id ?? null : null });
   }
-  const openDay = (projectId: string, dayId: string) => { if (scope !== projectId && !isAll) setScope(projectId); navigateRaw({ page: "plan", dayId }); };
+  const openDay = (projectId: string, dayId: string) => { if (scope !== projectId) setScope(projectId); navigateRaw({ page: "plan", dayId }); };
   const openTimeline = (projectId: string, timelineId: string) => { if (scope !== projectId) setScope(projectId); navigateRaw({ page: "timeline", timelineId }); };
 
   async function saveView() {
     if (!loadedView) return;
-    try { const v = await putView({ id: loadedView.id, name: loadedView.name, filter: encodeView(query) }); setViews((cur) => (cur ?? []).map((x) => (x.id === v.id ? v : x))); setLoadedView(v); toast("View saved"); } catch (e) { toast(`Saving failed: ${(e as Error).message}`, "danger"); }
+    try { const v = await putView({ id: loadedView.id, project_id: loadedView.project_id, name: loadedView.name, filter: encodeView(query) }); setViews((cur) => (cur ?? []).map((x) => (x.id === v.id ? v : x))); setLoadedView(v); toast("View saved"); } catch (e) { toast(`Saving failed: ${(e as Error).message}`, "danger"); }
   }
   async function saveAsNew() {
     const name = await promptDialog({ title: loadedView ? "Save as a new view" : "Save view", input: { label: "Name", value: loadedView ? `${loadedView.name} (copy)` : "", placeholder: "e.g. Dusk exteriors" }, confirmLabel: "Save view" });
     if (!name) return;
     try {
-      const v = await putView({ id: crypto.randomUUID(), name, filter: encodeView(query) });
+      const v = await putView({ id: crypto.randomUUID(), project_id: scope!, name, filter: encodeView(query) });
       setViews((cur) => [...(cur ?? []), v].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })));
       setLoadedView(v);
       navigateRaw({ page: "shots", viewId: v.id });
@@ -162,7 +169,7 @@ export function App() {
     if (action === "rename") {
       const name = await promptDialog({ title: "Rename view", input: { label: "Name", value: v.name }, confirmLabel: "Rename" });
       if (!name || name === v.name) return;
-      try { const saved = await putView({ id: v.id, name, filter: v.filter }); setViews((cur) => (cur ?? []).map((x) => (x.id === saved.id ? saved : x))); setLoadedView({ ...saved, filter: v.filter }); } catch (e) { toast(`Rename failed: ${(e as Error).message}`, "danger"); }
+      try { const saved = await putView({ id: v.id, project_id: v.project_id, name, filter: v.filter }); setViews((cur) => (cur ?? []).map((x) => (x.id === saved.id ? saved : x))); setLoadedView({ ...saved, filter: v.filter }); } catch (e) { toast(`Rename failed: ${(e as Error).message}`, "danger"); }
       return;
     }
     const ok = await confirmDialog({ title: `Delete the view “${v.name}”?`, body: "Only the saved filter is deleted; no shots.", confirmLabel: "Delete view", danger: true });
@@ -181,7 +188,7 @@ export function App() {
     setSideChoice(next);
     writeStorage("sidebar", next);
   }
-  const openPalette = () => { setPalette(true); if (scope && !isAll) void projectDays(scope).then(setPaletteDays); };
+  const openPalette = () => { setPalette(true); if (scope) void projectDays(scope).then(setPaletteDays); };
 
   // Global keys: palette, shortcut sheet, G-then-section, frame mode on Shots.
   useKeys({
@@ -222,25 +229,25 @@ export function App() {
     main = openShotObj
       ? <ShotView shot={openShotObj} list={listForShot} onNavigate={(s) => replace({ page: "shot", shotId: s.id, stage: route.stage })}
           context={{ line: shotLine, onBack: () => navigateRaw(returnTo), backLabel }} stage={route.stage} onStage={(st) => replace({ ...route, stage: st })}
-          mode={viewMode} onMode={setViewMode} projects={projects!} presets={presets!} fieldsOf={fieldsOf} locations={locations!} onLocations={setLocations}
+          mode={viewMode} onMode={setViewMode} projects={projects!} presets={presets!} fieldsOf={fieldsOf} locations={locationsOf(openShotObj.project_id)} onLocations={setLocationsOf(openShotObj.project_id)}
           onUpdated={updated}
           onDeleted={(id) => { const i = listForShot.findIndex((s) => s.id === id); const n = listForShot[i + 1] ?? listForShot[i - 1]; deleted([id]); if (n) replace({ page: "shot", shotId: n.id, stage: "photo" }); else navigateRaw(returnTo); }}
           onShowOnMap={showOnMap} onOpenDay={openDay} onOpenTimeline={openTimeline} />
       : <Empty icon="image-off-outline" title="Shot not found" actions={<Button kind="secondary" onClick={() => navigateRaw(returnTo)}>Back to {backLabel}</Button>}>It may have been deleted.</Empty>;
     hints = shotHints(route.stage);
   } else if (route.page === "review") {
-    main = <ReviewPage project={scopeProject} projects={projects!} onPickProject={setScope} shots={scoped} presets={presets!} mask={mask}
+    main = <ReviewPage project={scopeProject!} shots={scoped} presets={presets!} mask={mask}
       timelineId={route.timelineId} at={route.at} onTimeline={(id) => replace({ page: "review", timelineId: id })} onOpen={openShot} onUpdated={updated} onShowOnMap={showOnMap} onNewShot={() => setNewShot(true)} />;
     hints = [{ k: "←/→", t: "Clip" }, { k: "Space", t: "Play" }, { k: "Drag", t: "Add / reorder" }, { k: "A/E", t: "Approve / archive" }, { k: "R/C", t: "Re-frame / compose" }, { k: "P", t: "Placeholder" }, { k: "N", t: "Shots panel" }, { k: "Right-click", t: "Actions" }];
   } else if (route.page === "metadata") {
-    main = <MetadataPage project={scopeProject} projects={projects!} onPickProject={setScope} shots={scoped} locations={locations!} onLocations={setLocations} mask={mask}
+    main = <MetadataPage project={scopeProject!} shots={scoped} locations={projectLocations} onLocations={setProjectLocations} mask={mask}
       field={route.field} onField={(f) => replace({ page: "metadata", field: f })} onUpdated={updated} onOpen={openShot} />;
     hints = [{ k: "Drag", t: "Set the value" }, { k: "Drag back", t: "Clear it" }, { k: "Double-click", t: "Open shot" }];
   } else if (route.page === "plan") {
-    main = <PlanPage project={scopeProject} projects={projects!} onPickProject={setScope} shots={scoped} mask={mask} dayId={route.dayId} onDay={(id) => replace({ page: "plan", dayId: id })} onOpen={openShot} />;
+    main = <PlanPage project={scopeProject!} shots={scoped} mask={mask} dayId={route.dayId} onDay={(id) => replace({ page: "plan", dayId: id })} onOpen={openShot} />;
     hints = [{ k: "↑/↓", t: "Shots" }, { k: "Alt ↑/↓", t: "Reorder" }, { k: "T", t: "Planned time" }, { k: "Del", t: "Remove" }, { k: "N", t: "Add shots" }, { k: "⇧N", t: "New day" }, { k: "↵", t: "Open shot" }];
   } else if (route.page === "timeline") {
-    main = <TimelinePage project={scopeProject} projects={projects!} onPickProject={setScope} shots={scoped} presets={presets!} mask={mask} timelineId={route.timelineId} at={route.at} onTimeline={(id) => replace({ page: "timeline", timelineId: id })} onOpen={openShot} onUpdated={updated} />;
+    main = <TimelinePage project={scopeProject!} shots={scoped} presets={presets!} mask={mask} timelineId={route.timelineId} at={route.at} onTimeline={(id) => replace({ page: "timeline", timelineId: id })} onOpen={openShot} onUpdated={updated} />;
     hints = [{ k: "←/→", t: "Clip" }, { k: "Space", t: "Play / pause" }, { k: "Alt ←/→", t: "Reorder" }, { k: "D", t: "Hold time" }, { k: "Del", t: "Remove" }, { k: "N", t: "Add shots" }, { k: "⇧N", t: "New timeline" }, { k: "↵", t: "Open shot" }, { k: "Right-click", t: "Actions" }];
   } else if (route.page === "settings") {
     main = <SettingsPage theme={theme} onTheme={setTheme} mask={mask} onMask={setMask} />;
@@ -251,23 +258,23 @@ export function App() {
     if (route.section === "projects") {
       main = <ProjectsPage projects={projects!} onChange={setProjects} fields={fields!} scope={scope!} selectedId={sel} onSelect={setSel}
         onActivate={(id) => { setScope(id); toast(`Now working on ${projects!.find((p) => p.id === id)?.name ?? "the project"}`); }}
-        onShowShots={(id) => { setScope(id); navigateRaw({ page: "shots", viewId: null }); }} onEditFields={() => navigateRaw({ page: "library", section: "fields", id: null })} />;
+        onShowShots={(id) => { setScope(id); navigateRaw({ page: "shots", viewId: null }); }} onEditFields={(id) => { setScope(id); navigateRaw({ page: "library", section: "fields", id: null }); }} />;
       hints = [{ k: "↵", t: "Save the field" }, { k: "Esc", t: "Leave the field" }];
     } else if (route.section === "fields") {
-      main = <FieldsPage fields={fields!} onChange={setFields} projects={projects!} selectedId={sel} onSelect={setSel} />;
+      main = <FieldsPage project={scopeProject!} fields={projectFields} onChange={setProjectFields} selectedId={sel} onSelect={setSel} />;
       hints = [{ k: "⌘S", t: "Save field" }, { k: "Tab", t: "Indent" }, { k: "Esc", t: "Leave editor" }];
     } else if (route.section === "rigs") {
       main = <RigsPage presets={presets!} shots={shots!} onChange={setPresets} selectedId={sel} onSelect={setSel} />;
       hints = [{ k: "J/K", t: "Move" }, { k: "↵", t: "Edit" }, { k: "⌘S", t: "Save rig" }, { k: "Esc", t: "Close editor" }];
     } else {
-      main = <LocationsPage locations={locations!} shots={shots!} onChange={setLocations} onShotsChanged={() => void fetchAllShots().then(setShots).catch(() => {})} onShowShots={showLocationShots} />;
+      main = <LocationsPage locations={projectLocations} shots={scoped} onChange={setProjectLocations} onShotsChanged={() => void fetchAllShots().then(setShots).catch(() => {})} onShowShots={showLocationShots} />;
       hints = [{ k: "J/K", t: "Move" }, { k: "F2", t: "Rename" }, { k: "↵", t: "Show shots" }, { k: "Del", t: "Delete" }, { k: "/", t: "Filter" }];
     }
   } else {
-    main = <ShotsPage shots={scoped} error={error} scopeName={scopeName} isAll={isAll} query={query} onQuery={setQuery} view={loadedView} edited={edited}
+    main = <ShotsPage shots={scoped} error={error} scopeName={scopeName} query={query} onQuery={setQuery} view={loadedView} edited={edited}
       onSaveView={() => void saveView()} onSaveAsNew={() => void saveAsNew()} onRevert={() => loadedView && setQuery({ ...query, ...decodeView(loadedView.filter) })} onViewMenu={(a) => void viewMenu(a)}
       panel={panel} onPanel={setPanel} layout={layout} onLayout={setLayout} mask={mask} onMask={setMask} ctx={ctx} onOpen={openShot}
-      mapSelected={mapSelected} onMapSelected={setMapSelected} onDeleted={deleted} onUpdated={updated} onLocations={setLocations} fieldsOf={fieldsOf} onReload={() => void load()} onSwitchScope={openPalette} onNewShot={() => setNewShot(true)} />;
+      mapSelected={mapSelected} onMapSelected={setMapSelected} onDeleted={deleted} onUpdated={updated} onLocations={setProjectLocations} fieldsOf={fieldsOf} onReload={() => void load()} onSwitchScope={openPalette} onNewShot={() => setNewShot(true)} />;
     hints = layout === "list" ? [{ k: "J/K", t: "Move" }, { k: "X", t: "Select" }, { k: "⇧X", t: "Select range" }, { k: "↵", t: "Open" }, { k: "E", t: "Edit selected" }, { k: "⇧M", t: "Move selected" }, { k: "Del", t: "Delete selected" }, { k: "F", t: "Filter" }]
       : layout === "map" ? [{ k: "↑/↓", t: "Move in list" }, { k: "↵", t: "Open" }, { k: "F", t: "Filter" }, { k: "M", t: "Frame mode" }]
       : [{ k: "←↑→↓", t: "Move" }, { k: "↵", t: "Open" }, { k: "F", t: "Filter" }, { k: "M", t: "Frame mode" }, { k: "/", t: "Search" }, { k: "⌘K", t: "Go to" }];
@@ -280,7 +287,6 @@ export function App() {
     { id: "a-timeline", group: "Go to", icon: "filmstrip", title: "Timeline", keys: "G T", run: () => void navigate({ page: "timeline", timelineId: null }) },
     { id: "a-map", group: "Go to", icon: "map-outline", title: "Map", keys: "G M", run: () => { setLayout("map"); void navigate({ page: "shots", viewId }); } },
     { id: "a-lib", group: "Go to", icon: "bookshelf", title: "Library: projects, fields, rigs, locations", keys: "G L", run: () => void navigate({ page: "library", section: "projects", id: null }) },
-    { id: "a-all", group: "Actions", icon: "folder-multiple-outline", title: "Switch to all projects", run: () => setScope(ALL_PROJECTS) },
     { id: "a-mode", group: "Actions", icon: "vector-rectangle", title: "Change frame mode", sub: `Now ${mask === "off" ? "raw" : mask}`, keys: "M", run: () => setMask(nextMode(mask)) },
     { id: "a-newshot", group: "Actions", icon: "image-plus", title: "New shot", sub: "Upload images or draw a sketch", keys: "⇧N", run: () => { void navigate({ page: "shots", viewId }).then(() => setNewShot(true)); } },
     { id: "a-day", group: "Actions", icon: "calendar-plus", title: "New shooting day", sub: "In Plan", keys: "⇧N", run: () => void navigate({ page: "plan", dayId: null }) },
@@ -294,8 +300,8 @@ export function App() {
 
   return (
     <div class={cx("f-app", rail && "f-app--rail")}>
-      <Sidebar route={route} rail={rail} onToggle={toggleSidebar} scope={scope ?? ALL_PROJECTS} projects={projects ?? []} views={views ?? []} editedViewId={edited ? loadedView?.id ?? null : null}
-        counts={{ shots: scoped.length, unreviewed, projects: projects?.length ?? 0, fields: fields?.length ?? 0, rigs: presets?.length ?? 0, locations: locations?.length ?? 0 }}
+      <Sidebar route={route} rail={rail} onToggle={toggleSidebar} scope={scope ?? ""} projects={projects ?? []} views={projectViews} editedViewId={edited ? loadedView?.id ?? null : null}
+        counts={{ shots: scoped.length, unreviewed, projects: projects?.length ?? 0, fields: projectFields.length, rigs: presets?.length ?? 0, locations: projectLocations.length }}
         theme={theme} onTheme={setTheme} onScope={setScope} onNavigate={(r) => void navigate(r)} onNewView={() => void newView()} onPalette={openPalette} onReload={reload} loadedAt={loadedAt} />
       <main class="f-app__main">{main}</main>
       <div class="f-hints">
@@ -304,11 +310,11 @@ export function App() {
         {error && loaded && <span class="f-hint" style={{ color: "var(--danger)" }}>Last reload failed</span>}
         <span class="f-hint"><Kbd>?</Kbd>All shortcuts</span>
       </div>
-      {palette && <CommandPalette shots={scoped} locations={locations ?? []} views={views ?? []} projects={projects ?? []} days={paletteDays} actions={actions} onClose={() => setPalette(false)}
+      {palette && <CommandPalette shots={scoped} locations={projectLocations} views={projectViews} projects={projects ?? []} days={paletteDays} actions={actions} onClose={() => setPalette(false)}
         onOpenShot={(s) => openShot(s, [s])} onLocation={(l) => showLocationShots(l.id, "grid")} onView={(v) => void navigate({ page: "shots", viewId: v.id })}
         onProject={(p) => setScope(p.id)} onDay={(d) => navigateRaw({ page: "plan", dayId: d.id })} />}
       {sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
-      {newShot && <NewShotDialog projectId={isAll ? null : scope} projects={projects ?? []} locations={locations ?? []} onLocations={setLocations} onClose={() => setNewShot(false)}
+      {newShot && scope && <NewShotDialog projectId={scope} locations={projectLocations} onLocations={setProjectLocations} onClose={() => setNewShot(false)}
         onCreated={(created) => { setShots((cur) => [...created, ...(cur ?? [])]); refreshCounts(); setNewShot(false); const first = created[0]; if (first) openShot(first, created.length > 1 ? created : undefined); }} />}
       <ConfirmHost />
       <ToastHost />

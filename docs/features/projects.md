@@ -1,22 +1,22 @@
 # Projects
 
-Every shot belongs to exactly one project (a film, a commercial). Locations, rigs, saved views and extra-field definitions are shared across projects; shooting days belong to a project.
+Every shot belongs to exactly one project (a film, a commercial). Projects are a **hard scope** ([issue #44](https://github.com/bubulux/fielder/issues/44)): locations, saved views, extra-field definitions, shooting days and timelines belong to one project; only rigs are shared. There is no view across projects: entering a project is the first step in both clients.
 
 ## Behaviour
 
 - **Active project, chosen once.** Both clients ask which project to work on and remember it until you change it: dashboard in `localStorage["project"]`, phone in the kv-store (`activeProjectId.v1`).
 - **Dashboard:**
   - A first visit (or a remembered project that no longer exists) shows the full-window project picker (`ProjectGate` in `Projects.tsx`).
-  - The sidebar's scope switcher lists the projects, "All projects" and "Manage projects…"; ⌘K → a project name switches too.
-  - "All projects" is the global explorer: every shot, with a Project column in the list and a project tag on cards and map popups. Plan needs a single project.
-  - Library › Projects: a list (shots, fields, "can be deleted") and a detail with name and notes (saved when leaving the field), the project's [extra fields](extra-fields.md) in order (add, reorder, remove), "Show n shots" and "Make active". Only empty projects can be deleted.
+  - The sidebar's project switcher lists the projects and "Manage projects…"; ⌘K → a project name switches too. Every page (Shots, Review, Metadata, Plan, Timeline, Library › Fields and Locations, saved views) shows the active project only.
+  - Library › Projects: a list (shots, fields, "can be deleted") and a detail with name and notes (saved when leaving the field), the project's [extra fields](extra-fields.md) in order ("Edit fields" makes it active and opens Library › Fields), "Show n shots" and "Make active". Only empty projects can be deleted; its locations, fields and views go with it.
   - **Inline creation** when moving shots: the inspector's Project box, the Move to project dialog and the bulk-edit panel offer "Create “…”" for a new name (`createProjectNamed` in `api.ts`). A name that exists already is taken instead (the 409 carries its id), so nothing is duplicated.
-  - A shot moves to another project via the Project box in the shot view's inspector. When it is planned on shooting days, a warning says how many it leaves, and Move confirms.
+  - A shot moves to another project via the Project box in the shot view's inspector (or bulk edit). Its **location follows by name**: the target project's location of that name, created when missing (with the pin). Extra values the target's fields don't accept are dropped. When the move leaves shooting days or drops extra values, a warning names them and Move confirms.
 - **Phone:**
   - After sign-in (or skipping it), a full-screen gate asks for a project if none is active (`screens/Gates.tsx`). You switch with the **project pill** in every header, the HUD project chip on Shoot or Setup → Project; all open the Project sheet (`components/ProjectSheet.tsx`, a search above 8 projects, "New project" by name, works offline). A switch says "Now shooting for …".
   - Projects can be created offline; they sync before any queued shot uploads.
   - The camera HUD shows the active project name. The shutter is disabled without a project.
-  - Review, Shots and Day show only the active project (`useShots(projectId)` → `GET /api/shots?project_id=`).
+  - Review, Shots and Day show only the active project (`useShots(projectId)` → `GET /api/shots?project_id=`). The tag editor offers the shot's project's locations and creates new ones there; the remembered location (LAST) only carries over within the same project.
+  - Uploads stay lenient: a shot that arrives with a location of another project (a stale phone) gets its project's location of that name, created when missing.
 
 ## Sync details (phone)
 

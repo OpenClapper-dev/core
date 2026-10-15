@@ -133,6 +133,9 @@ export function BulkEditPanel({ shots, draft, onDraft, projects, locations, onLo
   // Extra fields: those every target project uses (a shot can only take a field its project has).
   const target = typeof draft.project_id === "string" ? draft.project_id : null;
   const targets = target ? [target] : [...new Set(shots.map((s) => s.project_id))];
+  // Locations belong to a project: offer the (new) project's; a move without one remaps by name on the server.
+  const locProject = target ?? shots[0]?.project_id ?? "";
+  const projectLocations = locations.filter((l) => l.project_id === locProject);
   const { defs, hidden } = useMemo(() => {
     const per = targets.map(fieldsOf);
     const all = [...new Map(per.flat().map((d) => [d.key, d])).values()];
@@ -166,7 +169,7 @@ export function BulkEditPanel({ shots, draft, onDraft, projects, locations, onLo
   async function pickLocation(id: string | null, createName?: string) {
     if (createName) {
       try {
-        const created = await putLocation({ id: crypto.randomUUID(), name: createName });
+        const created = await putLocation({ id: crypto.randomUUID(), project_id: locProject, name: createName });
         onLocations([...locations, created].sort((a, b) => a.name.localeCompare(b.name)));
         id = created.id;
       } catch (err) {
@@ -244,7 +247,7 @@ export function BulkEditPanel({ shots, draft, onDraft, projects, locations, onLo
             {field(col("state"),
               <Seg label="Review state" value={(shown(col("state")) as string | null) ?? "mixed"} onChange={(v) => set("state", v)} options={SHOT_STATES.map((v) => ({ id: v, label: label(v) }))} />)}
             {field(col("location_id"),
-              <Combobox small icon="map-marker-outline" options={locations.map((l) => ({ value: l.id, label: l.name, hint: l.shot_count ? `${l.shot_count}` : undefined }))} value={(shown(col("location_id")) as string | null) ?? null}
+              <Combobox small icon="map-marker-outline" options={projectLocations.map((l) => ({ value: l.id, label: l.name, hint: l.shot_count ? `${l.shot_count}` : undefined }))} value={(shown(col("location_id")) as string | null) ?? null}
                 placeholder={common(col("location_id")).mixed && !("location_id" in draft) ? "Mixed: pick to set for all" : "Search or create…"} onChange={(v) => void pickLocation(v)} onCreate={(t) => void pickLocation(null, t)} />)}
             {field(col("int_ext"),
               <Seg label="INT/EXT" value={"int_ext" in draft || !common(col("int_ext")).mixed ? ((shown(col("int_ext")) as string | null) ?? "none") : "mixed"} onChange={(v) => set("int_ext", v === "none" ? null : v)}

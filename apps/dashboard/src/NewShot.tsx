@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { COMPOSE_PALETTE, SKETCH_ASPECTS, type Shape } from "@fielder/vocab";
-import { createShot, existingIdOf, putLocation, putSketch, type Location, type NewShotPhoto, type Project, type Shot, type ShotState } from "./api";
+import { createShot, existingIdOf, putLocation, putSketch, type Location, type NewShotPhoto, type Shot, type ShotState } from "./api";
 import { defaultStyle, DrawSurface, TOOLS, WIDTHS, type Style, type TextEdit, type Tool } from "./compose/DrawSurface";
 import { renderSketch } from "./compose/render";
 import { useKeys } from "./keys";
@@ -14,9 +14,8 @@ import { Button, Chip, Combobox, cx, Field, Icon, IconButton, Input, MarkdownFie
  */
 
 interface Props {
-  /** The active project, or null in "All projects" (then the dialog asks). */
-  projectId: string | null;
-  projects: Project[];
+  /** The active project: new shots go there. */
+  projectId: string;
   locations: Location[];
   onLocations: (l: Location[]) => void;
   onClose: () => void;
@@ -42,9 +41,8 @@ async function prepare(file: File): Promise<{ blob: Blob; width: number; height:
   return { blob, width: w, height: h };
 }
 
-export function NewShotDialog({ projectId, projects, locations, onLocations, onClose, onCreated }: Props) {
+export function NewShotDialog({ projectId, locations, onLocations, onClose, onCreated }: Props) {
   const [mode, setMode] = useState<"upload" | "draw">("upload");
-  const [project, setProject] = useState<string | null>(projectId ?? projects[0]?.id ?? null);
   const [name, setName] = useState("");
   const [location, setLocation] = useState<string | null>(null);
   const [state, setState] = useState<ShotState>(() => getSettings().newShotState);
@@ -82,7 +80,7 @@ export function NewShotDialog({ projectId, projects, locations, onLocations, onC
   async function pickLocation(id: string | null, createName?: string) {
     if (!createName) { setLocation(id); return; }
     try {
-      const created = await putLocation({ id: crypto.randomUUID(), name: createName });
+      const created = await putLocation({ id: crypto.randomUUID(), project_id: projectId, name: createName });
       onLocations([...locations, created].sort((a, b) => a.name.localeCompare(b.name)));
       setLocation(created.id);
     } catch (err) {
@@ -91,12 +89,12 @@ export function NewShotDialog({ projectId, projects, locations, onLocations, onC
     }
   }
 
-  const ready = !!project && (mode === "upload" ? files.length > 0 : shapes.length > 0);
+  const ready = (mode === "upload" ? files.length > 0 : shapes.length > 0);
   async function create() {
-    if (!ready || busy || !project) return;
+    if (!ready || busy) return;
     setBusy(true);
     const now = Date.now();
-    const meta = (n: number) => ({ id: crypto.randomUUID(), project_id: project, name: name.trim() ? (split && n > 0 ? `${name.trim()} ${n + 1}` : name.trim()) : null, location_id: location, state, description: description.trim() || null });
+    const meta = (n: number) => ({ id: crypto.randomUUID(), project_id: projectId, name: name.trim() ? (split && n > 0 ? `${name.trim()} ${n + 1}` : name.trim()) : null, location_id: location, state, description: description.trim() || null });
     try {
       const out: Shot[] = [];
       if (mode === "upload") {
@@ -169,9 +167,6 @@ export function NewShotDialog({ projectId, projects, locations, onLocations, onC
           )}
         </div>
         <div class="newshot__side">
-          {!projectId && (
-            <Field label="Project" as="div"><Combobox small options={projects.map((p) => ({ value: p.id, label: p.name }))} value={project} clearable={false} onChange={setProject} /></Field>
-          )}
           <Field label="Name"><Input sm value={name} maxLength={120} placeholder={mode === "draw" ? "e.g. Floor plan, kitchen" : "e.g. Reference from the DP"} onInput={(e) => setName((e.target as HTMLInputElement).value)} /></Field>
           <Field label="Location" as="div"><Combobox small icon="map-marker-outline" options={locations.map((l) => ({ value: l.id, label: l.name }))} value={location} placeholder="Search or create…" onChange={(v) => void pickLocation(v)} onCreate={(t) => void pickLocation(null, t)} /></Field>
           <Field label="Review state" as="div"><Seg label="Review state" value={state} onChange={setState} options={[{ id: "approved", label: "Approved" }, { id: "unreviewed", label: "To review" }]} /></Field>

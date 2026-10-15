@@ -10,13 +10,12 @@ import { ShotsMap } from "./MapView";
 import { ModeSwitch } from "./ModeSwitch";
 import { ShotCard } from "./ShotCard";
 import { filterPills, ruleCount, runQuery, type Layout, type RefLists, type ShotsQuery, type Sort, type StateFilter } from "./shotsQuery";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, LinkButton, MenuItem, Popover, ProjectTag, SearchInput, Seg, SeqBadge, StateMarker, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "./ui";
+import { Banner, Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, LinkButton, MenuItem, Popover, SearchInput, Seg, SeqBadge, StateMarker, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "./ui";
 
 interface Props {
   shots: Shot[] | null;
   error: string | null;
   scopeName: string;
-  isAll: boolean;
   query: ShotsQuery;
   onQuery: (q: ShotsQuery) => void;
   view: SavedView | null;
@@ -64,7 +63,7 @@ export function ShotsPage(p: Props) {
     Escape: (e) => { if (e.target === search.current) { search.current?.blur(); return; } return false; },
   });
 
-  const title = p.view ? p.view.name : p.isAll ? "All shots · all projects" : "Shots";
+  const title = p.view ? p.view.name : "Shots";
   const total = p.shots?.length ?? 0;
   const filtered = rules > 0 || query.search.trim() !== "";
   const resultLine = !result ? "Loading…" : filtered ? `${result.matched} of ${total} shots` : `${total} shots`;
@@ -139,7 +138,7 @@ export function ShotsPage(p: Props) {
         ) : !result ? (
           <div class="f-scroll"><div class="shot-grid">{Array.from({ length: 12 }, (_, i) => <div key={i} class="skel-card"><div class="f-skel" style={{ aspectRatio: "4 / 3", borderRadius: 0 }} /><div style={{ padding: "10px", display: "flex", flexDirection: "column", gap: "6px" }}><div class="f-skel" style={{ height: "14px", width: "70%" }} /><div class="f-skel" style={{ height: "10px", width: "50%" }} /></div></div>)}</div></div>
         ) : total === 0 ? (
-          <Empty icon="camera-off-outline" title={`No shots in ${p.scopeName} yet`} actions={<Button kind="secondary" onClick={p.onSwitchScope}>Switch scope</Button>}>
+          <Empty icon="camera-off-outline" title={`No shots in ${p.scopeName} yet`} actions={<Button kind="secondary" onClick={p.onSwitchScope}>Switch project</Button>}>
             Shots appear here after the phone uploads them. Pick another scope to browse other projects.
           </Empty>
         ) : shots.length === 0 && p.layout !== "map" ? (
@@ -149,9 +148,9 @@ export function ShotsPage(p: Props) {
         ) : p.layout === "map" ? (
           <ShotsMap shots={shots} mask={p.mask} selectedId={p.mapSelected} onSelect={p.onMapSelected} onOpen={(s) => p.onOpen(s, shots)} />
         ) : p.layout === "list" ? (
-          <ShotsList shots={shots} isAll={p.isAll} mask={p.mask} onOpen={(s) => p.onOpen(s, shots)} onDeleted={p.onDeleted} bulk={{ ...p, ctx }} onBulkOpen={() => p.onPanel(false)} />
+          <ShotsList shots={shots} mask={p.mask} onOpen={(s) => p.onOpen(s, shots)} onDeleted={p.onDeleted} bulk={{ ...p, ctx }} onBulkOpen={() => p.onPanel(false)} />
         ) : (
-          <ShotsGrid shots={shots} isAll={p.isAll} mask={p.mask} onOpen={(s) => p.onOpen(s, shots)} />
+          <ShotsGrid shots={shots} mask={p.mask} onOpen={(s) => p.onOpen(s, shots)} />
         )}
         {p.error && p.shots && <div class="float-banner"><LoadError message={p.error} onRetry={p.onReload} /></div>}
         {p.panel && <FilterPanel group={query.filter} ctx={ctx} onChange={(filter) => setQuery({ filter })} onClose={() => p.onPanel(false)} resultLine={resultLine} />}
@@ -164,7 +163,7 @@ export function LoadError({ message, onRetry }: { message: string; onRetry: () =
   return <Banner role="alert" title="Couldn’t load shots" meta={message} action={<Button kind="secondary" size="sm" onClick={onRetry}>Retry</Button>} />;
 }
 
-function ShotsGrid({ shots, isAll, mask, onOpen }: { shots: Shot[]; isAll: boolean; mask: MaskMode; onOpen: (s: Shot) => void }) {
+function ShotsGrid({ shots, mask, onOpen }: { shots: Shot[]; mask: MaskMode; onOpen: (s: Shot) => void }) {
   const grid = useRef<HTMLDivElement>(null);
   const [focus, setFocus] = useState(0);
   useEffect(() => { if (focus >= shots.length) setFocus(Math.max(0, shots.length - 1)); }, [shots.length]);
@@ -181,7 +180,7 @@ function ShotsGrid({ shots, isAll, mask, onOpen }: { shots: Shot[]; isAll: boole
   return (
     <div class="f-scroll">
       <div ref={grid} class="shot-grid" role="grid" aria-label="Shots" onKeyDown={onKey}>
-        {shots.map((s, i) => <ShotCard key={s.id} shot={s} mask={mask} project={isAll ? s.project_name : null} focused={i === focus} onFocus={() => setFocus(i)} onClick={() => onOpen(s)} />)}
+        {shots.map((s, i) => <ShotCard key={s.id} shot={s} mask={mask} focused={i === focus} onFocus={() => setFocus(i)} onClick={() => onOpen(s)} />)}
       </div>
     </div>
   );
@@ -189,7 +188,7 @@ function ShotsGrid({ shots, isAll, mask, onOpen }: { shots: Shot[]; isAll: boole
 
 type BulkProps = Pick<Props, "ctx" | "onUpdated" | "onLocations" | "fieldsOf">;
 
-function ShotsList({ shots, isAll, mask, onOpen, onDeleted, bulk, onBulkOpen }: { shots: Shot[]; isAll: boolean; mask: MaskMode; onOpen: (s: Shot) => void; onDeleted: (ids: string[]) => void; bulk: BulkProps; onBulkOpen: () => void }) {
+function ShotsList({ shots, mask, onOpen, onDeleted, bulk, onBulkOpen }: { shots: Shot[]; mask: MaskMode; onOpen: (s: Shot) => void; onDeleted: (ids: string[]) => void; bulk: BulkProps; onBulkOpen: () => void }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   /** The bulk edit panel's draft; null = closed. While it is open a row click selects instead of opening. */
   const [draft, setDraft] = useState<BulkDraft | null>(null);
@@ -268,7 +267,7 @@ function ShotsList({ shots, isAll, mask, onOpen, onDeleted, bulk, onBulkOpen }: 
         <thead><tr>
           <th class="is-cell-check"><Checkbox checked={all} indeterminate={some} aria-label={all ? "Deselect all" : "Select all"} onClick={() => setSelected(all ? new Set() : new Set(shots.map((s) => s.id)))} /></th>
           <th style={{ width: "72px" }} />
-          <th>Name</th>{isAll && <th>Project</th>}<th>Location</th><th>State</th><th>INT/EXT</th><th>Light</th><th>Camera</th><th>Rig · lens</th><th class="is-num">Photos</th><th>Captured</th>
+          <th>Name</th><th>Location</th><th>State</th><th>INT/EXT</th><th>Light</th><th>Camera</th><th>Rig · lens</th><th class="is-num">Photos</th><th>Captured</th>
         </tr></thead>
         <tbody ref={body}>
           {shots.map((s, i) => (
@@ -278,7 +277,6 @@ function ShotsList({ shots, isAll, mask, onOpen, onDeleted, bulk, onBulkOpen }: 
               </td>
               <td><div class="f-table__thumb"><Framed photo={cover(s)} mode={mask} /></div></td>
               <td class="is-strong"><div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "240px" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shotTitle(s)}</span>{s.photos.length > 1 && <SeqBadge count={s.photos.length} small />}</div></td>
-              {isAll && <td><ProjectTag>{s.project_name}</ProjectTag></td>}
               <td>{s.location_name ?? <span class="is-dim">—</span>}</td>
               <td><StateMarker state={s.state} /></td>
               <td>{label(s.int_ext).toUpperCase() || <span class="is-dim">—</span>}</td>

@@ -9,7 +9,7 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 | GET | `/api/projects` | Each with `shot_count` and `field_ids` (ordered) |
 | PUT | `/api/projects/:id` | `{ name, notes? }` upsert. Name clash → `409 { existing_id }` |
 | DELETE | `/api/projects/:id` | Only when empty, else `409` |
-| PUT | `/api/projects/:id/fields` | `{ field_ids: [...] }` replaces the project's extra-field selection |
+| PUT | `/api/projects/:id/fields` | `{ field_ids: [...] }` reorders the project's own fields (must list exactly them) |
 
 ## Shots and photos (`shots.ts`)
 
@@ -81,17 +81,17 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET / PUT / DELETE | `/api/locations[/:id]` | `{ name, lat?, lon? }`: without `lat`/`lon` the stored pin is kept, `null` for both removes it; `shot_count`, `approved_count`; clash → `409 { existing_id }`; delete nulls `shots.location_id` |
+| GET / PUT / DELETE | `/api/locations[/:id]` | `{ project_id, name, lat?, lon? }`: `project_id` is required to create and never changes (GET takes `?project_id=`); names are unique per project. Without `lat`/`lon` the stored pin is kept, `null` for both removes it; `shot_count`, `approved_count`; clash → `409 { existing_id }`; delete nulls `shots.location_id` |
 | GET / PUT / DELETE | `/api/presets[/:id]` | Rigs: `name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm` |
-| GET / PUT / DELETE | `/api/views[/:id]` | `{ name, filter }`, filter validated by `validateFilter` |
+| GET / PUT / DELETE | `/api/views[/:id]` | `{ project_id, name, filter }` (`project_id` required to create), filter validated by `validateFilter` |
 
 ## Extra fields (`fields.ts`)
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/fields` | `{ fields: [{ id, key, definition, … }] }` |
-| PUT | `/api/fields/:id` | `{ definition }`, validated by `validateFieldDef`; key clash → 409 |
-| POST | `/api/fields/import` | `{ fields: [def, …] }` (or a bare array): new keys created, existing keys replaced; all validated first. Returns the full list plus `created`/`updated`. |
+| GET | `/api/fields` | `{ fields: [{ id, project_id, position, key, definition, … }] }`; `?project_id=` for one project |
+| PUT | `/api/fields/:id` | `{ project_id, definition }` (`project_id` required to create; new fields go last), validated by `validateFieldDef`; key clash within the project → 409 |
+| POST | `/api/fields/import` | `{ project_id, fields: [def, …] }`: new keys created in the project, its existing keys replaced; all validated first. Returns the project's list plus `created`/`updated`. |
 | DELETE | `/api/fields/:id` | Stored values on shots stay |
 
 ## Shooting days (`days.ts`)

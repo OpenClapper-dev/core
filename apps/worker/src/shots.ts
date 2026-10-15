@@ -1,7 +1,8 @@
-import { CAMERA_SUPPORTS, INT_EXT, isOneOf, LIGHT, PHOTO_SOURCES, MAX_DESCRIPTION, MOVEMENTS, patchExtra, pruneExtra, SHOT_SIZES, SHOT_STATES, validateExtra, validateValues, WEATHER, type Extra, type FieldDef } from "@fielder/vocab";
+import { CAMERA_SUPPORTS, INT_EXT, isOneOf, LIGHT, PHOTO_SOURCES, MAX_DESCRIPTION, MOVEMENTS, fitExtra, patchExtra, pruneExtra, SHOT_SIZES, SHOT_STATES, validateExtra, validateValues, WEATHER, type Extra, type FieldDef } from "@fielder/vocab";
 import { clipOverlaysLeaving, composeFor, deleteClipCompose, renderKeysOf, type OverlayApi, type SketchApi } from "./compose.ts";
 import { framingsFor, type FramingApi } from "./framings.ts";
 import { projectFieldDefs } from "./fields.ts";
+import { locationInProject } from "./locations.ts";
 import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
@@ -248,9 +249,9 @@ function parsePhoto(v: unknown, i: number): PhotoInput {
   };
 }
 
-async function assertLocationExists(env: Ctx["env"], id: string) {
-  const l = await env.DB.prepare("SELECT 1 FROM locations WHERE id = ?1").bind(id).first();
-  if (!l) throw new HttpError(400, "location_id does not exist");
+/** Interactive edits may only pick a location of the shot's (new) project. */
+async function assertLocationOf(env: Ctx["env"], id: string, projectId: string) {
+  if ((await locationInProject(env, id, projectId, false)) !== id) throw new HttpError(400, "location_id is not a location of the shot's project");
 }
 
 export function registerShotRoutes(r: Router<Ctx>) {
@@ -332,11 +333,12 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (!existing) {
       const projectId = assertUuid(m.project_id, "project_id");
       // A capture must never be rejected for metadata the phone could not know was stale or too long:
-      // overlong names are cut, a location deleted meanwhile is dropped (the photos keep their GPS).
+      // overlong names are cut, a location deleted meanwhile is dropped (the photos keep their GPS), and one
+      // of another project (a stale phone) becomes the shot's project's location of that name.
       if (typeof m.name === "string" && m.name.length > 120) m.name = m.name.slice(0, 120);
       const tags = parseTags(m, true);
       await assertProjectExists(env, projectId);
-      if (tags.location_id && !(await env.DB.prepare("SELECT 1 FROM locations WHERE id = ?1").bind(tags.location_id).first())) tags.location_id = null;
+      if (tags.location_id) tags.location_id = await locationInProject(env, tags.location_id, projectId, true);
       const capturedAt = photos.map((p) => p.timestamp).sort()[0];
       // A shot reviewed on the phone before it went out keeps that decision; anything else starts unreviewed.
       const state = isOneOf(SHOT_STATES, m.state) ? m.state : "unreviewed";
@@ -407,17 +409,25 @@ export function registerShotRoutes(r: Router<Ctx>) {
       await assertProjectExists(env, movedTo);
       args.push(movedTo); sets.push(`project_id = ?${args.length}`);
     }
+    if (sets.length === 0) throw new HttpError(400, "nothing to update");
+    const cur = await env.DB.prepare("SELECT project_id, location_id, extra FROM shots WHERE id = ?1").bind(sid).first<{ project_id: string; location_id: string | null; extra: string }>();
+    if (!cur) throw new HttpError(404, "shot not found");
+    const projectId = movedTo ?? cur.project_id;
+    if (movedTo === cur.project_id) movedTo = null;
     // Interactive edits are checked against the project's field definitions. Uploads are not:
     // a phone with stale definitions must never have a capture rejected.
     if (tags.extra !== undefined) {
-      const cur = await env.DB.prepare("SELECT project_id FROM shots WHERE id = ?1").bind(sid).first<{ project_id: string }>();
-      if (!cur) throw new HttpError(404, "shot not found");
-      const projectId = typeof b.project_id === "string" ? b.project_id.toLowerCase() : cur.project_id;
       const err = validateValues(await projectFieldDefs(env, projectId), JSON.parse(tags.extra) as Extra);
       if (err) throw new HttpError(400, err);
+    } else if (movedTo) {
+      // Moving takes along only the values the new project's fields accept (the dashboard warns first).
+      args.push(JSON.stringify(fitExtra(await projectFieldDefs(env, movedTo), JSON.parse(cur.extra) as Extra))); sets.push(`extra = ?${args.length}`);
     }
-    if (sets.length === 0) throw new HttpError(400, "nothing to update");
-    if (tags.location_id) await assertLocationExists(env, tags.location_id);
+    if (tags.location_id) await assertLocationOf(env, tags.location_id, projectId);
+    else if (tags.location_id === undefined && movedTo && cur.location_id) {
+      // The location follows by name: the new project's location of that name, created when missing.
+      args.push(await locationInProject(env, cur.location_id, movedTo, true)); sets.push(`location_id = ?${args.length}`);
+    }
     args.push(new Date().toISOString()); sets.push(`updated_at = ?${args.length}`);
     args.push(sid);
     const res = await env.DB.prepare(`UPDATE shots SET ${sets.join(", ")} WHERE id = ?${args.length}`).bind(...args).run();
@@ -461,30 +471,39 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (err) throw new HttpError(400, err);
     const keys = Object.keys(extraPatch as Extra);
     if (sets.length === 0 && keys.length === 0) throw new HttpError(400, "nothing to update");
-    if (tags.location_id) await assertLocationExists(env, tags.location_id);
 
     const list = JSON.stringify(ids);
-    const { results: rows } = await env.DB.prepare("SELECT id, project_id, extra FROM shots WHERE id IN (SELECT value FROM json_each(?1))")
-      .bind(list).all<{ id: string; project_id: string; extra: string }>();
+    const { results: rows } = await env.DB.prepare("SELECT id, project_id, location_id, extra FROM shots WHERE id IN (SELECT value FROM json_each(?1))")
+      .bind(list).all<{ id: string; project_id: string; location_id: string | null; extra: string }>();
     if (rows.length !== ids.length) throw new HttpError(404, `${ids.length - rows.length} of the shots not found`);
+    const moving = rows.filter((row) => movedTo && row.project_id !== movedTo);
+    if (tags.location_id) for (const pid of new Set(rows.map((row) => movedTo ?? row.project_id))) await assertLocationOf(env, tags.location_id, pid);
     const now = new Date().toISOString();
     const stmts: D1PreparedStatement[] = [];
     if (sets.length) {
       stmts.push(env.DB.prepare(`UPDATE shots SET ${sets.join(", ")}, updated_at = ?${args.length + 1} WHERE id IN (SELECT value FROM json_each(?${args.length + 2}))`)
         .bind(...args, now, list));
     }
-    if (keys.length) {
-      // Interactive, so strict like the single PATCH, but only for the keys edited here.
+    if (keys.length || moving.length) {
+      // Interactive, so strict like the single PATCH, but only for the keys edited here. Shots that
+      // change project first keep only the values the new project's fields accept.
       const defsOf = new Map<string, FieldDef[]>();
       for (const row of rows) {
         const projectId = movedTo ?? row.project_id;
+        const moves = projectId !== row.project_id;
+        if (!keys.length && !moves) continue;
         let defs = defsOf.get(projectId);
         if (!defs) { defs = await projectFieldDefs(env, projectId); defsOf.set(projectId, defs); }
-        const extra = patchExtra(defs, JSON.parse(row.extra) as Extra, extraPatch as Extra);
+        const own = JSON.parse(row.extra) as Extra;
+        const extra = patchExtra(defs, moves ? fitExtra(defs, own) : own, extraPatch as Extra);
         const bad = validateValues(defs, extra, "extra", keys);
         if (bad) throw new HttpError(400, bad);
         stmts.push(env.DB.prepare("UPDATE shots SET extra = ?1, updated_at = ?2 WHERE id = ?3").bind(JSON.stringify(extra), now, row.id));
       }
+    }
+    // The location follows a moved shot by name, unless this edit sets one.
+    if (movedTo && tags.location_id === undefined) {
+      for (const row of moving) if (row.location_id) stmts.push(env.DB.prepare("UPDATE shots SET location_id = ?1 WHERE id = ?2").bind(await locationInProject(env, row.location_id, movedTo, true), row.id));
     }
     // Shots moved to another project leave the shooting days and timelines of their old project.
     if (movedTo) {

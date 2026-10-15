@@ -54,7 +54,7 @@ export function EditTagsSheet({ shot, visible, onClose }: { shot: Shot; visible:
       footer={<Button icon="check" label="Save" onPress={() => void save()} busy={busy} />}>
       <SheetList>
         {error && <View style={{ padding: 12 }}><Banner kind="danger" title="Not saved" meta={`${error}. Your edits are still here.`} /></View>}
-        <TagEditor value={draft} onChange={setDraft} locations={app.locations} countAt={app.countAt}
+        <TagEditor value={draft} onChange={setDraft} projectId={shot.project_id} locations={app.locations} countAt={app.countAt}
           fields={store.fieldsForProject(shot.project_id)} projectName={app.projects.find((p) => p.id === shot.project_id)?.name} />
       </SheetList>
     </Sheet>

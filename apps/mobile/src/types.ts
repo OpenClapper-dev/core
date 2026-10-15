@@ -117,6 +117,8 @@ export interface ShotMetadata extends ShotTags {
 /** A named place; lives on the server, cached locally so the form works offline. Shared by all projects. */
 export interface LocationEntry {
   id: string;
+  /** Locations belong to one project (issue #44). */
+  projectId: string;
   name: string;
   createdAt: string;
   /** false until the Worker has acknowledged the PUT. */

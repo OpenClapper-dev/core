@@ -26,12 +26,11 @@ export interface FilterField {
   /** enum: allowed values. */
   options?: readonly string[];
   /** ref: which server list supplies the options. */
-  ref?: "location" | "preset" | "project";
+  ref?: "location" | "preset";
 }
 
 export const FILTER_FIELDS: readonly FilterField[] = [
   { id: "state", label: "State", kind: "enum", options: SHOT_STATES },
-  { id: "project_id", label: "Project", kind: "ref", ref: "project" },
   { id: "name", label: "Name", kind: "text" },
   { id: "location_id", label: "Location", kind: "ref", ref: "location" },
   { id: "int_ext", label: "Int/Ext", kind: "enum", options: INT_EXT },

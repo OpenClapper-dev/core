@@ -29,7 +29,7 @@ The phone uses the **deployed** Worker, even in the dev loop. The dashboard dev 
 
 - **Project**: every shot belongs to one. The active project is chosen once per client and remembered. See [projects](features/projects.md).
 - **Shot vs photo**: a shot carries the metadata (name, tags, review state, extra fields); it owns 1..n photos. A sequence is one shot with many photos. Rig, lens, framing and GPS are per photo. The first photo is the **cover** (`cover(shot)` in both clients).
-- **Location, rig (preset), view, field definition**: shared by all projects.
+- **Location, view, field definition**: belong to one project (a hard scope, [issue #44](https://github.com/bubulux/fielder/issues/44)); rigs are shared by all projects.
 - **Client-owned UUIDs**: projects, locations, rigs, views, days and shots get their id on the client. PUT is an upsert, which allows offline creation. Name clashes on projects/locations answer `409` + `existing_id` so the client adopts the existing row (`apps/mobile/src/namedSync.ts`).
 
 ## Auth

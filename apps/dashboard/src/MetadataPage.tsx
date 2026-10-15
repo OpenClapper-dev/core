@@ -5,7 +5,7 @@ import { existingIdOf, patchShot, putLocation, type Location, type Project, type
 import { placeLabel, shotTitle } from "./format";
 import type { MaskMode } from "./Framed";
 import { ScrubCover, SeqBadges } from "./ShotCard";
-import { Combobox, cx, Empty, EmptyNote, Icon, IconButton, Input, MenuItem, Panel, PanelBody, PanelHead, Seg, Select, StateMarker, toast, Toolbar, ToolbarTitle } from "./ui";
+import { Combobox, cx, EmptyNote, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, StateMarker, toast, Toolbar, ToolbarTitle } from "./ui";
 
 /**
  * Metadata (issue #42): sort the project's shots into the values of one single-value field
@@ -74,9 +74,7 @@ const DRAG_TYPE = "application/x-fielder-meta-shot";
 const LEFT = "\u0000unsorted";
 
 interface Props {
-  project: Project | null;
-  projects: Project[];
-  onPickProject: (id: string) => void;
+  project: Project;
   /** The project's shots. */
   shots: Shot[];
   locations: Location[];
@@ -89,20 +87,7 @@ interface Props {
 }
 
 export function MetadataPage(p: Props) {
-  if (!p.project) {
-    return (
-      <>
-        <Toolbar><ToolbarTitle>Metadata</ToolbarTitle></Toolbar>
-        <Empty icon="folder-outline" title="Pick a project to sort">
-          The board sorts one project's shots.
-          <div class="f-menu" style={{ marginTop: "12px", width: "300px", textAlign: "left" }}>
-            {p.projects.map((pr) => <MenuItem key={pr.id} icon="folder-outline" count={`${pr.shot_count} shots`} onClick={() => p.onPickProject(pr.id)}>{pr.name}</MenuItem>)}
-          </div>
-        </Empty>
-      </>
-    );
-  }
-  return <Board key={p.project.id} {...p} project={p.project} />;
+  return <Board key={p.project.id} {...p} />;
 }
 
 function Board(p: Props & { project: Project }) {
@@ -178,7 +163,7 @@ function Board(p: Props & { project: Project }) {
   async function addLocation(id: string | null, createName?: string) {
     if (createName) {
       try {
-        const created = await putLocation({ id: crypto.randomUUID(), name: createName });
+        const created = await putLocation({ id: crypto.randomUUID(), project_id: p.project.id, name: createName });
         p.onLocations([...p.locations, created].sort((a, b) => a.name.localeCompare(b.name)));
         id = created.id;
       } catch (err) {
