@@ -5,8 +5,8 @@
  */
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { simplifyPoints, type Point, type Shape, type Stencil } from "@fielder/vocab";
-import { DrawingSvg } from "./Canvas";
+import { moveShape, simplifyPoints, type MaskStroke, type Point, type Shape, type Stencil } from "@fielder/vocab";
+import { DrawingSvg, stencilHandles } from "./Canvas";
 import { shapeAt, sizePx, toFrac, toPx, type CanvasRect } from "./geometry";
 import { shortcut } from "../shortcuts";
 
@@ -56,9 +56,15 @@ interface Props {
   onTextEdit: (t: TextEdit | null) => void;
   /** Add or update a text shape from the text box. */
   onTextDone: (t: TextEdit) => void;
+  /** Painting away parts of this shape (issue #46): drags add mask strokes to it instead of drawing. */
+  mask?: { id: string; width: number } | null;
 }
 
-type Drag = { kind: "draw"; shape: Shape } | { kind: "move"; id: string; last: Point; moved: boolean } | { kind: "erase" } | { kind: "pan-none" };
+type Drag =
+  | { kind: "draw"; shape: Shape } | { kind: "move"; id: string; last: Point; moved: boolean } | { kind: "erase" } | { kind: "pan-none" }
+  | { kind: "mask"; id: string; stroke: MaskStroke }
+  | { kind: "rotate"; id: string; centre: [number, number]; changed: boolean }
+  | { kind: "resize"; id: string; centre: [number, number]; d0: number; size0: number; changed: boolean };
 
 export function DrawSurface(p: Props) {
   const box = useRef<HTMLDivElement>(null);
@@ -76,7 +82,8 @@ export function DrawSurface(p: Props) {
 
   const c = p.canvasOf(size.w, size.h);
   const pos = (e: PointerEvent): [number, number] => { const r = box.current!.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-  const cursor = p.tool === "select" ? "default" : p.tool === "eraser" ? "cell" : p.tool === "text" ? "text" : "crosshair";
+  const cursor = p.mask ? "cell" : p.tool === "select" ? "default" : p.tool === "eraser" ? "cell" : p.tool === "text" ? "text" : "crosshair";
+  const withMask = (id: string, stroke: MaskStroke) => p.shapes.map((s) => (s.id === id ? { ...s, mask: [...(s.mask ?? []), stroke] } : s));
 
   const down = (e: PointerEvent) => {
     if (e.button !== 0 || size.w === 0) return;
@@ -85,8 +92,24 @@ export function DrawSurface(p: Props) {
     const f = toFrac(x, y, c);
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
     const st = p.style;
+    if (p.mask) {
+      const target = p.shapes.find((s) => s.id === p.mask!.id);
+      if (!target) return;
+      const stroke: MaskStroke = { width: p.mask.width, points: [f] };
+      drag.current = { kind: "mask", id: target.id, stroke };
+      p.onPreview(withMask(target.id, stroke));
+      return;
+    }
     switch (p.tool) {
       case "select": {
+        // A selected stencil's handles come first: the knob rotates, the corner resizes.
+        const sel = p.shapes.find((s) => s.id === p.selected);
+        if (sel?.type === "stencil") {
+          const h = stencilHandles(sel, c);
+          const near = (q: [number, number]) => Math.hypot(q[0] - x, q[1] - y) <= 9;
+          if (near(h.knob)) { drag.current = { kind: "rotate", id: sel.id, centre: h.centre, changed: false }; return; }
+          if (near(h.corner)) { drag.current = { kind: "resize", id: sel.id, centre: h.centre, d0: Math.max(1, Math.hypot(h.corner[0] - h.centre[0], h.corner[1] - h.centre[1])), size0: sel.size, changed: false }; return; }
+        }
         const hit = shapeAt(p.shapes, x, y, c);
         p.onSelect(hit?.id ?? null);
         drag.current = hit ? { kind: "move", id: hit.id, last: f, moved: false } : { kind: "pan-none" };
@@ -135,12 +158,25 @@ export function DrawSurface(p: Props) {
       const next: Shape = s.type === "path" ? { ...s, points: [...s.points, f] } : s.type === "text" || s.type === "stencil" ? s : { ...s, to: e.shiftKey ? square(s.from, f, s.type === "line" || s.type === "arrow") : f };
       d.shape = next;
       p.onPreview([...p.shapes.filter((x) => x.id !== s.id), next]);
+    } else if (d.kind === "mask") {
+      d.stroke = { ...d.stroke, points: [...d.stroke.points, f] };
+      p.onPreview(p.shapes.map((s) => (s.id === d.id ? { ...s, mask: [...(s.mask ?? []).slice(0, -1), d.stroke] } : s)));
+    } else if (d.kind === "rotate") {
+      let deg = (Math.atan2(y - d.centre[1], x - d.centre[0]) * 180) / Math.PI + 90;
+      if (deg > 180) deg -= 360;
+      if (e.shiftKey) deg = Math.round(deg / 15) * 15;
+      d.changed = true;
+      p.onPreview(p.shapes.map((s) => (s.id === d.id && s.type === "stencil" ? { ...s, rotation: Math.round(deg) } : s)));
+    } else if (d.kind === "resize") {
+      const size = Math.min(1, Math.max(0.01, (d.size0 * Math.hypot(x - d.centre[0], y - d.centre[1])) / d.d0));
+      d.changed = true;
+      p.onPreview(p.shapes.map((s) => (s.id === d.id && s.type === "stencil" ? { ...s, size } : s)));
     } else if (d.kind === "move") {
       const dx = f[0] - d.last[0], dy = f[1] - d.last[1];
       if (!d.moved && Math.hypot(dx * c.w, dy * c.h) < 2) return;
       d.moved = true;
       d.last = f;
-      p.onPreview(p.shapes.map((s) => (s.id === d.id ? moved(s, dx, dy) : s)));
+      p.onPreview(p.shapes.map((s) => (s.id === d.id ? moveShape(s, dx, dy) : s)));
     } else if (d.kind === "erase") {
       const hit = shapeAt(p.shapes, x, y, c);
       if (hit) p.onCommit(p.shapes.filter((s) => s.id !== hit.id));
@@ -159,7 +195,9 @@ export function DrawSurface(p: Props) {
         p.onCommit(p.shapes);
         p.onSelect(s.id);
       }
-    } else if (d.kind === "move" && d.moved) {
+    } else if (d.kind === "mask") {
+      p.onCommit(p.shapes.map((s) => (s.id === d.id ? { ...s, mask: [...(s.mask ?? []).slice(0, -1), { ...d.stroke, points: simplifyPoints(d.stroke.points) }] } : s)));
+    } else if ((d.kind === "move" && d.moved) || ((d.kind === "rotate" || d.kind === "resize") && d.changed)) {
       p.onCommit(p.shapes);
     }
   };
@@ -171,7 +209,7 @@ export function DrawSurface(p: Props) {
     <div ref={box} class={`compose__surface ${p.sketch ? "compose__surface--sketch" : ""}`} style={{ aspectRatio: String(p.aspect), width: `min(100%, calc(${p.maxHeight} * ${p.aspect}))` }}>
       {size.w > 0 && p.background(size, c)}
       {size.w > 0 && (
-        <DrawingSvg shapes={p.shapes} c={c} width={size.w} height={size.h} selected={p.tool === "select" ? p.selected : null} style={{ cursor }}
+        <DrawingSvg shapes={p.shapes} c={c} width={size.w} height={size.h} selected={p.tool === "select" && !p.mask ? p.selected : null} style={{ cursor }}
           onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
           onDblClick={(e: MouseEvent) => { if (p.tool !== "select") return; const [x, y] = pos(e as PointerEvent); const hit = shapeAt(p.shapes, x, y, c); if (hit?.type === "text") p.onTextEdit({ id: hit.id, at: hit.at, value: hit.text }); }} />
       )}
@@ -198,11 +236,3 @@ function square(from: Point, to: Point, line: boolean): Point {
   return [from[0] + Math.sign(dx || 1) * d, from[1] + Math.sign(dy || 1) * d];
 }
 
-function moved(s: Shape, dx: number, dy: number): Shape {
-  const mv = (p: Point): Point => [p[0] + dx, p[1] + dy];
-  switch (s.type) {
-    case "path": return { ...s, points: s.points.map(mv) };
-    case "line": case "arrow": case "rect": case "ellipse": return { ...s, from: mv(s.from), to: mv(s.to) };
-    case "text": case "stencil": return { ...s, at: mv(s.at) };
-  }
-}

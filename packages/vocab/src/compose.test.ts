@@ -21,7 +21,7 @@ test("drawing: shapes are checked by type, ids must be unique", () => {
   ];
   assert.equal(validateDrawing({ v: 1, shapes: ok, look: null }, false), null);
   assert.match(validateDrawing({ v: 1, shapes: [{ ...base, type: "rect", from: [0, 0], to: [9, 9] }], look: null }, false)!, /from\/to/);
-  assert.match(validateDrawing({ v: 1, shapes: [{ ...base, type: "stencil", at: [0, 0], stencil: "tree", size: 0.1, rotation: 0 }], look: null }, false)!, /stencil must be/);
+  assert.match(validateDrawing({ v: 1, shapes: [{ ...base, type: "stencil", at: [0, 0], stencil: "spaceship", size: 0.1, rotation: 0 }], look: null }, false)!, /not a known stencil/);
   assert.match(validateDrawing({ v: 1, shapes: [ok[0], ok[0]], look: null }, false)!, /used twice/);
   assert.match(validateDrawing({ v: 1, shapes: [{ ...base, color: "red", type: "line", from: [0, 0], to: [1, 1] }], look: null }, false)!, /colour/);
   assert.match(validateDrawing({ v: 2, shapes: [] }, false)!, /v must be 1/);
@@ -29,10 +29,14 @@ test("drawing: shapes are checked by type, ids must be unique", () => {
 
 test("look: ranges and tint", () => {
   assert.equal(validateDrawing({ v: 1, shapes: [], look: { ...NEUTRAL_LOOK, exposure: -0.4, tint: "#1C2848" } }, true), null);
-  assert.match(validateDrawing({ v: 1, shapes: [], look: { ...NEUTRAL_LOOK, exposure: 2 } }, true)!, /exposure/);
+  assert.match(validateDrawing({ v: 1, shapes: [], look: { ...NEUTRAL_LOOK, exposure: 3.5 } }, true)!, /exposure/);
+  assert.equal(validateDrawing({ v: 1, shapes: [], look: { ...NEUTRAL_LOOK, exposure: -3 } }, true), null);
   assert.match(validateDrawing({ v: 1, shapes: [], look: { ...NEUTRAL_LOOK, tint: "blue" } }, true)!, /tint/);
   assert.equal(lookFilter(NEUTRAL_LOOK, 8), "none");
-  assert.equal(lookFilter({ ...NEUTRAL_LOOK, exposure: -1, bw: true }, 8), "brightness(0.250) grayscale(1)");
+  assert.equal(lookFilter({ ...NEUTRAL_LOOK, exposure: -1, bw: true }, 8), "brightness(0.2500) grayscale(1)");
+  // One unit is 2 EV: the old ±1 ends render as before, the range now reaches ±6 EV.
+  assert.equal(lookFilter({ ...NEUTRAL_LOOK, exposure: 1 }, 8), "brightness(4.0000)");
+  assert.equal(lookFilter({ ...NEUTRAL_LOOK, exposure: -3 }, 8), "brightness(0.0156)");
 });
 
 test("presentation: mode, optional frame and label", () => {
@@ -73,4 +77,12 @@ test("markdown: blocks", () => {
   assert.equal(markdownSummary("**Night** version\n\nmore"), "Night version");
   assert.equal(markdownSummary("- a\n- b"), "a · b");
   assert.equal(markdownSummary(null), "");
+});
+
+test("mask: strokes are checked and move with their shape", () => {
+  const masked: Shape = { ...base, id: "m", type: "stencil", at: [0.5, 0.5], stencil: "car", size: 0.2, rotation: 0, mask: [{ width: 0.02, points: [[0.45, 0.5], [0.55, 0.5]] }] };
+  assert.equal(validateDrawing({ v: 1, shapes: [masked], look: null }, false), null);
+  assert.match(validateDrawing({ v: 1, shapes: [{ ...masked, mask: [{ width: 0.02, points: [] }] }], look: null }, false)!, /mask strokes/);
+  const moved = moveShape(masked, 0.1, 0);
+  assert.deepEqual(moved.mask?.[0].points, [[0.55, 0.5], [0.65, 0.5]]);
 });

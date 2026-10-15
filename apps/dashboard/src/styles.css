@@ -226,6 +226,14 @@ button { font: inherit; }
 .compose__svg { position: absolute; inset: 0; touch-action: none; }
 .compose__sel { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
 [data-theme="set"] .compose__sel { stroke: #6FA2FF; }
+.compose__handle { fill: var(--surface); stroke: var(--accent); stroke-width: 2; cursor: grab; }
+.stencil-btn { display: inline-flex; align-items: center; gap: 6px; }
+.stencil-picker { width: 420px; max-height: 60vh; overflow: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.stencil-picker__group { margin: 4px 0; font-size: var(--text-caption); color: var(--text-dim); text-transform: uppercase; letter-spacing: var(--tracking-caps); }
+.stencil-picker__grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.stencil-picker__it { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border: var(--bw) solid transparent; border-radius: var(--radius-sm); background: none; color: var(--text); cursor: pointer; font-size: var(--text-micro); text-align: center; }
+.stencil-picker__it:hover { background: var(--surface-sunken); }
+.stencil-picker__it.is-sel { border-color: var(--accent); background: var(--accent-tint); }
 .compose__textbox { position: absolute; z-index: 3; min-width: 120px; max-width: 70%; padding: 0 4px; margin: 0; border: 2px solid var(--accent); border-radius: 4px; background: rgba(0,0,0,.55); font: var(--weight-bold) 16px/1.2 var(--font-sans); line-height: 1.2; outline: none; }
 .compose__foot { gap: 10px; }
 .compose__items { flex: 1 1 auto; }
