@@ -12,6 +12,7 @@ D1 (SQLite) database `fielder-db`, schema in `apps/worker/migrations/`. Images l
 | `0004_shooting_days.sql` | `shooting_days`, `day_shots` |
 | `0005_capture_flow.sql` | `shots.shot_size`, `camera_support`, `movement`; `photos` rebuilt with nullable `lat`/`lon` (copied row by row, both or neither set) |
 | `0006_compose.sql` | `shots.description`; `overlays`, `sketches` ([compose](features/compose.md)) |
+| `0016_spots.sql` | `spots` (a place within a location, optional pin); `shots.spot_id` ([projects](features/projects.md)) |
 | `0015_project_scope.sql` | `locations.project_id`, `field_definitions.project_id` + `position`, `views.project_id`; shared rows copied per project, unused ones to the project with the most shots; `project_fields` folded in and dropped ([projects](features/projects.md)) |
 | `0014_sequence_blocks.sql` | `timelines.groups` (JSON), `timeline_clips.group_id`: sequence blocks ([timeline](features/timeline.md)) |
 | `0013_clip_owned_compose.sql` | `overlays.timeline_id`, `clip_id`; `sketches` rebuilt (copied) with nullable `shot_id` + `timeline_id`, `clip_id`; `timeline_clips.sketch_id` (sketch clips) ([timeline](features/timeline.md)) |
@@ -32,6 +33,8 @@ Add a new numbered file for every change; never edit one that was applied to pro
 
 `locations(id, project_id → projects CASCADE, name UNIQUE NOCASE per project, lat, lon, created_at, updated_at)`: a location belongs to one project. `lat`/`lon` is the location's pin (null = none). No district (removed in the rework).
 
+`spots(id, location_id → locations CASCADE, name UNIQUE NOCASE per location, lat, lon, created_at, updated_at)`: a named place within a location (the north gate, the roof), with an optional pin. `shots.spot_id → spots SET NULL` is always a spot of the shot's location; the API adds `spot_name`.
+
 `shots(id, project_id → projects RESTRICT, location_id → locations SET NULL, name, int_ext, light JSON array, artificial 0/1, weather, shot_size, camera_support, movement JSON array, state, extra JSON object, description, captured_at, created_at, updated_at)`
 - `state`: `unreviewed` (on upload) → `approved` / `archived`.
 - `light`: subset of `dawn, day, dusk, night`, stored in that canonical order. Empty = no requirement.
@@ -39,7 +42,7 @@ Add a new numbered file for every change; never edit one that was applied to pro
 - `artificial`: lit artificially, independent of phases and INT/EXT.
 - `captured_at`: earliest photo timestamp; recomputed when photos are added. Lists sort and paginate on `(captured_at, id)`.
 - `extra`: values of the project's extra fields ([extra fields](features/extra-fields.md)).
-- `position_from_location` 0/1: maps use the location's pin instead of the photos' GPS (the photos keep theirs). The API adds `location_position: { lat, lon } | null` from the join.
+- `position_from_location` 0/1: maps use the place's pin (the spot's, else the location's; the API's `location_position`) instead of the photos' GPS (the photos keep theirs). The API adds `location_position: { lat, lon } | null` from the join.
 - `description`: Markdown subset (`packages/vocab/src/markdown.ts`), max 20 000 characters.
 
 `photos(id, shot_id → shots CASCADE, ordinal UNIQUE per shot, source camera|upload|drawn (non-camera photos: no framing, lens_mm 0), timestamp, lat, lon (both NULL when captured without GPS), gps_accuracy_m, position_corrected, preset_id → presets SET NULL, lens_mm, r2_object_key UNIQUE, width, height, framing JSON, device JSON, created_at)`

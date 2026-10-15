@@ -76,6 +76,8 @@ export interface ShotTags {
   weather: string | null;
   int_ext: string | null;
   location_id: string | null;
+  /** A spot within the location (issue #44); cleared when the location changes. */
+  spot_id: string | null;
   shot_size: string | null;
   camera_support: string | null;
   /** Any subset of MOVEMENTS. */
@@ -119,6 +121,16 @@ export interface LocationEntry {
   id: string;
   /** Locations belong to one project (issue #44). */
   projectId: string;
+  name: string;
+  createdAt: string;
+  /** false until the Worker has acknowledged the PUT. */
+  synced: boolean;
+}
+
+/** A named place within a location (issue #44). Created on the phone like locations, offline too. */
+export interface SpotEntry {
+  id: string;
+  locationId: string;
   name: string;
   createdAt: string;
   /** false until the Worker has acknowledged the PUT. */

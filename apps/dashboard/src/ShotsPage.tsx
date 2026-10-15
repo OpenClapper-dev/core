@@ -3,7 +3,7 @@ import { cameraLabel, label, lightLabel, SHOT_STATES, STATE_ICONS, type FieldDef
 import { deleteShot, type Location, type SavedView, type Shot } from "./api";
 import { BulkEditPanel, MoveDialog, type BulkDraft } from "./BulkEdit";
 import { FilterPanel } from "./FilterBuilder";
-import { cover, rigLabel, shotTitle, when } from "./format";
+import { cover, placeLabel, rigLabel, shotTitle, when } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { useKeys } from "./keys";
 import { ShotsMap } from "./MapView";
@@ -277,7 +277,7 @@ function ShotsList({ shots, mask, onOpen, onDeleted, bulk, onBulkOpen }: { shots
               </td>
               <td><div class="f-table__thumb"><Framed photo={cover(s)} mode={mask} /></div></td>
               <td class="is-strong"><div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "240px" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shotTitle(s)}</span>{s.photos.length > 1 && <SeqBadge count={s.photos.length} small />}</div></td>
-              <td>{s.location_name ?? <span class="is-dim">—</span>}</td>
+              <td>{placeLabel(s) || <span class="is-dim">—</span>}</td>
               <td><StateMarker state={s.state} /></td>
               <td>{label(s.int_ext).toUpperCase() || <span class="is-dim">—</span>}</td>
               <td>{lightLabel(s.light, s.artificial) || <span class="is-dim">—</span>}</td>

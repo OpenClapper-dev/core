@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { pruneExtra, type FieldDef } from "@fielder/vocab";
 import { hhmm } from "../shots";
 import { store } from "../storage";
-import type { CaptureDraft, LocationEntry, ProjectEntry, Settings, ShotTags } from "../types";
+import type { CaptureDraft, LocationEntry, ProjectEntry, Settings, ShotTags, SpotEntry } from "../types";
 import { ActionBar, BORDER, Button, confirm, FIXED, makeStyles, num, RADIUS, SeqBadge, SIZE, type } from "../ui";
 import { FramedImage } from "../components/FramedImage";
 import { EMPTY_TAGS, TagEditor, type TagDraft } from "../components/TagEditor";
@@ -15,22 +15,25 @@ interface Props {
   settings: Settings;
   project: ProjectEntry | null;
   locations: LocationEntry[];
+  spots: SpotEntry[];
   countAt: (locationId: string) => number;
   fields: readonly FieldDef[];
-  onUpload: (tags: ShotTags, newLocation: LocationEntry | null) => void;
+  onUpload: (tags: ShotTags, newLocation: LocationEntry | null, newSpot: SpotEntry | null) => void;
   onDiscard: () => void;
 }
 
-/** Tags of the last upload (never the name; location and extra fields only within the same project) and which keys they filled. */
+/** Tags of the last upload (never the name; location, spot and extra fields only within the same project) and which keys they filled. */
 function remembered(projectId: string | null): { tags: ShotTags; keys: Set<string> } {
   const last = store.loadLastTags();
   if (!last) return { tags: EMPTY_TAGS, keys: new Set() };
   const t = last.tags;
   const sameProject = last.projectId === projectId;
   const known = !t.location_id || store.loadLocations().some((l) => l.id === t.location_id && l.projectId === projectId);
-  const tags: ShotTags = { ...EMPTY_TAGS, ...t, name: null, location_id: known ? t.location_id : null, extra: sameProject ? t.extra ?? {} : {} };
+  const spotKnown = known && !!t.spot_id && store.loadSpots().some((x) => x.id === t.spot_id && x.locationId === t.location_id);
+  const tags: ShotTags = { ...EMPTY_TAGS, ...t, name: null, location_id: known ? t.location_id : null, spot_id: spotKnown ? t.spot_id : null, extra: sameProject ? t.extra ?? {} : {} };
   const keys = new Set<string>();
   if (tags.location_id) keys.add("location_id");
+  if (tags.spot_id) keys.add("spot_id");
   if (tags.int_ext) keys.add("int_ext");
   if (tags.light.length || tags.artificial) keys.add("light");
   if (tags.weather) keys.add("weather");
@@ -44,13 +47,13 @@ function remembered(projectId: string | null): { tags: ShotTags; keys: Set<strin
  * and Discard | Upload pinned at the thumb. A repeat shot is one tap on Upload. The draft is
  * persisted, so this reopens after the app was killed. Android back asks before discarding.
  */
-export function Tag({ draft, settings, project, locations, countAt, fields, onUpload, onDiscard }: Props) {
+export function Tag({ draft, settings, project, locations, spots, countAt, fields, onUpload, onDiscard }: Props) {
   const s = useStyles();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const portrait = height >= width;
   const start = useMemo(() => remembered(project?.id ?? null), [draft.shotId]);
-  const [value, setValue] = useState<TagDraft>({ tags: start.tags, newLocation: null });
+  const [value, setValue] = useState<TagDraft>({ tags: start.tags, newLocation: null, newSpot: null });
   const [keys, setKeys] = useState<Set<string>>(start.keys);
   const [index, setIndex] = useState(0);
   const [keyboard, setKeyboard] = useState(false);
@@ -68,10 +71,10 @@ export function Tag({ draft, settings, project, locations, countAt, fields, onUp
 
   const upload = () => {
     const tags = { ...value.tags, name: value.tags.name?.trim() || null, extra: pruneExtra(value.tags.extra) };
-    if (project) store.saveLastTags({ projectId: project.id, tags: { light: tags.light, artificial: tags.artificial, weather: tags.weather, int_ext: tags.int_ext, location_id: tags.location_id, extra: tags.extra,
+    if (project) store.saveLastTags({ projectId: project.id, tags: { light: tags.light, artificial: tags.artificial, weather: tags.weather, int_ext: tags.int_ext, location_id: tags.location_id, spot_id: tags.spot_id, extra: tags.extra,
       // The support usually stays for a while (a Steadicam day); size and movement change shot to shot.
       camera_support: tags.camera_support, shot_size: null, movement: [] } });
-    onUpload(tags, value.newLocation);
+    onUpload(tags, value.newLocation, value.newSpot);
   };
   const discard = async () => {
     const ok = await confirm({
@@ -104,7 +107,7 @@ export function Tag({ draft, settings, project, locations, countAt, fields, onUp
     </ScrollView>
   );
   const editor = (
-    <TagEditor value={value} onChange={setValue} projectId={project?.id ?? ""} locations={locations} countAt={countAt} fields={fields} projectName={project?.name}
+    <TagEditor value={value} onChange={setValue} projectId={project?.id ?? ""} locations={locations} spots={spots} countAt={countAt} fields={fields} projectName={project?.name}
       remembered={keys} onTouched={(k) => setKeys((cur) => { if (!cur.has(k)) return cur; const nx = new Set(cur); nx.delete(k); return nx; })}
       lastLocationId={store.loadLastTags()?.tags.location_id ?? null} />
   );

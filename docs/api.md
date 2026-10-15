@@ -82,6 +82,7 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET / PUT / DELETE | `/api/locations[/:id]` | `{ project_id, name, lat?, lon? }`: `project_id` is required to create and never changes (GET takes `?project_id=`); names are unique per project. Without `lat`/`lon` the stored pin is kept, `null` for both removes it; `shot_count`, `approved_count`; clash → `409 { existing_id }`; delete nulls `shots.location_id` |
+| GET / PUT / DELETE | `/api/spots[/:id]` | `{ location_id, name, lat?, lon? }`: a place within a location ([projects](features/projects.md)); `location_id` required to create, never changes (GET takes `?project_id=`); names unique per location (409 + `existing_id`); `shot_count`; delete nulls `shots.spot_id` |
 | GET / PUT / DELETE | `/api/presets[/:id]` | Rigs: `name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm` |
 | GET / PUT / DELETE | `/api/views[/:id]` | `{ project_id, name, filter }` (`project_id` required to create), filter validated by `validateFilter` |
 

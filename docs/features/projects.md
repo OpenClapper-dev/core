@@ -18,6 +18,15 @@ Every shot belongs to exactly one project (a film, a commercial). Projects are a
   - Review, Shots and Day show only the active project (`useShots(projectId)` → `GET /api/shots?project_id=`). The tag editor offers the shot's project's locations and creates new ones there; the remembered location (LAST) only carries over within the same project.
   - Uploads stay lenient: a shot that arrives with a location of another project (a stale phone) gets its project's location of that name, created when missing.
 
+## Spots
+
+A **Spot** is a named place within a location (the north gate, the roof, the bridge's east end; "Position" already means GPS, hence the name). It has an optional pin and belongs to one location; a shot has at most one, always of its own location.
+
+- **Dashboard**: Library › Locations shows the focused location's spots in a side panel (Add spot, rename, Set position, delete). The inspector has a Spot box under Location ("Create “…”" adds one). Lists show "Location · Spot" (`placeLabel`); the filter has a Spot field.
+- **Phone**: the tag editor's Spot row appears once a location is set; spots are created offline like locations (`spots.v1`, synced after locations in `flush()`, a name clash adopts the server's spot).
+- Changing a shot's location clears its spot. Moving a shot to another project takes the spot along by name under the remapped location. Uploads resolve a stale spot leniently (by name under the shot's location, else none).
+- Maps: a synced shot uses the spot's pin, else the location's ([positions](positions.md)).
+
 ## Sync details (phone)
 
 `flush()` in `apps/mobile/src/uploads.ts` runs `syncProjects` (`namedSync.ts`) first:

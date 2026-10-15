@@ -20,7 +20,7 @@ import { saveRig, syncRigs, useRigs } from "../rigs";
 import { addToSequence, deleteDraftFiles, keepPhoto, restoreDraft, startSequence } from "../sequence";
 import { store } from "../storage";
 import { useSync } from "../sync";
-import { lensRangeOf, type CaptureDraft, type DraftPhoto, type LocationEntry, type PhotoMetadata, type ShotMetadata, type ShotTags } from "../types";
+import { lensRangeOf, type CaptureDraft, type DraftPhoto, type LocationEntry, type PhotoMetadata, type SpotEntry, type ShotMetadata, type ShotTags } from "../types";
 import { enqueue, flush } from "../uploads";
 import { Badge, BORDER, Button, Empty, FIXED, Icon, makeStyles, notice, num, RADIUS, SeqBadge, SIZE, toast, type, useTheme, useToastOffset } from "../ui";
 import { HudChip } from "../components/Hud";
@@ -271,9 +271,10 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   }
 
   /** Queue a capture or sequence as one shot of the active project; the upload runs in the background. */
-  function queueDraft(d: CaptureDraft, tags: ShotTags, newLocation: LocationEntry | null): boolean {
+  function queueDraft(d: CaptureDraft, tags: ShotTags, newLocation: LocationEntry | null, newSpot: SpotEntry | null = null): boolean {
     if (!project) return false;
     if (newLocation) { const next = [...locations, newLocation]; app.setLocations(next); store.saveLocations(next); }
+    if (newSpot) { const next = [...app.spots, newSpot]; app.setSpots(next); store.saveSpots(next); }
     const metadata: ShotMetadata = { id: d.shotId, project_id: project.id, ...tags, photos: d.photos.map((p) => p.meta) };
     try {
       enqueue(metadata, Object.fromEntries(d.photos.map((p) => [p.meta.id, p.uri])));
@@ -283,13 +284,13 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       return false; // keep the draft so nothing is lost
     }
     deleteDraftFiles(d); // the queue has its own copies now
-    void flush().then(() => app.setLocations(store.loadLocations()));
+    void flush().then(() => { app.setLocations(store.loadLocations()); app.setSpots(store.loadSpots()); });
     return true;
   }
 
-  function uploadDraft(tags: ShotTags, newLocation: LocationEntry | null) {
+  function uploadDraft(tags: ShotTags, newLocation: LocationEntry | null, newSpot: SpotEntry | null) {
     if (!draft) return;
-    if (queueDraft(draft, tags, newLocation)) {
+    if (queueDraft(draft, tags, newLocation, newSpot)) {
       store.saveCaptureDraft(null);
       setDraft(null);
       toast(`Queued · ${tags.name ?? (draft.photos.length > 1 ? `sequence of ${draft.photos.length}` : "untitled shot")}`);
@@ -440,7 +441,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
 
       {/* Only on Shoot: a draft restored at launch waits until the gates are through. */}
       {draft && tabActive && (
-        <Tag draft={draft} settings={settings} project={project} locations={locations} countAt={countAt}
+        <Tag draft={draft} settings={settings} project={project} locations={locations} spots={app.spots} countAt={countAt}
           fields={store.fieldsForProject(project?.id)} onUpload={uploadDraft} onDiscard={discardDraft} />
       )}
       <RigSheet visible={sheet === "rig"} onClose={() => setSheet(null)} onEdit={(id) => app.push({ name: "rigEditor", rigId: id })} />

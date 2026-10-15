@@ -1,7 +1,7 @@
 import { createContext, useContext } from "react";
 import type { Shot, ShootingDay } from "./api";
 import type { ShotsData } from "./shots";
-import type { LocationEntry, ProjectEntry, Settings } from "./types";
+import type { LocationEntry, ProjectEntry, Settings, SpotEntry } from "./types";
 
 /** The five tabs. Everything else is a pushed full screen (Route) or a sheet. */
 export type Tab = "shoot" | "review" | "shots" | "day" | "setup";
@@ -35,6 +35,8 @@ export interface AppState {
   shots: ShotsData;
   locations: LocationEntry[];
   setLocations: (l: LocationEntry[]) => void;
+  spots: SpotEntry[];
+  setSpots: (l: SpotEntry[]) => void;
   /** Shots at a location (uploaded + queued). */
   countAt: (locationId: string) => number;
   tab: Tab;

@@ -2,14 +2,15 @@ import { useMemo, useState, type ReactNode } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
 import { CAMERA_SUPPORTS, extraSummary, label, LIGHT, MOVEMENTS, PHASE_ICONS, selectOptions, SHOT_SIZE_ABBR, SHOT_SIZES, WEATHER, type Extra, type ExtraValue, type FieldDef } from "@fielder/vocab";
-import type { LocationEntry, ShotTags } from "../types";
+import type { LocationEntry, ShotTags, SpotEntry } from "../types";
 import { BORDER, Button, Chip, ChipRow, ErrorText, FieldRow, Hint, Icon, Input, makeStyles, SectionHeading, Seg, Sheet, SheetSearch, Switch, type, useTheme } from "../ui";
 import { OptionSheet, rankMatches } from "./OptionSheet";
 
 /** The tags being edited, plus a location typed in the sheet that does not exist yet (created on save). */
-export interface TagDraft { tags: ShotTags; newLocation: LocationEntry | null }
+/** A location or spot made in the editor travels with the draft until it is saved or queued. */
+export interface TagDraft { tags: ShotTags; newLocation: LocationEntry | null; newSpot: SpotEntry | null }
 
-export const EMPTY_TAGS: ShotTags = { name: null, light: [], artificial: false, weather: null, int_ext: null, location_id: null, shot_size: null, camera_support: null, movement: [], extra: {} };
+export const EMPTY_TAGS: ShotTags = { name: null, light: [], artificial: false, weather: null, int_ext: null, location_id: null, spot_id: null, shot_size: null, camera_support: null, movement: [], extra: {} };
 
 const SUPPORT_ICONS: Record<string, string> = {
   static: "tripod", handheld: "hand-back-right-outline", steadicam: "human-handsdown", gimbal: "axis-arrow", dolly: "car-pickup",
@@ -30,6 +31,8 @@ interface Props {
   /** The shot's project: its locations are offered, new ones are created in it. */
   projectId: string;
   locations: LocationEntry[];
+  /** Every spot on the phone; the chosen location's are offered. */
+  spots: SpotEntry[];
   countAt: (locationId: string) => number;
   /** The project's extra fields, in its order. */
   fields: readonly FieldDef[];
@@ -44,6 +47,7 @@ interface Props {
 
 type Open =
   | { kind: "location" }
+  | { kind: "spot" }
   | { kind: "weather" }
   | { kind: "size" }
   | { kind: "support" }
@@ -83,7 +87,7 @@ const shown = (v: ExtraValue | undefined): string | null =>
  * The one tag editor (Tag after capture, Review edit, Shot details edit). INT/EXT and light are
  * one tap in place; location, weather and every extra field are 64 dp rows that open a sheet.
  */
-export function TagEditor({ value, onChange, projectId, locations: allLocations, countAt, fields, projectName, remembered, onTouched, lastLocationId }: Props) {
+export function TagEditor({ value, onChange, projectId, locations: allLocations, spots: allSpots, countAt, fields, projectName, remembered, onTouched, lastLocationId }: Props) {
   const s = useStyles();
   const locations = useMemo(() => allLocations.filter((l) => l.projectId === projectId), [allLocations, projectId]);
   const [open, setOpen] = useState<Open>(null);
@@ -91,8 +95,8 @@ export function TagEditor({ value, onChange, projectId, locations: allLocations,
   const [cleared, setCleared] = useState<Set<string>>(new Set());
   /** Groups the user opened or closed; others start open when empty, collapsed when filled. */
   const [groupOpen, setGroupOpen] = useState<Record<string, boolean>>({});
-  const { tags, newLocation } = value;
-  const set = (patch: Partial<ShotTags>, key: string, nl: LocationEntry | null = newLocation) => { onTouched?.(key); onChange({ tags: { ...tags, ...patch }, newLocation: nl }); };
+  const { tags, newLocation, newSpot } = value;
+  const set = (patch: Partial<ShotTags>, key: string, nl: LocationEntry | null = newLocation, ns: SpotEntry | null = newSpot) => { onTouched?.(key); onChange({ tags: { ...tags, ...patch }, newLocation: nl, newSpot: ns }); };
   const last = (key: string) => !!remembered?.has(key);
 
   const setExtra = (path: string[], v: ExtraValue) => {
@@ -104,6 +108,10 @@ export function TagEditor({ value, onChange, projectId, locations: allLocations,
 
   const location = tags.location_id ? locations.find((l) => l.id === tags.location_id) ?? null : null;
   const locationText = newLocation ? `${newLocation.name} · new` : location?.name ?? null;
+  const locationId = newLocation?.id ?? tags.location_id;
+  const spots = useMemo(() => allSpots.filter((x) => x.locationId === locationId), [allSpots, locationId]);
+  const spot = tags.spot_id ? spots.find((x) => x.id === tags.spot_id) ?? null : null;
+  const spotText = newSpot ? `${newSpot.name} · new` : spot?.name ?? null;
   const toggleLight = (v: string) => set({ light: tags.light.includes(v) ? tags.light.filter((x) => x !== v) : [...tags.light, v] }, "light");
 
   const rows = (defs: readonly FieldDef[], values: Extra, prefix: string[], depth: number): ReactNode[] => defs.flatMap((f) => {
@@ -159,6 +167,7 @@ export function TagEditor({ value, onChange, projectId, locations: allLocations,
         </ChipRow>
       </View>
       <FieldRow icon="map-marker-outline" label="Location" value={locationText} remembered={last("location_id")} onPress={() => setOpen({ kind: "location" })} />
+      {locationId && <FieldRow icon="map-marker-radius-outline" label="Spot" value={spotText} placeholder="Anywhere at the location" remembered={last("spot_id")} depth={1} onPress={() => setOpen({ kind: "spot" })} />}
       <FieldRow icon={WEATHER_ICONS[tags.weather ?? ""] ?? "weather-partly-cloudy"} label="Weather" value={tags.weather ? label(tags.weather) : null} remembered={last("weather")} onPress={() => setOpen({ kind: "weather" })} />
       <SectionHeading>Camera</SectionHeading>
       <FieldRow icon="crop" label="Shot size" value={tags.shot_size ? sizeLabel(tags.shot_size) : null} onPress={() => setOpen({ kind: "size" })} />
@@ -176,9 +185,19 @@ export function TagEditor({ value, onChange, projectId, locations: allLocations,
         </>
       )}
 
-      <LocationSheet visible={open?.kind === "location"} onClose={() => setOpen(null)} projectId={projectId} locations={locations} countAt={countAt} lastId={lastLocationId ?? null}
-        selectedId={newLocation ? newLocation.id : tags.location_id}
-        onPick={(l, created) => set({ location_id: l?.id ?? null }, "location_id", l && (created || l.id === newLocation?.id) ? l : null)} extra={newLocation} />
+      <PlaceSheet visible={open?.kind === "location"} onClose={() => setOpen(null)} title="Location" noun="location" icon="map-marker" items={locations} countAt={countAt} lastId={lastLocationId ?? null}
+        selectedId={locationId} extra={newLocation}
+        make={(name) => ({ id: Crypto.randomUUID(), projectId, name, createdAt: new Date().toISOString(), synced: false })}
+        onPick={(l, created) => {
+          const nl = l && (created || l.id === newLocation?.id) ? l : null;
+          // A spot belongs to its location: another location clears it.
+          if ((l?.id ?? null) === locationId) set({}, "location_id", nl);
+          else set({ location_id: l?.id ?? null, spot_id: null }, "location_id", nl, null);
+        }} />
+      {locationId && <PlaceSheet visible={open?.kind === "spot"} onClose={() => setOpen(null)} title="Spot" noun="spot" icon="map-marker-radius" items={spots} lastId={null}
+        selectedId={newSpot ? newSpot.id : tags.spot_id} extra={newSpot}
+        make={(name) => ({ id: Crypto.randomUUID(), locationId, name, createdAt: new Date().toISOString(), synced: false })}
+        onPick={(x, created) => set({ spot_id: x?.id ?? null }, "spot_id", newLocation, x && (created || x.id === newSpot?.id) ? x : null)} />}
       <OptionSheet visible={open?.kind === "weather"} title="Weather" columns={2} options={WEATHER.map((w) => ({ id: w, label: label(w), icon: WEATHER_ICONS[w] }))}
         value={tags.weather ? [tags.weather] : []} onChange={(ids) => set({ weather: ids[0] ?? null }, "weather")} onClose={() => setOpen(null)} />
       <OptionSheet visible={open?.kind === "size"} title="Shot size" sub="Widest to tightest" options={SHOT_SIZES.map((v) => ({ id: v, label: sizeLabel(v) }))}
@@ -208,26 +227,29 @@ function LabelWithLast({ text, last }: { text: string; last: boolean }) {
 }
 
 /**
- * Search or create a location. Empty query: the last used first, then by shots there. Typing:
- * prefix matches first, then contains; "Create “…”" is the first row unless the name exists.
+ * Search or create a location or a spot. Empty query: the last used first, then by shots there (or by
+ * name). Typing: prefix matches first, then contains; "Create “…”" is the first row unless the name exists.
  */
-function LocationSheet({ visible, onClose, projectId, locations, countAt, lastId, selectedId, onPick, extra }: { visible: boolean; onClose: () => void; projectId: string; locations: LocationEntry[]; countAt: (id: string) => number; lastId: string | null; selectedId: string | null; onPick: (l: LocationEntry | null, created: boolean) => void; extra: LocationEntry | null }) {
+function PlaceSheet<T extends { id: string; name: string; synced: boolean }>({ visible, onClose, title, noun, icon, items, countAt, lastId, selectedId, onPick, extra, make }: {
+  visible: boolean; onClose: () => void; title: string; noun: string; icon: string; items: T[]; countAt?: (id: string) => number; lastId: string | null;
+  selectedId: string | null; onPick: (x: T | null, created: boolean) => void; extra: T | null; make: (name: string) => T;
+}) {
   const s = useStyles();
   const { c } = useTheme();
   const [q, setQ] = useState("");
-  const all = useMemo(() => (extra && !locations.some((l) => l.id === extra.id) ? [...locations, extra] : locations), [locations, extra]);
+  const all = useMemo(() => (extra && !items.some((l) => l.id === extra.id) ? [...items, extra] : items), [items, extra]);
   const list = useMemo(() => {
     if (q.trim()) return rankMatches(all, q, (l) => l.name);
-    return [...all].sort((a, b) => (a.id === lastId ? -1 : b.id === lastId ? 1 : countAt(b.id) - countAt(a.id) || a.name.localeCompare(b.name)));
+    return [...all].sort((a, b) => (a.id === lastId ? -1 : b.id === lastId ? 1 : (countAt ? countAt(b.id) - countAt(a.id) : 0) || a.name.localeCompare(b.name)));
   }, [all, q, lastId, countAt]);
   const name = q.trim();
   const exact = all.find((l) => l.name.trim().toLowerCase() === name.toLowerCase());
   const close = () => { setQ(""); onClose(); };
-  const pick = (l: LocationEntry, created = false) => { onPick(selectedId === l.id ? null : l, created); close(); };
-  const create = () => pick({ id: Crypto.randomUUID(), projectId, name, createdAt: new Date().toISOString(), synced: false }, true);
+  const pick = (l: T, created = false) => { onPick(selectedId === l.id ? null : l, created); close(); };
+  const create = () => pick(make(name), true);
   return (
-    <Sheet visible={visible} title="Location" onClose={close} height={0.86} scroll={false}>
-      <SheetSearch value={q} onChangeText={setQ} placeholder="Search or type a new location" autoFocus autoCapitalize="words" maxLength={80} onSubmitEditing={() => { if (exact) pick(exact); else if (name) create(); }} />
+    <Sheet visible={visible} title={title} onClose={close} height={0.86} scroll={false}>
+      <SheetSearch value={q} onChangeText={setQ} placeholder={`Search or type a new ${noun}`} autoFocus autoCapitalize="words" maxLength={80} onSubmitEditing={() => { if (exact) pick(exact); else if (name) create(); }} />
       <FlatList
         data={list}
         keyExtractor={(l) => l.id}
@@ -239,15 +261,15 @@ function LocationSheet({ visible, onClose, projectId, locations, countAt, lastId
             <Text style={[s.itemName, { color: c.accent }]}>Create “{name}”</Text>
           </Pressable>
         ) : null}
-        ListEmptyComponent={!name ? <View style={{ padding: 20 }}><Hint>No locations yet. Type a name to create the first one.</Hint></View> : null}
+        ListEmptyComponent={!name ? <View style={{ padding: 20 }}><Hint>No {noun}s yet. Type a name to create the first one.</Hint></View> : null}
         renderItem={({ item }) => {
           const on = item.id === selectedId;
-          const n = countAt(item.id);
+          const n = countAt?.(item.id);
           return (
             <Pressable onPress={() => pick(item)} style={({ pressed }) => [s.item, on && s.itemOn, pressed && { backgroundColor: c.surfaceSunken }]} accessibilityState={{ selected: on }}>
-              <Icon name={on ? "check" : item.synced ? "map-marker-outline" : "map-marker-plus-outline"} color={on ? c.accent : c.text} />
+              <Icon name={on ? "check" : item.synced ? `${icon}-outline` : "map-marker-plus-outline"} color={on ? c.accent : c.text} />
               <Text style={[s.itemName, on && s.itemNameOn]} numberOfLines={2}>{item.name}</Text>
-              <Text style={s.itemMeta}>{item.id === lastId ? "last used · " : ""}{n} shot{n === 1 ? "" : "s"}</Text>
+              {n !== undefined && <Text style={s.itemMeta}>{item.id === lastId ? "last used · " : ""}{n} shot{n === 1 ? "" : "s"}</Text>}
             </Pressable>
           );
         }}

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import Storage from "expo-sqlite/kv-store";
 import { DEFAULT_SETTINGS } from "./defaults";
 import type { FieldDef, FieldDefinition } from "@fielder/vocab";
-import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, UploadRecord } from "./types";
+import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord } from "./types";
 
 export { DEFAULT_SETTINGS };
 
@@ -14,6 +14,7 @@ const KEYS = {
   // v2: shot + photos model (2026-09 rework); v1 entries are not migrated.
   pending: "pendingUploads.v2",
   locations: "locations.v2",
+  spots: "spots.v1",
   projects: "projects.v1",
   activeProjectId: "activeProjectId.v1",
   sequence: "sequence.v1",
@@ -103,6 +104,8 @@ export const store = {
 
   loadLocations: (): LocationEntry[] => readArray<LocationEntry>(KEYS.locations),
   saveLocations: (l: LocationEntry[]) => write(KEYS.locations, l),
+  loadSpots: (): SpotEntry[] => readArray<SpotEntry>(KEYS.spots),
+  saveSpots: (l: SpotEntry[]) => write(KEYS.spots, l),
 
   loadProjects: (): ProjectEntry[] => readArray<ProjectEntry>(KEYS.projects),
   saveProjects: (p: ProjectEntry[]) => write(KEYS.projects, p),

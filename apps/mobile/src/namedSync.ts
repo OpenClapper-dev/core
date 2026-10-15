@@ -1,15 +1,16 @@
 import { api, ApiError } from "./api";
 import { log } from "./log";
-import type { LocationEntry, ProjectEntry } from "./types";
+import type { LocationEntry, ProjectEntry, SpotEntry } from "./types";
 
 /**
- * Locations and projects work the same way: created on the phone with a client UUID (possibly
+ * Locations, spots and projects work the same way: created on the phone with a client UUID (possibly
  * offline), unique by name on the server, and the server list is the source of truth.
  */
 interface Named { id: string; name: string; synced: boolean }
 interface Remote<T extends Named> { put: (x: T) => Promise<unknown>; list: () => Promise<T[]>; what: string }
 
 const LOCATIONS: Remote<LocationEntry> = { put: api.putLocation, list: api.listLocations, what: "location" };
+const SPOTS: Remote<SpotEntry> = { put: api.putSpot, list: api.listSpots, what: "spot" };
 const PROJECTS: Remote<ProjectEntry> = { put: api.putProject, list: api.listProjects, what: "project" };
 
 export interface SyncResult<T> {
@@ -70,4 +71,6 @@ async function ensure<T extends Named>(remote: Remote<T>, x: T): Promise<string>
 
 export const syncLocations = (local: LocationEntry[]) => sync(LOCATIONS, local);
 export const ensureLocation = (l: LocationEntry) => ensure(LOCATIONS, l);
+export const syncSpots = (local: SpotEntry[]) => sync(SPOTS, local);
+export const ensureSpot = (x: SpotEntry) => ensure(SPOTS, x);
 export const syncProjects = (local: ProjectEntry[]) => sync(PROJECTS, local);

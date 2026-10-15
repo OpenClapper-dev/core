@@ -4,7 +4,7 @@ import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
 import type { Extra, FieldDefinition, Framing, Presentation } from "@fielder/vocab";
-import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags } from "./types";
+import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry } from "./types";
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public body: unknown = null) {
@@ -116,6 +116,8 @@ export interface Shot {
   project_name: string | null;
   location_id: string | null;
   location_name: string | null;
+  spot_id: string | null;
+  spot_name: string | null;
   name: string | null;
   int_ext: string | null;
   light: string[];
@@ -211,6 +213,18 @@ export const api = {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ project_id: l.projectId, name: l.name }),
+    }),
+
+  listSpots: async (): Promise<SpotEntry[]> => {
+    const r = await call<{ spots: { id: string; location_id: string; name: string; created_at: string }[] }>("/api/spots");
+    return r.spots.map((x) => ({ id: x.id, locationId: x.location_id, name: x.name, createdAt: x.created_at, synced: true }));
+  },
+  /** Upsert; a 409 means the location already has a spot with this name (ApiError.body.existing_id). */
+  putSpot: (x: SpotEntry) =>
+    call<{ spot: unknown }>(`/api/spots/${x.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ location_id: x.locationId, name: x.name }),
     }),
 
   listDays: (projectId: string) => call<{ days: ShootingDay[] }>(`/api/days?project_id=${projectId}`).then((r) => r.days),

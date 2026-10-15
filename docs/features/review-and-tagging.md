@@ -7,7 +7,8 @@ All optional, editable at any time (`PATCH /api/shots/:id`). The vocabularies ar
 | Tag | Values |
 | --- | --- |
 | Name | free text, max 120 |
-| Location | a shared named place (no district); created from the tag form by typing a new name |
+| Location | a named place of the shot's project (no district); created from the tag form by typing a new name |
+| Spot | a place within the location (the north gate, the roof); offered once a location is set, created the same way, cleared when the location changes |
 | INT/EXT | `int`, `ext` |
 | Light | any subset of `dawn`, `day`, `dusk`, `night`: every phase the shot works in. Plus the separate **Artificial** flag (lit artificially, independent of INT/EXT; an INT shot looking out of a window can still need dusk). No phase set means any time works. Display via `lightLabel()`, e.g. "Dusk / Night + Artificial". |
 | Weather | `none, sunny, partly_cloudy, cloudy, rainy, stormy, foggy, snow` |
@@ -62,6 +63,7 @@ The shot view (`ShotView.tsx`) replaces the old dialog. It covers the main area 
     - Project: a combobox; "Create “…”" makes a new project and moves the shot there (an existing name is taken, not duplicated). When moving the shot would take it off shooting days, a warning names how many, and Move confirms.
     - Name: saved on Enter or leaving the field; Esc reverts.
     - Location: a combobox, "Create “…”" makes a new one.
+    - Spot: a combobox of the location's spots ("Create “…”" too); "Pick a location first" without one.
     - INT/EXT: INT · EXT · –.
     - Light: chips plus Artificial.
     - Weather: a combobox.
@@ -114,6 +116,7 @@ The **Review** tab (`screens/Review.tsx`) is a stepper queue (unreviewed, queued
   - A **Camera** section: Shot size and Camera support are rows that open a sheet (support carries LAST: it usually stays for a while; size and movement are not remembered), Movement is chips (any number).
   - Location, weather and every extra field are 64 dp rows (`FieldRow`) showing the value, the LAST tag (kept from the last capture) and a chevron; a tap opens a focused sheet:
     - **Location**: search auto-focused; "Create “…”" first when the name is new; with an empty query the last used first, then by shots there.
+    - **Spot** (indented under Location, once one is set): the same sheet for the location's spots. LAST carries over when the remembered location does.
     - **Weather**: a 2-column grid.
     - **Extra fields**: `OptionSheet` (chips up to 12 options, a search list above, checkboxes + "Done (n)" when several are allowed); numbers and text in their own sheet; booleans as a switch row.
   - Groups expand in place (20 dp indent per level); a filled group starts collapsed showing its summary.

@@ -17,7 +17,7 @@ import { setLogging } from "./src/log";
 import { setOfflineMode, useOnline } from "./src/net";
 import { useShots } from "./src/shots";
 import { store, usePref } from "./src/storage";
-import type { LocationEntry, ProjectEntry, Settings } from "./src/types";
+import type { LocationEntry, ProjectEntry, Settings, SpotEntry } from "./src/types";
 import { flush, onFlushed } from "./src/uploads";
 import { ConfirmHost, Icon, makeStyles, PALETTES, resolveTheme, SIZE, ThemeProvider, toast, ToastHost, type, useTheme } from "./src/ui";
 import { ProjectSheet } from "./src/components/ProjectSheet";
@@ -69,6 +69,7 @@ function App() {
   const [settings, setSettingsState] = useState<Settings>(() => { const s = store.loadSettings(); setLogging(s.loggingEnabled); setOfflineMode(s.offlineMode); return s; });
   const setSettings = useCallback((u: Settings | ((s: Settings) => Settings)) => setSettingsState((cur) => (typeof u === "function" ? u(cur) : u)), []);
   const [locations, setLocations] = useState<LocationEntry[]>(() => store.loadLocations());
+  const [spots, setSpots] = useState<SpotEntry[]>(() => store.loadSpots());
   const [projects, setProjects] = useState<ProjectEntry[]>(() => store.loadProjects());
   // Chosen once and remembered across launches until changed.
   const [projectId, setProjectId] = useState<string | null>(() => store.loadActiveProjectId());
@@ -90,7 +91,7 @@ function App() {
   }, []);
   useEffect(() => { if (isSignedIn()) void refreshProjects(); }, []);
   // Any flush (camera, Uploads, here) may have synced or remapped projects and locations.
-  useEffect(() => onFlushed(() => { setProjects(store.loadProjects()); setProjectId(store.loadActiveProjectId()); setLocations(store.loadLocations()); }), []);
+  useEffect(() => onFlushed(() => { setProjects(store.loadProjects()); setProjectId(store.loadActiveProjectId()); setLocations(store.loadLocations()); setSpots(store.loadSpots()); }), []);
   useEffect(() => onAuthChange(() => { if (!isSignedIn()) setLogin("gate"); else { void refreshProjects(); void shots.load(); } }), [shots.load]);
   useEffect(() => { store.saveActiveProjectId(projectId); }, [projectId]);
   useEffect(() => { store.saveSettings(settings); }, [settings]);
@@ -102,6 +103,7 @@ function App() {
     if (!settings.offlineMode && isSignedIn()) void flush().then(() => shots.load());
   }, [settings.offlineMode]);
   useEffect(() => { store.saveLocations(locations); }, [locations]);
+  useEffect(() => { store.saveSpots(spots); }, [spots]);
   // Refresh the lists when switching to a browsing tab, so new shots show up without a pull.
   useEffect(() => { if (tab !== "shoot") void shots.load(); }, [tab]);
   // Offline: keep knocking; when the server answers again, reload what the screens show.
@@ -154,13 +156,13 @@ function App() {
   );
 
   const state: AppState = useMemo(() => ({
-    settings, setSettings, project, projects, shots, locations, setLocations, countAt,
+    settings, setSettings, project, projects, shots, locations, setLocations, spots, setSpots, countAt,
     tab, setTab: (t: Tab) => { setStack([]); setMapFocus(null); setTab(t); }, push, pop,
     openProjectSheet: () => setProjectSheet(true),
     signIn: () => setLogin("webApp"),
     shotsView, setShotsView, mapFocus,
     showOnMap: (id: string) => { setMapFocus(id); setShotsView("map"); setStack([]); setTab("shots"); },
-  }), [settings, project, projects, shots, locations, countAt, tab, push, pop, shotsView, mapFocus]);
+  }), [settings, project, projects, shots, locations, spots, countAt, tab, push, pop, shotsView, mapFocus]);
 
   const unreviewed = (shots.shots ?? []).filter((s) => s.state === "unreviewed").length;
   // The tab bar sits on the navigation-bar edge; keep at least the edge pad clear of it.

@@ -3,7 +3,7 @@ import { api, ApiError, type Shot } from "./api";
 import { flushEdits, remapEdits } from "./localShots";
 import { log } from "./log";
 import { isOfflineMode } from "./net";
-import { syncLocations, syncProjects } from "./namedSync";
+import { syncLocations, syncProjects, syncSpots } from "./namedSync";
 import { store } from "./storage";
 import type { PendingUpload, ShotMetadata } from "./types";
 
@@ -87,7 +87,7 @@ export function discardPending(shotId: string) {
 }
 
 /** Point queued shots at the server's id where a locally created location/project clashed by name. */
-function remapPending(field: "location_id" | "project_id", remap: Record<string, string>) {
+function remapPending(field: "location_id" | "spot_id" | "project_id", remap: Record<string, string>) {
   if (Object.keys(remap).length === 0) return;
   store.savePending(store.loadPending().map((p) => {
     const to = p.metadata[field] ? remap[p.metadata[field]] : undefined;
@@ -139,7 +139,7 @@ export function flush(opts: { includeStuck?: boolean } = {}): Promise<FlushResul
   flushing = (async () => {
     let uploaded = 0;
     let lastError: string | undefined;
-    // Projects and locations first, so a shot never arrives before what it references.
+    // Projects, locations and spots first, so a shot never arrives before what it references.
     const projects = await syncProjects(store.loadProjects());
     if (projects) {
       store.saveProjects(mergeServerList(projects.items, store.loadProjects(), projects.remap));
@@ -152,7 +152,15 @@ export function flush(opts: { includeStuck?: boolean } = {}): Promise<FlushResul
     if (locations) {
       store.saveLocations(mergeServerList(locations.items, store.loadLocations(), locations.remap));
       remapPending("location_id", locations.remap);
-      remapEdits(locations.remap);
+      remapEdits("location_id", locations.remap);
+      // Spots made under a location that was just adopted point at the server's location.
+      if (Object.keys(locations.remap).length) store.saveSpots(store.loadSpots().map((x) => (locations.remap[x.locationId] ? { ...x, locationId: locations.remap[x.locationId] } : x)));
+    }
+    const spots = await syncSpots(store.loadSpots());
+    if (spots) {
+      store.saveSpots(mergeServerList(spots.items, store.loadSpots(), spots.remap));
+      remapPending("spot_id", spots.remap);
+      remapEdits("spot_id", spots.remap);
     }
     for (const queued of store.loadPending()) {
       let entry = queued;
