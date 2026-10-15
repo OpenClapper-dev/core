@@ -1,11 +1,12 @@
 import * as SecureStore from "expo-secure-store";
+import { scopedKey } from "./kv";
 
 /**
  * Session for the API: the Cloudflare Access JWT obtained through the in-app
  * one-time-PIN login (see screens/Gates.tsx). Kept in the device keystore. The token is
  * sent as `cf-access-token`; Access validates it at the edge on every request.
  */
-const KEY = "fielder.accessToken";
+const KEY = scopedKey("fielder.accessToken");
 let cached: string | null | undefined;
 const listeners = new Set<() => void>();
 

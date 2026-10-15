@@ -1,4 +1,5 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { File } from "expo-file-system";
+import { dataDir } from "./kv";
 import { api, ApiError, type Shot } from "./api";
 import { flushEdits, remapEdits } from "./localShots";
 import { log } from "./log";
@@ -7,7 +8,7 @@ import { syncLocations, syncProjects, syncSpots } from "./namedSync";
 import { store } from "./storage";
 import type { PendingUpload, ShotMetadata } from "./types";
 
-const dir = new Directory(Paths.document, "pending-photos");
+const dir = dataDir("pending-photos");
 /** Photos per request; the server caps one upload at 60. */
 const UPLOAD_CHUNK = 12;
 /** Rejections (4xx) after which a shot stops being retried automatically; it is kept, never deleted. */

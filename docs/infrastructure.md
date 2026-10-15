@@ -16,7 +16,7 @@ Everything runs on Cloudflare (account id pinned in `apps/worker/wrangler.jsonc`
 
 - **Dashboard**: Access session cookie from the PIN login. A `401` or redirect makes the dashboard reload, which triggers the login.
 - **Phone**: the app opens `/auth/mobile` in a WebView; Access shows the same PIN login, then the Worker page posts the Access JWT to the app. The app keeps it in the Android keystore (`expo-secure-store`) and sends it as `cf-access-token`, which Access validates at the edge. The session lasts as long as the Access app session (720 h), then the app shows the login again. Shots taken while signed out stay queued. The APK contains no credential.
-- **Worker**: verifies the JWT on every request (`src/access.ts`, JWKS cached per isolate). `ACCESS_DEV_BYPASS="true"` in `.dev.vars` is for local development only and must never be set in `wrangler.jsonc`.
+- **Worker**: verifies the JWT on every request (`src/access.ts`, JWKS cached per isolate). `ACCESS_DEV_BYPASS="true"` in `.dev.vars` is for local development only and must never be set in `wrangler.jsonc`. Under it `/auth/mobile` hands the phone an unsigned placeholder token (`dev@localhost`), since there is no Access JWT to pass on.
 
 ## Secrets and rotation
 
