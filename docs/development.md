@@ -41,7 +41,6 @@ API smoke tests work with plain `curl` against `localhost:8787` (no auth needed 
 ```sh
 make dev-build      # once, and after every native change: "Fielder Dev" APK into the Windows Downloads folder
 make mobile         # local Worker behind a quick tunnel + Metro for Fielder Dev; the phone works on LOCAL data
-make mobile-go      # the same for Expo Go (CLIENT=go)
 make dashboard      # beside it: the dashboard on :5173 against the same local Worker
 ```
 
@@ -51,7 +50,7 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 - In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 
 - `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --go --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
-- Expo Go (`make mobile-go`): enter the `exp://….exp.direct` URL Metro prints. Works only while every native module the app uses ships in Expo Go.
+- Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
 - Sign in once: under `ACCESS_DEV_BYPASS` `/auth/mobile` hands out an unsigned placeholder token for `dev@localhost`.
 - The `local` scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders), so a production build on the same phone never sees them.
 - The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL with auth bypassed.

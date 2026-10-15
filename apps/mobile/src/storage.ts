@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { kv as Storage } from "./kv";
 import { DEFAULT_SETTINGS } from "./defaults";
+import type { ZoomRange } from "./zoom";
 import type { FieldDef, FieldDefinition } from "@fielder/vocab";
 import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord, LayoutEntry } from "./types";
 
@@ -11,6 +12,8 @@ const KEYS = {
   presets: "presets.v1",
   activePresetId: "activePresetId.v1",
   lensMm: "lensMm.v1",
+  zoom: "zoom.v1",
+  zoomRange: "zoomRange.v1",
   // v2: shot + photos model (2026-09 rework); v1 entries are not migrated.
   pending: "pendingUploads.v2",
   locations: "locations.v2",
@@ -88,6 +91,12 @@ export const store = {
 
   loadLensMm: (): number => Number(Storage.getItemSync(KEYS.lensMm) ?? 35) || 35,
   saveLensMm: (mm: number) => Storage.setItemSync(KEYS.lensMm, String(mm)),
+  /** The phone lens (magnification) in use, issue #26. */
+  loadZoom: (): number => Number(Storage.getItemSync(KEYS.zoom) ?? 1) || 1,
+  saveZoom: (z: number) => Storage.setItemSync(KEYS.zoom, String(z)),
+  /** The back camera's zoom range as last reported, so Setup can list the lenses without the camera open. */
+  loadZoomRange: (): ZoomRange | null => { try { const raw = Storage.getItemSync(KEYS.zoomRange); return raw ? (JSON.parse(raw) as ZoomRange) : null; } catch { return null; } },
+  saveZoomRange: (r: ZoomRange) => write(KEYS.zoomRange, r),
 
   loadPending: (): PendingUpload[] => readArray<PendingUpload>(KEYS.pending),
   savePending: (q: PendingUpload[]) => { write(KEYS.pending, q); for (const cb of pendingListeners) cb(q.length); },

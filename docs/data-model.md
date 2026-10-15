@@ -79,7 +79,7 @@ Add a new numbered file for every change; never edit one that was applied to pro
 
 `frame` is the rig frame relative to the photo as captured, centred. Saved framings add a centre (`x`, `y`) and one can be the photo's root ([framing](features/rig-explorer.md)); views use the root. Fractions > 1 mean the rig saw more than the phone. Everything that draws a frame (dashboard `Framed.tsx`, mobile `FramedImage.tsx`) and the [rig explorer](features/rig-explorer.md) works from it. The framing snapshot also preserves the rig if the preset is deleted later.
 
-`device`: phone model, EXIF focal lengths, GPS altitude/heading, `gps_fix_age_ms`.
+`device`: phone model, EXIF focal lengths, GPS altitude/heading, `gps_fix_age_ms`; since issue #26 also `zoom` (the phone lens: 0.5, 1, 3…), `phone_main_equivalent_mm` (the main lens; `framing.phone_equivalent_focal_mm` is it times the zoom) and `camera_id`.
 
 ## API shapes
 

@@ -27,12 +27,6 @@
     "scheme": "fielder",
     "plugins": [
       [
-        "expo-camera",
-        {
-          "cameraPermission": "Fielder uses the camera as a viewfinder to preview your rig's field of view."
-        }
-      ],
-      [
         "expo-location",
         {
           "locationWhenInUsePermission": "Fielder tags each captured framing with its GPS position."

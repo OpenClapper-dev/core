@@ -2,6 +2,14 @@
 
 The Shoot tab (`apps/mobile/src/screens/Viewfinder.tsx`) is a viewfinder for a cinema camera: the phone camera preview with the frame of the chosen rig + lens drawn on top.
 
+## Camera (react-native-vision-camera, issue #26)
+
+- The back camera is Android's logical camera (`useCameraDevice("back")`), so one zoom ratio reaches every lens: below 1× is the ultra-wide, the phone switches to its tele by itself. The `<Camera>` gets a 4:3 photo output (`UHD_4_3`), `resizeMode="contain"` in the 4:3 preview box, `orientationSource="interface"` (photos follow the UI orientation, like the frame), the zoom and the torch.
+- **Phone lenses** (`zoom.ts`, `ZoomStrip` in `LensStrip.tsx`): stops inside the camera's zoom range: its minimum when below 1× (e.g. 0.5×), 1×, then 2× 3× 5× 10× up to its maximum. vision-camera reports the range (from the controller once the camera runs; remembered as `zoomRange.v1` for Setup) but not the lens switch points on Android. Setup → Viewfinder → **Phone lenses**: All · Pick (chips) · Fixed (one, no buttons). The strip shows only with two or more stops. The choice is remembered (`zoom.v1`); a stop no longer offered falls back to the nearest.
+- **FOV with a zoom**: the phone's 35 mm equivalent is the main lens's times the zoom. Auto calibration from EXIF runs only at 1× (other zooms are other lenses or a crop); captures at other zooms log the EXIF next to the computed value.
+- The app runs only in a development build or an APK from here on (vision-camera is not in Expo Go; [development](../development.md)).
+- Every step is in the [debug log](debug-log.md): the device (`camera device`: type, virtual, physical lenses, zoom range), `camera started` (the controller's range and stops), `phone lens`, `photo taken` (size, orientation, EXIF), `capture resized`, `capture at zoom`, `camera error`.
+
 ## Rigs and lenses
 
 - **Rigs** (presets) are a camera body + recording format + speedbooster, or a custom sensor. Bodies and formats are in `packages/fov-math/src/cameras.ts`: BMPCC 4K/6K, generic FF, S35, APS-C, MFT, 1".
@@ -24,7 +32,7 @@ The Shoot tab (`apps/mobile/src/screens/Viewfinder.tsx`) is a viewfinder for a c
 
 ## Controls
 
-The bars and their controls come from the chosen [viewfinder layout](viewfinder-layouts.md); the **default** is described here.
+The bars and their controls come from the chosen [viewfinder layout](viewfinder-layouts.md); the **default** is described here. It puts the phone lenses (0.5× 1× 3×…) at the end of the lens strip's bar.
 
 **One control row**, icons only (the accessible name carries the label): **Uploads · Seq · Light · Shutter · Fit · Human · Rig**, left to right, under the lens strip. Each side control is a whole-cell target with a 46 × 56 visual; the shutter is 76 dp.
 
@@ -34,7 +42,7 @@ In landscape the row becomes an 80 dp column next to the tab bar, read top to bo
 | --- | --- |
 | Uploads | Queue count as a badge (red when a shot is stuck). Tap retries everything, stuck shots included, and says what happened; **hold** (500 ms) opens the Uploads screen. |
 | Seq | Sequence mode on/off. Disabled while a capture runs. The count is on the shutter disc and the SEQ badge. |
-| Light | Flashlight on/off (`CameraView enableTorch`). Manual, not a flash; not remembered across launches. |
+| Light | Flashlight on/off (`torchMode`). Manual, not a flash; not remembered across launches. |
 | Shutter | Capture. Red ring and disc with the photo count while a sequence runs. Dashed when it can't fire (no project, rig or camera). |
 | Fit | Digital zoom so the rig frame fills the screen |
 | Human | Cyan reference frame for roughly what a person sees, labelled "HUMAN 43". Setup → Viewfinder: **cycle** (off → 35 → 43 → 50 → off) or **toggle** (off ↔ the chosen value). |
@@ -57,7 +65,7 @@ Setup → Viewfinder / Capture / Phone calibration hold the rest: frame colour a
 
 ## What a capture produces
 
-`takePictureAsync` and the position (per the GPS mode, [positions](positions.md)) run in parallel. The photo is resized to 1280 px JPEG (the full-size temp file is deleted) and gets `PhotoMetadata`: id, ordinal, timestamp (the capture time), lat/lon, accuracy, lens, preset id, size, the `framing` snapshot and `device` (incl. `gps_mode` and `gps_from_first_photo`; [data model](../data-model.md)). Without any fix the photo is kept without a position ("No GPS fix · saved without position"); a capture is never refused for GPS.
+`capturePhoto` and the position (per the GPS mode, [positions](positions.md)) run in parallel. The encoded JPEG's EXIF is read in JS (`exif.ts`: Make, Model, Orientation, focal lengths; vision-camera does not expose it), the bytes go to a cache file, and the photo is resized (upright, the manipulator applies the EXIF rotation) to 1280 px JPEG (the full-size temp file is deleted) and gets `PhotoMetadata`: id, ordinal, timestamp (the capture time), lat/lon, accuracy, lens, preset id, size, the `framing` snapshot and `device` (incl. `gps_mode` and `gps_from_first_photo`; [data model](../data-model.md)). Without any fix the photo is kept without a position ("No GPS fix · saved without position"); a capture is never refused for GPS.
 
 It then becomes a **draft** (`CaptureDraft = { shotId, photos: DraftPhoto[] }`), with its photos moved into `draft-photos/` (`sequence.ts`, `keepPhoto`):
 - **Normal:** the **Tag** screen (`screens/Tag.tsx`) opens full screen, without the tab bar:

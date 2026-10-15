@@ -4,6 +4,8 @@
 
 ## Model (`packages/vocab/src/viewfinder.ts`)
 
+- **Phone lenses** (`zoom`, issue #26): the phone's magnifications (0.5× 1× 3×…), shown only when the phone offers more than one; no options. The default puts it after the lens strip.
+
 - A **layout** has a `portrait` and a `landscape` arrangement, each 1–4 **bars**. A bar sits on the preview's **start** edge (top in portrait, left in landscape) or its **end** edge (bottom / right); bars on one edge are listed in screen order (top → bottom, left → right).
 - A bar holds up to 9 **items** in screen order: `shutter`, `uploads`, `seq`, `light`, `fit`, `human`, `rig` (buttons; `label: true` shows a short text under the icon) and `lens` (the lens strip: `display` list or carousel, `size` fill or fit).
 - Each control at most once per orientation; the shutter exactly once (`validateViewfinderLayout`, strict, used by the Worker).
@@ -34,4 +36,3 @@
 
 ## Not done
 
-- A magnification control (multi-lens, #26) joins the item list when it exists.
