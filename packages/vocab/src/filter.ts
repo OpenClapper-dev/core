@@ -26,13 +26,14 @@ export interface FilterField {
   /** enum: allowed values. */
   options?: readonly string[];
   /** ref: which server list supplies the options. */
-  ref?: "location" | "preset";
+  ref?: "location" | "spot" | "preset";
 }
 
 export const FILTER_FIELDS: readonly FilterField[] = [
   { id: "state", label: "State", kind: "enum", options: SHOT_STATES },
   { id: "name", label: "Name", kind: "text" },
   { id: "location_id", label: "Location", kind: "ref", ref: "location" },
+  { id: "spot_id", label: "Spot", kind: "ref", ref: "spot" },
   { id: "int_ext", label: "Int/Ext", kind: "enum", options: INT_EXT },
   { id: "light", label: "Light", kind: "set", options: LIGHT },
   { id: "artificial", label: "Artificial light", kind: "enum", options: ["yes", "no"] },
@@ -84,6 +85,7 @@ export interface FilterableShot {
   project_id: string;
   name: string | null;
   location_id: string | null;
+  spot_id: string | null;
   int_ext: string | null;
   light: readonly string[];
   artificial: "yes" | "no";

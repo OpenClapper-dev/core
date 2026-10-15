@@ -39,6 +39,9 @@ export interface Shot {
   project_name: string | null;
   location_id: string | null;
   location_name: string | null;
+  /** A spot within the location (issue #44); always one of the shot's location. */
+  spot_id: string | null;
+  spot_name: string | null;
   name: string | null;
   int_ext: string | null;
   light: string[];
@@ -51,9 +54,9 @@ export interface Shot {
   extra: Extra;
   /** Markdown subset (packages/vocab markdown.ts). */
   description: string | null;
-  /** Maps and filters use the location's pin instead of the photos' GPS (the photos keep theirs). */
+  /** Maps and filters use the place's pin instead of the photos' GPS (the photos keep theirs). */
   position_from_location: boolean;
-  /** The location's pin, null when it has none. */
+  /** The place's pin: the spot's, else the location's; null when neither has one. */
   location_position: { lat: number; lon: number } | null;
   captured_at: string;
   created_at: string;
@@ -107,10 +110,12 @@ export interface Location {
   shot_count: number;
   approved_count: number;
 }
+/** A named place within a location, with an optional pin (issue #44). */
+export interface Spot { id: string; location_id: string; name: string; lat: number | null; lon: number | null; created_at: string; updated_at: string | null; shot_count: number }
 export interface SavedView { id: string; project_id: string; name: string; filter: FilterGroup; created_at: string; updated_at: string | null }
 /** null / [] / false = not specified. */
 export interface ShotTags {
-  name: string | null; light: string[]; artificial: boolean; weather: string | null; int_ext: string | null; location_id: string | null; extra: Extra;
+  name: string | null; light: string[]; artificial: boolean; weather: string | null; int_ext: string | null; location_id: string | null; spot_id: string | null; extra: Extra;
   shot_size: string | null; camera_support: string | null; movement: string[]; description: string | null; position_from_location: boolean;
 }
 
@@ -297,6 +302,12 @@ export const fetchLocations = () => get<{ locations: Location[] }>("/api/locatio
 export const putLocation = (l: { id: string; project_id: string; name: string; lat?: number | null; lon?: number | null }) =>
   send<{ location: Location }>("PUT", `/api/locations/${l.id}`, l.lat === undefined ? { project_id: l.project_id, name: l.name } : { project_id: l.project_id, name: l.name, lat: l.lat, lon: l.lon }).then((r) => r.location);
 export const deleteLocation = (id: string) => send<{ deleted: string }>("DELETE", `/api/locations/${id}`).then(() => undefined);
+
+export const fetchSpots = () => get<{ spots: Spot[] }>("/api/spots").then((r) => r.spots);
+/** Upsert; `location_id` only counts on create. A name clash within the location answers 409 + existing_id. */
+export const putSpot = (s: { id: string; location_id: string; name: string; lat?: number | null; lon?: number | null }) =>
+  send<{ spot: Spot }>("PUT", `/api/spots/${s.id}`, s.lat === undefined ? { location_id: s.location_id, name: s.name } : { location_id: s.location_id, name: s.name, lat: s.lat, lon: s.lon }).then((r) => r.spot);
+export const deleteSpot = (id: string) => send<{ deleted: string }>("DELETE", `/api/spots/${id}`).then(() => undefined);
 
 export const fetchViews = () => get<{ views: SavedView[] }>("/api/views").then((r) => r.views);
 export const putView = (v: { id: string; project_id: string; name: string; filter: FilterGroup }) => send<{ view: SavedView }>("PUT", `/api/views/${v.id}`, { project_id: v.project_id, name: v.name, filter: v.filter }).then((r) => r.view);

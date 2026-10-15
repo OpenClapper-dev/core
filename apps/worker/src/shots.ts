@@ -3,6 +3,7 @@ import { clipOverlaysLeaving, composeFor, deleteClipCompose, renderKeysOf, type 
 import { framingsFor, type FramingApi } from "./framings.ts";
 import { projectFieldDefs } from "./fields.ts";
 import { locationInProject } from "./locations.ts";
+import { spotUnder } from "./spots.ts";
 import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
@@ -11,6 +12,7 @@ interface ShotRow {
   id: string;
   project_id: string;
   location_id: string | null;
+  spot_id: string | null;
   name: string | null;
   int_ext: string | null;
   light: string;
@@ -30,6 +32,9 @@ interface ShotRow {
   location_name: string | null;
   location_lat: number | null;
   location_lon: number | null;
+  spot_name: string | null;
+  spot_lat: number | null;
+  spot_lon: number | null;
 }
 
 interface PhotoRow {
@@ -107,6 +112,8 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
     project_name: s.project_name ?? null,
     location_id: s.location_id,
     location_name: s.location_name ?? null,
+    spot_id: s.spot_id ?? null,
+    spot_name: s.spot_name ?? null,
     name: s.name,
     int_ext: s.int_ext,
     light: JSON.parse(s.light) as string[],
@@ -119,8 +126,9 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
     extra: JSON.parse(s.extra) as Extra,
     description: s.description,
     position_from_location: s.position_from_location === 1,
-    /** The location's pin (null when it has none); clients use it when position_from_location is on. */
-    location_position: s.location_lat !== null && s.location_lat !== undefined && s.location_lon !== null ? { lat: s.location_lat, lon: s.location_lon } : null,
+    /** The place's pin: the spot's, else the location's (null when neither has one); clients use it when position_from_location is on. */
+    location_position: s.spot_lat != null && s.spot_lon != null ? { lat: s.spot_lat, lon: s.spot_lon }
+      : s.location_lat != null && s.location_lon != null ? { lat: s.location_lat, lon: s.location_lon } : null,
     captured_at: s.captured_at,
     created_at: s.created_at,
     updated_at: s.updated_at,
@@ -130,8 +138,9 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
   };
 }
 
-const SHOT_SQL = `SELECT s.*, pr.name AS project_name, l.name AS location_name, l.lat AS location_lat, l.lon AS location_lon
-  FROM shots s JOIN projects pr ON pr.id = s.project_id LEFT JOIN locations l ON l.id = s.location_id`;
+const SHOT_SQL = `SELECT s.*, pr.name AS project_name, l.name AS location_name, l.lat AS location_lat, l.lon AS location_lon,
+    sp.name AS spot_name, sp.lat AS spot_lat, sp.lon AS spot_lon
+  FROM shots s JOIN projects pr ON pr.id = s.project_id LEFT JOIN locations l ON l.id = s.location_id LEFT JOIN spots sp ON sp.id = s.spot_id`;
 
 /** Photos for many shots in one query (json_each keeps it to one bound parameter; D1 caps those at 100). */
 async function photosFor(env: Ctx["env"], shotIds: string[]): Promise<Map<string, PhotoRow[]>> {
@@ -157,7 +166,7 @@ export async function loadShot(env: Ctx["env"], id: string) {
  * otherwise only the keys given are returned (patch), where null/"" clears a field.
  */
 interface Tags {
-  name: string | null; light: string; artificial: number; weather: string | null; int_ext: string | null; location_id: string | null; extra: string;
+  name: string | null; light: string; artificial: number; weather: string | null; int_ext: string | null; location_id: string | null; spot_id: string | null; extra: string;
   shot_size: string | null; camera_support: string | null; movement: string; description: string | null; position_from_location: number;
 }
 
@@ -198,6 +207,7 @@ function parseTags(m: Record<string, unknown>, all: boolean): Partial<Tags> {
     out.description = blank(m.description) ? null : (m.description as string);
   }
   if (want("location_id")) out.location_id = blank(m.location_id) ? null : assertUuid(m.location_id, "location_id");
+  if (want("spot_id")) out.spot_id = blank(m.spot_id) ? null : assertUuid(m.spot_id, "spot_id");
   if (want("extra")) {
     const extra = blank(m.extra) ? {} : m.extra;
     const err = validateExtra(extra);
@@ -339,13 +349,14 @@ export function registerShotRoutes(r: Router<Ctx>) {
       const tags = parseTags(m, true);
       await assertProjectExists(env, projectId);
       if (tags.location_id) tags.location_id = await locationInProject(env, tags.location_id, projectId, true);
+      if (tags.spot_id) tags.spot_id = await spotUnder(env, tags.spot_id, tags.location_id, true);
       const capturedAt = photos.map((p) => p.timestamp).sort()[0];
       // A shot reviewed on the phone before it went out keeps that decision; anything else starts unreviewed.
       const state = isOneOf(SHOT_STATES, m.state) ? m.state : "unreviewed";
       insertShot = env.DB.prepare(
-        `INSERT INTO shots (id, project_id, location_id, name, int_ext, light, artificial, weather, shot_size, camera_support, movement, state, extra, captured_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)`,
-      ).bind(id, projectId, tags.location_id, tags.name, tags.int_ext, tags.light, tags.artificial, tags.weather, tags.shot_size, tags.camera_support, tags.movement, state, tags.extra, capturedAt);
+        `INSERT INTO shots (id, project_id, location_id, name, int_ext, light, artificial, weather, shot_size, camera_support, movement, state, extra, captured_at, spot_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)`,
+      ).bind(id, projectId, tags.location_id, tags.name, tags.int_ext, tags.light, tags.artificial, tags.weather, tags.shot_size, tags.camera_support, tags.movement, state, tags.extra, capturedAt, tags.spot_id);
     }
 
     const stored = new Set(
@@ -410,7 +421,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
       args.push(movedTo); sets.push(`project_id = ?${args.length}`);
     }
     if (sets.length === 0) throw new HttpError(400, "nothing to update");
-    const cur = await env.DB.prepare("SELECT project_id, location_id, extra FROM shots WHERE id = ?1").bind(sid).first<{ project_id: string; location_id: string | null; extra: string }>();
+    const cur = await env.DB.prepare("SELECT project_id, location_id, spot_id, extra FROM shots WHERE id = ?1").bind(sid).first<{ project_id: string; location_id: string | null; spot_id: string | null; extra: string }>();
     if (!cur) throw new HttpError(404, "shot not found");
     const projectId = movedTo ?? cur.project_id;
     if (movedTo === cur.project_id) movedTo = null;
@@ -423,10 +434,17 @@ export function registerShotRoutes(r: Router<Ctx>) {
       // Moving takes along only the values the new project's fields accept (the dashboard warns first).
       args.push(JSON.stringify(fitExtra(await projectFieldDefs(env, movedTo), JSON.parse(cur.extra) as Extra))); sets.push(`extra = ?${args.length}`);
     }
+    let location = tags.location_id !== undefined ? tags.location_id : cur.location_id;
     if (tags.location_id) await assertLocationOf(env, tags.location_id, projectId);
     else if (tags.location_id === undefined && movedTo && cur.location_id) {
       // The location follows by name: the new project's location of that name, created when missing.
-      args.push(await locationInProject(env, cur.location_id, movedTo, true)); sets.push(`location_id = ?${args.length}`);
+      location = await locationInProject(env, cur.location_id, movedTo, true);
+      args.push(location); sets.push(`location_id = ?${args.length}`);
+    }
+    // A spot belongs to the shot's location: a new location clears it, a move takes it along by name.
+    if (tags.spot_id) { if ((await spotUnder(env, tags.spot_id, location, false)) !== tags.spot_id) throw new HttpError(400, "spot_id is not a spot of the shot's location"); }
+    else if (tags.spot_id === undefined && cur.spot_id && location !== cur.location_id) {
+      args.push(tags.location_id !== undefined ? null : await spotUnder(env, cur.spot_id, location, true)); sets.push(`spot_id = ?${args.length}`);
     }
     args.push(new Date().toISOString()); sets.push(`updated_at = ?${args.length}`);
     args.push(sid);
@@ -473,11 +491,18 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (sets.length === 0 && keys.length === 0) throw new HttpError(400, "nothing to update");
 
     const list = JSON.stringify(ids);
-    const { results: rows } = await env.DB.prepare("SELECT id, project_id, location_id, extra FROM shots WHERE id IN (SELECT value FROM json_each(?1))")
-      .bind(list).all<{ id: string; project_id: string; location_id: string | null; extra: string }>();
+    const { results: rows } = await env.DB.prepare("SELECT id, project_id, location_id, spot_id, extra FROM shots WHERE id IN (SELECT value FROM json_each(?1))")
+      .bind(list).all<{ id: string; project_id: string; location_id: string | null; spot_id: string | null; extra: string }>();
     if (rows.length !== ids.length) throw new HttpError(404, `${ids.length - rows.length} of the shots not found`);
     const moving = rows.filter((row) => movedTo && row.project_id !== movedTo);
     if (tags.location_id) for (const pid of new Set(rows.map((row) => movedTo ?? row.project_id))) await assertLocationOf(env, tags.location_id, pid);
+    // A spot must be one of every shot's (new) location; a new location without a spot clears it.
+    if (tags.spot_id) {
+      if (movedTo && tags.location_id === undefined && moving.length) throw new HttpError(400, "set the location together with the spot when moving shots");
+      for (const loc of new Set(rows.map((row) => tags.location_id !== undefined ? tags.location_id : row.location_id))) {
+        if ((await spotUnder(env, tags.spot_id, loc, false)) !== tags.spot_id) throw new HttpError(400, "spot_id is not a spot of every shot's location");
+      }
+    } else if (tags.location_id !== undefined && tags.spot_id === undefined) { sets.push("spot_id = NULL"); }
     const now = new Date().toISOString();
     const stmts: D1PreparedStatement[] = [];
     if (sets.length) {
@@ -503,7 +528,13 @@ export function registerShotRoutes(r: Router<Ctx>) {
     }
     // The location follows a moved shot by name, unless this edit sets one.
     if (movedTo && tags.location_id === undefined) {
-      for (const row of moving) if (row.location_id) stmts.push(env.DB.prepare("UPDATE shots SET location_id = ?1 WHERE id = ?2").bind(await locationInProject(env, row.location_id, movedTo, true), row.id));
+      for (const row of moving) {
+        if (!row.location_id) continue;
+        const loc = await locationInProject(env, row.location_id, movedTo, true);
+        const spot = row.spot_id && tags.spot_id === undefined ? await spotUnder(env, row.spot_id, loc, true) : undefined;
+        stmts.push(spot === undefined ? env.DB.prepare("UPDATE shots SET location_id = ?1 WHERE id = ?2").bind(loc, row.id)
+          : env.DB.prepare("UPDATE shots SET location_id = ?1, spot_id = ?2 WHERE id = ?3").bind(loc, spot, row.id));
+      }
     }
     // Shots moved to another project leave the shooting days and timelines of their old project.
     if (movedTo) {

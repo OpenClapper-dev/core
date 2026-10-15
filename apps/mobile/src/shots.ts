@@ -97,7 +97,7 @@ export function rigLabel(p: Photo): string {
 /** "Name" or, for shots without tags, the rig label. */
 export const shotTitle = (s: Shot): string => s.name?.trim() || rigLabel(cover(s));
 /** Location name or "" for untagged shots. */
-export const placeLabel = (s: Shot): string => s.location_name ?? "";
+export const placeLabel = (s: Shot): string => [s.location_name, s.spot_name].filter(Boolean).join(" · ");
 /** "EXT · Dusk / Night + Artificial · Partly cloudy · WS · Steadicam" (fixed tags only). */
 export const tagsLabel = (s: { int_ext: string | null; light: string[]; artificial: boolean; weather: string | null; shot_size?: string | null; camera_support?: string | null; movement?: string[] }): string =>
   [label(s.int_ext), lightLabel(s.light, s.artificial), label(s.weather), cameraLabel({ shot_size: s.shot_size ?? null, camera_support: s.camera_support ?? null, movement: s.movement ?? [] })].filter(Boolean).join(" · ");

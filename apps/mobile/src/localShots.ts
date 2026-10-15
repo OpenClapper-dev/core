@@ -24,6 +24,8 @@ export function queuedToShot(entry: PendingUpload): Shot {
     project_name: store.loadProjects().find((p) => p.id === m.project_id)?.name ?? null,
     location_id: m.location_id,
     location_name: m.location_id ? store.loadLocations().find((l) => l.id === m.location_id)?.name ?? null : null,
+    spot_id: m.spot_id ?? null,
+    spot_name: m.spot_id ? store.loadSpots().find((x) => x.id === m.spot_id)?.name ?? null : null,
     name: m.name,
     int_ext: m.int_ext,
     light: m.light,
@@ -65,7 +67,12 @@ export function withEdits(shot: Shot, edits: PendingEdit[] = store.loadEdits()):
     photos = photos.map((ph) => (p.all || ph.id === p.photoId ? { ...ph, lat: p.lat, lon: p.lon, position_corrected: true } : ph));
   }
   const loc = e.patch.location_id !== undefined ? store.loadLocations().find((l) => l.id === e.patch.location_id) : undefined;
-  return { ...shot, ...e.patch, location_name: e.patch.location_id === undefined ? shot.location_name : loc?.name ?? null, photos };
+  const spot = e.patch.spot_id !== undefined ? store.loadSpots().find((x) => x.id === e.patch.spot_id) : undefined;
+  return {
+    ...shot, ...e.patch, photos,
+    location_name: e.patch.location_id === undefined ? shot.location_name : loc?.name ?? null,
+    spot_name: e.patch.spot_id === undefined ? shot.spot_name : spot?.name ?? null,
+  };
 }
 
 /** Changes of this shot wait on the phone for the server. */
@@ -155,11 +162,12 @@ export async function flushEdits(): Promise<{ sent: number; lastError?: string }
   return { sent, lastError };
 }
 
-/** Point waiting edits at the server's location id where a name clashed (like the upload queue). */
-export function remapEdits(remap: Record<string, string>) {
+/** Point waiting edits at the server's location or spot id where a name clashed (like the upload queue). */
+export function remapEdits(field: "location_id" | "spot_id", remap: Record<string, string>) {
   if (Object.keys(remap).length === 0) return;
   store.saveEdits(store.loadEdits().map((e) => {
-    const to = e.patch.location_id ? remap[e.patch.location_id] : undefined;
-    return to ? { ...e, patch: { ...e.patch, location_id: to } } : e;
+    const from = e.patch[field];
+    const to = from ? remap[from] : undefined;
+    return to ? { ...e, patch: { ...e.patch, [field]: to } } : e;
   }));
 }

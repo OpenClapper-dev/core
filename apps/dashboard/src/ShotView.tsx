@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { label, type FieldDef } from "@fielder/vocab";
-import { deleteShot, patchShot, type Location, type Preset, type Project, type Shot, type ShotState } from "./api";
+import { deleteShot, patchShot, type Location, type Spot, type Preset, type Project, type Shot, type ShotState } from "./api";
 import { FRAME_MODES, positionOf, rigLabel, when } from "./format";
 import { downloadCrop, Framed, type MaskMode } from "./Framed";
 import { Inspector, projectTimelines, timelinesOfShot } from "./Inspector";
@@ -29,6 +29,8 @@ interface Props {
   fieldsOf: (projectId: string) => FieldDef[];
   locations: Location[];
   onLocations: (l: Location[]) => void;
+  spots: Spot[];
+  onSpots: (update: (cur: Spot[]) => Spot[]) => void;
   onUpdated: (s: Shot) => void;
   onDeleted: (id: string) => void;
   onShowOnMap: (s: Shot) => void;
@@ -163,7 +165,7 @@ export function ShotView(p: Props) {
         </section>
         )}
         {stage !== "compose" && (
-          <Inspector shot={shot} photo={photo} projects={p.projects} fields={p.fieldsOf(shot.project_id)} fieldsOf={p.fieldsOf} locations={p.locations} onLocations={p.onLocations}
+          <Inspector shot={shot} photo={photo} projects={p.projects} fields={p.fieldsOf(shot.project_id)} fieldsOf={p.fieldsOf} locations={p.locations} onLocations={p.onLocations} spots={p.spots} onSpots={p.onSpots}
             onUpdated={p.onUpdated} onState={(s) => void setState(s)} stateBusy={busy} onCorrect={() => p.onStage("position")} onCompose={() => p.onStage("compose")} onOpenDay={p.onOpenDay} onOpenTimeline={p.onOpenTimeline} />
         )}
       </div>
