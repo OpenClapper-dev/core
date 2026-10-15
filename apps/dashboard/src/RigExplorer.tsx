@@ -6,22 +6,25 @@ import { capturedFrameOf, frameLayout, imageAspect, sourceRigOf, type FrameGeome
 import { Framed, type MaskMode } from "./Framed";
 import { FromTimelines } from "./FromTimelines";
 import { bind, NUDGE, useKeys } from "./keys";
+import { initialStack, StackBar, StackCanvas, StackLayers, type StackState } from "./StackedFrames";
 import { Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, promptDialog, Seg, Select, toast, ToolbarSpacer } from "./ui";
 
 /**
  * Shot view stage "Framing" (was Rigs; issue #29). Re-frame a photo for another rig and lens and
  * move the frame on it: the phone usually saw more than the rig. Framings are saved per photo
  * ("As captured" always exists and is never changed); one of them can be the photo's root, which
- * every view on both clients shows. Compare A / B is still here for two rigs side by side.
+ * every view on both clients shows. Compare A / B shows two rigs side by side, Stacked any number
+ * of frames on one photo (issue #47).
  */
 
 /** "as shot" = the rig the photo was framed with; otherwise a preset id. */
 export interface RigChoice { rig: string; lensMm: number }
 export const AS_SHOT = "__as_shot__";
 export interface RigsState {
-  view: "one" | "compare";
+  view: "one" | "compare" | "stack";
   a: RigChoice;
   b: RigChoice;
+  stack: StackState;
   /** The saved framing being edited; null = as captured or a new, unsaved one. */
   framingId: string | null;
   /** Centre of the frame on the photo (fractions). */
@@ -32,10 +35,13 @@ const choiceOfFraming = (f: Framing): RigChoice => ({ rig: f.rig_id ?? AS_SHOT, 
 /** Opens on the photo's root framing, or as captured. */
 export function initialRigs(photo: Photo, presets: Preset[]): RigsState {
   const root = photo.framings.find((f) => f.id === photo.root_framing_id);
+  const a = root ? choiceOfFraming(root) : { rig: AS_SHOT, lensMm: photo.lens_mm };
+  const b = { rig: presets.find((p) => p.id !== photo.preset_id)?.id ?? AS_SHOT, lensMm: photo.lens_mm };
   return {
     view: "one",
-    a: root ? choiceOfFraming(root) : { rig: AS_SHOT, lensMm: photo.lens_mm },
-    b: { rig: presets.find((p) => p.id !== photo.preset_id)?.id ?? AS_SHOT, lensMm: photo.lens_mm },
+    a,
+    b,
+    stack: initialStack(a, b),
     framingId: root?.id ?? null,
     centre: root ? clampCentre(root.frame) : CENTRE,
   };
@@ -144,7 +150,7 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
     save: () => { if (saved && dirty) void save(saved.id, saved.name, isRoot(saved.id)); else if (!saved && !isCaptured) void saveAsNew(); },
     back: onBack,
   }), state.view === "one");
-  useKeys(bind("framing", { back: onBack }), state.view === "compare");
+  useKeys(bind("framing", { back: onBack }), state.view !== "one");
 
   if (!source) return <><div class="f-stage__bar"><span class="grow" /><Button kind="ghost" size="sm" kbd="Esc" onClick={onBack}>Back to photo</Button></div><div class="f-stage__view" style={{ color: "#fff" }}><Empty icon="crop-free" title="No framing data">{photo.source === "camera" ? "This photo cannot be re-framed." : "Uploaded and drawn images have no rig: there is nothing to re-frame."}</Empty></div></>;
 
@@ -161,7 +167,8 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
   return (
     <>
       <div class="f-stage__bar">
-        <Seg label="Explorer" value={state.view} onChange={(view) => onState({ ...state, view })} options={[{ id: "one", label: "Framing" }, { id: "compare", label: "Compare A / B" }]} />
+        <Seg label="Explorer" value={state.view} onChange={(view) => onState({ ...state, view })} options={[{ id: "one", label: "Framing" }, { id: "compare", label: "Compare A / B" }, { id: "stack", label: "Stacked" }]} />
+        {state.view === "stack" && <StackBar stack={state.stack} onStack={(stack) => onState({ ...state, stack })} />}
         {state.view === "one" && (
           <>
             <Select label="Framing" icon="crop" width="220px" value={state.framingId ?? "__captured__"} onChange={pick} options={options} />
@@ -190,6 +197,8 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
           fa && <Framed photo={photo} mode={editMode} frame={fa} maxHeight="calc(100vh - 290px)">
             <DragFrame photo={photo} frame={fa} mode={editMode} onMove={(c) => onState({ ...state, centre: c })} />
           </Framed>
+        ) : state.view === "stack" ? (
+          <StackCanvas photo={photo} presets={presets} centre={state.centre} stack={state.stack} />
         ) : (
           <div class="compare">
             {([["A", state.a, (a: RigChoice) => onState({ ...state, a })], ["B", state.b, setB]] as const).map(([tag, c, set]) => {
@@ -205,6 +214,7 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
           </div>
         )}
       </div>
+      {state.view === "stack" && <div class="f-stage__foot"><StackLayers photo={photo} presets={presets} stack={state.stack} onStack={(stack) => onState({ ...state, stack })} /></div>}
       {state.view === "one" && (
         <div class="f-stage__foot">
           <div class="framing-facts">

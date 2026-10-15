@@ -11,11 +11,12 @@ Dashboard shot view → stage **Framing** (`R`; `apps/dashboard/src/RigExplorer.
 
 ## Using it
 
-- **Bar**: Framing · Compare A / B; the framing picker (As captured, the saved ones, "· root" marks the root); rig and lens pickers; "Edited" / "Not saved" when the frame differs from what is selected.
+- **Bar**: Framing · Compare A / B · Stacked; the framing picker (As captured, the saved ones, "· root" marks the root); rig and lens pickers; "Edited" / "Not saved" when the frame differs from what is selected.
 - **Stage**: the photo in Mask (or Frame) mode with the frame as a **drag handle**. Fit and Raw are not used here because they cannot show where the frame sits. `⇧` + arrows nudge by 1 %, `←/→` step the lens (the centre is kept, clamped to the new size).
 - **Actions**: **Save as new…** (asks for a name), **Update** (`⌘S`) for a saved framing, **Set as root** (saves first when needed; "Root frame" when it already is), delete (confirms; overlays and clips keep their copy). For sequences, **All n photos** saves the same rig, lens and centre on every photo, each with its own size from its own capture.
 - **Foot**: the facts (FF-equivalent, horizontal and vertical FOV, "sees more than this photo"), a hint, and the **lens strip** with the frame at the current centre for every lens of the rig.
 - **Compare A / B**: two rigs side by side as before; A uses the current centre.
+- **Stacked** (issue #47, `StackedFrames.tsx`): one photo with any number of rig + lens frames on it, each in its own colour (the fixed compose palette, so it reads on any photo; click a swatch for the next colour). **+ Frame** adds one (it starts as a copy of the last), × removes it. **Rig names** labels each frame with its rig and lens, at a chosen corner, inside or outside the frame. Frames share the Framing view's centre (clamped per frame); a frame wider than the photo shrinks the photo and draws dashed. Nothing is saved.
 - Uploaded and drawn images ([new shot](new-shot.md)) have no rig: the stage says there is nothing to re-frame.
 
 ## Who uses a framing

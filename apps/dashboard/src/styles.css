@@ -128,6 +128,18 @@ button { font: inherit; }
 .compare__head .f-pick { flex: 1; }
 .compare__photo { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; }
 .compare__facts { color: #fff; font-size: var(--text-small); }
+/* Framing → Stacked (StackedFrames.tsx): frames in the fixed palette over the photo, labels at a chosen corner. */
+.stack-canvas { margin: auto; overflow: visible; }
+.stack-frame { position: absolute; border: 2px solid; box-sizing: border-box; box-shadow: 0 0 0 1px var(--frame-outline), inset 0 0 0 1px var(--frame-outline); pointer-events: none; }
+.stack-frame.is-wider { border-style: dashed; }
+.stack-frame__name { position: absolute; padding: 1px 6px; border-radius: var(--radius-xs); font-size: var(--text-caption); font-weight: 700; white-space: nowrap; }
+.stack-frame__name--in-tl { left: 4px; top: 4px; } .stack-frame__name--in-tr { right: 4px; top: 4px; }
+.stack-frame__name--in-bl { left: 4px; bottom: 4px; } .stack-frame__name--in-br { right: 4px; bottom: 4px; }
+.stack-frame__name--out-tl { left: -2px; bottom: calc(100% + 2px); } .stack-frame__name--out-tr { right: -2px; bottom: calc(100% + 2px); }
+.stack-frame__name--out-bl { left: -2px; top: calc(100% + 2px); } .stack-frame__name--out-br { right: -2px; top: calc(100% + 2px); }
+.stack-layers { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.stack-layer { display: flex; align-items: center; gap: 6px; background: var(--surface); padding: 4px 6px; border-radius: var(--radius-sm); }
+.stack-layer__swatch { width: 22px; height: 22px; border-radius: 50%; border: var(--bw) solid var(--border); cursor: pointer; flex: none; }
 .inspector { --panel-w: 380px; }
 .inspector__title { display: flex; align-items: flex-start; gap: var(--space-2); }
 .inspector__title h1 { flex: 1; min-width: 0; font-size: var(--text-heading); line-height: var(--lh-snug); overflow-wrap: anywhere; }
