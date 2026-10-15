@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import Storage from "expo-sqlite/kv-store";
+import { kv as Storage } from "./kv";
 import { DEFAULT_SETTINGS } from "./defaults";
 import type { FieldDef, FieldDefinition } from "@fielder/vocab";
 import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord, LayoutEntry } from "./types";

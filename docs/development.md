@@ -39,12 +39,17 @@ API smoke tests work with plain `curl` against `localhost:8787` (no auth needed 
 ## Phone dev loop (Expo Go)
 
 ```sh
-pnpm dev:mobile     # expo start --go --tunnel; reads apps/mobile/.env.local
+make mobile         # expo start --go --tunnel; phone against PRODUCTION (apps/mobile/.env.local)
+make mobile-local   # local Worker behind a quick tunnel + Metro; phone against LOCAL data
 ```
 
 - Open Expo Go and enter the `exp://….exp.direct` URL Metro prints. The tunnel is needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - JS changes hot-reload. Every native module the app uses ships in Expo Go.
-- The phone talks to the **deployed** Worker (`EXPO_PUBLIC_API_URL`), so Worker changes need a deploy first. Without that variable the login WebView loads `/auth/mobile` against `file://` and fails.
+- `make mobile`: the phone talks to the **deployed** Worker (`EXPO_PUBLIC_API_URL`), so Worker changes need a deploy first. Without that variable the login WebView loads `/auth/mobile` against `file://` and fails.
+- `make mobile-local` (`scripts/mobile-local.sh`): starts `wrangler dev --tunnel` on :8787 (stop `make dev`/`make worker` first; run `make dashboard` beside it), waits for the `https://….trycloudflare.com` URL, then starts Metro with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both.
+  - Sign in once per scope: under `ACCESS_DEV_BYPASS` `/auth/mobile` hands out an unsigned placeholder token for `dev@localhost`.
+  - The scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders). Going back to `make mobile` finds production's data untouched.
+  - The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL with auth bypassed.
 - A native module that Expo Go lacks means switching to a dev client: `pnpm -C apps/mobile build:dev-client` once, then `pnpm -C apps/mobile start:dev-client`.
 - If the tunnel fails with `Cannot read properties of undefined (reading 'body')`, an old ngrok session is still registered: wait 30 s or set `EXPO_TUNNEL_SUBDOMAIN`.
 - Expo changed a lot. Read the versioned docs at https://docs.expo.dev/versions/v57.0.0/ before using an Expo API (`apps/mobile/AGENTS.md`). Example: `expo-file-system` exposes `File`/`Directory`/`Paths` with sync `copySync`, `textSync`, `write`, and `File.downloadFileAsync`.

@@ -1,13 +1,13 @@
 # Thin wrappers around the pnpm scripts in package.json, which stay the source
 # of truth. Everything runs in the foreground; stop a server with Ctrl-C.
-.PHONY: help init dev worker dashboard mobile login deploy apk-cloud apk-local
+.PHONY: help init dev worker dashboard mobile mobile-local login deploy apk-cloud apk-local
 
 # Wrangler's OAuth token lacks account:read, so commands that look up the account need the id.
 export CLOUDFLARE_ACCOUNT_ID ?= 3868cbc17be171c90972dd32e41e7783
 
 help: ## Show this list
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
-		| awk 'BEGIN {FS = ":.*?## "} {printf "  make %-10s %s\n", $$1, $$2}'
+		| awk 'BEGIN {FS = ":.*?## "} {printf "  make %-13s %s\n", $$1, $$2}'
 
 init: ## Write the gitignored dev files and apply D1 migrations (once per checkout)
 	pnpm dev:init
@@ -21,8 +21,11 @@ worker: ## Worker only -> http://localhost:8787
 dashboard: ## Dashboard only -> http://localhost:5173 (needs `make worker` for /api)
 	pnpm dev:dashboard
 
-mobile: ## Metro with the Expo Go tunnel -> exp://….exp.direct
+mobile: ## Metro with the Expo Go tunnel, phone against PRODUCTION
 	pnpm dev:mobile
+
+mobile-local: ## Local Worker behind a quick tunnel + Metro, phone against LOCAL data
+	pnpm dev:mobile-local
 
 login: ## Log wrangler in to Cloudflare (device code, works in WSL)
 	pnpm wrangler login --device

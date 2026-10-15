@@ -9,9 +9,9 @@ import type { Ctx } from "./index.ts";
  * Nothing new is exposed: the browser already holds the same token as a cookie.
  */
 export function registerAuthRoutes(r: Router<Ctx>) {
-  r.on("GET", "/auth/mobile", async ({ request, identity }) => {
+  r.on("GET", "/auth/mobile", async ({ request, env, identity }) => {
     if (identity.kind !== "user") throw new HttpError(403, "sign in with your email, not a service token");
-    const token = request.headers.get("Cf-Access-Jwt-Assertion") ?? "";
+    const token = env.ACCESS_DEV_BYPASS === "true" ? devToken(identity.email) : request.headers.get("Cf-Access-Jwt-Assertion") ?? "";
     const payload = JSON.stringify({ token, email: identity.email }).replace(/</g, "\\u003c");
     const email = identity.email.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
     const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fielder</title>
@@ -20,4 +20,13 @@ export function registerAuthRoutes(r: Router<Ctx>) {
 <script>var p=${payload};if(window.ReactNativeWebView){window.ReactNativeWebView.postMessage(JSON.stringify(p));}</script></body></html>`;
     return new Response(html, { headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } });
   });
+}
+
+/**
+ * Locally there is no Access, so no JWT to hand over; the app still needs a token shaped like one
+ * (three parts, an email, an expiry) to count as signed in. Unsigned: the bypass ignores the header.
+ */
+function devToken(email: string): string {
+  const b64 = (v: unknown) => btoa(JSON.stringify(v)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+  return `${b64({ alg: "none", typ: "JWT" })}.${b64({ email, exp: Math.floor(Date.now() / 1000) + 365 * 86400 })}.`;
 }

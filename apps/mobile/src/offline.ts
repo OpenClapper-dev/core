@@ -1,5 +1,5 @@
-import { Directory, File, Paths } from "expo-file-system";
-import Storage from "expo-sqlite/kv-store";
+import { File } from "expo-file-system";
+import { dataDir, kv as Storage } from "./kv";
 import { imageHeaders, imageUri, renderUri, type Overlay, type Photo, type Shot, type ShootingDay, type Sketch } from "./api";
 import { API_URL } from "./config";
 import { log } from "./log";
@@ -12,7 +12,7 @@ import { log } from "./log";
 export interface OfflineDay { day: ShootingDay; shots: Shot[]; projectName: string; savedAt: string }
 
 const KEY = "offlineDays.v1";
-const dir = new Directory(Paths.document, "offline-photos");
+const dir = dataDir("offline-photos");
 
 function readAll(): Record<string, OfflineDay> {
   try { const raw = Storage.getItemSync(KEY); return raw ? (JSON.parse(raw) as Record<string, OfflineDay>) : {}; } catch { return {}; }

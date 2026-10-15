@@ -1,4 +1,5 @@
-import { Directory, File, Paths } from "expo-file-system";
+import { File } from "expo-file-system";
+import { dataDir } from "./kv";
 import * as Crypto from "expo-crypto";
 import { log } from "./log";
 import { store } from "./storage";
@@ -9,7 +10,7 @@ import type { CaptureDraft, DraftPhoto } from "./types";
  * the camera's temp files right away and the draft is persisted, so nothing is lost if the app
  * is killed mid-sequence; the badge picks up where it left off on the next launch.
  */
-const dir = new Directory(Paths.document, "draft-photos");
+const dir = dataDir("draft-photos");
 
 export function startSequence(): CaptureDraft {
   const d: CaptureDraft = { shotId: Crypto.randomUUID(), photos: [] };
