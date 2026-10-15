@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { lensList, stepLens } from "../lens";
+import { zoomLabel } from "../zoom";
 import { BORDER, Icon, makeStyles, num, RADIUS, type, useTheme } from "../ui";
 import type { LensRange } from "../types";
 
@@ -103,3 +104,37 @@ export function LensCarousel({ lensMm, onChange, vertical, range, onPressValue }
     </View>
   );
 }
+
+/**
+ * The phone's own lenses as magnifications (issue #26): 0.5× 1× 3×… Smaller round pills, filled in
+ * the chrome's text colour when on, so they never read as the rig's focal lengths (accent). Nothing
+ * when the phone offers one lens only (or Setup fixes it).
+ */
+export function ZoomStrip({ zoom, zooms, onChange, vertical }: { zoom: number; zooms: number[]; onChange: (z: number) => void; vertical: boolean }) {
+  const s = useZoomStyles();
+  const { c } = useTheme();
+  if (zooms.length < 2) return null;
+  return (
+    <View style={[s.zoom, vertical ? s.zoomCol : s.zoomRow]}>
+      {zooms.map((z) => {
+        const on = z === zoom;
+        return (
+          <Pressable key={z} onPress={() => onChange(z)} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`Phone lens ${zoomLabel(z)}`}
+            style={({ pressed }) => [s.z, on && s.zOn, pressed && !on && { backgroundColor: c.surfaceSunken }]}>
+            <Text style={[s.zText, on && s.zTextOn]}>{zoomLabel(z)}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const useZoomStyles = makeStyles((c) => ({
+  zoom: { alignItems: "center", justifyContent: "center", gap: 4 },
+  zoomRow: { flexDirection: "row", paddingHorizontal: 6 },
+  zoomCol: { flexDirection: "column", paddingVertical: 6 },
+  z: { width: 44, height: 44, borderRadius: RADIUS.pill, alignItems: "center", justifyContent: "center", borderWidth: BORDER.control, borderColor: c.chromeBorder },
+  zOn: { backgroundColor: c.chromeText, borderColor: c.chromeText },
+  zText: { ...type("caption", "bold"), fontSize: 13, color: c.chromeText, ...num },
+  zTextOn: { color: c.chromeBg },
+}));

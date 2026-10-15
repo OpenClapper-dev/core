@@ -9,6 +9,7 @@ import { computeOverlay, formatDeg } from "../framing";
 import { clearLog, logCount, logText, setLogging } from "../log";
 import { useRigs } from "../rigs";
 import { store } from "../storage";
+import { zoomLabel, zoomStops } from "../zoom";
 import type { GpsMode, HudChips, Settings } from "../types";
 import { Block, BORDER, Button, ListRow, Chip, ChipCell, ChipGrid, ChipRow, confirm, ErrorText, FIXED, Hint, Input, makeStyles, num, PushScreen, SectionLabel, Seg, toast, Toggle, type } from "../ui";
 import { HudChip } from "../components/Hud";
@@ -56,6 +57,8 @@ export function ViewfinderSettings() {
   const overlay = useMemo(() => (active ? computeOverlay(st, active, store.loadLensMm(), { width: W, height: H }, false) : null), [st, active]);
   const chip = (k: keyof HudChips, v: boolean) => set("hudChips", { ...st.hudChips, [k]: v });
   const [layoutSheet, setLayoutSheet] = useState(false);
+  const lenses = st.phoneLenses;
+  const stops = zoomStops(store.loadZoomRange());
 
   return (
     <PushScreen title="Viewfinder" sub="Changes show on the preview" scroll={false}>
@@ -76,6 +79,14 @@ export function ViewfinderSettings() {
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
           <ListRow icon="view-dashboard-edit-outline" title="Layout" meta={app.layouts.find((l) => l.id === st.viewfinderLayoutId)?.name ?? "Default"} onPress={() => setLayoutSheet(true)} />
           <Block><Hint>Where the buttons go: layouts are made on the dashboard (Library › Viewfinder) and arrive with the next sync.</Hint></Block>
+          <Block>
+            <SectionLabel>Phone lenses</SectionLabel>
+            <Seg size="lg" block accessibilityLabel="Phone lenses" value={lenses.mode} onChange={(v) => set("phoneLenses", v === "list" ? { mode: "list", zooms: stops } : v === "fixed" ? { mode: "fixed", zoom: 1 } : { mode: "all" })}
+              options={[{ id: "all", label: "All" }, { id: "list", label: "Pick" }, { id: "fixed", label: "Fixed" }]} />
+            {lenses.mode === "list" && <ChipRow>{stops.map((z) => <Chip key={z} label={zoomLabel(z)} selected={lenses.zooms.includes(z)} onPress={() => set("phoneLenses", { mode: "list", zooms: lenses.zooms.includes(z) ? lenses.zooms.filter((x) => x !== z) : [...lenses.zooms, z] })} />)}</ChipRow>}
+            {lenses.mode === "fixed" && <ChipRow>{stops.map((z) => <Chip key={z} label={zoomLabel(z)} selected={lenses.zoom === z} onPress={() => set("phoneLenses", { mode: "fixed", zoom: z })} />)}</ChipRow>}
+            <Hint>{stops.length > 1 ? "Which of the phone's lenses Shoot offers (0.5× is the ultra-wide). Fixed uses one and shows no buttons." : "Only 1× is known so far: open Shoot once so the app learns the phone's lenses."}</Hint>
+          </Block>
           <Block><SectionLabel>HUD chips · show on the camera image</SectionLabel></Block>
           {HUD.map((h) => <Toggle key={h.key} icon={h.icon} label={h.label} meta={h.meta} value={st.hudChips[h.key]} onChange={(v) => chip(h.key, v)} />)}
           <Toggle icon="fit-to-screen-outline" label="Fit to frame" meta="Digital zoom so the rig frame fills the screen; also the Fit button" value={st.fitToFrame} onChange={(v) => set("fitToFrame", v)} />

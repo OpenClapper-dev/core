@@ -10,6 +10,7 @@ export const DEFAULT_SETTINGS: Settings = {
   phoneCalibration: "auto",
   phoneModel: null,
   viewfinderLayoutId: null,
+  phoneLenses: { mode: "all" },
   borderColor: OVERLAY_DEFAULTS.borderColor,
   borderWidthPx: OVERLAY_DEFAULTS.borderWidthPx,
   blackoutEnabled: OVERLAY_DEFAULTS.blackoutEnabled,

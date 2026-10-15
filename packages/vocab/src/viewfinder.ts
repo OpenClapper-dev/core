@@ -4,14 +4,14 @@
  * DEFAULT_VIEWFINDER_LAYOUT is today's arrangement and can always be gone back to.
  */
 
-export const VF_CONTROLS = ["shutter", "uploads", "seq", "light", "fit", "human", "rig", "lens"] as const;
+export const VF_CONTROLS = ["shutter", "uploads", "seq", "light", "fit", "human", "rig", "lens", "zoom"] as const;
 export type VfControl = (typeof VF_CONTROLS)[number];
 export const VF_CONTROL_LABELS: Record<VfControl, string> = {
-  shutter: "Shutter", uploads: "Uploads", seq: "Sequence", light: "Light", fit: "Fit", human: "Human view", rig: "Rig", lens: "Lens strip",
+  shutter: "Shutter", uploads: "Uploads", seq: "Sequence", light: "Light", fit: "Fit", human: "Human view", rig: "Rig", lens: "Lens strip", zoom: "Phone lenses",
 };
 /** Short text under an icon when an item shows its label. */
 export const VF_SHORT_LABELS: Record<VfControl, string> = {
-  shutter: "", uploads: "Uploads", seq: "Seq", light: "Light", fit: "Fit", human: "Human", rig: "Rig", lens: "",
+  shutter: "", uploads: "Uploads", seq: "Seq", light: "Light", fit: "Fit", human: "Human", rig: "Rig", lens: "", zoom: "",
 };
 
 export interface VfItem {
@@ -38,18 +38,21 @@ export type VfOrientationName = "portrait" | "landscape";
 export const MAX_VF_BARS = 4;
 export const MAX_VF_ITEMS = 9;
 
-/** The arrangement the app shipped with before layouts existed. */
+/**
+ * The arrangement the app shipped with before layouts existed, plus the phone's lenses (issue #26:
+ * 0.5× 1× 3×…) after the lens strip; they show only when the phone offers more than one.
+ */
 export const DEFAULT_VIEWFINDER_LAYOUT: ViewfinderLayout = {
   v: 1,
   portrait: {
     bars: [
-      { id: "lens", edge: "end", items: [{ control: "lens", display: "list", size: "fill" }] },
+      { id: "lens", edge: "end", items: [{ control: "lens", display: "list", size: "fill" }, { control: "zoom" }] },
       { id: "controls", edge: "end", items: ["uploads", "seq", "light", "shutter", "fit", "human", "rig"].map((c) => ({ control: c as VfControl })) },
     ],
   },
   landscape: {
     bars: [
-      { id: "lens", edge: "start", items: [{ control: "lens", display: "list", size: "fill" }] },
+      { id: "lens", edge: "start", items: [{ control: "lens", display: "list", size: "fill" }, { control: "zoom" }] },
       { id: "controls", edge: "end", items: ["rig", "human", "fit", "shutter", "light", "seq", "uploads"].map((c) => ({ control: c as VfControl })) },
     ],
   },

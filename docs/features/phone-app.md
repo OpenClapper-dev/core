@@ -41,6 +41,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
     - frame colour and width
     - blackout and its tint
     - the human-view button (cycle/toggle) and its value
+    - **Phone lenses**: All · Pick · Fixed ([capture](capture.md#camera-react-native-vision-camera-issue-26))
   - **Capture**: direct upload, **GPS** (High · Low · Off, [positions](positions.md)), rig orientation, the screen orientation on launch.
   - **Offline**: offline mode, what waits on the phone, and the project kept on the phone ([offline](day-mode-offline.md)).
   - **Phone calibration**: the 35 mm-equivalent of the main camera: **From the photos** (EXIF of each capture, with the phone model it came from) or **Manual** (5–200).

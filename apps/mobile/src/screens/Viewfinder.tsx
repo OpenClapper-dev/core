@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
+import { Camera, CommonResolutions, useCameraDevice, useCameraPermission, usePhotoOutput, type CameraRef } from "react-native-vision-camera";
 import * as Location from "expo-location";
 import * as Crypto from "expo-crypto";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
-import { File } from "expo-file-system";
+import { File, Paths } from "expo-file-system";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { HUMAN_STEPS } from "../defaults";
@@ -14,6 +14,8 @@ import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { isConfigured } from "../config";
 import { VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem } from "@fielder/vocab";
 import { calibrationFromExif } from "../calibration";
+import { readExif, uprightSize } from "../exif";
+import { effectiveZoom, offeredZooms, zoomStops, type ZoomRange } from "../zoom";
 import { edgeExtent, resolveLayout, rowHeight, VF_SIZES } from "../vfLayout";
 import { computeOverlay, formatDeg, previewBox, type Box } from "../framing";
 import { clampToRange } from "../lens";
@@ -27,7 +29,7 @@ import { enqueue, flush } from "../uploads";
 import { Badge, BORDER, Button, Empty, FIXED, Icon, makeStyles, notice, num, RADIUS, SeqBadge, SIZE, toast, type, useTheme, useToastOffset } from "../ui";
 import { HudChip } from "../components/Hud";
 import { LensSheet } from "../components/LensSheet";
-import { LensCarousel, LensStrip } from "../components/LensStrip";
+import { LensCarousel, LensStrip, ZoomStrip } from "../components/LensStrip";
 import { HUMAN_COLOR, Overlay } from "../components/Overlay";
 import { RigSheet } from "../components/RigSheet";
 import { EMPTY_TAGS } from "../components/TagEditor";
@@ -72,10 +74,16 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   // App.tsx already pads by the cutout inset; top up to the 32 dp edge rule so the lens column never touches it.
   const lensPad = portrait ? 0 : Math.max(0, SIZE.edgePad - insets.left);
   const setSettings = app.setSettings;
-  const [camPerm, requestCamPerm] = useCameraPermissions();
+  const camPerm = useCameraPermission();
   const [locPerm, requestLocPerm] = Location.useForegroundPermissions();
-  const camera = useRef<CameraView>(null);
+  // vision-camera (issue #26): the back camera as Android's logical camera, so the zoom reaches every lens.
+  const device = useCameraDevice("back");
+  const photoOutput = usePhotoOutput({ targetResolution: CommonResolutions.UHD_4_3, quality: 0.9, qualityPrioritization: "balanced" });
+  const camera = useRef<CameraRef>(null);
   const [cameraReady, setCameraReady] = useState(false);
+  /** The camera's zoom range as reported once it runs (remembered for Setup); null before. */
+  const [zoomRange, setZoomRange] = useState<ZoomRange | null>(() => store.loadZoomRange());
+  const [chosenZoom, setChosenZoom] = useState<number>(() => store.loadZoom());
 
   const { active: rig } = useRigs();
   const [lensMm, setLensMm] = useState<number>(() => store.loadLensMm());
@@ -95,9 +103,35 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   // Keep the lens inside the rig's range when the rig (or its range) changes.
   useEffect(() => { setLensMm((mm) => clampToRange(mm, lensRange)); }, [rig?.id, lensRange?.min, lensRange?.max]);
   useEffect(() => { store.saveLensMm(lensMm); }, [lensMm]);
+  const zooms = offeredZooms(zoomStops(zoomRange), settings.phoneLenses);
+  const zoom = effectiveZoom(chosenZoom, zooms);
+  const pickZoom = (z: number) => { setChosenZoom(z); store.saveZoom(z); log("info", "phone lens", { zoom: z }); };
+  useEffect(() => {
+    if (!device) return;
+    log("info", "camera device", {
+      id: device.id, type: device.type, name: device.localizedName, virtual: device.isVirtualDevice, focal_mm: device.focalLength ?? null,
+      min_zoom: device.minZoom, max_zoom: device.maxZoom, switch: device.zoomLensSwitchFactors, torch: device.hasTorch,
+      physical: device.physicalDevices.map((p) => ({ id: p.id, type: p.type, focal_mm: p.focalLength ?? null })),
+    });
+  }, [device?.id]);
+  /**
+   * Called when the session runs: now the zoom range is known (the device reports 0 before the camera
+   * opens). The controller is set around onStarted, so look a few times before falling back to the device.
+   */
+  const onCameraStarted = () => {
+    setCameraReady(true);
+    const read = (tries: number) => {
+      const ctl = camera.current?.controller;
+      if (!ctl && tries > 0) { setTimeout(() => read(tries - 1), 150); return; }
+      const r = ctl && ctl.maxZoom >= 1 ? { min: ctl.minZoom, max: ctl.maxZoom } : device && device.maxZoom >= 1 ? { min: device.minZoom, max: device.maxZoom } : null;
+      log(r ? "info" : "warn", "camera started", { from: ctl ? "controller" : "device", min_zoom: r?.min ?? null, max_zoom: r?.max ?? null, zoom: ctl?.zoom ?? null, display_zoom: ctl?.displayableZoomFactor ?? null, stops: zoomStops(r) });
+      if (r && (r.min !== zoomRange?.min || r.max !== zoomRange?.max)) { setZoomRange(r); store.saveZoomRange(r); }
+    };
+    read(5);
+  };
 
   // Permissions and background sync on launch.
-  useEffect(() => { if (camPerm && !camPerm.granted && camPerm.canAskAgain) void requestCamPerm(); }, [camPerm, requestCamPerm]);
+  useEffect(() => { if (!camPerm.hasPermission && camPerm.canRequestPermission) void camPerm.requestPermission(); }, [camPerm.hasPermission, camPerm.canRequestPermission]);
   useEffect(() => { if (locPerm && !locPerm.granted && locPerm.canAskAgain) void requestLocPerm(); }, [locPerm, requestLocPerm]);
   const [authEmail, setAuthEmail] = useState<string | null>(() => signedInEmail());
   useEffect(() => {
@@ -150,7 +184,9 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
     ? { width: window.width, height: Math.max(0, window.height - startExtent - endExtent) }
     : { width: Math.max(0, window.width - startExtent - endExtent), height: window.height };
   const preview = useMemo(() => previewBox(area), [area.width, area.height]);
-  const overlay = useMemo(() => (rig ? computeOverlay(settings, rig, lensMm, preview) : null), [settings, rig, lensMm, preview]);
+  // The phone sees narrower or wider by the zoom: its 35 mm equivalent is the main lens's times the zoom.
+  const phoneMm = settings.phoneEquivalentFocalMm * zoom;
+  const overlay = useMemo(() => (rig ? computeOverlay({ ...settings, phoneEquivalentFocalMm: phoneMm }, rig, lensMm, preview) : null), [settings, phoneMm, rig, lensMm, preview]);
 
   /**
    * The position for a capture, or null (GPS off, or no fix at all; the photo is kept without one).
@@ -177,30 +213,51 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
     return toFix(pos ?? lastFix.current ?? (await Location.getLastKnownPositionAsync({ maxAge: 10 * 60 * 1000 }).catch(() => null)));
   }
 
+  /**
+   * One photo through vision-camera: the encoded JPEG (its EXIF read here, since vision-camera does not
+   * expose it) written to a temp file for the manipulator. Each step is logged for the debug log.
+   */
+  async function takePhoto(): Promise<{ uri: string; width: number; height: number; exif: ReturnType<typeof readExif> }> {
+    const t0 = Date.now();
+    const photo = await photoOutput.capturePhoto({ flashMode: "off", enableShutterSound: false }, {});
+    try {
+      const bytes = new Uint8Array(await photo.getFileDataAsync());
+      const exif = readExif(bytes);
+      const file = new File(Paths.cache, `capture-${Crypto.randomUUID()}.jpg`);
+      file.write(bytes);
+      log("info", "photo taken", { ms: Date.now() - t0, size: [photo.width, photo.height], orientation: photo.orientation, bytes: bytes.length, exif });
+      return { uri: file.uri, width: photo.width, height: photo.height, exif };
+    } finally {
+      photo.dispose();
+    }
+  }
+
   async function capture() {
-    if (!camera.current || !cameraReady || busy || !rig || !overlay || !project) return;
+    if (!cameraReady || busy || !rig || !overlay || !project) return;
     setBusy(true);
     const seqAtStart = sequenceRef.current?.shotId ?? null;
     try {
-      const [pos, pic] = await Promise.all([
-        getPosition(),
-        camera.current.takePictureAsync({ quality: 0.7, exif: true, skipProcessing: false }),
-      ]);
+      const shot = takePhoto();
+      const [pos, pic] = await Promise.all([getPosition(), shot]);
       // Never lose a capture for want of a fix: it is kept without a position (set one later by hand).
       if (!pos && gpsMode !== "off") { log("warn", "capture without GPS fix", { mode: gpsMode }); toast("No GPS fix · saved without position", "neutral"); }
-      const landscapePic = pic.width >= pic.height;
+      // Glide (behind the manipulator) applies the EXIF rotation, so the size to aim for is the upright one.
+      const upright = uprightSize(pic.width, pic.height, pic.exif.Orientation);
       const rendered = await ImageManipulator.manipulate(pic.uri)
-        .resize(landscapePic ? { width: Math.min(MAX_UPLOAD_EDGE, pic.width) } : { height: Math.min(MAX_UPLOAD_EDGE, pic.height) })
+        .resize(upright.width >= upright.height ? { width: Math.min(MAX_UPLOAD_EDGE, upright.width) } : { height: Math.min(MAX_UPLOAD_EDGE, upright.height) })
         .renderAsync();
       const small = await rendered.saveAsync({ compress: 0.72, format: SaveFormat.JPEG });
+      log("info", "capture resized", { raw: [pic.width, pic.height], orientation: pic.exif.Orientation ?? null, upright: [upright.width, upright.height], small: [small.width, small.height] });
       try { new File(pic.uri).delete(); } catch { /* full-size camera temp file */ }
 
-      const exif = (pic.exif ?? {}) as Record<string, unknown>;
-      // Auto calibration (issue #26): the photo's own EXIF says how wide the phone saw. When it differs
-      // from what the overlay used, this capture is framed with the EXIF value and later ones follow.
-      const calib = settings.phoneCalibration === "auto" ? calibrationFromExif(exif) : null;
-      const phoneMm = calib?.mm ?? settings.phoneEquivalentFocalMm;
-      const used = calib && calib.mm !== settings.phoneEquivalentFocalMm ? computeOverlay({ ...settings, phoneEquivalentFocalMm: calib.mm }, rig, lensMm, preview) : overlay;
+      const exif = pic.exif as Record<string, unknown>;
+      // Auto calibration (issue #26): the photo's own EXIF says how wide the main lens saw. Only at 1×:
+      // other zooms are other lenses (or a crop). A changed value frames this capture and the next ones.
+      const calib = settings.phoneCalibration === "auto" && zoom === 1 ? calibrationFromExif(exif) : null;
+      const mainMm = calib?.mm ?? settings.phoneEquivalentFocalMm;
+      const usedPhoneMm = mainMm * zoom;
+      if (zoom !== 1) log("info", "capture at zoom", { zoom, phone_mm: usedPhoneMm, exif_35mm: exif.FocalLengthIn35mmFilm ?? null, exif_mm: exif.FocalLength ?? null });
+      const used = usedPhoneMm !== phoneMm ? computeOverlay({ ...settings, phoneEquivalentFocalMm: usedPhoneMm }, rig, lensMm, preview) : overlay;
       if (calib && (calib.mm !== settings.phoneEquivalentFocalMm || calib.model !== settings.phoneModel)) {
         log("info", "phone calibrated from EXIF", { mm: calib.mm, model: calib.model, was: settings.phoneEquivalentFocalMm });
         setSettings((x) => ({ ...x, phoneEquivalentFocalMm: calib.mm, phoneModel: calib.model }));
@@ -233,13 +290,17 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
           // Rig frame relative to the uploaded photo, centred. Lets the dashboard re-apply the mask.
           frame: { width_fraction: frame.width, height_fraction: frame.height },
           // Phone view the photo was taken with, so other rigs/lenses can be simulated on it later.
-          phone_equivalent_focal_mm: phoneMm,
+          phone_equivalent_focal_mm: round(usedPhoneMm),
         },
         device: {
           phone_model: calib?.model ?? settings.phoneModel,
           exif_focal_length: exif.FocalLength ?? null,
           exif_focal_length_35mm: exif.FocalLengthIn35mmFilm ?? null,
           exif_model: exif.Model ?? null,
+          // Issue #26: the phone lens (zoom on the logical back camera) and the main lens's equivalent.
+          zoom,
+          phone_main_equivalent_mm: mainMm,
+          camera_id: device?.id ?? null,
           gps_mode: gpsMode,
           gps_altitude_m: pos?.altitude ?? null,
           gps_heading_deg: pos?.heading ?? null,
@@ -350,12 +411,11 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
 
   const countAt = useCallback((id: string) => app.countAt(id), [app.countAt]);
 
-  if (!camPerm) return <View style={s.root} onLayout={onLayout} />;
-  if (!camPerm.granted) {
+  if (!camPerm.hasPermission) {
     return (
       <View style={[s.root, s.center, { backgroundColor: c.bg }]}>
         <Empty icon="camera-off" title="Camera access needed" body="Fielder uses the camera as a viewfinder for your rig's frame.">
-          <Button label="Grant camera access" icon="camera-iris" onPress={() => void requestCamPerm()} />
+          <Button label="Grant camera access" icon="camera-iris" onPress={() => { if (camPerm.canRequestPermission) void camPerm.requestPermission(); else void Linking.openSettings(); }} />
         </Empty>
       </View>
     );
@@ -383,7 +443,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   );
   // One builder per button; the layout decides which appear, where, and with a text label or not.
   const vertical = !portrait;
-  const buttons: Record<Exclude<VfControl, "shutter" | "lens">, (text?: string) => ReactNode> = {
+  const buttons: Record<Exclude<VfControl, "shutter" | "lens" | "zoom">, (text?: string) => ReactNode> = {
     uploads: (text) => <Control icon="cloud-upload-outline" text={text} label={n ? `Uploads, ${n} ${sync.state === "stuck" ? "stuck" : "waiting"}. Tap to retry, hold for the list` : "Uploads. Hold for the list"} vertical={vertical}
       onPress={() => void retryAll()} onLongPress={() => app.push({ name: "uploads" })} badge={n > 0 && sync.state !== "ok" ? <Badge n={n} stuck={sync.state === "stuck"} /> : null} />,
     seq: (text) => <Control icon="layers-triple-outline" text={text} label={sequence ? "End sequence" : "Start sequence"} on={!!sequence} disabled={busy} vertical={vertical} onPress={toggleSequence} />,
@@ -394,6 +454,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   };
   const barItem = (it: VfItem, fixed: boolean) => {
     if (it.control === "shutter") return <View key="shutter" style={s.shutterCell}>{shutter}</View>;
+    if (it.control === "zoom") return <ZoomStrip key="zoom" zoom={zoom} zooms={zooms} onChange={pickZoom} vertical={vertical} />;
     if (it.control === "lens") {
       const Strip = it.display === "carousel" ? LensCarousel : LensStrip;
       return <View key="lens" style={it.size === "fit" ? s.lensFit : s.lensFill}><Strip lensMm={lensMm} onChange={setLensMm} vertical={vertical} range={lensRange} onPressValue={() => setSheet("lens")} /></View>;
@@ -444,18 +505,25 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       {portrait ? startBars.length > 0 && <View style={[s.chrome, s.chromeTop]}>{startBars.map(bar)}</View> : startBars.map((b, i) => sideBar(b, true, i === 0))}
       <View style={[s.previewArea, { width: area.width, height: area.height }]}>
         <View style={{ width: preview.width, height: preview.height, backgroundColor: FIXED.photoBg, overflow: "hidden" }}>
-          {window.width > 0 && (
-            <CameraView
+          {window.width > 0 && device && (
+            // contain: the 4:3 stream fills the 4:3 box exactly; if a phone ever streamed another ratio,
+            // bars would show it instead of a silent crop that would make the frame lie.
+            <Camera
               ref={camera}
-              active={tabActive}
+              device={device}
+              isActive={tabActive}
+              outputs={[photoOutput]}
+              zoom={zoomRange ? Math.min(zoomRange.max, Math.max(zoomRange.min, zoom)) : 1}
+              torchMode={torch && tabActive && device.hasTorch ? "on" : "off"}
+              orientationSource="interface"
+              resizeMode="contain"
               style={overlay ? { position: "absolute", ...overlay.camera } : StyleSheet.absoluteFill}
-              facing="back"
-              ratio="4:3"
-              enableTorch={torch && tabActive}
-              animateShutter={false}
-              onCameraReady={() => setCameraReady(true)}
+              onStarted={onCameraStarted}
+              onStopped={() => { setCameraReady(false); log("info", "camera stopped", {}); }}
+              onError={(e) => { setCameraReady(false); log("error", "camera error", e); }}
             />
           )}
+          {!device && <View style={[StyleSheet.absoluteFill, s.center]}><Text style={s.noCam}>No back camera found</Text></View>}
           {overlay && <Overlay preview={preview} rect={overlay.rect} settings={settings} exceedsPreview={overlay.exceedsPreview} human={overlay.human} />}
           {sequence && <View style={s.seqBadge} pointerEvents="none"><SeqBadge count={sequence.photos.length} recording /></View>}
           {card && <View style={s.cardWrap} pointerEvents="box-none">{card}</View>}
@@ -514,6 +582,7 @@ const round4 = (x: number) => Math.round(x * 10000) / 10000;
 const useStyles = makeStyles((c) => ({
   root: { flex: 1, backgroundColor: FIXED.photoBg },
   center: { alignItems: "center", justifyContent: "center", padding: 24 },
+  noCam: { ...type("body", "bold"), color: c.chromeText },
   previewArea: { alignItems: "center", justifyContent: "center" },
   hud: { position: "absolute", top: 8, left: 8, right: 8, flexDirection: "row", flexWrap: "wrap", gap: 6 },
   seqBadge: { position: "absolute", bottom: 12, left: 12 },

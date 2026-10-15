@@ -15,7 +15,7 @@ import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Icon, Ic
 const DEFAULT_ID = "__default__";
 const VIEWPORTS = { phone: { w: 412, h: 915, label: "Phone" }, tablet: { w: 800, h: 1280, label: "Tablet" } } as const;
 type Viewport = keyof typeof VIEWPORTS | "custom";
-const ICONS: Record<Exclude<VfControl, "shutter" | "lens">, string> = { uploads: "cloud-upload-outline", seq: "layers-triple-outline", light: "flashlight", fit: "fit-to-screen-outline", human: "human-male", rig: "camera-control" };
+const ICONS: Record<Exclude<VfControl, "shutter" | "lens" | "zoom">, string> = { uploads: "cloud-upload-outline", seq: "layers-triple-outline", light: "flashlight", fit: "fit-to-screen-outline", human: "human-male", rig: "camera-control" };
 const clone = (l: ViewfinderLayout): ViewfinderLayout => JSON.parse(JSON.stringify(l)) as ViewfinderLayout;
 /** Same sizes as the phone (apps/mobile/src/vfLayout.ts). */
 const SZ = { padStart: 10, padEnd: 12, gap: 10, line: 2, row: 56, shutter: 76, column: 80 };
@@ -199,7 +199,8 @@ function BarEditor({ bar, index, count, portrait, orientation, readOnly, onChang
               <Seg label="Lens display" value={it.display ?? "list"} onChange={(v) => !readOnly && setItem(i, { display: v as VfItem["display"] })} options={[{ id: "list", label: "List" }, { id: "carousel", label: "Carousel" }]} />
               <Seg label="Lens size" value={it.size ?? "fill"} onChange={(v) => !readOnly && setItem(i, { size: v as VfItem["size"] })} options={[{ id: "fill", label: "Fill · scroll" }, { id: "fit", label: "Fit" }]} />
             </>
-          ) : it.control !== "shutter" && <Checkbox checked={!!it.label} role="checkbox" aria-checked={!!it.label} onClick={() => !readOnly && setItem(i, { label: !it.label })}>Label</Checkbox>}
+          ) : it.control === "zoom" ? <span class="meta">The phone's lenses, when it has more than one</span>
+            : it.control !== "shutter" && <Checkbox checked={!!it.label} role="checkbox" aria-checked={!!it.label} onClick={() => !readOnly && setItem(i, { label: !it.label })}>Label</Checkbox>}
           <span class="grow" />
           {!readOnly && <ReorderButtons index={i} count={bar.items.length} onMove={(at, d) => moveItem(at, d)} onRemove={() => onChange({ ...bar, items: bar.items.filter((_, j) => j !== i) })} remove={{ label: `Remove ${VF_CONTROL_LABELS[it.control]}` }} />}
         </div>
@@ -256,6 +257,13 @@ function PreviewBar({ bar, vertical }: { bar: VfBar; vertical: boolean }) {
     <div class={cx("vf-bar", vertical && "vf-bar--v")} style={vertical ? undefined : { height: `${height}px` }}>
       {bar.items.map((it) => {
         if (it.control === "shutter") return <span key="shutter" class="vf-shutter" title="Shutter" />;
+        if (it.control === "zoom") {
+          return (
+            <span key="zoom" class={cx("vf-lens", vertical && "vf-lens--v", "is-fit")} title="Phone lenses">
+              {["0.5", "1", "3"].map((z) => <span key={z} class={cx("vf-pill", z === "1" && "is-on")}>{z}<small>×</small></span>)}
+            </span>
+          );
+        }
         if (it.control === "lens") {
           return (
             <span key="lens" class={cx("vf-lens", vertical && "vf-lens--v", it.size === "fit" ? "is-fit" : "is-fill")}>

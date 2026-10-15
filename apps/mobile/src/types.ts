@@ -1,3 +1,4 @@
+import type { PhoneLenses } from "./zoom";
 import type { Extra } from "@fielder/vocab";
 
 export interface Preset {
@@ -46,6 +47,8 @@ export interface Settings {
   phoneModel: string | null;
   /** The viewfinder layout made on the dashboard (issue #49); null = the shipped default. */
   viewfinderLayoutId: string | null;
+  /** Issue #26: which of the phone's lenses the Shoot screen offers (all, a picked list, or one fixed). */
+  phoneLenses: PhoneLenses;
   borderColor: string;
   borderWidthPx: number;
   blackoutEnabled: boolean;
