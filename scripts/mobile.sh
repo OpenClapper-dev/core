@@ -34,4 +34,6 @@ echo "Local Worker: $url  (dashboard: make dashboard → http://localhost:5173)"
 
 # --clear: EXPO_PUBLIC_* values are inlined, and the URL is new on every run.
 cd "$root/apps/mobile"
-EXPO_PUBLIC_API_URL="$url" EXPO_PUBLIC_STORAGE_SCOPE=local pnpm exec expo start --go --tunnel --clear
+# CLIENT=dev (default): the development build "Fielder Dev" (make dev-build); CLIENT=go: Expo Go.
+if [ "${CLIENT:-dev}" = go ]; then client=(--go); else client=(--dev-client); export APP_VARIANT=development; fi
+EXPO_PUBLIC_API_URL="$url" EXPO_PUBLIC_STORAGE_SCOPE=local pnpm exec expo start "${client[@]}" --tunnel --clear

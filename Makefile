@@ -1,6 +1,6 @@
 # Thin wrappers around the pnpm scripts in package.json, which stay the source
 # of truth. Everything runs in the foreground; stop a server with Ctrl-C.
-.PHONY: help init dev worker dashboard mobile login deploy apk-cloud apk-local
+.PHONY: help init dev worker dashboard mobile mobile-go dev-build login deploy apk-cloud apk-local
 
 # Wrangler's OAuth token lacks account:read, so commands that look up the account need the id.
 export CLOUDFLARE_ACCOUNT_ID ?= 3868cbc17be171c90972dd32e41e7783
@@ -21,8 +21,14 @@ worker: ## Worker only -> http://localhost:8787
 dashboard: ## Dashboard only -> http://localhost:5173 (needs `make worker` for /api)
 	pnpm dev:dashboard
 
-mobile: ## Local Worker behind a quick tunnel + Metro (Expo Go); phone against LOCAL data
+mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (Fielder Dev); LOCAL data
 	pnpm dev:mobile
+
+mobile-go: ## The same, for Expo Go instead of the dev build
+	CLIENT=go pnpm dev:mobile
+
+dev-build: ## Development build (Fielder Dev) locally in Docker, no EAS quota; rebuild after native changes
+	PROFILE=dev-client bash scripts/apk-local.sh
 
 login: ## Log wrangler in to Cloudflare (device code, works in WSL)
 	pnpm wrangler login --device

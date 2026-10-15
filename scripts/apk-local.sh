@@ -2,7 +2,9 @@
 # Build the APK locally (EAS --local, same keystore from Expo) in a Docker container, then copy
 # it to the Windows Downloads folder. WSL + Docker Desktop (WSL integration on).
 # Needs an Expo session: `npx eas login` once (kept in ~/.expo), or EXPO_TOKEN in the environment.
-# Overrides: API_URL (the Worker the app talks to), DOWNLOADS (target folder).
+# Overrides: API_URL (the Worker the app talks to), DOWNLOADS (target folder),
+# PROFILE=dev-client for the development build "Fielder Dev" (make dev-build: debug-signed, no
+# Expo credentials, no bundle inside: it loads the JavaScript from Metro, see make mobile).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -19,7 +21,10 @@ if [ -z "${DOWNLOADS:-}" ]; then
 fi
 [ -d "$DOWNLOADS" ] || { echo "No folder $DOWNLOADS; set DOWNLOADS=…" >&2; exit 1; }
 
+profile="${PROFILE:-apk}"
 commit=$(git rev-parse --short HEAD)
+name="fielder-$commit.apk"
+[ "$profile" = apk ] || name="fielder-$profile-$commit.apk"
 [ -z "$(git status --porcelain)" ] || echo "Note: uncommitted changes are built, but the file is named after $commit."
 out=~/fielder-builds
 mkdir -p "$out" ~/.expo
@@ -30,8 +35,8 @@ docker run --rm \
   -v "$PWD":/work -v ~/.expo:/root/.expo -v "$out":/out -v fielder-gradle:/root/.gradle \
   -e EXPO_TOKEN -e EXPO_PUBLIC_API_URL="${API_URL:-https://fielder-api.fielder-worker.workers.dev}" \
   -w /work/apps/mobile fielder-android \
-  bash -c "node /work/node_modules/eas-cli/bin/run build --local --platform android --profile apk --non-interactive --output /out/fielder-$commit.apk \
-           && chown $(id -u):$(id -g) /out/fielder-$commit.apk"
+  bash -c "node /work/node_modules/eas-cli/bin/run build --local --platform android --profile $profile --non-interactive --output /out/$name \
+           && chown $(id -u):$(id -g) /out/$name"
 
-cp "$out/fielder-$commit.apk" "$DOWNLOADS/"
-echo "APK: $DOWNLOADS/fielder-$commit.apk"
+cp "$out/$name" "$DOWNLOADS/"
+echo "APK: $DOWNLOADS/$name"

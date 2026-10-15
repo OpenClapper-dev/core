@@ -16,7 +16,16 @@
     },
     "dev-client": {
       "extends": "apk",
-      "developmentClient": true
+      "developmentClient": true,
+      "environment": "development",
+      "env": {
+        "APP_VARIANT": "development"
+      },
+      "withoutCredentials": true,
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleDebug"
+      }
     }
   }
 }
