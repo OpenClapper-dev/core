@@ -1,10 +1,10 @@
 # Phone app overview
 
-Designed in Claude Design (2026-09-28). The IA is organised around what happens on a location: shoot, tag, review, find, run the day. The design exports are in the gitignored `references/mobile/`.
+Designed in Claude Design (2026-09-28). The IA is organised around what happens on a location: shoot, tag, review (History), find, run the day. The design exports are in the gitignored `references/mobile/`.
 
 ## Shell (`apps/mobile/App.tsx`, `src/appState.tsx`)
 
-- **Five tabs**: Shoot · Review (badge: unreviewed count) · Shots · Day · Setup. The tab bar is a right-hand column in landscape.
+- **Five tabs**: Shoot · History (badge: unreviewed count) · Shots · Day · Setup. The tab bar is a right-hand column in landscape.
 - **Gates**, full screen, before the tabs (`screens/Gates.tsx`):
   - **Sign in**: on launch without a session, and whenever a request finds it gone. "Sign in with email PIN" opens the Access login in a WebView. "Continue without signing in" keeps shots on the phone.
   - **Pick a project**: when none is active, or the active one no longer exists. "New project" works offline.
@@ -23,7 +23,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 | Tab | Files | What |
 | --- | --- | --- |
 | Shoot | `screens/Viewfinder.tsx`, `screens/Tag.tsx`, `components/LensStrip.tsx`, `RigSheet.tsx`, `LensSheet.tsx`, `Hud.tsx` | [Capture](capture.md): viewfinder, one control row, Tag after each capture |
-| Review | `screens/Review.tsx`, `components/ShotParts.tsx`, `EditTagsSheet.tsx` | The unreviewed queue ([review](review-and-tagging.md)) |
+| History | `screens/History.tsx`, `components/ShotParts.tsx`, `EditTagsSheet.tsx` | The project's shots one at a time, or only the unreviewed ones ([review](review-and-tagging.md#history-on-the-phone)) |
 | Shots | `screens/Shots.tsx`, `screens/ShotDetails.tsx`, `components/LeafletView.tsx`, `mapHtml.ts` | Gallery and Map merged: one filter (All · states · Queued), Grid ⇄ Map; Shot details; [Correct position](positions.md) |
 | Day | `screens/Day.tsx`, `screens/StepThrough.tsx` | [Day mode and offline days](day-mode-offline.md) |
 | Setup | `screens/Setup.tsx`, `screens/SetupScreens.tsx`, `screens/Rigs.tsx`, `screens/Uploads.tsx` | Hub, see below |
@@ -57,7 +57,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 
 - `ui/` (component library, imported as `../ui`; files and components are listed in [design](../design.md#phone-component-library)). Screens build from it; a style that two screens copy belongs there.
 - `ui/chrome.tsx`: `AppHeader`, `PushScreen`, `Block`, `OfflineBanner`, `SyncIcon`, `SyncCard`, `Badge`, `FieldRow`, `ActionBar`.
-- `components/TagEditor.tsx`: the one tag editor (Tag, Review edit, Shot details edit), see [review and tagging](review-and-tagging.md). `components/OptionSheet.tsx`: chips up to 12 options, a search list above, checkboxes for multiple.
+- `components/TagEditor.tsx`: the one tag editor (Tag, History edit, Shot details edit), see [review and tagging](review-and-tagging.md). `components/OptionSheet.tsx`: chips up to 12 options, a search list above, checkboxes for multiple.
 - `components/gestures.ts`: `useSwipe` (PanResponder: horizontal swipe, double-tap).
 - `components/ComposeParts.tsx`: overlay/sketch strip, sheet rows and the full-screen viewer; `components/Markdown.tsx`: native rendering of descriptions ([compose](compose.md)).
 - Data: `src/shots.ts` (`useShots`: server, phone copy, queue and waiting edits merged; labels), `src/localShots.ts` (queued shots as shots, `editShot`, `setPosition`, waiting edits), `src/rigs.ts` (rigs and the one in use, shared by Shoot and Setup), `src/storage.ts` (`usePref` for per-screen choices).

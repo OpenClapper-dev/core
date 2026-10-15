@@ -20,7 +20,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | --- | --- |
 | [features/projects.md](features/projects.md) | Projects as a hard scope, the active project on both clients |
 | [features/capture.md](features/capture.md) | Phone Shoot tab: rigs, lenses, overlay, controls, HUD chips, Tag after capture, sequences, direct upload, upload queue |
-| [features/review-and-tagging.md](features/review-and-tagging.md) | Review workspace (timeline-first), tags (light model, INT/EXT, weather, location), view modes (mask/frame/fit/raw) |
+| [features/review-and-tagging.md](features/review-and-tagging.md) | Tags (light model, INT/EXT, weather, location, spot), the shot view, Metadata board, History on the phone, view modes (mask/frame/fit/raw) |
 | [features/extra-fields.md](features/extra-fields.md) | User-defined fields as JSON, AI import, per-project selection |
 | [features/positions.md](features/positions.md) | GPS modes (High · Low · Off), photos without a position, manual pin correction, location pins and shots synced to them |
 | [features/rig-explorer.md](features/rig-explorer.md) | Framing: re-frame a photo (other rig + lens, moved), saved framings, the root frame, Compare A / B |
@@ -30,7 +30,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/timeline.md](features/timeline.md) | Timelines: rough cuts of photos and overlays with hold times, playback (dashboard only) |
 | [features/day-mode-offline.md](features/day-mode-offline.md) | Phone "Day" tab, offline days, offline project, offline mode, edits kept on the phone |
 | [features/phone-app.md](features/phone-app.md) | Phone shell: 5 tabs, gates, pushed screens, header and sync state, Setup hub, shared components |
-| [features/dashboard.md](features/dashboard.md) | Dashboard shell and sections: Shots (grid/list/map, filters, views), shot view, Review, Plan, Library |
+| [features/dashboard.md](features/dashboard.md) | Dashboard shell and sections: Shots (grid/list/map, filters, views), shot view, Timeline, Plan, Library |
 | [features/debug-log.md](features/debug-log.md) | The phone's background debug log |
 
 ## History

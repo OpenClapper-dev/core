@@ -59,7 +59,7 @@ export function Offline() {
       <Block>
         <SectionLabel>Waiting on this phone</SectionLabel>
         <Text style={s.value}>{sync.pending ? `${sync.pending} shot${sync.pending === 1 ? "" : "s"} to upload` : "No shots to upload"}{edits ? ` · ${edits} edited shot${edits === 1 ? "" : "s"} to sync` : ""}</Text>
-        <Hint>Queued shots show in Shots (filter Queued) and in Review; you can tag, approve or archive them before they upload.</Hint>
+        <Hint>Queued shots show in Shots (filter Queued) and in History; you can tag, approve or archive them before they upload.</Hint>
         <Button kind="secondary" icon="cloud-upload-outline" label="Open Uploads" onPress={() => app.push({ name: "uploads" })} />
       </Block>
       <Block>

@@ -15,6 +15,14 @@ import { fitWidth, FrameModeSeg, ShotFrame, type FrameMode } from "./ShotFrame";
 
 const PAST: Record<Shot["state"], string> = { approved: "Approved", archived: "Archived", unreviewed: "Back to review" };
 
+/** The two state actions that aren't the current state (Shot details, History). */
+export function stateActions(state: Shot["state"]): { state: Shot["state"]; label: string; icon: string; kind: "approve" | "archive" }[] {
+  const back = { state: "unreviewed" as const, label: "Back to review", icon: "undo", kind: "archive" as const };
+  const approve = { state: "approved" as const, label: "Approve", icon: "check", kind: "approve" as const };
+  const archive = { state: "archived" as const, label: "Archive", icon: "archive-outline", kind: "archive" as const };
+  return state === "unreviewed" ? [archive, approve] : state === "approved" ? [back, archive] : [back, approve];
+}
+
 /**
  * Review decisions and deletes, the same everywhere: a toast with Undo. Works offline and on
  * queued shots too (editShot keeps the change on the phone until it can be sent).

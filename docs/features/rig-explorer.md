@@ -1,12 +1,12 @@
 # Framing (re-framing and the rig explorer)
 
-Dashboard shot view (or Review) → stage **Framing** (`R`; `apps/dashboard/src/RigExplorer.tsx`; was "Rigs", [issue #29](https://github.com/bubulux/fielder/issues/29)). The phone usually captures more than the rig frame, so a photo can be **re-framed**: another rig and lens (the size) at another place on the photo (the position). The inspector stays visible.
+Dashboard shot view → stage **Framing** (`R`; `apps/dashboard/src/RigExplorer.tsx`; was "Rigs", [issue #29](https://github.com/bubulux/fielder/issues/29)). The phone usually captures more than the rig frame, so a photo can be **re-framed**: another rig and lens (the size) at another place on the photo (the position). The inspector stays visible.
 
 ## Framings
 
 - **As captured** is the frame the phone recorded (`photos.framing.frame`, centred). It always exists and is never changed.
 - **Saved framings** (`framings` table, per photo): a name, a rig (or "as shot") + lens, and the frame with its centre (`x`, `y`, fractions of the photo).
-- One framing per photo can be the **root** (`photos.root_framing_id`; null = as captured). Every view shows the root: grid, list, map popups, shot view, Review, Plan, Download crop, and on the phone Shots, Review, Shot details, Day and step-through. Deleting the root falls back to as captured.
+- One framing per photo can be the **root** (`photos.root_framing_id`; null = as captured). Every view shows the root: grid, list, map popups, shot view, Timeline, Plan, Download crop, and on the phone Shots, History, Shot details, Day and step-through. Deleting the root falls back to as captured.
 - Size comes only from a rig + lens, so a framing is always something the camera can shoot; there is no free crop. The centre is clamped so the frame stays on the photo; on an axis where the rig sees more than the phone (fraction ≥ 1) it cannot move at all.
 
 ## Using it

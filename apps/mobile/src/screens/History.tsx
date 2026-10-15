@@ -2,31 +2,35 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import type { Shot } from "../api";
 import { useApp } from "../appState";
-import { store, usePref } from "../storage";
-import { ActionBar, AppHeader, BORDER, Button, Empty, IconButton, makeStyles, num, RADIUS, SideBySide, Skeleton, type, useLayoutSize, useRefreshControl, useToastOffset } from "../ui";
+import { usePref } from "../storage";
+import { ActionBar, AppHeader, BORDER, Button, Empty, IconButton, makeStyles, num, RADIUS, Seg, SideBySide, Skeleton, type, useLayoutSize, useRefreshControl, useToastOffset } from "../ui";
 import { EditTagsSheet } from "../components/EditTagsSheet";
 import { PhotoStrip } from "../components/PhotoStrip";
 import { FRAME_MODES, FrameModeSeg, type FrameMode } from "../components/ShotFrame";
-import { FullPhoto, MoreSheet, ShotPhoto, ShotSummary, useShotActions } from "../components/ShotParts";
+import { FullPhoto, MoreSheet, ShotPhoto, ShotSummary, stateActions, useShotActions } from "../components/ShotParts";
 
 /** Portrait decision bar: Prev · n of m · Next, then Archive | Approve. */
 const BAR_H = 10 + 52 + 8 + 52 + 12 + 2;
 
-type ReviewOrder = "newest" | "oldest";
+type HistoryOrder = "newest" | "oldest";
+type HistoryFilter = "all" | "unreviewed";
+const FILTERS = [{ id: "all", label: "All shots" }, { id: "unreviewed", label: "To review" }] as const;
 
 /**
- * Unreviewed shots of the active project (queued ones included), newest first unless switched in
- * the header (remembered), one at a time: photo first, the decision
- * pinned at the thumb. Approve/Archive take the shot out; the next one takes its position (no
- * skip). Edit opens the same tag editor as Tag; Delete lives in ⋯ with Archive as the safe choice.
+ * History (issue #48): the active project's shots (queued ones included), newest first unless switched
+ * in the header, one at a time: photo first, the two states the shot is not in pinned at the thumb.
+ * "To review" narrows it to the unreviewed queue (a decided shot leaves, the next takes its position);
+ * in "All shots" a decision moves on to the next shot. Both choices are remembered. Edit opens the same
+ * tag editor as Tag; Delete lives in ⋯ with Archive as the safe choice.
  */
-export function Review() {
+export function History() {
   const s = useStyles();
   const app = useApp();
   const { width, height } = useWindowDimensions();
   const portrait = height >= width;
   const [mode, setMode] = usePref<FrameMode>("reviewMode.v1", "mask", FRAME_MODES);
-  const [order, setOrder] = usePref<ReviewOrder>("reviewOrder.v1", "newest", ["newest", "oldest"]);
+  const [order, setOrder] = usePref<HistoryOrder>("reviewOrder.v1", "newest", ["newest", "oldest"]);
+  const [filter, setFilter] = usePref<HistoryFilter>("historyFilter.v1", "all", ["all", "unreviewed"]);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [sheet, setSheet] = useState<"edit" | "more" | null>(null);
   const [full, setFull] = useState(false);
@@ -39,7 +43,7 @@ export function Review() {
   const [box, onBox] = useLayoutSize();
   useToastOffset(portrait ? BAR_H : 0);
 
-  const queue = useMemo(() => (shots ?? []).filter((x) => x.state === "unreviewed").sort((a, b) => (order === "newest" ? -1 : 1) * a.captured_at.localeCompare(b.captured_at)), [shots, order]);
+  const queue = useMemo(() => (shots ?? []).filter((x) => filter === "all" || x.state === "unreviewed").sort((a, b) => (order === "newest" ? -1 : 1) * a.captured_at.localeCompare(b.captured_at)), [shots, order, filter]);
   const found = queue.findIndex((x) => x.id === currentId);
   const index = found >= 0 ? found : Math.min(lastIndex, queue.length - 1);
   const current: Shot | null = index >= 0 ? queue[index] : null;
@@ -47,11 +51,13 @@ export function Review() {
   useEffect(() => { setPhotoIndex(0); }, [current?.id]);
   // A new order starts at its top (the newest or the oldest shot), not on the shot that was showing.
   const switchOrder = () => { setOrder(order === "newest" ? "oldest" : "newest"); setCurrentId(null); setLastIndex(0); };
+  const switchFilter = (f: HistoryFilter) => { setFilter(f); setCurrentId(null); setLastIndex(0); };
   const go = (delta: number) => { const nx = queue[index + delta]; if (nx) setCurrentId(nx.id); };
   const decide = async (state: Shot["state"]) => {
     if (!current || busy) return;
     setBusy(true);
-    try { await setState(current, state); } finally { setBusy(false); }
+    const next = filter === "all" ? queue[index + 1] : undefined;
+    try { await setState(current, state); if (next) setCurrentId(next.id); } finally { setBusy(false); }
   };
 
   const header = <AppHeader offlineMeta="Decisions and edits are kept on the phone and sent when you are online."
@@ -62,7 +68,7 @@ export function Review() {
     return (
       <View style={s.root}>{header}
         <ScrollView refreshControl={refresh}>
-          <Empty icon="cloud-alert" title="Couldn't load the review queue" body={`${error}. Queued uploads are safe on the phone.`}>
+          <Empty icon="cloud-alert" title="Couldn't load the shots" body={`${error}. Queued uploads are safe on the phone.`}>
             <Button icon="refresh" label="Try again" onPress={() => void load()} />
           </Empty>
         </ScrollView>
@@ -82,14 +88,16 @@ export function Review() {
       </View>
     );
   }
+  const filterSeg = <Seg block accessibilityLabel="Which shots" value={filter} onChange={switchFilter} options={FILTERS} />;
   if (!current) {
     const approved = shots.filter((x) => x.state === "approved").length;
     const archived = shots.filter((x) => x.state === "archived").length;
     return (
       <View style={s.root}>{header}
         <ScrollView refreshControl={refresh}>
-          <Empty icon="check-all" title="Nothing to review" body={shots.length ? `${approved} approved · ${archived} archived in ${app.project?.name ?? "this project"}. New shots show up here right after capture.` : "New shots show up here right after capture."}>
-            {shots.length > 0 && <Button kind="secondary" icon="view-grid-outline" label="Browse shots" onPress={() => { store.savePref("shotsFilter.v1", "all"); app.setShotsView("grid"); app.setTab("shots"); }} />}
+          {shots.length > 0 && <View style={{ padding: 16, paddingBottom: 0 }}>{filterSeg}</View>}
+          <Empty icon={shots.length ? "check-all" : "camera-outline"} title={shots.length ? "Nothing to review" : "No shots yet"} body={shots.length ? `${approved} approved · ${archived} archived in ${app.project?.name ?? "this project"}. New shots show up here right after capture.` : "New shots show up here right after capture."}>
+            {shots.length > 0 && <Button kind="secondary" icon="history" label="Show all shots" onPress={() => switchFilter("all")} />}
           </Empty>
         </ScrollView>
       </View>
@@ -109,8 +117,7 @@ export function Review() {
   );
   const decisions = (
     <SideBySide>
-      <Button style={{ flex: 1 }} kind="archive" icon="archive-outline" label="Archive" onPress={() => void decide("archived")} disabled={disabled} />
-      <Button style={{ flex: 1 }} kind="approve" icon="check" label="Approve" onPress={() => void decide("approved")} disabled={disabled} />
+      {stateActions(current.state).map((a) => <Button key={a.state} style={{ flex: 1 }} kind={a.kind} icon={a.icon} label={a.label} onPress={() => void decide(a.state)} disabled={disabled} />)}
     </SideBySide>
   );
   const tools = (
@@ -142,7 +149,7 @@ export function Review() {
         </View>
         <View style={s.side}>
           <PhotoStrip shot={current} index={photoIndex} onPick={setPhotoIndex} />
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, gap: 12 }} refreshControl={refresh}>{summary}</ScrollView>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 12, gap: 12 }} refreshControl={refresh}>{filterSeg}{summary}</ScrollView>
           <View style={s.sideBar}>{nav(false)}{decisions}</View>
         </View>
         {sheets}
@@ -156,6 +163,7 @@ export function Review() {
         <ShotPhoto shot={current} index={photoIndex} mode={mode} settings={app.settings} maxW={width} maxH={Math.min(width * 0.75, 262)} onNext={() => go(1)} onPrev={() => go(-1)} onOpen={() => setFull(true)} />
         <View style={{ paddingHorizontal: 12 }}><PhotoStrip shot={current} index={photoIndex} onPick={setPhotoIndex} /></View>
         <View style={s.body}>
+          {filterSeg}
           <FrameModeSeg block value={mode} onChange={setMode} />
           {summary}
         </View>

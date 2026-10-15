@@ -16,17 +16,9 @@ import { LeafletView, type MapHandle } from "../components/LeafletView";
 import { focusScript, positionScript } from "../components/mapHtml";
 import { PhotoStrip } from "../components/PhotoStrip";
 import { FRAME_MODES, FrameModeSeg, type FrameMode } from "../components/ShotFrame";
-import { FullPhoto, MoreSheet, ShotPhoto, ShotSummary, useShotActions } from "../components/ShotParts";
+import { FullPhoto, MoreSheet, ShotPhoto, ShotSummary, stateActions, useShotActions } from "../components/ShotParts";
 
 const time = (iso: string) => new Date(iso).toLocaleString([], { weekday: "short", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
-
-/** The two state actions that aren't the current state. */
-function stateActions(state: Shot["state"]): { state: Shot["state"]; label: string; icon: string; kind: "approve" | "archive" }[] {
-  const back = { state: "unreviewed" as const, label: "Back to review", icon: "undo", kind: "archive" as const };
-  const approve = { state: "approved" as const, label: "Approve", icon: "check", kind: "approve" as const };
-  const archive = { state: "archived" as const, label: "Archive", icon: "archive-outline", kind: "archive" as const };
-  return state === "unreviewed" ? [archive, approve] : state === "approved" ? [back, archive] : [back, approve];
-}
 
 /**
  * A shot as a full screen over the tab: photo (swipe = the neighbours in the list it was opened

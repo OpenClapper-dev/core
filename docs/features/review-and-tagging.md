@@ -19,26 +19,9 @@ All optional, editable at any time (`PATCH /api/shots/:id`). The vocabularies ar
 
 The light model feeds the [schedule](schedule.md): phases are defined by sun elevation.
 
-## Review workspace (dashboard)
-
-Reviewing is finding the shots that carry a sequence, so Review (`Review.tsx`, route `#/review/<timelineId>`, issue #31) is **timeline-first**: the selected cut on stage, the project's shots in a browser beside it. Metadata work stays in the Shots tab's inspector. The stage, strip, clip panel and autosave are the [timeline](timeline.md)'s, shared via `TimelineParts.tsx`; the Timeline page keeps editing the same cuts without the browser.
-
-- **URL**: the playhead and the open inline tool are in the URL (`?t=12.5&tool=reframe`), so a reload or a shared link lands on the same spot with the tool open ([dashboard](dashboard.md)).
-- **Left**: the project's timelines (the rail collapses); **New** (`⇧N`); right-click for Rename, Duplicate (copies the clips' own drawings too), Delete.
-- **Middle**: the timeline's name, length, **presentation lock** (one mode for every clip; the clip panel's presentation controls are inert while locked), **Approve all · n** for the cut's unreviewed shots (once none is left: **Back to review · n** for the approved ones; archived ones stay; Undo in the toast) and save state, the preview with transport (`Space`, ←/→, `Home`/`End`), and the strip — drag along its ruler to **scrub**. **Placeholder** (`P`) appends a placeholder clip.
-- **Right** (a resizable drawer): the **shot browser** (`N` toggles it against the clip panel), or the **clip inspector** for the selected clip. Its tools edit the clip **inline on the stage**, timeline-scoped: **Re-frame** (`R`), **Overlay** (`C`), and for a placeholder **Sketch it** (`C`). See [timeline](timeline.md) → Inline editing and Timeline-scoped edits.
-- **Shot browser**: cards (cover in the global frame mode, SEQ · n on sequences top left like the gallery, state marker top right, name, location · photos · overlays), two per row or **one per row** for bigger covers (the switch in the head), filtered by state ("To review + Approved" by default), location, **timeline** (in this timeline or not) and a search field, newest first. The layout and filters are remembered per browser (`localStorage["reviewBrowser"]`), so they survive leaving Review; a remembered location of another project shows as All locations.
-- **Hover scrub** (issue #39, like Resolve): moving the mouse across a sequence card shows the photo under the pointer (n equal zones, left = first) with a red line and "3 / 7" next to the SEQ badge; leaving shows the cover. The photos preload on the first move. Same on the Shots grid (`ScrubCover` in `ShotCard.tsx`). Dragging the card still adds the whole sequence.
-- **In this timeline** (issue #35): a badge next to the state marker (top right) marks the shots the cut on stage uses, with "×n" when it is used more than once (a sequence block counts once). A shot counts when any clip uses it: a clip of any of its photos (with or without an overlay) or a sketch clip showing one of its sketches. Clicking the badge selects the shot's first clip (a block's first) in the strip, and each further click the next use; the browser stays open. "New shot" opens the [New shot](new-shot.md) dialog. Click selects (`A` approve / `E` archive then act on it, with an Undo toast), double-click opens the shot view, the card's foot always shows the two decisions the shot is not in (Approve green, Archive / Back to review grey), right-click offers Add to timeline, Approve/Archive/Back to review, Open shot, Show on map.
-- **Drag and drop**: drag a card into the strip (an accent line marks the insert position, never inside a sequence block; a sequence comes in as a [block](timeline.md)) or **onto a placeholder** to fill it — the hold time and notes stay; a sequence fills it as a block split across that time. Dropping an unreviewed shot offers "Approve" in a toast: it earned its place. Clips reorder by drag too.
-- Right-clicking a clip offers Re-frame, Overlay (or Sketch it / Edit the sketch), the decisions for the clip's shot (**Approve**, **Archive**, **Back to review**: the two it is not in, with Undo in the toast), Open shot, Duplicate, Remove. The clip panel shows the shot's state with the same decisions, and every photo clip in the strip carries a small state marker, so what in the cut is still unreviewed shows at a glance. No keys for clip decisions yet (`A`/`E` act on the browser's selection; see #32).
-- A shot dropped onto a sketch clip fills it; the clip keeps the sketch and offers **Attach to shot**.
-
-There is no stepper queue any more; the browser's state filter is the queue. The sidebar still counts unreviewed shots.
-
 ## Metadata board (dashboard)
 
-**Metadata** (`MetadataPage.tsx`, route `#/metadata/<field>`, issue #42; its own sidebar section after Review) sets one single-value field on many shots by drag and drop, kanban style.
+**Metadata** (`MetadataPage.tsx`, route `#/metadata/<field>`, issue #42; its own sidebar section after Timeline) sets one single-value field on many shots by drag and drop, kanban style.
 
 - **Head**: the **field** (Location, INT/EXT, Weather, Shot size, Camera support, Review state; multi-value fields and extra fields are not offered), the state filter and search (remembered per browser in `localStorage["metadataBoard"]`), and "n without … · m shots".
 - **Left** (a resizable panel): the shots **without a value**, as cards (hover scrub on sequences); the list empties as you sort. For the review state it holds the unreviewed shots.
@@ -48,7 +31,7 @@ There is no stepper queue any more; the browser's state filter is the queue. The
 
 ## Shot view (dashboard)
 
-The shot view (`ShotView.tsx`) replaces the old dialog. It covers the main area (the sidebar keeps its collapsed or expanded state) and keeps the list it was opened from, from Shots, the map, Plan, Review, Timeline or ⌘K.
+The shot view (`ShotView.tsx`) replaces the old dialog. It covers the main area (the sidebar keeps its collapsed or expanded state) and keeps the list it was opened from, from Shots, the map, Plan, Timeline or ⌘K.
 
 - **Toolbar**: back (Esc) to where it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the view closes (`viewMode` in `App.tsx`). `M` cycles it.
 - **Stage**:
@@ -75,9 +58,13 @@ The shot view (`ShotView.tsx`) replaces the old dialog. It covers the main area 
   - **Shot**: captured, photos, uploaded, the **shooting days** it is planned on (link to Plan) and the **timelines** it is cut into (link to Timeline).
   - **Camera** of the photo on stage: rig, the frame shown (root framing or As captured, and how many framings), body, format, sensor, lens + FF-equivalent, FOV, time, GPS accuracy, fix age and altitude, phone.
   - **Raw metadata**: collapsed, with Copy.
-## Review on the phone
+## Reviewing
 
-The **Review** tab (`screens/Review.tsx`) is a stepper queue (unreviewed, queued shots included, newest first; the header button switches to oldest first and starts at the top of that order, remembered in `reviewOrder.v1`; no skip), photo first, with the decision at the thumb:
+Reviewing is finding the shots that carry a sequence. On the dashboard it happens in the [Timeline](timeline.md) (issue #48 merged the former Review page into it): the cut on stage, the shot browser beside it, decisions on browser cards, clips and the whole cut. The sidebar's Timeline entry counts the unreviewed shots.
+
+## History on the phone
+
+The **History** tab (`screens/History.tsx`, was Review until issue #48) steps through the project's shots one at a time (queued ones included, newest first; the header button switches to oldest first and starts at the top of that order, remembered in `reviewOrder.v1`), photo first, with the decisions at the thumb. **All shots · To review** (remembered in `historyFilter.v1`) narrows it to the unreviewed queue; the tab badge counts the unreviewed shots either way:
 - The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" for sequences and the photo strip under it. **Swipe** on the photo = next/prev shot; the strip moves between photos. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
 - The frame-view switch (remembered in `reviewMode.v1`).
 - The summary:
@@ -86,9 +73,9 @@ The **Review** tab (`screens/Review.tsx`) is a stepper queue (unreviewed, queued
   - rig · lens · capture time
   - **Edit** (pencil) opens the edit sheet: the same tag editor as after a capture, Save pinned; a failure keeps the sheet open with the error.
   - **⋯** opens Shot details, Show on map, Correct position and Delete (a confirm with **Archive** as the safe alternative).
-- **Pinned**: Prev · "n of m" (with the order under it) · Next, then **Archive | Approve**. A decision shows "Approved · Undo" (4 s); the next shot takes the same position.
-- States: skeleton while loading; "Nothing to review" with the project's totals and **Browse shots**; a load error with Try again (pull to refresh too). Offline: the banner; decisions and edits still work and are kept on the phone until they can be sent ([offline](day-mode-offline.md)).
-- Landscape: the photo fills the left with the mode switch floating on it; a 292 dp side panel holds the strip, the summary and the decisions at the bottom.
+- **Pinned**: Prev · "n of m" (with the order under it) · Next, then the two states the shot is not in (unreviewed → Archive | Approve; approved → Back to review | Archive; archived → Back to review | Approve). A decision shows "Approved · Undo" (4 s) and moves on to the next shot; in To review the decided shot leaves and the next takes its position.
+- States: skeleton while loading; "No shots yet", or in To review "Nothing to review" with the project's totals and **Show all shots**; a load error with Try again (pull to refresh too). Offline: the banner; decisions and edits still work and are kept on the phone until they can be sent ([offline](day-mode-offline.md)).
+- Landscape: the photo fills the left with the mode switch floating on it; a 292 dp side panel holds the strip, the filter, the summary and the decisions at the bottom.
 
 **Shot details** (Shots → a shot, or ⋯ → Shot details; `screens/ShotDetails.tsx`) is a full screen:
 - the photo (swipe = the neighbours in the list it was opened from), strip and frame view
@@ -111,7 +98,7 @@ The **Review** tab (`screens/Review.tsx`) is a stepper queue (unreviewed, queued
   - ↑/↓ move, Enter or Tab take the highlighted entry (Tab also moves on), Esc cancels.
   - "Create “…”" makes a new location.
   - The same combobox is used for the project box, rig and format pickers, and the filter builder's single values.
-- **Phone** (`components/TagEditor.tsx`, one editor for Tag, the Review edit sheet and the Shot-details edit):
+- **Phone** (`components/TagEditor.tsx`, one editor for Tag, the History edit sheet and the Shot-details edit):
   - Name, INT/EXT (segmented) and light (chips + Artificial) are edited in place.
   - A **Camera** section: Shot size and Camera support are rows that open a sheet (support carries LAST: it usually stays for a while; size and movement are not remembered), Movement is chips (any number).
   - Location, weather and every extra field are 64 dp rows (`FieldRow`) showing the value, the LAST tag (kept from the last capture) and a chevron; a tap opens a focused sheet:
@@ -127,5 +114,5 @@ The **Review** tab (`screens/Review.tsx`) is a stepper queue (unreviewed, queued
 `mask` (neutral dark mask outside the frame), `frame` (border only), `fit` (crop to exactly the frame), `raw`.
 
 - **Fit** always shows exactly the rig frame. Where the rig saw more than the phone (fraction > 1) the rest stays black, like the live view (`frameLayout` in `apps/dashboard/src/format.ts`, `FramedImage.tsx` on the phone).
-- **Dashboard**: the Shots toolbar switch sets the global mode (`localStorage["maskMode"]`) for the grid, list, map, Plan and Review-browser thumbnails. The shot view has its own switch (above).
-- **Phone**: Review, Shots (shared by grid and map) and step-through remember their own mode (`reviewMode.v1`, `shotsMode.v1`, `stepMode.v1`); Shot details starts from the Shots mode.
+- **Dashboard**: the Shots toolbar switch sets the global mode (`localStorage["maskMode"]`) for the grid, list, map, Plan and the Timeline browser's thumbnails. The shot view has its own switch (above).
+- **Phone**: History, Shots (shared by grid and map) and step-through remember their own mode (`reviewMode.v1`, `shotsMode.v1`, `stepMode.v1`); Shot details starts from the Shots mode.

@@ -109,7 +109,7 @@ export function CaptureSettings() {
   const set = useSet();
   return (
     <PushScreen title="Capture">
-      <Toggle icon="cloud-upload-outline" label="Direct upload" meta="Skip the Tag screen: shots queue untagged; tag them later in Review or the dashboard." value={st.directUpload} onChange={(v) => set("directUpload", v)} />
+      <Toggle icon="cloud-upload-outline" label="Direct upload" meta="Skip the Tag screen: shots queue untagged; tag them later in History or the dashboard." value={st.directUpload} onChange={(v) => set("directUpload", v)} />
       <Block>
         <SectionLabel>GPS</SectionLabel>
         <Seg size="lg" block accessibilityLabel="GPS mode" value={st.gpsMode} onChange={(v) => set("gpsMode", v)} options={[{ id: "high", icon: "crosshairs-gps", label: "High" }, { id: "low", icon: "crosshairs", label: "Low" }, { id: "off", icon: "crosshairs-off", label: "Off" }]} />
