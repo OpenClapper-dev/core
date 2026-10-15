@@ -43,7 +43,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
     - the human-view button (cycle/toggle) and its value
   - **Capture**: direct upload, **GPS** (High · Low · Off, [positions](positions.md)), rig orientation, the screen orientation on launch.
   - **Offline**: offline mode, what waits on the phone, and the project kept on the phone ([offline](day-mode-offline.md)).
-  - **Phone calibration**: the 35 mm-equivalent of the main camera (5–200), with Reset.
+  - **Phone calibration**: the 35 mm-equivalent of the main camera: **From the photos** (EXIF of each capture, with the phone model it came from) or **Manual** (5–200).
   - **Account**: email, session end, Sign out (queued shots stay).
   - **Debug log**: see [debug log](debug-log.md).
 - **Uploads** screen:

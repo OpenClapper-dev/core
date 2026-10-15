@@ -7,7 +7,6 @@ import { isSignedIn, onAuthChange, sessionExpiry, setToken, signedInEmail } from
 import { API_URL, isConfigured } from "../config";
 import { computeOverlay, formatDeg } from "../framing";
 import { clearLog, logCount, logText, setLogging } from "../log";
-import { PHONE } from "../phone";
 import { useRigs } from "../rigs";
 import { store } from "../storage";
 import type { GpsMode, HudChips, Settings } from "../types";
@@ -133,15 +132,21 @@ export function Calibration() {
   const [text, setText] = useState(String(st.phoneEquivalentFocalMm));
   const v = Number(text.replace(",", "."));
   const valid = Number.isFinite(v) && v >= 5 && v <= 200;
+  const auto = st.phoneCalibration === "auto";
   return (
-    <PushScreen title="Phone calibration" sub={PHONE.model}>
+    <PushScreen title="Phone calibration" sub={st.phoneModel ?? "Calibrates with the first photo"}>
       <Block>
         <SectionLabel>Main camera, 35 mm-equivalent</SectionLabel>
-        <Input value={text} keyboardType="decimal-pad" onChangeText={(t) => { setText(t); const n = Number(t.replace(",", ".")); if (Number.isFinite(n) && n >= 5 && n <= 200) set("phoneEquivalentFocalMm", n); }} />
-        {!valid && <ErrorText>Enter a value between 5 and 200 mm.</ErrorText>}
-        <Hint>The spec sheet says {PHONE.mainCameraEquivalentFocalMm} mm. Only change this if the frame is measurably off against a real camera; a smaller value makes the frame smaller on screen.</Hint>
-        {st.phoneEquivalentFocalMm !== PHONE.mainCameraEquivalentFocalMm && (
-          <Button kind="secondary" icon="restore" label={`Reset to ${PHONE.mainCameraEquivalentFocalMm} mm`} onPress={() => { set("phoneEquivalentFocalMm", PHONE.mainCameraEquivalentFocalMm); setText(String(PHONE.mainCameraEquivalentFocalMm)); }} />
+        <Seg block accessibilityLabel="Calibration" value={st.phoneCalibration} onChange={(v) => { set("phoneCalibration", v); setText(String(st.phoneEquivalentFocalMm)); }}
+          options={[{ id: "auto", label: "From the photos" }, { id: "manual", label: "Manual" }]} />
+        {auto ? (
+          <Hint>{st.phoneModel ? `${st.phoneEquivalentFocalMm} mm, from the last photo of the ${st.phoneModel} (EXIF). Each capture checks it again.` : `${st.phoneEquivalentFocalMm} mm until the first photo: then the phone's own EXIF says how wide it sees.`} Switch to Manual if the frame is measurably off against a real camera.</Hint>
+        ) : (
+          <>
+            <Input value={text} keyboardType="decimal-pad" onChangeText={(t) => { setText(t); const n = Number(t.replace(",", ".")); if (Number.isFinite(n) && n >= 5 && n <= 200) set("phoneEquivalentFocalMm", n); }} />
+            {!valid && <ErrorText>Enter a value between 5 and 200 mm.</ErrorText>}
+            <Hint>Kept as typed; photos no longer change it. A smaller value makes the frame smaller on screen.</Hint>
+          </>
         )}
       </Block>
     </PushScreen>
@@ -188,7 +193,7 @@ export function DebugLog() {
     const pending = store.loadPending();
     const text = logText({
       exported: new Date().toISOString(),
-      phone: PHONE.model,
+      phone: `${st.phoneModel ?? "unknown"} · ${st.phoneEquivalentFocalMm} mm-eq (${st.phoneCalibration})`,
       build: `API: ${isConfigured ? API_URL.replace(/^https?:\/\//, "") : "not configured"}`,
       project: app.project ? `${app.project.name} (${app.project.id})` : "none",
       signedIn: signedInEmail() ?? "no",

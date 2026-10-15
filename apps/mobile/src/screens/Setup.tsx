@@ -57,7 +57,7 @@ export function Setup() {
           <ListRow icon="crop-free" title="Viewfinder" meta={`Frame ${colourName(st.borderColor).toLowerCase()} ${st.borderWidthPx} px · blackout ${st.blackoutEnabled ? "on" : "off"} · ${chipCount(st)} HUD chips`} onPress={() => app.push({ name: "viewfinderSettings" })} />
           <ListRow icon="camera-outline" title="Capture" meta={`GPS ${st.gpsMode} · direct upload ${st.directUpload ? "on" : "off"} · rig ${st.rigOrientation}`} onPress={() => app.push({ name: "captureSettings" })} />
           <ListRow icon="cloud-off-outline" title="Offline" meta={[st.offlineMode ? "Offline mode on" : "Offline mode off", offlineProject(app.project?.id ?? null) ? "project on the phone" : null].filter(Boolean).join(" · ")} onPress={() => app.push({ name: "offline" })} />
-          <ListRow icon="tune-variant" title="Phone calibration" meta={`${st.phoneEquivalentFocalMm} mm-eq main camera`} onPress={() => app.push({ name: "calibration" })} />
+          <ListRow icon="tune-variant" title="Phone calibration" meta={`${st.phoneEquivalentFocalMm} mm-eq · ${st.phoneCalibration === "auto" ? "from the photos" : "manual"}`} onPress={() => app.push({ name: "calibration" })} />
           <ListRow icon="account-outline" title="Account" meta={email ?? (isConfigured ? "Not signed in" : "This build has no server")} onPress={() => app.push({ name: "account" })} />
           <ListRow icon="bug-outline" title="Debug log" meta={isLogging() ? `Recording · ${logCount()} entries` : `Off · ${logCount()} entries`} onPress={() => app.push({ name: "debugLog" })} />
         </View>

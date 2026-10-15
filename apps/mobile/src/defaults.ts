@@ -7,6 +7,8 @@ export const HUMAN_STEPS = [35, 43, 50];
 
 export const DEFAULT_SETTINGS: Settings = {
   phoneEquivalentFocalMm: PHONE.mainCameraEquivalentFocalMm,
+  phoneCalibration: "auto",
+  phoneModel: null,
   borderColor: OVERLAY_DEFAULTS.borderColor,
   borderWidthPx: OVERLAY_DEFAULTS.borderWidthPx,
   blackoutEnabled: OVERLAY_DEFAULTS.blackoutEnabled,
