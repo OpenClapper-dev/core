@@ -17,6 +17,28 @@ export const BLUR_FRACTION = 0.02;
 
 export function drawShapes(ctx: CanvasRenderingContext2D, shapes: readonly Shape[], c: CanvasRect) {
   for (const s of shapes) {
+    if (!s.mask?.length) { drawShape(ctx, s, c); continue; }
+    // A masked shape is drawn on its own layer, its mask strokes cut out of it, then the layer is laid on.
+    const layer = document.createElement("canvas");
+    layer.width = ctx.canvas.width; layer.height = ctx.canvas.height;
+    const lc = layer.getContext("2d")!;
+    drawShape(lc, s, c);
+    lc.globalCompositeOperation = "destination-out";
+    lc.lineCap = "round"; lc.lineJoin = "round";
+    for (const m of s.mask) {
+      const w = strokePx(m.width, c);
+      lc.lineWidth = w;
+      lc.beginPath();
+      if (m.points.length === 1) { const [x, y] = toPx(m.points[0], c); lc.arc(x, y, w / 2, 0, Math.PI * 2); lc.fill(); continue; }
+      m.points.forEach((p, i) => { const [x, y] = toPx(p, c); if (i === 0) lc.moveTo(x, y); else lc.lineTo(x, y); });
+      lc.stroke();
+    }
+    ctx.drawImage(layer, 0, 0);
+  }
+}
+
+function drawShape(ctx: CanvasRenderingContext2D, s: Shape, c: CanvasRect) {
+  {
     ctx.save();
     ctx.globalAlpha = s.opacity;
     ctx.strokeStyle = s.color;

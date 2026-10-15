@@ -243,7 +243,7 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
     const canvasOf = (w: number, h: number): CanvasRect => ({ x: (layout.img.left / 100) * w, y: (layout.img.top / 100) * h, w: (layout.img.width / 100) * w, h: (layout.img.height / 100) * h });
     const look = doc.look;
     stage = (
-      <DrawSurface shapes={doc.shapes} onPreview={ed.preview} onCommit={ed.commit} selected={ed.selected} onSelect={ed.setSelected} tool={ed.tool} style={ed.style}
+      <DrawSurface shapes={doc.shapes} onPreview={ed.preview} onCommit={ed.commit} selected={ed.selected} onSelect={ed.setSelected} tool={ed.tool} style={ed.style} mask={ed.mask}
         canvasOf={canvasOf} aspect={layout.aspect} maxHeight={STAGE_H} sketch={false} textEdit={ed.textEdit} onTextEdit={ed.setTextEdit} onTextDone={ed.textDone}
         background={(_size, cv) => (
           <Framed photo={c.photo} mode={pres.mode} frame={frame} className="compose__photo" imgStyle={{ filter: lookFilter(look, cv.w * BLUR_FRACTION) }}>
@@ -270,7 +270,7 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
     );
   } else if (doc.kind === "sketch") {
     stage = (
-      <DrawSurface shapes={doc.shapes} onPreview={ed.preview} onCommit={ed.commit} selected={ed.selected} onSelect={ed.setSelected} tool={ed.tool} style={ed.style}
+      <DrawSurface shapes={doc.shapes} onPreview={ed.preview} onCommit={ed.commit} selected={ed.selected} onSelect={ed.setSelected} tool={ed.tool} style={ed.style} mask={ed.mask}
         canvasOf={(w, h) => ({ x: 0, y: 0, w, h })} aspect={doc.aspect} maxHeight={STAGE_H} sketch background={() => null}
         textEdit={ed.textEdit} onTextEdit={ed.setTextEdit} onTextDone={ed.textDone} />
     );

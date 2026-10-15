@@ -4,8 +4,9 @@
  * Shape and Look panel sections. The caller owns the shapes (they live in its document).
  */
 import { useRef, useState } from "preact/hooks";
-import { COMPOSE_PALETTE, NEUTRAL_LOOK, STENCIL_LABELS, STENCILS, type Look, type Shape, type Stencil } from "@fielder/vocab";
-import { Button, Chip, cx, Icon, IconButton, Input, Kbd, Seg, Switch } from "../ui";
+import { COMPOSE_PALETTE, moveShape, NEUTRAL_LOOK, STENCIL_GROUPS, STENCIL_LABELS, type Look, type Shape, type Stencil } from "@fielder/vocab";
+import { Button, Chip, cx, Icon, IconButton, Input, Kbd, Popover, SearchInput, Seg, Switch } from "../ui";
+import { STENCIL_BOX, STENCIL_PATHS, STENCIL_STROKE } from "./stencils";
 import { defaultStyle, shapeId, TOOLS, WIDTHS, type Style, type TextEdit, type Tool } from "./DrawSurface";
 import { bind } from "../keys";
 
@@ -32,6 +33,9 @@ export interface DrawingEditor {
   removeSel: () => void;
   duplicateSel: () => void;
   nudge: (dx: number, dy: number) => false | void;
+  /** Painting away parts of one shape (issue #46): its id and the brush width; null = off. */
+  mask: { id: string; width: number } | null;
+  setMask: (m: { id: string; width: number } | null) => void;
   textEdit: TextEdit | null;
   setTextEdit: (t: TextEdit | null) => void;
   textDone: (t: TextEdit) => void;
@@ -41,8 +45,12 @@ export interface DrawingEditor {
 
 export function useDrawingEditor(shapes: Shape[], setShapes: (s: Shape[]) => void, sketch: boolean): DrawingEditor {
   const [history, setHistory] = useState<{ past: Shape[][]; future: Shape[][] }>({ past: [], future: [] });
-  const [selected, setSelected] = useState<string | null>(null);
-  const [tool, setTool] = useState<Tool>("pen");
+  const [selected, setSelectedState] = useState<string | null>(null);
+  const [tool, setToolState] = useState<Tool>("pen");
+  const [mask, setMask] = useState<{ id: string; width: number } | null>(null);
+  // Mask painting belongs to one selected shape: another selection or tool ends it.
+  const setSelected = (id: string | null) => { setSelectedState(id); setMask((m) => (m && m.id === id ? m : null)); };
+  const setTool = (t: Tool) => { setToolState(t); setMask(null); };
   const [style, setStyleState] = useState<Style>(() => defaultStyle(sketch));
   const [textEdit, setTextEdit] = useState<TextEdit | null>(null);
   const cur = useRef(shapes); cur.current = shapes;
@@ -57,8 +65,8 @@ export function useDrawingEditor(shapes: Shape[], setShapes: (s: Shape[]) => voi
   const sel = shapes.find((s) => s.id === selected) ?? null;
   const updateSel = (patch: Partial<Shape>) => { if (!sel) return; commit(shapes.map((s) => (s.id === sel.id ? ({ ...s, ...patch } as Shape) : s))); };
   const removeSel = () => { if (!sel) return; commit(shapes.filter((s) => s.id !== sel.id)); setSelected(null); };
-  const duplicateSel = () => { if (!sel) return; const copy = moveBy({ ...sel, id: shapeId() }, 0.03, 0.03); commit([...shapes, copy]); setSelected(copy.id); };
-  const nudge = (dx: number, dy: number) => { if (!sel) return false; commit(shapes.map((s) => (s.id === sel.id ? moveBy(s, dx, dy) : s))); };
+  const duplicateSel = () => { if (!sel) return; const copy = moveShape({ ...sel, id: shapeId() }, 0.03, 0.03); commit([...shapes, copy]); setSelected(copy.id); };
+  const nudge = (dx: number, dy: number) => { if (!sel) return false; commit(shapes.map((s) => (s.id === sel.id ? moveShape(s, dx, dy) : s))); };
   const textDone = (t: TextEdit) => {
     setTextEdit(null);
     const text = t.value.trim();
@@ -80,14 +88,14 @@ export function useDrawingEditor(shapes: Shape[], setShapes: (s: Shape[]) => voi
     if (Object.keys(sp).length) updateSel(sp);
   };
   const reset = (forSketch: boolean) => {
-    setHistory({ past: [], future: [] }); setSelected(null); setTextEdit(null);
+    setHistory({ past: [], future: [] }); setSelected(null); setTextEdit(null); setMask(null);
     // Yellow reads on photos, black on the white sketch canvas.
     setStyleState((s) => ({ ...s, color: forSketch ? (s.color === "#FFD60A" ? "#0B0B0C" : s.color) : s.color === "#0B0B0C" ? "#FFD60A" : s.color }));
   };
   return {
     shapes, preview: setShapes, commit, undo, redo, canUndo: history.past.length > 0, canRedo: history.future.length > 0,
     selected, setSelected, sel, tool, setTool, style, setStyle: setStyleState, setStyleAnd, updateSel, removeSel, duplicateSel, nudge,
-    textEdit, setTextEdit, textDone, reset,
+    mask, setMask, textEdit, setTextEdit, textDone, reset,
   };
 }
 
@@ -103,7 +111,7 @@ export function drawingKeys(ed: DrawingEditor, own: { save: () => void; escape: 
     remove: () => ed.removeSel(),
     nudge: (e) => { const d = step[e.key]; if (d) ed.nudge(d[0], d[1]); },
     save: own.save,
-    escape: own.escape,
+    escape: () => { if (ed.mask) { ed.setMask(null); return; } own.escape(); },
   });
 }
 
@@ -118,7 +126,8 @@ export function DrawToolbar({ ed, compact }: { ed: DrawingEditor; compact?: bool
       </div>
       <Seg label="Stroke width" value={WIDTHS.find((w) => w.w === style.width)?.id ?? "m"} onChange={(id) => ed.setStyleAnd({ width: WIDTHS.find((w) => w.id === id)!.w })} options={WIDTHS.map((w) => ({ id: w.id, label: w.label, title: `Stroke ${w.label}` }))} />
       {(tool === "rect" || tool === "ellipse" || sel?.type === "rect" || sel?.type === "ellipse") && <Chip selected={style.fill} onClick={() => ed.setStyleAnd({ fill: !style.fill })}>Fill</Chip>}
-      {(tool === "stencil" || sel?.type === "stencil") && <Seg label="Stencil" value={style.stencil} onChange={(s) => ed.setStyleAnd({ stencil: s })} options={STENCILS.map((s) => ({ id: s, label: compact ? STENCIL_LABELS[s].slice(0, 3) : STENCIL_LABELS[s] }))} />}
+      {(tool === "stencil" || sel?.type === "stencil") && <StencilPicker value={sel?.type === "stencil" ? sel.stencil : style.stencil} compact={compact} onChange={(s) => ed.setStyleAnd({ stencil: s })} />}
+      {ed.mask && <span class="f-edited" title="Drag over the shape to erase parts of it; Esc or Done ends it">Painting away</span>}
       <div class="btn-row" style={{ gap: "2px" }}>
         <IconButton icon="undo" label="Undo (⌘Z)" title="Undo (⌘Z)" disabled={!ed.canUndo} onClick={ed.undo} />
         <IconButton icon="redo" label="Redo (⌘⇧Z)" title="Redo (⌘⇧Z)" disabled={!ed.canRedo} onClick={ed.redo} />
@@ -139,6 +148,17 @@ export function ShapeSection({ ed }: { ed: DrawingEditor }) {
           {(sel.type === "text" || sel.type === "stencil") && <Range label="Size" value={sel.size} min={0.02} max={0.4} onChange={(v) => { ed.updateSel({ size: v } as Partial<Shape>); ed.setStyle((s) => (sel.type === "text" ? { ...s, textSize: v } : { ...s, stencilSize: v })); }} />}
           {sel.type === "stencil" && <Range label="Rotation" value={sel.rotation} min={-180} max={180} step={5} onChange={(v) => ed.updateSel({ rotation: v } as Partial<Shape>)} format={(v) => `${Math.round(v)}°`} />}
           {sel.type === "text" && <Input sm value={sel.text} maxLength={200} aria-label="Text" onInput={(e) => ed.updateSel({ text: (e.target as HTMLInputElement).value } as Partial<Shape>)} />}
+          <div class="f-field">
+            <span class="f-field__label">Mask · erase parts of this shape only</span>
+            <div class="btn-row">
+              {ed.mask
+                ? <><Seg label="Brush" value={MASK_WIDTHS.find((w) => w.w === ed.mask!.width)?.id ?? "m"} onChange={(id) => ed.setMask({ id: sel.id, width: MASK_WIDTHS.find((w) => w.id === id)!.w })} options={MASK_WIDTHS.map((w) => ({ id: w.id, label: w.label, title: `Brush ${w.label}` }))} />
+                    <Button kind="primary" size="sm" icon="check" onClick={() => ed.setMask(null)}>Done</Button></>
+                : <Button kind="secondary" size="sm" icon="eraser-variant" onClick={() => { ed.setTool("select"); ed.setMask({ id: sel.id, width: MASK_WIDTHS[1].w }); }}>Paint away</Button>}
+              {!!sel.mask?.length && <Button kind="ghost" size="sm" icon="restore" onClick={() => ed.updateSel({ mask: undefined } as Partial<Shape>)}>Restore</Button>}
+            </div>
+            {ed.mask && <span class="meta">Drag over the shape: what you paint disappears from it (the photo shows through). Moving the shape moves the mask; resizing or rotating does not.</span>}
+          </div>
           <div class="btn-row">
             <Button kind="secondary" size="sm" icon="content-duplicate" onClick={ed.duplicateSel}>Duplicate</Button>
             <Button kind="danger" size="sm" icon="delete-outline" kbd="Del" onClick={ed.removeSel}>Remove</Button>
@@ -155,7 +175,7 @@ export function LookSection({ look, onLook }: { look: Look; onLook: (l: Look) =>
   return (
     <div class="f-sec">
       <div class="f-sec__head"><Icon name="tune-variant" />Look<span class="f-sec__aside"><button type="button" class="f-linkbtn" onClick={() => onLook({ ...NEUTRAL_LOOK })}>Reset</button></span></div>
-      <Range label="Exposure" value={look.exposure} min={-1} max={1} onChange={(v) => set({ exposure: v })} format={(v) => `${v > 0 ? "+" : ""}${(v * 3).toFixed(1)} EV`} />
+      <Range label="Exposure" value={look.exposure} min={-3} max={3} step={0.05} onChange={(v) => set({ exposure: v })} format={(v) => `${v > 0 ? "+" : ""}${(v * 2).toFixed(1)} EV`} />
       <Range label="Contrast" value={look.contrast} min={-1} max={1} onChange={(v) => set({ contrast: v })} />
       <Range label="Saturation" value={look.saturation} min={-1} max={1} onChange={(v) => set({ saturation: v })} />
       <Switch on={look.bw} onClick={() => set({ bw: !look.bw })}>Black and white</Switch>
@@ -183,11 +203,53 @@ export function Range({ label, value, min, max, step = 0.01, onChange, format }:
   );
 }
 
-export function moveBy(s: Shape, dx: number, dy: number): Shape {
-  const mv = (p: [number, number]): [number, number] => [p[0] + dx, p[1] + dy];
-  switch (s.type) {
-    case "path": return { ...s, points: s.points.map(mv) };
-    case "line": case "arrow": case "rect": case "ellipse": return { ...s, from: mv(s.from), to: mv(s.to) };
-    case "text": case "stencil": return { ...s, at: mv(s.at) };
-  }
+
+/** Mask brush widths, as a fraction of the canvas width. */
+export const MASK_WIDTHS = [{ id: "s", w: 0.015, label: "S" }, { id: "m", w: 0.035, label: "M" }, { id: "l", w: 0.07, label: "L" }];
+
+/** A stencil glyph as a small inline SVG (picker, buttons). */
+export function StencilGlyph({ name, size = 28 }: { name: Stencil; size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${STENCIL_BOX} ${STENCIL_BOX}`} aria-hidden="true">
+      <path d={STENCIL_PATHS[name]} fill="none" stroke="currentColor" stroke-width={STENCIL_STROKE} stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  );
+}
+
+/** The stencil in use, opening a searchable grid of every stencil by group (issue #46). */
+export function StencilPicker({ value, compact, onChange }: { value: Stencil; compact?: boolean; onChange: (s: Stencil) => void }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const groups = STENCIL_GROUPS.map((g) => ({ ...g, stencils: g.stencils.filter((s) => !needle || STENCIL_LABELS[s].toLowerCase().includes(needle) || s.includes(needle)) })).filter((g) => g.stencils.length);
+  const pick = (s: Stencil) => { onChange(s); setOpen(false); setQ(""); };
+  return (
+    <div class="menu-anchor">
+      <Button kind="secondary" size="sm" iconAfter="chevron-down" aria-expanded={open} title="Stencil" onClick={() => setOpen(!open)}>
+        <span class="stencil-btn"><StencilGlyph name={value} size={18} />{!compact && STENCIL_LABELS[value]}</span>
+      </Button>
+      {open && (
+        <Popover onClose={() => setOpen(false)}>
+          <div class="stencil-picker">
+            <SearchInput value={q} placeholder="Search stencils" aria-label="Search stencils" autoFocus onInput={(e) => setQ((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && groups[0]) pick(groups[0].stencils[0]); if (e.key === "Escape") { e.stopPropagation(); setOpen(false); } }} />
+            {groups.length === 0 && <span class="meta">No stencil matches.</span>}
+            {groups.map((g) => (
+              <section key={g.label}>
+                <h4 class="stencil-picker__group">{g.label}</h4>
+                <div class="stencil-picker__grid">
+                  {g.stencils.map((s) => (
+                    <button key={s} type="button" class={cx("stencil-picker__it", s === value && "is-sel")} title={STENCIL_LABELS[s]} aria-pressed={s === value} onClick={() => pick(s)}>
+                      <StencilGlyph name={s} />
+                      <span>{STENCIL_LABELS[s]}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </Popover>
+      )}
+    </div>
+  );
 }

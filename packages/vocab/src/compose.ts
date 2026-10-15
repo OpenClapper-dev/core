@@ -20,9 +20,39 @@ export const COMPOSE_PALETTE = ["#FFFFFF", "#0B0B0C", "#FF3B30", "#FF9500", "#FF
 /** [x, y] as fractions of the canvas (the raw photo, or the sketch box). */
 export type Point = [number, number];
 
-export const STENCILS = ["camera", "light", "actor", "flag"] as const;
+/** Stencil names: four hand-drawn diagram glyphs, then a curated set from Lucide (ISC; issue #46). The paths live in the dashboard. */
+export const STENCILS = [
+  "camera", "light", "actor", "flag",
+  "video", "clapperboard", "film", "still-camera", "monitor", "tv", "mic", "headphones", "speaker", "drone", "cctv",
+  "bulb", "lamp", "floor-lamp", "desk-lamp", "wall-lamp", "flashlight", "strobe", "sun", "moon", "fire",
+  "person", "group", "standing", "child", "footprints", "eyeline", "dog", "cat",
+  "car", "car-front", "bus", "truck", "bike", "train", "plane", "ship", "sailboat", "caravan",
+  "house", "building", "tower-block", "door", "door-open", "fence", "armchair", "sofa", "bed", "tent", "umbrella", "cone", "barrier", "table-setting", "cup", "glass",
+  "tree", "pine", "trees", "mountain", "water", "cloud",
+  "pin", "crosshair",
+] as const;
 export type Stencil = (typeof STENCILS)[number];
-export const STENCIL_LABELS: Record<Stencil, string> = { camera: "Camera", light: "Light", actor: "Actor", flag: "Flag" };
+export const STENCIL_LABELS: Record<Stencil, string> = {
+  camera: "Camera, top view", light: "Light", actor: "Actor", flag: "Flag",
+  video: "Video camera", clapperboard: "Clapperboard", film: "Film", "still-camera": "Stills camera", monitor: "Monitor", tv: "TV", mic: "Microphone", headphones: "Headphones", speaker: "Speaker", drone: "Drone", cctv: "CCTV",
+  bulb: "Bulb", lamp: "Lamp", "floor-lamp": "Floor lamp", "desk-lamp": "Desk lamp", "wall-lamp": "Wall lamp", flashlight: "Flashlight", strobe: "Strobe", sun: "Sun", moon: "Moon", fire: "Fire",
+  person: "Person", group: "Group", standing: "Standing", child: "Child", footprints: "Footprints", eyeline: "Eyeline", dog: "Dog", cat: "Cat",
+  car: "Car", "car-front": "Car, front", bus: "Bus", truck: "Truck", bike: "Bike", train: "Train", plane: "Plane", ship: "Ship", sailboat: "Sailboat", caravan: "Caravan",
+  house: "House", building: "Building", "tower-block": "Tower block", door: "Door", "door-open": "Door, open", fence: "Fence", armchair: "Armchair", sofa: "Sofa", bed: "Bed", tent: "Tent", umbrella: "Umbrella", cone: "Traffic cone", barrier: "Barrier", "table-setting": "Table setting", cup: "Cup", glass: "Glass",
+  tree: "Tree", pine: "Pine", trees: "Trees", mountain: "Mountain", water: "Water", cloud: "Cloud",
+  pin: "Pin", crosshair: "Crosshair",
+};
+/** The stencil picker's sections, in order. */
+export const STENCIL_GROUPS: readonly { label: string; stencils: readonly Stencil[] }[] = [
+  { label: "Diagram", stencils: ["camera", "light", "actor", "flag"] },
+  { label: "Camera & sound", stencils: ["video", "clapperboard", "film", "still-camera", "monitor", "tv", "mic", "headphones", "speaker", "drone", "cctv"] },
+  { label: "Light", stencils: ["bulb", "lamp", "floor-lamp", "desk-lamp", "wall-lamp", "flashlight", "strobe", "sun", "moon", "fire"] },
+  { label: "People & animals", stencils: ["person", "group", "standing", "child", "footprints", "eyeline", "dog", "cat"] },
+  { label: "Vehicles", stencils: ["car", "car-front", "bus", "truck", "bike", "train", "plane", "ship", "sailboat", "caravan"] },
+  { label: "Set & props", stencils: ["house", "building", "tower-block", "door", "door-open", "fence", "armchair", "sofa", "bed", "tent", "umbrella", "cone", "barrier", "table-setting", "cup", "glass"] },
+  { label: "Nature & weather", stencils: ["tree", "pine", "trees", "mountain", "water", "cloud"] },
+  { label: "Marks", stencils: ["pin", "crosshair"] },
+];
 
 interface ShapeBase {
   id: string;
@@ -32,7 +62,15 @@ interface ShapeBase {
   width: number;
   /** 0..1 */
   opacity: number;
+  /**
+   * Strokes that erase parts of this shape only (issue #46), in canvas fractions like the shape. Moving
+   * the shape moves them; resizing or rotating does not.
+   */
+  mask?: MaskStroke[];
 }
+/** A freehand eraser stroke of a shape's mask; `width` like a shape's stroke width. */
+export interface MaskStroke { width: number; points: Point[] }
+export const MAX_MASK_STROKES = 200;
 export type Shape =
   | (ShapeBase & { type: "path"; points: Point[] })
   | (ShapeBase & { type: "line" | "arrow" | "rect" | "ellipse"; from: Point; to: Point; fill?: boolean })
@@ -43,7 +81,7 @@ export const SHAPE_TYPES: readonly ShapeType[] = ["path", "line", "arrow", "rect
 
 /** Overlay look, applied under the drawing. All neutral = the photo as captured. */
 export interface Look {
-  /** −1..1, 0 = as captured (maps to CSS brightness 0.25..4). */
+  /** −3..3, 0 = as captured; brightness 4^exposure, so one unit is 2 EV (±6 EV; issue #46 widened it from ±1). */
   exposure: number;
   /** −1..1 */
   contrast: number;
@@ -116,6 +154,13 @@ function validateShape(v: unknown, i: number): string | null {
   if (typeof s.color !== "string" || !HEX_RE.test(s.color)) return `${at}.color must be a #rrggbb colour`;
   if (!num(s.width, 0, 0.2)) return `${at}.width must be 0..0.2 (fraction of the canvas width)`;
   if (!num(s.opacity, 0, 1)) return `${at}.opacity must be 0..1`;
+  if (s.mask !== undefined) {
+    if (!Array.isArray(s.mask) || s.mask.length > MAX_MASK_STROKES) return `${at}.mask must be up to ${MAX_MASK_STROKES} strokes`;
+    for (const m of s.mask as unknown[]) {
+      const k = m as Record<string, unknown> | null;
+      if (!k || !num(k.width, 0, 0.5) || !Array.isArray(k.points) || k.points.length === 0 || k.points.length > MAX_PATH_POINTS || !k.points.every(point)) return `${at}.mask strokes need a width (0..0.5) and 1..${MAX_PATH_POINTS} points`;
+    }
+  }
   switch (s.type as ShapeType) {
     case "path":
       if (!Array.isArray(s.points) || s.points.length === 0 || s.points.length > MAX_PATH_POINTS) return `${at}.points must be 1..${MAX_PATH_POINTS} points`;
@@ -132,7 +177,7 @@ function validateShape(v: unknown, i: number): string | null {
       return null;
     case "stencil":
       if (!point(s.at)) return `${at}.at must be an [x, y] pair`;
-      if (!STENCILS.includes(s.stencil as Stencil)) return `${at}.stencil must be one of ${STENCILS.join(", ")}`;
+      if (!STENCILS.includes(s.stencil as Stencil)) return `${at}.stencil "${String(s.stencil)}" is not a known stencil`;
       if (!num(s.size, 0.01, 1)) return `${at}.size must be 0.01..1`;
       if (!num(s.rotation, -360, 360)) return `${at}.rotation must be degrees within ±360`;
       return null;
@@ -142,7 +187,8 @@ function validateShape(v: unknown, i: number): string | null {
 export function validateLook(v: unknown): string | null {
   if (typeof v !== "object" || v === null || Array.isArray(v)) return "look must be an object";
   const l = v as Record<string, unknown>;
-  for (const k of ["exposure", "contrast", "saturation"] as const) if (!num(l[k], -1, 1)) return `look.${k} must be −1..1`;
+  if (!num(l.exposure, -3, 3)) return "look.exposure must be −3..3";
+  for (const k of ["contrast", "saturation"] as const) if (!num(l[k], -1, 1)) return `look.${k} must be −1..1`;
   if (typeof l.bw !== "boolean") return "look.bw must be true or false";
   if (l.tint !== null && (typeof l.tint !== "string" || !HEX_RE.test(l.tint))) return "look.tint must be a #rrggbb colour or null";
   for (const k of ["tint_opacity", "vignette", "blur"] as const) if (!num(l[k], 0, 1)) return `look.${k} must be 0..1`;
@@ -209,10 +255,11 @@ export function shapeBounds(s: Shape, aspect: number): { x0: number; y0: number;
 /** The shape moved by (dx, dy) canvas fractions. */
 export function moveShape(s: Shape, dx: number, dy: number): Shape {
   const mv = (p: Point): Point => [p[0] + dx, p[1] + dy];
+  const m = s.mask ? { mask: s.mask.map((k) => ({ ...k, points: k.points.map(mv) })) } : {};
   switch (s.type) {
-    case "path": return { ...s, points: s.points.map(mv) };
-    case "line": case "arrow": case "rect": case "ellipse": return { ...s, from: mv(s.from), to: mv(s.to) };
-    case "text": case "stencil": return { ...s, at: mv(s.at) };
+    case "path": return { ...s, ...m, points: s.points.map(mv) };
+    case "line": case "arrow": case "rect": case "ellipse": return { ...s, ...m, from: mv(s.from), to: mv(s.to) };
+    case "text": case "stencil": return { ...s, ...m, at: mv(s.at) };
   }
 }
 
@@ -235,7 +282,7 @@ export function simplifyPoints(points: Point[], tolerance = 0.002): Point[] {
 /** The CSS `filter` string for a look (brightness, contrast, saturate, grayscale, blur in px). */
 export function lookFilter(l: Look, blurPx: number): string {
   const parts: string[] = [];
-  if (l.exposure !== 0) parts.push(`brightness(${(l.exposure >= 0 ? 1 + l.exposure * 3 : 1 + l.exposure * 0.75).toFixed(3)})`);
+  if (l.exposure !== 0) parts.push(`brightness(${(4 ** l.exposure).toFixed(4)})`);
   if (l.contrast !== 0) parts.push(`contrast(${(1 + l.contrast).toFixed(3)})`);
   if (l.saturation !== 0) parts.push(`saturate(${(l.saturation >= 0 ? 1 + l.saturation * 2 : 1 + l.saturation).toFixed(3)})`);
   if (l.bw) parts.push("grayscale(1)");
