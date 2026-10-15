@@ -114,15 +114,20 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       physical: device.physicalDevices.map((p) => ({ id: p.id, type: p.type, focal_mm: p.focalLength ?? null })),
     });
   }, [device?.id]);
-  /** Called when the session runs: the controller knows the real zoom range (the device may report 0 before). */
+  /**
+   * Called when the session runs: now the zoom range is known (the device reports 0 before the camera
+   * opens). The controller is set around onStarted, so look a few times before falling back to the device.
+   */
   const onCameraStarted = () => {
     setCameraReady(true);
-    const ctl = camera.current?.controller;
-    if (ctl && ctl.maxZoom >= 1) {
-      const r = { min: ctl.minZoom, max: ctl.maxZoom };
-      log("info", "camera started", { min_zoom: r.min, max_zoom: r.max, zoom: ctl.zoom, display_zoom: ctl.displayableZoomFactor, stops: zoomStops(r) });
-      if (r.min !== zoomRange?.min || r.max !== zoomRange?.max) { setZoomRange(r); store.saveZoomRange(r); }
-    } else log("warn", "camera started without a controller", {});
+    const read = (tries: number) => {
+      const ctl = camera.current?.controller;
+      if (!ctl && tries > 0) { setTimeout(() => read(tries - 1), 150); return; }
+      const r = ctl && ctl.maxZoom >= 1 ? { min: ctl.minZoom, max: ctl.maxZoom } : device && device.maxZoom >= 1 ? { min: device.minZoom, max: device.maxZoom } : null;
+      log(r ? "info" : "warn", "camera started", { from: ctl ? "controller" : "device", min_zoom: r?.min ?? null, max_zoom: r?.max ?? null, zoom: ctl?.zoom ?? null, display_zoom: ctl?.displayableZoomFactor ?? null, stops: zoomStops(r) });
+      if (r && (r.min !== zoomRange?.min || r.max !== zoomRange?.max)) { setZoomRange(r); store.saveZoomRange(r); }
+    };
+    read(5);
   };
 
   // Permissions and background sync on launch.
