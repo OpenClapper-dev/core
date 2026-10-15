@@ -4,7 +4,7 @@
 
 - **Upload images**: drop images or choose files (up to 60). They are scaled to 2048 px on the long edge and sent as JPEG; transparent PNGs get a white background. Several images become **one shot with a sequence** in the shown order (reorder with ‹, remove with ✕), or **one shot each** (names get " 2", " 3", …).
 - **Draw a sketch**: the compose editor's tools on a blank canvas (16:9, 4:3, 1:1, 3:4). On create, the drawing is rendered to a 1600 px PNG that becomes the shot's photo, and the vector drawing is kept as the shot's first **sketch** ([compose](compose.md)), so it stays editable there.
-- **Side panel**: project (only in "All projects"), name, location (search or create), review state (starts from Settings › New shot › Review state: Approved by default, since the shot is added on purpose; To review for those who review everything) and a description.
+- **Side panel**: name, location (search or create), review state (starts from Settings › New shot › Review state: Approved by default, since the shot is added on purpose; To review for those who review everything) and a description.
 - After creating, the shot view opens on the new shot (or the first of several).
 
 ## What such a shot is

@@ -163,7 +163,7 @@ export function ShotView(p: Props) {
         </section>
         )}
         {stage !== "compose" && (
-          <Inspector shot={shot} photo={photo} projects={p.projects} fields={p.fieldsOf(shot.project_id)} locations={p.locations} onLocations={p.onLocations}
+          <Inspector shot={shot} photo={photo} projects={p.projects} fields={p.fieldsOf(shot.project_id)} fieldsOf={p.fieldsOf} locations={p.locations} onLocations={p.onLocations}
             onUpdated={p.onUpdated} onState={(s) => void setState(s)} stateBusy={busy} onCorrect={() => p.onStage("position")} onCompose={() => p.onStage("compose")} onOpenDay={p.onOpenDay} onOpenTimeline={p.onOpenTimeline} />
         )}
       </div>

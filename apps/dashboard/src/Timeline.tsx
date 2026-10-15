@@ -7,7 +7,7 @@ import { afterG, useKeys } from "./keys";
 import type { CutPosition } from "./router";
 import { useSettings } from "./settings";
 import { ClipMenu, ClipPanel, clock, CutDecision, duplicateUnit, insertAfterUnit, insertShot, moveUnitTo, normalizeGroups, restorePhotos, setGroup, stepUnit, ungroup, withoutClip, CutPreview, DRAWER_RESIZE, LockSelect, TimelineRail, newPlaceholder, resolveClips, setShotState, Strip, useCut, useCutUrl, useTimelineStore, type ResolvedClip } from "./TimelineParts";
-import { Banner, Button, Checkbox, Empty, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, SaveStatus, Select, toast, Toolbar, ToolbarTitle, useCtxMenu, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, Empty, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, SaveStatus, Select, toast, useCtxMenu, type SaveState } from "./ui";
 
 /**
  * Timeline (issue #12, part 2): rough cuts of a project out of its photos. A clip is one photo,
@@ -18,9 +18,7 @@ import { Banner, Button, Checkbox, Empty, Field, Icon, IconButton, Input, Kbd, L
  */
 
 interface Props {
-  project: Project | null;
-  projects: Project[];
-  onPickProject: (id: string) => void;
+  project: Project;
   /** The project's shots. */
   shots: Shot[];
   presets: Preset[];
@@ -33,30 +31,16 @@ interface Props {
   onUpdated: (s: Shot | Shot[]) => void;
 }
 
-export function TimelinePage({ project, projects, onPickProject, shots, presets, mask, timelineId, at, onTimeline, onOpen, onUpdated }: Props) {
-  const projectId = project?.id ?? null;
+export function TimelinePage({ project, shots, presets, mask, timelineId, at, onTimeline, onOpen, onUpdated }: Props) {
+  const projectId = project.id;
   const store = useTimelineStore((set, fail) => {
-    if (!projectId) return;
     fetchTimelines(projectId).then((t) => { set(t); if (!timelineId || !t.some((x) => x.id === timelineId)) onTimeline(t[0]?.id ?? null); }).catch(fail);
   }, [projectId]);
   const { list, save } = store;
-  const create = async () => { if (projectId) { const t = await store.create(projectId); if (t) onTimeline(t.id); } };
+  const create = async () => { const t = await store.create(projectId); if (t) onTimeline(t.id); };
   const remove = async (t: Timeline) => { if (await store.remove(t)) onTimeline(null); };
-  useKeys({ "Shift+N": () => void create() }, !!projectId);
+  useKeys({ "Shift+N": () => void create() });
 
-  if (!project) {
-    return (
-      <>
-        <Toolbar><ToolbarTitle>Timeline</ToolbarTitle></Toolbar>
-        <Empty icon="folder-outline" title="Pick a project to cut">
-          Timelines belong to one project.
-          <div class="f-menu" style={{ marginTop: "12px", width: "300px", textAlign: "left" }}>
-            {projects.map((p) => <MenuItem key={p.id} icon="folder-outline" count={`${p.shot_count} shots`} onClick={() => onPickProject(p.id)}>{p.name}</MenuItem>)}
-          </div>
-        </Empty>
-      </>
-    );
-  }
   const current = list?.find((t) => t.id === timelineId) ?? null;
   return (
     <div class="f-app__body">

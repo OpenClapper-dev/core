@@ -8,7 +8,7 @@ import { afterG, useKeys } from "./keys";
 import type { CutPosition } from "./router";
 import { useSettings } from "./settings";
 import { ClipMenu, ClipPanel, clock, CutDecision, CutPreview, DRAWER_RESIZE, duplicateUnit, fillSpot, insertAfterUnit, insertShot, moveUnitTo, normalizeGroups, restorePhotos, setGroup, stepUnit, ungroup, withoutClip, duplicateTimeline, LockSelect, TimelineRail, newPlaceholder, resolveClips, setShotState, shotDrag, shotUsage, DECISIONS, Strip, useCut, useCutUrl, useTimelineStore, type Cut, type ResolvedClip } from "./TimelineParts";
-import { Banner, Button, ContextMenu, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, MenuItem, Panel, PanelBody, PanelHead, promptDialog, SaveStatus, Seg, Select, StateMarker, toast, Toolbar, ToolbarTitle, useCtxMenu, type SaveState } from "./ui";
+import { Banner, Button, ContextMenu, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, MenuItem, Panel, PanelBody, PanelHead, promptDialog, SaveStatus, Seg, Select, StateMarker, toast, useCtxMenu, type SaveState } from "./ui";
 
 /**
  * Review as a timeline-first workspace (issue #31): the selected cut on stage, the project's shots
@@ -19,9 +19,7 @@ import { Banner, Button, ContextMenu, cx, Empty, EmptyNote, Field, Icon, IconBut
  */
 
 interface Props {
-  project: Project | null;
-  projects: Project[];
-  onPickProject: (id: string) => void;
+  project: Project;
   /** The project's shots. */
   shots: Shot[];
   presets: Preset[];
@@ -37,15 +35,14 @@ interface Props {
 }
 
 export function ReviewPage(p: Props) {
-  const projectId = p.project?.id ?? null;
+  const projectId = p.project.id;
   const store = useTimelineStore((set, fail) => {
-    if (!projectId) return;
     fetchTimelines(projectId).then((t) => { set(t); if (!p.timelineId || !t.some((x) => x.id === p.timelineId)) p.onTimeline(t[0]?.id ?? null); }).catch(fail);
   }, [projectId]);
   const { list, save } = store;
-  const create = async () => { if (projectId) { const t = await store.create(projectId); if (t) p.onTimeline(t.id); } };
+  const create = async () => { const t = await store.create(projectId); if (t) p.onTimeline(t.id); };
   const railMenu = useCtxMenu<Timeline>();
-  useKeys({ "Shift+N": () => void create() }, !!projectId);
+  useKeys({ "Shift+N": () => void create() });
 
   async function rename(t: Timeline) {
     const name = await promptDialog({ title: "Rename timeline", input: { label: "Name", value: t.name }, confirmLabel: "Rename" });
@@ -61,19 +58,6 @@ export function ReviewPage(p: Props) {
   }
   const remove = async (t: Timeline) => { if (await store.remove(t)) p.onTimeline(null); };
 
-  if (!p.project) {
-    return (
-      <>
-        <Toolbar><ToolbarTitle>Review</ToolbarTitle></Toolbar>
-        <Empty icon="folder-outline" title="Pick a project to review">
-          Reviewing builds a cut, and timelines belong to one project.
-          <div class="f-menu" style={{ marginTop: "12px", width: "300px", textAlign: "left" }}>
-            {p.projects.map((pr) => <MenuItem key={pr.id} icon="folder-outline" count={`${pr.shot_count} shots`} onClick={() => p.onPickProject(pr.id)}>{pr.name}</MenuItem>)}
-          </div>
-        </Empty>
-      </>
-    );
-  }
   const current = list?.find((t) => t.id === p.timelineId) ?? null;
   return (
     <div class="f-app__body">

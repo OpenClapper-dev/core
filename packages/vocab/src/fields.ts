@@ -32,7 +32,7 @@ export interface FieldDef {
 }
 
 /** A stored definition (one top-level field, possibly a group). */
-export interface FieldDefinition { id: string; key: string; definition: FieldDef; created_at: string; updated_at: string | null }
+export interface FieldDefinition { id: string; /** The one project the field belongs to; `position` orders it there. */ project_id: string; position: number; key: string; definition: FieldDef; created_at: string; updated_at: string | null }
 
 const KEY_RE = /^[a-z][a-z0-9_]{0,39}$/;
 const MAX_DEPTH = 4;

@@ -168,8 +168,8 @@ export function positionOf(s: Shot): { lat: number; lon: number } | null {
 }
 
 /** Locations and projects share this shape as far as the app is concerned. */
-interface ServerNamed { id: string; name: string; created_at: string; field_ids?: string[] }
-const namedFromServer = (l: ServerNamed): LocationEntry => ({ id: l.id, name: l.name, createdAt: l.created_at, synced: true });
+interface ServerNamed { id: string; name: string; created_at: string; field_ids?: string[]; project_id?: string }
+const namedFromServer = (l: ServerNamed) => ({ id: l.id, name: l.name, createdAt: l.created_at, synced: true });
 
 type Cursor = { before: string; before_id: string } | null;
 interface ShotsPage { shots: Shot[]; next: Cursor }
@@ -203,14 +203,14 @@ export const api = {
 
   listLocations: async (): Promise<LocationEntry[]> => {
     const r = await call<{ locations: ServerNamed[] }>("/api/locations");
-    return r.locations.map(namedFromServer);
+    return r.locations.map((l): LocationEntry => ({ ...namedFromServer(l), projectId: l.project_id ?? "" }));
   },
-  /** Upsert; a 409 means another location already has this name (ApiError.body.existing_id). */
+  /** Upsert; a 409 means another location of the project already has this name (ApiError.body.existing_id). */
   putLocation: (l: LocationEntry) =>
     call<{ location: ServerNamed }>(`/api/locations/${l.id}`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: l.name }),
+      body: JSON.stringify({ project_id: l.projectId, name: l.name }),
     }),
 
   listDays: (projectId: string) => call<{ days: ShootingDay[] }>(`/api/days?project_id=${projectId}`).then((r) => r.days),

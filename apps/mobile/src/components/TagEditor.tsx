@@ -27,6 +27,8 @@ const INT_EXT_OPTIONS = [{ id: "int", label: "INT", icon: "home-outline" }, { id
 interface Props {
   value: TagDraft;
   onChange: (v: TagDraft) => void;
+  /** The shot's project: its locations are offered, new ones are created in it. */
+  projectId: string;
   locations: LocationEntry[];
   countAt: (locationId: string) => number;
   /** The project's extra fields, in its order. */
@@ -81,8 +83,9 @@ const shown = (v: ExtraValue | undefined): string | null =>
  * The one tag editor (Tag after capture, Review edit, Shot details edit). INT/EXT and light are
  * one tap in place; location, weather and every extra field are 64 dp rows that open a sheet.
  */
-export function TagEditor({ value, onChange, locations, countAt, fields, projectName, remembered, onTouched, lastLocationId }: Props) {
+export function TagEditor({ value, onChange, projectId, locations: allLocations, countAt, fields, projectName, remembered, onTouched, lastLocationId }: Props) {
   const s = useStyles();
+  const locations = useMemo(() => allLocations.filter((l) => l.projectId === projectId), [allLocations, projectId]);
   const [open, setOpen] = useState<Open>(null);
   /** Dependent selects emptied by a parent change: shown with an error line until picked again. */
   const [cleared, setCleared] = useState<Set<string>>(new Set());
@@ -173,7 +176,7 @@ export function TagEditor({ value, onChange, locations, countAt, fields, project
         </>
       )}
 
-      <LocationSheet visible={open?.kind === "location"} onClose={() => setOpen(null)} locations={locations} countAt={countAt} lastId={lastLocationId ?? null}
+      <LocationSheet visible={open?.kind === "location"} onClose={() => setOpen(null)} projectId={projectId} locations={locations} countAt={countAt} lastId={lastLocationId ?? null}
         selectedId={newLocation ? newLocation.id : tags.location_id}
         onPick={(l, created) => set({ location_id: l?.id ?? null }, "location_id", l && (created || l.id === newLocation?.id) ? l : null)} extra={newLocation} />
       <OptionSheet visible={open?.kind === "weather"} title="Weather" columns={2} options={WEATHER.map((w) => ({ id: w, label: label(w), icon: WEATHER_ICONS[w] }))}
@@ -208,7 +211,7 @@ function LabelWithLast({ text, last }: { text: string; last: boolean }) {
  * Search or create a location. Empty query: the last used first, then by shots there. Typing:
  * prefix matches first, then contains; "Create “…”" is the first row unless the name exists.
  */
-function LocationSheet({ visible, onClose, locations, countAt, lastId, selectedId, onPick, extra }: { visible: boolean; onClose: () => void; locations: LocationEntry[]; countAt: (id: string) => number; lastId: string | null; selectedId: string | null; onPick: (l: LocationEntry | null, created: boolean) => void; extra: LocationEntry | null }) {
+function LocationSheet({ visible, onClose, projectId, locations, countAt, lastId, selectedId, onPick, extra }: { visible: boolean; onClose: () => void; projectId: string; locations: LocationEntry[]; countAt: (id: string) => number; lastId: string | null; selectedId: string | null; onPick: (l: LocationEntry | null, created: boolean) => void; extra: LocationEntry | null }) {
   const s = useStyles();
   const { c } = useTheme();
   const [q, setQ] = useState("");
@@ -221,7 +224,7 @@ function LocationSheet({ visible, onClose, locations, countAt, lastId, selectedI
   const exact = all.find((l) => l.name.trim().toLowerCase() === name.toLowerCase());
   const close = () => { setQ(""); onClose(); };
   const pick = (l: LocationEntry, created = false) => { onPick(selectedId === l.id ? null : l, created); close(); };
-  const create = () => pick({ id: Crypto.randomUUID(), name, createdAt: new Date().toISOString(), synced: false }, true);
+  const create = () => pick({ id: Crypto.randomUUID(), projectId, name, createdAt: new Date().toISOString(), synced: false }, true);
   return (
     <Sheet visible={visible} title="Location" onClose={close} height={0.86} scroll={false}>
       <SheetSearch value={q} onChangeText={setQ} placeholder="Search or type a new location" autoFocus autoCapitalize="words" maxLength={80} onSubmitEditing={() => { if (exact) pick(exact); else if (name) create(); }} />

@@ -50,16 +50,16 @@ export function IconButton({ icon, label, kind = "ghost", size = "sm", btnRef, c
 
 interface ReorderItem { label: string; title?: string }
 
-/** Move up / move down / remove for an item of an ordered list. Disables up on the first item and down on the last. */
+/** Move up / move down (/ remove, when given) for an item of an ordered list. Disables up on the first item and down on the last. */
 export function ReorderButtons({ index, count, onMove, onRemove, up = { label: "Move up" }, down = { label: "Move down" }, remove }: {
-  index: number; count: number; onMove: (index: number, delta: -1 | 1) => void; onRemove: () => void;
-  up?: ReorderItem; down?: ReorderItem; remove: ReorderItem;
+  index: number; count: number; onMove: (index: number, delta: -1 | 1) => void; onRemove?: () => void;
+  up?: ReorderItem; down?: ReorderItem; remove?: ReorderItem;
 }) {
   return (
     <>
       <IconButton icon="arrow-up" label={up.label} title={up.title} disabled={index === 0} onClick={() => onMove(index, -1)} />
       <IconButton icon="arrow-down" label={down.label} title={down.title} disabled={index === count - 1} onClick={() => onMove(index, 1)} />
-      <IconButton icon="close" label={remove.label} title={remove.title} onClick={onRemove} />
+      {onRemove && remove && <IconButton icon="close" label={remove.label} title={remove.title} onClick={onRemove} />}
     </>
   );
 }

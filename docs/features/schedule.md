@@ -19,7 +19,6 @@ Dashboard **Plan** (`apps/dashboard/src/Plan.tsx`, route `#/plan/<dayId>`), per 
   - Keys: ↑/↓ move between rows, Alt+↑/↓ reorder, `T` focuses the time, Del removes, Enter opens.
   - "Sort by planned time".
 - **Add shots** (`N`): a side panel, so the day stays visible. It lists approved shots (untick to see all) not yet on the day, grouped by location, filterable by location, each with its window for that date. Click a row to add it, or "Add all" for a location.
-- "All projects" cannot plan: the page offers the projects to pick from.
 
 ## Light math (`packages/vocab/src/daylight.ts`, tested)
 

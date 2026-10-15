@@ -18,7 +18,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 
 | Page | What it covers |
 | --- | --- |
-| [features/projects.md](features/projects.md) | Projects, the active project on both clients, "All projects" |
+| [features/projects.md](features/projects.md) | Projects as a hard scope, the active project on both clients |
 | [features/capture.md](features/capture.md) | Phone Shoot tab: rigs, lenses, overlay, controls, HUD chips, Tag after capture, sequences, direct upload, upload queue |
 | [features/review-and-tagging.md](features/review-and-tagging.md) | Review workspace (timeline-first), tags (light model, INT/EXT, weather, location), view modes (mask/frame/fit/raw) |
 | [features/extra-fields.md](features/extra-fields.md) | User-defined fields as JSON, AI import, per-project selection |
