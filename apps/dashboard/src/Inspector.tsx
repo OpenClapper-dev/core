@@ -53,7 +53,7 @@ interface Props {
   onOpenTimeline: (projectId: string, timelineId: string) => void;
 }
 
-/** Right-hand inspector of the shot view and Review: decision, tags (saved per change), facts. */
+/** Right-hand inspector of the shot view: decision, tags (saved per change), facts. */
 export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, onLocations, spots, onSpots, onUpdated, onState, stateBusy, onCorrect, onCompose, onOpenDay, onOpenTimeline }: Props) {
   const [save, setSave] = useState<SaveState>("idle");
   const last = useRef<Parameters<typeof patchShot>[1] | null>(null);

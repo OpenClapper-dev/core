@@ -993,7 +993,7 @@ export const toolFits = (tool: EditKind, c: ResolvedClip) =>
  * Restores the URL's cut position once on mount, then keeps it in the URL 300 ms after the playhead
  * or the tool settles. Playback ticks every 100 ms, so it writes when playback stops, not during it.
  */
-export function useCutUrl(page: "review" | "timeline", timelineId: string, clips: ResolvedClip[], cut: Cut, editing: EditKind | null, onEdit: (kind: EditKind, c: ResolvedClip) => void, at: CutPosition | null | undefined) {
+export function useCutUrl(timelineId: string, clips: ResolvedClip[], cut: Cut, editing: EditKind | null, onEdit: (kind: EditKind, c: ResolvedClip) => void, at: CutPosition | null | undefined) {
   const restored = useRef(false);
   useEffect(() => {
     restored.current = true;
@@ -1006,7 +1006,7 @@ export function useCutUrl(page: "review" | "timeline", timelineId: string, clips
   const ms = cut.playheadMs;
   useEffect(() => {
     if (!restored.current) return;
-    const id = setTimeout(() => writeCutPosition(page, timelineId, { ms, tool: editing }), 300);
+    const id = setTimeout(() => writeCutPosition(timelineId, { ms, tool: editing }), 300);
     return () => clearTimeout(id);
   }, [ms, editing]);
 }

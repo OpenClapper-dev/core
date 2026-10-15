@@ -80,12 +80,11 @@ export function CommandPalette(p: Props) {
 }
 
 const SHORTCUTS: [string, [string, string][]][] = [
-  ["Everywhere", [["⌘K / Ctrl K", "Go to…"], ["?", "This sheet"], ["G then S · R · P · T · L · M", "Shots · Review · Plan · Timeline · Library · Map"], ["/", "Focus search"], ["M", "Cycle the frame mode"], ["Ctrl B / ⌘B", "Collapse or expand the sidebar"], ["Esc", "Close or back out one level"]]],
+  ["Everywhere", [["⌘K / Ctrl K", "Go to…"], ["?", "This sheet"], ["G then S · T · P · L · M", "Shots · Timeline · Plan · Library · Map"], ["/", "Focus search"], ["M", "Cycle the frame mode"], ["Ctrl B / ⌘B", "Collapse or expand the sidebar"], ["Esc", "Close or back out one level"]]],
   ["Shots", [["F", "Filter panel"], ["← ↑ → ↓", "Move in the grid"], ["J / K", "Move in the list"], ["X · ⇧X", "Select · select range"], ["↵", "Open"], ["E", "Edit selected"], ["⇧M", "Move selected"], ["Del", "Delete selected"]]],
   ["Shot view", [["← / →", "Previous / next shot"], [", / .", "Previous / next photo"], ["A", "Approve"], ["E", "Archive / back to review"], ["R", "Framing stage"], ["C", "Compose"]]],
-  ["Review", [["← / →", "Previous / next clip"], ["Space", "Play / pause"], ["Drag", "Shots into the strip · reorder clips · ruler scrubs"], ["A / E", "Approve / archive the selected shot"], ["R / C", "Re-frame / compose the clip"], ["P", "Placeholder"], ["N", "Shots panel"], ["Right-click", "Actions on shots, clips, timelines"]]],
   ["Plan", [["↑ / ↓", "Move between planned shots"], ["Alt ↑ / ↓", "Reorder"], ["T", "Planned time"], ["Del", "Remove from the day"], ["N", "Add shots"], ["⇧N", "New day"]]],
-  ["Timeline", [["← / →", "Previous / next clip"], ["Space", "Play / pause"], ["Alt ← / → · drag", "Reorder"], ["D", "Hold time"], ["Del", "Remove clip"], ["N", "Add shots"], ["P", "Placeholder"], ["⇧N", "New timeline"], ["↵", "Open the shot"]]],
+  ["Timeline", [["← / →", "Previous / next clip"], ["Space", "Play / pause"], ["Drag", "Shots into the strip · reorder clips · ruler scrubs"], ["Alt ← / →", "Reorder"], ["A / E", "Approve / archive the browser's shot"], ["R / C", "Re-frame / compose the clip"], ["D", "Hold time"], ["Del", "Remove clip"], ["N", "Shots panel ⇄ clip panel"], ["P", "Placeholder"], ["⇧N", "New timeline"], ["↵", "Open the shot"], ["Right-click", "Actions on shots, clips, timelines"]]],
   ["Compose (shot view)", [["C", "Open Compose"], ["V · P · L · A · R · O · T · S · E", "Select · Pen · Line · Arrow · Rectangle · Ellipse · Text · Stencil · Eraser"], ["1 – 0", "Colour"], ["⌘Z / ⌘⇧Z", "Undo / redo"], ["Del", "Remove the selected shape"], [", .", "Photo of the sequence"], ["⌘S", "Save"], ["Esc", "Deselect · close · back"]]],
   ["Combobox", [["↑ / ↓", "Move"], ["↵ / Tab", "Take the highlighted entry"], ["Esc", "Cancel"]]],
 ];

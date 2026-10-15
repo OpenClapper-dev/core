@@ -60,10 +60,9 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
       <ScopeSwitch rail={rail} scope={scope} name={scopeName} projects={projects} onScope={onScope} onManage={() => onNavigate({ page: "library", section: "projects", id: null })} />
       <div style={{ height: "10px" }} />
       {nav("shots", "view-grid-outline", "Shots", { page: "shots", viewId: null }, counts.shots)}
-      {nav("review", "checkbox-marked-outline", "Review", { page: "review", timelineId: null }, counts.unreviewed, true)}
+      {nav("timeline", "filmstrip", "Timeline", { page: "timeline", timelineId: null }, counts.unreviewed, true)}
       {nav("metadata", "tag-multiple-outline", "Metadata", { page: "metadata", field: "location" })}
       {nav("plan", "calendar-clock", "Plan", { page: "plan", dayId: null })}
-      {nav("timeline", "filmstrip", "Timeline", { page: "timeline", timelineId: null })}
       {nav("library", "bookshelf", "Library", { page: "library", section: lib ?? "projects", id: null })}
       {!rail && section === "library" && (
         <>
