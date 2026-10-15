@@ -14,6 +14,7 @@ import { registerLocationRoutes } from "./locations.ts";
 import { registerPresetRoutes } from "./presets.ts";
 import { registerProjectRoutes } from "./projects.ts";
 import { registerShotRoutes } from "./shots.ts";
+import { registerSpotRoutes } from "./spots.ts";
 import { registerTimelineRoutes } from "./timelines.ts";
 import { registerViewRoutes } from "./views.ts";
 
@@ -61,6 +62,7 @@ registerProjectRoutes(router);
 registerFieldRoutes(router);
 registerDayRoutes(router);
 registerLocationRoutes(router);
+registerSpotRoutes(router);
 registerShotRoutes(router);
 registerViewRoutes(router);
 registerComposeRoutes(router);
