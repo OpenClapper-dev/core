@@ -3,7 +3,7 @@ import { COMPOSE_PALETTE, SKETCH_ASPECTS, type Shape } from "@fielder/vocab";
 import { createShot, existingIdOf, putLocation, putSketch, type Location, type NewShotPhoto, type Shot, type ShotState } from "./api";
 import { defaultStyle, DrawSurface, TOOLS, WIDTHS, type Style, type TextEdit, type Tool } from "./compose/DrawSurface";
 import { renderSketch } from "./compose/render";
-import { useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import { getSettings } from "./settings";
 import { Button, Chip, Combobox, cx, Field, Icon, IconButton, Input, MarkdownField, Modal, Seg, toast } from "./ui";
 
@@ -75,7 +75,7 @@ export function NewShotDialog({ projectId, locations, onLocations, onClose, onCr
     if (t.id) { commit(text ? shapes.map((s) => (s.id === t.id ? ({ ...s, text } as Shape) : s)) : shapes.filter((s) => s.id !== t.id)); return; }
     if (text) commit([...shapes, { id: crypto.randomUUID().slice(0, 12), type: "text", at: t.at, text, size: style.textSize, color: style.color, width: 0, opacity: style.opacity }]);
   };
-  useKeys({ "Mod+z": undo, Delete: () => { if (selected) { commit(shapes.filter((s) => s.id !== selected)); setSelected(null); } } }, mode === "draw");
+  useKeys(bind("newshot", { undo, remove: () => { if (selected) { commit(shapes.filter((s) => s.id !== selected)); setSelected(null); } } }), mode === "draw");
 
   async function pickLocation(id: string | null, createName?: string) {
     if (!createName) { setLocation(id); return; }

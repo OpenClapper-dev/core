@@ -4,7 +4,7 @@ import { guardCut, useClipEditing, type EditKind } from "./ClipEditing";
 import { placeLabel, shotTitle } from "./format";
 import type { MaskMode } from "./Framed";
 import { ScrubCover, SeqBadges } from "./ShotCard";
-import { afterG, useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import type { CutPosition } from "./router";
 import { useSettings } from "./settings";
 import { ClipMenu, ClipPanel, clock, CutDecision, CutPreview, DRAWER_RESIZE, duplicateUnit, fillSpot, insertAfterUnit, insertShot, moveUnitTo, normalizeGroups, restorePhotos, setGroup, stepUnit, ungroup, withoutClip, duplicateTimeline, LockSelect, TimelineRail, newPlaceholder, resolveClips, setShotState, shotDrag, shotUsage, DECISIONS, Strip, useCut, useCutUrl, useTimelineStore, type Cut, type ResolvedClip } from "./TimelineParts";
@@ -42,7 +42,7 @@ export function TimelinePage(p: Props) {
   const { list, save } = store;
   const create = async () => { const t = await store.create(projectId); if (t) p.onTimeline(t.id); };
   const railMenu = useCtxMenu<Timeline>();
-  useKeys({ "Shift+N": () => void create() });
+  useKeys(bind("timeline", { newTimeline: () => void create() }));
 
   async function rename(t: Timeline) {
     const name = await promptDialog({ title: "Rename timeline", input: { label: "Name", value: t.name }, confirmLabel: "Rename" });
@@ -183,22 +183,28 @@ function Workspace(p: WorkspaceProps) {
     } catch (e) { toast(`Attaching failed: ${(e as Error).message}`, "danger"); }
   }
 
-  useKeys({
-    ArrowRight: () => cut.step(1),
-    ArrowLeft: () => cut.step(-1),
-    Home: () => clips[0] && selectClip(clips[0].clip.id),
-    End: () => clips.at(-1) && selectClip(clips.at(-1)!.clip.id),
-    " ": cut.toggle,
-    "Alt+ArrowRight": () => { if (cur) move(cur, 1); },
-    "Alt+ArrowLeft": () => { if (cur) move(cur, -1); },
-    Delete: () => { if (cur && panel === "clip") removeClip(cur); },
-    d: () => durRef.current?.focus(),
-    n: () => setPanel(panel === "browser" ? "clip" : "browser"),
-    p: addPlaceholder,
-    r: () => { if (afterG()) return false; if (cur?.kind === "photo") edit("reframe", cur); },
-    c: () => { if (afterG()) return false; if (cur) edit(cur.kind === "photo" ? "overlay" : "sketch", cur); },
-    Enter: () => { if (cur) open(cur); },
-  }, !inline.editing);
+  useKeys(bind("timeline", {
+    next: () => cut.step(1),
+    prev: () => cut.step(-1),
+    first: () => clips[0] && selectClip(clips[0].clip.id),
+    last: () => clips.at(-1) && selectClip(clips.at(-1)!.clip.id),
+    play: cut.toggle,
+    later: () => { if (cur) move(cur, 1); },
+    earlier: () => { if (cur) move(cur, -1); },
+    panel: () => setPanel(panel === "browser" ? "clip" : "browser"),
+    placeholder: addPlaceholder,
+    reframe: () => { if (cur?.kind === "photo") edit("reframe", cur); },
+    compose: () => { if (cur) edit(cur.kind === "photo" ? "overlay" : "sketch", cur); },
+    open: () => { if (cur) open(cur); },
+  }), !inline.editing);
+  // The clip panel's keys: decisions on the clip's shot (issue #35 asked for them), hold time, remove.
+  const clipShot = cur?.kind === "photo" ? cur.shot : null;
+  useKeys(bind("clip", {
+    approve: () => { if (clipShot) void setShotState(clipShot, "approved", p.onUpdated); },
+    archive: () => { if (clipShot) void setShotState(clipShot, clipShot.state === "archived" ? "unreviewed" : "archived", p.onUpdated); },
+    hold: () => durRef.current?.focus(),
+    remove: () => { if (cur) removeClip(cur); },
+  }), !inline.editing && panel === "clip" && !!cur);
 
   return (
     <>
@@ -309,10 +315,10 @@ function Browser(p: BrowserProps) {
   const selected = list.find((s) => s.id === sel) ?? null;
 
   const decide = (s: Shot, to: Shot["state"]) => void setShotState(s, to, p.onUpdated);
-  useKeys({
-    a: () => { if (selected) decide(selected, "approved"); },
-    e: () => { if (selected) decide(selected, selected.state === "archived" ? "unreviewed" : "archived"); },
-  }, !!selected);
+  useKeys(bind("browser", {
+    approve: () => { if (selected) decide(selected, "approved"); },
+    archive: () => { if (selected) decide(selected, selected.state === "archived" ? "unreviewed" : "archived"); },
+  }), !!selected);
 
   const unreviewed = p.shots.filter((s) => s.state === "unreviewed").length;
   return (

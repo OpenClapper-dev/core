@@ -7,6 +7,7 @@ import { useRef, useState } from "preact/hooks";
 import { COMPOSE_PALETTE, NEUTRAL_LOOK, STENCIL_LABELS, STENCILS, type Look, type Shape, type Stencil } from "@fielder/vocab";
 import { Button, Chip, cx, Icon, IconButton, Input, Kbd, Seg, Switch } from "../ui";
 import { defaultStyle, shapeId, TOOLS, WIDTHS, type Style, type TextEdit, type Tool } from "./DrawSurface";
+import { bind } from "../keys";
 
 export interface DrawingEditor {
   shapes: Shape[];
@@ -91,20 +92,19 @@ export function useDrawingEditor(shapes: Shape[], setShapes: (s: Shape[]) => voi
 }
 
 /** The editor's keys: tools, colours, undo/redo, remove and nudge the selected shape. */
-export function drawingKeys(ed: DrawingEditor): Record<string, () => void | boolean> {
-  return {
-    "Mod+z": () => ed.undo(),
-    "Mod+Z": () => ed.redo(), // ⌘⇧Z: keys.ts names a shifted letter by its upper case
-    "Mod+y": () => ed.redo(),
-    Delete: () => ed.removeSel(),
-    Backspace: () => ed.removeSel(),
-    ArrowLeft: () => ed.nudge(-0.005, 0),
-    ArrowRight: () => ed.nudge(0.005, 0),
-    ArrowUp: () => ed.nudge(0, -0.005),
-    ArrowDown: () => ed.nudge(0, 0.005),
-    ...Object.fromEntries(TOOLS.map((t) => [t.key.toLowerCase(), () => ed.setTool(t.id)])),
-    ...Object.fromEntries(COMPOSE_PALETTE.map((c, i) => [String((i + 1) % 10), () => ed.setStyleAnd({ color: c })])),
-  };
+export function drawingKeys(ed: DrawingEditor, own: { save: () => void; escape: () => void }) {
+  const step: Record<string, [number, number]> = { ArrowLeft: [-0.005, 0], ArrowRight: [0.005, 0], ArrowUp: [0, -0.005], ArrowDown: [0, 0.005] };
+  return bind("draw", {
+    ...Object.fromEntries(TOOLS.map((t) => [t.id, () => ed.setTool(t.id)])),
+    // 1–9 then 0 pick the palette in order.
+    colour: (e) => { const c = COMPOSE_PALETTE[(Number(e.key) + 9) % 10]; if (c) ed.setStyleAnd({ color: c }); },
+    undo: () => ed.undo(),
+    redo: () => ed.redo(),
+    remove: () => ed.removeSel(),
+    nudge: (e) => { const d = step[e.key]; if (d) ed.nudge(d[0], d[1]); },
+    save: own.save,
+    escape: own.escape,
+  });
 }
 
 /** Tools, colours, stroke width, fill/stencil options and undo/redo. */

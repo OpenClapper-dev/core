@@ -9,6 +9,7 @@ for p in packages/vocab packages/fov-math apps/worker apps/dashboard apps/mobile
 pnpm -C packages/vocab test        # fields, filters, daylight
 pnpm -C packages/fov-math test     # FOV, overlay, reframe
 (cd apps/mobile && node --test src/*.test.ts)
+pnpm -C apps/dashboard test         # shortcut registry: collisions, docs/shortcuts.md
 (cd apps/dashboard && npx vite build)
 (cd apps/mobile && npx expo export --platform android --output-dir /tmp/fielder-export)   # proves Metro can bundle
 ```

@@ -149,11 +149,10 @@ export function Compose(p: Props) {
     } catch (e) { toast(`Reorder failed: ${(e as Error).message}`, "danger"); }
   }
 
-  useKeys({
-    ...drawingKeys(ed),
-    "Mod+s": () => { void doSave(); },
-    Escape: () => { if (ed.textEdit) { ed.setTextEdit(null); return; } if (ed.selected) { ed.setSelected(null); return; } if (dirty) { void p.guard.current?.().then((ok: boolean) => { if (ok) { close(); } }); return; } if (doc) { close(); return; } p.onBack(); },
-  });
+  useKeys(drawingKeys(ed, {
+    save: () => { void doSave(); },
+    escape: () => { if (ed.textEdit) { ed.setTextEdit(null); return; } if (ed.selected) { ed.setSelected(null); return; } if (dirty) { void p.guard.current?.().then((ok: boolean) => { if (ok) { close(); } }); return; } if (doc) { close(); return; } p.onBack(); },
+  }));
 
   // ----- presentation (overlay) -----
   const setPresentation = (patch: Partial<Presentation>) => setDoc((d) => (d && d.kind === "overlay" ? { ...d, presentation: { ...d.presentation, ...patch } } : d));

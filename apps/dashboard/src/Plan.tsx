@@ -4,7 +4,7 @@ import { deleteDay, fetchDays, putDay, type DayShot, type Project, type Shot, ty
 import { cover, positionOf, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateDays } from "./Inspector";
-import { useKeys } from "./keys";
+import { bind, useKeys } from "./keys";
 import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, Select, Spinner, toast, type SaveState } from "./ui";
 import { fetchForecast, weatherText, type HourForecast } from "./weather";
 
@@ -89,7 +89,7 @@ export function PlanPage({ project, shots, mask, dayId, onDay, onOpen }: Props) 
     try { await deleteDay(d.id); invalidateDays(d.project_id); setDays((cur) => (cur ?? []).filter((x) => x.id !== d.id)); onDay(null); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
 
-  useKeys({ "Shift+N": () => void create() });
+  useKeys(bind("plan", { newDay: () => void create() }));
 
 
   const day = days?.find((d) => d.id === dayId) ?? null;
@@ -150,16 +150,16 @@ function DayEditor({ day, shots, mask, onChange, onDelete, onOpen, save, savedAt
   const focused = planned[focus];
   const idxOf = (ds: DayShot) => day.shots.indexOf(ds);
 
-  useKeys({
-    ArrowDown: () => setFocus((f) => Math.min(planned.length - 1, f + 1)),
-    ArrowUp: () => setFocus((f) => Math.max(0, f - 1)),
-    "Alt+ArrowUp": () => focused && move(idxOf(focused.ds), -1),
-    "Alt+ArrowDown": () => focused && move(idxOf(focused.ds), 1),
-    t: () => { rowsRef.current?.querySelectorAll<HTMLInputElement>(".f-time input")[focus]?.focus(); },
-    Delete: () => { if (focused) setShots(day.shots.filter((x) => x !== focused.ds)); },
-    n: () => setAdding((a) => !a),
-    Enter: () => { if (focused) onOpen(focused.shot, plannedList); },
-  });
+  useKeys(bind("plan", {
+    down: () => setFocus((f) => Math.min(planned.length - 1, f + 1)),
+    up: () => setFocus((f) => Math.max(0, f - 1)),
+    earlier: () => focused && move(idxOf(focused.ds), -1),
+    later: () => focused && move(idxOf(focused.ds), 1),
+    time: () => { rowsRef.current?.querySelectorAll<HTMLInputElement>(".f-time input")[focus]?.focus(); },
+    remove: () => { if (focused) setShots(day.shots.filter((x) => x !== focused.ds)); },
+    add: () => setAdding((a) => !a),
+    open: () => { if (focused) onOpen(focused.shot, plannedList); },
+  }));
 
   // Consecutive shots of the same location form a group, keeping the day's order.
   const groups: { name: string; items: { ds: DayShot; shot: Shot; flat: number }[] }[] = [];
@@ -313,7 +313,7 @@ function AddShotsPanel({ shots, light, taken, mask, onAdd, onClose }: { shots: S
   const locations = [...new Map(shots.map((s) => [s.location_id ?? "none", s.location_name ?? "No location"])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
   const byLocation = new Map<string, Shot[]>();
   for (const s of candidates) { const k = s.location_name ?? "No location"; byLocation.set(k, [...(byLocation.get(k) ?? []), s]); }
-  useKeys({ Escape: onClose });
+  useKeys(bind("plan", { closeAdd: onClose }));
   return (
     <Panel label="Add shots" width="340px">
       <PanelHead title="Add shots"><Kbd>N</Kbd><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead>

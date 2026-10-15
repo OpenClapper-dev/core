@@ -5,7 +5,7 @@ import { deleteFraming, putFraming, setRootFraming, type Photo, type Preset, typ
 import { capturedFrameOf, frameLayout, imageAspect, sourceRigOf, type FrameGeometry } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { FromTimelines } from "./FromTimelines";
-import { useKeys } from "./keys";
+import { bind, NUDGE, useKeys } from "./keys";
 import { Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, promptDialog, Seg, Select, toast, ToolbarSpacer } from "./ui";
 
 /**
@@ -137,13 +137,14 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
     try { onUpdated(await deleteFraming(saved.id)); onState({ ...state, framingId: null, a: { rig: AS_SHOT, lensMm: photo.lens_mm }, centre: CENTRE }); toast("Framing deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
 
-  useKeys({
-    ArrowLeft: () => stepLens(-1), ArrowRight: () => stepLens(1),
-    "Shift+ArrowLeft": () => nudge(-0.01, 0), "Shift+ArrowRight": () => nudge(0.01, 0), "Shift+ArrowUp": () => nudge(0, -0.01), "Shift+ArrowDown": () => nudge(0, 0.01),
-    "Mod+s": () => { if (saved && dirty) void save(saved.id, saved.name, isRoot(saved.id)); else if (!saved && !isCaptured) void saveAsNew(); },
-    Escape: onBack,
-  }, state.view === "one");
-  useKeys({ Escape: onBack }, state.view === "compare");
+  useKeys(bind("framing", {
+    lensDown: () => stepLens(-1),
+    lensUp: () => stepLens(1),
+    nudge: (e) => { const d = NUDGE[e.key]; if (d) nudge(d[0], d[1]); },
+    save: () => { if (saved && dirty) void save(saved.id, saved.name, isRoot(saved.id)); else if (!saved && !isCaptured) void saveAsNew(); },
+    back: onBack,
+  }), state.view === "one");
+  useKeys(bind("framing", { back: onBack }), state.view === "compare");
 
   if (!source) return <><div class="f-stage__bar"><span class="grow" /><Button kind="ghost" size="sm" kbd="Esc" onClick={onBack}>Back to photo</Button></div><div class="f-stage__view" style={{ color: "#fff" }}><Empty icon="crop-free" title="No framing data">{photo.source === "camera" ? "This photo cannot be re-framed." : "Uploaded and drawn images have no rig: there is nothing to re-frame."}</Empty></div></>;
 

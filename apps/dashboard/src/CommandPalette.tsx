@@ -4,6 +4,7 @@ import type { Location, Project, SavedView, Shot, ShootingDay } from "./api";
 import { cover, placeLabel, shotTitle } from "./format";
 import { Framed } from "./Framed";
 import { cx, Highlight, Icon, IconButton, Kbd, Modal, Overlay } from "./ui";
+import { keysLabel, SCOPES, shortcutsOf, type ScopeId } from "./shortcuts";
 
 export interface Command { id: string; group: string; icon: string; title: string; sub?: string; shot?: Shot; keys?: string; run: () => void }
 
@@ -79,25 +80,27 @@ export function CommandPalette(p: Props) {
   );
 }
 
-const SHORTCUTS: [string, [string, string][]][] = [
-  ["Everywhere", [["⌘K / Ctrl K", "Go to…"], ["?", "This sheet"], ["G then S · T · P · L · M", "Shots · Timeline · Plan · Library · Map"], ["/", "Focus search"], ["M", "Cycle the frame mode"], ["Ctrl B / ⌘B", "Collapse or expand the sidebar"], ["Esc", "Close or back out one level"]]],
-  ["Shots", [["F", "Filter panel"], ["← ↑ → ↓", "Move in the grid"], ["J / K", "Move in the list"], ["X · ⇧X", "Select · select range"], ["↵", "Open"], ["E", "Edit selected"], ["⇧M", "Move selected"], ["Del", "Delete selected"]]],
-  ["Shot view", [["← / →", "Previous / next shot"], [", / .", "Previous / next photo"], ["A", "Approve"], ["E", "Archive / back to review"], ["R", "Framing stage"], ["C", "Compose"]]],
-  ["Plan", [["↑ / ↓", "Move between planned shots"], ["Alt ↑ / ↓", "Reorder"], ["T", "Planned time"], ["Del", "Remove from the day"], ["N", "Add shots"], ["⇧N", "New day"]]],
-  ["Timeline", [["← / →", "Previous / next clip"], ["Space", "Play / pause"], ["Drag", "Shots into the strip · reorder clips · ruler scrubs"], ["Alt ← / →", "Reorder"], ["A / E", "Approve / archive the browser's shot"], ["R / C", "Re-frame / compose the clip"], ["D", "Hold time"], ["Del", "Remove clip"], ["N", "Shots panel ⇄ clip panel"], ["P", "Placeholder"], ["⇧N", "New timeline"], ["↵", "Open the shot"], ["Right-click", "Actions on shots, clips, timelines"]]],
-  ["Compose (shot view)", [["C", "Open Compose"], ["V · P · L · A · R · O · T · S · E", "Select · Pen · Line · Arrow · Rectangle · Ellipse · Text · Stencil · Eraser"], ["1 – 0", "Colour"], ["⌘Z / ⌘⇧Z", "Undo / redo"], ["Del", "Remove the selected shape"], [", .", "Photo of the sequence"], ["⌘S", "Save"], ["Esc", "Deselect · close · back"]]],
-  ["Combobox", [["↑ / ↓", "Move"], ["↵ / Tab", "Take the highlighted entry"], ["Esc", "Cancel"]]],
-];
+/** The registry (shortcuts.ts) as a grid of sections: the `?` sheet and Settings › Shortcuts. */
+export function ShortcutList() {
+  return (
+    <>
+      {(Object.keys(SCOPES) as ScopeId[]).map((id) => {
+        const list = shortcutsOf(id);
+        return list.length > 0 && (
+          <section key={id}><h3 class="section-title">{SCOPES[id].label}</h3><dl class="f-facts">{list.map((s) => <Fragment key={s.action}><dt><Kbd>{keysLabel(s)}</Kbd></dt><dd>{s.label}</dd></Fragment>)}</dl></section>
+        );
+      })}
+    </>
+  );
+}
 
 export function ShortcutSheet({ onClose }: { onClose: () => void }) {
   return (
     <Modal title="Keyboard shortcuts" width="720px" tabIndex={-1} modalRef={(el) => el?.focus()} onClose={onClose} onKeyDown={(e) => { if (e.key === "Escape" || e.key === "?") { e.stopPropagation(); onClose(); } }}
       headAction={<IconButton icon="close" label="Close (Esc)" size="md" onClick={onClose} />}>
         <div class="f-modal__body shortcut-grid">
-          {SHORTCUTS.map(([group, rows]) => (
-            <section key={group}><h3 class="section-title">{group}</h3><dl class="f-facts">{rows.map(([k, t]) => <Fragment key={k}><dt><Kbd>{k}</Kbd></dt><dd>{t}</dd></Fragment>)}</dl></section>
-          ))}
-          <p class="meta" style={{ gridColumn: "1 / -1", margin: 0 }}>Single keys never fire while you type in a field.</p>
+          <ShortcutList />
+          <p class="meta" style={{ gridColumn: "1 / -1", margin: 0 }}>Single keys never fire while you type in a field. Also in Settings › Shortcuts.</p>
         </div>
     </Modal>
   );

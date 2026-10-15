@@ -50,11 +50,13 @@ Designed in Claude Design (2026-09-28): four sections plus a shot view, a sideba
 - **Map**: the result list on the left and one state pin per shot (shots captured without GPS stay in the list as "No position · not on the map"); selecting a row focuses its pin and opens the popup (framed thumbnail, state, "Open details"). "Fit all" fits the pins. "Show on map" from a shot switches to this layout with the pin focused and the filter kept (cleared when the shot is outside it).
 - States: skeleton cards while loading, "No shots in <project> yet" (switch scope), "No shots match" (edit or clear the filter), a load-error banner with Retry.
 
-## Keyboard (all shortcuts in `?`)
+## Keyboard
 
-- Everywhere: ⌘K / Ctrl K palette (shots, locations, views, days, projects, actions), `?`, `G` then `S`/`T`/`P`/`L`/`M` for Shots, Timeline, Plan, Library, Map, `/` search, `M` frame mode, Esc backs out one level.
-- Shots list: `X`/`⇧X` select, `E` edit the selection, `⇧M` move it, Del delete it.
-- Kept from before: ←/→ shots, `,`/`.` photos, the combobox keys. Single keys never fire while typing in a field (`keys.ts`).
+Every shortcut is declared once in the registry `src/shortcuts.ts` (issue #32): scope, action, keys, label and the hint-bar text. Pages bind handlers by action (`useKeys(bind("timeline", { next, play, … }))` in `keys.ts`), so no page writes a key string. The `?` sheet, **Settings › Shortcuts** (`#/settings/shortcuts`, read-only, no rebinding yet), the hint bar and [docs/shortcuts.md](../shortcuts.md) are rendered from it.
+
+- Single keys never fire while typing in a field. Plain letters step aside for 1.2 s after `G`, so `G T` on Plan or `G P` on the Timeline or Locations jumps instead of acting on the page (they used to collide).
+- Each scope lists the scopes live with it (`SCOPES[id].with`); `pnpm -C apps/dashboard test` fails when a key does two things there, and when docs/shortcuts.md drifts. The drawing and re-frame editors on the timeline stage and the rig editor are modal: the page's keys pause while they are open.
+- The audit's changes: Shots list bulk edit is `B` (`E` archives everywhere else); on the Timeline `A`/`E` act on the clip's shot while the clip panel shows, on the browser's selection while the browser does (separate scopes, so `D` and Del only work with the clip panel open, as before).
 
 ## Shared pieces
 

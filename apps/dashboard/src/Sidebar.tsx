@@ -92,7 +92,7 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
         <>
           <button type="button" class="f-nav" aria-label="Go to… (⌘K)" title="Go to… (⌘K)" onClick={onPalette}><Icon name="magnify" /></button>
           <button type="button" class="f-nav" aria-label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => onTheme(THEME_NEXT[theme])}><Icon name={THEME_ICON[theme]} /></button>
-          <button type="button" class={cx("f-nav", section === "settings" && "is-current")} aria-label="Settings" title="Settings" onClick={() => onNavigate({ page: "settings" })}><Icon name="cog-outline" /></button>
+          <button type="button" class={cx("f-nav", section === "settings" && "is-current")} aria-label="Settings" title="Settings" onClick={() => onNavigate({ page: "settings", tab: "general" })}><Icon name="cog-outline" /></button>
           <button type="button" class="f-nav" aria-label="Reload data" title="Reload data" onClick={onReload}><Icon name="refresh" /></button>
           <button type="button" class="f-nav" aria-label="Expand the sidebar (Ctrl B)" title="Expand the sidebar (Ctrl B)" onClick={onToggle}><Icon name="chevron-double-right" /></button>
         </>
@@ -100,7 +100,7 @@ export function Sidebar({ route, rail, onToggle, scope, projects, views, editedV
         <div class="f-side__foot">
           <Button kind="secondary" size="sm" icon="magnify" style={{ flex: 1, justifyContent: "flex-start" }} onClick={onPalette}>Go to…<span style={{ marginLeft: "auto" }}><Kbd>⌘K</Kbd></span></Button>
           <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => onTheme(THEME_NEXT[theme])} />
-          <IconButton icon="cog-outline" label="Settings" title="Settings" aria-current={section === "settings" ? "page" : undefined} onClick={() => onNavigate({ page: "settings" })} />
+          <IconButton icon="cog-outline" label="Settings" title="Settings" aria-current={section === "settings" ? "page" : undefined} onClick={() => onNavigate({ page: "settings", tab: "general" })} />
           <IconButton icon="refresh" label="Reload data" title={loadedAt ? `Reload data (loaded ${loadedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})` : "Reload data"} onClick={onReload} />
         </div>
       )}
