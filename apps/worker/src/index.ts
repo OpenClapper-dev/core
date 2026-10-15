@@ -13,6 +13,7 @@ import { HttpError, json, Router } from "./http.ts";
 import { registerLayoutRoutes } from "./layouts.ts";
 import { registerLocationRoutes } from "./locations.ts";
 import { registerPresetRoutes } from "./presets.ts";
+import { registerPreviewRoutes } from "./preview.ts";
 import { registerProjectRoutes } from "./projects.ts";
 import { registerShotRoutes } from "./shots.ts";
 import { registerSpotRoutes } from "./spots.ts";
@@ -24,6 +25,8 @@ export interface Env {
   SHOTS_BUCKET: R2Bucket;
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
+  /** Live layout preview rooms, one per user (preview.ts, issue #50). */
+  PREVIEW: DurableObjectNamespace<import("./preview.ts").PreviewRoom>;
   /**
    * Local development only. Set `ACCESS_DEV_BYPASS="true"` in a gitignored
    * `.dev.vars` file so `wrangler dev` works without Access in front of it.
@@ -31,6 +34,8 @@ export interface Env {
    */
   ACCESS_DEV_BYPASS?: string;
 }
+
+export { PreviewRoom } from "./preview.ts";
 
 export interface Ctx {
   request: Request;
@@ -70,6 +75,7 @@ registerComposeRoutes(router);
 registerTimelineRoutes(router);
 registerFramingRoutes(router);
 registerLayoutRoutes(router);
+registerPreviewRoutes(router);
 
 async function authenticate(request: Request, env: Env): Promise<AccessIdentity> {
   if (env.ACCESS_DEV_BYPASS === "true") return { email: "dev@localhost", kind: "user" };

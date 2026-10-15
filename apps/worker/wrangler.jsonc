@@ -20,6 +20,13 @@
   "r2_buckets": [
     { "binding": "SHOTS_BUCKET", "bucket_name": "fielder-shots" }
   ],
+  // Live layout preview (issue #50): one room per user relays the edited layout to the phone.
+  "durable_objects": {
+    "bindings": [{ "name": "PREVIEW", "class_name": "PreviewRoom" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PreviewRoom"] }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

@@ -7,6 +7,7 @@ Everything runs on Cloudflare (account id pinned in `apps/worker/wrangler.jsonc`
 | Worker `fielder-api` | https://fielder-api.fielder-worker.workers.dev. API and dashboard on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA. Observability enabled. |
 | D1 `fielder-db` (WEUR) | Binding `DB`, migrations in `apps/worker/migrations/` |
 | R2 `fielder-shots` (WEUR) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.jpg` |
+| Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` in `wrangler.jsonc` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
 | Cloudflare Access | Team `weathered-salad-6072`, app "Fielder" on the Worker hostname, one policy: Allow the single allow-listed email via One-time PIN. No service tokens. |
 | Expo / EAS | Project `@bubulux/fielder`; the only production env var is `EXPO_PUBLIC_API_URL` |
 | Open-Meteo | Weather forecast, called from the dashboard browser directly (free, no key) |
