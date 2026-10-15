@@ -38,8 +38,12 @@ export const GPS_MODES: readonly GpsMode[] = ["high", "low", "off"];
 export interface HudChips { project: boolean; rig: boolean; fov: boolean; gps: boolean; warnings: boolean }
 
 export interface Settings {
-  /** 35mm-equivalent focal length of the phone's main camera. Calibrate from EXIF or edit. */
+  /** 35mm-equivalent focal length of the phone's main camera; from the photos' EXIF in "auto", typed in "manual". */
   phoneEquivalentFocalMm: number;
+  /** Issue #26: "auto" takes the value from each capture's EXIF, "manual" keeps the typed one. */
+  phoneCalibration: "auto" | "manual";
+  /** The phone model the auto value came from (EXIF), for Setup; null before the first capture. */
+  phoneModel: string | null;
   borderColor: string;
   borderWidthPx: number;
   blackoutEnabled: boolean;

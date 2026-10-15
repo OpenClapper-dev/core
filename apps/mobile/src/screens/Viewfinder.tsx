@@ -12,10 +12,10 @@ import { api } from "../api";
 import { useApp } from "../appState";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { isConfigured } from "../config";
+import { calibrationFromExif } from "../calibration";
 import { computeOverlay, formatDeg, previewBox, type Box } from "../framing";
 import { clampToRange } from "../lens";
 import { log } from "../log";
-import { PHONE } from "../phone";
 import { saveRig, syncRigs, useRigs } from "../rigs";
 import { addToSequence, deleteDraftFiles, keepPhoto, restoreDraft, startSequence } from "../sequence";
 import { store } from "../storage";
@@ -191,7 +191,16 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       try { new File(pic.uri).delete(); } catch { /* full-size camera temp file */ }
 
       const exif = (pic.exif ?? {}) as Record<string, unknown>;
-      const frame = { width: round4(overlay.fractions.width), height: round4(overlay.fractions.height) };
+      // Auto calibration (issue #26): the photo's own EXIF says how wide the phone saw. When it differs
+      // from what the overlay used, this capture is framed with the EXIF value and later ones follow.
+      const calib = settings.phoneCalibration === "auto" ? calibrationFromExif(exif) : null;
+      const phoneMm = calib?.mm ?? settings.phoneEquivalentFocalMm;
+      const used = calib && calib.mm !== settings.phoneEquivalentFocalMm ? computeOverlay({ ...settings, phoneEquivalentFocalMm: calib.mm }, rig, lensMm, preview) : overlay;
+      if (calib && (calib.mm !== settings.phoneEquivalentFocalMm || calib.model !== settings.phoneModel)) {
+        log("info", "phone calibrated from EXIF", { mm: calib.mm, model: calib.model, was: settings.phoneEquivalentFocalMm });
+        setSettings((x) => ({ ...x, phoneEquivalentFocalMm: calib.mm, phoneModel: calib.model }));
+      }
+      const frame = { width: round4(used.fractions.width), height: round4(used.fractions.height) };
       const meta: PhotoMetadata = {
         id: Crypto.randomUUID(),
         ordinal: 0,
@@ -212,17 +221,17 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
           speedbooster_factor: rig.speedboosterFactor,
           lens_mm: lensMm,
           rig_orientation: settings.rigOrientation,
-          effective_focal_mm: round(overlay.framing.effectiveFocalLengthMm),
-          full_frame_equivalent_mm: round(overlay.framing.fullFrameEquivalentMm),
-          hfov_deg: round(overlay.framing.fov.horizontal),
-          vfov_deg: round(overlay.framing.fov.vertical),
+          effective_focal_mm: round(used.framing.effectiveFocalLengthMm),
+          full_frame_equivalent_mm: round(used.framing.fullFrameEquivalentMm),
+          hfov_deg: round(used.framing.fov.horizontal),
+          vfov_deg: round(used.framing.fov.vertical),
           // Rig frame relative to the uploaded photo, centred. Lets the dashboard re-apply the mask.
           frame: { width_fraction: frame.width, height_fraction: frame.height },
           // Phone view the photo was taken with, so other rigs/lenses can be simulated on it later.
-          phone_equivalent_focal_mm: settings.phoneEquivalentFocalMm,
+          phone_equivalent_focal_mm: phoneMm,
         },
         device: {
-          phone_model: PHONE.model,
+          phone_model: calib?.model ?? settings.phoneModel,
           exif_focal_length: exif.FocalLength ?? null,
           exif_focal_length_35mm: exif.FocalLengthIn35mmFilm ?? null,
           exif_model: exif.Model ?? null,
