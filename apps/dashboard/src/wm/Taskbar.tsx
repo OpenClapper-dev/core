@@ -4,6 +4,7 @@ import { switchProject } from "../project";
 import { APPS, appDef, launch, type AppId } from "../apps/registry";
 import { useTheme, type ThemeChoice } from "../theme";
 import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, toast, useCtxMenu, useOutsideClick } from "../ui";
+import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
 import * as wm from "./wm";
 
@@ -65,7 +66,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
           <MenuItem icon="dock-left" onClick={() => wm.setSnap(menuWin.id, "left")}>Snap left</MenuItem>
           <MenuItem icon="dock-right" onClick={() => wm.setSnap(menuWin.id, "right")}>Snap right</MenuItem>
           <div class="f-menu__sep" />
-          <MenuItem icon="close" danger onClick={() => wm.close(menuWin.id)}>Close window</MenuItem>
+          <MenuItem icon="close" danger onClick={() => void requestClose(menuWin.id)}>Close window</MenuItem>
         </ContextMenu>
       )}
     </div>
