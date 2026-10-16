@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "tsc -p . && vite build",
     "typecheck": "tsc -p .",
-    "test": "node --test src/*.test.ts"
+    "test": "node --test src/*.test.ts src/wm/*.test.ts"
   },
   "dependencies": {
     "@fielder/fov-math": "workspace:*",
