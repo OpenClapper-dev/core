@@ -99,7 +99,9 @@ export function GalleryApp({ win, setTitle, replaceRoute, open }: AppProps) {
 
   async function saveView() {
     if (!loadedView) return;
-    try { const v = await putView({ id: loadedView.id, project_id: loadedView.project_id, name: loadedView.name, filter: encodeView(query) }); data.setViews((cur) => (cur ?? []).map((x) => (x.id === v.id ? v : x))); setLoadedView(v); toast("View saved"); } catch (e) { toast(`Saving failed: ${(e as Error).message}`, "danger"); }
+    // The name as stored now: Files may have renamed the view since it was loaded.
+    const name = pd.views.find((x) => x.id === loadedView.id)?.name ?? loadedView.name;
+    try { const v = await putView({ id: loadedView.id, project_id: loadedView.project_id, name, filter: encodeView(query) }); data.setViews((cur) => (cur ?? []).map((x) => (x.id === v.id ? v : x))); setLoadedView(v); toast("View saved"); } catch (e) { toast(`Saving failed: ${(e as Error).message}`, "danger"); }
   }
   async function saveAsNew() {
     const name = await promptDialog({ title: loadedView ? "Save as a new view" : "Save view", input: { label: "Name", value: loadedView ? `${loadedView.name} (copy)` : "", placeholder: "e.g. Dusk exteriors" }, confirmLabel: "Save view" });

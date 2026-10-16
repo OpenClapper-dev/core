@@ -11,7 +11,7 @@
 
 export type ScopeId =
   | "global" | "wm" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "compose" | "draw" | "reframe"
-  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox";
+  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop";
 
 export interface Scope {
   label: string;
@@ -47,6 +47,8 @@ export const SCOPES: Record<ScopeId, Scope> = {
   position: { label: "Shot view · Position", with: [] },
   newshot: { label: "New shot · drawing", with: [] },
   combobox: { label: "Combobox", with: [] },
+  files: { label: "Files", with: [] },
+  desktop: { label: "Desktop icons", with: [] },
 };
 
 export interface Shortcut {
@@ -216,6 +218,23 @@ export const SHORTCUTS = [
   { scope: "fields", action: "save", keys: ["Mod+s"], label: "Save the field", hint: "Save field" },
   { scope: "fields", action: "indent", keys: ["Tab"], info: true, label: "Indent in the JSON editor", hint: "Indent" },
   { scope: "fields", action: "leave", keys: ["Escape"], label: "Leave the editor", hint: "Leave editor" },
+
+  // ---- Files (the desktop's explorer)
+  { scope: "files", action: "search", keys: ["/"], label: "Focus the search" },
+  { scope: "files", action: "down", keys: ["j", "ArrowDown"], label: "Next item" },
+  { scope: "files", action: "up", keys: ["k", "ArrowUp"], label: "Previous item" },
+  { scope: "files", action: "open", keys: ["Enter"], label: "Open the item (a folder: go into it)" },
+  { scope: "files", action: "parent", keys: ["Backspace", "Alt+ArrowUp"], label: "Up to the parent folder" },
+  { scope: "files", action: "rename", keys: ["F2"], label: "Rename" },
+  { scope: "files", action: "remove", keys: ["Delete"], label: "Delete" },
+  { scope: "files", action: "newFolder", keys: ["Shift+N"], label: "New folder here" },
+  { scope: "files", action: "drag", keys: ["Drag"], info: true, label: "Onto a folder: move there · onto the desktop: add a shortcut" },
+  { scope: "files", action: "menu", keys: ["Right-click"], info: true, label: "Open, rename, move, add to the desktop, delete" },
+
+  // ---- Desktop icons (handled by the focused icon itself)
+  { scope: "desktop", action: "open", keys: ["Enter"], info: true, label: "Open the focused icon (or double-click it)" },
+  { scope: "desktop", action: "drag", keys: ["Drag"], info: true, label: "Move an icon · drop files from Files to add shortcuts" },
+  { scope: "desktop", action: "menu", keys: ["Right-click"], info: true, label: "On an icon: open, rename, remove · on the desktop: new folder, new shortcut, arrange" },
 
   // ---- Dialogs and controls
   { scope: "newshot", action: "undo", keys: ["Mod+z"], label: "Undo the last shape" },

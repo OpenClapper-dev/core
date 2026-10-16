@@ -250,3 +250,26 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ↵ / Tab | Take the highlighted entry |
 | Esc | Cancel |
 
+## Files
+
+| Keys | What |
+| --- | --- |
+| / | Focus the search |
+| J / ↓ | Next item |
+| K / ↑ | Previous item |
+| ↵ | Open the item (a folder: go into it) |
+| ⌫ / Alt ↑ | Up to the parent folder |
+| F2 | Rename |
+| Del | Delete |
+| ⇧N | New folder here |
+| Drag | Onto a folder: move there · onto the desktop: add a shortcut |
+| Right-click | Open, rename, move, add to the desktop, delete |
+
+## Desktop icons
+
+| Keys | What |
+| --- | --- |
+| ↵ | Open the focused icon (or double-click it) |
+| Drag | Move an icon · drop files from Files to add shortcuts |
+| Right-click | On an icon: open, rename, remove · on the desktop: new folder, new shortcut, arrange |
+
