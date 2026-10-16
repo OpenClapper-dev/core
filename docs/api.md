@@ -8,7 +8,7 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 | --- | --- | --- |
 | GET | `/api/projects` | Each with `shot_count` and `field_ids` (ordered) |
 | PUT | `/api/projects/:id` | `{ name, notes? }` upsert. Name clash → `409 { existing_id }` |
-| DELETE | `/api/projects/:id` | Only when empty, else `409` |
+| DELETE | `/api/projects/:id` | Only without live shots, else `409`; the project's recycle bin is emptied first |
 | PUT | `/api/projects/:id/fields` | `{ field_ids: [...] }` reorders the project's own fields (must list exactly them) |
 
 ## Shots and photos (`shots.ts`)
@@ -20,7 +20,7 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 | POST | `/api/shots` | Multipart: `metadata` (JSON) + one `photo.<photoId>` file per photo not yet stored. See below. |
 | PATCH | `/api/shots/:id` | Any of `name, light, artificial, weather, int_ext, shot_size, camera_support, movement, location_id, extra, description, position_from_location, state, project_id`. `extra` is validated against the project's fields. Moving to another project removes the shot from the old project's shooting days and timelines. |
 | PATCH | `/api/shots` | Bulk edit: `{ ids: uuid[] (≤ 500), set?: { any single-PATCH field except extra }, extra?: { key: value \| null } }`. Only the given fields change. `extra` is per key and merged into each shot's values (groups child by child, null clears, dependent selects that no longer fit are dropped), then the edited keys are checked against each shot's (new) project. Unknown ids → 404, any error → nothing written (one transaction). Moving removes the shots from the old project's shooting days. Returns `{ shots }`. |
-| DELETE | `/api/shots/:id` | Deletes photos, overlays and sketches (cascade) and their R2 objects |
+| DELETE | `/api/shots/:id` | Moves the shot to the [recycle bin](#recycle-bin-trashts-epic-90) (`{ deleted, binned: true }`); its timeline clips and day places go now. Purging deletes photos, overlays, sketches and their R2 objects |
 | GET | `/api/photos/:id/image` | Image from R2, immutable caching, supports conditional requests |
 | PATCH | `/api/photos/:id` | `{ lat, lon, all_in_shot? }` position correction (also sets a position on photos captured without one); sets `position_corrected` |
 
@@ -74,14 +74,14 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 | GET | `/api/timelines?project_id=` | Each with `clips: [{ id, photo_id, shot_id, overlay_id, presentation, duration_ms, notes, title, sketch_id, group_id }]` in order, `groups: [{ id, mode, total_ms, split, edge_weight }]` (sequence blocks, issue #37), plus `overlays` and `sketches`: the clips' own (issue #31), without drawings. A placeholder clip has `photo_id`/`shot_id`/`overlay_id`/`presentation` null and a `title`. |
 | GET | `/api/timelines/:id` | |
 | PUT | `/api/timelines/:id` | `{ project_id, name, notes?, lock_mode?, groups?, clips: [...] }` replaces the whole timeline (≤ 500 clips). `lock_mode` (a presentation mode or null) forces one mode on every clip. A clip is `{ id, photo_id, overlay_id?, presentation, duration_ms, notes? }` or a placeholder `{ id, title, duration_ms, notes? }`; a placeholder with `sketch_id` is a **sketch clip**. A clip may show a shot overlay of its photo or its own overlay, never another clip's (nulled); a sketch clip's sketch must be its own or a shot sketch in the project (else it falls back to a placeholder). Clips that leave the timeline take their own overlays and sketches (and renders) along. Clips whose photo is not in the project are dropped silently; an overlay that is not the photo's is nulled. **Sequence blocks**: a photo clip may carry `group_id` of one of `groups` (`mode` `each` · `total`, `total_ms`, `split` `even` · `edges`, `edge_weight` 1..3, rules in `packages/vocab/src/timeline.ts`). A block's clips must be adjacent and show photos of one shot (400 otherwise); blocks without clips are dropped, and a `total` block's clip durations are recomputed with `splitDuration` on every save. |
-| DELETE | `/api/timelines/:id` | Deletes the clips' own overlays and sketches with their renders too. |
+| DELETE | `/api/timelines/:id` | To the recycle bin. Purging deletes the clips' own overlays and sketches with their renders too. |
 | POST | `/api/timelines/:id/clips/:clip/promote` | `{ what: "framing" \| "overlay" \| "sketch", name?, shot_id? }`: the clip's own re-frame becomes a saved framing of its photo (an identical framing — same rig, lens and frame — is linked instead; the clip then references it), its own overlay becomes the photo's (the clip keeps pointing at it), or a sketch clip's own sketch becomes a sketch of `shot_id` (a shot in the project). The clip must be saved. → `{ timeline, shot }` |
 
 ## Locations, rigs, views
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET / PUT / DELETE | `/api/locations[/:id]` | `{ project_id, name, lat?, lon? }`: `project_id` is required to create and never changes (GET takes `?project_id=`); names are unique per project. Without `lat`/`lon` the stored pin is kept, `null` for both removes it; `shot_count`, `approved_count`; clash → `409 { existing_id }`; delete nulls `shots.location_id` |
+| GET / PUT / DELETE | `/api/locations[/:id]` | `{ project_id, name, lat?, lon? }`: `project_id` is required to create and never changes (GET takes `?project_id=`); names are unique per project. Without `lat`/`lon` the stored pin is kept, `null` for both removes it; `shot_count`, `approved_count`; clash → `409 { existing_id }` (a binned location's name is free); DELETE bins it: its shots read as without a location until it is restored, uploads naming it drop it, edits naming it are 400 |
 | GET (websocket) | `/api/preview/socket?role=phone\|dashboard` | Live layout preview ([viewfinder layouts](features/viewfinder-layouts.md#live-preview-on-the-phone-50)): one Durable Object room per user. Dashboard sends `{ type: "preview", layout, orientation }` / `{ type: "stop" }` / `{ type: "readout" }`; the phone `{ type: "hello", device: { id, model } }`, `{ type: "exit" }`, `{ type: "specs", id, specs }` (relayed to dashboards, checked by `validateDeviceSpecs`); dashboards get `{ type: "presence", phones: [{ id, model }], previewing }`. Without `Upgrade: websocket`: 426 |
 | GET / PUT / DELETE | `/api/viewfinder-layouts[/:id]` | `{ name, layout, device_id? }`, layout checked by `validateViewfinderLayout` ([viewfinder layouts](features/viewfinder-layouts.md)); `device_id` absent keeps it, null clears it, an unknown one is 400; global, not per project |
 | GET / PUT / DELETE | `/api/devices[/:id]` | Device specs ([viewfinder layouts](features/viewfinder-layouts.md#device-specs-68)): PUT `{ name?, specs }`, specs checked by `validateDeviceSpecs`; `name` required to create, absent keeps the stored one (the phone's updates). DELETE leaves layouts without a device |
@@ -96,7 +96,7 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 | GET | `/api/fields` | `{ fields: [{ id, project_id, position, key, definition, … }] }`; `?project_id=` for one project |
 | PUT | `/api/fields/:id` | `{ project_id, definition }` (`project_id` required to create; new fields go last), validated by `validateFieldDef`; key clash within the project → 409 |
 | POST | `/api/fields/import` | `{ project_id, fields: [def, …] }`: new keys created in the project, its existing keys replaced; all validated first. Returns the project's list plus `created`/`updated`. |
-| DELETE | `/api/fields/:id` | Stored values on shots stay |
+| DELETE | `/api/fields/:id` | To the recycle bin; stored values on shots stay. A binned field's key is free |
 
 ## Shooting days (`days.ts`)
 
@@ -105,20 +105,33 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 | GET | `/api/days?project_id=` | Days ordered by date, each with `shots: [{ shot_id, planned_time, notes }]` in order |
 | GET | `/api/days/:id` | |
 | PUT | `/api/days/:id` | `{ project_id, date, title?, notes?, shots: [...] }` replaces the whole day. Shots not (or no longer) in the project are dropped silently. |
-| DELETE | `/api/days/:id` | |
+| DELETE | `/api/days/:id` | To the recycle bin |
 
-## Folders and desktop (`files.ts`, epic #72)
+## Folders and desktop (`files.ts`, epics #72 and #90)
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/files?project_id=` | `{ folders, items, desktop }`: the project's folders, placements (`{ resource_type, resource_id, folder_id }`, none = root) and desktop shortcuts, in one payload |
-| PUT | `/api/folders/:id` | `{ project_id, name, parent_id? }`: `project_id` required to create, never changes; `parent_id` absent keeps, `null` = root. 400 for a cycle, more than 8 levels or a parent in another project; a name taken in the directory → 409 + `existing_id` |
-| DELETE | `/api/folders/:id` | The contents fall up one level: subfolders (renamed "Name (Deleted folder)" on a clash) and placements move to the parent, or the root; folder shortcuts go. `{ deleted, moved_to }` |
+| GET | `/api/files?project_id=` | `{ folders, items, desktop }`: the project's live folders (each with `kind`: `normal`, or `desktop` for the Desktop folder, created here on first use; a top-level folder already named "Desktop" becomes it), placements in them (`{ resource_type, resource_id, folder_id }`, none = root) and desktop items of both areas (taskbar ones by `position`), in one payload |
+| PUT | `/api/folders/:id` | `{ project_id, name, parent_id? }`: `project_id` required to create, never changes; `parent_id` absent keeps, `null` = root. 400 for a cycle, more than 8 levels, a parent in another project, or renaming/moving the Desktop folder; a name taken in the directory → 409 + `existing_id`; a binned folder → 409 |
+| DELETE | `/api/folders/:id` | Moves the folder to the recycle bin with its subfolders and the files placed in them (`{ deleted, binned: true }`); 400 for the Desktop folder |
 | PUT | `/api/folder-items/:type/:id` | `{ folder_id }` puts the resource in a folder of its own project (400 otherwise, 404 for an unknown resource); `null` moves it back to the root. `:type` from `FILE_RESOURCE_TYPES` |
-| PUT | `/api/desktop/:id` | `{ project_id, kind, resource_type + resource_id \| folder_id \| app_id, label?, x, y }`, checked by `validateDesktopItem`; the target never changes after create (409); a target already on that desktop → 409 + `existing_id`. Updates set `label`, `x`, `y` |
+| PUT | `/api/desktop/:id` | `{ project_id, kind, resource_type + resource_id \| folder_id \| app_id, label?, area? (`desktop` default \| `taskbar`), position?, x, y }`, checked by `validateDesktopItem`; target and area never change after create (409); a target already in that area → 409 + `existing_id`. Updates set `label`, `x`, `y`, `position` |
 | DELETE | `/api/desktop/:id` | |
 
-Deleting a shot, timeline, day, view, location or field also deletes its placement and shortcuts; a shot moved to another project (single or bulk `PATCH`) lands at that project's root and keeps only shortcuts on the target project's desktop.
+Binning keeps a file's placement and shortcuts (they come back with it); purging deletes them. A shot moved to another project (single or bulk `PATCH`) lands at that project's root and keeps only shortcuts on the target project's desktop.
+
+## Recycle bin (`trash.ts`, epic #90)
+
+Every DELETE of a shot, timeline, day, view, location, field or folder only marks the row (`deleted_at`); every list and lookup leaves binned rows out. A folder takes its subtree along (`deleted_with` = that folder). Rows are purged for good when the bin is emptied, one at a time, or by the daily cron (`scheduled` in `index.ts`, 03:17 UTC) once they are `TRASH_RETENTION_DAYS` (30) old.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/trash?project_id=` | `{ entries: TrashEntry[] }`, newest first: `{ type (a file type or folder), id, name, sub, deleted_at, folder_id (the live folder it comes back to, null = top level), photo_id? (a shot's cover), count? (a folder's files) }`. Only what was binned on its own; a folder's contents are inside it |
+| POST | `/api/trash/:type/:id/restore` | Back where it was. A file whose folder is gone or binned comes back at the top level; a folder whose parent is gone or binned too. A taken name gets " (restored)" (a field key `_restored`). A folder binned along with another → 400. `{ restored, name? }` |
+| DELETE | `/api/trash/:type/:id` | Purge one entry (a folder with everything binned with it); shots take their R2 images and renders |
+| DELETE | `/api/trash?project_id=` | Empty the project's bin → `{ purged }` |
+
+A binned shot comes back by itself when the phone uploads to it again (a continued or retried capture) or anything `PATCH`es it: a capture or an offline edit is never lost.
 
 ## Other
 

@@ -1,5 +1,5 @@
 /** Same-origin API; the Access session cookie is sent automatically. */
-import type { AppIdV, DesktopItemKind, FileResourceType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
+import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
 export type { ClipGroup } from "@fielder/vocab";
 export type { FieldDefinition };
 export type ShotState = "unreviewed" | "approved" | "archived";
@@ -315,7 +315,8 @@ export const deleteView = (id: string) => send<{ deleted: string }>("DELETE", `/
 
 // ---------- Folders and desktop shortcuts (epic #72) ----------
 
-export interface Folder { id: string; project_id: string; parent_id: string | null; name: string; created_at: string; updated_at: string | null }
+/** kind "desktop": the project's Desktop folder (one, at the root, fixed name; its files sit on the desktop). */
+export interface Folder { id: string; project_id: string; parent_id: string | null; name: string; kind: "normal" | "desktop"; created_at: string; updated_at: string | null }
 /** A resource's folder; a resource without one sits at the root. */
 export interface FolderItem { resource_type: FileResourceType; resource_id: string; folder_id: string; created_at: string }
 export interface DesktopItem {
@@ -323,7 +324,10 @@ export interface DesktopItem {
   resource_type: FileResourceType | null; resource_id: string | null; folder_id: string | null; app_id: AppIdV | null;
   /** Shown instead of the resource's live name. */
   label: string | null;
-  x: number; y: number; created_at: string; updated_at: string | null;
+  x: number; y: number;
+  /** On the desktop (at x/y) or pinned to the taskbar (by position). */
+  area: DesktopArea; position: number | null;
+  created_at: string; updated_at: string | null;
 }
 export interface FilesPayload { folders: Folder[]; items: FolderItem[]; desktop: DesktopItem[] }
 
@@ -332,15 +336,22 @@ export const fetchFiles = (projectId: string) => get<FilesPayload>(`/api/files?p
 /** Create, rename or move (parent_id: null = root, absent = keep). 409 + existing_id when the name is taken there. */
 export const putFolder = (f: { id: string; project_id: string; name: string; parent_id?: string | null }) =>
   send<{ folder: Folder }>("PUT", `/api/folders/${f.id}`, f).then((r) => r.folder);
-/** Its subfolders and files move up to its parent (or the root). */
-export const deleteFolder = (id: string) => send<{ deleted: string; moved_to: string | null }>("DELETE", `/api/folders/${id}`);
+/** Moves the folder to the recycle bin with everything in it. */
+export const deleteFolder = (id: string) => send<{ deleted: string; binned: true }>("DELETE", `/api/folders/${id}`);
 /** Put a resource into a folder, or back at the root with null. */
 export const placeItem = (type: FileResourceType, id: string, folderId: string | null) =>
   send<{ item: FolderItem | null }>("PUT", `/api/folder-items/${type}/${id}`, { folder_id: folderId }).then((r) => r.item);
-/** Create or move a shortcut (its target never changes). 409 + existing_id when the target is already on the desktop. */
-export const putDesktopItem = (d: Omit<DesktopItem, "created_at" | "updated_at">) =>
+/** Create or move a shortcut or pin (target and area never change). 409 + existing_id when the target is already in that area. */
+export const putDesktopItem = (d: Omit<DesktopItem, "created_at" | "updated_at" | "area" | "position"> & { area?: DesktopArea; position?: number | null }) =>
   send<{ item: DesktopItem }>("PUT", `/api/desktop/${d.id}`, d).then((r) => r.item);
 export const deleteDesktopItem = (id: string) => send<{ deleted: string }>("DELETE", `/api/desktop/${id}`).then(() => undefined);
+
+/** The recycle bin (epic #90): deletes move files there; restore, purge one, or empty it. */
+export type { TrashEntry, TrashType };
+export const fetchTrash = (projectId: string) => get<{ entries: TrashEntry[] }>(`/api/trash?project_id=${encodeURIComponent(projectId)}`).then((r) => r.entries);
+export const restoreTrash = (type: TrashType, id: string) => send<{ restored: string; name?: string }>("POST", `/api/trash/${type}/${id}/restore`);
+export const purgeTrash = (type: TrashType, id: string) => send<{ purged: string }>("DELETE", `/api/trash/${type}/${id}`).then(() => undefined);
+export const emptyTrash = (projectId: string) => send<{ purged: number }>("DELETE", `/api/trash?project_id=${encodeURIComponent(projectId)}`).then((r) => r.purged);
 
 /** A viewfinder layout made here for the phone (issue #49). */
 export interface LayoutRecord { id: string; name: string; layout: ViewfinderLayout; device_id: string | null; created_at: string; updated_at: string | null }

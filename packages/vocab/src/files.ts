@@ -20,6 +20,41 @@ export const MAX_FOLDER_DEPTH = 8;
 export const MAX_FOLDER_NAME = 80;
 export const MAX_DESKTOP_LABEL = 80;
 
+/** Where a desktop item sits: on the desktop (at x/y) or pinned to the taskbar (by position). */
+export const DESKTOP_AREAS = ["desktop", "taskbar"] as const;
+export type DesktopArea = (typeof DESKTOP_AREAS)[number];
+
+/**
+ * The recycle bin (epic #90): what can be binned (every file type and folders), and how long a
+ * binned item is kept before the Worker's daily cron purges it.
+ */
+export const TRASH_TYPES = [...FILE_RESOURCE_TYPES, "folder"] as const;
+export type TrashType = (typeof TRASH_TYPES)[number];
+export const TRASH_RETENTION_DAYS = 30;
+export const isTrashType = (v: unknown): v is TrashType => typeof v === "string" && (TRASH_TYPES as readonly string[]).includes(v);
+
+/** One top-level entry of the bin (a folder stands for everything binned with it). */
+export interface TrashEntry {
+  type: TrashType;
+  id: string;
+  name: string;
+  /** Short facts: a shot's location and photo count, a folder's file count, a field's key… */
+  sub: string;
+  deleted_at: string;
+  /** The live folder it sat in (where restore puts it back); null = the top level. */
+  folder_id: string | null;
+  /** A shot's cover photo, for a thumbnail. */
+  photo_id?: string | null;
+  /** A folder: how many files went to the bin with it. */
+  count?: number;
+}
+
+/** Days left before a binned item is purged (0 = due), from its deleted_at. */
+export function trashDaysLeft(deletedAt: string, now = Date.now()): number {
+  const age = (now - Date.parse(deletedAt)) / 86_400_000;
+  return Math.max(0, Math.ceil(TRASH_RETENTION_DAYS - age));
+}
+
 /** How each file type is named and drawn, and which app opens it. */
 export const FILE_TYPE_META: Record<FileResourceType, { label: string; plural: string; icon: string; app: AppIdV }> = {
   shot: { label: "Shot", plural: "Shots", icon: "image-outline", app: "shot" },
@@ -40,6 +75,9 @@ export interface DesktopItemInput {
   folder_id?: string | null;
   app_id?: AppIdV | null;
   label?: string | null;
+  area?: DesktopArea;
+  /** Order on the taskbar (taskbar items); ignored on the desktop. */
+  position?: number | null;
   x: number;
   y: number;
 }
@@ -62,6 +100,8 @@ export function validateDesktopItem(v: unknown): string | null {
   if (o.kind === "resource" && !isFileResourceType(o.resource_type)) return `resource_type must be one of: ${FILE_RESOURCE_TYPES.join(", ")}`;
   if (o.kind === "app" && !isAppId(o.app_id)) return `app_id must be one of: ${APP_IDS.join(", ")}`;
   if (has("label") && (typeof o.label !== "string" || o.label.trim().length === 0 || o.label.length > MAX_DESKTOP_LABEL)) return `label must be a non-empty string of at most ${MAX_DESKTOP_LABEL} characters`;
+  if (has("area") && !(DESKTOP_AREAS as readonly unknown[]).includes(o.area)) return `area must be one of: ${DESKTOP_AREAS.join(", ")}`;
+  if (has("position") && (typeof o.position !== "number" || !Number.isInteger(o.position) || o.position < 0 || o.position > 10_000)) return "position must be an integer between 0 and 10000";
   for (const k of ["x", "y"]) {
     const n = o[k];
     if (typeof n !== "number" || !Number.isFinite(n) || n < 0 || n > 100_000) return `${k} must be a number between 0 and 100000`;
