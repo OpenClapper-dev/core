@@ -66,4 +66,4 @@ pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/da
 (cd apps/mobile && npx expo export --platform android --output-dir /tmp/fielder-export)
 ```
 
-For the API, run the local worker (`pnpm dev:worker`, no auth locally) and exercise it with `curl`. There is no browser automation. Say so when UI was not clicked through, and ask the owner to test on the phone. For phone bugs, ask for the debug log (Setup → Debug log → Share). More in `docs/development.md`.
+For the API, run the local worker (`pnpm dev:worker`, no auth locally) and exercise it with `curl`. For the dashboard, the Playwright MCP (headless Chrome, configured per machine) can click through `localhost:5173` with `pnpm dev` running. Say what was and was not clicked through, and ask the owner to test on the phone. For phone bugs, ask for the debug log (Setup → Debug log → Share). More in `docs/development.md`.

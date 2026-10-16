@@ -36,6 +36,8 @@ Demo data: `pnpm dev:seed [count]` (worker running) uploads 40 shots by default 
 
 API smoke tests work with plain `curl` against `localhost:8787` (no auth needed locally). Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
 
+Agents can click through the dashboard with the Playwright MCP: headless Chrome against `localhost:5173` (`pnpm dev` running). It is set up per machine, not in the repo: `claude mcp add playwright -- npx -y @playwright/mcp@latest --headless --isolated`, then `npx playwright install --with-deps chrome`. Snapshots land in `.playwright-mcp/` (gitignored). The phone app cannot be driven this way.
+
 ## Phone dev loop (development build)
 
 ```sh
