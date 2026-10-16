@@ -3,7 +3,7 @@ import { rootFrame } from "@fielder/vocab";
 import { imageHeaders, imageUri, type Photo } from "../api";
 import { isOfflineMode } from "../net";
 import { offlinePhotoUri } from "../offline";
-import type { Settings } from "../types";
+import type { ViewSettings } from "../types";
 import { FramedImage, type FrameFractions, type FrameMode } from "./FramedImage";
 
 export { FRAME_MODES, FrameModeSeg, frameModeLabel, type FrameMode } from "./FramedImage";
@@ -26,7 +26,7 @@ export const imageAspect = (photo: Photo): number => (photo.width && photo.heigh
 interface Props {
   photo: Photo;
   width: number;
-  settings: Settings;
+  settings: ViewSettings;
   mode: FrameMode;
   style?: StyleProp<ViewStyle>;
 }

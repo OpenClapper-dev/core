@@ -10,7 +10,7 @@ import type { PendingUpload } from "../types";
 import { discardPending, flush } from "../uploads";
 import { Button, confirm, Empty, FIXED, Icon, makeStyles, num, PushScreen, RADIUS, SectionLabel, SideBySide, toast, type, useTheme } from "../ui";
 import { FramedImage } from "../components/FramedImage";
-import type { Settings } from "../types";
+import type { ViewSettings } from "../types";
 
 const photoWord = (n: number) => `${n} photo${n === 1 ? "" : "s"}`;
 
@@ -93,7 +93,7 @@ export function Uploads() {
   );
 }
 
-function UploadRow({ entry, settings, location, uploading, onRetry, onDiscard, retryDisabled }: { entry: PendingUpload; settings: Settings; location: string | null; uploading: { done: number; total: number } | null; onRetry: () => void; onDiscard: () => void; retryDisabled: boolean }) {
+function UploadRow({ entry, settings, location, uploading, onRetry, onDiscard, retryDisabled }: { entry: PendingUpload; settings: ViewSettings; location: string | null; uploading: { done: number; total: number } | null; onRetry: () => void; onDiscard: () => void; retryDisabled: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   const m = entry.metadata;

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
-import { HUMAN_STEPS } from "../defaults";
+import { layoutOptions, VF_FRAME_COLORS, VF_FRAME_WIDTHS, VF_HUMAN_STEPS, VF_TINTS, type VfLenses } from "@fielder/vocab";
 import { cover } from "../api";
 import { useApp } from "../appState";
 import { isSignedIn, onAuthChange, sessionExpiry, setToken, signedInEmail } from "../auth";
@@ -18,18 +18,8 @@ import { Overlay } from "../components/Overlay";
 import { ShotFrame } from "../components/ShotFrame";
 import { OptionSheet } from "../components/OptionSheet";
 
-/** Frame colours on offer (values stored in settings; they draw over the camera image, not the UI). */
-export const BORDER_COLORS: { value: string; label: string }[] = [
-  { value: "#FFFFFF", label: "White" }, { value: "#FFB300", label: "Amber" }, { value: "#00E676", label: "Green" },
-  { value: "#00B0FF", label: "Blue" }, { value: "#FF3B30", label: "Red" }, { value: "#000000", label: "Black" },
-];
-export const colourName = (hex: string) => BORDER_COLORS.find((x) => x.value.toUpperCase() === hex.toUpperCase())?.label ?? hex;
-export const TINTS: { label: string; value: string }[] = [
-  { label: "Neutral 62%", value: "rgba(0, 0, 0, 0.62)" },
-  { label: "Black 85%", value: "rgba(0,0,0,0.85)" },
-  { label: "Red 50%", value: "rgba(255,0,0,0.5)" },
-  { label: "White 50%", value: "rgba(255,255,255,0.5)" },
-];
+/** Frame colours and tints on offer (shared with the dashboard; they draw over the camera image, not the UI). */
+export const colourName = (hex: string) => VF_FRAME_COLORS.find((x) => x.value.toUpperCase() === hex.toUpperCase())?.label ?? hex;
 const HUD: { key: keyof HudChips; label: string; meta?: string; icon: string }[] = [
   { key: "project", label: "Project", icon: "folder-outline" },
   { key: "rig", label: "Rig and lens", icon: "camera-outline" },
@@ -38,14 +28,19 @@ const HUD: { key: keyof HudChips; label: string; meta?: string; icon: string }[]
   { key: "warnings", label: "Warnings", meta: "No project, no GPS fix, GPS worse than ±20 m, not signed in, rig wider than the phone", icon: "alert-outline" },
 ];
 
+/** The Human button's toggle value in this layout. */
+const humanMm = (l: Parameters<typeof layoutOptions>[0]) => layoutOptions(l).human.mm;
+
 function useSet() {
   const app = useApp();
   return <K extends keyof Settings>(k: K, v: Settings[K]) => app.setSettings((x) => ({ ...x, [k]: v }));
 }
 
 /**
- * Frame look and HUD chips, with a pinned preview (the latest shot, or a plain grey image) drawn
- * with the current border, blackout, human frame and chips, so every change shows at once.
+ * The layout in use and its look and control options (issue #68: they belong to the layout, so a
+ * change here edits the layout, offline-first, and the dashboard sees it). The built-in Default is
+ * read-only: greyed out, with Make a copy. A pinned preview (the latest shot, or a plain grey image)
+ * shows the frame, blackout, human frame and chips, so every change shows at once.
  */
 export function ViewfinderSettings() {
   const s = useStyles();
@@ -56,7 +51,11 @@ export function ViewfinderSettings() {
   const sample = app.shots.shots?.[0] ?? null;
   const W = 320, H = 240;
   const overlay = useMemo(() => (active ? computeOverlay(st, active, store.loadLensMm(), { width: W, height: H }, false) : null), [st, active]);
-  const chip = (k: keyof HudChips, v: boolean) => set("hudChips", { ...st.hudChips, [k]: v });
+  const readOnly = !app.layoutEntry;
+  const look = (patch: Parameters<typeof app.editLayout>[0]["look"]) => app.editLayout({ look: patch });
+  const chip = (k: keyof HudChips, v: boolean) => look({ hud: { ...st.hudChips, [k]: v } });
+  const human = (patch: Partial<{ mode: "cycle" | "toggle"; mm: number }>) => app.editLayout({ options: { human: { mode: st.humanViewButton, mm: st.humanViewButton === "toggle" ? st.humanViewFocalMm : humanMm(app.layout), ...patch } } });
+  const setLenses = (l: VfLenses) => app.editLayout({ options: { lenses: l } });
   const [layoutSheet, setLayoutSheet] = useState(false);
   const lenses = st.phoneLenses;
   const stops = zoomStops(store.loadZoomRange());
@@ -79,34 +78,41 @@ export function ViewfinderSettings() {
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
           <ListRow icon="view-dashboard-edit-outline" title="Layout" meta={app.layouts.find((l) => l.id === st.viewfinderLayoutId)?.name ?? "Default"} onPress={() => setLayoutSheet(true)} />
-          <Block><Hint>Where the buttons go: layouts are made on the dashboard (Library › Viewfinder) and arrive with the next sync.</Hint></Block>
+          <Block><Hint>Where the buttons go, how the frame looks and how the controls behave. Made on the dashboard (Library › Viewfinder); changes here edit the layout too and sync with the next upload.</Hint></Block>
+          {readOnly && (
+            <Block>
+              <Hint>The Default is built in and can't be changed. Make a copy to change its look or controls here or on the dashboard.</Hint>
+              <Button kind="secondary" icon="content-copy" label="Make a copy" onPress={app.copyDefaultLayout} />
+            </Block>
+          )}
+          <View pointerEvents={readOnly ? "none" : "auto"} style={readOnly && { opacity: 0.45 }} accessibilityState={{ disabled: readOnly }}>
           <Block>
             <SectionLabel>Phone lenses</SectionLabel>
-            <Seg size="lg" block accessibilityLabel="Phone lenses" value={lenses.mode} onChange={(v) => set("phoneLenses", v === "list" ? { mode: "list", zooms: stops } : v === "fixed" ? { mode: "fixed", zoom: 1 } : { mode: "all" })}
-              options={[{ id: "all", label: "All" }, { id: "list", label: "Pick" }, { id: "fixed", label: "Fixed" }]} />
-            {lenses.mode === "list" && <ChipRow>{stops.map((z) => <Chip key={z} label={zoomLabel(z)} selected={lenses.zooms.includes(z)} onPress={() => set("phoneLenses", { mode: "list", zooms: lenses.zooms.includes(z) ? lenses.zooms.filter((x) => x !== z) : [...lenses.zooms, z] })} />)}</ChipRow>}
-            {lenses.mode === "fixed" && <ChipRow>{stops.map((z) => <Chip key={z} label={zoomLabel(z)} selected={lenses.zoom === z} onPress={() => set("phoneLenses", { mode: "fixed", zoom: z })} />)}</ChipRow>}
+            <Seg size="lg" block accessibilityLabel="Phone lenses" value={lenses.mode} onChange={(v) => setLenses(v === "pick" ? { mode: "pick", zooms: stops } : v === "fixed" ? { mode: "fixed", zoom: 1 } : { mode: "all" })}
+              options={[{ id: "all", label: "All" }, { id: "pick", label: "Pick" }, { id: "fixed", label: "Fixed" }]} />
+            {lenses.mode === "pick" && <ChipRow>{stops.map((z) => <Chip key={z} label={zoomLabel(z)} selected={lenses.zooms.includes(z)} onPress={() => setLenses({ mode: "pick", zooms: lenses.zooms.includes(z) ? lenses.zooms.filter((x) => x !== z) : [...lenses.zooms, z] })} />)}</ChipRow>}
+            {lenses.mode === "fixed" && <ChipRow>{stops.map((z) => <Chip key={z} label={zoomLabel(z)} selected={lenses.zoom === z} onPress={() => setLenses({ mode: "fixed", zoom: z })} />)}</ChipRow>}
             <Hint>{stops.length > 1 ? "Which of the phone's lenses Shoot offers (0.5× is the ultra-wide). Fixed uses one and shows no buttons." : "Only 1× is known so far: open Shoot once so the app learns the phone's lenses."}</Hint>
           </Block>
           <Block><SectionLabel>HUD chips · show on the camera image</SectionLabel></Block>
           {HUD.map((h) => <Toggle key={h.key} icon={h.icon} label={h.label} meta={h.meta} value={st.hudChips[h.key]} onChange={(v) => chip(h.key, v)} />)}
-          <Toggle icon="fit-to-screen-outline" label="Fit to frame" meta="Digital zoom so the rig frame fills the screen; also the Fit button" value={st.fitToFrame} onChange={(v) => set("fitToFrame", v)} />
           <Block>
             <SectionLabel>Frame colour</SectionLabel>
-            <ChipRow>{BORDER_COLORS.map((x) => <Chip key={x.value} swatch={x.value} label={x.label} selected={x.value.toUpperCase() === st.borderColor.toUpperCase()} onPress={() => set("borderColor", x.value)} />)}</ChipRow>
+            <ChipRow>{VF_FRAME_COLORS.map((x) => <Chip key={x.value} swatch={x.value} label={x.label} selected={x.value.toUpperCase() === st.borderColor.toUpperCase()} onPress={() => look({ frameColor: x.value })} />)}</ChipRow>
             <SectionLabel>Frame width</SectionLabel>
-            <Seg size="lg" block accessibilityLabel="Frame width" value={String(st.borderWidthPx)} onChange={(v) => set("borderWidthPx", Number(v))} options={[1, 2, 3, 4, 6].map((w) => ({ id: String(w), label: `${w}` }))} />
+            <Seg size="lg" block accessibilityLabel="Frame width" value={String(st.borderWidthPx)} onChange={(v) => look({ frameWidth: Number(v) })} options={VF_FRAME_WIDTHS.map((w) => ({ id: String(w), label: `${w}` }))} />
           </Block>
-          <Toggle icon="square-opacity" label="Blackout outside the frame" value={st.blackoutEnabled} onChange={(v) => set("blackoutEnabled", v)} />
+          <Toggle icon="square-opacity" label="Blackout outside the frame" value={st.blackoutEnabled} onChange={(v) => look({ blackout: v })} />
           <Block>
             <ChipGrid>
-              {TINTS.map((t) => <ChipCell key={t.value}><Chip block swatch={t.value} label={t.label} selected={t.value === st.blackoutColor} disabled={!st.blackoutEnabled} onPress={() => set("blackoutColor", t.value)} /></ChipCell>)}
+              {VF_TINTS.map((t) => <ChipCell key={t.value}><Chip block swatch={t.value} label={t.label} selected={t.value === st.blackoutColor} disabled={!st.blackoutEnabled} onPress={() => look({ blackoutColor: t.value })} /></ChipCell>)}
             </ChipGrid>
             <SectionLabel>Human view button</SectionLabel>
-            <Seg size="lg" block accessibilityLabel="Human view button" value={st.humanViewButton} onChange={(v) => set("humanViewButton", v)} options={[{ id: "cycle", label: "Cycle" }, { id: "toggle", label: "Toggle" }]} />
-            <ChipRow>{HUMAN_STEPS.map((mm) => <Chip key={mm} label={`${mm} mm-eq`} selected={st.humanViewFocalMm === mm} onPress={() => set("humanViewFocalMm", mm)} />)}</ChipRow>
-            <Hint>Cycle: off → 35 → 43 → 50 → off. Toggle: off ↔ {st.humanViewFocalMm} mm-eq. The cyan frame shows roughly what a person sees: 43–50 mm is the region of attention, 35 mm a wider take.</Hint>
+            <Seg size="lg" block accessibilityLabel="Human view button" value={st.humanViewButton} onChange={(v) => human({ mode: v })} options={[{ id: "cycle", label: "Cycle" }, { id: "toggle", label: "Toggle" }]} />
+            {st.humanViewButton === "toggle" && <ChipRow>{VF_HUMAN_STEPS.map((mm) => <Chip key={mm} label={`${mm} mm-eq`} selected={humanMm(app.layout) === mm} onPress={() => human({ mm })} />)}</ChipRow>}
+            <Hint>Cycle: off → 35 → 43 → 50 → off. Toggle: off ↔ {humanMm(app.layout)} mm-eq. The cyan frame shows roughly what a person sees: 43–50 mm is the region of attention, 35 mm a wider take.</Hint>
           </Block>
+          </View>
         </ScrollView>
       </View>
       <OptionSheet visible={layoutSheet} title="Viewfinder layout" options={[{ id: "__default__", label: "Default" }, ...app.layouts.map((l) => ({ id: l.id, label: l.name }))]}

@@ -5,14 +5,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { pruneExtra, type FieldDef } from "@fielder/vocab";
 import { hhmm } from "../shots";
 import { store } from "../storage";
-import type { CaptureDraft, LocationEntry, ProjectEntry, Settings, ShotTags, SpotEntry } from "../types";
+import type { CaptureDraft, LocationEntry, ProjectEntry, ShotTags, SpotEntry, ViewSettings } from "../types";
 import { ActionBar, BORDER, Button, confirm, FIXED, makeStyles, num, RADIUS, SeqBadge, SIZE, type } from "../ui";
 import { FramedImage } from "../components/FramedImage";
 import { EMPTY_TAGS, TagEditor, type TagDraft } from "../components/TagEditor";
 
 interface Props {
   draft: CaptureDraft;
-  settings: Settings;
+  settings: ViewSettings;
   project: ProjectEntry | null;
   locations: LocationEntry[];
   spots: SpotEntry[];

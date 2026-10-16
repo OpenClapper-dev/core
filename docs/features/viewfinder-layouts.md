@@ -4,8 +4,8 @@
 
 ## Model (`packages/vocab/src/viewfinder.ts`)
 
-- **Phone lenses** (`zoom`, issue #26): the phone's magnifications (0.5× 1× 3×…), shown only when the phone offers more than one; no options. The default puts it after the lens strip.
-
+- **Look** (`look`, issue #68; the same in both orientations): HUD chips, the rig frame's colour and width, blackout and its tint (`VF_FRAME_COLORS`, `VF_TINTS`, shared with the phone). **Options** (`options`): the Human button (cycle 35 → 43 → 50 or toggle one value) and the phone lenses (`all`, `pick` a set, `fixed` one). A stored layout without them gets `DEFAULT_VF_LOOK` / `DEFAULT_VF_OPTIONS` (`layoutLook`, `layoutOptions`); `validateViewfinderLayout` checks them when present.
+- **Phone lenses** (`zoom`, issue #26): the phone's magnifications (0.5× 1× 3×…), shown only when the phone offers more than one; List or Carousel. The default puts it after the lens strip.
 - A **layout** has a `portrait` and a `landscape` arrangement, each 1–4 **bars**. A bar sits on the preview's **start** edge (top in portrait, left in landscape) or its **end** edge (bottom / right); bars on one edge are listed in screen order (top → bottom, left → right).
 - A bar holds up to 9 **items** in screen order: `shutter`, `uploads`, `seq`, `light`, `fit`, `human`, `rig` (buttons; `label: true` shows a short text under the icon) and `lens` (the lens strip: `display` list or carousel, `size` fill or fit).
 - Each control at most once per orientation; the shutter exactly once (`validateViewfinderLayout`, strict, used by the Worker).
@@ -17,11 +17,12 @@
 - Toolbar: the phone link as a pill: grey "No phone connected" / "Offline", amber "<model> connected", green "Previewing on <model>".
 - Head: name, **Portrait · Landscape**, the **Device** the layout is designed for (saved with the layout; the Default's is remembered per browser; menu: Read out again…, Rename…, Delete device…; with no device yet, **Add device specs**), save state, Duplicate, **Reset to default**, Delete. Changes save 600 ms after the last edit once the layout is valid (a missing shutter shows a banner and waits).
 - The **preview** uses the device's Shoot screen in that orientation (a banner says when it is a generic size, or turned from the other orientation because that one was not read out yet) and its phone lenses, and lays the screen out with the phone's sizes (56 dp rows, 76 dp shutter row, 80 dp columns, the 4:3 camera image fitted between the bars) and says how big the camera image gets.
+- **Look** and **Controls** under the bars: the look and the options above (phone lenses picked from the device's stops, typical ones without a device). The preview draws a sample frame in the look, with the blackout and the HUD chips.
 - The **Bars** panel: per bar its edge, order and removal; per item its options (Label; for the lens strip List · Carousel and Fill · scroll · Fit), order and removal; "Add a control" with what the orientation does not show yet; **+ Bar** (up to 4).
 
 ## Phone
 
-- Setup → Viewfinder → **Layout** picks one (Default, or a layout from the server). The list is cached (`viewfinderLayouts.v1`) and refreshed by every `flush()`; the choice is `settings.viewfinderLayoutId`.
+- Setup → Viewfinder → **Layout** picks one (Default, or a layout from the server). Its look and options can be changed there too (`layouts.ts`: `editLayout` writes the cache and the queue `pendingLayouts.v1`, `flushLayouts` sends it first in every flush, the pulled list keeps unsent edits on top; a 4xx drops the edit and logs it). The Default is read-only there too: **Make a copy**. The screens read the phone's settings with the layout's look merged in (`withLook`, `ViewSettings`). The list is cached (`viewfinderLayouts.v1`) and refreshed by every `flush()`; the choice is `settings.viewfinderLayoutId`.
 - `Viewfinder.tsx` renders the bars of the current orientation; `vfLayout.ts` computes how much room each edge takes so the preview fits between them (the default keeps the old 166 dp portrait chrome and 80 dp columns; tested). A missing or invalid layout falls back to the default (`resolveLayout`).
 - Lens strip **Carousel** (`LensCarousel`): previous · the value (tap: Lens sheet) · next, in the strip's order. **Fill** takes the bar's remaining length and scrolls; buttons next to it keep a fixed 56 dp cell. Without a filling strip the buttons share the bar, as before.
 - In landscape the first left bar gets the cutout clearance.

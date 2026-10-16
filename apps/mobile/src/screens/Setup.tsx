@@ -9,7 +9,7 @@ import { useRigs } from "../rigs";
 import { useSync } from "../sync";
 import { AppHeader, Banner, Button, ListRow, makeStyles, num, SectionLabel, Seg, SyncCard, type } from "../ui";
 import { colourName } from "./SetupScreens";
-import type { Settings } from "../types";
+import type { ViewSettings } from "../types";
 
 export const THEME_OPTIONS = [
   { id: "auto", icon: "theme-light-dark", label: "Auto" },
@@ -17,7 +17,7 @@ export const THEME_OPTIONS = [
   { id: "set", icon: "weather-night", label: "Set" },
 ] as const;
 
-const chipCount = (s: Settings) => Object.values(s.hudChips).filter(Boolean).length;
+const chipCount = (s: ViewSettings) => Object.values(s.hudChips).filter(Boolean).length;
 
 /**
  * The Setup tab as a hub: the top answers "is everything safe on the server?", then the theme

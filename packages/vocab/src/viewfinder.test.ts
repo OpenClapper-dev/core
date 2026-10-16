@@ -20,3 +20,16 @@ test("a layout needs the shutter once and each control at most once", () => {
   badEdge.portrait.bars[0].edge = "middle";
   assert.match(validateViewfinderLayout(badEdge)!, /edge/);
 });
+
+test("look and options (issue #68): missing means defaults, odd values are rejected", async () => {
+  const { layoutLook, layoutOptions, DEFAULT_VF_LOOK, DEFAULT_VF_OPTIONS } = await import("./viewfinder.ts");
+  const bare = { ...DEFAULT_VIEWFINDER_LAYOUT, look: undefined, options: undefined };
+  assert.equal(validateViewfinderLayout(bare), null);
+  assert.deepEqual(layoutLook(bare), DEFAULT_VF_LOOK);
+  assert.deepEqual(layoutOptions(bare), DEFAULT_VF_OPTIONS);
+  assert.equal(validateViewfinderLayout({ ...DEFAULT_VIEWFINDER_LAYOUT, look: { ...DEFAULT_VF_LOOK, frameColor: "red" } })?.includes("frameColor"), true);
+  assert.equal(validateViewfinderLayout({ ...DEFAULT_VIEWFINDER_LAYOUT, look: { ...DEFAULT_VF_LOOK, blackoutColor: "rgba(0,0,0,0.5)" } }), null);
+  assert.equal(validateViewfinderLayout({ ...DEFAULT_VIEWFINDER_LAYOUT, options: { ...DEFAULT_VF_OPTIONS, lenses: { mode: "pick", zooms: [0.5, 3] } } }), null);
+  assert.equal(validateViewfinderLayout({ ...DEFAULT_VIEWFINDER_LAYOUT, options: { ...DEFAULT_VF_OPTIONS, lenses: { mode: "fixed" } } })?.includes("lenses.zoom"), true);
+  assert.equal(validateViewfinderLayout({ ...DEFAULT_VIEWFINDER_LAYOUT, options: { human: { mode: "hold", mm: 50 }, lenses: { mode: "all" } } })?.includes("options.human"), true);
+});

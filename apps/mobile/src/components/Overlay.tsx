@@ -1,12 +1,12 @@
 import { StyleSheet, Text, View } from "react-native";
 import type { Box, Rect } from "../framing";
 import { BORDER, FIXED, FONT } from "../ui";
-import type { Settings } from "../types";
+import type { ViewSettings } from "../types";
 
 interface Props {
   preview: Box;
   rect: Rect;
-  settings: Settings;
+  settings: ViewSettings;
   exceedsPreview: boolean;
   /** Optional human-view reference frame (thin cyan line, no blackout). */
   human?: { rect: Rect; fits: boolean; focalMm?: number } | null;

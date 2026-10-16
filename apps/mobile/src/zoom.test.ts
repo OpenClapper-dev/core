@@ -13,8 +13,8 @@ test("stops: the ultra-wide below 1×, then 1× and tele stops up to the maximum
 test("offered: all, a picked list (never empty), or the fixed one", () => {
   const stops = [0.5, 1, 2, 3];
   assert.deepEqual(offeredZooms(stops, { mode: "all" }), stops);
-  assert.deepEqual(offeredZooms(stops, { mode: "list", zooms: [3, 0.5] }), [0.5, 3]);
-  assert.deepEqual(offeredZooms(stops, { mode: "list", zooms: [0.6] }), [1]);
+  assert.deepEqual(offeredZooms(stops, { mode: "pick", zooms: [3, 0.5] }), [0.5, 3]);
+  assert.deepEqual(offeredZooms(stops, { mode: "pick", zooms: [0.6] }), [1]);
   assert.deepEqual(offeredZooms(stops, { mode: "fixed", zoom: 0.5 }), [0.5]);
   assert.deepEqual(offeredZooms([1, 2], { mode: "fixed", zoom: 0.5 }), [1]);
 });

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { DEFAULT_VIEWFINDER_LAYOUT, unplaced, validateViewfinderLayout, VF_CONTROL_LABELS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem, type VfOrientation, type VfOrientationName, type ViewfinderLayout } from "@fielder/vocab";
+import { DEFAULT_VIEWFINDER_LAYOUT, layoutLook, layoutOptions, unplaced, VF_FRAME_COLORS, VF_FRAME_WIDTHS, VF_HUMAN_STEPS, VF_TINTS, type VfLook, type VfOptions, validateViewfinderLayout, VF_CONTROL_LABELS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem, type VfOrientation, type VfOrientationName, type ViewfinderLayout } from "@fielder/vocab";
 import { deleteDevice, deleteLayout, fetchDevices, fetchLayouts, putDevice, putLayout, type DeviceRecord, type LayoutRecord } from "./api";
 import { DeviceDialog, deviceScreen } from "./DeviceSpecs";
 import { usePhonePreview, type PhonePreview } from "./phonePreview";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, ReorderButtons, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, Chip, Switch, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, ReorderButtons, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
 
 /**
  * Library › Viewfinder (issue #49): layouts for the phone's Shoot screen. Which controls show, in which
@@ -209,7 +209,7 @@ function Editor({ record, phone, devices, onDuplicate, onSaved, onDeleted }: { r
           {err && !readOnly && <Banner kind="warn" title="Not saved yet" meta={err} />}
           {!device && <Banner kind="info" icon="cellphone-cog" title="Generic phone size" meta="Add device specs from your phone to preview on its real screen and lenses." />}
           {device && screen.guessed && <Banner kind="info" icon="rotate-3d-variant" title={`${orient === "portrait" ? "Portrait" : "Landscape"} not read out yet`} meta={`Turned from the other orientation. Show Shoot ${orient === "portrait" ? "upright" : "sideways"} on the phone and read it out again.`} />}
-          <Preview orientation={o} portrait={orient === "portrait"} screen={screen} stops={device?.specs.stops ?? null} />
+          <Preview orientation={o} portrait={orient === "portrait"} screen={screen} stops={device?.specs.stops ?? null} look={layoutLook(layout)} />
         </div>
       </div>
       <Panel width="380px">
@@ -221,6 +221,7 @@ function Editor({ record, phone, devices, onDuplicate, onSaved, onDeleted }: { r
             onMove={(d) => { const bars = [...o.bars]; const [x] = bars.splice(i, 1); bars.splice(i + d, 0, x); setO({ bars }); }}
             onRemove={() => setO({ bars: o.bars.filter((x) => x.id !== b.id) })} />)}
           {!readOnly && unplaced(o).length > 0 && <span class="meta">Not shown in {orient}: {unplaced(o).map((c) => VF_CONTROL_LABELS[c]).join(", ")}.</span>}
+          <LookEditor layout={layout} readOnly={readOnly} stops={device?.specs.stops ?? null} onChange={change} />
         </PanelBody>
       </Panel>
     </>
@@ -252,7 +253,7 @@ function BarEditor({ bar, index, count, portrait, orientation, readOnly, onChang
               <Seg label="Lens display" value={it.display ?? "list"} onChange={(v) => !readOnly && setItem(i, { display: v as VfItem["display"] })} options={[{ id: "list", label: "List" }, { id: "carousel", label: "Carousel" }]} />
               <Seg label="Lens size" value={it.size ?? "fill"} onChange={(v) => !readOnly && setItem(i, { size: v as VfItem["size"] })} options={[{ id: "fill", label: "Fill · scroll" }, { id: "fit", label: "Fit" }]} />
             </>
-          ) : it.control === "zoom" ? <span class="meta">The phone's lenses, when it has more than one</span>
+          ) : it.control === "zoom" ? <Seg label="Phone lenses display" value={it.display ?? "list"} onChange={(v) => !readOnly && setItem(i, { display: v as VfItem["display"] })} options={[{ id: "list", label: "List" }, { id: "carousel", label: "Carousel" }]} />
             : it.control !== "shutter" && <Checkbox checked={!!it.label} role="checkbox" aria-checked={!!it.label} onClick={() => !readOnly && setItem(i, { label: !it.label })}>Label</Checkbox>}
           <span class="grow" />
           {!readOnly && <ReorderButtons index={i} count={bar.items.length} onMove={(at, d) => moveItem(at, d)} onRemove={() => onChange({ ...bar, items: bar.items.filter((_, j) => j !== i) })} remove={{ label: `Remove ${VF_CONTROL_LABELS[it.control]}` }} />}
@@ -267,7 +268,7 @@ function BarEditor({ bar, index, count, portrait, orientation, readOnly, onChang
 }
 
 /** The screen as the phone lays it out: start bars, the 4:3 camera preview, end bars; scaled to fit. */
-function Preview({ orientation: o, portrait, screen, stops }: { orientation: VfOrientation; portrait: boolean; screen: { w: number; h: number }; stops: number[] | null }) {
+function Preview({ orientation: o, portrait, screen, stops, look }: { orientation: VfOrientation; portrait: boolean; screen: { w: number; h: number }; stops: number[] | null; look: VfLook }) {
   const box = useRef<HTMLDivElement>(null);
   const [avail, setAvail] = useState({ w: 600, h: 600 });
   useEffect(() => {
@@ -293,7 +294,17 @@ function Preview({ orientation: o, portrait, screen, stops }: { orientation: VfO
       <div class="vf-screen" style={{ width: `${screen.w}px`, height: `${screen.h}px`, transform: `scale(${scale})`, flexDirection: portrait ? "column" : "row" }}>
         {edgeBlock(start, true)}
         <div class="vf-area" style={{ width: `${Math.max(0, area.w)}px`, height: `${Math.max(0, area.h)}px` }}>
-          <div class="vf-cam" style={{ width: `${cam.w}px`, height: `${cam.h}px` }}><div class="vf-cam__frame" /></div>
+          <div class="vf-cam" style={{ width: `${cam.w}px`, height: `${cam.h}px` }}>
+            {/* A sample rig frame in the layout's look: its colour and width, the blackout tint around it (user colours, drawn over the image). */}
+            <div class="vf-cam__frame" style={{ borderColor: look.frameColor, borderWidth: `${look.frameWidth}px`, boxShadow: look.blackout ? `0 0 0 2000px ${look.blackoutColor}` : undefined }} />
+            <div class="vf-cam__hud">
+              {look.hud.project && <span class="vf-hud">Project</span>}
+              {look.hud.rig && <span class="vf-hud">Rig · 35 mm</span>}
+              {look.hud.fov && <span class="vf-hud">FOV</span>}
+              {look.hud.gps && <span class="vf-hud">GPS ±5 m</span>}
+              {look.hud.warnings && <span class="vf-hud vf-hud--warn">Warnings</span>}
+            </div>
+          </div>
           {area.w < 120 || area.h < 120 ? <span class="vf-area__warn">Hardly any room for the image</span> : null}
         </div>
         {edgeBlock(end, false)}
@@ -337,6 +348,45 @@ function PreviewBar({ bar, vertical, stops }: { bar: VfBar; vertical: boolean; s
           </span>
         );
       })}
+    </div>
+  );
+}
+
+const HUD_CHIPS: { key: keyof VfLook["hud"]; label: string }[] = [
+  { key: "project", label: "Project" }, { key: "rig", label: "Rig and lens" }, { key: "fov", label: "FOV" }, { key: "gps", label: "GPS accuracy" }, { key: "warnings", label: "Warnings" },
+];
+
+/**
+ * The layout's look and control options (issue #68), the same in both orientations; the phone
+ * edits the same values in Setup → Viewfinder. The phone-lenses picks come from the device's stops.
+ */
+function LookEditor({ layout, readOnly, stops, onChange }: { layout: ViewfinderLayout; readOnly: boolean; stops: number[] | null; onChange: (l: ViewfinderLayout) => void }) {
+  const look = layoutLook(layout), opt = layoutOptions(layout);
+  const setLook = (p: Partial<VfLook>) => !readOnly && onChange({ ...layout, look: { ...look, ...p }, options: opt });
+  const setOpt = (p: Partial<VfOptions>) => !readOnly && onChange({ ...layout, look, options: { ...opt, ...p } });
+  const zooms = stops ?? [0.5, 1, 2, 3];
+  const l = opt.lenses;
+  return (
+    <div class={cx("vf-look", readOnly && "is-readonly")}>
+      <h3 class="vf-look__title">Look <span class="meta">· both orientations</span></h3>
+      <span class="vf-look__label">HUD chips</span>
+      <div class="f-chips">{HUD_CHIPS.map((h) => <Chip key={h.key} selected={look.hud[h.key]} onClick={() => setLook({ hud: { ...look.hud, [h.key]: !look.hud[h.key] } })}>{h.label}</Chip>)}</div>
+      <span class="vf-look__label">Frame colour</span>
+      <div class="f-chips">{VF_FRAME_COLORS.map((c) => <Chip key={c.value} selected={c.value.toUpperCase() === look.frameColor.toUpperCase()} onClick={() => setLook({ frameColor: c.value })}><span class="vf-swatch" style={{ background: c.value }} />{c.label}</Chip>)}</div>
+      <span class="vf-look__label">Frame width</span>
+      <Seg label="Frame width" value={String(look.frameWidth)} onChange={(v) => setLook({ frameWidth: Number(v) })} options={VF_FRAME_WIDTHS.map((w) => ({ id: String(w), label: `${w}` }))} />
+      <Switch on={look.blackout} onClick={() => setLook({ blackout: !look.blackout })}>Blackout outside the frame</Switch>
+      {look.blackout && <div class="f-chips">{VF_TINTS.map((t) => <Chip key={t.value} selected={t.value === look.blackoutColor} onClick={() => setLook({ blackoutColor: t.value })}><span class="vf-swatch" style={{ background: t.value }} />{t.label}</Chip>)}</div>}
+
+      <h3 class="vf-look__title">Controls</h3>
+      <span class="vf-look__label">Human view button</span>
+      <Seg label="Human view button" value={opt.human.mode} onChange={(v) => setOpt({ human: { ...opt.human, mode: v } })} options={[{ id: "cycle", label: "Cycle 35 → 43 → 50" }, { id: "toggle", label: "Toggle one value" }]} />
+      {opt.human.mode === "toggle" && <div class="f-chips">{VF_HUMAN_STEPS.map((mm) => <Chip key={mm} selected={opt.human.mm === mm} onClick={() => setOpt({ human: { ...opt.human, mm } })}>{mm} mm-eq</Chip>)}</div>}
+      <span class="vf-look__label">Phone lenses {stops ? "" : <span class="meta">· typical lenses, add device specs for the real ones</span>}</span>
+      <Seg label="Phone lenses" value={l.mode} onChange={(v) => setOpt({ lenses: v === "pick" ? { mode: "pick", zooms } : v === "fixed" ? { mode: "fixed", zoom: 1 } : { mode: "all" } })} options={[{ id: "all", label: "All" }, { id: "pick", label: "Pick" }, { id: "fixed", label: "Fixed" }]} />
+      {l.mode === "pick" && <div class="f-chips">{zooms.map((z) => <Chip key={z} selected={l.zooms.includes(z)} onClick={() => setOpt({ lenses: { mode: "pick", zooms: l.zooms.includes(z) ? l.zooms.filter((x) => x !== z) : [...l.zooms, z].sort((a, b) => a - b) } })}>{z}×</Chip>)}</div>}
+      {l.mode === "fixed" && <div class="f-chips">{zooms.map((z) => <Chip key={z} selected={l.zoom === z} onClick={() => setOpt({ lenses: { mode: "fixed", zoom: z } })}>{z}×</Chip>)}</div>}
+      <span class="meta">{l.mode === "fixed" ? "One lens, no buttons on the phone." : "On the phone, a lens it doesn't have is left out."}</span>
     </div>
   );
 }

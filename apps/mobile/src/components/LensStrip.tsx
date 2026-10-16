@@ -129,7 +129,32 @@ export function ZoomStrip({ zoom, zooms, onChange, vertical }: { zoom: number; z
   );
 }
 
+/** The phone lenses as one value between previous / next (issue #68, "Carousel"), like the lens carousel. */
+export function ZoomCarousel({ zoom, zooms, onChange, vertical }: { zoom: number; zooms: number[]; onChange: (z: number) => void; vertical: boolean }) {
+  const s = useZoomStyles();
+  const { c } = useTheme();
+  if (zooms.length < 2) return null;
+  const i = Math.max(0, zooms.indexOf(zoom));
+  const arrow = (dir: -1 | 1) => {
+    const next = zooms[i + dir];
+    return (
+      <Pressable onPress={() => next !== undefined && onChange(next)} disabled={next === undefined} accessibilityRole="button" accessibilityLabel={dir < 0 ? "Wider phone lens" : "Longer phone lens"}
+        style={({ pressed }) => [s.zArrow, pressed && { backgroundColor: c.surfaceSunken }]}>
+        <Icon name={vertical ? (dir < 0 ? "chevron-up" : "chevron-down") : dir < 0 ? "chevron-left" : "chevron-right"} size={24} color={next === undefined ? c.textDisabled : c.chromeText} />
+      </Pressable>
+    );
+  };
+  return (
+    <View style={[s.zoom, vertical ? s.zoomCol : s.zoomRow]}>
+      {arrow(-1)}
+      <View style={[s.z, s.zOn]} accessibilityLabel={`Phone lens ${zoomLabel(zoom)}`}><Text style={[s.zText, s.zTextOn]}>{zoomLabel(zoom)}</Text></View>
+      {arrow(1)}
+    </View>
+  );
+}
+
 const useZoomStyles = makeStyles((c) => ({
+  zArrow: { width: 36, height: 44, borderRadius: RADIUS.pill, alignItems: "center", justifyContent: "center" },
   zoom: { alignItems: "center", justifyContent: "center", gap: 4 },
   zoomRow: { flexDirection: "row", paddingHorizontal: 6 },
   zoomCol: { flexDirection: "column", paddingVertical: 6 },
