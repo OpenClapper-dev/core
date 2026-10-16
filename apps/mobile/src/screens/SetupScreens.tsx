@@ -10,6 +10,7 @@ import { clearLog, logCount, logText, setLogging } from "../log";
 import { useRigs } from "../rigs";
 import { store } from "../storage";
 import { zoomLabel, zoomStops } from "../zoom";
+import { registeredName } from "../device";
 import type { GpsMode, HudChips, Settings } from "../types";
 import { Block, BORDER, Button, ListRow, Chip, ChipCell, ChipGrid, ChipRow, confirm, ErrorText, FIXED, Hint, Input, makeStyles, num, PushScreen, SectionLabel, Seg, toast, Toggle, type } from "../ui";
 import { HudChip } from "../components/Hud";
@@ -165,6 +166,7 @@ export function Calibration() {
             <Hint>Kept as typed; photos no longer change it. A smaller value makes the frame smaller on screen.</Hint>
           </>
         )}
+        <Hint>{registeredName() ? `On the dashboard as “${registeredName()}” (device specs); each sync updates it.` : "Not on the dashboard yet: Library › Viewfinder › Add device specs reads this phone out."}</Hint>
       </Block>
     </PushScreen>
   );

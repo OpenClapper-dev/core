@@ -1,37 +1,60 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { DEFAULT_VIEWFINDER_LAYOUT, unplaced, validateViewfinderLayout, VF_CONTROL_LABELS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem, type VfOrientation, type VfOrientationName, type ViewfinderLayout } from "@fielder/vocab";
-import { deleteLayout, fetchLayouts, putLayout, type LayoutRecord } from "./api";
+import { deleteDevice, deleteLayout, fetchDevices, fetchLayouts, putDevice, putLayout, type DeviceRecord, type LayoutRecord } from "./api";
+import { DeviceDialog, deviceScreen } from "./DeviceSpecs";
 import { usePhonePreview, type PhonePreview } from "./phonePreview";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, Panel, PanelBody, PanelHead, promptDialog, ReorderButtons, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, ReorderButtons, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
 
 /**
  * Library › Viewfinder (issue #49): layouts for the phone's Shoot screen. Which controls show, in which
  * bars, per orientation; the phone picks one in Setup → Viewfinder. The built-in Default is today's
  * arrangement: it can't be changed, but every layout can be reset to it. The preview follows the
- * phone's sizes (vfLayout.ts there), on a phone, tablet or custom-size screen. "Preview on phone"
- * (issue #50) shows the layout being edited on the real phone, live, in the orientation picked here.
+ * phone's sizes (vfLayout.ts there) on a device read out from a real phone (issue #68: its Shoot
+ * screen per orientation and its lenses); a layout remembers the device it is designed for.
+ * "Preview on phone" (issue #50) shows the layout being edited on the real phone, live, in the
+ * orientation picked here.
  */
 
 const DEFAULT_ID = "__default__";
-const VIEWPORTS = { phone: { w: 412, h: 915, label: "Phone" }, tablet: { w: 800, h: 1280, label: "Tablet" } } as const;
-type Viewport = keyof typeof VIEWPORTS | "custom";
+const ADD_DEVICE = "__add__";
+/** The Default has no record to remember a device on: this browser does. */
+const DEFAULT_DEVICE_KEY = "vfDefaultDevice";
 const ICONS: Record<Exclude<VfControl, "shutter" | "lens" | "zoom">, string> = { uploads: "cloud-upload-outline", seq: "layers-triple-outline", light: "flashlight", fit: "fit-to-screen-outline", human: "human-male", rig: "camera-control" };
 const clone = (l: ViewfinderLayout): ViewfinderLayout => JSON.parse(JSON.stringify(l)) as ViewfinderLayout;
 /** Same sizes as the phone (apps/mobile/src/vfLayout.ts). */
 const SZ = { padStart: 10, padEnd: 12, gap: 10, line: 2, row: 56, shutter: 76, column: 80 };
 
-function readPrefs(): { viewport: Viewport; w: number; h: number } {
-  try {
-    const v = JSON.parse(localStorage.getItem("vfPreview") ?? "{}") as { viewport?: Viewport; w?: number; h?: number };
-    return { viewport: v.viewport === "tablet" || v.viewport === "custom" ? v.viewport : "phone", w: v.w ?? 390, h: v.h ?? 844 };
-  } catch { return { viewport: "phone", w: 390, h: 844 }; }
+/** Not connected (grey), a phone is there (amber), previewing on it (green). */
+function PhoneStatus({ phone }: { phone: PhonePreview }) {
+  const model = phone.phones[0]?.model ?? "Phone";
+  const [kind, text] = !phone.connected ? ["off", "Offline"] : phone.previewing ? ["live", `Previewing on ${model}`] : phone.phones.length ? ["ready", `${model} connected`] : ["off", "No phone connected"];
+  return <span class={cx("vf-status", `vf-status--${kind}`)} role="status"><Icon name={kind === "live" ? "cellphone-play" : kind === "ready" ? "cellphone" : "cellphone-off"} />{text}</span>;
 }
 
 export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string | null) => void }) {
   const [list, setList] = useState<LayoutRecord[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const phone = usePhonePreview();
+  const [devices, setDevices] = useState<DeviceRecord[]>([]);
+  const [dialog, setDialog] = useState<{ then?: (d: DeviceRecord) => void } | null>(null);
   useEffect(() => { fetchLayouts().then(setList).catch((e: Error) => setError(e.message)); }, []);
+  useEffect(() => { fetchDevices().then(setDevices).catch((e: Error) => toast(`Could not load the devices: ${e.message}`, "danger")); }, []);
+  // A saved phone that sends fresh specs while connected (it measured, recalibrated) shows them at once.
+  const live = devices.map((d) => (phone.specs[d.id] ? { ...d, specs: phone.specs[d.id] } : d));
+  const deviceCtl: DeviceCtl = {
+    devices: live,
+    add: (then) => setDialog({ then }),
+    rename: async (d) => {
+      const name = await promptDialog({ title: "Rename device", input: { label: "Name", value: d.name }, confirmLabel: "Rename" });
+      if (!name) return;
+      try { const r = await putDevice({ id: d.id, name, specs: d.specs }); setDevices((cur) => cur.map((x) => (x.id === r.id ? r : x))); } catch (e) { toast(`Rename failed: ${(e as Error).message}`, "danger"); }
+    },
+    remove: async (d) => {
+      const ok = await confirmDialog({ title: `Delete “${d.name}”?`, body: "Layouts designed for it keep working and lose the reference. The phone can be read out again any time.", confirmLabel: "Delete device", danger: true });
+      if (!ok) return;
+      try { await deleteDevice(d.id); setDevices((cur) => cur.filter((x) => x.id !== d.id)); toast("Device deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
+    },
+  };
   const sel = selectedId ?? DEFAULT_ID;
   const current = list?.find((l) => l.id === sel) ?? null;
 
@@ -54,8 +77,8 @@ export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: st
       <Toolbar>
         <ToolbarTitle count={list.length + 1}>Viewfinder layouts</ToolbarTitle>
         <span class="meta">The phone picks one in Setup → Viewfinder → Layout.</span>
-        <span class="meta">· {phone.phones ? "Phone connected" : "No phone connected"}</span>
         <ToolbarSpacer />
+        <PhoneStatus phone={phone} />
         <Button size="sm" icon="plus" onClick={() => void newLayout(DEFAULT_VIEWFINDER_LAYOUT, "My layout")}>New layout</Button>
       </Toolbar>
       <div class="f-app__body">
@@ -66,40 +89,57 @@ export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: st
           </PanelBody>
         </Panel>
         {sel === DEFAULT_ID || !current
-          ? <Editor key="default" record={null} phone={phone} onDuplicate={() => void newLayout(DEFAULT_VIEWFINDER_LAYOUT, "My layout")} />
-          : <Editor key={current.id} record={current} phone={phone} onDuplicate={() => void newLayout(current.layout, `${current.name} (copy)`)}
+          ? <Editor key="default" record={null} phone={phone} devices={deviceCtl} onDuplicate={() => void newLayout(DEFAULT_VIEWFINDER_LAYOUT, "My layout")} />
+          : <Editor key={current.id} record={current} phone={phone} devices={deviceCtl} onDuplicate={() => void newLayout(current.layout, `${current.name} (copy)`)}
               onSaved={(r) => setList((cur) => (cur ?? []).map((x) => (x.id === r.id ? r : x)))}
               onDeleted={() => { setList((cur) => (cur ?? []).filter((x) => x.id !== current.id)); onSelect(null); }} />}
       </div>
+      {dialog && <DeviceDialog phone={phone} devices={live} onClose={() => setDialog(null)}
+        onSaved={(d) => { setDevices((cur) => [...cur.filter((x) => x.id !== d.id), d].sort((a, b) => a.name.localeCompare(b.name))); dialog.then?.(d); setDialog(null); }} />}
     </>
   );
 }
 
+interface DeviceCtl {
+  devices: DeviceRecord[];
+  /** Open Add device specs; `then` gets the saved device. */
+  add: (then?: (d: DeviceRecord) => void) => void;
+  rename: (d: DeviceRecord) => Promise<void>;
+  remove: (d: DeviceRecord) => Promise<void>;
+}
+
 const summary = (l: ViewfinderLayout) => `${l.portrait.bars.length} bar${l.portrait.bars.length === 1 ? "" : "s"} portrait · ${l.landscape.bars.length} landscape`;
 
-function Editor({ record, phone, onDuplicate, onSaved, onDeleted }: { record: LayoutRecord | null; phone: PhonePreview; onDuplicate: () => void; onSaved?: (r: LayoutRecord) => void; onDeleted?: () => void }) {
+function Editor({ record, phone, devices, onDuplicate, onSaved, onDeleted }: { record: LayoutRecord | null; phone: PhonePreview; devices: DeviceCtl; onDuplicate: () => void; onSaved?: (r: LayoutRecord) => void; onDeleted?: () => void }) {
   const [layout, setLayout] = useState<ViewfinderLayout>(() => clone(record?.layout ?? DEFAULT_VIEWFINDER_LAYOUT));
   const [name, setName] = useState(record?.name ?? "Default");
   const [orient, setOrient] = useState<VfOrientationName>("portrait");
-  const [prefs, setPrefsState] = useState(readPrefs);
+  // The device this layout is designed for (the Default's is remembered per browser).
+  const [deviceId, setDeviceIdState] = useState<string | null>(() => record ? record.device_id : (() => { try { return localStorage.getItem(DEFAULT_DEVICE_KEY); } catch { return null; } })());
+  const [devMenu, setDevMenu] = useState(false);
   const [save, setSave] = useState<SaveState>("idle");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readOnly = !record;
   const err = validateViewfinderLayout(layout);
-  const setPrefs = (p: Partial<typeof prefs>) => setPrefsState((cur) => { const n = { ...cur, ...p }; try { localStorage.setItem("vfPreview", JSON.stringify(n)); } catch { /* per-browser convenience */ } return n; });
 
   // Changes save 600 ms after the last edit, once the layout is valid (a missing shutter waits).
-  const persist = (l: ViewfinderLayout, n: string) => {
+  const persist = (l: ViewfinderLayout, n: string, device: string | null = deviceId) => {
     if (!record) return;
     if (timer.current) clearTimeout(timer.current);
     if (validateViewfinderLayout(l) || !n.trim()) { setSave("dirty"); return; }
     setSave("dirty");
     timer.current = setTimeout(() => {
       setSave("saving");
-      putLayout({ id: record.id, name: n.trim(), layout: l }).then((r) => { setSave("saved"); onSaved?.(r); }).catch(() => setSave("error"));
+      putLayout({ id: record.id, name: n.trim(), layout: l, device_id: device }).then((r) => { setSave("saved"); onSaved?.(r); }).catch(() => setSave("error"));
     }, 600);
   };
   const change = (l: ViewfinderLayout) => { setLayout(l); persist(l, name); };
+  const setDevice = (id: string | null) => {
+    setDeviceIdState(id);
+    if (record) persist(layout, name, id);
+    else try { if (id) localStorage.setItem(DEFAULT_DEVICE_KEY, id); else localStorage.removeItem(DEFAULT_DEVICE_KEY); } catch { /* per-browser convenience */ }
+  };
+  const device = devices.devices.find((d) => d.id === deviceId) ?? null;
   const o = layout[orient];
   // While the phone previews, it follows every edit and the orientation picked here (also after switching layouts).
   useEffect(() => {
@@ -120,8 +160,8 @@ function Editor({ record, phone, onDuplicate, onSaved, onDeleted }: { record: La
     if (ok) change(clone(DEFAULT_VIEWFINDER_LAYOUT));
   }
 
-  const vp = prefs.viewport === "custom" ? { w: prefs.w, h: prefs.h } : VIEWPORTS[prefs.viewport];
-  const screen = orient === "portrait" ? { w: Math.min(vp.w, vp.h), h: Math.max(vp.w, vp.h) } : { w: Math.max(vp.w, vp.h), h: Math.min(vp.w, vp.h) };
+  const screen = deviceScreen(device?.specs ?? null, orient === "portrait");
+  const canPreview = phone.connected && phone.phones.length > 0 && !err;
   return (
     <>
       <div class="f-scroll" style={{ flex: 1 }}>
@@ -130,20 +170,31 @@ function Editor({ record, phone, onDuplicate, onSaved, onDeleted }: { record: La
             {readOnly ? <strong class="vf-editor__title">Default <span class="meta">built in</span></strong>
               : <Input value={name} maxLength={80} aria-label="Layout name" style={{ fontWeight: 700 }} onInput={(e) => { const v = (e.target as HTMLInputElement).value; setName(v); persist(layout, v); }} />}
             <Seg label="Orientation" value={orient} onChange={setOrient} options={[{ id: "portrait", label: "Portrait" }, { id: "landscape", label: "Landscape" }]} />
-            <Seg label="Screen" value={prefs.viewport} onChange={(v) => setPrefs({ viewport: v })} options={[{ id: "phone", label: "Phone" }, { id: "tablet", label: "Tablet" }, { id: "custom", label: "Custom" }]} />
-            {prefs.viewport === "custom" && (
-              <span class="vf-editor__size">
-                <Input sm type="number" min={240} max={3000} value={String(prefs.w)} aria-label="Width in px" onInput={(e) => { const n = Number((e.target as HTMLInputElement).value); if (n >= 240 && n <= 3000) setPrefs({ w: n }); }} />
-                <span class="meta">×</span>
-                <Input sm type="number" min={240} max={3000} value={String(prefs.h)} aria-label="Height in px" onInput={(e) => { const n = Number((e.target as HTMLInputElement).value); if (n >= 240 && n <= 3000) setPrefs({ h: n }); }} />
-                <span class="meta">px usable</span>
-              </span>
-            )}
+            {devices.devices.length === 0
+              ? <Button kind="secondary" size="sm" icon="cellphone-cog" onClick={() => devices.add((d) => setDevice(d.id))}>Add device specs</Button>
+              : (
+                <span class="vf-editor__device">
+                  <Select label="Device" icon="cellphone" width="220px" value={device?.id ?? ""} onChange={(v) => (v === ADD_DEVICE ? devices.add((d) => setDevice(d.id)) : setDevice(v || null))}
+                    options={[...(device ? [] : [{ value: "", label: "Choose a device…" }]), ...devices.devices.map((d) => ({ value: d.id, label: d.name })), { value: ADD_DEVICE, label: "Add device specs…" }]} />
+                  {device && (
+                    <span class="menu-anchor">
+                      <IconButton icon="dots-vertical" label="Device…" title="Device…" onClick={() => setDevMenu((x) => !x)} />
+                      {devMenu && (
+                        <Popover onClose={() => setDevMenu(false)}>
+                          <MenuItem icon="cellphone-arrow-down" onClick={() => { setDevMenu(false); devices.add(); }}>Read out again…</MenuItem>
+                          <MenuItem icon="pencil-outline" onClick={() => { setDevMenu(false); void devices.rename(device); }}>Rename…</MenuItem>
+                          <MenuItem icon="delete-outline" danger onClick={() => { setDevMenu(false); void devices.remove(device); }}>Delete device…</MenuItem>
+                        </Popover>
+                      )}
+                    </span>
+                  )}
+                </span>
+              )}
             <div class="plan-head__status">
               {phone.previewing
                 ? <Button kind="secondary" size="sm" icon="cellphone-off" onClick={phone.stop}>Stop phone preview</Button>
-                : <Button kind="secondary" size="sm" icon="cellphone-play" disabled={!phone.phones || !!err}
-                    title={!phone.connected ? "Not connected to the server" : !phone.phones ? "No phone connected: open the app on the phone" : err ? "Fix the layout first" : "Show this layout on the phone, live"}
+                : <Button kind="secondary" size="sm" icon="cellphone-play" disabled={!canPreview}
+                    title={!phone.connected ? "Not connected to the server" : !phone.phones.length ? "No phone connected: open the app on the phone" : err ? "Fix the layout first" : "Show this layout on the phone, live"}
                     onClick={() => phone.show(layout, orient)}>Preview on phone</Button>}
               {!readOnly && <SaveStatus state={save} onRetry={() => persist(layout, name)} />}
               {readOnly ? <Button size="sm" icon="content-copy" onClick={onDuplicate}>Duplicate to edit</Button> : (
@@ -156,7 +207,9 @@ function Editor({ record, phone, onDuplicate, onSaved, onDeleted }: { record: La
             </div>
           </div>
           {err && !readOnly && <Banner kind="warn" title="Not saved yet" meta={err} />}
-          <Preview orientation={o} portrait={orient === "portrait"} screen={screen} />
+          {!device && <Banner kind="info" icon="cellphone-cog" title="Generic phone size" meta="Add device specs from your phone to preview on its real screen and lenses." />}
+          {device && screen.guessed && <Banner kind="info" icon="rotate-3d-variant" title={`${orient === "portrait" ? "Portrait" : "Landscape"} not read out yet`} meta={`Turned from the other orientation. Show Shoot ${orient === "portrait" ? "upright" : "sideways"} on the phone and read it out again.`} />}
+          <Preview orientation={o} portrait={orient === "portrait"} screen={screen} stops={device?.specs.stops ?? null} />
         </div>
       </div>
       <Panel width="380px">
@@ -214,7 +267,7 @@ function BarEditor({ bar, index, count, portrait, orientation, readOnly, onChang
 }
 
 /** The screen as the phone lays it out: start bars, the 4:3 camera preview, end bars; scaled to fit. */
-function Preview({ orientation: o, portrait, screen }: { orientation: VfOrientation; portrait: boolean; screen: { w: number; h: number } }) {
+function Preview({ orientation: o, portrait, screen, stops }: { orientation: VfOrientation; portrait: boolean; screen: { w: number; h: number }; stops: number[] | null }) {
   const box = useRef<HTMLDivElement>(null);
   const [avail, setAvail] = useState({ w: 600, h: 600 });
   useEffect(() => {
@@ -233,8 +286,8 @@ function Preview({ orientation: o, portrait, screen }: { orientation: VfOrientat
   const aspect = portrait ? 3 / 4 : 4 / 3;
   const cam = area.w / aspect <= area.h ? { w: area.w, h: area.w / aspect } : { w: area.h * aspect, h: area.h };
   const edgeBlock = (bars: VfBar[], isStart: boolean) => !bars.length ? null : portrait
-    ? <div class={cx("vf-chrome", isStart && "vf-chrome--top")}>{bars.map((b) => <PreviewBar key={b.id} bar={b} vertical={false} />)}</div>
-    : bars.map((b) => <div key={b.id} class={cx("vf-side", isStart ? "vf-side--start" : "vf-side--end")}><PreviewBar bar={b} vertical /></div>);
+    ? <div class={cx("vf-chrome", isStart && "vf-chrome--top")}>{bars.map((b) => <PreviewBar key={b.id} bar={b} vertical={false} stops={stops} />)}</div>
+    : bars.map((b) => <div key={b.id} class={cx("vf-side", isStart ? "vf-side--start" : "vf-side--end")}><PreviewBar bar={b} vertical stops={stops} /></div>);
   return (
     <div ref={box} class="vf-stage">
       <div class="vf-screen" style={{ width: `${screen.w}px`, height: `${screen.h}px`, transform: `scale(${scale})`, flexDirection: portrait ? "column" : "row" }}>
@@ -250,7 +303,9 @@ function Preview({ orientation: o, portrait, screen }: { orientation: VfOrientat
   );
 }
 
-function PreviewBar({ bar, vertical }: { bar: VfBar; vertical: boolean }) {
+/** `stops`: the device's phone lenses (issue #68), or a typical set without a device. */
+function PreviewBar({ bar, vertical, stops }: { bar: VfBar; vertical: boolean; stops: number[] | null }) {
+  const zooms = stops ?? [0.5, 1, 3];
   const fixed = bar.items.some((i) => i.control === "lens" && i.size !== "fit");
   const height = bar.items.some((i) => i.control === "shutter") ? SZ.shutter : SZ.row;
   return (
@@ -260,7 +315,7 @@ function PreviewBar({ bar, vertical }: { bar: VfBar; vertical: boolean }) {
         if (it.control === "zoom") {
           return (
             <span key="zoom" class={cx("vf-lens", vertical && "vf-lens--v", "is-fit")} title="Phone lenses">
-              {["0.5", "1", "3"].map((z) => <span key={z} class={cx("vf-pill", z === "1" && "is-on")}>{z}<small>×</small></span>)}
+              {zooms.length > 1 && zooms.map((z) => <span key={z} class={cx("vf-pill", z === 1 && "is-on")}>{z}<small>×</small></span>)}
             </span>
           );
         }
