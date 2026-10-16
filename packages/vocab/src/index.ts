@@ -8,3 +8,4 @@ export * from "./framing.ts";
 export * from "./timeline.ts";
 export * from "./viewfinder.ts";
 export * from "./devices.ts";
+export * from "./files.ts";

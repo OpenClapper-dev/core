@@ -1,4 +1,5 @@
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
 
@@ -78,7 +79,7 @@ export function registerLocationRoutes(r: Router<Ctx>) {
 
   r.on("DELETE", "/api/locations/:id", async ({ env }, { id }) => {
     const lid = assertUuid(id, "id");
-    const res = await env.DB.prepare("DELETE FROM locations WHERE id = ?1").bind(lid).run();
+    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM locations WHERE id = ?1").bind(lid), ...fileRefCleanup(env, "location", JSON.stringify([lid]))]);
     if (!res.meta.changes) throw new HttpError(404, "location not found");
     // shots.location_id becomes NULL via ON DELETE SET NULL; the photos stay.
     return json({ deleted: lid });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { extraFilterFields, type FieldDef } from "@fielder/vocab";
-import { fetchAllShots, fetchFields, fetchLocations, fetchPresets, fetchProjects, fetchSpots, fetchViews, onProjectCreated, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type Spot } from "./api";
+import { fetchAllShots, fetchFields, fetchFiles, type FilesPayload, fetchLocations, fetchPresets, fetchProjects, fetchSpots, fetchViews, onProjectCreated, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type Spot } from "./api";
+import { getProjectId, onProjectChange } from "./project";
 import { toast } from "./ui";
 
 /**
@@ -18,9 +19,11 @@ export interface DataState {
   fields: FieldDefinition[] | null;
   error: string | null;
   loadedAt: Date | null;
+  /** The active project's folders, placements and desktop shortcuts (epic #72); per project, not gating the first render. */
+  files: (FilesPayload & { projectId: string }) | null;
 }
 
-let state: DataState = { shots: null, projects: null, presets: null, locations: null, views: null, spots: null, fields: null, error: null, loadedAt: null };
+let state: DataState = { shots: null, projects: null, presets: null, locations: null, views: null, spots: null, fields: null, error: null, loadedAt: null, files: null };
 const listeners = new Set<(s: DataState) => void>();
 function put(p: Partial<DataState>) {
   state = { ...state, ...p };
@@ -42,7 +45,18 @@ export const setFields = setter("fields");
 
 export const loaded = (s: DataState = state) => !!s.shots && !!s.projects && !!s.presets && !!s.locations && !!s.spots && !!s.views && !!s.fields;
 
+/** (Re)load one project's files; a failure leaves the last copy (the desktop keeps working without icons). */
+export function loadFiles(projectId: string): Promise<void> {
+  return fetchFiles(projectId).then((f) => { if (getProjectId() === projectId) put({ files: { ...f, projectId } }); }).catch(() => {});
+}
+/** Update the loaded files in place after a mutation (same shape as the setters above). */
+export function setFiles(update: (cur: FilesPayload) => FilesPayload) {
+  if (state.files) put({ files: { ...update(state.files), projectId: state.files.projectId } });
+}
+
 export function load(): Promise<void> {
+  const pid = getProjectId();
+  if (pid) void loadFiles(pid);
   return Promise.all([fetchAllShots().then(setShots), fetchProjects().then(setProjects), fetchPresets().then(setPresets), fetchLocations().then(setLocations), fetchSpots().then(setSpots), fetchViews().then(setViews), fetchFields().then(setFields)])
     .then(() => put({ error: null, loadedAt: new Date() }))
     .catch((e: Error) => put({ error: e.message }));
@@ -68,6 +82,9 @@ export function created(list: Shot[]) {
   setShots((cur) => [...list, ...(cur ?? [])]);
   refreshCounts();
 }
+
+// The desktop's files follow the active project.
+onProjectChange((id) => { put({ files: null }); if (id) void loadFiles(id); });
 
 // A project created inline (move, bulk edit) joins the list at once; counts follow with the next refresh.
 onProjectCreated((p) => setProjects((cur) => (cur ?? []).some((x) => x.id === p.id) ? cur ?? [] : [...(cur ?? []), p].sort((a, b) => a.name.localeCompare(b.name))));
