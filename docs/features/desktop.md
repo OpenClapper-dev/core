@@ -23,7 +23,7 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 
 - **Taskbar** (`wm/Taskbar.tsx`): the launcher (the mark), pinned apps, one button per window (click focuses, or minimizes the focused one; right-click: pin, snap left/right, close), then the project switcher (with "Manage projects…"), Go to… (⌘K), the theme (Auto → Sun → Set), reload and the clock. Toasts sit bottom right, above it.
 - **Launcher** (`wm/Launcher.tsx`): every app; right-click pins one to the taskbar.
-- **Desktop** (`wm/Desktop.tsx`): shortcuts to apps, folders and files ([files](files.md)), and the recycle bin icon (unless Settings › Desktop hides it). Clicking the empty desktop takes focus away from the windows (the URL shows `#/`); right-click for New folder, New shortcut…, Arrange icons, Settings and the theme.
+- **Desktop** (`wm/Desktop.tsx`): the files and folders of the project's Desktop folder, shortcuts to apps, folders and files elsewhere ([files](files.md#desktop-icons-appsdashboardsrcwmdesktoptsx)), and the recycle bin icon (unless Settings › Desktop hides it). Icons sit on a grid without overlapping; rubber band, Ctrl/Shift-click and group drags as on Windows. Clicking the empty desktop takes focus away from the windows (the URL shows `#/`); right-click for New folder, New shortcut…, Arrange icons, Settings and the theme.
 - **Global overlays** (`wm/overlays.ts`): Go to… (⌘K), the shortcut sheet (`?`) and New shot open above every window, from any app; confirmations, prompts and toasts too (`confirmDialog`, `promptDialog`, `toast` in `ui/`; no `window.confirm`/`alert`).
 
 ## Apps (`apps/registry.ts`)

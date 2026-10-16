@@ -1,9 +1,18 @@
 import type { FileResourceType } from "@fielder/vocab";
 import type { DesktopItem, Folder, FolderItem } from "./api";
 
-/** The drag payload between Files, its folder tree and the desktop. */
+/** The drag payload between Files, its folder tree and the desktop: one or more files and folders. */
 export const FILE_DRAG = "application/x-fielder-file";
 export type FileDrag = { kind: "file"; type: FileResourceType; id: string } | { kind: "folder"; id: string };
+
+/** What a drop carries (an older single-item payload reads as a list of one); null when it is not ours. */
+export function readDrag(dt: DataTransfer | null | undefined): FileDrag[] | null {
+  try {
+    const v = JSON.parse(dt?.getData(FILE_DRAG) || "null") as FileDrag | FileDrag[] | null;
+    const list = Array.isArray(v) ? v : v ? [v] : [];
+    return list.length ? list : null;
+  } catch { return null; }
+}
 
 /**
  * Folder logic for the Files app and the desktop (epic #72), pure so it is tested on its own.
@@ -59,4 +68,32 @@ export function shortcutFor(desktop: readonly DesktopItem[], t: { kind: DesktopI
 export function freeCell(desktop: readonly Pick<DesktopItem, "x" | "y">[], cell: { w: number; h: number }, rows: number): { x: number; y: number } {
   const taken = new Set(desktop.map((d) => `${Math.round(d.x / cell.w)}:${Math.round(d.y / cell.h)}`));
   for (let c = 0; ; c++) for (let r = 0; r < Math.max(1, rows); r++) if (!taken.has(`${c}:${r}`)) return { x: c * cell.w, y: r * cell.h };
+}
+
+/**
+ * The desktop grid (epic #90): icons sit in whole cells, never on top of each other. A cell is a
+ * column and a row; its pixel spot is pad + index × cell size.
+ */
+export interface Cell { c: number; r: number }
+export interface Grid { w: number; h: number; pad: number; cols: number; rows: number }
+export const cellKey = (c: Cell) => `${c.c}:${c.r}`;
+/** The cell a pixel spot falls in (its nearest one), never negative. */
+export const cellAt = (g: Grid, x: number, y: number): Cell => ({ c: Math.max(0, Math.round((x - g.pad) / g.w)), r: Math.max(0, Math.round((y - g.pad) / g.h)) });
+export const cellSpot = (g: Grid, c: Cell) => ({ x: g.pad + c.c * g.w, y: g.pad + c.r * g.h });
+
+/**
+ * The free cell nearest to `want` (by distance, then column-major), inside the grid when there is
+ * room; a full grid continues in new columns to the right, like a desktop does.
+ */
+export function nearestFreeCell(taken: ReadonlySet<string>, want: Cell, cols: number, rows: number): Cell {
+  const C = Math.max(1, cols), R = Math.max(1, rows);
+  const w = { c: Math.min(Math.max(0, want.c), C - 1), r: Math.min(Math.max(0, want.r), R - 1) };
+  let best: Cell | null = null, bestD = Infinity;
+  for (let c = 0; c < C; c++) for (let r = 0; r < R; r++) {
+    if (taken.has(cellKey({ c, r }))) continue;
+    const d = (c - w.c) ** 2 + (r - w.r) ** 2;
+    if (d < bestD) { best = { c, r }; bestD = d; }
+  }
+  if (best) return best;
+  for (let c = C; ; c++) for (let r = 0; r < R; r++) if (!taken.has(cellKey({ c, r }))) return { c, r };
 }
