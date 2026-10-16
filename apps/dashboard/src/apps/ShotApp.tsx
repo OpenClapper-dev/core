@@ -87,7 +87,7 @@ export function ShotApp({ win, resource, setTitle, replaceRoute, open, close }: 
         if (n) navigate(n); else back();
       }}
       onShowOnMap={(s) => open({ app: "gallery", state: { showShot: s.id } })}
-      onOpenDay={(projectId, dayId) => void inProject(projectId, () => open({ app: "plan", resource: { type: "day", id: dayId } }))}
-      onOpenTimeline={(projectId, timelineId) => void inProject(projectId, () => open({ app: "timeline", resource: { type: "timeline", id: timelineId } }))} />
+      onOpenDay={(projectId, dayId) => void inProject(projectId, () => open({ app: "plan", state: { dayId } }))}
+      onOpenTimeline={(projectId, timelineId) => void inProject(projectId, () => open({ app: "timeline", state: { timelineId } }))} />
   );
 }

@@ -16,6 +16,8 @@ interface Props {
   dayId: string | null;
   onDay: (id: string | null) => void;
   onOpen: (s: Shot, list: Shot[]) => void;
+  /** The open day's label and the save state, for the window title and its close guard. */
+  onStatus?: (s: { name: string | null; save: SaveState }) => void;
 }
 
 const BERLIN = { lat: 52.52, lon: 13.405 };
@@ -49,7 +51,7 @@ const atTime = (start: Date, hm: string) => { const [h, m] = hm.split(":").map(N
 const plannedFits = (planned: string | null, start: Date, w: Interval[]) => !planned || w.some((x) => atTime(start, planned) >= x.start && atTime(start, planned) < x.end);
 
 /** Plan: shooting days of the project against the light and the forecast. Changes autosave per day. */
-export function PlanPage({ project, shots, mask, dayId, onDay, onOpen }: Props) {
+export function PlanPage({ project, shots, mask, dayId, onDay, onOpen, onStatus }: Props) {
   const [days, setDays] = useState<ShootingDay[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const projectId = project.id;
@@ -94,6 +96,8 @@ export function PlanPage({ project, shots, mask, dayId, onDay, onOpen }: Props) 
 
   const day = days?.find((d) => d.id === dayId) ?? null;
   const today = isoDate(new Date());
+  const dayName = day ? `${dateLabel(day.date)}${day.title ? ` · ${day.title}` : ""}` : null;
+  useEffect(() => { onStatus?.({ name: dayName, save }); }, [dayName, save]);
   return (
     <div class="f-app__body">
       <Panel left width="280px" label="Shooting days">

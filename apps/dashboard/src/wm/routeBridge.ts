@@ -17,9 +17,9 @@ export function routeToLaunch(r: Route): LaunchIntent {
   switch (r.page) {
     case "shots": return { app: "gallery", state: { viewId: r.viewId } };
     case "shot": return { app: "shot", resource: { type: "shot", id: r.shotId }, state: { stage: r.stage } };
-    case "plan": return { app: "plan", resource: r.dayId ? { type: "day", id: r.dayId } : null };
+    case "plan": return { app: "plan", state: { dayId: r.dayId } };
     case "metadata": return { app: "metadata", state: { field: r.field } };
-    case "timeline": return { app: "timeline", resource: r.timelineId ? { type: "timeline", id: r.timelineId } : null, state: r.at ? { at: r.at } : undefined };
+    case "timeline": return { app: "timeline", state: { timelineId: r.timelineId, at: r.at ?? null } };
     case "settings": return { app: "settings", state: { tab: r.tab } };
     case "library": return { app: r.section, state: { id: r.id } };
     case "files": return { app: "files", state: { folderId: r.folderId } };
@@ -32,9 +32,9 @@ export function defaultRoute(w: Pick<Win, "app" | "resource">): Route | null {
   switch (w.app as AppId) {
     case "gallery": return { page: "shots", viewId: null };
     case "shot": return id ? { page: "shot", shotId: id, stage: "photo" } : null;
-    case "plan": return { page: "plan", dayId: id };
+    case "plan": return { page: "plan", dayId: null };
     case "metadata": return { page: "metadata", field: "location" };
-    case "timeline": return { page: "timeline", timelineId: id };
+    case "timeline": return { page: "timeline", timelineId: null };
     case "settings": return { page: "settings", tab: "general" };
     case "files": return { page: "files", folderId: null };
     case "projects": case "fields": case "rigs": case "locations": case "viewfinder": return { page: "library", section: w.app as "projects", id: null };

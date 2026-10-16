@@ -494,7 +494,13 @@ function useStageHeight() {
   const grip = (
     <div class="tl-stage__grip" role="separator" aria-orientation="horizontal" aria-label="Resize the stage" title="Drag to resize the stage · double-click resets"
       onPointerDown={(e) => { const stage = (e.currentTarget as HTMLElement).previousElementSibling as HTMLElement | null; drag.current = { y: e.clientY, h: stage?.getBoundingClientRect().height ?? 400 }; (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); e.preventDefault(); }}
-      onPointerMove={(e) => { const d = drag.current; if (!d) return; setPx(Math.round(Math.max(STAGE_MIN, Math.min(window.innerHeight - 160, d.h + e.clientY - d.y)))); }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        // Clamped to the window the timeline lives in (the desktop), else the browser window.
+        const room = (e.currentTarget as HTMLElement).closest(".wm-window__content")?.clientHeight ?? window.innerHeight;
+        setPx(Math.round(Math.max(STAGE_MIN, Math.min(room - 160, d.h + e.clientY - d.y))));
+      }}
       onPointerUp={() => { if (drag.current) { drag.current = null; setPx((v) => { save(v); return v; }); } }}
       onPointerCancel={() => { drag.current = null; }}
       onDblClick={() => { setPx(null); save(null); }}><span /></div>
@@ -993,7 +999,7 @@ export const toolFits = (tool: EditKind, c: ResolvedClip) =>
  * Restores the URL's cut position once on mount, then keeps it in the URL 300 ms after the playhead
  * or the tool settles. Playback ticks every 100 ms, so it writes when playback stops, not during it.
  */
-export function useCutUrl(timelineId: string, clips: ResolvedClip[], cut: Cut, editing: EditKind | null, onEdit: (kind: EditKind, c: ResolvedClip) => void, at: CutPosition | null | undefined) {
+export function useCutUrl(timelineId: string, clips: ResolvedClip[], cut: Cut, editing: EditKind | null, onEdit: (kind: EditKind, c: ResolvedClip) => void, at: CutPosition | null | undefined, write?: (at: CutPosition) => void) {
   const restored = useRef(false);
   useEffect(() => {
     restored.current = true;
@@ -1006,7 +1012,7 @@ export function useCutUrl(timelineId: string, clips: ResolvedClip[], cut: Cut, e
   const ms = cut.playheadMs;
   useEffect(() => {
     if (!restored.current) return;
-    const id = setTimeout(() => writeCutPosition(timelineId, { ms, tool: editing }), 300);
+    const id = setTimeout(() => (write ? write({ ms, tool: editing }) : writeCutPosition(timelineId, { ms, tool: editing })), 300);
     return () => clearTimeout(id);
   }, [ms, editing]);
 }

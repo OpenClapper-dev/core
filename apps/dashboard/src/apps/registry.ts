@@ -4,8 +4,11 @@ import type { Route } from "../router";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
 import { GalleryApp } from "./GalleryApp";
+import { MetadataApp } from "./MetadataApp";
 import { Placeholder } from "./Placeholder";
+import { PlanApp } from "./PlanApp";
 import { ShotApp } from "./ShotApp";
+import { TimelineApp } from "./TimelineApp";
 import { SettingsApp } from "./SettingsApp";
 
 /** Every app the desktop can open: APP_IDS in packages/vocab (the Worker validates app shortcuts with it). */
@@ -39,13 +42,14 @@ export interface AppDef {
 const def = (id: AppId, name: string, icon: string, singleton: boolean, defaultSize: Size, minSize: Size, component: ComponentType<AppProps> = Placeholder, accepts?: string[]): AppDef =>
   ({ id, name, icon, singleton, accepts, defaultSize, minSize, component });
 
-/** The registry; apps still on Placeholder arrive with phases 5–6. */
+/** The registry; apps still on Placeholder arrive with phase 6. */
 export const APPS: Record<AppId, AppDef> = {
   gallery: def("gallery", "Gallery", "view-grid-outline", true, { w: 1100, h: 720 }, { w: 560, h: 360 }, GalleryApp),
   shot: def("shot", "Shot", "image-outline", false, { w: 1180, h: 760 }, { w: 640, h: 420 }, ShotApp, ["shot"]),
-  timeline: def("timeline", "Timeline", "filmstrip", false, { w: 1200, h: 760 }, { w: 640, h: 440 }, Placeholder, ["timeline"]),
-  plan: def("plan", "Plan", "calendar-clock", false, { w: 1100, h: 720 }, { w: 600, h: 400 }, Placeholder, ["day"]),
-  metadata: def("metadata", "Metadata", "tag-multiple-outline", true, { w: 1100, h: 700 }, { w: 600, h: 400 }),
+  // Timeline and Plan are single windows (the cut / day is picked inside): see TimelineApp.
+  timeline: def("timeline", "Timeline", "filmstrip", true, { w: 1240, h: 780 }, { w: 720, h: 480 }, TimelineApp, ["timeline"]),
+  plan: def("plan", "Plan", "calendar-clock", true, { w: 1180, h: 740 }, { w: 640, h: 420 }, PlanApp, ["day"]),
+  metadata: def("metadata", "Metadata", "tag-multiple-outline", true, { w: 1180, h: 720 }, { w: 640, h: 420 }, MetadataApp),
   files: def("files", "Files", "folder-multiple-outline", true, { w: 960, h: 640 }, { w: 520, h: 360 }, Placeholder, ["folder"]),
   projects: def("projects", "Projects", "folder-outline", true, { w: 900, h: 620 }, { w: 520, h: 360 }),
   fields: def("fields", "Fields", "form-textbox", true, { w: 900, h: 620 }, { w: 520, h: 360 }, Placeholder, ["field"]),

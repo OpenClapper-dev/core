@@ -273,7 +273,7 @@ button { font: inherit; }
 /* Timeline (Timeline.tsx): preview, transport, a strip proportional to time, clip blocks. */
 .tl-preview { display: flex; flex-direction: column; gap: 8px; align-items: center; background: var(--photo-bg); border-radius: var(--radius-md); padding: 12px; }
 /* One stage height for every clip (issue #31): the box is fixed, clips letterbox into it. */
-.tl-preview { --tl-stage-h: clamp(220px, calc(100vh - 470px), 1200px); }
+.tl-preview { --tl-stage-h: clamp(220px, calc(100cqh - 470px), 1200px); }
 .tl-stage { position: relative; width: 100%; height: var(--tl-stage-h); display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .tl-stage > .framed { max-height: 100%; }
 .tl-preview .framed { max-width: 100%; }
