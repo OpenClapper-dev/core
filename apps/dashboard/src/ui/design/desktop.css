@@ -99,3 +99,6 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-picker{display:flex;flex-direction:column;gap:10px}
 .wm-picker .f-input--search{width:100%}
 .wm-picker__list{max-height:min(52vh,420px);overflow:auto;display:flex;flex-direction:column}
+/* The recycle bin icon (epic #90): a drop target for icons and for files dragged from Files. */
+.wm-icon--bin.is-drop{background:var(--danger-tint);border-color:var(--danger)}
+.wm-icon--bin.is-drop .wm-icon__glyph{border-color:var(--danger);color:var(--danger)}

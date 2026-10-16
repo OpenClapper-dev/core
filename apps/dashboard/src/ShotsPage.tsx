@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { cameraLabel, label, lightLabel, SHOT_STATES, STATE_ICONS, type FieldDef } from "@fielder/vocab";
 import { deleteShot, type Location, type SavedView, type Shot } from "./api";
+import { binned, confirmShotBin } from "./apps/trashOps";
 import { BulkEditPanel, MoveDialog, type BulkDraft } from "./BulkEdit";
 import { FilterPanel } from "./FilterBuilder";
 import { cover, FRAME_MODES, placeLabel, rigLabel, shotTitle, when } from "./format";
@@ -242,15 +243,16 @@ function ShotsList({ shots, mask, onOpen, onDeleted, bulk, onBulkOpen }: { shots
   async function removeSelected() {
     const ids = shots.filter((s) => selected.has(s.id)).map((s) => s.id);
     if (!ids.length) return;
-    const ok = await confirmDialog({ title: `Delete ${ids.length} shot${ids.length === 1 ? "" : "s"}?`, body: "Removes the images and their metadata permanently. Archiving keeps them.", confirmLabel: `Delete ${ids.length}`, danger: true });
-    if (!ok) return;
+    const projectId = shots.find((s) => s.id === ids[0])!.project_id;
+    if (!(await confirmShotBin(projectId, ids))) return;
     setBusy(true);
     const done: string[] = [], failed: string[] = [];
     for (const id of ids) { try { await deleteShot(id); done.push(id); } catch (e) { failed.push((e as Error).message); } }
     setBusy(false);
     setSelected(new Set());
     onDeleted(done);
-    if (failed.length) toast(`${failed.length} deletion(s) failed: ${failed[0]}`, "danger"); else toast(`Deleted ${done.length} shot${done.length === 1 ? "" : "s"}`);
+    if (failed.length) toast(`${failed.length} deletion(s) failed: ${failed[0]}`, "danger");
+    else binned(done.map((id) => ({ type: "shot" as const, id })), projectId, done.length === 1 ? "The shot" : `${done.length} shots`);
   }
 
   const picked = shots.filter((s) => selected.has(s.id));

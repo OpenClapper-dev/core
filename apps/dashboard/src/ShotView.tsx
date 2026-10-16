@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { label, type FieldDef } from "@fielder/vocab";
 import { deleteShot, patchShot, type Location, type Spot, type Preset, type Project, type Shot, type ShotState } from "./api";
-import { FRAME_MODES, positionOf, rigLabel, when } from "./format";
+import { binned, confirmShotBin } from "./apps/trashOps";
+import { FRAME_MODES, positionOf, rigLabel, shotTitle, when } from "./format";
 import { downloadCrop, Framed, type MaskMode } from "./Framed";
-import { Inspector, projectTimelines, timelinesOfShot } from "./Inspector";
+import { Inspector } from "./Inspector";
 import { bind, useKeys } from "./keys";
 import { Compose, type ComposeGuard } from "./compose/Compose";
 import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
 import { initialRigs, RigsStage, type RigsState } from "./RigExplorer";
 import type { Stage } from "./router";
-import { Button, confirmDialog, cx, Icon, IconButton, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "./ui";
+import { Button, cx, Icon, IconButton, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "./ui";
 
 export interface ShotContext { line: string; onBack: () => void; backLabel: string }
 
@@ -69,17 +70,10 @@ export function ShotView(p: Props) {
       toast(`${state === "unreviewed" ? "Back to review" : label(state)} · ${shot.name?.trim() || rigLabel(shot.photos[0])}`, "ok", { label: "Undo", run: () => void patchShot(shot.id, { state: before }).then(p.onUpdated).catch((e: Error) => toast(`Undo failed: ${e.message}`, "danger")) });
     } catch (e) { toast(`Update failed: ${(e as Error).message}`, "danger"); } finally { setBusy(false); }
   }
+  /** To the recycle bin (asks first only when timelines or days lose it); Undo in the toast. */
   async function remove() {
-    const composed = [shot.overlays.length ? `${shot.overlays.length} overlay${shot.overlays.length === 1 ? "" : "s"}` : "", shot.sketches.length ? `${shot.sketches.length} sketch${shot.sketches.length === 1 ? "" : "es"}` : ""].filter(Boolean).join(" and ");
-    const used = timelinesOfShot(await projectTimelines(shot.project_id), shot.id);
-    const choice = await confirmDialog({
-      title: "Delete this shot?",
-      body: <>Removes {shot.photos.length > 1 ? `all ${shot.photos.length} images` : "the image"}{composed ? `, ${composed},` : ""} and the metadata from the server permanently. Archive keeps them.{used.length > 0 && <><br /><br /><strong>Used in {used.length} timeline{used.length === 1 ? "" : "s"}</strong> ({used.map((t) => t.name).join(", ")}): its clips are removed there too.</>}</>,
-      confirmLabel: "Delete", danger: true, altLabel: shot.state === "archived" ? undefined : "Archive",
-    });
-    if (choice === "alt") return setState("archived");
-    if (!choice) return;
-    try { await deleteShot(shot.id); p.onDeleted(shot.id); toast("Shot deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
+    if (!(await confirmShotBin(shot.project_id, [shot.id]))) return;
+    try { await deleteShot(shot.id); p.onDeleted(shot.id); binned([{ type: "shot", id: shot.id }], shot.project_id, `“${shotTitle(shot)}”`); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
   const approveKey = () => { if (shot.state !== "approved") void setState("approved"); };
   const archiveKey = () => void setState(shot.state === "archived" ? "unreviewed" : "archived");

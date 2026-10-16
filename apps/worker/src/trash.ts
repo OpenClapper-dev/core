@@ -219,6 +219,9 @@ const TOP = (a: string) => `${a}.deleted_at IS NOT NULL AND (${a}.deleted_with I
 /** The live folder a file was placed in (where it comes back). */
 const PLACED = (type: FileResourceType, a: string) => `(SELECT fi.folder_id FROM folder_items fi JOIN folders lf ON lf.id = fi.folder_id AND lf.deleted_at IS NULL WHERE fi.resource_type = '${type}' AND fi.resource_id = ${a}.id)`;
 
+/** "1 photo" / "3 photos" in SQL, for a count expression. */
+const n = (expr: string, one: string, many = `${one}s`) => `(SELECT c || CASE WHEN c = 1 THEN ' ${one}' ELSE ' ${many}' END FROM (SELECT (${expr}) AS c))`;
+
 interface Raw { id: string; name: string | null; sub: string | null; deleted_at: string; folder_id: string | null; photo_id?: string | null; count?: number }
 
 /** The bin of a project, newest first. */
@@ -226,16 +229,16 @@ export async function listTrash(env: Env, projectId: string): Promise<TrashEntry
   const q = (sql: string) => env.DB.prepare(sql).bind(projectId).all<Raw>().then((r) => r.results);
   const [shots, timelines, days, views, locations, fields, folders] = await Promise.all([
     q(`SELECT s.id, coalesce(s.name, l.name) AS name,
-         (SELECT count(*) FROM photos WHERE shot_id = s.id) || ' photo(s)' || coalesce(' · ' || l.name, '') AS sub,
+         ${n("SELECT count(*) FROM photos WHERE shot_id = s.id", "photo")} || coalesce(' · ' || l.name, '') AS sub,
          (SELECT id FROM photos WHERE shot_id = s.id ORDER BY ordinal LIMIT 1) AS photo_id,
          s.deleted_at, ${PLACED("shot", "s")} AS folder_id
        FROM shots s LEFT JOIN locations l ON l.id = s.location_id WHERE s.project_id = ?1 AND ${TOP("s")}`),
-    q(`SELECT t.id, t.name, (SELECT count(*) FROM timeline_clips WHERE timeline_id = t.id) || ' clip(s)' AS sub, t.deleted_at, ${PLACED("timeline", "t")} AS folder_id
+    q(`SELECT t.id, t.name, ${n("SELECT count(*) FROM timeline_clips WHERE timeline_id = t.id", "clip")} AS sub, t.deleted_at, ${PLACED("timeline", "t")} AS folder_id
        FROM timelines t WHERE t.project_id = ?1 AND ${TOP("t")}`),
-    q(`SELECT d.id, d.date || coalesce(' · ' || d.title, '') AS name, (SELECT count(*) FROM day_shots WHERE day_id = d.id) || ' shot(s)' AS sub, d.deleted_at, ${PLACED("day", "d")} AS folder_id
+    q(`SELECT d.id, d.date || coalesce(' · ' || d.title, '') AS name, ${n("SELECT count(*) FROM day_shots WHERE day_id = d.id", "shot")} AS sub, d.deleted_at, ${PLACED("day", "d")} AS folder_id
        FROM shooting_days d WHERE d.project_id = ?1 AND ${TOP("d")}`),
     q(`SELECT v.id, v.name, 'Saved view' AS sub, v.deleted_at, ${PLACED("view", "v")} AS folder_id FROM views v WHERE v.project_id = ?1 AND ${TOP("v")}`),
-    q(`SELECT l.id, l.name, (SELECT count(*) FROM spots WHERE location_id = l.id) || ' spot(s)' AS sub, l.deleted_at, ${PLACED("location", "l")} AS folder_id
+    q(`SELECT l.id, l.name, ${n("SELECT count(*) FROM spots WHERE location_id = l.id", "spot")} AS sub, l.deleted_at, ${PLACED("location", "l")} AS folder_id
        FROM locations l WHERE l.project_id = ?1 AND ${TOP("l")}`),
     q(`SELECT fd.id, coalesce(json_extract(fd.definition, '$.label'), fd.key) AS name, fd.key AS sub, fd.deleted_at, ${PLACED("field", "fd")} AS folder_id
        FROM field_definitions fd WHERE fd.project_id = ?1 AND ${TOP("fd")}`),
@@ -249,7 +252,7 @@ export async function listTrash(env: Env, projectId: string): Promise<TrashEntry
     for (const r of rows) {
       out.push({
         type, id: r.id, name: r.name ?? (type === "shot" ? "Untitled shot" : "Untitled"), deleted_at: r.deleted_at, folder_id: r.folder_id ?? null,
-        sub: type === "folder" ? `${r.count ?? 0} file(s)` : r.sub ?? "",
+        sub: type === "folder" ? `${r.count ?? 0} ${r.count === 1 ? "file" : "files"}` : r.sub ?? "",
         ...(type === "shot" ? { photo_id: r.photo_id ?? null } : {}),
         ...(type === "folder" ? { count: r.count ?? 0 } : {}),
       });

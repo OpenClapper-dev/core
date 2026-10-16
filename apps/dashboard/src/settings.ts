@@ -22,8 +22,10 @@ export interface Settings {
    * video editor. Moving away then always ends the edit (inlinePlayhead acts as "leave").
    */
   autoOverlay: boolean;
+  /** The recycle bin as an icon on the desktop (epic #90); off, it is only in Files' side bar. */
+  binOnDesktop: boolean;
 }
-export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false };
+export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true };
 
 function read(): Settings {
   try {
@@ -33,6 +35,7 @@ function read(): Settings {
       inlinePlayhead: raw.inlinePlayhead === "leave" ? "leave" : DEFAULT_SETTINGS.inlinePlayhead,
       seqRemove: raw.seqRemove === "block" ? "block" : DEFAULT_SETTINGS.seqRemove,
       autoOverlay: raw.autoOverlay === true,
+      binOnDesktop: raw.binOnDesktop !== false,
     };
   } catch { return { ...DEFAULT_SETTINGS }; }
 }

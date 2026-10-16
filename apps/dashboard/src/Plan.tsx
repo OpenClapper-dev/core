@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { dayLight, lightLabel, localDay, PHASE_ICONS, shootableWindows, type DayLight, type Interval } from "@fielder/vocab";
 import { deleteDay, fetchDays, putDay, type DayShot, type Project, type Shot, type ShootingDay } from "./api";
+import { binned } from "./apps/trashOps";
+import * as data from "./data";
+import { keepLocal } from "./TimelineParts";
 import { cover, positionOf, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateDays } from "./Inspector";
 import { bind, useKeys } from "./keys";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, Select, Spinner, toast, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, Select, Spinner, toast, type SaveState } from "./ui";
 import { fetchForecast, weatherText, type HourForecast } from "./weather";
 
 interface Props {
@@ -65,6 +68,18 @@ export function PlanPage({ project, shots, mask, dayId, onDay, onOpen, onStatus 
 
   // Edits save shortly after the last change, per day; leaving the page saves at once.
   const pending = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; day: ShootingDay }>());
+  // A day binned or restored elsewhere (Files, the bin, Undo): re-read the days, keeping this
+  // window's copies of the ones it still has; a day that went away is left for the next one.
+  const dayRef = useRef(dayId);
+  dayRef.current = dayId;
+  useEffect(() => data.onTrash((e) => {
+    if (e.projectId !== projectId || (e.type !== "day" && e.type !== "folder")) return;
+    if (e.kind === "binned") { const p = pending.current.get(e.id); if (p) { clearTimeout(p.timer); pending.current.delete(e.id); } }
+    fetchDays(projectId).then((fresh) => {
+      setDays((cur) => keepLocal(cur, fresh));
+      if (dayRef.current && !fresh.some((x) => x.id === dayRef.current)) onDay(fresh.find((x) => x.date >= isoDate(new Date()))?.id ?? fresh.at(-1)?.id ?? null);
+    }).catch(() => {});
+  }), [projectId]);
   const [save, setSave] = useState<SaveState>("idle");
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const flushDay = (d: ShootingDay) => {
@@ -85,10 +100,14 @@ export function PlanPage({ project, shots, mask, dayId, onDay, onOpen, onStatus 
     const d: ShootingDay = { id: crypto.randomUUID(), project_id: projectId, date: nextSaturday(), title: null, notes: null, shots: [], created_at: "", updated_at: null };
     try { const saved = await putDay(d); invalidateDays(projectId); setDays((cur) => [...(cur ?? []), saved].sort((a, b) => a.date.localeCompare(b.date))); onDay(saved.id); } catch (e) { toast(`Could not create the day: ${(e as Error).message}`, "danger"); }
   }
+  /** To the recycle bin with Undo; a pending edit is sent first so the restored copy has it. */
   async function remove(d: ShootingDay) {
-    const ok = await confirmDialog({ title: `Delete ${dateLabel(d.date)}${d.title ? ` · ${d.title}` : ""}?`, body: "The plan for this day is deleted. The shots themselves stay.", confirmLabel: "Delete day", danger: true });
-    if (!ok) return;
-    try { await deleteDay(d.id); invalidateDays(d.project_id); setDays((cur) => (cur ?? []).filter((x) => x.id !== d.id)); onDay(null); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
+    try {
+      const p = pending.current.get(d.id);
+      if (p) { clearTimeout(p.timer); pending.current.delete(d.id); await putDay(p.day); }
+      await deleteDay(d.id); invalidateDays(d.project_id); setDays((cur) => (cur ?? []).filter((x) => x.id !== d.id)); onDay(null);
+      binned([{ type: "day", id: d.id }], d.project_id, `${dateLabel(d.date)}${d.title ? ` · ${d.title}` : ""}`);
+    } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
 
   useKeys(bind("plan", { newDay: () => void create() }));

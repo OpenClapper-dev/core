@@ -2,11 +2,13 @@ import type { ComponentChildren, JSX, RefObject } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { CLIP_MAX_MS, EDGE_WEIGHT, GROUP_MAX_MS, PRESENTATION_MODES, splitDuration, type GroupMode, type Presentation } from "@fielder/vocab";
 import { type ClipGroup, copyOverlay, copySketch, deleteTimeline, patchShot, patchShots, putTimeline, type Overlay, type Photo, type Shot, type ShotState, type Sketch, type Timeline, type TimelineClip } from "./api";
+import { binned } from "./apps/trashOps";
+import * as data from "./data";
 import { frameModeLabel, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateTimelines } from "./Inspector";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
-import { Button, confirmDialog, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, Seg, Select, SeqBadge, Spinner, StateMarker, toast, type SaveState } from "./ui";
+import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, Seg, Select, SeqBadge, Spinner, StateMarker, toast, type SaveState } from "./ui";
 import type { EditKind } from "./ClipEditing";
 import { useSettings } from "./settings";
 import type { CutPosition } from "./router";
@@ -374,12 +376,25 @@ export interface TimelineStore {
   replace: (t: Timeline) => void;
 }
 
+/** The server's list, with this window's copy of every item it already holds. */
+export function keepLocal<T extends { id: string }>(cur: T[] | null, fresh: T[]): T[] {
+  const mine = new Map((cur ?? []).map((x) => [x.id, x]));
+  return fresh.map((x) => mine.get(x.id) ?? x);
+}
+
 export function useTimelineStore(load: (set: (t: Timeline[]) => void, fail: (e: Error) => void) => void, deps: unknown[]): TimelineStore {
   const [list, setListState] = useState<Timeline[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [save, setSave] = useState<SaveState>("idle");
   const pending = useRef(new Map<string, { timer: ReturnType<typeof setTimeout>; t: Timeline }>());
   useEffect(() => { setListState(null); load(setListState, (e) => setError(e.message)); }, deps);
+  // A timeline binned or restored elsewhere (Files, the bin, Undo): re-read the list, keeping this
+  // window's copies of the ones it still has (they may hold edits not saved yet).
+  useEffect(() => data.onTrash((e) => {
+    if (e.type !== "timeline" && e.type !== "folder") return;
+    if (e.kind === "binned") { const p = pending.current.get(e.id); if (p) { clearTimeout(p.timer); pending.current.delete(e.id); } }
+    load((fresh) => setListState((cur) => keepLocal(cur, fresh)), () => {});
+  }), deps);
   const setList = (f: (cur: Timeline[] | null) => Timeline[] | null) => setListState(f);
   const flush = (t: Timeline): Promise<void> => {
     pending.current.delete(t.id);
@@ -405,10 +420,15 @@ export function useTimelineStore(load: (set: (t: Timeline[]) => void, fail: (e: 
     const t: Timeline = { id: crypto.randomUUID(), project_id: projectId, name: `Cut ${n}`, notes: null, lock_mode: null, clips: [], groups: [], overlays: [], sketches: [], created_at: "", updated_at: null };
     try { const saved = await putTimeline(t); invalidateTimelines(projectId); setListState((cur) => [...(cur ?? []), saved]); return saved; } catch (e) { toast(`Could not create the timeline: ${(e as Error).message}`, "danger"); return null; }
   };
+  /** To the recycle bin with Undo; a pending edit is sent first so the restored copy has it. */
   const remove = async (t: Timeline): Promise<boolean> => {
-    const ok = await confirmDialog({ title: `Delete “${t.name}”?`, body: `The timeline and its ${t.clips.length} clip${t.clips.length === 1 ? "" : "s"} are deleted. The shots stay.`, confirmLabel: "Delete timeline", danger: true });
-    if (!ok) return false;
-    try { await deleteTimeline(t.id); invalidateTimelines(t.project_id); setListState((cur) => (cur ?? []).filter((x) => x.id !== t.id)); return true; } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); return false; }
+    try {
+      const p = pending.current.get(t.id);
+      if (p) { clearTimeout(p.timer); await flush(p.t); }
+      await deleteTimeline(t.id); invalidateTimelines(t.project_id); setListState((cur) => (cur ?? []).filter((x) => x.id !== t.id));
+      binned([{ type: "timeline", id: t.id }], t.project_id, `“${t.name}”`);
+      return true;
+    } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); return false; }
   };
   const saveNow = async (id: string) => { const p = pending.current.get(id); if (!p) return; clearTimeout(p.timer); await flush(p.t); };
   const replace = (t: Timeline) => setListState((cur) => (cur ?? []).map((x) => (x.id === t.id ? t : x)));

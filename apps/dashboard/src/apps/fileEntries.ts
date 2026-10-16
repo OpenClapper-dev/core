@@ -30,12 +30,15 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 export function useTimelinesDays(projectId: string, refreshKey: unknown) {
   const [tl, setTl] = useState<Timeline[]>([]);
   const [days, setDays] = useState<ShootingDay[]>([]);
+  // Binned or restored (here, in the bin, by Undo): read them again.
+  const [tick, setTick] = useState(0);
+  useEffect(() => data.onTrash((e) => { if (e.projectId === projectId && (e.type === "timeline" || e.type === "day" || e.type === "folder")) setTick((n) => n + 1); }), [projectId]);
   useEffect(() => {
     let live = true;
     void projectTimelines(projectId).then((t) => live && setTl(t));
     void projectDays(projectId).then((d) => live && setDays(d));
     return () => { live = false; };
-  }, [projectId, refreshKey]);
+  }, [projectId, refreshKey, tick]);
   return { timelines: tl, days };
 }
 

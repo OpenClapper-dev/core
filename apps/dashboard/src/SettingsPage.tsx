@@ -34,6 +34,11 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
               <Seg label="Frame mode" value={mask} onChange={onMask} options={FRAME_MODES.map((m) => ({ id: m, label: frameModeLabel(m) }))} />
             </Row>
           </Section>
+          <Section icon="monitor" title="Desktop">
+            <Row label="Recycle bin on the desktop" help="An icon you can drop files on and open. Off, the recycle bin is still in Files, at the bottom of its side bar.">
+              <Seg label="Recycle bin on the desktop" value={s.binOnDesktop ? "on" : "off"} onChange={(v) => updateSettings({ binOnDesktop: v === "on" })} options={[{ id: "on", label: "Show" }, { id: "off", label: "Hide" }]} />
+            </Row>
+          </Section>
           <Section icon="image-plus" title="New shot">
             <Row label="Review state" help="Shots made with New shot (uploaded or drawn) start in this state. The dialog can still change it per shot.">
               <Seg label="Review state of new shots" value={s.newShotState} onChange={(v) => updateSettings({ newShotState: v })} options={[{ id: "approved", label: "Approved" }, { id: "unreviewed", label: "To review" }]} />

@@ -23,7 +23,7 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 
 - **Taskbar** (`wm/Taskbar.tsx`): the launcher (the mark), pinned apps, one button per window (click focuses, or minimizes the focused one; right-click: pin, snap left/right, close), then the project switcher (with "Manage projects…"), Go to… (⌘K), the theme (Auto → Sun → Set), reload and the clock. Toasts sit bottom right, above it.
 - **Launcher** (`wm/Launcher.tsx`): every app; right-click pins one to the taskbar.
-- **Desktop** (`wm/Desktop.tsx`): shortcuts to apps, folders and files ([files](files.md)). Clicking the empty desktop takes focus away from the windows (the URL shows `#/`); right-click for New folder, New shortcut…, Arrange icons, Settings and the theme.
+- **Desktop** (`wm/Desktop.tsx`): shortcuts to apps, folders and files ([files](files.md)), and the recycle bin icon (unless Settings › Desktop hides it). Clicking the empty desktop takes focus away from the windows (the URL shows `#/`); right-click for New folder, New shortcut…, Arrange icons, Settings and the theme.
 - **Global overlays** (`wm/overlays.ts`): Go to… (⌘K), the shortcut sheet (`?`) and New shot open above every window, from any app; confirmations, prompts and toasts too (`confirmDialog`, `promptDialog`, `toast` in `ui/`; no `window.confirm`/`alert`).
 
 ## Apps (`apps/registry.ts`)
@@ -41,7 +41,8 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 | Rigs | `apps/LibraryApps.tsx` + `Rigs.tsx` | Rig table (body, format, sensor, speedbooster, lens range, shots) and an editor panel; shared by all projects |
 | Locations | `apps/LibraryApps.tsx` + `Locations.tsx` | Filterable table, inline rename (F2), the pin (Set position `P`, see [positions](positions.md)), counts that open the Gallery filtered to the location, delete |
 | Viewfinder layouts | `apps/LibraryApps.tsx` + `ViewfinderLayouts.tsx` | [Viewfinder layouts](viewfinder-layouts.md); shared by all projects |
-| Settings | `apps/SettingsApp.tsx` + `SettingsPage.tsx`, `settings.ts` | Preferences saved on change, per browser (`localStorage["settings"]`; theme and frame mode keep their own keys): theme, default frame mode, the review state of shots made with New shot (Approved by default), and Timeline → the playhead while a clip is edited inline and what Remove takes on a sequence block's clip. Also `#/settings/shortcuts`. |
+| Recycle bin | `apps/TrashApp.tsx`, `apps/trashOps.ts` | What was deleted in the project: restore, delete permanently, empty ([files](files.md#recycle-bin-epic-90)) |
+| Settings | `apps/SettingsApp.tsx` + `SettingsPage.tsx`, `settings.ts` | Preferences saved on change, per browser (`localStorage["settings"]`; theme and frame mode keep their own keys): theme, default frame mode, the recycle bin on the desktop, the review state of shots made with New shot (Approved by default), and Timeline → the playhead while a clip is edited inline and what Remove takes on a sequence block's clip. Also `#/settings/shortcuts`. |
 
 An app is a thin wrapper: it reads the shared data store (`data.ts`: one copy for every window, so an edit in one shows in all), keeps what the old `App.tsx` held for its page, reports its title and route, and opens other apps (`open`). The frame mode is one value for every window (`frameMode.ts`, `localStorage["maskMode"]`); a shot window may change its own while it is open.
 

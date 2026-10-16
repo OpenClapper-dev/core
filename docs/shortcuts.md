@@ -59,7 +59,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ↵ | Open the shot |
 | B | Bulk edit the selected shots |
 | ⇧M | Move the selected shots to a project |
-| Del | Delete the selected shots |
+| Del | Move the selected shots to the recycle bin |
 | Esc | Close bulk edit · clear the selection |
 
 ## Shots · map
@@ -217,7 +217,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | F2 | Rename |
 | P | Set the position |
 | ↵ | Show its shots |
-| Del | Delete |
+| Del | Move to the recycle bin |
 
 ## Library · Fields
 
@@ -260,7 +260,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ↵ | Open the item (a folder: go into it) |
 | ⌫ / Alt ↑ | Up to the parent folder |
 | F2 | Rename |
-| Del | Delete |
+| Del | Move to the recycle bin |
 | ⇧N | New folder here |
 | Drag | Onto a folder: move there · onto the desktop: add a shortcut |
 | Right-click | Open, rename, move, add to the desktop, delete |
@@ -272,4 +272,14 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ↵ | Open the focused icon (or double-click it) |
 | Drag | Move an icon · drop files from Files to add shortcuts |
 | Right-click | On an icon: open, rename, remove · on the desktop: new folder, new shortcut, arrange |
+| Drag | An icon or a file from Files onto the recycle bin: remove the shortcut, or bin the file |
+
+## Recycle bin
+
+| Keys | What |
+| --- | --- |
+| / | Focus the search |
+| ⌘A | Select everything listed |
+| R | Restore the selected items (or double-click one) |
+| Del | Delete the selected items permanently |
 

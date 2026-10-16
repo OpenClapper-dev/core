@@ -43,7 +43,7 @@ interface ToastReq { id: number; text: string; kind: "ok" | "danger" | "info"; a
 let pushToast: ((t: ToastReq) => void) | null = null;
 let toastId = 0;
 
-/** A short opaque message bottom-centre; an optional action (e.g. Undo) keeps it 4 s. */
+/** A short opaque message bottom-centre; an optional action (e.g. Undo) keeps it 6 s. */
 export function toast(text: string, kind: ToastReq["kind"] = "ok", action?: ToastReq["action"]) {
   pushToast?.({ id: ++toastId, text, kind, action });
 }
@@ -53,7 +53,7 @@ export function ToastHost() {
   useEffect(() => {
     pushToast = (t) => {
       setItems((cur) => [...cur.slice(-2), t]);
-      setTimeout(() => setItems((cur) => cur.filter((x) => x.id !== t.id)), t.action ? 4000 : 2500);
+      setTimeout(() => setItems((cur) => cur.filter((x) => x.id !== t.id)), t.action ? 6000 : 2500);
     };
     return () => { pushToast = null; };
   }, []);

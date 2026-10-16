@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { extraFilterFields, type FieldDef } from "@fielder/vocab";
-import { fetchAllShots, fetchFields, fetchFiles, type FilesPayload, fetchLocations, fetchPresets, fetchProjects, fetchSpots, fetchViews, onProjectCreated, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type Spot } from "./api";
+import { fetchAllShots, fetchFields, fetchFiles, fetchTrash, type FilesPayload, type TrashEntry, type TrashType, fetchLocations, fetchPresets, fetchProjects, fetchSpots, fetchViews, onProjectCreated, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type Spot } from "./api";
 import { getProjectId, onProjectChange } from "./project";
 import { toast } from "./ui";
 
@@ -21,9 +21,11 @@ export interface DataState {
   loadedAt: Date | null;
   /** The active project's folders, placements and desktop shortcuts (epic #72); per project, not gating the first render. */
   files: (FilesPayload & { projectId: string }) | null;
+  /** The active project's recycle bin (epic #90): what the Trash app lists and the bin icon shows full or empty. */
+  trash: { projectId: string; entries: TrashEntry[] } | null;
 }
 
-let state: DataState = { shots: null, projects: null, presets: null, locations: null, views: null, spots: null, fields: null, error: null, loadedAt: null, files: null };
+let state: DataState = { shots: null, projects: null, presets: null, locations: null, views: null, spots: null, fields: null, error: null, loadedAt: null, files: null, trash: null };
 const listeners = new Set<(s: DataState) => void>();
 function put(p: Partial<DataState>) {
   state = { ...state, ...p };
@@ -49,6 +51,20 @@ export const loaded = (s: DataState = state) => !!s.shots && !!s.projects && !!s
 export function loadFiles(projectId: string): Promise<void> {
   return fetchFiles(projectId).then((f) => { if (getProjectId() === projectId) put({ files: { ...f, projectId } }); }).catch(() => {});
 }
+/** (Re)load one project's recycle bin; a failure leaves the last copy. */
+export function loadTrash(projectId: string): Promise<void> {
+  return fetchTrash(projectId).then((entries) => { if (getProjectId() === projectId) put({ trash: { projectId, entries } }); }).catch(() => {});
+}
+
+/**
+ * Something went to the recycle bin or came back from it. Windows that keep their own copy of a
+ * list (Timeline, Plan) follow these instead of the store: drop a binned item, take a restored one.
+ */
+export interface TrashEvent { kind: "binned" | "restored"; type: TrashType; id: string; projectId: string }
+const trashListeners = new Set<(e: TrashEvent) => void>();
+export function onTrash(cb: (e: TrashEvent) => void): () => void { trashListeners.add(cb); return () => { trashListeners.delete(cb); }; }
+export function emitTrash(e: TrashEvent) { for (const cb of trashListeners) cb(e); }
+
 /** Update the loaded files in place after a mutation (same shape as the setters above). */
 export function setFiles(update: (cur: FilesPayload) => FilesPayload) {
   if (state.files) put({ files: { ...update(state.files), projectId: state.files.projectId } });
@@ -56,7 +72,7 @@ export function setFiles(update: (cur: FilesPayload) => FilesPayload) {
 
 export function load(): Promise<void> {
   const pid = getProjectId();
-  if (pid) void loadFiles(pid);
+  if (pid) { void loadFiles(pid); void loadTrash(pid); }
   return Promise.all([fetchAllShots().then(setShots), fetchProjects().then(setProjects), fetchPresets().then(setPresets), fetchLocations().then(setLocations), fetchSpots().then(setSpots), fetchViews().then(setViews), fetchFields().then(setFields)])
     .then(() => put({ error: null, loadedAt: new Date() }))
     .catch((e: Error) => put({ error: e.message }));
@@ -84,7 +100,7 @@ export function created(list: Shot[]) {
 }
 
 // The desktop's files follow the active project.
-onProjectChange((id) => { put({ files: null }); if (id) void loadFiles(id); });
+onProjectChange((id) => { put({ files: null, trash: null }); if (id) { void loadFiles(id); void loadTrash(id); } });
 
 // A project created inline (move, bulk edit) joins the list at once; counts follow with the next refresh.
 onProjectCreated((p) => setProjects((cur) => (cur ?? []).some((x) => x.id === p.id) ? cur ?? [] : [...(cur ?? []), p].sort((a, b) => a.name.localeCompare(b.name))));

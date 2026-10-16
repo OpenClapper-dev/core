@@ -36,7 +36,8 @@ export type Route =
   | { page: "timeline"; timelineId: string | null; at?: CutPosition | null }
   | { page: "settings"; tab: SettingsTab }
   | { page: "library"; section: LibrarySection; id: string | null }
-  | { page: "files"; folderId: string | null };
+  | { page: "files"; folderId: string | null }
+  | { page: "trash" };
 
 export type SettingsTab = "general" | "shortcuts";
 
@@ -58,6 +59,7 @@ export function parseRoute(hash: string): Route {
     case "timeline": return { page: "timeline", timelineId: parts[1] ?? null, at: parts[1] ? parseCutPosition(q) : null };
     case "settings": return { page: "settings", tab: parts[1] === "shortcuts" ? "shortcuts" : "general" };
     case "files": return { page: "files", folderId: parts[1] ?? null };
+    case "trash": return { page: "trash" };
     case "library": {
       const section = (LIBRARY_SECTIONS as readonly string[]).includes(parts[1]) ? (parts[1] as LibrarySection) : "projects";
       return { page: "library", section, id: parts[2] ?? null };
@@ -76,5 +78,6 @@ export function routeHash(r: Route): string {
     case "settings": return r.tab === "shortcuts" ? "#/settings/shortcuts" : "#/settings";
     case "library": return `#/library/${r.section}${r.id ? `/${r.id}` : ""}`;
     case "files": return r.folderId ? `#/files/${r.folderId}` : "#/files";
+    case "trash": return "#/trash";
   }
 }

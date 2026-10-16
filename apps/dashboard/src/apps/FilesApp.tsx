@@ -10,7 +10,7 @@ import { parseRoute } from "../router";
 import { Button, Checkbox, ContextMenu, cx, Empty, Icon, IconButton, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "../ui";
 import { addShortcut, canDelete, canRename, deleteEntry, moveFolder, newFolder, placeFiles, removeFolder, renameEntry, renameFolder } from "./fileOps";
 import { openResource, useFileEntries, type FileEntry } from "./fileEntries";
-import type { AppProps } from "./registry";
+import { launch, type AppProps } from "./registry";
 
 /** What a launch hands Files: the folder to show (#/files/<folderId>; a folder shortcut). */
 export interface FilesLaunch { folderId?: string | null }
@@ -103,7 +103,20 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
   const open = (r: Row) => { if (r.kind === "folder") go({ kind: "folder", id: r.folder.id }); else openResource(r.entry.type, r.entry.id); };
   const selRow = rows.find((r) => rowKey(r) === sel) ?? null;
   const rename = (r: Row) => { if (r.kind === "folder") void renameFolder(r.folder); else if (canRename(r.entry.type)) void renameEntry(r.entry, projectId); };
-  const remove = (r: Row) => { if (r.kind === "folder") void removeFolder(r.folder); else if (canDelete(r.entry.type)) void deleteEntry(r.entry); };
+  const remove = (r: Row) => { if (r.kind === "folder") void removeFolder(r.folder); else if (canDelete(r.entry.type)) void deleteEntry(r.entry, projectId); };
+  /** Files and folders dropped onto the recycle bin go there. */
+  const binDrop = {
+    onDragOver: (e: DragEvent) => { if (e.dataTransfer?.types.includes(FILE_DRAG)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropOn("bin"); } },
+    onDragLeave: () => setDropOn((k) => (k === "bin" ? null : k)),
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      setDropOn(null);
+      const p = readDrag(e);
+      if (p?.kind === "folder") { const f = folders.find((x) => x.id === p.id); if (f) void removeFolder(f); }
+      else if (p) { const entry = entries[p.type].find((x) => x.id === p.id); if (entry) void deleteEntry(entry, projectId); }
+    },
+  };
+  const binCount = d.trash?.projectId === projectId ? d.trash.entries.length : 0;
   const toDesktop = (r: Row) => void addShortcut(projectId, r.kind === "folder" ? { kind: "folder", resource_type: null, resource_id: null, folder_id: r.folder.id, app_id: null } : { kind: "resource", resource_type: r.entry.type, resource_id: r.entry.id, folder_id: null, app_id: null }, nextIconSpot());
   const here = place.kind === "folder" ? place.id : null;
   const step = (dir: 1 | -1) => {
@@ -168,6 +181,10 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
                 <Icon name={FILE_TYPE_META[t].icon} /><span>{FILE_TYPE_META[t].plural}</span><span class="files-node__n num">{counts[t]}</span>
               </button>
             ))}
+            <div class="files-side__sep" />
+            <button type="button" class={cx("files-node", dropOn === "bin" && "is-drop")} title="Open the recycle bin; drop files here to delete them" onClick={() => launch({ app: "trash" })} {...binDrop}>
+              <Icon name={binCount ? "delete" : "delete-empty-outline"} /><span>Recycle bin</span>{binCount > 0 && <span class="files-node__n num">{binCount}</span>}
+            </button>
           </div>
         </PanelBody>
       </Panel>
@@ -280,19 +297,20 @@ function RowMenu({ row, x, y, placedIn, onClose, onOpen, onRename, onMove, onTop
   onTop: (r: Row) => void; onDesktop: (r: Row) => void; onDelete: (r: Row) => void; onNewFolder: (r: Row) => void;
 }) {
   const type = row.kind === "file" ? row.entry.type : null;
-  const renameOk = row.kind === "folder" || canRename(type!);
-  const deleteOk = row.kind === "folder" || canDelete(type!);
+  const desk = row.kind === "folder" && row.folder.kind === "desktop";
+  const renameOk = (row.kind === "folder" && !desk) || (type !== null && canRename(type));
+  const deleteOk = (row.kind === "folder" && !desk) || (type !== null && canDelete(type));
   const ownApp = type === "timeline" ? "Timeline" : type === "day" ? "Plan" : type === "field" ? "Fields" : "";
   return (
     <ContextMenu x={x} y={y} label={row.kind === "folder" ? "Folder" : FILE_TYPE_META[type!].label} onClose={onClose}>
       <MenuItem icon="open-in-app" onClick={() => onOpen(row)}>{row.kind === "folder" ? "Open folder" : "Open"}</MenuItem>
-      <MenuItem icon="pencil-outline" disabled={!renameOk} title={renameOk ? undefined : `Rename it in ${ownApp}`} onClick={() => onRename(row)}>Rename…</MenuItem>
-      <MenuItem icon="folder-move-outline" onClick={() => onMove(row)}>Move to…</MenuItem>
+      <MenuItem icon="pencil-outline" disabled={!renameOk} title={renameOk ? undefined : desk ? "The Desktop folder keeps its name" : `Rename it in ${ownApp}`} onClick={() => onRename(row)}>Rename…</MenuItem>
+      <MenuItem icon="folder-move-outline" disabled={desk} onClick={() => onMove(row)}>Move to…</MenuItem>
       {placedIn && <MenuItem icon="arrow-up-bold-outline" onClick={() => onTop(row)}>Move to the top level</MenuItem>}
       <MenuItem icon="monitor-shimmer" onClick={() => onDesktop(row)}>Add to the desktop</MenuItem>
       {row.kind === "folder" && <MenuItem icon="folder-plus-outline" onClick={() => onNewFolder(row)}>New folder inside</MenuItem>}
       <div class="f-menu__sep" />
-      <MenuItem icon="delete-outline" danger disabled={!deleteOk} title={deleteOk ? undefined : `Delete it in ${ownApp}`} onClick={() => onDelete(row)}>{row.kind === "folder" ? "Delete folder…" : "Delete…"}</MenuItem>
+      <MenuItem icon="delete-outline" danger disabled={!deleteOk} title={deleteOk ? undefined : "The Desktop folder stays"} onClick={() => onDelete(row)}>Move to the recycle bin</MenuItem>
     </ContextMenu>
   );
 }
