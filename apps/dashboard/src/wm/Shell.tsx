@@ -4,15 +4,18 @@ import { appDef, launch, type AppId } from "../apps/registry";
 import { CommandPalette, ShortcutSheet, type Command } from "../CommandPalette";
 import * as data from "../data";
 import { projectDays } from "../Inspector";
+import { NewShotDialog } from "../NewShot";
 import { bind, useKeys } from "../keys";
 import { setProjectId, switchProject, useProjectId } from "../project";
 import { ProjectGate } from "../Projects";
 import { routeHash } from "../router";
 import { setTheme, useTheme } from "../theme";
 import { Button, ConfirmHost, Empty, Loading, toast, ToastHost } from "../ui";
+import { requestClose } from "./closeGuards";
 import { Desktop } from "./Desktop";
 import * as desktopState from "./desktopState";
 import { setFocusSource } from "./keyboard";
+import { closeOverlay, openOverlay, useOverlay } from "./overlays";
 import { openHash, startRouteBridge } from "./routeBridge";
 import { Taskbar } from "./Taskbar";
 import { Window } from "./Window";
@@ -83,8 +86,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const windows = wm.useWindows();
   const focusedId = wm.useFocusedId();
   const preview = wm.useSnapPreview();
-  const [palette, setPalette] = useState(false);
-  const [sheet, setSheet] = useState(false);
+  const overlay = useOverlay();
   const [days, setDays] = useState<ShootingDay[]>([]);
   const pd = data.useProjectData(projectId);
   const [theme] = useTheme();
@@ -98,14 +100,15 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     return () => ro.disconnect();
   }, []);
 
-  const openPalette = () => { setPalette(true); void projectDays(projectId).then(setDays).catch(() => {}); };
+  useEffect(() => { if (overlay === "palette") void projectDays(projectId).then(setDays).catch(() => {}); }, [overlay]);
+  const openPalette = () => openOverlay("palette");
   const app = (id: AppId, state?: unknown) => () => { launch({ app: id, state }); };
   const focusedWin = () => windows.find((w) => w.id === focusedId) ?? null;
   const onFocused = (fn: (id: string) => void) => () => { const w = focusedWin(); if (w) fn(w.id); };
 
   useKeys(bind("global", {
     palette: openPalette,
-    sheet: () => setSheet(true),
+    sheet: () => openOverlay("sheet"),
     goShots: app("gallery"),
     goTimeline: app("timeline"),
     goPlan: app("plan"),
@@ -113,17 +116,17 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     goFiles: app("files"),
     goLibrary: app("projects"),
     goMap: app("gallery", { layout: "map" }),
-  }), !palette && !sheet);
+  }), !overlay);
   useKeys(bind("wm", {
     next: () => wm.cycle(1),
     prev: () => wm.cycle(-1),
-    close: onFocused(wm.close),
+    close: onFocused((id) => void requestClose(id)),
     minimize: onFocused(wm.minimize),
     maximize: onFocused(wm.toggleMax),
     snapLeft: onFocused((id) => wm.setSnap(id, focusedWin()?.snap === "left" && focusedWin()?.mode === "snapped" ? null : "left")),
     snapRight: onFocused((id) => wm.setSnap(id, focusedWin()?.snap === "right" && focusedWin()?.mode === "snapped" ? null : "right")),
     desktop: () => wm.toggleDesktop(),
-  }), !palette && !sheet);
+  }), !overlay);
 
   const actions: Command[] = [
     { id: "a-gallery", group: "Open", icon: "view-grid-outline", title: "Gallery", keys: "G S", run: app("gallery") },
@@ -134,10 +137,11 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     { id: "a-map", group: "Open", icon: "map-outline", title: "Map", keys: "G M", run: app("gallery", { layout: "map" }) },
     { id: "a-lib", group: "Open", icon: "bookshelf", title: "Library: projects, fields, rigs, locations", keys: "G L", run: app("projects") },
     { id: "a-settings", group: "Open", icon: "cog-outline", title: "Settings", sub: "Theme, frame mode, new shots", run: app("settings") },
+    { id: "a-newshot", group: "Actions", icon: "image-plus", title: "New shot", sub: "Upload images or draw a sketch", run: () => openOverlay("newShot") },
     { id: "a-theme", group: "Actions", icon: "theme-light-dark", title: "Toggle theme", sub: `Now ${theme === "auto" ? "Auto" : theme === "sun" ? "Sun" : "Set"}`, run: () => setTheme(theme === "set" ? "sun" : "set") },
     { id: "a-desktop", group: "Actions", icon: "monitor", title: "Show the desktop", keys: "⌘Alt D", run: () => wm.toggleDesktop() },
     { id: "a-reload", group: "Actions", icon: "refresh", title: "Reload data", run: data.reload },
-    { id: "a-keys", group: "Actions", icon: "keyboard-outline", title: "Keyboard shortcuts", keys: "?", run: () => setSheet(true) },
+    { id: "a-keys", group: "Actions", icon: "keyboard-outline", title: "Keyboard shortcuts", keys: "?", run: () => openOverlay("sheet") },
   ];
 
   return (
@@ -152,22 +156,29 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
             <Window key={w.id} win={w} icon={def.icon} focused={w.id === focusedId}>
               <Comp win={w} focused={w.id === focusedId} resource={w.resource} setTitle={(t) => wm.setTitle(w.id, t)}
                 replaceRoute={(r) => wm.setRoute(w.id, routeHash(r))}
-                open={(intent) => launch(intent)} close={() => wm.close(w.id)} />
+                open={(intent) => launch(intent)} close={() => void requestClose(w.id)} />
             </Window>
           );
         })}
         {preview && <div class={`wm-snap-preview wm-snap-preview--${preview}`} />}
       </div>
       <Taskbar projectId={projectId} onPalette={openPalette} />
-      {palette && (
-        <CommandPalette shots={pd.scoped} locations={pd.locations} views={pd.views} projects={pd.data.projects ?? []} days={days} actions={actions} onClose={() => setPalette(false)}
+      {overlay === "palette" && (
+        <CommandPalette shots={pd.scoped} locations={pd.locations} views={pd.views} projects={pd.data.projects ?? []} days={days} actions={actions} onClose={closeOverlay}
           onOpenShot={(s) => launch({ app: "shot", resource: { type: "shot", id: s.id }, state: { stage: "photo", list: [s.id] } })}
           onLocation={(l) => launch({ app: "gallery", state: { locationId: l.id } })}
           onView={(v) => launch({ app: "gallery", state: { viewId: v.id } })}
           onProject={(p) => void switchProject(p.id).then((ok) => ok && toast(`Now working on ${p.name}`))}
           onDay={(day) => launch({ app: "plan", resource: { type: "day", id: day.id } })} />
       )}
-      {sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
+      {overlay === "sheet" && <ShortcutSheet onClose={closeOverlay} />}
+      {overlay === "newShot" && <NewShotDialog projectId={projectId} locations={pd.locations} onLocations={data.setLocationsOf(projectId)} onClose={closeOverlay}
+        onCreated={(list) => {
+          data.created(list);
+          closeOverlay();
+          const first = list[0];
+          if (first) launch({ app: "shot", resource: { type: "shot", id: first.id }, state: { stage: "photo", list: list.map((x) => x.id), line: "Just created" } });
+        }} />}
       <ConfirmHost />
       <ToastHost />
     </div>

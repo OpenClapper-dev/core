@@ -21,7 +21,7 @@ The light model feeds the [schedule](schedule.md): phases are defined by sun ele
 
 ## Metadata board (dashboard)
 
-**Metadata** (`MetadataPage.tsx`, route `#/metadata/<field>`, issue #42; its own sidebar section after Timeline) sets one single-value field on many shots by drag and drop, kanban style.
+**Metadata** (`MetadataPage.tsx`, route `#/metadata/<field>`, issue #42; its own app on the desktop) sets one single-value field on many shots by drag and drop, kanban style.
 
 - **Head**: the **field** (Location, INT/EXT, Weather, Shot size, Camera support, Review state; multi-value fields and extra fields are not offered), the state filter and search (remembered per browser in `localStorage["metadataBoard"]`), and "n without … · m shots".
 - **Left** (a resizable panel): the shots **without a value**, as cards (hover scrub on sequences); the list empties as you sort. For the review state it holds the unreviewed shots.
@@ -31,9 +31,9 @@ The light model feeds the [schedule](schedule.md): phases are defined by sun ele
 
 ## Shot view (dashboard)
 
-The shot view (`ShotView.tsx`) replaces the old dialog. It covers the main area (the sidebar keeps its collapsed or expanded state) and keeps the list it was opened from, from Shots, the map, Plan, Timeline or ⌘K.
+The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp.tsx`): one window per shot, so two shots can sit side by side (opening a shot that is already open focuses its window). It keeps the list it was opened from (the Gallery's result, the map, Plan, Timeline or ⌘K); ←/→ move this window on to the next shot, and from a deep link without a list they walk the project's shots, newest first.
 
-- **Toolbar**: back (Esc) to where it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the view closes (`viewMode` in `App.tsx`). `M` cycles it.
+- **Toolbar**: back (Esc) closes the window and focuses the one it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the window closes (`frameMode.ts` holds the global one). `M` cycles it.
 - **Stage**:
   - **Photo**: the photo as large as fits, with prev/next buttons beside it and nothing drawn over the picture (rig and lens are in the inspector). The foot has the photo strip for sequences (`,` `.`) and the actions Download crop (cropped in the browser), Original, Show on map, and Delete (confirm dialog, offering Archive instead).
   - **Framing**: re-frame the photo, saved framings, the root frame ([framing](rig-explorer.md)).
@@ -60,7 +60,7 @@ The shot view (`ShotView.tsx`) replaces the old dialog. It covers the main area 
   - **Raw metadata**: collapsed, with Copy.
 ## Reviewing
 
-Reviewing is finding the shots that carry a sequence. On the dashboard it happens in the [Timeline](timeline.md) (issue #48 merged the former Review page into it): the cut on stage, the shot browser beside it, decisions on browser cards, clips and the whole cut. The sidebar's Timeline entry counts the unreviewed shots.
+Reviewing is finding the shots that carry a sequence. On the dashboard it happens in the [Timeline](timeline.md) (issue #48 merged the former Review page into it): the cut on stage, the shot browser beside it, decisions on browser cards, clips and the whole cut. The Gallery's state switch counts the unreviewed shots.
 
 ## History on the phone
 

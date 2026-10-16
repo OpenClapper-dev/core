@@ -42,6 +42,10 @@ interface Props {
   onSwitchScope: () => void;
   /** Open the New shot dialog (upload images or draw). */
   onNewShot: () => void;
+  /** The project's saved views, picked from the title menu (the desktop has no sidebar listing them). */
+  views?: SavedView[];
+  onPickView?: (id: string | null) => void;
+  onNewView?: () => void;
 }
 
 const SORTS: { id: Sort; label: string }[] = [{ id: "newest", label: "Newest first" }, { id: "oldest", label: "Oldest first" }, { id: "name", label: "Name A–Z" }];
@@ -54,7 +58,7 @@ export function ShotsPage(p: Props) {
   const rules = ruleCount(query.filter);
   const search = useRef<HTMLInputElement>(null);
   const setQuery = (q: Partial<ShotsQuery>) => onQuery({ ...query, ...q });
-  const [menu, setMenu] = useState<"sort" | "view" | null>(null);
+  const [menu, setMenu] = useState<"sort" | "view" | "views" | null>(null);
 
   useKeys(bind("shots", {
     search: () => search.current?.focus(),
@@ -79,7 +83,25 @@ export function ShotsPage(p: Props) {
   return (
     <>
       <Toolbar>
-        <ToolbarTitle icon={p.view ? "filter-variant" : undefined} after={p.edited && <span class="f-edited">Edited</span>}>{title}</ToolbarTitle>
+        {p.views && p.onPickView ? (
+          <div class="menu-anchor">
+            <button type="button" class="f-toolbar__title views-pick" aria-haspopup="menu" aria-expanded={menu === "views"} title="Saved views" onClick={() => setMenu(menu === "views" ? null : "views")}>
+              <Icon name={p.view ? "filter-variant" : "view-grid-outline"} /><span>{title}</span><Icon name="chevron-down" />
+            </button>
+            {menu === "views" && (
+              <Popover onClose={() => setMenu(null)}>
+                <MenuItem icon={p.view ? "view-grid-outline" : "check"} selected={!p.view} onClick={() => { setMenu(null); p.onPickView!(null); }}>All shots</MenuItem>
+                {p.views.length > 0 && <div class="f-menu__label">Saved views</div>}
+                {p.views.map((v) => (
+                  <MenuItem key={v.id} icon={p.view?.id === v.id ? "check" : "filter-variant"} selected={p.view?.id === v.id} count={p.view?.id === v.id && p.edited ? "Edited" : undefined} onClick={() => { setMenu(null); p.onPickView!(v.id); }}>{v.name}</MenuItem>
+                ))}
+                {p.views.length === 0 && <span class="meta" style={{ padding: "4px 10px 8px" }}>Filter shots, then save the filter as a view.</span>}
+                {p.onNewView && <><div class="f-menu__sep" /><MenuItem icon="plus" onClick={() => { setMenu(null); p.onNewView!(); }}>New view…</MenuItem></>}
+              </Popover>
+            )}
+          </div>
+        ) : <ToolbarTitle icon={p.view ? "filter-variant" : undefined}>{title}</ToolbarTitle>}
+        {p.edited && <span class="f-edited">Edited</span>}
         {p.view && p.edited && (
           <div class="btn-row" style={{ gap: "6px" }}>
             <Button size="sm" onClick={p.onSaveView}>Save</Button>

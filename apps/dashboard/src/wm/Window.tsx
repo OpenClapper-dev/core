@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useRef } from "preact/hooks";
 import { cx, Icon, IconButton } from "../ui";
+import { requestClose } from "./closeGuards";
 import { WindowIdContext } from "./keyboard";
 import { HANDLE_DIRS, useWindowDrag } from "./useWindowDrag";
 import * as wm from "./wm";
@@ -30,7 +31,7 @@ export function Window({ win, icon, focused, children }: { win: Win; icon: strin
         <div class="wm-window__btns">
           <IconButton icon="window-minimize" label="Minimize" onClick={() => wm.minimize(win.id)} />
           <IconButton icon={win.mode === "max" ? "window-restore" : "window-maximize"} label={win.mode === "max" ? "Restore" : "Maximize"} onClick={() => wm.toggleMax(win.id)} />
-          <IconButton icon="close" label="Close" class="wm-window__close" onClick={() => wm.close(win.id)} />
+          <IconButton icon="close" label="Close" class="wm-window__close" onClick={() => void requestClose(win.id)} />
         </div>
       </div>
       <div class="wm-window__content"><WindowIdContext.Provider value={win.id}>{children}</WindowIdContext.Provider></div>

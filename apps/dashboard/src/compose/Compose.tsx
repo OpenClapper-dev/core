@@ -202,7 +202,7 @@ export function Compose(p: Props) {
         <div class="f-stage__view compose__view">
           {doc ? (
             <DrawSurface shapes={doc.shapes} onPreview={ed.preview} onCommit={ed.commit} selected={ed.selected} onSelect={ed.setSelected} tool={ed.tool} style={ed.style} mask={ed.mask}
-              canvasOf={canvasOf} aspect={aspect} maxHeight="calc(100vh - 300px)" background={background} sketch={doc.kind === "sketch"} textEdit={ed.textEdit} onTextEdit={ed.setTextEdit} onTextDone={ed.textDone} />
+              canvasOf={canvasOf} aspect={aspect} maxHeight="calc(100cqh - 300px)" background={background} sketch={doc.kind === "sketch"} textEdit={ed.textEdit} onTextEdit={ed.setTextEdit} onTextDone={ed.textDone} />
           ) : (
             <Empty icon="draw" title={overlays.length + shot.sketches.length ? "Pick an overlay or sketch" : "Nothing composed yet"} actions={<><Button icon="layers-plus" onClick={() => void create("overlay")}>New overlay</Button><Button kind="secondary" icon="floor-plan" onClick={() => void create("sketch")}>New sketch</Button></>}>
               An overlay draws on this photo and can change its look; a sketch is a floor plan or diagram for the shot.

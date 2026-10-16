@@ -70,7 +70,10 @@ function LeafletMap({ shots, mask, selectedId, onSelect, onOpen }: Props) {
     L.control.zoom({ position: "topleft" }).addTo(m);
     map.current = m;
     m.setView([51, 10], 5);
-    return () => { m.remove(); map.current = null; };
+    // The map lives in a resizable window: Leaflet must re-measure when its box changes.
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(el.current);
+    return () => { ro.disconnect(); m.remove(); map.current = null; };
   }, []);
 
   useEffect(() => {

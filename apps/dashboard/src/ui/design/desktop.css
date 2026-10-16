@@ -72,3 +72,8 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-launcher__app:hover{background:var(--accent-tint)}
 .wm-launcher__app:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:-2px}
 .wm-launcher__app span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* ---------- Pages inside windows ---------- */
+/* A side panel (inspector, lists) never takes more than half a narrow window; the stage keeps the rest. */
+.wm-window__content .f-panel{width:min(var(--panel-w,380px),50cqw)}
+.wm-window__content .f-stage__foot{flex-wrap:wrap;row-gap:8px}
