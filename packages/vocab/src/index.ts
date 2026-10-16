@@ -7,3 +7,4 @@ export * from "./markdown.ts";
 export * from "./framing.ts";
 export * from "./timeline.ts";
 export * from "./viewfinder.ts";
+export * from "./devices.ts";

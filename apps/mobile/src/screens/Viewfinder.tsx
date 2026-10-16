@@ -14,6 +14,7 @@ import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { isConfigured } from "../config";
 import { VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem } from "@fielder/vocab";
 import { calibrationFromExif } from "../calibration";
+import { notifyDeviceChange, recordViewport } from "../device";
 import { readExif, uprightSize } from "../exif";
 import { effectiveZoom, offeredZooms, zoomStops, type ZoomRange } from "../zoom";
 import { edgeExtent, resolveLayout, rowHeight, VF_SIZES } from "../vfLayout";
@@ -67,6 +68,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   const onLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     if (width !== size.width || height !== size.height) setSize({ width, height });
+    recordViewport(width, height); // issue #68: the device specs' screen size per orientation
   };
   const window = size;
   const portrait = window.height >= window.width;
@@ -125,7 +127,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       if (!ctl && tries > 0) { setTimeout(() => read(tries - 1), 150); return; }
       const r = ctl && ctl.maxZoom >= 1 ? { min: ctl.minZoom, max: ctl.maxZoom } : device && device.maxZoom >= 1 ? { min: device.minZoom, max: device.maxZoom } : null;
       log(r ? "info" : "warn", "camera started", { from: ctl ? "controller" : "device", min_zoom: r?.min ?? null, max_zoom: r?.max ?? null, zoom: ctl?.zoom ?? null, display_zoom: ctl?.displayableZoomFactor ?? null, stops: zoomStops(r) });
-      if (r && (r.min !== zoomRange?.min || r.max !== zoomRange?.max)) { setZoomRange(r); store.saveZoomRange(r); }
+      if (r && (r.min !== zoomRange?.min || r.max !== zoomRange?.max)) { setZoomRange(r); store.saveZoomRange(r); notifyDeviceChange(); }
     };
     read(5);
   };

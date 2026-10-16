@@ -13,6 +13,7 @@ D1 (SQLite) database `fielder-db`, schema in `apps/worker/migrations/`. Images l
 | `0005_capture_flow.sql` | `shots.shot_size`, `camera_support`, `movement`; `photos` rebuilt with nullable `lat`/`lon` (copied row by row, both or neither set) |
 | `0006_compose.sql` | `shots.description`; `overlays`, `sketches` ([compose](features/compose.md)) |
 | `0017_viewfinder_layouts.sql` | `viewfinder_layouts` ([viewfinder layouts](features/viewfinder-layouts.md)) |
+| `0018_devices.sql` | `devices` (device specs), `viewfinder_layouts.device_id` ([viewfinder layouts](features/viewfinder-layouts.md#device-specs-68)) |
 | `0016_spots.sql` | `spots` (a place within a location, optional pin); `shots.spot_id` ([projects](features/projects.md)) |
 | `0015_project_scope.sql` | `locations.project_id`, `field_definitions.project_id` + `position`, `views.project_id`; shared rows copied per project, unused ones to the project with the most shots; `project_fields` folded in and dropped ([projects](features/projects.md)) |
 | `0014_sequence_blocks.sql` | `timelines.groups` (JSON), `timeline_clips.group_id`: sequence blocks ([timeline](features/timeline.md)) |
@@ -54,7 +55,9 @@ Add a new numbered file for every change; never edit one that was applied to pro
 
 `framings(id, photo_id → photos CASCADE, name, rig_id → presets SET NULL (null = as shot), lens_mm, frame JSON { width_fraction, height_fraction, x, y }, position, created_at, updated_at)` and `photos.root_framing_id → framings SET NULL` (null = as captured). The API embeds `framings` and `root_framing_id` in every photo. See [framing](features/rig-explorer.md).
 
-`viewfinder_layouts(id, name, layout JSON, created_at, updated_at)`: phone layouts made on the dashboard; global. The shipped default is in code.
+`viewfinder_layouts(id, name, layout JSON, device_id → devices SET NULL, created_at, updated_at)`: phone layouts made on the dashboard; global. The shipped default is in code. `device_id` is the device the layout is designed for.
+
+`devices(id, name, specs JSON, created_at, updated_at)`: phones read out on the dashboard (issue #68). The id is the phone's own (`device.v1` on the phone), so the phone keeps the row current. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
 
 `views(id, project_id → projects CASCADE, name, filter JSON, …)`: a project's saved dashboard filters (model in `packages/vocab/src/filter.ts`).
 

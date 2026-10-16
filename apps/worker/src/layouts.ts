@@ -2,7 +2,7 @@ import { validateViewfinderLayout, type ViewfinderLayout } from "@fielder/vocab"
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
 
-interface LayoutRow { id: string; name: string; layout: string; created_at: string; updated_at: string | null }
+interface LayoutRow { id: string; name: string; layout: string; device_id: string | null; created_at: string; updated_at: string | null }
 const toApi = (r: LayoutRow) => ({ ...r, layout: JSON.parse(r.layout) as ViewfinderLayout });
 
 /** Viewfinder layouts (issue #49): edited on the dashboard, read by the phone. Client-owned UUIDs, upserts. */
@@ -12,7 +12,10 @@ export function registerLayoutRoutes(r: Router<Ctx>) {
     return json({ layouts: results.map(toApi) });
   });
 
-  /** JSON { name, layout }, the layout checked strictly (validateViewfinderLayout). */
+  /**
+   * JSON { name, layout, device_id? }, the layout checked strictly (validateViewfinderLayout).
+   * device_id (issue #68) is the device the layout is designed for: absent keeps it, null clears it.
+   */
   r.on("PUT", "/api/viewfinder-layouts/:id", async ({ env, request }, { id }) => {
     const lid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
@@ -21,10 +24,13 @@ export function registerLayoutRoutes(r: Router<Ctx>) {
     if (err) throw new HttpError(400, err);
     const layout = JSON.stringify(b.layout);
     if (layout.length > 16 * 1024) throw new HttpError(413, "layout too large");
+    const hasDevice = b.device_id !== undefined;
+    const deviceId = b.device_id == null ? null : assertUuid(b.device_id, "device_id");
+    if (deviceId && !(await env.DB.prepare("SELECT 1 FROM devices WHERE id = ?1").bind(deviceId).first())) throw new HttpError(400, "device_id: no such device");
     await env.DB.prepare(
-      `INSERT INTO viewfinder_layouts (id, name, layout, updated_at) VALUES (?1, ?2, ?3, ?4)
-       ON CONFLICT(id) DO UPDATE SET name = ?2, layout = ?3, updated_at = ?4`,
-    ).bind(lid, name, layout, new Date().toISOString()).run();
+      `INSERT INTO viewfinder_layouts (id, name, layout, device_id, updated_at) VALUES (?1, ?2, ?3, ?5, ?4)
+       ON CONFLICT(id) DO UPDATE SET name = ?2, layout = ?3, updated_at = ?4${hasDevice ? ", device_id = ?5" : ""}`,
+    ).bind(lid, name, layout, new Date().toISOString(), deviceId).run();
     const row = await env.DB.prepare("SELECT * FROM viewfinder_layouts WHERE id = ?1").bind(lid).first<LayoutRow>();
     return json({ layout: toApi(row!) });
   });

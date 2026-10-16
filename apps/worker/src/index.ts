@@ -7,6 +7,7 @@ import { AccessError, verifyAccessJwt, type AccessIdentity } from "./access.ts";
 import { registerAuthRoutes } from "./auth.ts";
 import { registerComposeRoutes } from "./compose.ts";
 import { registerDayRoutes } from "./days.ts";
+import { registerDeviceRoutes } from "./devices.ts";
 import { registerFieldRoutes } from "./fields.ts";
 import { registerFramingRoutes } from "./framings.ts";
 import { HttpError, json, Router } from "./http.ts";
@@ -75,6 +76,7 @@ registerComposeRoutes(router);
 registerTimelineRoutes(router);
 registerFramingRoutes(router);
 registerLayoutRoutes(router);
+registerDeviceRoutes(router);
 registerPreviewRoutes(router);
 
 async function authenticate(request: Request, env: Env): Promise<AccessIdentity> {

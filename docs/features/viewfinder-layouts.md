@@ -14,8 +14,9 @@
 ## Dashboard (Library › Viewfinder, `ViewfinderLayouts.tsx`)
 
 - The list: **Default** (built in, read-only: Duplicate to edit) and the saved layouts; **New layout** starts from the default.
-- Head: name, **Portrait · Landscape**, the screen **Phone** (412 × 915), **Tablet** (800 × 1280) or **Custom** (width × height in px, the usable area, so notches and system bars can be left out; remembered per browser), save state, Duplicate, **Reset to default**, Delete. Changes save 600 ms after the last edit once the layout is valid (a missing shutter shows a banner and waits).
-- The **preview** lays the screen out with the phone's sizes (56 dp rows, 76 dp shutter row, 80 dp columns, the 4:3 camera image fitted between the bars) and says how big the camera image gets.
+- Toolbar: the phone link as a pill: grey "No phone connected" / "Offline", amber "<model> connected", green "Previewing on <model>".
+- Head: name, **Portrait · Landscape**, the **Device** the layout is designed for (saved with the layout; the Default's is remembered per browser; menu: Read out again…, Rename…, Delete device…; with no device yet, **Add device specs**), save state, Duplicate, **Reset to default**, Delete. Changes save 600 ms after the last edit once the layout is valid (a missing shutter shows a banner and waits).
+- The **preview** uses the device's Shoot screen in that orientation (a banner says when it is a generic size, or turned from the other orientation because that one was not read out yet) and its phone lenses, and lays the screen out with the phone's sizes (56 dp rows, 76 dp shutter row, 80 dp columns, the 4:3 camera image fitted between the bars) and says how big the camera image gets.
 - The **Bars** panel: per bar its edge, order and removal; per item its options (Label; for the lens strip List · Carousel and Fill · scroll · Fit), order and removal; "Add a control" with what the orientation does not show yet; **+ Bar** (up to 4).
 
 ## Phone
@@ -24,6 +25,12 @@
 - `Viewfinder.tsx` renders the bars of the current orientation; `vfLayout.ts` computes how much room each edge takes so the preview fits between them (the default keeps the old 166 dp portrait chrome and 80 dp columns; tested). A missing or invalid layout falls back to the default (`resolveLayout`).
 - Lens strip **Carousel** (`LensCarousel`): previous · the value (tap: Lens sheet) · next, in the strip's order. **Fill** takes the bar's remaining length and scrolls; buttons next to it keep a fixed 56 dp cell. Without a filling strip the buttons share the bar, as before.
 - In landscape the first left bar gets the cutout clearance.
+
+## Device specs (#68)
+
+- A device is a phone read out over the preview socket: **Add device specs** (`DeviceSpecs.tsx`) asks the connected phone (`readout`) and shows what it sends: model, the Shoot screen per orientation (dp, measured whenever Shoot lays out, `device.ts` on the phone), the phone lenses (stops and zoom range) and the main lens's 35 mm equivalent. Turning the phone on Shoot fills in the other orientation live. Name it, save.
+- The record's id is the phone's own, so with every flush the phone keeps it current (calibration, sizes, lenses; `syncDevice`). The phone never creates the record. Setup → Phone calibration says the name it has on the dashboard.
+- The calibration stays editable only on the phone; the device record carries a copy.
 
 ## Live preview on the phone (#50)
 

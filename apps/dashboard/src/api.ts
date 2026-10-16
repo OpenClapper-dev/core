@@ -1,5 +1,5 @@
 /** Same-origin API; the Access session cookie is sent automatically. */
-import type { ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
+import type { DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
 export type { ClipGroup } from "@fielder/vocab";
 export type { FieldDefinition };
 export type ShotState = "unreviewed" | "approved" | "archived";
@@ -314,7 +314,13 @@ export const putView = (v: { id: string; project_id: string; name: string; filte
 export const deleteView = (id: string) => send<{ deleted: string }>("DELETE", `/api/views/${id}`).then(() => undefined);
 
 /** A viewfinder layout made here for the phone (issue #49). */
-export interface LayoutRecord { id: string; name: string; layout: ViewfinderLayout; created_at: string; updated_at: string | null }
+export interface LayoutRecord { id: string; name: string; layout: ViewfinderLayout; device_id: string | null; created_at: string; updated_at: string | null }
 export const fetchLayouts = () => get<{ layouts: LayoutRecord[] }>("/api/viewfinder-layouts").then((r) => r.layouts);
-export const putLayout = (l: { id: string; name: string; layout: ViewfinderLayout }) => send<{ layout: LayoutRecord }>("PUT", `/api/viewfinder-layouts/${l.id}`, { name: l.name, layout: l.layout }).then((r) => r.layout);
+export const putLayout = (l: { id: string; name: string; layout: ViewfinderLayout; device_id?: string | null }) => send<{ layout: LayoutRecord }>("PUT", `/api/viewfinder-layouts/${l.id}`, { name: l.name, layout: l.layout, device_id: l.device_id }).then((r) => r.layout);
 export const deleteLayout = (id: string) => send<{ deleted: string }>("DELETE", `/api/viewfinder-layouts/${id}`).then(() => undefined);
+
+/** Device specs (issue #68): phones read out in Library › Viewfinder; the id is the phone's own. */
+export interface DeviceRecord { id: string; name: string; specs: DeviceSpecs; created_at: string; updated_at: string | null }
+export const fetchDevices = () => get<{ devices: DeviceRecord[] }>("/api/devices").then((r) => r.devices);
+export const putDevice = (d: { id: string; name: string; specs: DeviceSpecs }) => send<{ device: DeviceRecord }>("PUT", `/api/devices/${d.id}`, { name: d.name, specs: d.specs }).then((r) => r.device);
+export const deleteDevice = (id: string) => send<{ deleted: string }>("DELETE", `/api/devices/${id}`).then(() => undefined);

@@ -3,7 +3,7 @@ import { getToken, setToken } from "./auth";
 import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
-import type { Extra, FieldDefinition, Framing, Presentation } from "@fielder/vocab";
+import type { DeviceSpecs, Extra, FieldDefinition, Framing, Presentation } from "@fielder/vocab";
 import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
 export class ApiError extends Error {
@@ -229,6 +229,10 @@ export const api = {
 
   /** Viewfinder layouts made on the dashboard (issue #49); the phone only reads them. */
   listLayouts: () => call<{ layouts: LayoutEntry[] }>("/api/viewfinder-layouts").then((r) => r.layouts.map((l) => ({ id: l.id, name: l.name, layout: l.layout }))),
+
+  /** Device specs (issue #68): the phone keeps its own record current once the dashboard saved it. */
+  listDevices: () => call<{ devices: { id: string; name: string; specs: DeviceSpecs }[] }>("/api/devices").then((r) => r.devices),
+  putDeviceSpecs: (id: string, specs: DeviceSpecs) => call<unknown>(`/api/devices/${id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ specs }) }),
 
   listDays: (projectId: string) => call<{ days: ShootingDay[] }>(`/api/days?project_id=${projectId}`).then((r) => r.days),
   listFields: () => call<{ fields: FieldDefinition[] }>("/api/fields").then((r) => r.fields),

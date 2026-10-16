@@ -446,8 +446,17 @@ button { font: inherit; }
 /* Library › Viewfinder (ViewfinderLayouts.tsx): the phone screen mock and the bar editor. Sizes in px = the phone's dp. */
 .vf-editor { display: flex; flex-direction: column; gap: 12px; padding: 16px 20px; height: 100%; box-sizing: border-box; }
 .vf-editor__title { font-size: var(--text-title); }
-.vf-editor__size { display: inline-flex; align-items: center; gap: 6px; }
-.vf-editor__size .f-input { width: 84px; }
+.vf-editor__device { display: inline-flex; align-items: center; gap: 4px; }
+/* Phone link (issue #68): grey = no phone, amber = a phone is there, green = previewing on it. */
+.vf-status { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: var(--radius-pill); font-weight: 700; font-size: var(--text-small); white-space: nowrap; }
+.vf-status--off { background: var(--surface-sunken); color: var(--text-disabled); }
+.vf-status--ready { background: var(--warn); color: var(--on-warn); }
+.vf-status--live { background: var(--ok); color: var(--on-ok); }
+.device-dialog { display: flex; flex-direction: column; gap: 14px; }
+.device-dialog__phones { display: flex; gap: 6px; flex-wrap: wrap; }
+.device-dialog__facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
+.device-dialog__facts dt { font-weight: 700; }
+.device-dialog__facts dd { margin: 0; }
 .vf-stage { flex: 1; min-height: 420px; position: relative; display: flex; align-items: flex-start; justify-content: center; overflow: hidden; }
 .vf-stage__size { position: absolute; bottom: 0; right: 0; }
 .vf-screen { display: flex; flex: none; transform-origin: top center; background: var(--photo-bg); border: 3px solid var(--border-strong); border-radius: 18px; overflow: hidden; box-sizing: content-box; }
