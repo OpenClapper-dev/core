@@ -164,17 +164,15 @@ test("open with a stored bounds rect honours it (clamped)", () => {
   assert.deepEqual(get(a).bounds, { x: 10, y: 10, w: 600, h: 400 });
 });
 
-test("setTitle and pins notify without disturbing geometry", () => {
+test("setTitle notifies without disturbing geometry; old local pins are kept for seeding", () => {
   fresh();
   const a = openApp("x");
   const before = get(a).bounds;
   wm.setTitle(a, "Renamed");
   assert.equal(get(a).title, "Renamed");
   assert.deepEqual(get(a).bounds, before);
-  wm.togglePin("gallery");
-  assert.deepEqual(wm.getPins(), ["gallery"]);
-  wm.togglePin("gallery");
-  assert.deepEqual(wm.getPins(), []);
+  wm.hydrate({ ...wm.snapshot(), pins: ["gallery", "files"] });
+  assert.deepEqual(wm.getLegacyPins(), ["gallery", "files"]);
 });
 
 test("snapshot/hydrate round-trips and fixes a stale focus id", () => {

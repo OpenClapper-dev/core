@@ -98,7 +98,8 @@ export const getAllWindows = () => windows;
 export const getWorkspaces = () => workspaces;
 export const getActiveWs = () => active;
 export const getFocusedId = () => focused;
-export const getPins = () => pins;
+/** Pins of a layout from before the server kept them (epic #90); only read to seed the server's. */
+export const getLegacyPins = () => pins;
 export const getSnapPreview = () => preview;
 export const getViewport = () => viewport;
 
@@ -275,11 +276,6 @@ export function setSnapPreview(zone: SnapZone | null) {
   notify();
 }
 
-export function togglePin(app: string) {
-  pins = pins.includes(app) ? pins.filter((a) => a !== app) : [...pins, app];
-  notify();
-}
-
 // ---------- Workspaces (virtual desktops, epic #90) ----------
 
 /** Make `id` the active workspace, remembering what had focus on the one left. */
@@ -409,4 +405,4 @@ export const useActiveWs = () => useWm(getActiveWs);
 export const useSplit = () => useWm(getSplit);
 export const useFocusedId = () => useWm(getFocusedId);
 export const useSnapPreview = () => useWm(getSnapPreview);
-export const usePins = () => useWm(getPins);
+

@@ -145,3 +145,28 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-split-grip:hover .wm-split-grip__thumb,.wm-split-grip.is-dragging .wm-split-grip__thumb,.wm-split-grip:focus-visible .wm-split-grip__thumb{opacity:1}
 .wm-split-grip:focus-visible .wm-split-grip__thumb{outline:var(--focus-width) solid var(--focus);outline-offset:2px}
 .wm-handle--split{cursor:ew-resize}
+/* ---------- Taskbar options and pins (epic #90) ---------- */
+.wm-taskbar__main{flex:1;min-width:0;display:flex;align-items:center;gap:4px}
+.wm-taskbar__tray{display:flex;align-items:center;gap:4px;flex:none}
+/* Centred: the spacer and the tray share the rest equally, so the main group sits in the middle */
+.wm-taskbar--center .wm-taskbar__spacer{flex:1 1 0;min-width:0}
+.wm-taskbar--center .wm-taskbar__main{flex:0 1 auto}
+.wm-taskbar--center .wm-taskbar__tasks{flex:0 1 auto}
+.wm-taskbar--center .wm-taskbar__tray{flex:1 1 0;justify-content:flex-end;min-width:max-content}
+/* At the top: the taskbar comes first, popovers open downwards, notifications sit bottom right */
+.wm-root[data-taskbar="top"]{grid-template-rows:auto minmax(0,1fr)}
+.wm-root[data-taskbar="top"]>.wm-taskbar{order:-1;border-top:0;border-bottom:var(--bw) solid var(--border-subtle)}
+.wm-root[data-taskbar="top"] .wm-launcher,.wm-root[data-taskbar="top"] .wm-project__menu{bottom:auto;top:calc(100% + 8px)}
+.wm-root[data-taskbar="top"] .toasts{bottom:var(--space-4)}
+.wm-root[data-taskbar="top"] .wm-taskview{top:var(--taskbar-h);bottom:0}
+/* Pins: an app's pin is also its windows' button (a bar under it while one is open) */
+.wm-task--pin{position:relative;width:40px;justify-content:center;padding:0}
+.wm-task--pin.is-running{box-shadow:inset 0 -2px 0 var(--border-strong)}
+.wm-task--pin.is-active{background:var(--accent-tint);box-shadow:inset 0 -2px 0 var(--accent)}
+.wm-task--pin.is-drop-before{box-shadow:inset 3px 0 0 var(--accent)}
+.wm-task__thumb{width:22px;height:22px;border-radius:var(--radius-xs);object-fit:cover;pointer-events:none}
+.wm-task__count{position:absolute;right:2px;top:2px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--surface-sunken);color:var(--text);border:var(--bw) solid var(--border);font:var(--weight-bold) 10px/12px var(--font-sans)}
+.wm-task__dropend{width:3px;height:28px;border-radius:2px;background:var(--accent);flex:none}
+.wm-taskbar.is-drop{background:var(--accent-tint)}
+/* Centred, the launcher opens in the middle like Windows 11's Start */
+.wm-taskbar--center .wm-launcher{left:50%;transform:translateX(-50%)}

@@ -1,4 +1,4 @@
-import type { FileResourceType } from "@fielder/vocab";
+import type { AppIdV, FileResourceType } from "@fielder/vocab";
 import { ApiError, deleteDay, deleteDesktopItem, deleteField, deleteFolder, deleteLocation, deleteShot, deleteTimeline, deleteView, existingIdOf, patchShot, placeItem, putDesktopItem, putFolder, putLocation, putView, type DesktopItem, type Folder } from "../api";
 import * as data from "../data";
 import { placementOf, subtree } from "../fileTree";
@@ -253,4 +253,45 @@ export async function binItems(list: (Binned & { name: string })[], projectId: s
   }
   if (failure) fail("Delete")(failure);
   return done.length > 0;
+}
+
+// ---------- Taskbar pins (epic #90): desktop items in the taskbar area, ordered by position ----------
+
+/** The project's pins, in taskbar order. */
+export const taskbarRows = (): DesktopItem[] => (files()?.desktop ?? []).filter((d) => d.area === "taskbar").sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+export const appTarget = (app: AppIdV): Target => ({ kind: "app", app_id: app, resource_type: null, resource_id: null, folder_id: null });
+const pinOf = (t: Target) => taskbarRows().find((d) => sameTarget(d, t));
+export const pinnedApp = (app: string) => taskbarRows().find((d) => d.kind === "app" && d.app_id === app);
+
+/** Pin targets to the taskbar, before the pin at index `at` (default: at the end); already pinned ones are skipped. */
+export async function pinItems(projectId: string, targets: Target[], at?: number): Promise<void> {
+  const fresh = targets.filter((t, i) => !pinOf(t) && targets.findIndex((u) => sameTarget(u as DesktopItem, t)) === i);
+  if (!fresh.length) { toast(targets.length === 1 ? "It is pinned already" : "They are pinned already", "info"); return; }
+  const rows = taskbarRows();
+  const made: DesktopItem[] = [];
+  for (const [i, t] of fresh.entries()) {
+    try { made.push(await putDesktopItem({ id: crypto.randomUUID(), project_id: projectId, label: null, x: 0, y: 0, area: "taskbar", position: rows.length + i, ...t })); }
+    catch (e) { if (!existingIdOf(e)) fail("Pinning")(e); }
+  }
+  if (!made.length) return;
+  data.setFiles((cur) => ({ ...cur, desktop: [...cur.desktop, ...made] }));
+  if (at !== undefined && at < rows.length) { const order = [...rows]; order.splice(at, 0, ...made); await reorderPins(order); }
+}
+export const pinItem = (projectId: string, t: Target) => pinItems(projectId, [t]);
+
+export async function unpin(d: DesktopItem) { await removeShortcuts([d]); }
+
+/** Store a new taskbar order (only the pins whose position changed are sent). */
+export async function reorderPins(order: DesktopItem[]) {
+  const changed = order.map((d, i) => ({ ...d, position: i })).filter((d, i) => order[i].position !== i);
+  if (!changed.length) return;
+  const next = new Map(changed.map((d) => [d.id, d]));
+  data.setFiles((cur) => ({ ...cur, desktop: cur.desktop.map((d) => next.get(d.id) ?? d) }));
+  try { await Promise.all(changed.map((d) => putDesktopItem(d))); } catch (e) { fail("Reordering")(e); }
+}
+
+/** Pin or unpin an app (launcher and window menus). */
+export async function togglePinApp(projectId: string, app: AppIdV) {
+  const p = pinnedApp(app);
+  if (p) await unpin(p); else await pinItem(projectId, appTarget(app));
 }
