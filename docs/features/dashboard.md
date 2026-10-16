@@ -2,7 +2,16 @@
 
 Designed in Claude Design (2026-09-28): four sections plus a shot view, a sidebar instead of header tabs, keyboard first. The design exports are in the gitignored `references/dashboard/`.
 
-## Shell (`apps/dashboard/src/App.tsx`, `Sidebar.tsx`, `router.ts`)
+## Desktop shell (in progress on `feat/desktop`, epic #72)
+
+`main.tsx` mounts `wm/Shell.tsx` instead of `App`: a desktop, windows and a bottom taskbar. This page becomes `desktop.md` with phase 7; until the pages are ported (phases 4–6) only Settings is a real app, the others open a placeholder window.
+
+- **Windows** (`wm/wm.ts`, a module store; `wm/Window.tsx`, `wm/useWindowDrag.ts`): drag by the title bar, resize from the 8 edges and corners (the app's min size holds), double-click the bar to maximize. Dragging to the left/right edge of the desktop snaps to that half, to the top maximizes; a preview shows the zone. Dragging a maximized or snapped window out restores its normal size under the cursor. Click anywhere in a window to bring it to the front. **One window per resource**: opening an open app (or, later, an open shot/timeline/day) focuses it.
+- **Taskbar** (`wm/Taskbar.tsx`): the launcher (the mark; all apps, right-click to pin), pinned apps, one button per window (click focuses, or minimizes the focused one; right-click: pin, snap left/right, close), then project (placeholder until phase 2), Go to…, theme (Auto → Sun → Set), reload and the clock.
+- **Desktop** (`wm/Desktop.tsx`): right-click for Settings and the theme; icons come with phase 6.
+- **Layout per project and browser** (`wm/desktopState.ts`): windows, z-order and pins in `localStorage["desktop.<projectId>"]` (`v: 1`; another version or broken JSON starts a fresh desktop), saved 600 ms after a change and on `pagehide`. The app registry is `apps/registry.ts`.
+
+## Shell (`apps/dashboard/src/App.tsx`, `Sidebar.tsx`, `router.ts`) — replaced by the desktop shell
 
 - **Sidebar**, 232 px, or a 56 px rail. Collapse and expand it with the button next to the brand (rail: at the bottom) or Ctrl B / ⌘B; the choice is remembered in `localStorage["sidebar"]`. Without a choice it is a rail below 1100 px. The scope menu opens as a fixed popup, so the rail does not clip it. It holds:
   - the **project switcher** (the projects, "Manage projects…"); the choice is remembered in `localStorage["project"]`. Every page works inside that one project

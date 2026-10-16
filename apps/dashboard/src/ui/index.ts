@@ -14,6 +14,7 @@ import "./design/data.css";
 import "./design/feedback.css";
 import "./design/fielder.css";
 import "./design/dashboard.css";
+import "./design/desktop.css";
 import "./design/components.css";
 
 export * from "./core";

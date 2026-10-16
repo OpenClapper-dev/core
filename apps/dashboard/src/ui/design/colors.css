@@ -54,6 +54,9 @@
   --frame-outline: #000000;
   --mask: rgba(0,0,0,0.62);
   --scrim-alpha: 0.72; /* @kind other */
+  --desktop-bg: #E9E9E4;
+  --snap-preview-bg: rgba(0,64,216,0.12); /* @kind other */
+  --snap-preview-border: #0040D8;
   color-scheme: light;
 }
 [data-theme="sun"] {
@@ -105,6 +108,9 @@
   --chrome-text: #0B0B0C;
   --chrome-border: #0B0B0C;
   --scrim: #0B0B0C;
+  --desktop-bg: #E9E9E4;
+  --snap-preview-bg: rgba(0,64,216,0.12); /* @kind other */
+  --snap-preview-border: #0040D8;
   color-scheme: light;
 }
 [data-theme="set"] {
@@ -156,6 +162,9 @@
   --chrome-text: #EDEDEA;
   --chrome-border: #85858E;
   --scrim: #000000;
+  --desktop-bg: #050506;
+  --snap-preview-bg: rgba(111,162,255,0.16); /* @kind other */
+  --snap-preview-border: #6FA2FF;
   color-scheme: dark;
 }
 /* Aliases kept from the old dashboard so existing CSS keeps working during migration. */
