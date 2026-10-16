@@ -19,6 +19,7 @@ import { closeOverlay, openOverlay, useOverlay } from "./overlays";
 import { openHash, startRouteBridge } from "./routeBridge";
 import { Taskbar } from "./Taskbar";
 import { TaskView } from "./TaskView";
+import { SplitGrip } from "./SplitGrip";
 import { Window } from "./Window";
 import * as wm from "./wm";
 
@@ -86,6 +87,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const area = useRef<HTMLDivElement>(null);
   const windows = wm.useAllWindows();
   const activeWs = wm.useActiveWs();
+  const split = wm.useSplit();
   const focusedId = wm.useFocusedId();
   const preview = wm.useSnapPreview();
   const overlay = useOverlay();
@@ -158,7 +160,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
 
   return (
     <div class="wm-root">
-      <div ref={area} class="wm-area">
+      <div ref={area} class="wm-area" style={{ "--wm-split": String(split) }}>
         <Desktop projectId={projectId} />
         {/* Every workspace's windows stay mounted (apps keep their state); the others are hidden. */}
         {ready && windows.map((w) => {
@@ -173,6 +175,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
             </Window>
           );
         })}
+        <SplitGrip />
         {preview && <div class={`wm-snap-preview wm-snap-preview--${preview}`} />}
       </div>
       <Taskbar projectId={projectId} onPalette={openPalette} />

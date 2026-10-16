@@ -10,7 +10,9 @@
 .wm-window{position:absolute;display:flex;flex-direction:column;background:var(--surface);border:var(--bw) solid var(--border);border-radius:var(--wm-radius);box-shadow:var(--elev-window);overflow:hidden;min-width:0;min-height:0}
 .wm-window.is-focused{border-color:var(--border-strong);box-shadow:var(--elev-window-focused)}
 .wm-window--max{left:0!important;top:0!important;width:100%!important;height:100%!important;border-radius:0;border:0}
-.wm-window--snap-left,.wm-window--snap-right{top:0!important;width:50%!important;height:100%!important;border-radius:0;border-top:0;border-bottom:0}
+.wm-window--snap-left,.wm-window--snap-right{top:0!important;height:100%!important;border-radius:0;border-top:0;border-bottom:0}
+.wm-window--snap-left{width:calc(var(--wm-split,.5) * 100%)!important}
+.wm-window--snap-right{width:calc((1 - var(--wm-split,.5)) * 100%)!important}
 .wm-window--snap-left{left:0!important;border-left:0}
 .wm-window--snap-right{left:auto!important;right:0;border-right:0}
 .wm-window--min{display:none}
@@ -39,8 +41,8 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 
 /* ---------- Snap preview ---------- */
 .wm-snap-preview{position:absolute;z-index:99999;pointer-events:none;background:var(--snap-preview-bg);border:var(--bw-strong) solid var(--snap-preview-border);border-radius:var(--wm-radius)}
-.wm-snap-preview--left{left:8px;top:8px;bottom:8px;width:calc(50% - 12px)}
-.wm-snap-preview--right{right:8px;top:8px;bottom:8px;width:calc(50% - 12px)}
+.wm-snap-preview--left{left:8px;top:8px;bottom:8px;width:calc(var(--wm-split,.5) * 100% - 12px)}
+.wm-snap-preview--right{right:8px;top:8px;bottom:8px;width:calc((1 - var(--wm-split,.5)) * 100% - 12px)}
 .wm-snap-preview--max{inset:8px}
 
 /* ---------- Taskbar ---------- */
@@ -137,3 +139,9 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-taskview__cardbody{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
 .wm-taskview__cardx{position:absolute;top:2px;right:2px}
 .wm-taskview__empty,.wm-taskview__hint{margin:0;text-align:center;opacity:.8;font-size:var(--text-small)}
+/* The split grip between snapped windows (epic #90): a strip at the split, a thumb on hover */
+.wm-split-grip{position:absolute;top:0;bottom:0;left:calc(var(--wm-split,.5) * 100% - 5px);width:10px;z-index:99990;cursor:ew-resize;touch-action:none;display:flex;align-items:center;justify-content:center;outline:none}
+.wm-split-grip__thumb{width:6px;height:56px;border-radius:3px;background:var(--split-grip);box-shadow:0 0 0 var(--bw) var(--surface);opacity:0;transition:opacity var(--dur-fast,120ms) var(--ease)}
+.wm-split-grip:hover .wm-split-grip__thumb,.wm-split-grip.is-dragging .wm-split-grip__thumb,.wm-split-grip:focus-visible .wm-split-grip__thumb{opacity:1}
+.wm-split-grip:focus-visible .wm-split-grip__thumb{outline:var(--focus-width) solid var(--focus);outline-offset:2px}
+.wm-handle--split{cursor:ew-resize}

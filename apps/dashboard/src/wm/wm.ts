@@ -347,6 +347,34 @@ export function moveToWorkspace(winId: string, to: string | "new") {
   notify();
 }
 
+// ---------- The side-by-side split (epic #90) ----------
+
+export const SPLIT_DEFAULT = 0.5;
+const SPLIT_MIN = 0.2, SPLIT_MAX = 0.8;
+/** The active workspace's split: the left half's share of the width while windows are snapped. */
+export const getSplit = () => workspaces.find((w) => w.id === active)?.split ?? SPLIT_DEFAULT;
+
+/**
+ * How far the split may go: 20–80 %, and never so far that a snapped window gets narrower than
+ * its app allows (the widest minimum on each side counts).
+ */
+export function splitRange(): { lo: number; hi: number } {
+  const snapped = onHere().filter((w) => w.mode === "snapped");
+  const minOf = (half: SnapHalf) => Math.max(0, ...snapped.filter((w) => w.snap === half).map((w) => w.min.w));
+  const lo = Math.max(SPLIT_MIN, minOf("left") / viewport.w);
+  const hi = Math.min(SPLIT_MAX, 1 - minOf("right") / viewport.w);
+  return lo <= hi ? { lo, hi } : { lo: SPLIT_DEFAULT, hi: SPLIT_DEFAULT };
+}
+export const clampSplit = (r: number) => { const { lo, hi } = splitRange(); return Math.min(hi, Math.max(lo, r)); };
+
+/** Move the split of the active workspace (both snapped windows follow). */
+export function setSplit(r: number) {
+  const v = Math.round(clampSplit(r) * 1000) / 1000;
+  if (v === getSplit()) return;
+  workspaces = workspaces.map((w) => (w.id === active ? { ...w, split: v } : w));
+  notify();
+}
+
 // ---------- Persistence seam (wm/desktopState.ts stores this per project) ----------
 
 export interface WmSnapshot { windows: Win[]; zTop: number; focusedId: string | null; pins: string[]; workspaces?: Workspace[]; active?: string }
@@ -378,6 +406,7 @@ export const useWindows = () => useWm(getWindows);
 export const useAllWindows = () => useWm(getAllWindows);
 export const useWorkspaces = () => useWm(getWorkspaces);
 export const useActiveWs = () => useWm(getActiveWs);
+export const useSplit = () => useWm(getSplit);
 export const useFocusedId = () => useWm(getFocusedId);
 export const useSnapPreview = () => useWm(getSnapPreview);
 export const usePins = () => useWm(getPins);
