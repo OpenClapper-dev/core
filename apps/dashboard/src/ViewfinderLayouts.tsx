@@ -1,9 +1,11 @@
+import { Fragment, type JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { DEFAULT_VIEWFINDER_LAYOUT, layoutLook, layoutOptions, unplaced, VF_FRAME_COLORS, VF_FRAME_WIDTHS, VF_HUMAN_STEPS, VF_TINTS, type VfLook, type VfOptions, validateViewfinderLayout, VF_CONTROL_LABELS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem, type VfOrientation, type VfOrientationName, type ViewfinderLayout } from "@fielder/vocab";
 import { deleteDevice, deleteLayout, fetchDevices, fetchLayouts, putDevice, putLayout, type DeviceRecord, type LayoutRecord } from "./api";
 import { DeviceDialog, deviceScreen } from "./DeviceSpecs";
+import { applyDrop, insertIndex, VF_DRAG_TYPE, type VfDrag, type VfDrop } from "./vfDnd";
 import { usePhonePreview, type PhonePreview } from "./phonePreview";
-import { Banner, Button, Checkbox, Chip, Switch, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, ReorderButtons, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, Chip, Switch, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
 
 /**
  * Library › Viewfinder (issue #49): layouts for the phone's Shoot screen. Which controls show, in which
@@ -108,6 +110,38 @@ interface DeviceCtl {
   remove: (d: DeviceRecord) => Promise<void>;
 }
 
+/** The editor's one drag (issue #68), handed to the bars panel and the preview. */
+interface Dnd {
+  readOnly: boolean;
+  drag: VfDrag | null;
+  drop: VfDrop | null;
+  start: (d: VfDrag, e: DragEvent) => void;
+  over: (d: VfDrop) => void;
+  end: () => void;
+  commit: () => void;
+}
+
+/** A control as it is first placed: the lens strip with its default display and size. */
+const newItem = (c: VfControl): VfItem => (c === "lens" ? { control: "lens", display: "list", size: "fill" } : { control: c });
+
+/** Where among `selector` children of `el` the pointer is (x along a row, y down a column). */
+function indexAt(e: DragEvent, el: HTMLElement, selector: string, row: boolean): number {
+  const boxes = [...el.querySelectorAll<HTMLElement>(`:scope > ${selector}`)].map((k) => { const r = k.getBoundingClientRect(); return row ? { start: r.left, end: r.right } : { start: r.top, end: r.bottom }; });
+  return insertIndex(row ? e.clientX : e.clientY, boxes);
+}
+
+/** Drop handlers for a bar's item list (panel or preview). */
+const dropTarget = (dnd: Dnd, barId: string, selector: string, row: boolean) => ({
+  onDragOver: (e: DragEvent) => {
+    if (!dnd.drag || dnd.drag.kind === "bar") return;
+    e.preventDefault();
+    e.stopPropagation();
+    dnd.over({ kind: "item", barId, index: indexAt(e, e.currentTarget as HTMLElement, selector, row) });
+  },
+  onDrop: (e: DragEvent) => { e.preventDefault(); e.stopPropagation(); dnd.commit(); },
+});
+const isDropAt = (dnd: Dnd, barId: string, i: number) => dnd.drop?.kind === "item" && dnd.drop.barId === barId && dnd.drop.index === i;
+
 const summary = (l: ViewfinderLayout) => `${l.portrait.bars.length} bar${l.portrait.bars.length === 1 ? "" : "s"} portrait · ${l.landscape.bars.length} landscape`;
 
 function Editor({ record, phone, devices, onDuplicate, onSaved, onDeleted }: { record: LayoutRecord | null; phone: PhonePreview; devices: DeviceCtl; onDuplicate: () => void; onSaved?: (r: LayoutRecord) => void; onDeleted?: () => void }) {
@@ -148,6 +182,16 @@ function Editor({ record, phone, devices, onDuplicate, onSaved, onDeleted }: { r
     return () => clearTimeout(t);
   }, [phone.previewing, layout, orient, !!err]);
   const setO = (next: VfOrientation) => change({ ...layout, [orient]: next });
+  // Drag and drop (issue #68): one drag at a time, shared by the bars panel and the preview.
+  const [drag, setDrag] = useState<VfDrag | null>(null);
+  const [drop, setDrop] = useState<VfDrop | null>(null);
+  const dnd: Dnd = {
+    readOnly, drag, drop,
+    start: (d, e) => { if (readOnly) return; e.dataTransfer?.setData(VF_DRAG_TYPE, JSON.stringify(d)); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; setDrag(d); },
+    over: (d) => setDrop((cur) => (JSON.stringify(cur) === JSON.stringify(d) ? cur : d)),
+    end: () => { setDrag(null); setDrop(null); },
+    commit: () => { if (drag && drop) setO(applyDrop(o, drag, drop)); setDrag(null); setDrop(null); },
+  };
 
   async function remove() {
     if (!record) return;
@@ -209,18 +253,30 @@ function Editor({ record, phone, devices, onDuplicate, onSaved, onDeleted }: { r
           {err && !readOnly && <Banner kind="warn" title="Not saved yet" meta={err} />}
           {!device && <Banner kind="info" icon="cellphone-cog" title="Generic phone size" meta="Add device specs from your phone to preview on its real screen and lenses." />}
           {device && screen.guessed && <Banner kind="info" icon="rotate-3d-variant" title={`${orient === "portrait" ? "Portrait" : "Landscape"} not read out yet`} meta={`Turned from the other orientation. Show Shoot ${orient === "portrait" ? "upright" : "sideways"} on the phone and read it out again.`} />}
-          <Preview orientation={o} portrait={orient === "portrait"} screen={screen} stops={device?.specs.stops ?? null} look={layoutLook(layout)} />
+          <Preview orientation={o} portrait={orient === "portrait"} screen={screen} stops={device?.specs.stops ?? null} look={layoutLook(layout)} dnd={dnd} />
         </div>
       </div>
       <Panel width="380px">
         <PanelHead title={`Bars · ${orient}`}>{!readOnly && o.bars.length < 4 && <Button kind="secondary" size="sm" icon="plus" onClick={() => setO({ bars: [...o.bars, { id: crypto.randomUUID().slice(0, 8), edge: "end", items: [] }] })}>Bar</Button>}</PanelHead>
         <PanelBody>
           {readOnly && <EmptyNote>The built-in default can't be changed. Duplicate it to make your own.</EmptyNote>}
-          {o.bars.map((b, i) => <BarEditor key={b.id} bar={b} index={i} count={o.bars.length} portrait={orient === "portrait"} orientation={o} readOnly={readOnly}
-            onChange={(nb) => setO({ bars: o.bars.map((x) => (x.id === b.id ? nb : x)) })}
-            onMove={(d) => { const bars = [...o.bars]; const [x] = bars.splice(i, 1); bars.splice(i + d, 0, x); setO({ bars }); }}
-            onRemove={() => setO({ bars: o.bars.filter((x) => x.id !== b.id) })} />)}
-          {!readOnly && unplaced(o).length > 0 && <span class="meta">Not shown in {orient}: {unplaced(o).map((c) => VF_CONTROL_LABELS[c]).join(", ")}.</span>}
+          <div class="vf-bars-ed" onDragOver={(e) => { if (dnd.drag?.kind !== "bar") return; e.preventDefault(); dnd.over({ kind: "bar", index: indexAt(e, e.currentTarget as HTMLElement, "[data-vf-bar]", false) }); }} onDrop={(e) => { e.preventDefault(); dnd.commit(); }}>
+            {o.bars.map((b, i) => (
+              <Fragment key={b.id}>
+                {dnd.drop?.kind === "bar" && dnd.drop.index === i && <span class="vf-drop vf-drop--bar" />}
+                <BarEditor bar={b} index={i} portrait={orient === "portrait"} orientation={o} readOnly={readOnly} dnd={dnd}
+                  onChange={(nb) => setO({ bars: o.bars.map((x) => (x.id === b.id ? nb : x)) })}
+                  onRemove={() => setO({ bars: o.bars.filter((x) => x.id !== b.id) })} />
+              </Fragment>
+            ))}
+            {dnd.drop?.kind === "bar" && dnd.drop.index === o.bars.length && <span class="vf-drop vf-drop--bar" />}
+          </div>
+          {!readOnly && unplaced(o).length > 0 && (
+            <div class="vf-tray">
+              <span class="meta">Not shown in {orient}, drag into a bar:</span>
+              <div class="f-chips">{unplaced(o).map((c) => <span key={c} class="f-chip vf-tray__chip" draggable onDragStart={(e) => dnd.start({ kind: "new", item: newItem(c) }, e)} onDragEnd={dnd.end}><Icon name="drag-vertical" />{VF_CONTROL_LABELS[c]}</span>)}</div>
+            </div>
+          )}
           <LookEditor layout={layout} readOnly={readOnly} stops={device?.specs.stops ?? null} onChange={change} />
         </PanelBody>
       </Panel>
@@ -228,25 +284,30 @@ function Editor({ record, phone, devices, onDuplicate, onSaved, onDeleted }: { r
   );
 }
 
-function BarEditor({ bar, index, count, portrait, orientation, readOnly, onChange, onMove, onRemove }: {
-  bar: VfBar; index: number; count: number; portrait: boolean; orientation: VfOrientation; readOnly: boolean;
-  onChange: (b: VfBar) => void; onMove: (d: -1 | 1) => void; onRemove: () => void;
+function BarEditor({ bar, index, portrait, orientation, readOnly, dnd, onChange, onRemove }: {
+  bar: VfBar; index: number; portrait: boolean; orientation: VfOrientation; readOnly: boolean; dnd: Dnd;
+  onChange: (b: VfBar) => void; onRemove: () => void;
 }) {
   const setItem = (i: number, patch: Partial<VfItem>) => onChange({ ...bar, items: bar.items.map((x, j) => (j === i ? { ...x, ...patch } : x)) });
-  const moveItem = (i: number, d: -1 | 1) => { const items = [...bar.items]; const [x] = items.splice(i, 1); items.splice(i + d, 0, x); onChange({ ...bar, items }); };
   const free = unplaced(orientation);
   const edges = portrait ? [{ id: "start", label: "Top" }, { id: "end", label: "Bottom" }] : [{ id: "start", label: "Left" }, { id: "end", label: "Right" }];
   return (
-    <div class={cx("vf-bar-ed", readOnly && "is-readonly")}>
-      <div class="vf-bar-ed__head">
+    <div class={cx("vf-bar-ed", readOnly && "is-readonly", dnd.drag?.kind === "bar" && dnd.drag.barId === bar.id && "is-dragging")} data-vf-bar>
+      <div class="vf-bar-ed__head" draggable={!readOnly} onDragStart={(e) => dnd.start({ kind: "bar", barId: bar.id }, e)} onDragEnd={dnd.end} title={readOnly ? undefined : "Drag to reorder the bars"}>
+        {!readOnly && <Icon name="drag" class="vf-grip" />}
         <strong>Bar {index + 1}</strong>
         <Seg label={`Edge of bar ${index + 1}`} value={bar.edge} onChange={(edge) => !readOnly && onChange({ ...bar, edge: edge as VfBar["edge"] })} options={edges} />
         <span class="grow" />
-        {!readOnly && <ReorderButtons index={index} count={count} onMove={(_, d) => onMove(d)} onRemove={onRemove} up={{ label: "Earlier (closer to the top or left)" }} down={{ label: "Later" }} remove={{ label: "Remove the bar" }} />}
+        {!readOnly && <IconButton icon="close" label="Remove the bar" title="Remove the bar" onClick={onRemove} />}
       </div>
-      {bar.items.length === 0 && <span class="meta">Empty: add a control below.</span>}
+      <div class="vf-items-ed" {...dropTarget(dnd, bar.id, "[data-vf-item]", false)}>
+      {bar.items.length === 0 && <span class="meta">Empty: drag a control here or add one below.</span>}
       {bar.items.map((it, i) => (
-        <div key={it.control} class="vf-item-ed">
+        <Fragment key={it.control}>
+        {isDropAt(dnd, bar.id, i) && <span class="vf-drop" />}
+        <div class={cx("vf-item-ed", dnd.drag?.kind === "item" && dnd.drag.control === it.control && "is-dragging")} data-vf-item draggable={!readOnly}
+          onDragStart={(e) => dnd.start({ kind: "item", control: it.control }, e)} onDragEnd={dnd.end}>
+          {!readOnly && <Icon name="drag-vertical" class="vf-grip" />}
           <span class="vf-item-ed__name">{VF_CONTROL_LABELS[it.control]}</span>
           {it.control === "lens" ? (
             <>
@@ -256,11 +317,14 @@ function BarEditor({ bar, index, count, portrait, orientation, readOnly, onChang
           ) : it.control === "zoom" ? <Seg label="Phone lenses display" value={it.display ?? "list"} onChange={(v) => !readOnly && setItem(i, { display: v as VfItem["display"] })} options={[{ id: "list", label: "List" }, { id: "carousel", label: "Carousel" }]} />
             : it.control !== "shutter" && <Checkbox checked={!!it.label} role="checkbox" aria-checked={!!it.label} onClick={() => !readOnly && setItem(i, { label: !it.label })}>Label</Checkbox>}
           <span class="grow" />
-          {!readOnly && <ReorderButtons index={i} count={bar.items.length} onMove={(at, d) => moveItem(at, d)} onRemove={() => onChange({ ...bar, items: bar.items.filter((_, j) => j !== i) })} remove={{ label: `Remove ${VF_CONTROL_LABELS[it.control]}` }} />}
+          {!readOnly && <IconButton icon="close" label={`Remove ${VF_CONTROL_LABELS[it.control]}`} title={`Remove ${VF_CONTROL_LABELS[it.control]}`} onClick={() => onChange({ ...bar, items: bar.items.filter((_, j) => j !== i) })} />}
         </div>
+        </Fragment>
       ))}
+      {isDropAt(dnd, bar.id, bar.items.length) && <span class="vf-drop" />}
+      </div>
       {!readOnly && free.length > 0 && bar.items.length < 9 && (
-        <Select label="Add a control" icon="plus" width="220px" value="" onChange={(v) => v && onChange({ ...bar, items: [...bar.items, v === "lens" ? { control: "lens", display: "list", size: "fill" } : { control: v as VfControl }] })}
+        <Select label="Add a control" icon="plus" width="220px" value="" onChange={(v) => v && onChange({ ...bar, items: [...bar.items, newItem(v as VfControl)] })}
           options={[{ value: "", label: "Add a control…" }, ...free.map((c) => ({ value: c, label: VF_CONTROL_LABELS[c] }))]} />
       )}
     </div>
@@ -268,7 +332,7 @@ function BarEditor({ bar, index, count, portrait, orientation, readOnly, onChang
 }
 
 /** The screen as the phone lays it out: start bars, the 4:3 camera preview, end bars; scaled to fit. */
-function Preview({ orientation: o, portrait, screen, stops, look }: { orientation: VfOrientation; portrait: boolean; screen: { w: number; h: number }; stops: number[] | null; look: VfLook }) {
+function Preview({ orientation: o, portrait, screen, stops, look, dnd }: { orientation: VfOrientation; portrait: boolean; screen: { w: number; h: number }; stops: number[] | null; look: VfLook; dnd: Dnd }) {
   const box = useRef<HTMLDivElement>(null);
   const [avail, setAvail] = useState({ w: 600, h: 600 });
   useEffect(() => {
@@ -287,8 +351,8 @@ function Preview({ orientation: o, portrait, screen, stops, look }: { orientatio
   const aspect = portrait ? 3 / 4 : 4 / 3;
   const cam = area.w / aspect <= area.h ? { w: area.w, h: area.w / aspect } : { w: area.h * aspect, h: area.h };
   const edgeBlock = (bars: VfBar[], isStart: boolean) => !bars.length ? null : portrait
-    ? <div class={cx("vf-chrome", isStart && "vf-chrome--top")}>{bars.map((b) => <PreviewBar key={b.id} bar={b} vertical={false} stops={stops} />)}</div>
-    : bars.map((b) => <div key={b.id} class={cx("vf-side", isStart ? "vf-side--start" : "vf-side--end")}><PreviewBar bar={b} vertical stops={stops} /></div>);
+    ? <div class={cx("vf-chrome", isStart && "vf-chrome--top")}>{bars.map((b) => <PreviewBar key={b.id} bar={b} vertical={false} stops={stops} dnd={dnd} />)}</div>
+    : bars.map((b) => <div key={b.id} class={cx("vf-side", isStart ? "vf-side--start" : "vf-side--end")}><PreviewBar bar={b} vertical stops={stops} dnd={dnd} /></div>);
   return (
     <div ref={box} class="vf-stage">
       <div class="vf-screen" style={{ width: `${screen.w}px`, height: `${screen.h}px`, transform: `scale(${scale})`, flexDirection: portrait ? "column" : "row" }}>
@@ -315,18 +379,28 @@ function Preview({ orientation: o, portrait, screen, stops, look }: { orientatio
 }
 
 /** `stops`: the device's phone lenses (issue #68), or a typical set without a device. */
-function PreviewBar({ bar, vertical, stops }: { bar: VfBar; vertical: boolean; stops: number[] | null }) {
+function PreviewBar({ bar, vertical, stops, dnd }: { bar: VfBar; vertical: boolean; stops: number[] | null; dnd: Dnd }) {
   const zooms = stops ?? [0.5, 1, 3];
   const fixed = bar.items.some((i) => i.control === "lens" && i.size !== "fit");
   const height = bar.items.some((i) => i.control === "shutter") ? SZ.shutter : SZ.row;
+  // Each control is draggable on the preview too; the wrapper carries the drag and the drop position.
+  const wrap = (it: VfItem, i: number, node: JSX.Element) => (
+    <Fragment key={it.control}>
+      {isDropAt(dnd, bar.id, i) && <span class={cx("vf-drop", "vf-drop--pv", vertical && "vf-drop--v")} />}
+      <span class={cx("vf-pv-item", (it.control === "lens" && it.size !== "fit") && "is-fill", dnd.drag?.kind === "item" && dnd.drag.control === it.control && "is-dragging")} data-vf-item
+        draggable={!dnd.readOnly} onDragStart={(e) => dnd.start({ kind: "item", control: it.control }, e)} onDragEnd={dnd.end}>{node}</span>
+    </Fragment>
+  );
   return (
-    <div class={cx("vf-bar", vertical && "vf-bar--v")} style={vertical ? undefined : { height: `${height}px` }}>
-      {bar.items.map((it) => {
+    <div class={cx("vf-bar", vertical && "vf-bar--v", dnd.drag && dnd.drag.kind !== "bar" && "is-target")} style={vertical ? undefined : { height: `${height}px` }} {...dropTarget(dnd, bar.id, "[data-vf-item]", !vertical)}>
+      {bar.items.map((it, i) => wrap(it, i, (() => {
         if (it.control === "shutter") return <span key="shutter" class="vf-shutter" title="Shutter" />;
         if (it.control === "zoom") {
           return (
             <span key="zoom" class={cx("vf-lens", vertical && "vf-lens--v", "is-fit")} title="Phone lenses">
-              {zooms.length > 1 && zooms.map((z) => <span key={z} class={cx("vf-pill", z === 1 && "is-on")}>{z}<small>×</small></span>)}
+              {zooms.length > 1 && (it.display === "carousel"
+                ? <><Icon name={vertical ? "chevron-up" : "chevron-left"} /><span class="vf-pill is-on">1<small>×</small></span><Icon name={vertical ? "chevron-down" : "chevron-right"} /></>
+                : zooms.map((z) => <span key={z} class={cx("vf-pill", z === 1 && "is-on")}>{z}<small>×</small></span>))}
             </span>
           );
         }
@@ -347,7 +421,8 @@ function PreviewBar({ bar, vertical, stops }: { bar: VfBar; vertical: boolean; s
             </span>
           </span>
         );
-      })}
+      })()))}
+      {isDropAt(dnd, bar.id, bar.items.length) && <span class={cx("vf-drop", "vf-drop--pv", vertical && "vf-drop--v")} />}
     </div>
   );
 }

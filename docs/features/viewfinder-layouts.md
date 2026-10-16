@@ -18,7 +18,8 @@
 - Head: name, **Portrait · Landscape**, the **Device** the layout is designed for (saved with the layout; the Default's is remembered per browser; menu: Read out again…, Rename…, Delete device…; with no device yet, **Add device specs**), save state, Duplicate, **Reset to default**, Delete. Changes save 600 ms after the last edit once the layout is valid (a missing shutter shows a banner and waits).
 - The **preview** uses the device's Shoot screen in that orientation (a banner says when it is a generic size, or turned from the other orientation because that one was not read out yet) and its phone lenses, and lays the screen out with the phone's sizes (56 dp rows, 76 dp shutter row, 80 dp columns, the 4:3 camera image fitted between the bars) and says how big the camera image gets.
 - **Look** and **Controls** under the bars: the look and the options above (phone lenses picked from the device's stops, typical ones without a device). The preview draws a sample frame in the look, with the blackout and the HUD chips.
-- The **Bars** panel: per bar its edge, order and removal; per item its options (Label; for the lens strip List · Carousel and Fill · scroll · Fit), order and removal; "Add a control" with what the orientation does not show yet; **+ Bar** (up to 4).
+- The **Bars** panel: per bar its edge and removal; per item its options (Label; for the lens strip List · Carousel and Fill · scroll · Fit; for the phone lenses List · Carousel) and removal; "Add a control" with what the orientation does not show yet; **+ Bar** (up to 4).
+- **Drag and drop** (issue #68, `vfDnd.ts`, tested): drag a control within or between bars, in the panel or **directly on the preview**; drag a bar by its head to reorder the bars; drag a control that is not shown yet from the chips under the bars. An accent line marks where it lands; a full bar (9) takes nothing more. Dropping elsewhere changes nothing.
 
 ## Phone
 
