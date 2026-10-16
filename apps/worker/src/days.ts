@@ -1,4 +1,5 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
 
@@ -78,7 +79,7 @@ export function registerDayRoutes(r: Router<Ctx>) {
 
   r.on("DELETE", "/api/days/:id", async ({ env }, { id }) => {
     const did = assertUuid(id, "id");
-    const res = await env.DB.prepare("DELETE FROM shooting_days WHERE id = ?1").bind(did).run();
+    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM shooting_days WHERE id = ?1").bind(did), ...fileRefCleanup(env, "day", JSON.stringify([did]))]);
     if (!res.meta.changes) throw new HttpError(404, "day not found");
     return json({ deleted: did });
   });

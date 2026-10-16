@@ -1,6 +1,7 @@
 import { validateFilter } from "@fielder/vocab";
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
+import { fileRefCleanup } from "./files.ts";
 import { assertProjectExists } from "./projects.ts";
 
 interface ViewRow { id: string; project_id: string; name: string; filter: string; created_at: string; updated_at: string | null }
@@ -35,7 +36,7 @@ export function registerViewRoutes(r: Router<Ctx>) {
 
   r.on("DELETE", "/api/views/:id", async ({ env }, { id }) => {
     const vid = assertUuid(id, "id");
-    const res = await env.DB.prepare("DELETE FROM views WHERE id = ?1").bind(vid).run();
+    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM views WHERE id = ?1").bind(vid), ...fileRefCleanup(env, "view", JSON.stringify([vid]))]);
     if (!res.meta.changes) throw new HttpError(404, "view not found");
     return json({ deleted: vid });
   });
