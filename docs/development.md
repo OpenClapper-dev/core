@@ -43,6 +43,8 @@ Agents can click through the dashboard with the Playwright MCP: headless Chrome 
 ```sh
 make dev-build      # once, and after every native change: "Fielder Dev" APK into the Windows Downloads folder
 make mobile         # local Worker behind a quick tunnel + Metro for Fielder Dev; the phone works on LOCAL data
+make all            # all of it at once: Worker, dashboard and mobile in one tmux session ("fielder"), one pane each
+make all-down       # stop all of it and close the session · make all-restart: restart the servers in place
 make dashboard      # beside it: the dashboard on :5173 against the same local Worker
 ```
 
@@ -51,6 +53,7 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 - `make dev-build` = `PROFILE=dev-client scripts/apk-local.sh`: `eas build --local` in the Docker toolchain, no EAS quota. The profile is a debug build (`:app:assembleDebug`, `withoutCredentials`): signed with the debug key, so no keystore from Expo, but the Expo login is still needed. Install the APK from Downloads once (allow installs from the file manager); later builds install over it.
 - In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 
+- `scripts/dev-all.sh` (`make all`) opens a tmux session `fielder`: Worker and dashboard stacked on the left, `make mobile` on the right (it waits for the Worker, so it only adds a tunnel), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
 - `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --go --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
 - Sign in once: under `ACCESS_DEV_BYPASS` `/auth/mobile` hands out an unsigned placeholder token for `dev@localhost`.
