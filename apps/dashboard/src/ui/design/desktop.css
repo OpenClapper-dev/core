@@ -102,3 +102,6 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 /* The recycle bin icon (epic #90): a drop target for icons and for files dragged from Files. */
 .wm-icon--bin.is-drop{background:var(--danger-tint);border-color:var(--danger)}
 .wm-icon--bin.is-drop .wm-icon__glyph{border-color:var(--danger);color:var(--danger)}
+/* Rubber-band selection on the empty desktop, and a folder icon taking dropped icons (epic #90). */
+.wm-marquee{position:absolute;z-index:5;pointer-events:none;background:var(--marquee-bg);border:var(--bw) solid var(--marquee-border)}
+.wm-icon[data-folder].is-drop{background:var(--accent-tint);border-color:var(--accent)}

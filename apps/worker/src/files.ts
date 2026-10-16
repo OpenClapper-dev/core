@@ -201,10 +201,20 @@ export function registerFileRoutes(r: Router<Ctx>) {
            AND ifnull(folder_id, '') = ifnull(?5, '') AND ifnull(app_id, '') = ifnull(?6, '') AND area = ?7`,
       ).bind(projectId, kind, target.resource_type, target.resource_id, target.folder_id, target.app_id, area).first<{ id: string }>();
       if (dup) return json({ error: area === "taskbar" ? "this is already pinned" : "this is already on the desktop", existing_id: dup.id }, 409);
-      await env.DB.prepare(
-        `INSERT INTO desktop_items (id, project_id, kind, resource_type, resource_id, folder_id, app_id, label, x, y, area, position, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
-      ).bind(did, projectId, kind, target.resource_type, target.resource_id, target.folder_id, target.app_id, label, b.x, b.y, area, position, now).run();
+      try {
+        await env.DB.prepare(
+          `INSERT INTO desktop_items (id, project_id, kind, resource_type, resource_id, folder_id, app_id, label, x, y, area, position, updated_at)
+           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
+        ).bind(did, projectId, kind, target.resource_type, target.resource_id, target.folder_id, target.app_id, label, b.x, b.y, area, position, now).run();
+      } catch (e) {
+        // Two clients (or two tabs) adding the same target at once: the second one is a duplicate too.
+        if (!String(e).includes("desktop_target_idx")) throw e;
+        const won = await env.DB.prepare(
+          `SELECT id FROM desktop_items WHERE project_id = ?1 AND kind = ?2 AND ifnull(resource_type, '') = ifnull(?3, '') AND ifnull(resource_id, '') = ifnull(?4, '')
+             AND ifnull(folder_id, '') = ifnull(?5, '') AND ifnull(app_id, '') = ifnull(?6, '') AND area = ?7`,
+        ).bind(projectId, kind, target.resource_type, target.resource_id, target.folder_id, target.app_id, area).first<{ id: string }>();
+        return json({ error: "this is already there", existing_id: won?.id ?? null }, 409);
+      }
     }
     const row = await env.DB.prepare("SELECT * FROM desktop_items WHERE id = ?1").bind(did).first<DesktopRow>();
     return json({ item: row });
