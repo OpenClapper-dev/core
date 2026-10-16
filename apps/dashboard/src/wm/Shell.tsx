@@ -147,7 +147,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   return (
     <div class="wm-root">
       <div ref={area} class="wm-area">
-        <Desktop />
+        <Desktop projectId={projectId} />
         {ready && windows.map((w) => {
           const def = appDef(w.app);
           if (!def) return null;
