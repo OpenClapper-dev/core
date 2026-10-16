@@ -30,7 +30,7 @@ Shot view → stage **Compose** (`C`; route `#/shots/<id>?stage=compose`). The s
 - **From timelines · n** (stage bar, when no item is open): overlays drawn inline on this photo in the project's timelines, and the timelines' sketches (issue #31). They belong to their clip and are not listed in the item strip; **Make the shot's** moves an overlay to the photo (its clip keeps showing it), **Attach here** makes a sketch this shot's. In a timeline the same tools work inline on the stage, see [timeline](timeline.md).
 - The **inspector** (other stages) has a **Description** section for the shot (saved 0.7 s after the last edit, or on leaving the field) and a **Compose** section listing the overlay and sketch names with Open (`C`). The shot's delete confirmation counts them.
 
-Key hints are in the key bar and `?`.
+Every key is listed under `?`.
 
 ## Phone (`apps/mobile/src/components/ComposeParts.tsx`, `Markdown.tsx`)
 

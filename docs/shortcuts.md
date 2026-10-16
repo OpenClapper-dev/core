@@ -9,13 +9,27 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | --- | --- |
 | ⌘K | Go to… (command palette) |
 | ? | All shortcuts |
-| ⌘B | Collapse or expand the sidebar |
-| G S | Go to Shots |
-| G T | Go to Timeline |
-| G P | Go to Plan |
-| G L | Go to the Library |
+| G S | Open the Gallery (shots) |
+| G T | Open Timeline |
+| G P | Open Plan |
+| G D | Open Metadata |
+| G F | Open Files |
+| G L | Open Projects (the library) |
 | G M | Shots on the map |
 | Esc | Close or back out one level |
+
+## Windows (always live, like Everywhere)
+
+| Keys | What |
+| --- | --- |
+| ⌘` / ⌘Alt PageDown | Next window |
+| ⌘Alt PageUp | Previous window |
+| ⌘Alt W | Close the window |
+| ⌘Alt ↓ | Minimize the window |
+| ⌘Alt ↑ | Maximize or restore the window |
+| ⌘Alt ← | Snap the window to the left half |
+| ⌘Alt → | Snap the window to the right half |
+| ⌘Alt D | Show the desktop (again: bring the windows back) |
 
 ## Shots
 
@@ -235,4 +249,27 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ↑ / ↓ | Move |
 | ↵ / Tab | Take the highlighted entry |
 | Esc | Cancel |
+
+## Files
+
+| Keys | What |
+| --- | --- |
+| / | Focus the search |
+| J / ↓ | Next item |
+| K / ↑ | Previous item |
+| ↵ | Open the item (a folder: go into it) |
+| ⌫ / Alt ↑ | Up to the parent folder |
+| F2 | Rename |
+| Del | Delete |
+| ⇧N | New folder here |
+| Drag | Onto a folder: move there · onto the desktop: add a shortcut |
+| Right-click | Open, rename, move, add to the desktop, delete |
+
+## Desktop icons
+
+| Keys | What |
+| --- | --- |
+| ↵ | Open the focused icon (or double-click it) |
+| Drag | Move an icon · drop files from Files to add shortcuts |
+| Right-click | On an icon: open, rename, remove · on the desktop: new folder, new shortcut, arrange |
 

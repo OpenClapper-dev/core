@@ -1,12 +1,10 @@
-import { useEffect, useState } from "preact/hooks";
-
 export type Stage = "photo" | "rigs" | "position" | "compose";
 export type LibrarySection = "projects" | "fields" | "rigs" | "locations" | "viewfinder";
 export const LIBRARY_SECTIONS: readonly LibrarySection[] = ["projects", "fields", "rigs", "locations", "viewfinder"];
 
 /**
  * A position in a cut (issue #35): the playhead (`t`, seconds) and the inline tool open on the
- * clip under it (`tool`). Written silently while working (`writeCutPosition`), read on load.
+ * clip under it (`tool`). The Timeline reports it into its window's route while you work; read on load.
  */
 import { META_FIELDS, type MetaField } from "./MetadataPage";
 
@@ -37,7 +35,8 @@ export type Route =
   | { page: "metadata"; field: MetaField }
   | { page: "timeline"; timelineId: string | null; at?: CutPosition | null }
   | { page: "settings"; tab: SettingsTab }
-  | { page: "library"; section: LibrarySection; id: string | null };
+  | { page: "library"; section: LibrarySection; id: string | null }
+  | { page: "files"; folderId: string | null };
 
 export type SettingsTab = "general" | "shortcuts";
 
@@ -58,6 +57,7 @@ export function parseRoute(hash: string): Route {
     case "metadata": return { page: "metadata", field: (META_FIELDS as readonly string[]).includes(parts[1]) ? (parts[1] as MetaField) : "location" };
     case "timeline": return { page: "timeline", timelineId: parts[1] ?? null, at: parts[1] ? parseCutPosition(q) : null };
     case "settings": return { page: "settings", tab: parts[1] === "shortcuts" ? "shortcuts" : "general" };
+    case "files": return { page: "files", folderId: parts[1] ?? null };
     case "library": {
       const section = (LIBRARY_SECTIONS as readonly string[]).includes(parts[1]) ? (parts[1] as LibrarySection) : "projects";
       return { page: "library", section, id: parts[2] ?? null };
@@ -75,30 +75,6 @@ export function routeHash(r: Route): string {
     case "timeline": return r.timelineId ? `#/timeline/${r.timelineId}${cutQuery(r.at)}` : "#/timeline";
     case "settings": return r.tab === "shortcuts" ? "#/settings/shortcuts" : "#/settings";
     case "library": return `#/library/${r.section}${r.id ? `/${r.id}` : ""}`;
+    case "files": return r.folderId ? `#/files/${r.folderId}` : "#/files";
   }
-}
-
-/** The current route; `navigate` pushes a history entry, `replace` does not. */
-export function useRoute(): [Route, (r: Route) => void, (r: Route) => void] {
-  const [route, setRoute] = useState<Route>(() => parseRoute(location.hash));
-  useEffect(() => {
-    const on = () => setRoute(parseRoute(location.hash));
-    window.addEventListener("hashchange", on);
-    return () => window.removeEventListener("hashchange", on);
-  }, []);
-  const navigate = (r: Route) => { const h = routeHash(r); if (h !== location.hash) location.hash = h; else setRoute(r); };
-  const replace = (r: Route) => { history.replaceState(null, "", routeHash(r)); setRoute(r); };
-  return [route, navigate, replace];
-}
-
-/**
- * Keep the cut position in the URL without a navigation: replaceState fires no hashchange, so
- * nothing re-renders and no history entry is added; reloading or copying the URL lands here.
- */
-export function writeCutPosition(timelineId: string, at: CutPosition) {
-  const [path] = location.hash.split("?");
-  // Only while the URL still shows this cut (a late write must not land on the shot view).
-  if (decodeURIComponent(path) !== `#/timeline/${timelineId}`) return;
-  const h = path + cutQuery(at);
-  if (h !== location.hash) history.replaceState(history.state, "", h);
 }

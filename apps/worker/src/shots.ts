@@ -5,6 +5,7 @@ import { projectFieldDefs } from "./fields.ts";
 import { locationInProject } from "./locations.ts";
 import { spotUnder } from "./spots.ts";
 import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
 
@@ -450,10 +451,12 @@ export function registerShotRoutes(r: Router<Ctx>) {
     args.push(sid);
     const res = await env.DB.prepare(`UPDATE shots SET ${sets.join(", ")} WHERE id = ?${args.length}`).bind(...args).run();
     if (!res.meta.changes) throw new HttpError(404, "shot not found");
-    // A shot moved to another project leaves the shooting days and timelines of its old project.
+    // A shot moved to another project leaves the shooting days and timelines of its old project,
+    // and lands at the new project's root without a shortcut.
     if (movedTo) await env.DB.batch([
       env.DB.prepare("DELETE FROM day_shots WHERE shot_id = ?1 AND day_id IN (SELECT id FROM shooting_days WHERE project_id != ?2)").bind(sid, movedTo),
       env.DB.prepare("DELETE FROM timeline_clips WHERE photo_id IN (SELECT id FROM photos WHERE shot_id = ?1) AND timeline_id IN (SELECT id FROM timelines WHERE project_id != ?2)").bind(sid, movedTo),
+      ...fileRefCleanup(env, "shot", JSON.stringify([sid]), movedTo),
     ]);
     // Their clips' own overlays go with them (issue #31).
     if (movedTo) await deleteClipCompose(env, clipOverlaysLeaving(env, JSON.stringify([sid]), movedTo));
@@ -540,6 +543,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (movedTo) {
       stmts.push(env.DB.prepare("DELETE FROM day_shots WHERE shot_id IN (SELECT value FROM json_each(?1)) AND day_id IN (SELECT id FROM shooting_days WHERE project_id != ?2)").bind(list, movedTo));
       stmts.push(env.DB.prepare("DELETE FROM timeline_clips WHERE photo_id IN (SELECT id FROM photos WHERE shot_id IN (SELECT value FROM json_each(?1))) AND timeline_id IN (SELECT id FROM timelines WHERE project_id != ?2)").bind(list, movedTo));
+      stmts.push(...fileRefCleanup(env, "shot", list, movedTo));
     }
     await env.DB.batch(stmts);
     if (movedTo) await deleteClipCompose(env, clipOverlaysLeaving(env, list, movedTo));
@@ -566,7 +570,8 @@ export function registerShotRoutes(r: Router<Ctx>) {
     const sid = assertUuid(id, "id");
     const { results } = await env.DB.prepare("SELECT r2_object_key FROM photos WHERE shot_id = ?1").bind(sid).all<{ r2_object_key: string }>();
     const renders = await renderKeysOf(env, sid);
-    const res = await env.DB.prepare("DELETE FROM shots WHERE id = ?1").bind(sid).run(); // photos, overlays and sketches cascade
+    // Photos, overlays and sketches cascade; the shot's folder placement and shortcuts go with it.
+    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM shots WHERE id = ?1").bind(sid), ...fileRefCleanup(env, "shot", JSON.stringify([sid]))]);
     if (!res.meta.changes) throw new HttpError(404, "shot not found");
     const keys = [...results.map((r) => r.r2_object_key), ...renders];
     if (keys.length) await env.SHOTS_BUCKET.delete(keys);

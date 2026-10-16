@@ -1,42 +1,12 @@
 /* Fielder DS — dashboard additions (rework, from the Claude Design export ds-ext/dashboard.css). Tokens only; both themes via [data-theme]. */
 
-/* ---------- App shell ---------- */
-.f-app{display:grid;grid-template-columns:var(--side-w,232px) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;width:100%;height:100%;background:var(--bg);color:var(--text);font:var(--weight-regular) var(--text-body)/var(--lh-body) var(--font-sans);overflow:hidden;position:relative}
-.f-app--rail{--side-w:56px}
-.f-app__main{display:flex;flex-direction:column;min-width:0;min-height:0;position:relative}
+/* ---------- Page body (inside a desktop window: wm/desktop.css) ---------- */
 .f-app__body{flex:1;display:flex;min-height:0;min-width:0}
 .f-scroll{flex:1;min-width:0;min-height:0;overflow:auto}
-
-/* ---------- Sidebar ---------- */
-.f-side{display:flex;flex-direction:column;gap:2px;padding:12px 10px;background:var(--surface);border-right:var(--bw) solid var(--border-subtle);min-height:0;overflow-x:hidden;overflow-y:auto}
-.f-side__brand{display:flex;align-items:center;gap:8px;height:32px;padding:0 6px;font:var(--weight-heavy) 16px/1 var(--font-sans);margin-bottom:6px}
-.f-side__brand .mdi{font-size:22px}
-.f-side__label{white-space:nowrap;display:flex;align-items:center;justify-content:space-between;padding:14px 10px 4px;font:var(--weight-bold) var(--text-micro)/1 var(--font-sans);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-dim)}
-.f-side__grow{flex:1;min-height:12px}
-.f-side__foot{display:flex;align-items:center;gap:4px;padding-top:8px;border-top:var(--bw) solid var(--border-subtle)}
-.f-scope{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:4px 6px 4px 10px;border:var(--bw) solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:inherit;text-align:left;cursor:pointer}
-.f-scope:hover{border-color:var(--border-strong)}
-.f-scope:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:var(--focus-offset)}
-.f-scope__main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
-.f-scope__lbl{font:var(--weight-bold) var(--text-micro)/1 var(--font-sans);letter-spacing:var(--tracking-caps);text-transform:uppercase;color:var(--text-dim)}
-.f-scope__name{font-weight:var(--weight-bold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.f-scope .mdi{font-size:20px}
-.f-nav{display:flex;align-items:center;gap:10px;height:34px;padding:0 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font:var(--weight-medium) var(--text-body)/1 var(--font-sans);text-decoration:none;cursor:pointer;white-space:nowrap;width:100%;text-align:left}
-.f-nav>.mdi{font-size:19px;flex:none}
-.f-nav__txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
-.f-nav:hover{background:var(--surface-sunken);color:var(--text)}
-.f-nav:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:-2px}
-.f-nav.is-current{background:var(--accent-tint);font-weight:var(--weight-bold);box-shadow:inset 3px 0 0 var(--accent)}
+/* The count at the end of a menu item */
 .f-nav__count{flex:none;font:var(--weight-bold) var(--text-caption)/1 var(--font-sans);font-variant-numeric:tabular-nums;color:var(--text-dim)}
-.f-nav--sub{height:30px;padding-left:39px;font-size:var(--text-small)}
-.f-nav__dot{width:8px;height:8px;border-radius:50%;background:var(--warn);box-shadow:0 0 0 1.5px var(--on-warn);flex:none}
-.f-app--rail .f-side{padding:12px 8px;align-items:center}
-.f-app--rail .f-nav{width:40px;height:40px;padding:0;justify-content:center;position:relative}
 
-/* ---------- Key hint bar + Kbd ---------- */
-.f-hints{grid-column:1 / -1;display:flex;align-items:center;gap:18px;height:30px;padding:0 12px;background:var(--surface);border-top:var(--bw) solid var(--border-subtle);font-size:var(--text-caption);color:var(--text-dim);white-space:nowrap;overflow:hidden}
-.f-hints__sp{flex:1}
-.f-hint{display:inline-flex;align-items:center;gap:5px}
+/* ---------- Kbd ---------- */
 .f-kbd{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 4px;border:var(--bw) solid var(--border);border-bottom-width:2px;border-radius:var(--radius-xs);background:var(--surface);color:var(--text);font:var(--weight-bold) 11px/1 var(--font-sans);font-variant-numeric:tabular-nums}
 
 /* ---------- Toolbar ---------- */

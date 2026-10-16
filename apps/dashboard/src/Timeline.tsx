@@ -32,6 +32,10 @@ interface Props {
   onUpdated: (s: Shot | Shot[]) => void;
   onShowOnMap: (s: Shot) => void;
   onNewShot: () => void;
+  /** The open timeline's name and the save state, for the window title and its close guard. */
+  onStatus?: (s: { name: string | null; save: SaveState }) => void;
+  /** Where the playhead and inline tool settled (kept in the window's route). */
+  onCutPosition: (at: CutPosition) => void;
 }
 
 export function TimelinePage(p: Props) {
@@ -59,6 +63,7 @@ export function TimelinePage(p: Props) {
   const remove = async (t: Timeline) => { if (await store.remove(t)) p.onTimeline(null); };
 
   const current = list?.find((t) => t.id === p.timelineId) ?? null;
+  useEffect(() => { p.onStatus?.({ name: current?.name ?? null, save }); }, [current?.name, save]);
   return (
     <div class="f-app__body">
       <TimelineRail list={list} selectedId={p.timelineId} onSelect={p.onTimeline} onCreate={() => void create()} onContext={(t, e) => railMenu.openMenu(e, t)} />
@@ -148,7 +153,7 @@ function Workspace(p: WorkspaceProps) {
     autoOpened.current = cur.clip.id;
     edit("overlay", cur);
   }, [settings.autoOverlay, cur?.clip.id, cut.playing, !!inline.editing]);
-  useCutUrl(t.id, clips, cut, inline.editing?.kind ?? null, edit, p.at);
+  useCutUrl(t.id, clips, cut, inline.editing?.kind ?? null, edit, p.at, p.onCutPosition);
   /** The browser's "in this timeline" badge: the shot's first clip, then the next one on each click. The browser stays open. */
   const jumpTo = (shotId: string) => {
     const ids = usage.get(shotId);

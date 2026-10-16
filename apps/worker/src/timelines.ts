@@ -1,5 +1,6 @@
 import { groupLayoutProblem, PRESENTATION_MODES, splitDuration, validateGroup, validatePresentation, type ClipGroup, type Presentation } from "@fielder/vocab";
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
 import { clipComposeFor, deleteClipCompose } from "./compose.ts";
@@ -174,7 +175,7 @@ export function registerTimelineRoutes(r: Router<Ctx>) {
     if (!(await env.DB.prepare("SELECT 1 FROM timelines WHERE id = ?1").bind(tid).first())) throw new HttpError(404, "timeline not found");
     // The clips' own overlays and sketches go first (with their renders); the timeline then cascades the rest.
     await deleteClipCompose(env, ownedBy(env, "timeline_id = ?1", [tid]));
-    await env.DB.prepare("DELETE FROM timelines WHERE id = ?1").bind(tid).run();
+    await env.DB.batch([env.DB.prepare("DELETE FROM timelines WHERE id = ?1").bind(tid), ...fileRefCleanup(env, "timeline", JSON.stringify([tid]))]);
     return json({ deleted: tid });
   });
 

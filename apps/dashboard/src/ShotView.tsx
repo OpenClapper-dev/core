@@ -5,7 +5,6 @@ import { FRAME_MODES, positionOf, rigLabel, when } from "./format";
 import { downloadCrop, Framed, type MaskMode } from "./Framed";
 import { Inspector, projectTimelines, timelinesOfShot } from "./Inspector";
 import { bind, useKeys } from "./keys";
-import { hintsFor } from "./shortcuts";
 import { Compose, type ComposeGuard } from "./compose/Compose";
 import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
@@ -134,7 +133,7 @@ export function ShotView(p: Props) {
           ) : (
             <>
               <div class="f-stage__view">
-                <Framed photo={photo} mode={p.mode} maxHeight="calc(100vh - 260px)" />
+                <Framed photo={photo} mode={p.mode} maxHeight="calc(100cqh - 260px)" />
                 <button type="button" class="f-stage__nav f-stage__nav--prev" aria-label="Previous shot (←)" disabled={!prev} onClick={() => prev && p.onNavigate(prev)}><Icon name="chevron-left" /></button>
                 <button type="button" class="f-stage__nav f-stage__nav--next" aria-label="Next shot (→)" disabled={!next} onClick={() => next && p.onNavigate(next)}><Icon name="chevron-right" /></button>
               </div>
@@ -172,9 +171,4 @@ export function ShotView(p: Props) {
       </div>
     </>
   );
-}
-
-/** Hints for the key bar, per stage. */
-export function shotHints(stage: Stage): { k: string; t: string }[] {
-  return stage === "rigs" ? hintsFor("framing") : stage === "position" ? hintsFor("position") : stage === "compose" ? hintsFor("draw", "compose") : hintsFor("shot");
 }

@@ -194,7 +194,7 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
       </div>
       <div class="f-stage__view">
         {state.view === "one" ? (
-          fa && <Framed photo={photo} mode={editMode} frame={fa} maxHeight="calc(100vh - 290px)">
+          fa && <Framed photo={photo} mode={editMode} frame={fa} maxHeight="calc(100cqh - 290px)">
             <DragFrame photo={photo} frame={fa} mode={editMode} onMove={(c) => onState({ ...state, centre: c })} />
           </Framed>
         ) : state.view === "stack" ? (
@@ -206,7 +206,7 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
               return (
                 <div key={tag} class="compare__pane">
                   <div class="compare__head"><span class="f-board-lbl">{tag}</span><Pickers photo={photo} presets={presets} choice={c} onChoice={set} /></div>
-                  <div class="compare__photo">{s && <Framed photo={photo} mode={mode === "off" ? "mask" : mode} frame={tag === "A" ? resize({ ...s, ...state.centre }, s) : s} maxHeight="calc(100vh - 290px)" />}</div>
+                  <div class="compare__photo">{s && <Framed photo={photo} mode={mode === "off" ? "mask" : mode} frame={tag === "A" ? resize({ ...s, ...state.centre }, s) : s} maxHeight="calc(100cqh - 290px)" />}</div>
                   <span class="compare__facts num">{s ? factsText(rigOf(source.rigLens, presets, c), s) : ""}</span>
                 </div>
               );

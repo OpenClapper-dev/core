@@ -31,7 +31,8 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/timeline.md](features/timeline.md) | Timelines: rough cuts of photos and overlays with hold times, playback (dashboard only) |
 | [features/day-mode-offline.md](features/day-mode-offline.md) | Phone "Day" tab, offline days, offline project, offline mode, edits kept on the phone |
 | [features/phone-app.md](features/phone-app.md) | Phone shell: 5 tabs, gates, pushed screens, header and sync state, Setup hub, shared components |
-| [features/dashboard.md](features/dashboard.md) | Dashboard shell and sections: Shots (grid/list/map, filters, views), shot view, Timeline, Plan, Library |
+| [features/files.md](features/files.md) | Files on the desktop: folders, placements, the Files app, desktop shortcuts |
+| [features/desktop.md](features/desktop.md) | The dashboard desktop: startup and projects, windows, taskbar, launcher, the apps, URL and keys, the Gallery (grid/list/map, filters, views) |
 | [shortcuts.md](shortcuts.md) | Every dashboard keyboard shortcut, generated from `apps/dashboard/src/shortcuts.ts` |
 | [features/debug-log.md](features/debug-log.md) | The phone's background debug log |
 
@@ -39,4 +40,5 @@ Reference documentation for the whole app. Start with [architecture](architectur
 
 - Before 2026-09-27: prototype with one shot = one photo, districts and a hard-coded U-Bahn list.
 - 2026-09-27: rework from [GitHub issue #1](https://github.com/bubulux/fielder/issues/1). Schema reset to `0001_baseline.sql` (prototype data dropped), then all features above. The implementation plan is in the git history of branch `rework/phase-1-projects-photos`.
-- 2026-09-28: redesign on a design system from Claude Design ([design.md](design.md)), then a ground-up rework of the dashboard and the phone screens from Claude Design ([dashboard](features/dashboard.md), [phone app](features/phone-app.md)); features unchanged.
+- 2026-09-28: redesign on a design system from Claude Design ([design.md](design.md)), then a ground-up rework of the dashboard and the phone screens from Claude Design ([dashboard](features/desktop.md), [phone app](features/phone-app.md)); features unchanged.
+- 2026-10-16: the dashboard became a desktop scoped to one project (epic #72): apps in windows, a taskbar, folders and desktop shortcuts on the server ([desktop](features/desktop.md), [files](features/files.md)).

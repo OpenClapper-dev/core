@@ -107,6 +107,19 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 | PUT | `/api/days/:id` | `{ project_id, date, title?, notes?, shots: [...] }` replaces the whole day. Shots not (or no longer) in the project are dropped silently. |
 | DELETE | `/api/days/:id` | |
 
+## Folders and desktop (`files.ts`, epic #72)
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| GET | `/api/files?project_id=` | `{ folders, items, desktop }`: the project's folders, placements (`{ resource_type, resource_id, folder_id }`, none = root) and desktop shortcuts, in one payload |
+| PUT | `/api/folders/:id` | `{ project_id, name, parent_id? }`: `project_id` required to create, never changes; `parent_id` absent keeps, `null` = root. 400 for a cycle, more than 8 levels or a parent in another project; a name taken in the directory → 409 + `existing_id` |
+| DELETE | `/api/folders/:id` | The contents fall up one level: subfolders (renamed "Name (Deleted folder)" on a clash) and placements move to the parent, or the root; folder shortcuts go. `{ deleted, moved_to }` |
+| PUT | `/api/folder-items/:type/:id` | `{ folder_id }` puts the resource in a folder of its own project (400 otherwise, 404 for an unknown resource); `null` moves it back to the root. `:type` from `FILE_RESOURCE_TYPES` |
+| PUT | `/api/desktop/:id` | `{ project_id, kind, resource_type + resource_id \| folder_id \| app_id, label?, x, y }`, checked by `validateDesktopItem`; the target never changes after create (409); a target already on that desktop → 409 + `existing_id`. Updates set `label`, `x`, `y` |
+| DELETE | `/api/desktop/:id` | |
+
+Deleting a shot, timeline, day, view, location or field also deletes its placement and shortcuts; a shot moved to another project (single or bulk `PATCH`) lands at that project's root and keeps only shortcuts on the target project's desktop.
+
 ## Other
 
 - `GET /auth/mobile`: page that hands the Access JWT to the phone's WebView (`auth.ts`).

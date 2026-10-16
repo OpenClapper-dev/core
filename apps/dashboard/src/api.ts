@@ -1,5 +1,5 @@
 /** Same-origin API; the Access session cookie is sent automatically. */
-import type { DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
+import type { AppIdV, DesktopItemKind, FileResourceType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
 export type { ClipGroup } from "@fielder/vocab";
 export type { FieldDefinition };
 export type ShotState = "unreviewed" | "approved" | "archived";
@@ -312,6 +312,35 @@ export const deleteSpot = (id: string) => send<{ deleted: string }>("DELETE", `/
 export const fetchViews = () => get<{ views: SavedView[] }>("/api/views").then((r) => r.views);
 export const putView = (v: { id: string; project_id: string; name: string; filter: FilterGroup }) => send<{ view: SavedView }>("PUT", `/api/views/${v.id}`, { project_id: v.project_id, name: v.name, filter: v.filter }).then((r) => r.view);
 export const deleteView = (id: string) => send<{ deleted: string }>("DELETE", `/api/views/${id}`).then(() => undefined);
+
+// ---------- Folders and desktop shortcuts (epic #72) ----------
+
+export interface Folder { id: string; project_id: string; parent_id: string | null; name: string; created_at: string; updated_at: string | null }
+/** A resource's folder; a resource without one sits at the root. */
+export interface FolderItem { resource_type: FileResourceType; resource_id: string; folder_id: string; created_at: string }
+export interface DesktopItem {
+  id: string; project_id: string; kind: DesktopItemKind;
+  resource_type: FileResourceType | null; resource_id: string | null; folder_id: string | null; app_id: AppIdV | null;
+  /** Shown instead of the resource's live name. */
+  label: string | null;
+  x: number; y: number; created_at: string; updated_at: string | null;
+}
+export interface FilesPayload { folders: Folder[]; items: FolderItem[]; desktop: DesktopItem[] }
+
+/** One project's folders, placements and desktop shortcuts. */
+export const fetchFiles = (projectId: string) => get<FilesPayload>(`/api/files?project_id=${encodeURIComponent(projectId)}`);
+/** Create, rename or move (parent_id: null = root, absent = keep). 409 + existing_id when the name is taken there. */
+export const putFolder = (f: { id: string; project_id: string; name: string; parent_id?: string | null }) =>
+  send<{ folder: Folder }>("PUT", `/api/folders/${f.id}`, f).then((r) => r.folder);
+/** Its subfolders and files move up to its parent (or the root). */
+export const deleteFolder = (id: string) => send<{ deleted: string; moved_to: string | null }>("DELETE", `/api/folders/${id}`);
+/** Put a resource into a folder, or back at the root with null. */
+export const placeItem = (type: FileResourceType, id: string, folderId: string | null) =>
+  send<{ item: FolderItem | null }>("PUT", `/api/folder-items/${type}/${id}`, { folder_id: folderId }).then((r) => r.item);
+/** Create or move a shortcut (its target never changes). 409 + existing_id when the target is already on the desktop. */
+export const putDesktopItem = (d: Omit<DesktopItem, "created_at" | "updated_at">) =>
+  send<{ item: DesktopItem }>("PUT", `/api/desktop/${d.id}`, d).then((r) => r.item);
+export const deleteDesktopItem = (id: string) => send<{ deleted: string }>("DELETE", `/api/desktop/${id}`).then(() => undefined);
 
 /** A viewfinder layout made here for the phone (issue #49). */
 export interface LayoutRecord { id: string; name: string; layout: ViewfinderLayout; device_id: string | null; created_at: string; updated_at: string | null }

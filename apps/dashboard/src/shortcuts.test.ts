@@ -22,10 +22,11 @@ test("scopes that are live together list each other", () => {
   }
 });
 
-test("no key does two things where scopes are live together", () => {
+test("no key does two things where scopes are live together (within one window)", () => {
   const bound = all.filter((s) => !s.info && !s.pass);
   for (const id of Object.keys(SCOPES) as ScopeId[]) {
-    for (const other of new Set<ScopeId>([id, "global", ...SCOPES[id].with])) {
+    // Global and the window keys are live next to every scope.
+    for (const other of new Set<ScopeId>([id, "global", "wm", ...SCOPES[id].with])) {
       const used = new Map<string, string>();
       for (const s of bound.filter((x) => x.scope === id || x.scope === other)) {
         for (const k of slots(s)) {

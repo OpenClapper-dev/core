@@ -14,6 +14,7 @@ D1 (SQLite) database `fielder-db`, schema in `apps/worker/migrations/`. Images l
 | `0006_compose.sql` | `shots.description`; `overlays`, `sketches` ([compose](features/compose.md)) |
 | `0017_viewfinder_layouts.sql` | `viewfinder_layouts` ([viewfinder layouts](features/viewfinder-layouts.md)) |
 | `0018_devices.sql` | `devices` (device specs), `viewfinder_layouts.device_id` ([viewfinder layouts](features/viewfinder-layouts.md#device-specs-68)) |
+| `0019_folders_desktop.sql` | `folders`, `folder_items`, `desktop_items`: folders and desktop shortcuts per project; additive, no backfill (epic #72; see Tables) |
 | `0016_spots.sql` | `spots` (a place within a location, optional pin); `shots.spot_id` ([projects](features/projects.md)) |
 | `0015_project_scope.sql` | `locations.project_id`, `field_definitions.project_id` + `position`, `views.project_id`; shared rows copied per project, unused ones to the project with the most shots; `project_fields` folded in and dropped ([projects](features/projects.md)) |
 | `0014_sequence_blocks.sql` | `timelines.groups` (JSON), `timeline_clips.group_id`: sequence blocks ([timeline](features/timeline.md)) |
@@ -60,6 +61,8 @@ Add a new numbered file for every change; never edit one that was applied to pro
 `devices(id, name, specs JSON, created_at, updated_at)`: phones read out on the dashboard (issue #68). The id is the phone's own (`device.v1` on the phone), so the phone keeps the row current. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
 
 `views(id, project_id → projects CASCADE, name, filter JSON, …)`: a project's saved dashboard filters (model in `packages/vocab/src/filter.ts`).
+
+`folders(id, project_id → projects CASCADE, parent_id → folders SET NULL, name, …)`: a project's folders for the desktop's Files app (epic #72). `parent_id` null = at the root; at most 8 deep and no cycles (checked by the Worker); names unique per directory, case-insensitively. `folder_items(resource_type, resource_id, folder_id → folders CASCADE)`, primary key (type, id): which folder a file sits in (at most one; no row = the root). The file types are `FILE_RESOURCE_TYPES` in `packages/vocab/src/files.ts` (shot, timeline, day, view, location, field); there is no foreign key on the resource, so each delete route (and a shot's project move) sweeps its rows. `desktop_items(id, project_id → projects CASCADE, kind resource|folder|app, resource_type + resource_id | folder_id → folders CASCADE | app_id, label, x, y, …)`: shortcuts on a project's desktop, one per target (unique index); CHECKs keep exactly the kind's target set. Window layouts are not here: they are per browser (`localStorage["desktop.<projectId>"]`).
 
 `field_definitions(id, project_id → projects CASCADE, position, key UNIQUE per project, definition JSON, …)`: a project's extra fields in order. (`project_id` columns are nullable in SQL because `ALTER TABLE` can't add a NOT NULL reference; the Worker always sets them.)
 

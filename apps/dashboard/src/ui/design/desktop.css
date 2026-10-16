@@ -1,0 +1,101 @@
+/* Fielder DS — desktop shell (epic #72): window manager chrome. Tokens only; both themes via [data-theme]. */
+
+/* ---------- Root: desktop area over taskbar ---------- */
+.wm-root{display:grid;grid-template-rows:minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr);width:100%;height:100%;background:var(--desktop-bg);color:var(--text);font:var(--weight-regular) var(--text-body)/var(--lh-body) var(--font-sans);overflow:hidden}
+.wm-root--bare{grid-template-rows:minmax(0,1fr);place-items:center;overflow:auto}
+.wm-area{position:relative;min-height:0;overflow:hidden}
+.wm-desktop{position:absolute;inset:0;background:var(--desktop-bg)}
+
+/* ---------- Window ---------- */
+.wm-window{position:absolute;display:flex;flex-direction:column;background:var(--surface);border:var(--bw) solid var(--border);border-radius:var(--wm-radius);box-shadow:var(--elev-window);overflow:hidden;min-width:0;min-height:0}
+.wm-window.is-focused{border-color:var(--border-strong);box-shadow:var(--elev-window-focused)}
+.wm-window--max{left:0!important;top:0!important;width:100%!important;height:100%!important;border-radius:0;border:0}
+.wm-window--snap-left,.wm-window--snap-right{top:0!important;width:50%!important;height:100%!important;border-radius:0;border-top:0;border-bottom:0}
+.wm-window--snap-left{left:0!important;border-left:0}
+.wm-window--snap-right{left:auto!important;right:0;border-right:0}
+.wm-window--min{display:none}
+.wm-window__bar{display:flex;align-items:center;gap:8px;height:36px;padding:0 4px 0 12px;background:var(--surface-sunken);border-bottom:var(--bw) solid var(--border-subtle);flex:none;user-select:none;touch-action:none;color:var(--text-dim)}
+.wm-window__bar>.mdi{font-size:17px;flex:none}
+.wm-window.is-focused .wm-window__bar{background:var(--accent-tint);color:var(--text)}
+.wm-window__title{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font:var(--weight-semibold) var(--text-small)/1 var(--font-sans)}
+.wm-window.is-focused .wm-window__title{font-weight:var(--weight-bold)}
+.wm-window__btns{display:flex;align-items:center;gap:2px;flex:none}
+.wm-window__close:hover{background:var(--danger);color:var(--on-danger)}
+.wm-window__content{flex:1;min-height:0;min-width:0;display:flex;flex-direction:column;position:relative;container-type:size;background:var(--surface)}
+/* During a window gesture (drag/resize) no app may see the pointer (Leaflet, canvases). */
+body.wm-gesture{user-select:none}
+body.wm-gesture .wm-window__content{pointer-events:none}
+
+/* ---------- Resize handles (only rendered in normal mode) ---------- */
+.wm-handle{position:absolute;touch-action:none;z-index:3}
+.wm-handle--n{top:-3px;left:10px;right:10px;height:7px;cursor:ns-resize}
+.wm-handle--s{bottom:-3px;left:10px;right:10px;height:7px;cursor:ns-resize}
+.wm-handle--e{right:-3px;top:10px;bottom:10px;width:7px;cursor:ew-resize}
+.wm-handle--w{left:-3px;top:10px;bottom:10px;width:7px;cursor:ew-resize}
+.wm-handle--nw{top:-3px;left:-3px;width:13px;height:13px;cursor:nwse-resize}
+.wm-handle--se{bottom:-3px;right:-3px;width:13px;height:13px;cursor:nwse-resize}
+.wm-handle--ne{top:-3px;right:-3px;width:13px;height:13px;cursor:nesw-resize}
+.wm-handle--sw{bottom:-3px;left:-3px;width:13px;height:13px;cursor:nesw-resize}
+
+/* ---------- Snap preview ---------- */
+.wm-snap-preview{position:absolute;z-index:99999;pointer-events:none;background:var(--snap-preview-bg);border:var(--bw-strong) solid var(--snap-preview-border);border-radius:var(--wm-radius)}
+.wm-snap-preview--left{left:8px;top:8px;bottom:8px;width:calc(50% - 12px)}
+.wm-snap-preview--right{right:8px;top:8px;bottom:8px;width:calc(50% - 12px)}
+.wm-snap-preview--max{inset:8px}
+
+/* ---------- Taskbar ---------- */
+.wm-taskbar{position:relative;display:flex;align-items:center;gap:4px;height:var(--taskbar-h);padding:0 8px;background:var(--surface);border-top:var(--bw) solid var(--border-subtle)}
+/* The task strip takes the free width; with many windows the buttons shrink to their icon, the rest of the bar stays. */
+.wm-taskbar__tasks{flex:1;min-width:0;display:flex;align-items:center;gap:4px;overflow:hidden}
+.wm-taskbar__tasks .wm-task--win{flex:0 1 200px;min-width:40px}
+.wm-taskbar__tasks .wm-task--pin{flex:none}
+.wm-project{position:relative}
+.wm-taskbar__project{display:inline-flex;align-items:center;gap:6px;height:32px;max-width:240px;padding:0 6px 0 10px;border:var(--bw) solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:var(--weight-semibold) var(--text-small)/1 var(--font-sans);white-space:nowrap;cursor:pointer}
+.wm-taskbar__project:hover,.wm-taskbar__project.is-open{border-color:var(--border-strong)}
+.wm-taskbar__project:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:var(--focus-offset)}
+.wm-taskbar__project .mdi{font-size:16px;flex:none}
+.wm-taskbar__projname{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.wm-project__menu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:1000;max-height:min(60vh,480px);overflow:auto}
+.wm-taskbar__clock{padding:0 8px;color:var(--text-dim);font-size:var(--text-small);font-variant-numeric:tabular-nums}
+.wm-task{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font:var(--weight-medium) var(--text-small)/1 var(--font-sans);cursor:pointer;max-width:200px;white-space:nowrap}
+.wm-task .mdi{font-size:18px;flex:none}
+.wm-task:hover{background:var(--surface-sunken)}
+.wm-task:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:-2px}
+.wm-task__txt{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.wm-task--launcher{width:40px;justify-content:center;padding:0}
+.wm-task--launcher.is-open{background:var(--accent-tint)}
+.wm-task--win{box-shadow:inset 0 -2px 0 var(--border-subtle)}
+.wm-task--win.is-active{background:var(--accent-tint);box-shadow:inset 0 -2px 0 var(--accent);font-weight:var(--weight-bold)}
+.wm-task--win.is-min{color:var(--text-dim)}
+
+/* ---------- Launcher popover ---------- */
+.wm-launcher{position:absolute;left:8px;bottom:calc(100% + 8px);z-index:1000;padding:10px;background:var(--surface-raised);border:var(--bw) solid var(--border-strong);border-radius:var(--radius-md);box-shadow:var(--elev-2)}
+.wm-launcher__grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.wm-launcher__app{display:flex;flex-direction:column;align-items:center;gap:6px;width:96px;padding:12px 4px 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font:var(--weight-medium) var(--text-caption)/1.2 var(--font-sans);cursor:pointer;text-align:center}
+.wm-launcher__app:hover{background:var(--accent-tint)}
+.wm-launcher__app:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:-2px}
+.wm-launcher__app span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+
+/* ---------- Pages inside windows ---------- */
+/* A side panel (inspector, lists) never takes more than half a narrow window; the stage keeps the rest. */
+.wm-window__content .f-panel{width:min(var(--panel-w,380px),50cqw)}
+.wm-window__content .f-stage__foot{flex-wrap:wrap;row-gap:8px}
+
+/* ---------- Desktop icons (shortcuts) ---------- */
+.wm-desktop.is-drop{box-shadow:inset 0 0 0 3px var(--snap-preview-border);background:var(--desktop-bg)}
+.wm-icon{position:absolute;display:flex;flex-direction:column;align-items:center;gap:6px;width:88px;padding:6px 4px;border:var(--bw) solid transparent;border-radius:var(--radius-sm);background:transparent;color:var(--text);font:var(--weight-semibold) var(--text-caption)/1.25 var(--font-sans);text-align:center;cursor:default;user-select:none;touch-action:none}
+.wm-icon:hover{background:var(--surface-sunken)}
+.wm-icon:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:1px}
+.wm-icon.is-selected{background:var(--accent-tint);border-color:var(--accent)}
+.wm-icon.is-dragging{opacity:.85;z-index:2}
+.wm-icon.is-flash{animation:wm-flash .4s var(--ease) 3}
+@keyframes wm-flash{50%{background:var(--warn-tint);border-color:var(--warn)}}
+.wm-icon__glyph{position:relative;display:flex;align-items:center;justify-content:center;width:52px;height:52px;border-radius:var(--radius-md);background:var(--surface);border:var(--bw) solid var(--border-subtle);box-shadow:var(--elev-1);overflow:hidden}
+.wm-icon__glyph img{width:100%;height:100%;object-fit:cover;pointer-events:none}
+.wm-icon__link{position:absolute;left:1px;bottom:1px;font-size:14px;background:var(--surface);color:var(--text);border-radius:var(--radius-xs);box-shadow:0 0 0 1px var(--border)}
+.wm-icon__label{max-width:100%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere;padding:1px 4px;border-radius:var(--radius-xs);background:var(--desktop-bg)}
+.wm-icon.is-selected .wm-icon__label{background:transparent}
+.wm-icon.is-archived .wm-icon__glyph{opacity:.55}
+.wm-picker{display:flex;flex-direction:column;gap:10px}
+.wm-picker .f-input--search{width:100%}
+.wm-picker__list{max-height:min(52vh,420px);overflow:auto;display:flex;flex-direction:column}

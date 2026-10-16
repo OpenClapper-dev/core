@@ -7,8 +7,8 @@ Every shot belongs to exactly one project (a film, a commercial). Projects are a
 - **Active project, chosen once.** Both clients ask which project to work on and remember it until you change it: dashboard in `localStorage["project"]`, phone in the kv-store (`activeProjectId.v1`).
 - **Dashboard:**
   - A first visit (or a remembered project that no longer exists) shows the full-window project picker (`ProjectGate` in `Projects.tsx`).
-  - The sidebar's project switcher lists the projects and "Manage projects…"; ⌘K → a project name switches too. Every page (Shots, Timeline, Metadata, Plan, Library › Fields and Locations, saved views) shows the active project only.
-  - Library › Projects: a list (shots, fields, "can be deleted") and a detail with name and notes (saved when leaving the field), the project's [extra fields](extra-fields.md) in order ("Edit fields" makes it active and opens Library › Fields), "Show n shots" and "Make active". Only empty projects can be deleted; its locations, fields and views go with it.
+  - The taskbar's project switcher lists the projects and "Manage projects…"; ⌘K → a project name switches too. Switching swaps the whole desktop: each project has its own windows (per browser) and its own icons and folders (on the server, [files](files.md)). Every app (Gallery, Timeline, Metadata, Plan, Fields, Locations, Files, saved views) shows the active project only.
+  - Projects (an app; Library on the old sidebar): a list (shots, fields, "can be deleted") and a detail with name and notes (saved when leaving the field), the project's [extra fields](extra-fields.md) in order ("Edit fields" makes it active and opens Fields), "Show n shots" and "Make active". Only empty projects can be deleted; its locations, fields and views go with it.
   - **Inline creation** when moving shots: the inspector's Project box, the Move to project dialog and the bulk-edit panel offer "Create “…”" for a new name (`createProjectNamed` in `api.ts`). A name that exists already is taken instead (the 409 carries its id), so nothing is duplicated.
   - A shot moves to another project via the Project box in the shot view's inspector (or bulk edit). Its **location follows by name**: the target project's location of that name, created when missing (with the pin). Extra values the target's fields don't accept are dropped. When the move leaves shooting days or drops extra values, a warning names them and Move confirms.
 - **Phone:**
@@ -37,5 +37,5 @@ A **Spot** is a named place within a location (the north gate, the roof, the bri
 ## Code
 
 - Worker: `apps/worker/src/projects.ts`
-- Dashboard: `App.tsx` (active project, filtering), `Projects.tsx`
+- Dashboard: `project.ts` (active project, switch guards), `data.ts` (`useProjectData`: one project's slice), `wm/Shell.tsx` (gate, desktop per project), `Projects.tsx`, `apps/LibraryApps.tsx`
 - Phone: `App.tsx`, `screens/Gates.tsx`, `components/ProjectSheet.tsx`, `namedSync.ts`, `storage.ts`

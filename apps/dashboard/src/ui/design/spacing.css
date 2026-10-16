@@ -8,6 +8,8 @@
   --control-sm: 28px; --control-md: 36px; --control-lg: 44px; /* dashboard; phone minimum is 48dp */
   --bw: 1px; --bw-strong: 2px; --bw-selected: 3px;
   --focus-width: 2px; --focus-offset: 2px;
+  --taskbar-h: 44px;  /* desktop shell: bottom taskbar */
+  --wm-radius: 10px;  /* desktop shell: window corners */
   --dur-fast: 90ms; /* @kind other */
   --dur: 160ms; /* @kind other */
   --dur-slow: 240ms; /* @kind other */
@@ -18,5 +20,7 @@
   --elev-1: 0 1px 2px rgba(11,11,12,.10);
   --elev-2: 0 6px 18px rgba(11,11,12,.18);
   --elev-3: 0 16px 40px rgba(11,11,12,.28);
+  --elev-window: 0 10px 28px rgba(11,11,12,.22);
+  --elev-window-focused: 0 18px 44px rgba(11,11,12,.34);
 }
-[data-theme="set"] { --elev-1: none; --elev-2: 0 8px 24px rgba(0,0,0,.6); --elev-3: 0 20px 48px rgba(0,0,0,.7); }
+[data-theme="set"] { --elev-1: none; --elev-2: 0 8px 24px rgba(0,0,0,.6); --elev-3: 0 20px 48px rgba(0,0,0,.7); --elev-window: 0 10px 28px rgba(0,0,0,.55); --elev-window-focused: 0 20px 48px rgba(0,0,0,.75); }

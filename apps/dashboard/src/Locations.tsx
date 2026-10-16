@@ -17,12 +17,14 @@ interface Props {
   onShotsChanged: () => void;
   /** Open Shots filtered to this location (grid or map). */
   onShowShots: (locationId: string, layout: "grid" | "map") => void;
+  /** Focus this location's row (opened from Files or the desktop). */
+  focusId?: string | null;
 }
 
 const sortByName = (list: Location[]) => [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 
 /** Library › Locations: the project's locations, with the focused one's spots beside them. Inline rename, counts that open Shots, delete with confirm. */
-export function LocationsPage({ locations, shots, onChange, spots, onSpots, onShotsChanged, onShowShots }: Props) {
+export function LocationsPage({ locations, shots, onChange, spots, onSpots, onShotsChanged, onShowShots, focusId }: Props) {
   const [pinFor, setPinFor] = useState<Location | null>(null);
   const [spotPin, setSpotPin] = useState<Spot | null>(null);
   const [q, setQ] = useState("");
@@ -34,6 +36,7 @@ export function LocationsPage({ locations, shots, onChange, spots, onSpots, onSh
   const cur = shown[focus];
   useEffect(() => { if (focus >= shown.length) setFocus(Math.max(0, shown.length - 1)); }, [shown.length]);
   useEffect(() => { body.current?.children[focus]?.scrollIntoView({ block: "nearest" }); }, [focus]);
+  useEffect(() => { if (!focusId) return; setQ(""); const i = locations.findIndex((l) => l.id === focusId); if (i >= 0) setFocus(i); }, [focusId]);
 
   async function save() {
     if (!edit) return;

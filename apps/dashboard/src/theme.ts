@@ -15,20 +15,25 @@ function apply(choice: ThemeChoice) {
   if (surface) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", surface);
 }
 
-/** The inline script in index.html sets the theme before first paint; this keeps it in sync afterwards. */
+// Module store (settings.ts idiom) so the taskbar and the Settings window stay in sync.
+let current = stored();
+const listeners = new Set<(c: ThemeChoice) => void>();
+if (typeof window !== "undefined") {
+  apply(current); // index.html sets data-theme before first paint; this syncs the theme-color meta
+  mq()?.addEventListener("change", () => { if (current === "auto") apply("auto"); });
+}
+
+export const getTheme = () => current;
+export function setTheme(c: ThemeChoice) {
+  try { if (c === "auto") localStorage.removeItem("theme"); else localStorage.setItem("theme", c); } catch { /* ignore */ }
+  current = c;
+  apply(c);
+  for (const cb of listeners) cb(c);
+}
+
+/** The theme choice as state (the inline script in index.html sets it before first paint). */
 export function useTheme(): [ThemeChoice, (c: ThemeChoice) => void] {
-  const [choice, setChoice] = useState<ThemeChoice>(stored);
-  useEffect(() => {
-    apply(choice);
-    if (choice !== "auto") return;
-    const m = mq();
-    const on = () => apply("auto");
-    m?.addEventListener("change", on);
-    return () => m?.removeEventListener("change", on);
-  }, [choice]);
-  const set = (c: ThemeChoice) => {
-    try { if (c === "auto") localStorage.removeItem("theme"); else localStorage.setItem("theme", c); } catch { /* ignore */ }
-    setChoice(c);
-  };
-  return [choice, set];
+  const [choice, setChoice] = useState(current);
+  useEffect(() => { listeners.add(setChoice); return () => { listeners.delete(setChoice); }; }, []);
+  return [choice, setTheme];
 }
