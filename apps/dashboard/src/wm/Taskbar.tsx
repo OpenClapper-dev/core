@@ -36,6 +36,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
       <button type="button" class={cx("wm-task wm-task--launcher", launcher && "is-open")} aria-label="Apps" aria-haspopup="menu" aria-expanded={launcher} title="Apps" onClick={() => setLauncher(!launcher)}>
         <Mark size={20} />
       </button>
+      <div class="wm-taskbar__tasks">
       {pins.filter((a) => !runningApps.has(a) && appDef(a)).map((a) => (
         <button key={`pin-${a}`} type="button" class="wm-task wm-task--pin" title={APPS[a as AppId].name} aria-label={`Open ${APPS[a as AppId].name}`} onClick={() => launch({ app: a as AppId })}>
           <Icon name={APPS[a as AppId].icon} />
@@ -51,7 +52,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
           <span class="wm-task__txt">{w.title}</span>
         </button>
       ))}
-      <span class="wm-taskbar__sp" />
+      </div>
       <ProjectSwitch projectId={projectId} />
       <IconButton icon="magnify" label="Go to… (⌘K)" title="Go to… (⌘K)" onClick={onPalette} />
       <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_NEXT[theme])} />

@@ -1,6 +1,6 @@
 # Files and desktop icons
 
-The desktop's explorer (epic #72): a project's shots, timelines, shooting days, saved views, locations and extra fields as **files** in **folders**, and **shortcuts** to files, folders and apps on the desktop. Folders, placements and shortcuts are stored on the server ([data model](../data-model.md), [API](../api.md)), so they are the same in every browser. Window layouts are per browser ([dashboard](dashboard.md)).
+The desktop's explorer (epic #72): a project's shots, timelines, shooting days, saved views, locations and extra fields as **files** in **folders**, and **shortcuts** to files, folders and apps on the desktop. Folders, placements and shortcuts are stored on the server ([data model](../data-model.md), [API](../api.md)), so they are the same in every browser. Window layouts are per browser ([desktop](desktop.md)).
 
 ## Model
 

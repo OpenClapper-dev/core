@@ -5,7 +5,6 @@ import { FRAME_MODES, positionOf, rigLabel, when } from "./format";
 import { downloadCrop, Framed, type MaskMode } from "./Framed";
 import { Inspector, projectTimelines, timelinesOfShot } from "./Inspector";
 import { bind, useKeys } from "./keys";
-import { hintsFor } from "./shortcuts";
 import { Compose, type ComposeGuard } from "./compose/Compose";
 import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
@@ -172,9 +171,4 @@ export function ShotView(p: Props) {
       </div>
     </>
   );
-}
-
-/** Hints for the key bar, per stage. */
-export function shotHints(stage: Stage): { k: string; t: string }[] {
-  return stage === "rigs" ? hintsFor("framing") : stage === "position" ? hintsFor("position") : stage === "compose" ? hintsFor("draw", "compose") : hintsFor("shot");
 }
