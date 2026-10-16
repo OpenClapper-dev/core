@@ -12,13 +12,13 @@ help: ## Show this list
 init: ## Write the gitignored dev files and apply D1 migrations (once per checkout)
 	pnpm dev:init
 
-all: ## Everything local in one tmux session: Worker, dashboard and mobile (tunnel + Metro) in split panes
+all: ## Everything local in one tmux session: Worker, dashboard, mobile (tunnel + Metro) and a control strip (r restart, q quit)
 	bash scripts/dev-all.sh up
 
 all-down: ## Stop all of `make all`: Ctrl-C each server, close the session, free the ports
 	bash scripts/dev-all.sh down
 
-all-restart: ## `make all-down`, then `make all`
+all-restart: ## Restart the servers of `make all` in their panes (starts it when it is not up)
 	bash scripts/dev-all.sh restart
 
 dev: ## Worker on :8787 and dashboard on :5173, in parallel
