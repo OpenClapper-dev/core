@@ -18,6 +18,7 @@ import { setFocusSource } from "./keyboard";
 import { closeOverlay, openOverlay, useOverlay } from "./overlays";
 import { openHash, startRouteBridge } from "./routeBridge";
 import { Taskbar } from "./Taskbar";
+import { TaskView } from "./TaskView";
 import { Window } from "./Window";
 import * as wm from "./wm";
 
@@ -83,7 +84,8 @@ export function Shell() {
 
 function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean }) {
   const area = useRef<HTMLDivElement>(null);
-  const windows = wm.useWindows();
+  const windows = wm.useAllWindows();
+  const activeWs = wm.useActiveWs();
   const focusedId = wm.useFocusedId();
   const preview = wm.useSnapPreview();
   const overlay = useOverlay();
@@ -104,6 +106,8 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const openPalette = () => openOverlay("palette");
   const app = (id: AppId, state?: unknown) => () => { launch({ app: id, state }); };
   const focusedWin = () => windows.find((w) => w.id === focusedId) ?? null;
+  /** Workspace n (1-based) from a digit key, by its physical key. */
+  const wsOfKey = (e: KeyboardEvent) => wm.getWorkspaces()[Number(e.code.slice(5)) - 1];
   const onFocused = (fn: (id: string) => void) => () => { const w = focusedWin(); if (w) fn(w.id); };
 
   useKeys(bind("global", {
@@ -126,6 +130,12 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     snapLeft: onFocused((id) => wm.setSnap(id, focusedWin()?.snap === "left" && focusedWin()?.mode === "snapped" ? null : "left")),
     snapRight: onFocused((id) => wm.setSnap(id, focusedWin()?.snap === "right" && focusedWin()?.mode === "snapped" ? null : "right")),
     desktop: () => wm.toggleDesktop(),
+    taskView: () => openOverlay("taskview"),
+    wsNext: () => wm.switchWorkspace(1),
+    wsPrev: () => wm.switchWorkspace(-1),
+    wsNew: () => { wm.addWorkspace({ go: true }); },
+    wsGo: (e) => { const ws = wsOfKey(e); if (ws) wm.switchWorkspace(ws.id); else return false; },
+    wsMove: (e) => { const w = focusedWin(); const ws = wsOfKey(e); if (!w || !ws) return false; wm.moveToWorkspace(w.id, ws.id); },
   }), !overlay);
 
   const actions: Command[] = [
@@ -140,6 +150,8 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     { id: "a-newshot", group: "Actions", icon: "image-plus", title: "New shot", sub: "Upload images or draw a sketch", run: () => openOverlay("newShot") },
     { id: "a-theme", group: "Actions", icon: "theme-light-dark", title: "Toggle theme", sub: `Now ${theme === "auto" ? "Auto" : theme === "sun" ? "Sun" : "Set"}`, run: () => setTheme(theme === "set" ? "sun" : "set") },
     { id: "a-desktop", group: "Actions", icon: "monitor", title: "Show the desktop", keys: "⌘Alt D", run: () => wm.toggleDesktop() },
+    { id: "a-taskview", group: "Actions", icon: "view-dashboard-outline", title: "Task view", sub: "Workspaces and their windows", keys: "⌘Alt V", run: () => openOverlay("taskview") },
+    { id: "a-newws", group: "Actions", icon: "monitor-multiple", title: "New workspace", keys: "⌘Alt N", run: () => { wm.addWorkspace({ go: true }); } },
     { id: "a-reload", group: "Actions", icon: "refresh", title: "Reload data", run: data.reload },
     { id: "a-keys", group: "Actions", icon: "keyboard-outline", title: "Keyboard shortcuts", keys: "?", run: () => openOverlay("sheet") },
   ];
@@ -148,12 +160,13 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     <div class="wm-root">
       <div ref={area} class="wm-area">
         <Desktop projectId={projectId} />
+        {/* Every workspace's windows stay mounted (apps keep their state); the others are hidden. */}
         {ready && windows.map((w) => {
           const def = appDef(w.app);
           if (!def) return null;
           const Comp = def.component;
           return (
-            <Window key={w.id} win={w} icon={def.icon} focused={w.id === focusedId}>
+            <Window key={w.id} win={w} icon={def.icon} focused={w.id === focusedId} away={w.ws !== activeWs}>
               <Comp win={w} focused={w.id === focusedId} resource={w.resource} setTitle={(t) => wm.setTitle(w.id, t)}
                 replaceRoute={(r) => wm.setRoute(w.id, routeHash(r))}
                 open={(intent) => launch(intent)} close={() => void requestClose(w.id)} />
@@ -172,6 +185,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
           onDay={(day) => launch({ app: "plan", state: { dayId: day.id } })} />
       )}
       {overlay === "sheet" && <ShortcutSheet onClose={closeOverlay} />}
+      {overlay === "taskview" && <TaskView onClose={closeOverlay} />}
       {overlay === "newShot" && <NewShotDialog projectId={projectId} locations={pd.locations} onLocations={data.setLocationsOf(projectId)} onClose={closeOverlay}
         onCreated={(list) => {
           data.created(list);

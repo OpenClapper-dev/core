@@ -30,6 +30,12 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ⌘Alt ← | Snap the window to the left half |
 | ⌘Alt → | Snap the window to the right half |
 | ⌘Alt D | Show the desktop (again: bring the windows back) |
+| ⌘Alt V | Task view: every workspace and its windows |
+| ⌘Alt ⇧→ | Next workspace |
+| ⌘Alt ⇧← | Previous workspace |
+| ⌘Alt N | New workspace (and go there) |
+| ⌘Alt 1 / ⌘Alt 2 / ⌘Alt 3 / ⌘Alt 4 / ⌘Alt 5 / ⌘Alt 6 / ⌘Alt 7 / ⌘Alt 8 / ⌘Alt 9 | Go to workspace 1–9 |
+| ⌘Alt ⇧1 / ⌘Alt ⇧2 / ⌘Alt ⇧3 / ⌘Alt ⇧4 / ⌘Alt ⇧5 / ⌘Alt ⇧6 / ⌘Alt ⇧7 / ⌘Alt ⇧8 / ⌘Alt ⇧9 | Move the window to workspace 1–9 |
 
 ## Shots
 

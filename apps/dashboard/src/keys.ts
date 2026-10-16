@@ -20,6 +20,10 @@ export const overlayOpen = () => !!document.querySelector("[data-overlay]");
  * physical key, since Option (Mac) and AltGr (Ctrl+Alt on Windows) turn `e.key` into a symbol.
  */
 function keyName(e: KeyboardEvent): string {
+  // Digits too (Mod+Alt+1 picks a workspace; AltGr layouts turn the digit row into symbols). With
+  // Shift the digit keeps its name and gets a Shift+ prefix.
+  const digit = e.altKey && /^Digit[0-9]$/.test(e.code) ? e.code.slice(5) : null;
+  if (digit) return `${e.metaKey || e.ctrlKey ? "Mod+" : ""}Alt+${e.shiftKey ? "Shift+" : ""}${digit}`;
   const letter = e.altKey && /^Key[A-Z]$/.test(e.code) ? e.code.slice(3) : null;
   const key = letter ? (e.shiftKey ? letter : letter.toLowerCase()) : e.key;
   return `${e.metaKey || e.ctrlKey ? "Mod+" : ""}${e.altKey ? "Alt+" : ""}${e.shiftKey && key.length > 1 ? "Shift+" : ""}${key}`;

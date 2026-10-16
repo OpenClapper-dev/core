@@ -4,8 +4,9 @@ import { switchProject } from "../project";
 import { APPS, appDef, launch, type AppId } from "../apps/registry";
 import { useTheme, type ThemeChoice } from "../theme";
 import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, toast, useCtxMenu, useOutsideClick } from "../ui";
-import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
+import { openOverlay } from "./overlays";
+import { WindowMenu } from "./Window";
 import * as wm from "./wm";
 
 const THEME_NEXT: Record<ThemeChoice, ThemeChoice> = { auto: "sun", sun: "set", set: "auto" };
@@ -27,6 +28,9 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
   const [theme, setTheme] = useTheme();
   const [launcher, setLauncher] = useState(false);
   const { menu, openMenu, closeMenu } = useCtxMenu<string>();
+  const wsMenu = useCtxMenu<null>();
+  const spaces = wm.useWorkspaces();
+  const activeWs = wm.useActiveWs();
   const clock = useClock();
   const running = windows; // insertion order: z churn must not shuffle the tasks
   const runningApps = new Set(windows.map((w) => w.app));
@@ -35,6 +39,11 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
     <div class="wm-taskbar">
       <button type="button" class={cx("wm-task wm-task--launcher", launcher && "is-open")} aria-label="Apps" aria-haspopup="menu" aria-expanded={launcher} title="Apps" onClick={() => setLauncher(!launcher)}>
         <Mark size={20} />
+      </button>
+      <button type="button" class="wm-task wm-task--view" title={`Task view (⌘Alt V) · ${spaces.find((s) => s.id === activeWs)?.name ?? ""}`} aria-label="Task view"
+        onClick={() => openOverlay("taskview")} onContextMenu={(e) => wsMenu.openMenu(e, null)}>
+        <Icon name="view-dashboard-outline" />
+        {spaces.length > 1 && <span class="wm-task__badge num">{spaces.findIndex((s) => s.id === activeWs) + 1}</span>}
       </button>
       <div class="wm-taskbar__tasks">
       {pins.filter((a) => !runningApps.has(a) && appDef(a)).map((a) => (
@@ -60,14 +69,21 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
       <span class="wm-taskbar__clock num">{clock}</span>
       {launcher && <Launcher onClose={() => setLauncher(false)} />}
       {menu && menuWin && (
-        <ContextMenu x={menu.x} y={menu.y} label="Window actions" onClose={closeMenu}>
+        <WindowMenu win={menuWin} x={menu.x} y={menu.y} onClose={closeMenu} extra={<>
           <MenuItem icon={pins.includes(menuWin.app) ? "pin-off-outline" : "pin-outline"} onClick={() => wm.togglePin(menuWin.app)}>
             {pins.includes(menuWin.app) ? "Unpin app" : "Pin app to taskbar"}
           </MenuItem>
-          <MenuItem icon="dock-left" onClick={() => wm.setSnap(menuWin.id, "left")}>Snap left</MenuItem>
-          <MenuItem icon="dock-right" onClick={() => wm.setSnap(menuWin.id, "right")}>Snap right</MenuItem>
           <div class="f-menu__sep" />
-          <MenuItem icon="close" danger onClick={() => void requestClose(menuWin.id)}>Close window</MenuItem>
+        </>} />
+      )}
+      {wsMenu.menu && (
+        <ContextMenu x={wsMenu.menu.x} y={wsMenu.menu.y} label="Workspaces" onClose={wsMenu.closeMenu}>
+          {spaces.map((s, i) => (
+            <MenuItem key={s.id} icon="monitor" selected={s.id === activeWs} count={i < 9 ? `⌘Alt${i + 1}` : undefined} onClick={() => wm.switchWorkspace(s.id)}>{s.name}</MenuItem>
+          ))}
+          <div class="f-menu__sep" />
+          <MenuItem icon="monitor-multiple" onClick={() => { wm.addWorkspace({ go: true }); }}>New workspace</MenuItem>
+          <MenuItem icon="view-dashboard-outline" onClick={() => openOverlay("taskview")}>Task view…</MenuItem>
         </ContextMenu>
       )}
     </div>
