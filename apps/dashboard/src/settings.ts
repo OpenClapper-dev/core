@@ -24,8 +24,8 @@ export interface Settings {
   autoOverlay: boolean;
   /** The recycle bin as an icon on the desktop (epic #90); off, it is only in Files' side bar. */
   binOnDesktop: boolean;
-  /** Where the taskbar sits (epic #90). */
-  taskbarPosition: "bottom" | "top";
+  /** Which screen edge the taskbar sits on (epic #90); on the left or right it is a vertical bar of icons. */
+  taskbarPosition: "bottom" | "top" | "left" | "right";
   /** Launcher, pins and windows from the left, or centred like Windows 11. */
   taskbarAlign: "start" | "center";
 }
@@ -40,7 +40,7 @@ function read(): Settings {
       seqRemove: raw.seqRemove === "block" ? "block" : DEFAULT_SETTINGS.seqRemove,
       autoOverlay: raw.autoOverlay === true,
       binOnDesktop: raw.binOnDesktop !== false,
-      taskbarPosition: raw.taskbarPosition === "top" ? "top" : "bottom",
+      taskbarPosition: raw.taskbarPosition === "top" || raw.taskbarPosition === "left" || raw.taskbarPosition === "right" ? raw.taskbarPosition : "bottom",
       taskbarAlign: raw.taskbarAlign === "center" ? "center" : "start",
     };
   } catch { return { ...DEFAULT_SETTINGS }; }
