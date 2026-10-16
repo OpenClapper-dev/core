@@ -20,14 +20,49 @@ test("open places, focuses and dedupes per app:resource", () => {
   assert.ok(get(a).z > get(b).z);
 });
 
-test("singleton apps dedupe on the app alone; non-singletons without resource do not", () => {
+test("singletons dedupe on the app alone; per-resource apps keep one resource-less window", () => {
   fresh();
-  const a = openApp("settings", { singleton: true });
-  const b = openApp("settings", { singleton: true });
+  const a = openApp("files", { singleton: true });
+  const b = openApp("files", { singleton: true, resource: { type: "folder", id: "f1" }, state: { folder: "f1" } });
   assert.equal(a, b);
-  const c = openApp("gallery");
-  const d = openApp("gallery");
-  assert.notEqual(c, d);
+  assert.deepEqual(get(a).state, { folder: "f1" });
+  assert.equal(get(a).stateSeq, 1);
+  const c = openApp("timeline");
+  const d = openApp("timeline");
+  assert.equal(c, d);
+  const e = openApp("timeline", { resource: { type: "timeline", id: "t1" } });
+  assert.notEqual(c, e);
+});
+
+test("setResource re-targets a window unless another one shows that resource", () => {
+  fresh();
+  const list = openApp("timeline");
+  const t1 = openApp("timeline", { resource: { type: "timeline", id: "t1" } });
+  assert.equal(wm.setResource(list, { type: "timeline", id: "t1" }), false);
+  assert.equal(wm.getFocusedId(), t1);
+  assert.equal(get(list).resource, null);
+  assert.equal(wm.setResource(list, { type: "timeline", id: "t2" }), true);
+  assert.deepEqual(get(list).resource, { type: "timeline", id: "t2" });
+  // Now opening t2 focuses the re-targeted window.
+  assert.equal(openApp("timeline", { resource: { type: "timeline", id: "t2" } }), list);
+});
+
+test("toggleDesktop minimizes everything and brings it back; focusDesktop clears focus", () => {
+  fresh();
+  const a = openApp("x");
+  const b = openApp("y");
+  wm.toggleMax(a);
+  wm.toggleDesktop();
+  assert.ok(wm.getWindows().every((w) => w.mode === "min"));
+  assert.equal(wm.getFocusedId(), null);
+  wm.toggleDesktop();
+  assert.equal(get(a).mode, "max");
+  assert.equal(get(b).mode, "normal");
+  assert.equal(wm.getFocusedId(), a);
+  wm.focusDesktop();
+  assert.equal(wm.getFocusedId(), null);
+  wm.setRoute(b, "#/plan");
+  assert.equal(get(b).route, "#/plan");
 });
 
 test("bounds are clamped to min size and the window stays grabbable", () => {

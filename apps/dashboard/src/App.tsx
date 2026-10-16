@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { extraFilterFields, type FieldDef } from "@fielder/vocab";
-import { deleteView, onProjectCreated, fetchAllShots, fetchFields, fetchLocations, fetchPresets, fetchProjects, fetchSpots, fetchViews, putView, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type ShootingDay, type Spot } from "./api";
+import { extraFilterFields } from "@fielder/vocab";
+import { deleteView, fetchAllShots, putView, type FieldDefinition, type SavedView, type Shot, type ShootingDay, type Spot } from "./api";
+import { created, deleted, fieldsOf, load, locationsOf, refreshCounts, reload, setFields, setLocationsOf, setPresets, setProjects, setShots, setSpots as setSpotsData, setViews, updated, useData } from "./data";
+import { setProjectId, useProjectId } from "./project";
 import { CommandPalette, ShortcutSheet, type Command } from "./CommandPalette";
 import { FieldsPage } from "./Fields";
 import { FRAME_MODES, isFrameMode } from "./format";
@@ -46,17 +48,9 @@ export function App() {
   const narrow = useNarrow();
   // The user's own collapse/expand (the sidebar button or Ctrl/⌘ B), remembered; null = follow the window width.
   const [sideChoice, setSideChoice] = useState<"rail" | "full" | null>(() => { const v = readStorage("sidebar"); return v === "rail" || v === "full" ? v : null; });
-  const [shots, setShots] = useState<Shot[] | null>(null);
-  const [projects, setProjects] = useState<Project[] | null>(null);
-  const [presets, setPresets] = useState<Preset[] | null>(null);
-  const [locations, setLocations] = useState<Location[] | null>(null);
-  const [views, setViews] = useState<SavedView[] | null>(null);
-  const [spots, setSpotsState] = useState<Spot[] | null>(null);
-  const setSpots = (update: (cur: Spot[]) => Spot[]) => setSpotsState((cur) => update(cur ?? []));
-  const [fields, setFields] = useState<FieldDefinition[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loadedAt, setLoadedAt] = useState<Date | null>(null);
-  const [storedScope, setStoredScope] = useState<string | null>(() => readStorage("project"));
+  const { shots, projects, presets, locations, views, spots, fields, error, loadedAt } = useData();
+  const setSpots = (update: (cur: Spot[]) => Spot[]) => setSpotsData((cur) => update(cur ?? []));
+  const storedScope = useProjectId();
   const [mask, setMaskState] = useState<MaskMode>(loadMask);
   /** The shot view starts from the global mode; a change there sticks for ←/→ until it closes. */
   const [viewMode, setViewMode] = useState<MaskMode>(mask);
@@ -75,29 +69,15 @@ export function App() {
 
   const setLayout = (l: Layout) => { setLayoutState(l); writeStorage("layout", l); };
   const setMask = (m: MaskMode) => { setMaskState(m); writeStorage("maskMode", m); };
-  const setScope = (s: string) => { setStoredScope(s); writeStorage("project", s); };
+  const setScope = setProjectId;
 
-  const load = () => Promise.all([fetchAllShots().then(setShots), fetchProjects().then(setProjects), fetchPresets().then(setPresets), fetchLocations().then(setLocations), fetchSpots().then(setSpotsState), fetchViews().then(setViews), fetchFields().then(setFields)])
-    .then(() => { setError(null); setLoadedAt(new Date()); })
-    .catch((e: Error) => setError(e.message));
-  const reload = () => { void load().then(() => toast("Reloaded", "info")); };
-  const refreshCounts = () => { void fetchLocations().then(setLocations).catch(() => {}); void fetchSpots().then(setSpotsState).catch(() => {}); void fetchProjects().then(setProjects).catch(() => {}); };
   useEffect(() => { void load(); }, []);
-  // A project created inline (move, bulk edit) joins the list at once; counts follow with the next refresh.
-  useEffect(() => onProjectCreated((p) => setProjects((cur) => (cur ?? []).some((x) => x.id === p.id) ? cur : [...(cur ?? []), p].sort((a, b) => a.name.localeCompare(b.name)))), []);
 
   // The dashboard always works inside one project (issue #44). A remembered project that no longer exists counts as "not chosen".
   const scope: string | null = storedScope && projects?.some((p) => p.id === storedScope) ? storedScope : null;
   const scopeProject = projects?.find((p) => p.id === scope) ?? null;
   const scopeName = scopeProject?.name ?? "";
   const scoped = useMemo(() => (shots ?? []).filter((s) => s.project_id === scope), [shots, scope]);
-  const fieldsOf = (projectId: string): FieldDef[] => (fields ?? []).filter((f) => f.project_id === projectId).sort((a, b) => a.position - b.position).map((f) => f.definition);
-  const locationsOf = (projectId: string) => (locations ?? []).filter((l) => l.project_id === projectId);
-  /** A page hands back one project's list (after a create, rename or delete): it replaces that project's rows. */
-  const setLocationsOf = (projectId: string) => (list: Location[]) => {
-    const ids = new Set(list.map((l) => l.id));
-    setLocations((cur) => [...(cur ?? []).filter((l) => l.project_id !== projectId && !ids.has(l.id)), ...list]);
-  };
   const projectLocations = useMemo(() => locationsOf(scope ?? ""), [locations, scope]);
   const setProjectLocations = setLocationsOf(scope ?? "");
   const projectViews = useMemo(() => (views ?? []).filter((v) => v.project_id === scope), [views, scope]);
@@ -131,8 +111,6 @@ export function App() {
     navigateRaw(r);
   };
 
-  const updated = (s: Shot | Shot[]) => { const m = new Map((Array.isArray(s) ? s : [s]).map((x) => [x.id, x])); setShots((cur) => (cur ?? []).map((x) => m.get(x.id) ?? x)); refreshCounts(); };
-  const deleted = (ids: string[]) => { const gone = new Set(ids); setShots((cur) => (cur ?? []).filter((x) => !gone.has(x.id))); refreshCounts(); };
 
   const result = useMemo(() => runQuery(scoped, query, extra), [scoped, query, extra]);
   function openShot(s: Shot, list?: Shot[]) {
@@ -198,7 +176,6 @@ export function App() {
   useKeys(bind("global", {
     palette: openPalette,
     sheet: () => setSheet(true),
-    sidebar: () => toggleSidebar(),
     goShots: () => void navigate({ page: "shots", viewId: null }),
     goPlan: () => void navigate({ page: "plan", dayId: null }),
     goTimeline: () => void navigate({ page: "timeline", timelineId: null }),
@@ -311,7 +288,7 @@ export function App() {
         onProject={(p) => setScope(p.id)} onDay={(d) => navigateRaw({ page: "plan", dayId: d.id })} />}
       {sheet && <ShortcutSheet onClose={() => setSheet(false)} />}
       {newShot && scope && <NewShotDialog projectId={scope} locations={projectLocations} onLocations={setProjectLocations} onClose={() => setNewShot(false)}
-        onCreated={(created) => { setShots((cur) => [...created, ...(cur ?? [])]); refreshCounts(); setNewShot(false); const first = created[0]; if (first) openShot(first, created.length > 1 ? created : undefined); }} />}
+        onCreated={(list) => { created(list); setNewShot(false); const first = list[0]; if (first) openShot(first, list.length > 1 ? list : undefined); }} />}
       <ConfirmHost />
       <ToastHost />
     </div>

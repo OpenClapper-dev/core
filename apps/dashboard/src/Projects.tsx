@@ -25,11 +25,9 @@ export function ProjectGate({ projects, onChange, onActivate }: { projects: Proj
       <div class="gate__card">
         <span class="gate__brand"><Mark size={26} />Fielder</span>
         <h1>Which project are you working on?</h1>
-        <p class="meta">Everything you see and every shot you edit belongs to the active project. Switch any time from the sidebar; the choice is remembered.</p>
+        <p class="meta">Everything you see and every shot you edit belongs to the active project. Each project has its own desktop. Switch any time from the taskbar; the choice is remembered.</p>
         <div class="f-menu gate__list">
           {projects.map((p) => <MenuItem key={p.id} icon="folder-outline" count={`${p.shot_count} shots`} onClick={() => onActivate(p.id)}>{p.name}</MenuItem>)}
-          {projects.length > 0 && <div class="f-menu__sep" />}
-          {projects.length > 0 && <MenuItem icon="folder-multiple-outline" onClick={() => onActivate("all")}>Browse all projects</MenuItem>}
           {projects.length === 0 && <span class="meta" style={{ padding: "10px" }}>No projects yet. Create the first one.</span>}
         </div>
         <Button icon="plus" onClick={async () => { const p = await createProject(projects, onChange); if (p) onActivate(p.id); }}>New project</Button>

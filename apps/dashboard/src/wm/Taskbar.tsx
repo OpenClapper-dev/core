@@ -1,7 +1,9 @@
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
+import { useData } from "../data";
+import { switchProject } from "../project";
 import { APPS, appDef, launch, type AppId } from "../apps/registry";
 import { useTheme, type ThemeChoice } from "../theme";
-import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, toast, useCtxMenu } from "../ui";
+import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, toast, useCtxMenu, useOutsideClick } from "../ui";
 import { Launcher } from "./Launcher";
 import * as wm from "./wm";
 
@@ -16,8 +18,8 @@ function useClock(): string {
   return t;
 }
 
-/** Bottom taskbar: launcher, pinned apps, running windows, project indicator, ⌘K, theme, clock, reload. */
-export function Taskbar() {
+/** Bottom taskbar: launcher, pinned apps, running windows, project switcher, ⌘K, theme, clock, reload. */
+export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette: () => void }) {
   const windows = wm.useWindows();
   const focusedId = wm.useFocusedId();
   const pins = wm.usePins();
@@ -49,8 +51,8 @@ export function Taskbar() {
         </button>
       ))}
       <span class="wm-taskbar__sp" />
-      <span class="wm-taskbar__project" title="Project switching arrives with phase 2"><Icon name="folder-outline" /><span>Project</span></span>
-      <IconButton icon="magnify" label="Go to… (⌘K)" title="Go to… (⌘K)" onClick={() => toast("Go to… arrives with phase 2", "info")} />
+      <ProjectSwitch projectId={projectId} />
+      <IconButton icon="magnify" label="Go to… (⌘K)" title="Go to… (⌘K)" onClick={onPalette} />
       <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_NEXT[theme])} />
       <IconButton icon="refresh" label="Reload" title="Reload" onClick={() => location.reload()} />
       <span class="wm-taskbar__clock num">{clock}</span>
@@ -65,6 +67,47 @@ export function Taskbar() {
           <div class="f-menu__sep" />
           <MenuItem icon="close" danger onClick={() => wm.close(menuWin.id)}>Close window</MenuItem>
         </ContextMenu>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The active project and its switcher (opens upwards): switching swaps the whole desktop, after
+ * every app with unsaved edits had its say (beforeProjectSwitch).
+ */
+function ProjectSwitch({ projectId }: { projectId: string }) {
+  const { projects } = useData();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useOutsideClick(() => box.current, () => setOpen(false), open);
+  useEffect(() => {
+    if (!open) return;
+    box.current?.querySelector<HTMLButtonElement>(".f-menu .is-sel")?.focus();
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setOpen(false); } };
+    window.addEventListener("keydown", esc, true);
+    return () => window.removeEventListener("keydown", esc, true);
+  }, [open]);
+  const name = projects?.find((p) => p.id === projectId)?.name ?? "—";
+  const take = async (id: string) => {
+    setOpen(false);
+    const p = projects?.find((x) => x.id === id);
+    if (await switchProject(id)) toast(`Now working on ${p?.name ?? "the project"}`);
+  };
+  return (
+    <div ref={box} class="wm-project">
+      <button type="button" class={cx("wm-taskbar__project", open && "is-open")} aria-haspopup="menu" aria-expanded={open} title="Switch project" onClick={() => setOpen(!open)}>
+        <Icon name="folder-outline" /><span class="wm-taskbar__projname">{name}</span><Icon name="unfold-more-horizontal" />
+      </button>
+      {open && (
+        <div class="f-menu wm-project__menu" role="menu" aria-label="Projects" data-overlay>
+          <div class="f-menu__label">Project</div>
+          {(projects ?? []).map((p) => (
+            <MenuItem key={p.id} role="menuitemradio" aria-checked={p.id === projectId} icon={p.id === projectId ? "check" : "folder-outline"} selected={p.id === projectId} count={`${p.shot_count}`} onClick={() => void take(p.id)}>{p.name}</MenuItem>
+          ))}
+          <div class="f-menu__sep" />
+          <MenuItem icon="cog-outline" onClick={() => { setOpen(false); launch({ app: "projects" }); }}>Manage projects…</MenuItem>
+        </div>
       )}
     </div>
   );

@@ -31,6 +31,10 @@ export interface Win {
   wasMode?: Exclude<WinMode, "min">;
   /** Launch-intent state for the app (e.g. the shot list behind ←/→). Not persisted. */
   state?: unknown;
+  /** Bumped when an open() re-targets this window with new state, so the app can react. */
+  stateSeq?: number;
+  /** The hash this window shows in the URL while focused (set by the app via replaceRoute). */
+  route?: string;
 }
 
 export interface OpenIntent {
@@ -85,8 +89,12 @@ export function clampBounds(r: Rect, min: Size): Rect {
   return { x, y, w: Math.round(w), h: Math.round(h) };
 }
 
+/**
+ * Singleton apps: one window, whatever it shows. Per-resource apps: one window per resource, plus
+ * one resource-less window (the app's list/picker).
+ */
 const dedupeKey = (app: string, resource: ResourceRef | null | undefined, singleton: boolean | undefined) =>
-  resource ? `${app}:${resource.type}:${resource.id}` : singleton ? app : null;
+  !singleton && resource ? `${app}:${resource.type}:${resource.id}` : app;
 
 /** Cascade placement so new windows don't stack exactly. */
 function place(size: Size): Rect {
@@ -103,8 +111,12 @@ function place(size: Size): Rect {
  */
 export function open(intent: OpenIntent): string {
   const key = dedupeKey(intent.app, intent.resource, intent.singleton);
-  const existing = key ? windows.find((w) => dedupeKey(w.app, w.resource, intent.singleton) === key) : undefined;
-  if (existing) { focus(existing.id); return existing.id; }
+  const existing = windows.find((w) => dedupeKey(w.app, w.resource, intent.singleton) === key);
+  if (existing) {
+    if (intent.state !== undefined) patch(existing.id, { state: intent.state, stateSeq: (existing.stateSeq ?? 0) + 1 });
+    focus(existing.id);
+    return existing.id;
+  }
   const min = intent.minSize ?? MIN_DEFAULT;
   const bounds = clampBounds(intent.bounds ?? place(intent.size ?? SIZE_DEFAULT), min);
   const win: Win = { id: crypto.randomUUID(), app: intent.app, resource: intent.resource ?? null, title: intent.title, bounds, min, z: ++zTop, mode: "normal", state: intent.state };
@@ -166,6 +178,48 @@ export function setBounds(id: string, r: Rect, mode: "normal" | "keep" = "keep")
   const w = windows.find((x) => x.id === id);
   if (!w) return;
   patch(id, { bounds: clampBounds(r, w.min), ...(mode === "normal" ? { mode: "normal" as const, snap: undefined } : null) });
+  notify();
+}
+
+/** The app's current URL hash (written to the address bar while the window is focused). */
+export function setRoute(id: string, route: string) {
+  const w = windows.find((x) => x.id === id);
+  if (!w || w.route === route) return;
+  patch(id, { route });
+  notify();
+}
+
+/**
+ * In-window navigation to another resource (a timeline picked from the list). When another window
+ * already shows it, that one is focused instead (one window per resource) and false is returned.
+ */
+export function setResource(id: string, resource: ResourceRef | null): boolean {
+  const w = windows.find((x) => x.id === id);
+  if (!w) return false;
+  const other = resource && windows.find((x) => x.id !== id && x.app === w.app && x.resource?.type === resource.type && x.resource.id === resource.id);
+  if (other) { focus(other.id); return false; }
+  patch(id, { resource });
+  notify();
+  return true;
+}
+
+/** Nothing focused: the desktop itself has focus (the URL shows #/). */
+export function focusDesktop() {
+  if (focused === null) return;
+  focused = null;
+  notify();
+}
+
+/** Show desktop: minimize every window (again: bring them back). */
+export function toggleDesktop() {
+  const visible = windows.filter((w) => w.mode !== "min");
+  if (visible.length) {
+    windows = windows.map((w) => (w.mode === "min" ? w : { ...w, mode: "min" as const, wasMode: w.mode as Exclude<WinMode, "min"> }));
+    focused = null;
+  } else {
+    windows = windows.map((w) => ({ ...w, mode: w.wasMode ?? "normal", wasMode: undefined }));
+    focused = topmost()?.id ?? null;
+  }
   notify();
 }
 

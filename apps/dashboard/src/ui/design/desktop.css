@@ -2,6 +2,7 @@
 
 /* ---------- Root: desktop area over taskbar ---------- */
 .wm-root{display:grid;grid-template-rows:minmax(0,1fr) auto;width:100%;height:100%;background:var(--desktop-bg);color:var(--text);font:var(--weight-regular) var(--text-body)/var(--lh-body) var(--font-sans);overflow:hidden}
+.wm-root--bare{grid-template-rows:minmax(0,1fr);place-items:center;overflow:auto}
 .wm-area{position:relative;min-height:0;overflow:hidden}
 .wm-desktop{position:absolute;inset:0;background:var(--desktop-bg)}
 
@@ -45,8 +46,13 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 /* ---------- Taskbar ---------- */
 .wm-taskbar{position:relative;display:flex;align-items:center;gap:4px;height:var(--taskbar-h);padding:0 8px;background:var(--surface);border-top:var(--bw) solid var(--border-subtle)}
 .wm-taskbar__sp{flex:1}
-.wm-taskbar__project{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border:var(--bw) dashed var(--border);border-radius:var(--radius-sm);color:var(--text-dim);font-size:var(--text-small);white-space:nowrap}
-.wm-taskbar__project .mdi{font-size:16px}
+.wm-project{position:relative}
+.wm-taskbar__project{display:inline-flex;align-items:center;gap:6px;height:32px;max-width:240px;padding:0 6px 0 10px;border:var(--bw) solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:var(--weight-semibold) var(--text-small)/1 var(--font-sans);white-space:nowrap;cursor:pointer}
+.wm-taskbar__project:hover,.wm-taskbar__project.is-open{border-color:var(--border-strong)}
+.wm-taskbar__project:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:var(--focus-offset)}
+.wm-taskbar__project .mdi{font-size:16px;flex:none}
+.wm-taskbar__projname{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.wm-project__menu{position:absolute;right:0;bottom:calc(100% + 8px);z-index:1000;max-height:min(60vh,480px);overflow:auto}
 .wm-taskbar__clock{padding:0 8px;color:var(--text-dim);font-size:var(--text-small);font-variant-numeric:tabular-nums}
 .wm-task{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 10px;border:0;border-radius:var(--radius-sm);background:transparent;color:var(--text);font:var(--weight-medium) var(--text-small)/1 var(--font-sans);cursor:pointer;max-width:200px;white-space:nowrap}
 .wm-task .mdi{font-size:18px;flex:none}

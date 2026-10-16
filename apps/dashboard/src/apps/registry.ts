@@ -1,4 +1,5 @@
 import type { ComponentType } from "preact";
+import type { Route } from "../router";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
 import { Placeholder } from "./Placeholder";
@@ -13,8 +14,8 @@ export interface AppProps {
   focused: boolean;
   resource: ResourceRef | null;
   setTitle: (t: string) => void;
-  /** Mirror app state into the URL — only honoured while this window is focused (phase 2). */
-  replaceRoute: (hash: string) => void;
+  /** Mirror app state into the URL; the bridge shows it while this window is focused. */
+  replaceRoute: (r: Route) => void;
   open: (intent: { app: AppId; resource?: ResourceRef; state?: unknown; title?: string }) => void;
   close: () => void;
 }
