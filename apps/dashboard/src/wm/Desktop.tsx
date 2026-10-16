@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { FILE_RESOURCE_TYPES, FILE_TYPE_META } from "@fielder/vocab";
 import type { DesktopItem } from "../api";
-import { addRows, addShortcut, binItems, canRename, desktopFolderId, fileTarget, folderTarget, moveItems, moveShortcuts, newFolder, removeShortcuts, renameEntry, renameFolder, renameShortcut, setDesktopPlacer, type Item } from "../apps/fileOps";
+import { addRows, addShortcut, binItems, pinItems, canRename, desktopFolderId, fileTarget, folderTarget, moveItems, moveShortcuts, newFolder, removeShortcuts, renameEntry, renameFolder, renameShortcut, setDesktopPlacer, type Item } from "../apps/fileOps";
 import { emptyBin } from "../apps/trashOps";
 import { useSettings } from "../settings";
 import { openShortcut, shortcutView, useFileEntries, type FileEntry } from "../apps/fileEntries";
@@ -177,9 +177,12 @@ export function Desktop({ projectId }: { projectId: string }) {
   }
 
   /** The icon under the pointer that takes a drop (the bin, or a folder icon), outside the dragged ones. */
-  const dropTargetAt = (e: { clientX: number; clientY: number }, dragged: Set<string>): { kind: "bin" } | { kind: "folder"; id: string; el: HTMLElement } | null => {
+  const dropTargetAt = (e: { clientX: number; clientY: number }, dragged: Set<string>): { kind: "bin" } | { kind: "taskbar"; el: HTMLElement } | { kind: "folder"; id: string; el: HTMLElement } | null => {
     for (const el of document.elementsFromPoint(e.clientX, e.clientY)) {
       const h = el as HTMLElement;
+      // Onto the taskbar: pin what the icons stand for.
+      const bar = h.closest?.<HTMLElement>("[data-taskbar-drop]");
+      if (bar) return { kind: "taskbar", el: bar };
       const id = h.dataset?.iconId;
       if (!id || dragged.has(id)) continue;
       if (id === BIN) return showBin ? { kind: "bin" } : null;
@@ -215,7 +218,7 @@ export function Desktop({ projectId }: { projectId: string }) {
       moved = true;
       for (const el of els) { el.style.transform = `translate(${dx}px, ${dy}px)`; el.classList.add("is-dragging"); }
       const t = dropTargetAt(ev, dragged);
-      mark(t?.kind === "bin" ? binEl() : t?.kind === "folder" ? t.el : null);
+      mark(t?.kind === "bin" ? binEl() : t ? t.el : null);
     };
     const up = (ev: PointerEvent) => {
       lead.removeEventListener("pointermove", move);
@@ -226,6 +229,11 @@ export function Desktop({ projectId }: { projectId: string }) {
       const t = dropTargetAt(ev, dragged);
       const ids = group.filter((g) => g !== BIN);
       if (t?.kind === "bin") { void removeIcons(ids); return; }
+      if (t?.kind === "taskbar") {
+        const targets = ids.map((g) => byId.get(g)?.item).filter((x): x is DesktopItem => !!x).map(({ kind, resource_type, resource_id, folder_id, app_id }) => ({ kind, resource_type, resource_id, folder_id, app_id }));
+        void pinItems(projectId, targets);
+        return;
+      }
       if (t?.kind === "folder") { void intoFolder(ids, t.id); return; }
       // Each icon to the free cell nearest to where it was dropped, the pressed one first.
       const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
