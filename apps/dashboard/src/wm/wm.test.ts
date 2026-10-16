@@ -264,3 +264,23 @@ test("workspaces: show desktop and cycling stay on the active one; old layouts l
   assert.equal(wm.getWindows().length, 2);
   assert.ok(second);
 });
+
+test("split: per workspace, clamped to 20–80 % and to the snapped windows' minimum widths", () => {
+  fresh();
+  assert.equal(wm.getSplit(), 0.5);
+  wm.setSplit(0.05);
+  assert.equal(wm.getSplit(), 0.2);
+  wm.setSplit(0.95);
+  assert.equal(wm.getSplit(), 0.8);
+  const a = openApp("timeline", { singleton: true, minSize: { w: 640, h: 300 } });
+  wm.setSnap(a, "right");
+  wm.setSplit(0.8);
+  assert.equal(wm.getSplit(), 0.5, "the right window needs 640 of 1280 px");
+  wm.setSplit(0.3);
+  assert.equal(wm.getSplit(), 0.3);
+  const other = wm.addWorkspace({ go: true });
+  assert.equal(wm.getSplit(), 0.5, "another workspace has its own");
+  wm.switchWorkspace(-1);
+  assert.equal(wm.getSplit(), 0.3);
+  assert.ok(other);
+});

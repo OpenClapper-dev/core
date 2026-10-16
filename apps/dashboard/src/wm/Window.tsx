@@ -3,6 +3,7 @@ import { useRef } from "preact/hooks";
 import { ContextMenu, cx, Icon, IconButton, MenuItem, useCtxMenu } from "../ui";
 import { requestClose } from "./closeGuards";
 import { WindowIdContext } from "./keyboard";
+import { startSplitDrag } from "./SplitGrip";
 import { HANDLE_DIRS, useWindowDrag } from "./useWindowDrag";
 import * as wm from "./wm";
 import type { Win } from "./wm";
@@ -39,6 +40,8 @@ export function Window({ win, icon, focused, away, children }: { win: Win; icon:
       </div>
       <div class="wm-window__content"><WindowIdContext.Provider value={win.id}>{children}</WindowIdContext.Provider></div>
       {barMenu.menu && <WindowMenu win={win} x={barMenu.menu.x} y={barMenu.menu.y} onClose={barMenu.closeMenu} />}
+      {/* A snapped window keeps its inner edge, and it moves the split: the window beside follows. */}
+      {win.mode === "snapped" && <div class={`wm-handle wm-handle--${win.snap === "left" ? "e" : "w"} wm-handle--split`} onPointerDown={startSplitDrag} onDblClick={() => wm.setSplit(wm.SPLIT_DEFAULT)} />}
       {normal && HANDLE_DIRS.map((dir) => (
         <div key={dir} class={`wm-handle wm-handle--${dir}`} onPointerDown={(e) => onHandlePointerDown(e, dir)} />
       ))}

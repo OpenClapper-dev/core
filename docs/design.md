@@ -82,3 +82,7 @@ Domain pieces that draw photos (`Framed`, `FramedThumb`, `ShotCard`) stay next t
 Some look-alikes are kept apart on purpose because they differ by a few dp or a weight: the two "LAST" tags (field row and tag editor), the header count badge and the tab badge, the option-sheet and location-sheet rows, and the full-screen headers of Tag and Gates versus `AppHeader`. Unifying them is a visual change.
 
 To update the design system: re-export from Claude Design, copy the changed CSS over `apps/dashboard/src/ui/design/`, carry colour changes into the palettes in `apps/mobile/src/ui/theme.tsx`, and check the screens that use them.
+
+## Desktop v2 tokens (epic #90)
+
+Defined for Sun and Set in `ui/design/colors.css`: `--marquee-bg` / `--marquee-border` (the desktop's rubber band, the accent at low alpha and full), `--taskview-text` (text on the task view's scrim, which is near-black in both themes), `--split-grip` (the side-by-side grip's thumb, `--border-strong`). The recycle bin's drop highlight uses `--danger-tint` and `--danger`.
