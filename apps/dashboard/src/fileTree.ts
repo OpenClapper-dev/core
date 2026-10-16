@@ -1,4 +1,9 @@
+import type { FileResourceType } from "@fielder/vocab";
 import type { DesktopItem, Folder, FolderItem } from "./api";
+
+/** The drag payload between Files, its folder tree and the desktop. */
+export const FILE_DRAG = "application/x-fielder-file";
+export type FileDrag = { kind: "file"; type: FileResourceType; id: string } | { kind: "folder"; id: string };
 
 /**
  * Folder logic for the Files app and the desktop (epic #72), pure so it is tested on its own.

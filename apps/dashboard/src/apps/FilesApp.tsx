@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { FILE_RESOURCE_TYPES, FILE_TYPE_META, type FileResourceType } from "@fielder/vocab";
 import type { Folder } from "../api";
 import * as data from "../data";
-import { childFolders, folderPath, matches, moveTargets, placementOf, subtree } from "../fileTree";
+import { childFolders, FILE_DRAG, folderPath, matches, moveTargets, placementOf, subtree, type FileDrag } from "../fileTree";
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
 import { parseRoute } from "../router";
@@ -21,9 +21,6 @@ type Place = { kind: "folder"; id: string | null } | { kind: "type"; type: FileR
 type Row = { kind: "folder"; folder: Folder } | { kind: "file"; entry: FileEntry; folderId: string | null };
 type Sort = "name" | "date" | "type";
 
-/** The drag payload between Files, its folder tree and the desktop. */
-export const FILE_DRAG = "application/x-fielder-file";
-export type FileDrag = { kind: "file"; type: FileResourceType; id: string } | { kind: "folder"; id: string };
 
 const rowKey = (r: Row) => (r.kind === "folder" ? `folder:${r.folder.id}` : `${r.entry.type}:${r.entry.id}`);
 function pref<T extends string>(key: string, ok: readonly T[], fallback: T): T { try { const v = localStorage.getItem(key) as T | null; return v && ok.includes(v) ? v : fallback; } catch { return fallback; } }

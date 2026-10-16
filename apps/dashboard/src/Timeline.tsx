@@ -34,8 +34,8 @@ interface Props {
   onNewShot: () => void;
   /** The open timeline's name and the save state, for the window title and its close guard. */
   onStatus?: (s: { name: string | null; save: SaveState }) => void;
-  /** Where the playhead and inline tool settled (the desktop keeps it in the window's route). */
-  onCutPosition?: (at: CutPosition) => void;
+  /** Where the playhead and inline tool settled (kept in the window's route). */
+  onCutPosition: (at: CutPosition) => void;
 }
 
 export function TimelinePage(p: Props) {

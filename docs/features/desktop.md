@@ -1,0 +1,87 @@
+# Dashboard desktop
+
+The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files on it, apps in windows, a taskbar. It replaced the sidebar shell designed in Claude Design (2026-09-28; exports in the gitignored `references/dashboard/`), whose pages now live inside the windows unchanged.
+
+## Startup and projects
+
+- `main.tsx` mounts `wm/Shell.tsx`. Data loads first (`data.ts`, every collection at once, as before). Without a valid project (`project.ts`, `localStorage["project"]`) the project gate (`ProjectGate` in `Projects.tsx`) is shown on the wallpaper, without a taskbar, with "New project".
+- Then that project's desktop is restored as it was left, and a deep link in the URL opens or focuses its window on top.
+- **Switching project** (the taskbar switcher, ⌘K → project, Projects → Make active): every app with unsaved work may veto first (`beforeProjectSwitch`); then the current desktop is saved and the other project's comes back. Each project has its own windows (per browser) and its own icons and folders (on the server, [files](files.md)).
+
+## Windows (`wm/wm.ts`, `wm/Window.tsx`, `wm/useWindowDrag.ts`)
+
+- `wm.ts` is a module store (the `settings.ts` idiom), pure and tested (`wm.test.ts`): windows with bounds, z-order, mode (normal · max · snapped left/right · minimized), the focused one, the taskbar pins.
+- Drag by the title bar, resize from the 8 edges and corners (the app's min size holds), double-click the bar to maximize. Dragging to the left/right edge of the desktop snaps to that half, to the top maximizes; a preview shows the zone. Dragging a maximized or snapped window out restores its normal size under the cursor. Snapping never changes a window's normal size.
+- During a drag or resize the window is moved directly in the DOM and committed once at the end; `body.wm-gesture` switches pointer events off inside every window, so maps and canvases never see the gesture.
+- Click anywhere in a window to bring it to the front (the focused one has the strong border and the tinted title bar).
+- **One window per resource**: opening something that is open focuses its window. A shot opens in its own window (two shots side by side); Timeline and Plan are one window each with the cut or day picked inside ([known issues](../known-issues.md) say why); the other apps are one window each. An open window that is launched again (a deep link, ⌘K) is re-targeted: the Gallery switches view, Timeline its cut and position, Files its folder.
+- **Closing** asks first when the app has unsaved work (`wm/closeGuards.ts`, `apps/useAppGuard.ts`): Gallery with an edited saved view, Timeline or Plan after a failed save.
+- **Layout per project and browser** (`wm/desktopState.ts`): windows, z-order, each window's route and the pins in `localStorage["desktop.<projectId>"]` (`v: 1`; another version or broken JSON starts a fresh desktop), saved 600 ms after a change, on a project switch and on `pagehide`.
+- **Inside a window** page CSS sizes against the window: `.wm-window__content` is a size container (`cqh`, not `vh`), side panels take at most half its width, the map re-measures when the window resizes, and the Timeline stage grip stops at the window's bottom.
+
+## Taskbar, launcher, desktop
+
+- **Taskbar** (`wm/Taskbar.tsx`): the launcher (the mark), pinned apps, one button per window (click focuses, or minimizes the focused one; right-click: pin, snap left/right, close), then the project switcher (with "Manage projects…"), Go to… (⌘K), the theme (Auto → Sun → Set), reload and the clock. Toasts sit bottom right, above it.
+- **Launcher** (`wm/Launcher.tsx`): every app; right-click pins one to the taskbar.
+- **Desktop** (`wm/Desktop.tsx`): shortcuts to apps, folders and files ([files](files.md)). Clicking the empty desktop takes focus away from the windows (the URL shows `#/`); right-click for New folder, New shortcut…, Arrange icons, Settings and the theme.
+- **Global overlays** (`wm/overlays.ts`): Go to… (⌘K), the shortcut sheet (`?`) and New shot open above every window, from any app; confirmations, prompts and toasts too (`confirmDialog`, `promptDialog`, `toast` in `ui/`; no `window.confirm`/`alert`).
+
+## Apps (`apps/registry.ts`)
+
+| App | Files | What |
+| --- | --- | --- |
+| Gallery | `apps/GalleryApp.tsx` + `ShotsPage.tsx`, `shotsQuery.ts`, `FilterBuilder.tsx`, `MapView.tsx`, `ShotCard.tsx` | The project's shots: grid, list or map, filters, saved views. See below. |
+| Shot | `apps/ShotApp.tsx` + `ShotView.tsx`, `Inspector.tsx`, `RigExplorer.tsx`, `PositionEditor.tsx`, `compose/` | One shot per window. See [review and tagging](review-and-tagging.md) and [compose](compose.md). |
+| Timeline | `apps/TimelineApp.tsx` + `Timeline.tsx` | [Timelines](timeline.md): rough cuts with hold times and playback |
+| Plan | `apps/PlanApp.tsx` + `Plan.tsx` | [Shooting days](schedule.md) |
+| Metadata | `apps/MetadataApp.tsx` + `MetadataPage.tsx` | Sort shots into one field's values by drag and drop (issue #42). See [review and tagging](review-and-tagging.md#metadata-board-dashboard). |
+| Files | `apps/FilesApp.tsx` | Folders and files of the project ([files](files.md)) |
+| Projects | `apps/LibraryApps.tsx` + `Projects.tsx` | [Projects](projects.md): list with counts, detail with name, notes and ordered extra fields |
+| Fields | `apps/LibraryApps.tsx` + `Fields.tsx` | [Extra fields](extra-fields.md): list, JSON editor, live preview |
+| Rigs | `apps/LibraryApps.tsx` + `Rigs.tsx` | Rig table (body, format, sensor, speedbooster, lens range, shots) and an editor panel; shared by all projects |
+| Locations | `apps/LibraryApps.tsx` + `Locations.tsx` | Filterable table, inline rename (F2), the pin (Set position `P`, see [positions](positions.md)), counts that open the Gallery filtered to the location, delete |
+| Viewfinder layouts | `apps/LibraryApps.tsx` + `ViewfinderLayouts.tsx` | [Viewfinder layouts](viewfinder-layouts.md); shared by all projects |
+| Settings | `apps/SettingsApp.tsx` + `SettingsPage.tsx`, `settings.ts` | Preferences saved on change, per browser (`localStorage["settings"]`; theme and frame mode keep their own keys): theme, default frame mode, the review state of shots made with New shot (Approved by default), and Timeline → the playhead while a clip is edited inline and what Remove takes on a sequence block's clip. Also `#/settings/shortcuts`. |
+
+An app is a thin wrapper: it reads the shared data store (`data.ts`: one copy for every window, so an edit in one shows in all), keeps what the old `App.tsx` held for its page, reports its title and route, and opens other apps (`open`). The frame mode is one value for every window (`frameMode.ts`, `localStorage["maskMode"]`); a shot window may change its own while it is open.
+
+## URL and keys
+
+- **Hash routes** stay valid as launch commands (`wm/routeBridge.ts`): `#/shots`, `#/shots?view=<id>`, `#/shots/<shotId>?stage=rigs|compose|position`, `#/metadata/<field>`, `#/plan/<dayId>`, `#/timeline/<timelineId>?t=&tool=`, `#/settings[/shortcuts]`, `#/library/projects|fields|rigs|locations|viewfinder/<id>`, `#/files/<folderId>`. On load and on every `hashchange` the hash opens or focuses its window. The address bar always shows the focused window's route (`history.replaceState`, no history entries; the desktop is `#/`), so copying the URL copies what you look at.
+- **Cut position** (issue #35): the Timeline puts the playhead (`t`, seconds) and the inline tool (`tool` = `reframe` · `overlay` · `sketch`) into its window's route 300 ms after they settle (not during playback); it is restored when the window opens.
+- **Keys** (`keys.ts`, `wm/keyboard.ts`): one keydown listener. A page's keys reach it only while its window has focus, so two windows never both react. Global keys (⌘K, `?`, the G jumps, which open or focus an app: G S Gallery, G T Timeline, G P Plan, G D Metadata, G F Files, G L Projects, G M the map) and the window keys (⌘\` or ⌘Alt PgDn next window, ⌘Alt W close, ⌘Alt ←/→ snap, ⌘Alt ↑ maximize, ⌘Alt ↓ minimize, ⌘Alt D show the desktop) work everywhere. An open dialog, palette or menu pauses them all. Alt+letter keys match the physical key (Option on a Mac, AltGr layouts).
+- **Installable (PWA)**: `public/manifest.webmanifest` (standalone, start `/`), icons in `public/icons/`, linked from `index.html` with `crossorigin="use-credentials"` so the manifest request carries the Access cookie. No service worker (nothing is cached offline; Chrome and Edge install without one). The `theme-color` meta follows the Sun/Set surface (`theme.ts`). Icons: `favicon.svg` (pixel-snapped for 16 px), `icon-192/512.png`, `icon-maskable-512.png`.
+
+## Gallery (shots)
+
+- **Toolbar**:
+  - title: "Shots" or the saved view's name. It is also the **views picker**: All shots, the project's saved views (an open one with unsaved edits is marked Edited), New view…. Then an **Edited** marker and Save · Save as new… · Revert; the view menu has Rename… and Delete view…
+  - **New shot** (`⇧N`): upload images or draw a sketch ([new shot](new-shot.md))
+  - search (`/`) over name, location, rig and project
+  - **Filter** (`F`) opens the rule-builder side panel (nested all/any groups over state, project, name, location, INT/EXT, light, artificial, weather, shot size, camera support, movement, has position, rig, lens, FF-equivalent, photos in shot, date and the extra fields; the model is `packages/vocab/src/filter.ts`)
+  - the layout switch and the frame-mode switch (mask/frame/fit/raw, `M` cycles; global, `localStorage["maskMode"]`)
+- **Sub-toolbar**: the state switch (All · Unreviewed · Approved · Archived) with counts **inside the current filter**, the active top-level rules as removable pills, the result count and the sort (newest, oldest, name).
+- **Saved views** store the rule filter plus the state switch (as a leading "state is …" rule, `encodeView`/`decodeView` in `shotsQuery.ts`). Leaving a view with unsaved edits asks first: picking another view, closing the Gallery window, or switching project (`apps/useAppGuard.ts`). "Save view…" appears as soon as a filter has rules.
+- **Grid**: cards with the framed cover, SEQ badge (top left; moving the mouse across a sequence card **scrubs** its photos, see [review](review-and-tagging.md)), state marker (top right), title, "place · INT/EXT · light". Arrow keys move, Enter opens.
+- **List**: a table with checkboxes (click, Shift-click for a range, `X`/`⇧X`; a range starts at the last toggled row, else the focused one, and takes that row's state, so it can also deselect), `J`/`K` to move, Enter to open; a selection bar offers "Select all", Clear (Esc), "Move to project…" (`⇧M`), "Edit…" (`E`) and "Delete n shots…" (with confirmation). Bulk edits go through `PATCH /api/shots` in one transaction and offer Undo in the toast (`BulkEdit.tsx`).
+  - **Move to project…**: a dialog with the project picker (type a new name and pick "Create “…”" to make the project on the spot), where the shots are now, how many are already in the target, and a warning when shots leave shooting days of their project.
+  - **Edit…**: a 500 px side panel "Edit n shots" with every field of the inspector: project (a new one can be created inline), name, review state, location (search or create), INT/EXT, light phases, artificial light, weather, shot size, camera support, movement, and the extra fields that every target project uses (the others are counted as hidden). Nothing changes until touched; a field where the shots differ says "Mixed · n values", and "Clear all" empties a field for every shot. An edited field gets an accent bar, a bold label, "Edited", a reset button and an "n of m change" button that opens the before/after dialog: each selected shot with its current value struck through and the value after apply (shots that already have the value are folded away, "Show unchanged shots" lists them). "Review" in the panel foot shows that dialog for all edited fields; "Apply to n shots" sends only the edited fields, for only the shots that change. The panel stays open on the selection afterwards, showing the new values.
+  - While the panel is open, a row click selects instead of opening, so the selection can be adjusted with the diffs updating live. Esc (or the close button) closes it and asks before discarding edits.
+  - Patch semantics: Light phases and Artificial are separate fields. An extra field is set per key; a group merges child by child (editing "Parking" keeps each shot's "Power"), and a changed parent drops dependent selects that no longer fit (`patchExtra` in `packages/vocab`).
+- **Map**: the result list on the left and one state pin per shot (shots captured without GPS stay in the list as "No position · not on the map"); selecting a row focuses its pin and opens the popup (framed thumbnail, state, "Open details"). "Fit all" fits the pins. "Show on map" from a shot switches to this layout with the pin focused and the filter kept (cleared when the shot is outside it).
+- States: skeleton cards while loading, "No shots in <project> yet" (switch project), "No shots match" (edit or clear the filter), a load-error banner with Retry.
+
+## Keyboard
+
+Every shortcut is declared once in the registry `src/shortcuts.ts` (issue #32): scope, action, keys and label. Pages bind handlers by action (`useKeys(bind("timeline", { next, play, … }))` in `keys.ts`), so no page writes a key string. The `?` sheet, **Settings › Shortcuts** (`#/settings/shortcuts`, read-only, no rebinding yet) and [docs/shortcuts.md](../shortcuts.md) are rendered from it. There is no key hint bar on the desktop.
+
+- Single keys never fire while typing in a field. Plain letters step aside for 1.2 s after `G`, so `G T` on Plan or `G P` on the Timeline or Locations jumps instead of acting on the page (they used to collide).
+- Each scope lists the scopes live with it in one window (`SCOPES[id].with`); `global` and `wm` are live next to every scope. `pnpm -C apps/dashboard test` fails when a key does two things there, and when docs/shortcuts.md drifts. The drawing and re-frame editors on the timeline stage and the rig editor are modal: the page's keys pause while they are open.
+- The audit's changes: Shots list bulk edit is `B` (`E` archives everywhere else); on the Timeline `A`/`E` act on the clip's shot while the clip panel shows, on the browser's selection while the browser does (separate scopes, so `D` and Del only work with the clip panel open, as before).
+
+## Shared pieces
+
+- `ui/`: the component library; pages build from it instead of writing `f-*` markup ([design](../design.md#dashboard-component-library)).
+- `Framed.tsx`: a photo with its frame (optional frame override), also used in the map popup; `FramedThumb` is the map list's thumbnail.
+- `format.ts`: `cover`, labels, frame geometry, `filterable(shot)`. `api.ts`: types and calls; a `401` reloads the page (Access login).
+- Styles: design-system tokens and component classes in `ui/design/*.css` (the rework's additions, such as toolbar, panels, tables, stage, plan grid, palette and JSON editor, are in `ui/design/dashboard.css`; the desktop's windows, taskbar and icons in `ui/design/desktop.css`), the library's own additions in `ui/design/components.css`, page layouts in `styles.css`. See [design](../design.md).

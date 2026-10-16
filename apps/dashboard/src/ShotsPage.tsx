@@ -42,7 +42,7 @@ interface Props {
   onSwitchScope: () => void;
   /** Open the New shot dialog (upload images or draw). */
   onNewShot: () => void;
-  /** The project's saved views, picked from the title menu (the desktop has no sidebar listing them). */
+  /** The project's saved views, picked from the title menu (no other place lists them). */
   views?: SavedView[];
   onPickView?: (id: string | null) => void;
   onNewView?: () => void;

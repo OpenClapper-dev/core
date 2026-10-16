@@ -37,5 +37,5 @@ A **Spot** is a named place within a location (the north gate, the roof, the bri
 ## Code
 
 - Worker: `apps/worker/src/projects.ts`
-- Dashboard: `App.tsx` (active project, filtering), `Projects.tsx`
+- Dashboard: `project.ts` (active project, switch guards), `data.ts` (`useProjectData`: one project's slice), `wm/Shell.tsx` (gate, desktop per project), `Projects.tsx`, `apps/LibraryApps.tsx`
 - Phone: `App.tsx`, `screens/Gates.tsx`, `components/ProjectSheet.tsx`, `namedSync.ts`, `storage.ts`
