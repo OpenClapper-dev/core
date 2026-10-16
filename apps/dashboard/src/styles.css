@@ -499,3 +499,16 @@ button { font: inherit; }
 .vf-bar-ed.is-readonly { opacity: 0.75; }
 .vf-bar-ed__head, .vf-item-ed { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .vf-item-ed__name { font-weight: 700; min-width: 90px; }
+/* Drag and drop (issue #68): grips, the dragged item dimmed, an accent line where it lands. */
+.vf-bar-ed__head[draggable="true"], .vf-item-ed[draggable="true"], .vf-pv-item[draggable="true"], .vf-tray__chip { cursor: grab; }
+.vf-grip { color: var(--text-dim); }
+.vf-bar-ed.is-dragging, .vf-item-ed.is-dragging, .vf-pv-item.is-dragging { opacity: 0.4; }
+.vf-items-ed { display: flex; flex-direction: column; gap: 6px; min-height: 28px; }
+.vf-drop { display: block; height: 3px; border-radius: 2px; background: var(--accent); flex: none; }
+.vf-drop--bar { margin: -6px 0 4px; }
+.vf-drop--pv { width: 4px; height: auto; align-self: stretch; margin: 4px 0; }
+.vf-drop--pv.vf-drop--v { width: auto; height: 4px; margin: 0 4px; }
+.vf-pv-item { display: flex; align-self: stretch; align-items: center; justify-content: center; flex: none; }
+.vf-pv-item.is-fill, .vf-pv-item:has(> .vf-cell:not(.is-fixed)) { flex: 1; }
+.vf-bar.is-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.vf-tray { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
