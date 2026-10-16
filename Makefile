@@ -1,6 +1,6 @@
 # Thin wrappers around the pnpm scripts in package.json, which stay the source
 # of truth. Everything runs in the foreground; stop a server with Ctrl-C.
-.PHONY: help init dev worker dashboard mobile dev-build login deploy apk-cloud apk-local
+.PHONY: help init all all-stop dev worker dashboard mobile dev-build login deploy apk-cloud apk-local
 
 # Wrangler's OAuth token lacks account:read, so commands that look up the account need the id.
 export CLOUDFLARE_ACCOUNT_ID ?= 3868cbc17be171c90972dd32e41e7783
@@ -11,6 +11,12 @@ help: ## Show this list
 
 init: ## Write the gitignored dev files and apply D1 migrations (once per checkout)
 	pnpm dev:init
+
+all: ## Everything local in one tmux session: Worker, dashboard and mobile (tunnel + Metro) in split panes
+	bash scripts/dev-all.sh
+
+all-stop: ## Stop the tmux session of `make all`
+	tmux kill-session -t fielder
 
 dev: ## Worker on :8787 and dashboard on :5173, in parallel
 	pnpm dev
