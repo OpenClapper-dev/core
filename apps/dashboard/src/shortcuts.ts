@@ -10,7 +10,7 @@
  */
 
 export type ScopeId =
-  | "global" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "compose" | "draw" | "reframe"
+  | "global" | "wm" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "compose" | "draw" | "reframe"
   | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox";
 
 export interface Scope {
@@ -25,6 +25,7 @@ export interface Scope {
  */
 export const SCOPES: Record<ScopeId, Scope> = {
   global: { label: "Everywhere", with: [] },
+  wm: { label: "Windows (always live, like Everywhere)", with: [] },
   shots: { label: "Shots", with: ["shots.grid", "shots.list", "map"] },
   "shots.grid": { label: "Shots · grid", with: ["shots"] },
   "shots.list": { label: "Shots · list", with: ["shots"] },
@@ -74,13 +75,24 @@ export const SHORTCUTS = [
   // ---- everywhere
   { scope: "global", action: "palette", keys: ["Mod+k"], label: "Go to… (command palette)", hint: "Go to" },
   { scope: "global", action: "sheet", keys: ["?"], label: "All shortcuts" },
-  { scope: "global", action: "sidebar", keys: ["Mod+b"], label: "Collapse or expand the sidebar" },
-  { scope: "global", action: "goShots", keys: ["s"], chord: "g", label: "Go to Shots" },
-  { scope: "global", action: "goTimeline", keys: ["t"], chord: "g", label: "Go to Timeline" },
-  { scope: "global", action: "goPlan", keys: ["p"], chord: "g", label: "Go to Plan" },
-  { scope: "global", action: "goLibrary", keys: ["l"], chord: "g", label: "Go to the Library" },
+  { scope: "global", action: "goShots", keys: ["s"], chord: "g", label: "Open the Gallery (shots)" },
+  { scope: "global", action: "goTimeline", keys: ["t"], chord: "g", label: "Open Timeline" },
+  { scope: "global", action: "goPlan", keys: ["p"], chord: "g", label: "Open Plan" },
+  { scope: "global", action: "goMetadata", keys: ["d"], chord: "g", label: "Open Metadata" },
+  { scope: "global", action: "goFiles", keys: ["f"], chord: "g", label: "Open Files" },
+  { scope: "global", action: "goLibrary", keys: ["l"], chord: "g", label: "Open Projects (the library)" },
   { scope: "global", action: "goMap", keys: ["m"], chord: "g", label: "Shots on the map" },
   { scope: "global", action: "back", keys: ["Escape"], info: true, label: "Close or back out one level" },
+
+  // ---- Windows (the desktop shell, epic #72)
+  { scope: "wm", action: "next", keys: ["Mod+`", "Mod+Alt+PageDown"], label: "Next window" },
+  { scope: "wm", action: "prev", keys: ["Mod+Alt+PageUp"], label: "Previous window" },
+  { scope: "wm", action: "close", keys: ["Mod+Alt+w"], label: "Close the window" },
+  { scope: "wm", action: "minimize", keys: ["Mod+Alt+ArrowDown"], label: "Minimize the window" },
+  { scope: "wm", action: "maximize", keys: ["Mod+Alt+ArrowUp"], label: "Maximize or restore the window" },
+  { scope: "wm", action: "snapLeft", keys: ["Mod+Alt+ArrowLeft"], label: "Snap the window to the left half" },
+  { scope: "wm", action: "snapRight", keys: ["Mod+Alt+ArrowRight"], label: "Snap the window to the right half" },
+  { scope: "wm", action: "desktop", keys: ["Mod+Alt+d"], label: "Show the desktop (again: bring the windows back)" },
 
   // ---- Shots
   { scope: "shots", action: "search", keys: ["/"], label: "Focus the search", hint: "Search" },

@@ -1,6 +1,7 @@
 import type { ComponentChildren } from "preact";
 import { useRef } from "preact/hooks";
 import { cx, Icon, IconButton } from "../ui";
+import { WindowIdContext } from "./keyboard";
 import { HANDLE_DIRS, useWindowDrag } from "./useWindowDrag";
 import * as wm from "./wm";
 import type { Win } from "./wm";
@@ -32,7 +33,7 @@ export function Window({ win, icon, focused, children }: { win: Win; icon: strin
           <IconButton icon="close" label="Close" class="wm-window__close" onClick={() => wm.close(win.id)} />
         </div>
       </div>
-      <div class="wm-window__content">{children}</div>
+      <div class="wm-window__content"><WindowIdContext.Provider value={win.id}>{children}</WindowIdContext.Provider></div>
       {normal && HANDLE_DIRS.map((dir) => (
         <div key={dir} class={`wm-handle wm-handle--${dir}`} onPointerDown={(e) => onHandlePointerDown(e, dir)} />
       ))}
