@@ -9,6 +9,7 @@ import { bind, useKeys } from "../keys";
 import { setProjectId, switchProject, useProjectId } from "../project";
 import { ProjectGate } from "../Projects";
 import { routeHash } from "../router";
+import { useSettings } from "../settings";
 import { setTheme, useTheme } from "../theme";
 import { Button, ConfirmHost, Empty, Loading, toast, ToastHost } from "../ui";
 import { requestClose } from "./closeGuards";
@@ -88,6 +89,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const windows = wm.useAllWindows();
   const activeWs = wm.useActiveWs();
   const split = wm.useSplit();
+  const settings = useSettings();
   const focusedId = wm.useFocusedId();
   const preview = wm.useSnapPreview();
   const overlay = useOverlay();
@@ -159,7 +161,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   ];
 
   return (
-    <div class="wm-root">
+    <div class="wm-root" data-taskbar={settings.taskbarPosition}>
       <div ref={area} class="wm-area" style={{ "--wm-split": String(split) }}>
         <Desktop projectId={projectId} />
         {/* Every workspace's windows stay mounted (apps keep their state); the others are hidden. */}

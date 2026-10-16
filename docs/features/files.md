@@ -37,6 +37,8 @@ The desktop's explorer (epic #72): a project's shots, timelines, shooting days, 
 
 ## Desktop icons (`apps/dashboard/src/wm/Desktop.tsx`)
 
+- Icons dragged onto the taskbar are pinned there (they stay on the desktop too); see [desktop](desktop.md#taskbar-launcher-desktop).
+
 - **Two kinds of icon**, both `desktop_items` rows (the position lives there, on the server):
   - **Real items**: the files and folders of the Desktop folder. No arrow; renaming renames the file itself, deleting moves it to the recycle bin. Moving one out of the Desktop folder (in Files, or by dropping it onto a folder icon) removes its icon; putting one in (dropping files from Files, Move to the desktop, New folder on the desktop) gives it one. Something put into the Desktop folder elsewhere (another browser, a restore) gets its icon on the next free cell.
   - **Shortcuts**: apps, and files or folders that live elsewhere. A small arrow marks a shortcut to a file or folder; renaming sets the shortcut's label (empty = the item's name again); removing it leaves the target alone. One shortcut per target: adding it again flashes the existing icon. A shortcut whose target is gone is not shown.

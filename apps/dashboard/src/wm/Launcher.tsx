@@ -1,12 +1,15 @@
 import { useEffect, useRef } from "preact/hooks";
 import { APPS, launch, type AppId } from "../apps/registry";
 import { ContextMenu, Icon, MenuItem, useCtxMenu, useOutsideClick } from "../ui";
-import * as wm from "./wm";
+import { pinnedApp, togglePinApp } from "../apps/fileOps";
+import * as data from "../data";
+import { useProjectId } from "../project";
 
-/** The launcher popover above the taskbar: every registered app; right-click pins to the taskbar. */
+/** The launcher popover next to the taskbar: every registered app; right-click pins to the taskbar (on the server, epic #90). */
 export function Launcher({ onClose }: { onClose: () => void }) {
   const box = useRef<HTMLDivElement>(null);
-  const pins = wm.usePins();
+  data.useData(); // re-render when the pins change
+  const projectId = useProjectId();
   const { menu, openMenu, closeMenu } = useCtxMenu<AppId>();
   useOutsideClick(() => box.current, onClose);
   useEffect(() => {
@@ -31,9 +34,9 @@ export function Launcher({ onClose }: { onClose: () => void }) {
       {menu && (
         <ContextMenu x={menu.x} y={menu.y} label="App actions" onClose={closeMenu}>
           <MenuItem icon="open-in-app" onClick={() => { launch({ app: menu.ctx }); onClose(); }}>Open</MenuItem>
-          <MenuItem icon={pins.includes(menu.ctx) ? "pin-off-outline" : "pin-outline"} onClick={() => wm.togglePin(menu.ctx)}>
-            {pins.includes(menu.ctx) ? "Unpin from taskbar" : "Pin to taskbar"}
-          </MenuItem>
+          {projectId && <MenuItem icon={pinnedApp(menu.ctx) ? "pin-off-outline" : "pin-outline"} onClick={() => void togglePinApp(projectId, menu.ctx)}>
+            {pinnedApp(menu.ctx) ? "Unpin from taskbar" : "Pin to taskbar"}
+          </MenuItem>}
         </ContextMenu>
       )}
     </>
