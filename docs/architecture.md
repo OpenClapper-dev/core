@@ -6,8 +6,8 @@ Single-user tool for film location scouting and shoot planning. A phone (Android
 
 | Path | Stack | Role |
 | --- | --- | --- |
-| `apps/worker` | Cloudflare Worker, D1 (SQLite), R2 | JSON API, image proxy, serves the dashboard as static assets. Hand-written router (`src/http.ts`). |
-| `apps/dashboard` | Vite + Preact + Leaflet, plain CSS (component library and design-system classes in `src/ui/`, layouts in `src/styles.css`), a desktop shell (window manager in `src/wm/`, one app per page in `src/apps/`, shared data store `src/data.ts`), hash routes as launch commands | Web UI. Built into `dist/`, served by the Worker. |
+| `apps/worker` | Cloudflare Worker, D1 (SQLite), R2, a daily cron | JSON API, image proxy, serves the dashboard as static assets. Hand-written router (`src/http.ts`). The cron (`scheduled` in `src/index.ts`) empties what has been in the recycle bin for 30 days. |
+| `apps/dashboard` | Vite + Preact + Leaflet, plain CSS (component library and design-system classes in `src/ui/`, layouts in `src/styles.css`), a desktop shell (window manager with workspaces in `src/wm/`, one app per page in `src/apps/`, shared data store `src/data.ts`), hash routes as launch commands | Web UI: a desktop per project with windows, workspaces, a taskbar, folders and a recycle bin ([desktop](features/desktop.md), [files](features/files.md)). Built into `dist/`, served by the Worker. |
 | `apps/mobile` | Expo SDK 57, React Native 0.86, react-native-vision-camera; runs as a **development build** (Fielder Dev) or an APK, not in Expo Go | Viewfinder, capture, review, shots, day mode; 5 tabs plus pushed screens ([phone app](features/phone-app.md)). Own component library in `src/ui/`. |
 | `packages/fov-math` | Pure TS, `node --test` | Camera bodies/formats, lenses, speedboosters, FOV and overlay math, re-framing. |
 | `packages/vocab` | Pure TS, `node --test` | Shared vocabularies (light, weather, INT/EXT, states), filter model, extra-field definitions, sun/daylight math. |
@@ -30,6 +30,7 @@ The phone uses the **deployed** Worker, even in the dev loop. The dashboard dev 
 - **Project**: every shot belongs to one. The active project is chosen once per client and remembered. See [projects](features/projects.md).
 - **Shot vs photo**: a shot carries the metadata (name, tags, review state, extra fields); it owns 1..n photos. A sequence is one shot with many photos. Rig, lens, framing and GPS are per photo. The first photo is the **cover** (`cover(shot)` in both clients).
 - **Location, view, field definition**: belong to one project (a hard scope, [issue #44](https://github.com/bubulux/fielder/issues/44)); rigs are shared by all projects.
+- **Recycle bin**: deleting a shot, timeline, day, view, location, field or folder only marks it (`deleted_at`); every list leaves it out, and it can be restored for 30 days ([files](features/files.md#recycle-bin-epic-90), `apps/worker/src/trash.ts`).
 - **Client-owned UUIDs**: projects, locations, rigs, views, days and shots get their id on the client. PUT is an upsert, which allows offline creation. Name clashes on projects/locations answer `409` + `existing_id` so the client adopts the existing row (`apps/mobile/src/namedSync.ts`).
 
 ## Auth
@@ -42,6 +43,6 @@ Cloudflare Access (One-time PIN) in front of the Worker hostname, and the Worker
 
 ## Principles worth keeping
 
-- **The phone never loses a capture.** Uploads are idempotent; the server nulls stale references (deleted rig/location) and cuts overlong names instead of rejecting; rejected shots stay in the queue flagged `stuck` instead of being deleted; drafts and running sequences survive app restarts.
+- **The phone never loses a capture.** Uploads are idempotent; the server nulls stale references (deleted rig/location) and cuts overlong names instead of rejecting; an upload or edit to a shot in the recycle bin brings it back; rejected shots stay in the queue flagged `stuck` instead of being deleted; drafts and running sequences survive app restarts.
 - **Validation lives in `packages/vocab`** and is reused by the Worker. Interactive edits (PATCH) are validated strictly, uploads leniently.
 - **Worker handlers** use the `assert*` helpers from `src/http.ts` and throw `HttpError`; D1 has a 100-bound-parameter limit, so id lists are passed as one JSON string and expanded with `json_each`.
