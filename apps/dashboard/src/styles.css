@@ -521,6 +521,7 @@ button { font: inherit; }
 
 /* Files (the desktop's explorer, epic #72): folder tree | toolbar + rows or tiles. */
 .files-side { display: flex; flex-direction: column; padding: var(--space-2) var(--space-2) var(--space-4); gap: 1px; }
+.files-side__sep { height: var(--bw); margin: var(--space-3) var(--space-2) var(--space-2); background: var(--border-subtle); }
 .files-side__label { padding: var(--space-3) var(--space-2) var(--space-1); font: var(--weight-bold) var(--text-micro)/1 var(--font-sans); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-dim); }
 .files-node { display: flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: var(--weight-medium) var(--text-small)/1.2 var(--font-sans); text-align: left; cursor: pointer; width: 100%; }
 .files-node > .mdi { font-size: 17px; flex: none; }
@@ -554,3 +555,12 @@ button { font: inherit; }
 .files-list--grid .files-row__main { align-items: center; width: 100%; }
 .files-list--grid > .f-empty, .files-list--grid > [class*="empty"] { grid-column: 1 / -1; }
 .files-picker { display: flex; flex-direction: column; max-height: min(56vh, 460px); overflow: auto; }
+
+/* ---------- Recycle bin (apps/TrashApp.tsx, epic #90) ---------- */
+.trash__table tbody tr { cursor: default; user-select: none; }
+.trash__name { display: flex; align-items: center; gap: var(--space-3); }
+.trash__name b { display: block; }
+.trash__name small { display: block; }
+.trash__icon { display: flex; align-items: center; justify-content: center; flex: none; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--surface-sunken); border: var(--bw) solid var(--border-subtle); overflow: hidden; color: var(--text-dim); }
+.trash__icon img { width: 100%; height: 100%; object-fit: cover; }
+.trash__soon { color: var(--danger); font-weight: var(--weight-semibold); }

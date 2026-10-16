@@ -36,6 +36,7 @@ test("taskbar items carry an area and an integer position", () => {
 
 test("the bin takes every file type and folders, and counts down from 30 days", () => {
   assert.deepEqual([...TRASH_TYPES], [...FILE_RESOURCE_TYPES, "folder"]);
+  assert.ok((APP_IDS as readonly string[]).includes("trash"));
   const now = Date.parse("2026-10-16T12:00:00Z");
   assert.equal(trashDaysLeft("2026-10-16T12:00:00Z", now), TRASH_RETENTION_DAYS);
   assert.equal(trashDaysLeft("2026-10-06T11:00:00Z", now), 20);

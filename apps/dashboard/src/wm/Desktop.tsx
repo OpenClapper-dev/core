@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { FILE_RESOURCE_TYPES, FILE_TYPE_META } from "@fielder/vocab";
 import type { DesktopItem } from "../api";
-import { addShortcut, moveShortcut, newFolder, removeShortcut, renameShortcut } from "../apps/fileOps";
+import { addShortcut, deleteEntry, moveShortcut, newFolder, removeFolder, removeShortcut, renameShortcut } from "../apps/fileOps";
+import { emptyBin } from "../apps/trashOps";
+import { useSettings } from "../settings";
 import { openShortcut, shortcutView, useFileEntries } from "../apps/fileEntries";
 import { APPS, launch, type AppId } from "../apps/registry";
 import * as data from "../data";
 import { FILE_DRAG, freeCell, matches, type FileDrag } from "../fileTree";
 import { setTheme, useTheme } from "../theme";
-import { Button, ContextMenu, cx, Icon, MenuItem, Modal, SearchInput, useCtxMenu } from "../ui";
+import { Button, ContextMenu, cx, Icon, MenuItem, Modal, SearchInput, toast, useCtxMenu } from "../ui";
 import * as wm from "./wm";
 
 /** The icon grid: a cell per icon, column after column like a desktop. */
@@ -35,6 +37,30 @@ export function Desktop({ projectId }: { projectId: string }) {
   const deskMenu = useCtxMenu<{ x: number; y: number }>();
   const iconMenu = useCtxMenu<{ item: DesktopItem; name: string }>();
   const [theme] = useTheme();
+  const settings = useSettings();
+  const binMenu = useCtxMenu<null>();
+  const [binDrop, setBinDrop] = useState(false);
+  const binEl = useRef<HTMLButtonElement>(null);
+  const binFull = (d.trash?.projectId === projectId ? d.trash.entries.length : 0) > 0;
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = box.current!;
+    const fit = () => setSize({ w: el.clientWidth, h: el.clientHeight });
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  // The bin's spot is per browser (it is not a desktop item); by default the bottom-right cell.
+  const binKey = `desktop.bin.${projectId}`;
+  const [binSaved, setBinSaved] = useState<{ x: number; y: number } | null>(null);
+  useEffect(() => { try { const v = JSON.parse(localStorage.getItem(binKey) ?? "null") as { x: number; y: number } | null; setBinSaved(v && Number.isFinite(v.x) && Number.isFinite(v.y) ? v : null); } catch { setBinSaved(null); } }, [binKey]);
+  const binAt = binSaved
+    ? { x: Math.min(binSaved.x, Math.max(PAD, size.w - CELL.w)), y: Math.min(binSaved.y, Math.max(PAD, size.h - CELL.h)) }
+    : { x: snap(Math.max(PAD, size.w - CELL.w - PAD), CELL.w / 2), y: snap(Math.max(PAD, size.h - CELL.h - PAD), CELL.h / 2) };
+  const moveBin = (x: number, y: number) => { const v = { x: Math.max(PAD, Math.round(x)), y: Math.max(PAD, Math.round(y)) }; setBinSaved(v); try { localStorage.setItem(binKey, JSON.stringify(v)); } catch { /* a preference */ } };
+  /** Is the pointer over the bin icon (under whatever is being dragged)? */
+  const overBin = (e: { clientX: number; clientY: number }) => document.elementsFromPoint(e.clientX, e.clientY).some((el) => el === binEl.current);
 
   // A project's first visit (in this browser, with nothing on its desktop) gets the main apps.
   useEffect(() => {
@@ -77,17 +103,61 @@ export function Desktop({ projectId }: { projectId: string }) {
       moved = true;
       el.style.transform = `translate(${dx}px, ${dy}px)`;
       el.classList.add("is-dragging");
+      binEl.current?.classList.toggle("is-drop", overBin(ev));
     };
     const up = (ev: PointerEvent) => {
       el.removeEventListener("pointermove", move);
       el.removeEventListener("pointerup", up);
       el.style.transform = "";
       el.classList.remove("is-dragging");
-      if (moved) void moveShortcut(item, snap(item.x + ev.clientX - start.x, CELL.w / 2), snap(item.y + ev.clientY - start.y, CELL.h / 2));
+      binEl.current?.classList.remove("is-drop");
+      if (!moved) return;
+      // Onto the bin: a shortcut is only removed, never what it points at.
+      if (overBin(ev)) { void removeShortcut(item).then(() => toast("Shortcut removed", "ok")); return; }
+      void moveShortcut(item, snap(item.x + ev.clientX - start.x, CELL.w / 2), snap(item.y + ev.clientY - start.y, CELL.h / 2));
     };
     el.setPointerCapture(e.pointerId);
     el.addEventListener("pointermove", move);
     el.addEventListener("pointerup", up);
+  };
+
+  /** The bin moves like an icon; a press without movement is a click. */
+  const onBinDown = (e: PointerEvent) => {
+    if (e.button !== 0) return;
+    const el = e.currentTarget as HTMLElement;
+    const start = { x: e.clientX, y: e.clientY };
+    let moved = false;
+    const move = (ev: PointerEvent) => {
+      const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
+      if (!moved && Math.abs(dx) < 4 && Math.abs(dy) < 4) return;
+      moved = true;
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      el.classList.add("is-dragging");
+    };
+    const up = (ev: PointerEvent) => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.style.transform = "";
+      el.classList.remove("is-dragging");
+      if (moved) moveBin(snap(binAt.x + ev.clientX - start.x, CELL.w / 2), snap(binAt.y + ev.clientY - start.y, CELL.h / 2));
+    };
+    el.setPointerCapture(e.pointerId);
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+  };
+  /** A file or folder dragged from Files onto the bin goes to the recycle bin. */
+  const binDropProps = {
+    onDragOver: (e: DragEvent) => { if (e.dataTransfer?.types.includes(FILE_DRAG)) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; setBinDrop(true); setDrop(false); } },
+    onDragLeave: () => setBinDrop(false),
+    onDrop: (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setBinDrop(false);
+      let p: FileDrag | null = null;
+      try { p = JSON.parse(e.dataTransfer?.getData(FILE_DRAG) || "null") as FileDrag | null; } catch { /* not ours */ }
+      if (p?.kind === "folder") { const f = files?.folders.find((x) => x.id === p!.id); if (f) void removeFolder(f); }
+      else if (p) { const entry = entries[p.type].find((x) => x.id === p!.id); if (entry) void deleteEntry(entry, projectId); }
+    },
   };
 
   return (
@@ -120,6 +190,27 @@ export function Desktop({ projectId }: { projectId: string }) {
           <span class="wm-icon__label">{view.name}</span>
         </button>
       ))}
+      {settings.binOnDesktop && (
+        <button ref={binEl} type="button" data-icon-id="bin" class={cx("wm-icon wm-icon--bin", sel === "bin" && "is-selected", binDrop && "is-drop")}
+          style={{ left: `${binAt.x}px`, top: `${binAt.y}px` }} title={binFull ? "Recycle bin: open it, or drop files here" : "Recycle bin (empty)"} aria-label="Recycle bin"
+          onPointerDown={(e) => { setSel("bin"); onBinDown(e); }}
+          onDblClick={() => launch({ app: "trash" })}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); launch({ app: "trash" }); } }}
+          onFocus={() => setSel("bin")}
+          onContextMenu={(e) => { setSel("bin"); binMenu.openMenu(e, null); }}
+          {...binDropProps}>
+          <span class="wm-icon__glyph"><Icon name={binFull ? "delete" : "delete-empty-outline"} size={34} /></span>
+          <span class="wm-icon__label">Recycle bin</span>
+        </button>
+      )}
+      {binMenu.menu && (
+        <ContextMenu x={binMenu.menu.x} y={binMenu.menu.y} label="Recycle bin" onClose={binMenu.closeMenu}>
+          <MenuItem icon="open-in-app" onClick={() => launch({ app: "trash" })}>Open</MenuItem>
+          <MenuItem icon="delete-empty-outline" danger disabled={!binFull} onClick={() => void emptyBin(projectId)}>Empty the bin…</MenuItem>
+          <div class="f-menu__sep" />
+          <MenuItem icon="eye-off-outline" onClick={() => launch({ app: "settings" })}>Hide it (Settings › Desktop)…</MenuItem>
+        </ContextMenu>
+      )}
       {deskMenu.menu && (
         <ContextMenu x={deskMenu.menu.x + (box.current?.getBoundingClientRect().left ?? 0)} y={deskMenu.menu.y + (box.current?.getBoundingClientRect().top ?? 0)} label="Desktop" onClose={deskMenu.closeMenu}>
           <MenuItem icon="folder-plus-outline" onClick={() => {

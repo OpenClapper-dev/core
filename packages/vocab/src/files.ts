@@ -12,7 +12,7 @@ export const DESKTOP_ITEM_KINDS = ["resource", "folder", "app"] as const;
 export type DesktopItemKind = (typeof DESKTOP_ITEM_KINDS)[number];
 
 /** Every app of the dashboard desktop (the shell's registry uses the same ids). */
-export const APP_IDS = ["gallery", "shot", "timeline", "plan", "metadata", "files", "projects", "fields", "rigs", "locations", "viewfinder", "settings"] as const;
+export const APP_IDS = ["gallery", "shot", "timeline", "plan", "metadata", "files", "projects", "fields", "rigs", "locations", "viewfinder", "settings", "trash"] as const;
 export type AppIdV = (typeof APP_IDS)[number];
 
 /** Folder nesting limit, counted from the root (a top-level folder has depth 1). */

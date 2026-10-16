@@ -11,7 +11,7 @@
 
 export type ScopeId =
   | "global" | "wm" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "compose" | "draw" | "reframe"
-  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop";
+  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop" | "trash";
 
 export interface Scope {
   label: string;
@@ -49,6 +49,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   combobox: { label: "Combobox", with: [] },
   files: { label: "Files", with: [] },
   desktop: { label: "Desktop icons", with: [] },
+  trash: { label: "Recycle bin", with: [] },
 };
 
 export interface Shortcut {
@@ -107,7 +108,7 @@ export const SHORTCUTS = [
   { scope: "shots.list", action: "open", keys: ["Enter"], label: "Open the shot" },
   { scope: "shots.list", action: "bulk", keys: ["b"], label: "Bulk edit the selected shots" },
   { scope: "shots.list", action: "move", keys: ["Shift+M"], label: "Move the selected shots to a project" },
-  { scope: "shots.list", action: "remove", keys: ["Delete"], label: "Delete the selected shots" },
+  { scope: "shots.list", action: "remove", keys: ["Delete"], label: "Move the selected shots to the recycle bin" },
   { scope: "shots.list", action: "clear", keys: ["Escape"], pass: true, label: "Close bulk edit · clear the selection" },
   { scope: "map", action: "move", keys: ["ArrowUp", "ArrowDown"], info: true, label: "Move in the list" },
   { scope: "map", action: "open", keys: ["Enter"], info: true, label: "Open the shot" },
@@ -210,7 +211,7 @@ export const SHORTCUTS = [
   { scope: "locations", action: "rename", keys: ["F2"], label: "Rename" },
   { scope: "locations", action: "pin", keys: ["p"], label: "Set the position" },
   { scope: "locations", action: "open", keys: ["Enter"], label: "Show its shots" },
-  { scope: "locations", action: "remove", keys: ["Delete"], label: "Delete" },
+  { scope: "locations", action: "remove", keys: ["Delete"], label: "Move to the recycle bin" },
   { scope: "fields", action: "save", keys: ["Mod+s"], label: "Save the field" },
   { scope: "fields", action: "indent", keys: ["Tab"], info: true, label: "Indent in the JSON editor" },
   { scope: "fields", action: "leave", keys: ["Escape"], label: "Leave the editor" },
@@ -222,7 +223,7 @@ export const SHORTCUTS = [
   { scope: "files", action: "open", keys: ["Enter"], label: "Open the item (a folder: go into it)" },
   { scope: "files", action: "parent", keys: ["Backspace", "Alt+ArrowUp"], label: "Up to the parent folder" },
   { scope: "files", action: "rename", keys: ["F2"], label: "Rename" },
-  { scope: "files", action: "remove", keys: ["Delete"], label: "Delete" },
+  { scope: "files", action: "remove", keys: ["Delete"], label: "Move to the recycle bin" },
   { scope: "files", action: "newFolder", keys: ["Shift+N"], label: "New folder here" },
   { scope: "files", action: "drag", keys: ["Drag"], info: true, label: "Onto a folder: move there · onto the desktop: add a shortcut" },
   { scope: "files", action: "menu", keys: ["Right-click"], info: true, label: "Open, rename, move, add to the desktop, delete" },
@@ -231,6 +232,12 @@ export const SHORTCUTS = [
   { scope: "desktop", action: "open", keys: ["Enter"], info: true, label: "Open the focused icon (or double-click it)" },
   { scope: "desktop", action: "drag", keys: ["Drag"], info: true, label: "Move an icon · drop files from Files to add shortcuts" },
   { scope: "desktop", action: "menu", keys: ["Right-click"], info: true, label: "On an icon: open, rename, remove · on the desktop: new folder, new shortcut, arrange" },
+  { scope: "desktop", action: "bin", keys: ["Drag"], info: true, label: "An icon or a file from Files onto the recycle bin: remove the shortcut, or bin the file" },
+  // ---- Recycle bin (epic #90)
+  { scope: "trash", action: "search", keys: ["/"], label: "Focus the search" },
+  { scope: "trash", action: "all", keys: ["Mod+a"], label: "Select everything listed" },
+  { scope: "trash", action: "restore", keys: ["r"], label: "Restore the selected items (or double-click one)" },
+  { scope: "trash", action: "purge", keys: ["Delete"], label: "Delete the selected items permanently" },
 
   // ---- Dialogs and controls
   { scope: "newshot", action: "undo", keys: ["Mod+z"], label: "Undo the last shape" },

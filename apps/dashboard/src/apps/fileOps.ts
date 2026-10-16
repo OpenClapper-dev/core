@@ -1,9 +1,10 @@
 import type { FileResourceType } from "@fielder/vocab";
-import { ApiError, deleteDesktopItem, deleteField, deleteFolder, deleteLocation, deleteShot, deleteView, existingIdOf, patchShot, placeItem, putDesktopItem, putFolder, putLocation, putView, type DesktopItem, type Folder } from "../api";
+import { ApiError, deleteDay, deleteDesktopItem, deleteField, deleteFolder, deleteLocation, deleteShot, deleteTimeline, deleteView, existingIdOf, patchShot, placeItem, putDesktopItem, putFolder, putLocation, putView, type DesktopItem, type Folder } from "../api";
 import * as data from "../data";
-import { folderPath } from "../fileTree";
-import { confirmDialog, promptDialog, toast } from "../ui";
+import { invalidateDays, invalidateTimelines } from "../Inspector";
+import { promptDialog, toast } from "../ui";
 import type { FileEntry } from "./fileEntries";
+import { binned, confirmShotBin } from "./trashOps";
 
 /**
  * Folder, placement and shortcut changes for Files and the desktop: each calls the API, then
@@ -11,7 +12,6 @@ import type { FileEntry } from "./fileEntries";
  */
 
 const fail = (what: string) => (e: unknown) => { toast(`${what} failed: ${(e as Error).message}`, "danger"); };
-const files = () => data.getData().files;
 
 /** Ask for a name and create a folder in `parentId` (null = root). Resolves the new folder. */
 export async function newFolder(projectId: string, parentId: string | null): Promise<Folder | null> {
@@ -45,13 +45,17 @@ export async function moveFolder(f: Folder, parentId: string | null) {
   } catch (e) { if (existingIdOf(e)) toast(`There is already a folder “${f.name}” there`, "danger"); else fail("Moving the folder")(e); }
 }
 
-/** Delete a folder after saying where its contents go (they fall up one level, server side). */
+/** A folder goes to the recycle bin with everything in it (Undo in the toast); the Desktop folder stays. */
 export async function removeFolder(f: Folder): Promise<boolean> {
-  const all = files()?.folders ?? [];
-  const parent = f.parent_id ? folderPath(all, f.parent_id).map((x) => x.name).join(" › ") : null;
-  const ok = await confirmDialog({ title: `Delete the folder “${f.name}”?`, body: `Its subfolders and files move to ${parent ? `“${parent}”` : "the top level"}. Nothing else is deleted.`, confirmLabel: "Delete folder", danger: true });
-  if (!ok) return false;
-  try { await deleteFolder(f.id); await data.loadFiles(f.project_id); toast("Folder deleted"); return true; } catch (e) { fail("Delete")(e); return false; }
+  if (f.kind === "desktop") { toast("The Desktop folder cannot be deleted", "info"); return false; }
+  try {
+    await deleteFolder(f.id);
+    // Its files left every list too: read them again.
+    invalidateTimelines(f.project_id); invalidateDays(f.project_id);
+    await data.load();
+    binned([{ type: "folder", id: f.id }], f.project_id, `The folder “${f.name}” and its contents`);
+    return true;
+  } catch (e) { fail("Delete")(e); return false; }
 }
 
 /** Put files into a folder (null = back to the top level). */
@@ -104,8 +108,8 @@ export async function removeShortcut(d: DesktopItem) {
 
 /** What Files may rename: timelines and days are renamed in their own window (it holds their copy). */
 export const canRename = (t: FileResourceType) => t === "shot" || t === "view" || t === "location";
-/** What Files may delete: timelines and days only in their own window, for the same reason. */
-export const canDelete = (t: FileResourceType) => t !== "timeline" && t !== "day";
+/** Everything can go to the recycle bin from Files (an open Timeline or Plan drops it from its list). */
+export const canDelete = (_t: FileResourceType) => true;
 
 export async function renameEntry(e: FileEntry, projectId: string) {
   const name = await promptDialog({ title: `Rename “${e.name}”`, input: { label: "Name", value: e.name }, confirmLabel: "Rename" });
@@ -122,26 +126,20 @@ export async function renameEntry(e: FileEntry, projectId: string) {
   } catch (err) { if (existingIdOf(err)) toast(`“${name}” is taken`, "danger"); else fail("Rename")(err); }
 }
 
-/** Delete a file with the honest consequences of its type; its placement and shortcuts go too. */
-export async function deleteEntry(e: FileEntry): Promise<void> {
-  const prune = () => data.setFiles((cur) => ({ ...cur, items: cur.items.filter((i) => !(i.resource_type === e.type && i.resource_id === e.id)), desktop: cur.desktop.filter((d) => !(d.resource_type === e.type && d.resource_id === e.id)) }));
+/**
+ * Move a file to the recycle bin (Undo in the toast). Only a shot asks first, when timelines or
+ * shooting days would lose it; its placement and shortcuts wait in the bin with it.
+ */
+export async function deleteEntry(e: FileEntry, projectId: string): Promise<void> {
   try {
     if (e.type === "shot") {
-      const choice = await confirmDialog({ title: `Delete “${e.name}”?`, body: "Removes its images, drawings and metadata from the server permanently, and its clips from any timeline. Archive keeps them.", confirmLabel: "Delete", danger: true, altLabel: e.archived ? undefined : "Archive" });
-      if (choice === "alt") { data.updated(await patchShot(e.id, { state: "archived" })); toast("Archived"); return; }
-      if (!choice) return;
+      if (!(await confirmShotBin(projectId, [e.id]))) return;
       await deleteShot(e.id); data.deleted([e.id]);
-    } else if (e.type === "view") {
-      if (!(await confirmDialog({ title: `Delete the view “${e.name}”?`, body: "Only the saved filter is deleted; no shots.", confirmLabel: "Delete view", danger: true }))) return;
-      await deleteView(e.id); data.setViews((cur) => (cur ?? []).filter((x) => x.id !== e.id));
-    } else if (e.type === "location") {
-      if (!(await confirmDialog({ title: `Delete the location “${e.name}”?`, body: "Its spots go with it. Its shots stay, without a location.", confirmLabel: "Delete location", danger: true }))) return;
-      await deleteLocation(e.id); data.setLocations((cur) => (cur ?? []).filter((x) => x.id !== e.id)); data.refreshCounts();
-    } else if (e.type === "field") {
-      if (!(await confirmDialog({ title: `Delete the field “${e.name}”?`, body: "Shots keep their stored values; they are just no longer shown or checked.", confirmLabel: "Delete field", danger: true }))) return;
-      await deleteField(e.id); data.setFields((cur) => (cur ?? []).filter((x) => x.id !== e.id));
-    } else return;
-    prune();
-    toast("Deleted");
+    } else if (e.type === "view") { await deleteView(e.id); data.setViews((cur) => (cur ?? []).filter((x) => x.id !== e.id)); }
+    else if (e.type === "location") { await deleteLocation(e.id); data.setLocations((cur) => (cur ?? []).filter((x) => x.id !== e.id)); data.refreshCounts(); }
+    else if (e.type === "field") { await deleteField(e.id); data.setFields((cur) => (cur ?? []).filter((x) => x.id !== e.id)); }
+    else if (e.type === "timeline") { await deleteTimeline(e.id); invalidateTimelines(projectId); }
+    else if (e.type === "day") { await deleteDay(e.id); invalidateDays(projectId); }
+    binned([{ type: e.type, id: e.id }], projectId, `“${e.name}”`);
   } catch (err) { fail("Delete")(err); }
 }

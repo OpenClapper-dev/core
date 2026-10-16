@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
 import { deleteView, putView, type SavedView, type Shot } from "../api";
+import { binned } from "./trashOps";
 import * as data from "../data";
 import { useMask } from "../frameMode";
 import { useProjectId } from "../project";
@@ -123,9 +124,7 @@ export function GalleryApp({ win, setTitle, replaceRoute, open }: AppProps) {
       try { const saved = await putView({ id: v.id, project_id: v.project_id, name, filter: v.filter }); data.setViews((cur) => (cur ?? []).map((x) => (x.id === saved.id ? saved : x))); setLoadedView({ ...saved, filter: v.filter }); } catch (e) { toast(`Rename failed: ${(e as Error).message}`, "danger"); }
       return;
     }
-    const ok = await confirmDialog({ title: `Delete the view “${v.name}”?`, body: "Only the saved filter is deleted; no shots.", confirmLabel: "Delete view", danger: true });
-    if (!ok) return;
-    try { await deleteView(v.id); data.setViews((cur) => (cur ?? []).filter((x) => x.id !== v.id)); setLoadedView(null); setViewId(null); setQuery(emptyQuery()); toast("View deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
+    try { await deleteView(v.id); data.setViews((cur) => (cur ?? []).filter((x) => x.id !== v.id)); setLoadedView(null); setViewId(null); setQuery(emptyQuery()); binned([{ type: "view", id: v.id }], v.project_id ?? projectId, `The view “${v.name}”`); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
   const newView = async () => { await pickView(null); setPanel(true); };
 
