@@ -1,8 +1,8 @@
 import { groupLayoutProblem, PRESENTATION_MODES, splitDuration, validateGroup, validatePresentation, type ClipGroup, type Presentation } from "@fielder/vocab";
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
-import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
+import { binResource } from "./trash.ts";
 import { clipComposeFor, deleteClipCompose } from "./compose.ts";
 import { registerPromote } from "./promote.ts";
 
@@ -37,7 +37,7 @@ export async function withClips(env: Ctx["env"], rows: TimelineRow[]) {
 }
 
 /** Reads + deletes for the clip-owned overlays and sketches matching `where` (on both tables). */
-function ownedBy(env: Ctx["env"], where: string, args: unknown[]) {
+export function ownedBy(env: Ctx["env"], where: string, args: unknown[]) {
   return {
     overlays: env.DB.prepare(`SELECT render_key AS k FROM overlays WHERE ${where}`).bind(...args),
     sketches: env.DB.prepare(`SELECT render_key AS k FROM sketches WHERE ${where}`).bind(...args),
@@ -55,14 +55,14 @@ export function registerTimelineRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/timelines", async ({ env, url }) => {
     const project = url.searchParams.get("project_id");
     const stmt = project
-      ? env.DB.prepare("SELECT * FROM timelines WHERE project_id = ?1 ORDER BY created_at").bind(assertUuid(project, "project_id"))
-      : env.DB.prepare("SELECT * FROM timelines ORDER BY created_at");
+      ? env.DB.prepare("SELECT * FROM timelines WHERE project_id = ?1 AND deleted_at IS NULL ORDER BY created_at").bind(assertUuid(project, "project_id"))
+      : env.DB.prepare("SELECT * FROM timelines WHERE deleted_at IS NULL ORDER BY created_at");
     const { results } = await stmt.all<TimelineRow>();
     return json({ timelines: await withClips(env, results) });
   });
 
   r.on("GET", "/api/timelines/:id", async ({ env }, { id }) => {
-    const row = await env.DB.prepare("SELECT * FROM timelines WHERE id = ?1").bind(assertUuid(id, "id")).first<TimelineRow>();
+    const row = await env.DB.prepare("SELECT * FROM timelines WHERE id = ?1 AND deleted_at IS NULL").bind(assertUuid(id, "id")).first<TimelineRow>();
     if (!row) throw new HttpError(404, "timeline not found");
     return json({ timeline: (await withClips(env, [row]))[0] });
   });
@@ -120,7 +120,7 @@ export function registerTimelineRoutes(r: Router<Ctx>) {
     const shotOf = new Map<string, string>();
     if (photoIdList.length) {
       // Photos deleted or moved out of the project meanwhile are dropped (placeholders have none); an overlay of another photo is nulled.
-      for (const x of (await env.DB.prepare("SELECT ph.id, ph.shot_id FROM photos ph JOIN shots s ON s.id = ph.shot_id WHERE s.project_id = ?1 AND ph.id IN (SELECT value FROM json_each(?2))")
+      for (const x of (await env.DB.prepare("SELECT ph.id, ph.shot_id FROM photos ph JOIN shots s ON s.id = ph.shot_id WHERE s.project_id = ?1 AND s.deleted_at IS NULL AND ph.id IN (SELECT value FROM json_each(?2))")
         .bind(projectId, JSON.stringify(photoIdList)).all<{ id: string; shot_id: string }>()).results) shotOf.set(x.id, x.shot_id);
       clips = clips.filter((c) => c.photo_id === null || shotOf.has(c.photo_id));
       const overlayIds = [...new Set(clips.map((c) => c.overlay_id).filter((x): x is string => !!x))];
@@ -170,14 +170,8 @@ export function registerTimelineRoutes(r: Router<Ctx>) {
     return json({ timeline: (await withClips(env, [row!]))[0] });
   });
 
-  r.on("DELETE", "/api/timelines/:id", async ({ env }, { id }) => {
-    const tid = assertUuid(id, "id");
-    if (!(await env.DB.prepare("SELECT 1 FROM timelines WHERE id = ?1").bind(tid).first())) throw new HttpError(404, "timeline not found");
-    // The clips' own overlays and sketches go first (with their renders); the timeline then cascades the rest.
-    await deleteClipCompose(env, ownedBy(env, "timeline_id = ?1", [tid]));
-    await env.DB.batch([env.DB.prepare("DELETE FROM timelines WHERE id = ?1").bind(tid), ...fileRefCleanup(env, "timeline", JSON.stringify([tid]))]);
-    return json({ deleted: tid });
-  });
+  /** Moves the timeline to the recycle bin (its clips and their drawings stay until it is purged). */
+  r.on("DELETE", "/api/timelines/:id", async ({ env }, { id }) => json(await binResource(env, "timeline", assertUuid(id, "id"))));
 
   registerPromote(r);
 }

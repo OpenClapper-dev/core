@@ -20,6 +20,7 @@ import { registerProjectRoutes } from "./projects.ts";
 import { registerShotRoutes } from "./shots.ts";
 import { registerSpotRoutes } from "./spots.ts";
 import { registerTimelineRoutes } from "./timelines.ts";
+import { purgeExpired, registerTrashRoutes } from "./trash.ts";
 import { registerViewRoutes } from "./views.ts";
 
 export interface Env {
@@ -50,7 +51,7 @@ const router = new Router<Ctx>();
 
 router.on("GET", "/health", async ({ env, identity }) => {
   const [d1, r2] = await Promise.allSettled([
-    env.DB.prepare("SELECT count(*) AS n FROM shots").first<{ n: number }>(),
+    env.DB.prepare("SELECT count(*) AS n FROM shots WHERE deleted_at IS NULL").first<{ n: number }>(),
     env.SHOTS_BUCKET.list({ limit: 1 }),
   ]);
   const ok = d1.status === "fulfilled" && r2.status === "fulfilled";
@@ -74,6 +75,7 @@ registerSpotRoutes(router);
 registerShotRoutes(router);
 registerViewRoutes(router);
 registerFileRoutes(router);
+registerTrashRoutes(router);
 registerComposeRoutes(router);
 registerTimelineRoutes(router);
 registerFramingRoutes(router);
@@ -98,5 +100,9 @@ export default {
       console.error("unhandled", err);
       return json({ error: "internal error" }, 500);
     }
+  },
+  /** Daily (wrangler.jsonc triggers): empty what has been in the recycle bin for 30 days. */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(purgeExpired(env).then((n) => console.log(`recycle bin: purged ${n} item(s)`)));
   },
 } satisfies ExportedHandler<Env>;

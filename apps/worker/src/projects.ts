@@ -1,5 +1,6 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
+import { purgeBinned } from "./trash.ts";
 
 export interface ProjectRow {
   id: string;
@@ -14,8 +15,8 @@ export interface ProjectRow {
 
 const toApi = (p: ProjectRow) => ({ ...p, field_ids: JSON.parse(p.field_ids ?? "[]") as string[] });
 
-const LIST_SQL = `SELECT pr.*, (SELECT count(*) FROM shots s WHERE s.project_id = pr.id) AS shot_count,
-  (SELECT json_group_array(id) FROM (SELECT id FROM field_definitions WHERE project_id = pr.id ORDER BY position, key)) AS field_ids
+const LIST_SQL = `SELECT pr.*, (SELECT count(*) FROM shots s WHERE s.project_id = pr.id AND s.deleted_at IS NULL) AS shot_count,
+  (SELECT json_group_array(id) FROM (SELECT id FROM field_definitions WHERE project_id = pr.id AND deleted_at IS NULL ORDER BY position, key)) AS field_ids
   FROM projects pr`;
 
 export async function assertProjectExists(env: Ctx["env"], id: string) {
@@ -47,11 +48,13 @@ export function registerProjectRoutes(r: Router<Ctx>) {
     return json({ project: toApi(row!) });
   });
 
-  // Only empty projects can be deleted; shots are never removed as a side effect.
+  // Only projects without live shots can be deleted; their recycle bin is emptied first (the shots
+  // in it would block the delete). Live shots are never removed as a side effect.
   r.on("DELETE", "/api/projects/:id", async ({ env }, { id }) => {
     const pid = assertUuid(id, "id");
-    const used = await env.DB.prepare("SELECT count(*) AS n FROM shots WHERE project_id = ?1").bind(pid).first<{ n: number }>();
+    const used = await env.DB.prepare("SELECT count(*) AS n FROM shots WHERE project_id = ?1 AND deleted_at IS NULL").bind(pid).first<{ n: number }>();
     if (used && used.n > 0) throw new HttpError(409, `project still has ${used.n} shot(s); move or delete them first`);
+    await purgeBinned(env, { projectId: pid });
     const res = await env.DB.prepare("DELETE FROM projects WHERE id = ?1").bind(pid).run();
     if (!res.meta.changes) throw new HttpError(404, "project not found");
     return json({ deleted: pid });
