@@ -1,8 +1,8 @@
 import { validateFieldDef, type FieldDef } from "@fielder/vocab";
 import { assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
-import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
+import { binResource } from "./trash.ts";
 
 interface FieldRow { id: string; project_id: string; position: number; key: string; definition: string; created_at: string; updated_at: string | null }
 const toApi = (r: FieldRow) => ({ ...r, definition: JSON.parse(r.definition) as FieldDef });
@@ -18,18 +18,18 @@ function parseDefinition(v: unknown): FieldDef {
 
 /** The fields a project uses, in its order (for validating shot `extra`). */
 export async function projectFieldDefs(env: Ctx["env"], projectId: string): Promise<FieldDef[]> {
-  const { results } = await env.DB.prepare("SELECT definition FROM field_definitions WHERE project_id = ?1 ORDER BY position, key")
+  const { results } = await env.DB.prepare("SELECT definition FROM field_definitions WHERE project_id = ?1 AND deleted_at IS NULL ORDER BY position, key")
     .bind(projectId).all<{ definition: string }>();
   return results.map((r) => JSON.parse(r.definition) as FieldDef);
 }
 
 
 async function upsert(env: Ctx["env"], id: string, projectId: string, def: FieldDef): Promise<void> {
-  const clash = await env.DB.prepare("SELECT id FROM field_definitions WHERE project_id = ?1 AND key = ?2 AND id != ?3").bind(projectId, def.key, id).first<{ id: string }>();
+  const clash = await env.DB.prepare("SELECT id FROM field_definitions WHERE project_id = ?1 AND key = ?2 AND id != ?3 AND deleted_at IS NULL").bind(projectId, def.key, id).first<{ id: string }>();
   if (clash) throw new HttpError(409, `another field of this project already uses the key "${def.key}"`);
   await env.DB.prepare(
     `INSERT INTO field_definitions (id, project_id, key, definition, updated_at, position)
-       VALUES (?1, ?2, ?3, ?4, ?5, (SELECT coalesce(max(position) + 1, 0) FROM field_definitions WHERE project_id = ?2))
+       VALUES (?1, ?2, ?3, ?4, ?5, (SELECT coalesce(max(position) + 1, 0) FROM field_definitions WHERE project_id = ?2 AND deleted_at IS NULL))
      ON CONFLICT(id) DO UPDATE SET key = ?3, definition = ?4, updated_at = ?5`,
   ).bind(id, projectId, def.key, JSON.stringify(def), new Date().toISOString()).run();
 }
@@ -40,8 +40,8 @@ export function registerFieldRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/fields", async ({ env, url }) => {
     const project = url.searchParams.get("project_id");
     const stmt = project
-      ? env.DB.prepare(`SELECT * FROM field_definitions WHERE project_id = ?1 ${ORDER}`).bind(assertUuid(project, "project_id"))
-      : env.DB.prepare(`SELECT * FROM field_definitions ${ORDER}`);
+      ? env.DB.prepare(`SELECT * FROM field_definitions WHERE project_id = ?1 AND deleted_at IS NULL ${ORDER}`).bind(assertUuid(project, "project_id"))
+      : env.DB.prepare(`SELECT * FROM field_definitions WHERE deleted_at IS NULL ${ORDER}`);
     const { results } = await stmt.all<FieldRow>();
     return json({ fields: results.map(toApi) });
   });
@@ -73,24 +73,19 @@ export function registerFieldRoutes(r: Router<Ctx>) {
     const defs = list.map((d, i) => { try { return parseDefinition(d); } catch (e) { throw new HttpError(400, `fields[${i}]: ${(e as Error).message}`); } });
     const keys = new Set<string>();
     for (const d of defs) { if (keys.has(d.key)) throw new HttpError(400, `duplicate key "${d.key}" in the import`); keys.add(d.key); }
-    const existing = new Map((await env.DB.prepare("SELECT id, key FROM field_definitions WHERE project_id = ?1").bind(projectId).all<{ id: string; key: string }>()).results.map((x) => [x.key, x.id]));
+    const existing = new Map((await env.DB.prepare("SELECT id, key FROM field_definitions WHERE project_id = ?1 AND deleted_at IS NULL").bind(projectId).all<{ id: string; key: string }>()).results.map((x) => [x.key, x.id]));
     let created = 0, updated = 0;
     for (const d of defs) {
       const id = existing.get(d.key);
       if (id) updated++; else created++;
       await upsert(env, id ?? crypto.randomUUID(), projectId, d);
     }
-    const { results } = await env.DB.prepare(`SELECT * FROM field_definitions WHERE project_id = ?1 ${ORDER}`).bind(projectId).all<FieldRow>();
+    const { results } = await env.DB.prepare(`SELECT * FROM field_definitions WHERE project_id = ?1 AND deleted_at IS NULL ${ORDER}`).bind(projectId).all<FieldRow>();
     return json({ fields: results.map(toApi), created, updated });
   });
 
-  // Shots keep their stored values; they just stop being shown/validated for this field.
-  r.on("DELETE", "/api/fields/:id", async ({ env }, { id }) => {
-    const fid = assertUuid(id, "id");
-    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM field_definitions WHERE id = ?1").bind(fid), ...fileRefCleanup(env, "field", JSON.stringify([fid]))]);
-    if (!res.meta.changes) throw new HttpError(404, "field not found");
-    return json({ deleted: fid });
-  });
+  // Moves the field to the recycle bin. Shots keep their stored values; they just stop being shown/validated.
+  r.on("DELETE", "/api/fields/:id", async ({ env }, { id }) => json(await binResource(env, "field", assertUuid(id, "id"))));
 
   /** JSON { field_ids: [...] }: the project's fields in display order (every one of them, nothing else). */
   r.on("PUT", "/api/projects/:id/fields", async ({ env, request }, { id }) => {
@@ -99,7 +94,7 @@ export function registerFieldRoutes(r: Router<Ctx>) {
     if (!Array.isArray(b.field_ids)) throw new HttpError(400, "field_ids must be an array");
     const ids = b.field_ids.map((x, i) => assertUuid(x, `field_ids[${i}]`));
     await assertProjectExists(env, pid);
-    const own = new Set((await env.DB.prepare("SELECT id FROM field_definitions WHERE project_id = ?1").bind(pid).all<{ id: string }>()).results.map((x) => x.id));
+    const own = new Set((await env.DB.prepare("SELECT id FROM field_definitions WHERE project_id = ?1 AND deleted_at IS NULL").bind(pid).all<{ id: string }>()).results.map((x) => x.id));
     if (ids.length !== own.size || new Set(ids).size !== ids.length || ids.some((x) => !own.has(x))) throw new HttpError(400, "field_ids must list exactly the project's fields");
     await env.DB.batch(ids.map((fid, i) => env.DB.prepare("UPDATE field_definitions SET position = ?1 WHERE id = ?2").bind(i, fid)));
     return json({ project_id: pid, field_ids: ids });

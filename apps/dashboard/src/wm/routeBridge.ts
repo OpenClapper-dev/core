@@ -23,6 +23,7 @@ export function routeToLaunch(r: Route): LaunchIntent {
     case "settings": return { app: "settings", state: { tab: r.tab } };
     case "library": return { app: r.section, state: { id: r.id } };
     case "files": return { app: "files", state: { folderId: r.folderId } };
+    case "trash": return { app: "trash" };
   }
 }
 
@@ -37,6 +38,7 @@ export function defaultRoute(w: Pick<Win, "app" | "resource">): Route | null {
     case "timeline": return { page: "timeline", timelineId: null };
     case "settings": return { page: "settings", tab: "general" };
     case "files": return { page: "files", folderId: null };
+    case "trash": return { page: "trash" };
     case "projects": case "fields": case "rigs": case "locations": case "viewfinder": return { page: "library", section: w.app as "projects", id: null };
     default: return null;
   }

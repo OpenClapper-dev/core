@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ApiError, deleteLocation, deleteSpot, existingIdOf, putLocation, putSpot, type Location, type Shot, type Spot } from "./api";
+import { binned } from "./apps/trashOps";
 import { ownPositionOf, shotTitle } from "./format";
 import { bind, useKeys } from "./keys";
 import { Button, confirmDialog, cx, EmptyNote, ErrorLine, IconButton, Input, Kbd, ListRow, Modal, Panel, PanelBody, PanelHead, promptDialog, SearchInput, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "./ui";
@@ -53,9 +54,7 @@ export function LocationsPage({ locations, shots, onChange, spots, onSpots, onSh
     }
   }
   async function remove(l: Location) {
-    const ok = await confirmDialog({ title: `Delete “${l.name}”?`, body: l.shot_count ? `${l.shot_count} shot(s) lose their location. Their photos and tags are kept.` : "No shots use it.", confirmLabel: "Delete location", danger: true });
-    if (!ok) return;
-    try { await deleteLocation(l.id); onChange(locations.filter((x) => x.id !== l.id)); onShotsChanged(); toast("Location deleted"); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
+    try { await deleteLocation(l.id); onChange(locations.filter((x) => x.id !== l.id)); onShotsChanged(); binned([{ type: "location", id: l.id }], l.project_id, `“${l.name}”`); } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
   useKeys(bind("locations", {
     search: () => search.current?.focus(),

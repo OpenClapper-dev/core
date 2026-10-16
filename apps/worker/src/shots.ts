@@ -1,11 +1,12 @@
 import { CAMERA_SUPPORTS, INT_EXT, isOneOf, LIGHT, PHOTO_SOURCES, MAX_DESCRIPTION, MOVEMENTS, fitExtra, patchExtra, pruneExtra, SHOT_SIZES, SHOT_STATES, validateExtra, validateValues, WEATHER, type Extra, type FieldDef } from "@fielder/vocab";
-import { clipOverlaysLeaving, composeFor, deleteClipCompose, renderKeysOf, type OverlayApi, type SketchApi } from "./compose.ts";
+import { clipOverlaysLeaving, composeFor, deleteClipCompose, type OverlayApi, type SketchApi } from "./compose.ts";
 import { framingsFor, type FramingApi } from "./framings.ts";
 import { projectFieldDefs } from "./fields.ts";
 import { locationInProject } from "./locations.ts";
 import { spotUnder } from "./spots.ts";
 import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import { fileRefCleanup } from "./files.ts";
+import { binResource } from "./trash.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
 
@@ -111,9 +112,10 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
     id: s.id,
     project_id: s.project_id,
     project_name: s.project_name ?? null,
-    location_id: s.location_id,
+    // A location in the recycle bin reads as none (the shot keeps it, so a restore brings it back).
+    location_id: s.location_name === null ? null : s.location_id,
     location_name: s.location_name ?? null,
-    spot_id: s.spot_id ?? null,
+    spot_id: s.spot_name === null ? null : s.spot_id ?? null,
     spot_name: s.spot_name ?? null,
     name: s.name,
     int_ext: s.int_ext,
@@ -141,7 +143,7 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
 
 const SHOT_SQL = `SELECT s.*, pr.name AS project_name, l.name AS location_name, l.lat AS location_lat, l.lon AS location_lon,
     sp.name AS spot_name, sp.lat AS spot_lat, sp.lon AS spot_lon
-  FROM shots s JOIN projects pr ON pr.id = s.project_id LEFT JOIN locations l ON l.id = s.location_id LEFT JOIN spots sp ON sp.id = s.spot_id`;
+  FROM shots s JOIN projects pr ON pr.id = s.project_id LEFT JOIN locations l ON l.id = s.location_id AND l.deleted_at IS NULL LEFT JOIN spots sp ON sp.id = s.spot_id AND l.id IS NOT NULL`;
 
 /** Photos for many shots in one query (json_each keeps it to one bound parameter; D1 caps those at 100). */
 async function photosFor(env: Ctx["env"], shotIds: string[]): Promise<Map<string, PhotoRow[]>> {
@@ -272,7 +274,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 100) || 100, 1), 500);
     const before = url.searchParams.get("before");
     const beforeId = url.searchParams.get("before_id") ?? "";
-    const where: string[] = [];
+    const where: string[] = ["s.deleted_at IS NULL"];
     const args: unknown[] = [];
     if (before) { args.push(before, beforeId); where.push(`(s.captured_at < ?${args.length - 1} OR (s.captured_at = ?${args.length - 1} AND s.id < ?${args.length}))`); }
     const project = url.searchParams.get("project_id");
@@ -282,7 +284,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     const loc = url.searchParams.get("location_id");
     if (loc) { args.push(assertUuid(loc, "location_id")); where.push(`s.location_id = ?${args.length}`); }
     args.push(limit);
-    const { results } = await env.DB.prepare(`${SHOT_SQL}${where.length ? ` WHERE ${where.join(" AND ")}` : ""} ORDER BY s.captured_at DESC, s.id DESC LIMIT ?${args.length}`).bind(...args).all<ShotRow>();
+    const { results } = await env.DB.prepare(`${SHOT_SQL} WHERE ${where.join(" AND ")} ORDER BY s.captured_at DESC, s.id DESC LIMIT ?${args.length}`).bind(...args).all<ShotRow>();
     const ids = results.map((s) => s.id);
     const [photos, compose] = await Promise.all([photosFor(env, ids), extrasFor(env, ids)]);
     const last = results.at(-1);
@@ -293,7 +295,9 @@ export function registerShotRoutes(r: Router<Ctx>) {
   });
 
   r.on("GET", "/api/shots/:id", async ({ env }, { id }) => {
-    const shot = await loadShot(env, assertUuid(id, "id"));
+    const sid = assertUuid(id, "id");
+    const binned = await env.DB.prepare("SELECT deleted_at FROM shots WHERE id = ?1").bind(sid).first<{ deleted_at: string | null }>();
+    const shot = binned && !binned.deleted_at ? await loadShot(env, sid) : null;
     if (!shot) throw new HttpError(404, "shot not found");
     return json({ shot });
   });
@@ -339,8 +343,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (m.photos.length > MAX_PHOTOS_PER_UPLOAD) throw new HttpError(413, `at most ${MAX_PHOTOS_PER_UPLOAD} photos per upload`);
     const photos = m.photos.map(parsePhoto);
 
-    const existing = await env.DB.prepare("SELECT id FROM shots WHERE id = ?1").bind(id).first();
+    const existing = await env.DB.prepare("SELECT id, deleted_at FROM shots WHERE id = ?1").bind(id).first<{ id: string; deleted_at: string | null }>();
     let insertShot: D1PreparedStatement | null = null;
+    // A capture continued or retried for a shot that was binned meanwhile brings it back: never lose a capture.
+    if (existing?.deleted_at) insertShot = env.DB.prepare("UPDATE shots SET deleted_at = NULL, deleted_with = NULL WHERE id = ?1").bind(id);
     if (!existing) {
       const projectId = assertUuid(m.project_id, "project_id");
       // A capture must never be rejected for metadata the phone could not know was stale or too long:
@@ -422,6 +428,8 @@ export function registerShotRoutes(r: Router<Ctx>) {
       args.push(movedTo); sets.push(`project_id = ?${args.length}`);
     }
     if (sets.length === 0) throw new HttpError(400, "nothing to update");
+    // An edit (say, from a phone that was offline) to a binned shot brings it back rather than getting lost.
+    sets.push("deleted_at = NULL", "deleted_with = NULL");
     const cur = await env.DB.prepare("SELECT project_id, location_id, spot_id, extra FROM shots WHERE id = ?1").bind(sid).first<{ project_id: string; location_id: string | null; spot_id: string | null; extra: string }>();
     if (!cur) throw new HttpError(404, "shot not found");
     const projectId = movedTo ?? cur.project_id;
@@ -509,6 +517,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     const now = new Date().toISOString();
     const stmts: D1PreparedStatement[] = [];
     if (sets.length) {
+      sets.push("deleted_at = NULL", "deleted_with = NULL");
       stmts.push(env.DB.prepare(`UPDATE shots SET ${sets.join(", ")}, updated_at = ?${args.length + 1} WHERE id IN (SELECT value FROM json_each(?${args.length + 2}))`)
         .bind(...args, now, list));
     }
@@ -566,15 +575,6 @@ export function registerShotRoutes(r: Router<Ctx>) {
     return json({ shot: await loadShot(env, row.shot_id) });
   });
 
-  r.on("DELETE", "/api/shots/:id", async ({ env }, { id }) => {
-    const sid = assertUuid(id, "id");
-    const { results } = await env.DB.prepare("SELECT r2_object_key FROM photos WHERE shot_id = ?1").bind(sid).all<{ r2_object_key: string }>();
-    const renders = await renderKeysOf(env, sid);
-    // Photos, overlays and sketches cascade; the shot's folder placement and shortcuts go with it.
-    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM shots WHERE id = ?1").bind(sid), ...fileRefCleanup(env, "shot", JSON.stringify([sid]))]);
-    if (!res.meta.changes) throw new HttpError(404, "shot not found");
-    const keys = [...results.map((r) => r.r2_object_key), ...renders];
-    if (keys.length) await env.SHOTS_BUCKET.delete(keys);
-    return json({ deleted: sid });
-  });
+  /** Moves the shot to the recycle bin (purged after 30 days, see trash.ts). */
+  r.on("DELETE", "/api/shots/:id", async ({ env }, { id }) => json(await binResource(env, "shot", assertUuid(id, "id"))));
 }

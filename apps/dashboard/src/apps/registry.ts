@@ -11,6 +11,7 @@ import { PlanApp } from "./PlanApp";
 import { ShotApp } from "./ShotApp";
 import { TimelineApp } from "./TimelineApp";
 import { SettingsApp } from "./SettingsApp";
+import { TrashApp } from "./TrashApp";
 
 /** Every app the desktop can open: APP_IDS in packages/vocab (the Worker validates app shortcuts with it). */
 export type AppId = AppIdV;
@@ -58,6 +59,7 @@ export const APPS: Record<AppId, AppDef> = {
   locations: def("locations", "Locations", "map-marker-outline", true, { w: 1100, h: 700 }, { w: 640, h: 420 }, LocationsApp, ["location"]),
   viewfinder: def("viewfinder", "Viewfinder layouts", "cellphone", true, { w: 1180, h: 760 }, { w: 720, h: 480 }, ViewfinderApp),
   settings: def("settings", "Settings", "cog-outline", true, { w: 820, h: 620 }, { w: 480, h: 360 }, SettingsApp),
+  trash: def("trash", "Recycle bin", "delete-outline", true, { w: 900, h: 600 }, { w: 520, h: 340 }, TrashApp),
 };
 
 export const appDef = (id: string): AppDef | undefined => APPS[id as AppId];

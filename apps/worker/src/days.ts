@@ -1,7 +1,7 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
-import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
+import { binResource } from "./trash.ts";
 
 interface DayRow { id: string; project_id: string; date: string; title: string | null; notes: string | null; created_at: string; updated_at: string | null }
 interface DayShotRow { day_id: string; shot_id: string; position: number; planned_time: string | null; notes: string | null }
@@ -26,14 +26,14 @@ export function registerDayRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/days", async ({ env, url }) => {
     const project = url.searchParams.get("project_id");
     const stmt = project
-      ? env.DB.prepare("SELECT * FROM shooting_days WHERE project_id = ?1 ORDER BY date, created_at").bind(assertUuid(project, "project_id"))
-      : env.DB.prepare("SELECT * FROM shooting_days ORDER BY date, created_at");
+      ? env.DB.prepare("SELECT * FROM shooting_days WHERE project_id = ?1 AND deleted_at IS NULL ORDER BY date, created_at").bind(assertUuid(project, "project_id"))
+      : env.DB.prepare("SELECT * FROM shooting_days WHERE deleted_at IS NULL ORDER BY date, created_at");
     const { results } = await stmt.all<DayRow>();
     return json({ days: await withShots(env, results) });
   });
 
   r.on("GET", "/api/days/:id", async ({ env }, { id }) => {
-    const row = await env.DB.prepare("SELECT * FROM shooting_days WHERE id = ?1").bind(assertUuid(id, "id")).first<DayRow>();
+    const row = await env.DB.prepare("SELECT * FROM shooting_days WHERE id = ?1 AND deleted_at IS NULL").bind(assertUuid(id, "id")).first<DayRow>();
     if (!row) throw new HttpError(404, "day not found");
     return json({ day: (await withShots(env, [row]))[0] });
   });
@@ -59,7 +59,7 @@ export function registerDayRoutes(r: Router<Ctx>) {
     await assertProjectExists(env, projectId);
     // Shots deleted or moved to another project meanwhile are dropped from the day instead of failing the save.
     if (shots.length) {
-      const ok = new Set((await env.DB.prepare("SELECT id FROM shots WHERE project_id = ?1 AND id IN (SELECT value FROM json_each(?2))")
+      const ok = new Set((await env.DB.prepare("SELECT id FROM shots WHERE project_id = ?1 AND deleted_at IS NULL AND id IN (SELECT value FROM json_each(?2))")
         .bind(projectId, JSON.stringify(shots.map((s) => s.shot_id))).all<{ id: string }>()).results.map((x) => x.id));
       shots = shots.filter((s) => ok.has(s.shot_id));
     }
@@ -77,10 +77,6 @@ export function registerDayRoutes(r: Router<Ctx>) {
     return json({ day: (await withShots(env, [row!]))[0] });
   });
 
-  r.on("DELETE", "/api/days/:id", async ({ env }, { id }) => {
-    const did = assertUuid(id, "id");
-    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM shooting_days WHERE id = ?1").bind(did), ...fileRefCleanup(env, "day", JSON.stringify([did]))]);
-    if (!res.meta.changes) throw new HttpError(404, "day not found");
-    return json({ deleted: did });
-  });
+  /** Moves the day to the recycle bin. */
+  r.on("DELETE", "/api/days/:id", async ({ env }, { id }) => json(await binResource(env, "day", assertUuid(id, "id"))));
 }

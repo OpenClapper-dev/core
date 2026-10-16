@@ -11,7 +11,7 @@
 
 export type ScopeId =
   | "global" | "wm" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "compose" | "draw" | "reframe"
-  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop";
+  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop" | "trash";
 
 export interface Scope {
   label: string;
@@ -49,6 +49,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   combobox: { label: "Combobox", with: [] },
   files: { label: "Files", with: [] },
   desktop: { label: "Desktop icons", with: [] },
+  trash: { label: "Recycle bin", with: [] },
 };
 
 export interface Shortcut {
@@ -91,6 +92,13 @@ export const SHORTCUTS = [
   { scope: "wm", action: "snapLeft", keys: ["Mod+Alt+ArrowLeft"], label: "Snap the window to the left half" },
   { scope: "wm", action: "snapRight", keys: ["Mod+Alt+ArrowRight"], label: "Snap the window to the right half" },
   { scope: "wm", action: "desktop", keys: ["Mod+Alt+d"], label: "Show the desktop (again: bring the windows back)" },
+  // ---- Workspaces (virtual desktops, epic #90)
+  { scope: "wm", action: "taskView", keys: ["Mod+Alt+v"], label: "Task view: every workspace and its windows" },
+  { scope: "wm", action: "wsNext", keys: ["Mod+Alt+Shift+ArrowRight"], label: "Next workspace" },
+  { scope: "wm", action: "wsPrev", keys: ["Mod+Alt+Shift+ArrowLeft"], label: "Previous workspace" },
+  { scope: "wm", action: "wsNew", keys: ["Mod+Alt+n"], label: "New workspace (and go there)" },
+  { scope: "wm", action: "wsGo", keys: ["Mod+Alt+1", "Mod+Alt+2", "Mod+Alt+3", "Mod+Alt+4", "Mod+Alt+5", "Mod+Alt+6", "Mod+Alt+7", "Mod+Alt+8", "Mod+Alt+9"], label: "Go to workspace 1–9" },
+  { scope: "wm", action: "wsMove", keys: ["Mod+Alt+Shift+1", "Mod+Alt+Shift+2", "Mod+Alt+Shift+3", "Mod+Alt+Shift+4", "Mod+Alt+Shift+5", "Mod+Alt+Shift+6", "Mod+Alt+Shift+7", "Mod+Alt+Shift+8", "Mod+Alt+Shift+9"], label: "Move the window to workspace 1–9" },
 
   // ---- Shots
   { scope: "shots", action: "search", keys: ["/"], label: "Focus the search" },
@@ -107,7 +115,7 @@ export const SHORTCUTS = [
   { scope: "shots.list", action: "open", keys: ["Enter"], label: "Open the shot" },
   { scope: "shots.list", action: "bulk", keys: ["b"], label: "Bulk edit the selected shots" },
   { scope: "shots.list", action: "move", keys: ["Shift+M"], label: "Move the selected shots to a project" },
-  { scope: "shots.list", action: "remove", keys: ["Delete"], label: "Delete the selected shots" },
+  { scope: "shots.list", action: "remove", keys: ["Delete"], label: "Move the selected shots to the recycle bin" },
   { scope: "shots.list", action: "clear", keys: ["Escape"], pass: true, label: "Close bulk edit · clear the selection" },
   { scope: "map", action: "move", keys: ["ArrowUp", "ArrowDown"], info: true, label: "Move in the list" },
   { scope: "map", action: "open", keys: ["Enter"], info: true, label: "Open the shot" },
@@ -210,7 +218,7 @@ export const SHORTCUTS = [
   { scope: "locations", action: "rename", keys: ["F2"], label: "Rename" },
   { scope: "locations", action: "pin", keys: ["p"], label: "Set the position" },
   { scope: "locations", action: "open", keys: ["Enter"], label: "Show its shots" },
-  { scope: "locations", action: "remove", keys: ["Delete"], label: "Delete" },
+  { scope: "locations", action: "remove", keys: ["Delete"], label: "Move to the recycle bin" },
   { scope: "fields", action: "save", keys: ["Mod+s"], label: "Save the field" },
   { scope: "fields", action: "indent", keys: ["Tab"], info: true, label: "Indent in the JSON editor" },
   { scope: "fields", action: "leave", keys: ["Escape"], label: "Leave the editor" },
@@ -222,15 +230,32 @@ export const SHORTCUTS = [
   { scope: "files", action: "open", keys: ["Enter"], label: "Open the item (a folder: go into it)" },
   { scope: "files", action: "parent", keys: ["Backspace", "Alt+ArrowUp"], label: "Up to the parent folder" },
   { scope: "files", action: "rename", keys: ["F2"], label: "Rename" },
-  { scope: "files", action: "remove", keys: ["Delete"], label: "Delete" },
+  { scope: "files", action: "remove", keys: ["Delete"], label: "Move to the recycle bin" },
   { scope: "files", action: "newFolder", keys: ["Shift+N"], label: "New folder here" },
-  { scope: "files", action: "drag", keys: ["Drag"], info: true, label: "Onto a folder: move there · onto the desktop: add a shortcut" },
-  { scope: "files", action: "menu", keys: ["Right-click"], info: true, label: "Open, rename, move, add to the desktop, delete" },
+  { scope: "files", action: "all", keys: ["Mod+a"], label: "Select everything listed (Ctrl-click toggles, Shift-click extends)" },
+  { scope: "files", action: "drag", keys: ["Drag"], info: true, label: "Onto a folder: move there · onto the desktop: into the Desktop folder · onto the recycle bin: delete" },
+  { scope: "files", action: "menu", keys: ["Right-click"], info: true, label: "Open, rename, move, move to the desktop, shortcut on the desktop, recycle bin" },
 
   // ---- Desktop icons (handled by the focused icon itself)
   { scope: "desktop", action: "open", keys: ["Enter"], info: true, label: "Open the focused icon (or double-click it)" },
-  { scope: "desktop", action: "drag", keys: ["Drag"], info: true, label: "Move an icon · drop files from Files to add shortcuts" },
+  { scope: "desktop", action: "drag", keys: ["Drag"], info: true, label: "Move the selected icons, each to a free cell · files dragged from Files move into the Desktop folder" },
   { scope: "desktop", action: "menu", keys: ["Right-click"], info: true, label: "On an icon: open, rename, remove · on the desktop: new folder, new shortcut, arrange" },
+  { scope: "desktop", action: "all", keys: ["Mod+a"], label: "Select every icon" },
+  { scope: "desktop", action: "clear", keys: ["Escape"], label: "Clear the selection" },
+  { scope: "desktop", action: "rename", keys: ["F2"], label: "Rename the selected icon (a real file or folder itself, else the shortcut)" },
+  { scope: "desktop", action: "remove", keys: ["Delete"], label: "Selected files to the recycle bin, selected shortcuts off the desktop" },
+  { scope: "desktop", action: "left", keys: ["ArrowLeft"], label: "Select the icon to the left" },
+  { scope: "desktop", action: "right", keys: ["ArrowRight"], label: "Select the icon to the right" },
+  { scope: "desktop", action: "up", keys: ["ArrowUp"], label: "Select the icon above" },
+  { scope: "desktop", action: "down", keys: ["ArrowDown"], label: "Select the icon below" },
+  { scope: "desktop", action: "select", keys: ["Click", "Drag"], info: true, label: "Ctrl-click toggles, Shift-click adds; drag on the empty desktop to select with a rubber band" },
+  { scope: "desktop", action: "folder", keys: ["Drag"], info: true, label: "Icons onto a folder icon: move them into that folder (apps stay)" },
+  { scope: "desktop", action: "bin", keys: ["Drag"], info: true, label: "An icon or a file from Files onto the recycle bin: remove the shortcut, or bin the file" },
+  // ---- Recycle bin (epic #90)
+  { scope: "trash", action: "search", keys: ["/"], label: "Focus the search" },
+  { scope: "trash", action: "all", keys: ["Mod+a"], label: "Select everything listed" },
+  { scope: "trash", action: "restore", keys: ["r"], label: "Restore the selected items (or double-click one)" },
+  { scope: "trash", action: "purge", keys: ["Delete"], label: "Delete the selected items permanently" },
 
   // ---- Dialogs and controls
   { scope: "newshot", action: "undo", keys: ["Mod+z"], label: "Undo the last shape" },

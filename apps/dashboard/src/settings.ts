@@ -22,8 +22,14 @@ export interface Settings {
    * video editor. Moving away then always ends the edit (inlinePlayhead acts as "leave").
    */
   autoOverlay: boolean;
+  /** The recycle bin as an icon on the desktop (epic #90); off, it is only in Files' side bar. */
+  binOnDesktop: boolean;
+  /** Which screen edge the taskbar sits on (epic #90); on the left or right it is a vertical bar of icons. */
+  taskbarPosition: "bottom" | "top" | "left" | "right";
+  /** Launcher, pins and windows from the left, or centred like Windows 11. */
+  taskbarAlign: "start" | "center";
 }
-export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false };
+export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true, taskbarPosition: "bottom", taskbarAlign: "start" };
 
 function read(): Settings {
   try {
@@ -33,6 +39,9 @@ function read(): Settings {
       inlinePlayhead: raw.inlinePlayhead === "leave" ? "leave" : DEFAULT_SETTINGS.inlinePlayhead,
       seqRemove: raw.seqRemove === "block" ? "block" : DEFAULT_SETTINGS.seqRemove,
       autoOverlay: raw.autoOverlay === true,
+      binOnDesktop: raw.binOnDesktop !== false,
+      taskbarPosition: raw.taskbarPosition === "top" || raw.taskbarPosition === "left" || raw.taskbarPosition === "right" ? raw.taskbarPosition : "bottom",
+      taskbarAlign: raw.taskbarAlign === "center" ? "center" : "start",
     };
   } catch { return { ...DEFAULT_SETTINGS }; }
 }

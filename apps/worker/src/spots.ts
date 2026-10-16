@@ -13,7 +13,8 @@ export interface SpotRow {
   shot_count?: number;
 }
 
-const LIST_SQL = `SELECT sp.*, count(s.id) AS shot_count FROM spots sp LEFT JOIN shots s ON s.spot_id = sp.id`;
+const LIST_SQL = `SELECT sp.*, count(s.id) AS shot_count FROM spots sp LEFT JOIN shots s ON s.spot_id = sp.id AND s.deleted_at IS NULL
+  WHERE sp.location_id IN (SELECT id FROM locations WHERE deleted_at IS NULL)`;
 
 /**
  * The spot `id` as seen from `locationId`: itself when it belongs there, else the location's spot of the
@@ -40,7 +41,7 @@ export function registerSpotRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/spots", async ({ env, url }) => {
     const project = url.searchParams.get("project_id");
     const stmt = project
-      ? env.DB.prepare(`${LIST_SQL} WHERE sp.location_id IN (SELECT id FROM locations WHERE project_id = ?1) GROUP BY sp.id ORDER BY sp.name COLLATE NOCASE`).bind(assertUuid(project, "project_id"))
+      ? env.DB.prepare(`${LIST_SQL} AND sp.location_id IN (SELECT id FROM locations WHERE project_id = ?1) GROUP BY sp.id ORDER BY sp.name COLLATE NOCASE`).bind(assertUuid(project, "project_id"))
       : env.DB.prepare(`${LIST_SQL} GROUP BY sp.id ORDER BY sp.name COLLATE NOCASE`);
     const { results } = await stmt.all<SpotRow>();
     return json({ spots: results });

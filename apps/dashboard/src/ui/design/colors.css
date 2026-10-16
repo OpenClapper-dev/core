@@ -57,6 +57,10 @@
   --desktop-bg: #E9E9E4;
   --snap-preview-bg: rgba(0,64,216,0.12); /* @kind other */
   --snap-preview-border: #0040D8;
+  --marquee-bg: rgba(0,64,216,0.10); /* @kind other */
+  --marquee-border: #0040D8;
+  --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
+  --split-grip: var(--border-strong);
   color-scheme: light;
 }
 [data-theme="sun"] {
@@ -111,6 +115,10 @@
   --desktop-bg: #E9E9E4;
   --snap-preview-bg: rgba(0,64,216,0.12); /* @kind other */
   --snap-preview-border: #0040D8;
+  --marquee-bg: rgba(0,64,216,0.10); /* @kind other */
+  --marquee-border: #0040D8;
+  --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
+  --split-grip: var(--border-strong);
   color-scheme: light;
 }
 [data-theme="set"] {
@@ -165,6 +173,10 @@
   --desktop-bg: #050506;
   --snap-preview-bg: rgba(111,162,255,0.16); /* @kind other */
   --snap-preview-border: #6FA2FF;
+  --marquee-bg: rgba(111,162,255,0.14); /* @kind other */
+  --marquee-border: #6FA2FF;
+  --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
+  --split-grip: var(--border-strong);
   color-scheme: dark;
 }
 /* Aliases kept from the old dashboard so existing CSS keeps working during migration. */

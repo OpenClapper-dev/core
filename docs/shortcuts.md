@@ -30,6 +30,12 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ⌘Alt ← | Snap the window to the left half |
 | ⌘Alt → | Snap the window to the right half |
 | ⌘Alt D | Show the desktop (again: bring the windows back) |
+| ⌘Alt V | Task view: every workspace and its windows |
+| ⌘Alt ⇧→ | Next workspace |
+| ⌘Alt ⇧← | Previous workspace |
+| ⌘Alt N | New workspace (and go there) |
+| ⌘Alt 1 / ⌘Alt 2 / ⌘Alt 3 / ⌘Alt 4 / ⌘Alt 5 / ⌘Alt 6 / ⌘Alt 7 / ⌘Alt 8 / ⌘Alt 9 | Go to workspace 1–9 |
+| ⌘Alt ⇧1 / ⌘Alt ⇧2 / ⌘Alt ⇧3 / ⌘Alt ⇧4 / ⌘Alt ⇧5 / ⌘Alt ⇧6 / ⌘Alt ⇧7 / ⌘Alt ⇧8 / ⌘Alt ⇧9 | Move the window to workspace 1–9 |
 
 ## Shots
 
@@ -59,7 +65,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ↵ | Open the shot |
 | B | Bulk edit the selected shots |
 | ⇧M | Move the selected shots to a project |
-| Del | Delete the selected shots |
+| Del | Move the selected shots to the recycle bin |
 | Esc | Close bulk edit · clear the selection |
 
 ## Shots · map
@@ -217,7 +223,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | F2 | Rename |
 | P | Set the position |
 | ↵ | Show its shots |
-| Del | Delete |
+| Del | Move to the recycle bin |
 
 ## Library · Fields
 
@@ -260,16 +266,37 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ↵ | Open the item (a folder: go into it) |
 | ⌫ / Alt ↑ | Up to the parent folder |
 | F2 | Rename |
-| Del | Delete |
+| Del | Move to the recycle bin |
 | ⇧N | New folder here |
-| Drag | Onto a folder: move there · onto the desktop: add a shortcut |
-| Right-click | Open, rename, move, add to the desktop, delete |
+| ⌘A | Select everything listed (Ctrl-click toggles, Shift-click extends) |
+| Drag | Onto a folder: move there · onto the desktop: into the Desktop folder · onto the recycle bin: delete |
+| Right-click | Open, rename, move, move to the desktop, shortcut on the desktop, recycle bin |
 
 ## Desktop icons
 
 | Keys | What |
 | --- | --- |
 | ↵ | Open the focused icon (or double-click it) |
-| Drag | Move an icon · drop files from Files to add shortcuts |
+| Drag | Move the selected icons, each to a free cell · files dragged from Files move into the Desktop folder |
 | Right-click | On an icon: open, rename, remove · on the desktop: new folder, new shortcut, arrange |
+| ⌘A | Select every icon |
+| Esc | Clear the selection |
+| F2 | Rename the selected icon (a real file or folder itself, else the shortcut) |
+| Del | Selected files to the recycle bin, selected shortcuts off the desktop |
+| ← | Select the icon to the left |
+| → | Select the icon to the right |
+| ↑ | Select the icon above |
+| ↓ | Select the icon below |
+| Click / Drag | Ctrl-click toggles, Shift-click adds; drag on the empty desktop to select with a rubber band |
+| Drag | Icons onto a folder icon: move them into that folder (apps stay) |
+| Drag | An icon or a file from Files onto the recycle bin: remove the shortcut, or bin the file |
+
+## Recycle bin
+
+| Keys | What |
+| --- | --- |
+| / | Focus the search |
+| ⌘A | Select everything listed |
+| R | Restore the selected items (or double-click one) |
+| Del | Delete the selected items permanently |
 

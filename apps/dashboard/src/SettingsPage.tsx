@@ -34,6 +34,17 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
               <Seg label="Frame mode" value={mask} onChange={onMask} options={FRAME_MODES.map((m) => ({ id: m, label: frameModeLabel(m) }))} />
             </Row>
           </Section>
+          <Section icon="monitor" title="Desktop">
+            <Row label="Recycle bin on the desktop" help="An icon you can drop files on and open. Off, the recycle bin is still in Files, at the bottom of its side bar.">
+              <Seg label="Recycle bin on the desktop" value={s.binOnDesktop ? "on" : "off"} onChange={(v) => updateSettings({ binOnDesktop: v === "on" })} options={[{ id: "on", label: "Show" }, { id: "off", label: "Hide" }]} />
+            </Row>
+            <Row label="Taskbar position" help="Any edge of the screen. On the left or right it is a narrow bar of icons (hover one for its name). Menus and notifications follow it.">
+              <Seg label="Taskbar position" value={s.taskbarPosition} onChange={(v) => updateSettings({ taskbarPosition: v })} options={[{ id: "bottom", label: "Bottom" }, { id: "top", label: "Top" }, { id: "left", label: "Left" }, { id: "right", label: "Right" }]} />
+            </Row>
+            <Row label="Taskbar alignment" help="The launcher, pins and open windows from the start (left, or top on a side bar), or in the middle like Windows 11. Project, search, theme and clock stay at the end.">
+              <Seg label="Taskbar alignment" value={s.taskbarAlign} onChange={(v) => updateSettings({ taskbarAlign: v })} options={[{ id: "start", label: "Left" }, { id: "center", label: "Centre" }]} />
+            </Row>
+          </Section>
           <Section icon="image-plus" title="New shot">
             <Row label="Review state" help="Shots made with New shot (uploaded or drawn) start in this state. The dialog can still change it per shot.">
               <Seg label="Review state of new shots" value={s.newShotState} onChange={(v) => updateSettings({ newShotState: v })} options={[{ id: "approved", label: "Approved" }, { id: "unreviewed", label: "To review" }]} />

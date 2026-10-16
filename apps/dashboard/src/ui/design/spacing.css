@@ -9,6 +9,7 @@
   --bw: 1px; --bw-strong: 2px; --bw-selected: 3px;
   --focus-width: 2px; --focus-offset: 2px;
   --taskbar-h: 44px;  /* desktop shell: bottom taskbar */
+  --taskbar-w: 56px;  /* desktop shell: the taskbar on the left or right edge */
   --wm-radius: 10px;  /* desktop shell: window corners */
   --dur-fast: 90ms; /* @kind other */
   --dur: 160ms; /* @kind other */

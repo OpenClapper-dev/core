@@ -1,7 +1,7 @@
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
-import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { assertProjectExists } from "./projects.ts";
+import { binResource } from "./trash.ts";
 
 export interface LocationRow {
   id: string;
@@ -17,7 +17,7 @@ export interface LocationRow {
 }
 
 const LIST_SQL = `SELECT l.*, count(s.id) AS shot_count, coalesce(sum(s.state = 'approved'), 0) AS approved_count
-  FROM locations l LEFT JOIN shots s ON s.location_id = l.id`;
+  FROM locations l LEFT JOIN shots s ON s.location_id = l.id AND s.deleted_at IS NULL WHERE l.deleted_at IS NULL`;
 
 /**
  * The location `id` as seen from `projectId`: itself when it belongs there, else the project's location
@@ -25,11 +25,12 @@ const LIST_SQL = `SELECT l.*, count(s.id) AS shot_count, coalesce(sum(s.state = 
  * the location does not exist at all, or has no counterpart and `create` is off.
  */
 export async function locationInProject(env: Ctx["env"], id: string, projectId: string, create: boolean): Promise<string | null> {
-  const l = await env.DB.prepare("SELECT project_id, name, lat, lon FROM locations WHERE id = ?1").bind(id)
+  // A location in the recycle bin counts as gone: an upload drops it, an edit is refused.
+  const l = await env.DB.prepare("SELECT project_id, name, lat, lon FROM locations WHERE id = ?1 AND deleted_at IS NULL").bind(id)
     .first<{ project_id: string; name: string; lat: number | null; lon: number | null }>();
   if (!l) return null;
   if (l.project_id === projectId) return id;
-  const same = await env.DB.prepare("SELECT id FROM locations WHERE project_id = ?1 AND name = ?2 COLLATE NOCASE").bind(projectId, l.name).first<{ id: string }>();
+  const same = await env.DB.prepare("SELECT id FROM locations WHERE project_id = ?1 AND name = ?2 COLLATE NOCASE AND deleted_at IS NULL").bind(projectId, l.name).first<{ id: string }>();
   if (same) return same.id;
   if (!create) return null;
   const copy = crypto.randomUUID();
@@ -42,7 +43,7 @@ export function registerLocationRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/locations", async ({ env, url }) => {
     const project = url.searchParams.get("project_id");
     const stmt = project
-      ? env.DB.prepare(`${LIST_SQL} WHERE l.project_id = ?1 GROUP BY l.id ORDER BY l.name COLLATE NOCASE`).bind(assertUuid(project, "project_id"))
+      ? env.DB.prepare(`${LIST_SQL} AND l.project_id = ?1 GROUP BY l.id ORDER BY l.name COLLATE NOCASE`).bind(assertUuid(project, "project_id"))
       : env.DB.prepare(`${LIST_SQL} GROUP BY l.id ORDER BY l.name COLLATE NOCASE`);
     const { results } = await stmt.all<LocationRow>();
     return json({ locations: results });
@@ -66,22 +67,17 @@ export function registerLocationRoutes(r: Router<Ctx>) {
       lat = assertNumber(b.lat, "lat", { min: -90, max: 90 });
       lon = assertNumber(b.lon, "lon", { min: -180, max: 180 });
     }
-    const clash = await env.DB.prepare("SELECT id FROM locations WHERE project_id = ?1 AND name = ?2 COLLATE NOCASE AND id != ?3").bind(projectId, name, lid).first<{ id: string }>();
+    const clash = await env.DB.prepare("SELECT id FROM locations WHERE project_id = ?1 AND name = ?2 COLLATE NOCASE AND id != ?3 AND deleted_at IS NULL").bind(projectId, name, lid).first<{ id: string }>();
     if (clash) return json({ error: "a location with this name already exists", existing_id: clash.id }, 409);
     const now = new Date().toISOString();
     await env.DB.prepare(
       `INSERT INTO locations (id, project_id, name, updated_at, lat, lon) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
        ON CONFLICT(id) DO UPDATE SET name = ?3, updated_at = ?4${hasPos ? ", lat = ?5, lon = ?6" : ""}`,
     ).bind(lid, projectId, name, now, lat, lon).run();
-    const row = await env.DB.prepare(`${LIST_SQL} WHERE l.id = ?1 GROUP BY l.id`).bind(lid).first<LocationRow>();
+    const row = await env.DB.prepare(`${LIST_SQL} AND l.id = ?1 GROUP BY l.id`).bind(lid).first<LocationRow>();
     return json({ location: row });
   });
 
-  r.on("DELETE", "/api/locations/:id", async ({ env }, { id }) => {
-    const lid = assertUuid(id, "id");
-    const [res] = await env.DB.batch([env.DB.prepare("DELETE FROM locations WHERE id = ?1").bind(lid), ...fileRefCleanup(env, "location", JSON.stringify([lid]))]);
-    if (!res.meta.changes) throw new HttpError(404, "location not found");
-    // shots.location_id becomes NULL via ON DELETE SET NULL; the photos stay.
-    return json({ deleted: lid });
-  });
+  /** Moves the location (with its spots) to the recycle bin; its shots read as without a location meanwhile. */
+  r.on("DELETE", "/api/locations/:id", async ({ env }, { id }) => json(await binResource(env, "location", assertUuid(id, "id"))));
 }

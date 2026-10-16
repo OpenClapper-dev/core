@@ -10,7 +10,9 @@
 .wm-window{position:absolute;display:flex;flex-direction:column;background:var(--surface);border:var(--bw) solid var(--border);border-radius:var(--wm-radius);box-shadow:var(--elev-window);overflow:hidden;min-width:0;min-height:0}
 .wm-window.is-focused{border-color:var(--border-strong);box-shadow:var(--elev-window-focused)}
 .wm-window--max{left:0!important;top:0!important;width:100%!important;height:100%!important;border-radius:0;border:0}
-.wm-window--snap-left,.wm-window--snap-right{top:0!important;width:50%!important;height:100%!important;border-radius:0;border-top:0;border-bottom:0}
+.wm-window--snap-left,.wm-window--snap-right{top:0!important;height:100%!important;border-radius:0;border-top:0;border-bottom:0}
+.wm-window--snap-left{width:calc(var(--wm-split,.5) * 100%)!important}
+.wm-window--snap-right{width:calc((1 - var(--wm-split,.5)) * 100%)!important}
 .wm-window--snap-left{left:0!important;border-left:0}
 .wm-window--snap-right{left:auto!important;right:0;border-right:0}
 .wm-window--min{display:none}
@@ -39,8 +41,8 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 
 /* ---------- Snap preview ---------- */
 .wm-snap-preview{position:absolute;z-index:99999;pointer-events:none;background:var(--snap-preview-bg);border:var(--bw-strong) solid var(--snap-preview-border);border-radius:var(--wm-radius)}
-.wm-snap-preview--left{left:8px;top:8px;bottom:8px;width:calc(50% - 12px)}
-.wm-snap-preview--right{right:8px;top:8px;bottom:8px;width:calc(50% - 12px)}
+.wm-snap-preview--left{left:8px;top:8px;bottom:8px;width:calc(var(--wm-split,.5) * 100% - 12px)}
+.wm-snap-preview--right{right:8px;top:8px;bottom:8px;width:calc((1 - var(--wm-split,.5)) * 100% - 12px)}
 .wm-snap-preview--max{inset:8px}
 
 /* ---------- Taskbar ---------- */
@@ -99,3 +101,104 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-picker{display:flex;flex-direction:column;gap:10px}
 .wm-picker .f-input--search{width:100%}
 .wm-picker__list{max-height:min(52vh,420px);overflow:auto;display:flex;flex-direction:column}
+/* The recycle bin icon (epic #90): a drop target for icons and for files dragged from Files. */
+.wm-icon--bin.is-drop{background:var(--danger-tint);border-color:var(--danger)}
+.wm-icon--bin.is-drop .wm-icon__glyph{border-color:var(--danger);color:var(--danger)}
+/* Rubber-band selection on the empty desktop, and a folder icon taking dropped icons (epic #90). */
+.wm-marquee{position:absolute;z-index:5;pointer-events:none;background:var(--marquee-bg);border:var(--bw) solid var(--marquee-border)}
+.wm-icon[data-folder].is-drop{background:var(--accent-tint);border-color:var(--accent)}
+/* ---------- Workspaces (epic #90) ---------- */
+.wm-window--away{display:none}
+.wm-task--view{position:relative;width:40px;justify-content:center;padding:0}
+.wm-task__badge{position:absolute;right:3px;bottom:3px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--accent);color:var(--on-accent);font:var(--weight-bold) 10px/14px var(--font-sans);text-align:center}
+/* Task view: a layer over the desktop area, above every window */
+.wm-taskview{position:fixed;left:0;right:0;top:0;bottom:var(--taskbar-h);z-index:100000;display:flex;flex-direction:column;gap:24px;padding:24px 32px;overflow:auto;background:color-mix(in srgb,var(--scrim) 82%,transparent);color:var(--taskview-text);outline:none}
+.wm-taskview__strip{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;justify-content:center;padding-bottom:20px;border-bottom:var(--bw) solid color-mix(in srgb,var(--taskview-text) 18%,transparent)}
+.wm-taskview__tile{display:flex;flex-direction:column;gap:6px;padding:6px;border:var(--bw-strong) solid transparent;border-radius:var(--radius-md);background:transparent;color:inherit;font:inherit}
+.wm-taskview__tile.is-shown{background:color-mix(in srgb,var(--taskview-text) 10%,transparent)}
+.wm-taskview__tile.is-active .wm-taskview__mini{border-color:var(--snap-preview-border);box-shadow:0 0 0 2px var(--snap-preview-border)}
+.wm-taskview__tile.is-drop .wm-taskview__mini,.wm-taskview__plus.is-drop{border-color:var(--snap-preview-border);background:var(--snap-preview-bg)}
+.wm-taskview__head{display:flex;align-items:center;gap:6px;min-height:28px}
+.wm-taskview__name{flex:1;min-width:0;font:var(--weight-semibold) var(--text-small)/1.2 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.wm-taskview__name small{opacity:.7;font-weight:var(--weight-regular)}
+.wm-taskview__x{color:inherit;opacity:.8}
+.wm-taskview__rename{flex:1;min-width:0;height:26px;padding:0 6px;border:var(--bw) solid var(--focus);border-radius:var(--radius-xs);background:var(--surface);color:var(--text);font:var(--weight-semibold) var(--text-small)/1 var(--font-sans)}
+.wm-taskview__mini{position:relative;display:block;padding:0;overflow:hidden;border:var(--bw) solid color-mix(in srgb,var(--taskview-text) 35%,transparent);border-radius:var(--radius-sm);background:var(--desktop-bg);cursor:pointer}
+.wm-taskview__mini:focus-visible,.wm-taskview__card:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:2px}
+.wm-taskview__miniwin{position:absolute;display:flex;align-items:flex-start;justify-content:flex-start;padding:1px 2px;background:var(--surface);border:1px solid var(--border-strong);border-radius:2px;color:var(--text-dim);overflow:hidden}
+.wm-taskview__add{cursor:pointer}
+.wm-taskview__plus{display:flex;align-items:center;justify-content:center;border:var(--bw) dashed color-mix(in srgb,var(--taskview-text) 45%,transparent);border-radius:var(--radius-sm)}
+.wm-taskview__add:hover .wm-taskview__plus{background:color-mix(in srgb,var(--taskview-text) 10%,transparent)}
+.wm-taskview__cards{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;align-content:flex-start;flex:1}
+.wm-taskview__cardwrap{position:relative}
+.wm-taskview__card{display:flex;flex-direction:column;width:240px;height:168px;padding:0;overflow:hidden;border:var(--bw) solid var(--border-strong);border-radius:var(--wm-radius);background:var(--surface);color:var(--text);box-shadow:var(--elev-window);cursor:pointer;text-align:left}
+.wm-taskview__card.is-cursor{box-shadow:0 0 0 3px var(--snap-preview-border),var(--elev-window)}
+.wm-taskview__card.is-min{opacity:.7}
+.wm-taskview__cardhead{display:flex;align-items:center;gap:6px;height:32px;padding:0 36px 0 10px;background:var(--surface-sunken);border-bottom:var(--bw) solid var(--border-subtle);font:var(--weight-semibold) var(--text-small)/1 var(--font-sans)}
+.wm-taskview__cardtitle{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wm-taskview__cardbody{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
+.wm-taskview__cardx{position:absolute;top:2px;right:2px}
+.wm-taskview__empty,.wm-taskview__hint{margin:0;text-align:center;opacity:.8;font-size:var(--text-small)}
+/* The split grip between snapped windows (epic #90): a strip at the split, a thumb on hover */
+.wm-split-grip{position:absolute;top:0;bottom:0;left:calc(var(--wm-split,.5) * 100% - 5px);width:10px;z-index:99990;cursor:ew-resize;touch-action:none;display:flex;align-items:center;justify-content:center;outline:none}
+.wm-split-grip__thumb{width:6px;height:56px;border-radius:3px;background:var(--split-grip);box-shadow:0 0 0 var(--bw) var(--surface);opacity:0;transition:opacity var(--dur-fast,120ms) var(--ease)}
+.wm-split-grip:hover .wm-split-grip__thumb,.wm-split-grip.is-dragging .wm-split-grip__thumb,.wm-split-grip:focus-visible .wm-split-grip__thumb{opacity:1}
+.wm-split-grip:focus-visible .wm-split-grip__thumb{outline:var(--focus-width) solid var(--focus);outline-offset:2px}
+.wm-handle--split{cursor:ew-resize}
+/* ---------- Taskbar options and pins (epic #90) ---------- */
+.wm-taskbar__main{flex:1;min-width:0;display:flex;align-items:center;gap:4px}
+.wm-taskbar__tray{display:flex;align-items:center;gap:4px;flex:none}
+/* Centred: the spacer and the tray share the rest equally, so the main group sits in the middle */
+.wm-taskbar--center .wm-taskbar__spacer{flex:1 1 0;min-width:0}
+.wm-taskbar--center .wm-taskbar__main{flex:0 1 auto}
+.wm-taskbar--center .wm-taskbar__tasks{flex:0 1 auto}
+.wm-taskbar--center .wm-taskbar__tray{flex:1 1 0;justify-content:flex-end;min-width:max-content}
+/* At the top: the taskbar comes first, popovers open downwards, notifications sit bottom right */
+.wm-root[data-taskbar="top"]{grid-template-rows:auto minmax(0,1fr)}
+.wm-root[data-taskbar="top"]>.wm-taskbar{order:-1;border-top:0;border-bottom:var(--bw) solid var(--border-subtle)}
+.wm-root[data-taskbar="top"] .wm-launcher,.wm-root[data-taskbar="top"] .wm-project__menu{bottom:auto;top:calc(100% + 8px)}
+.wm-root[data-taskbar="top"] .toasts{bottom:var(--space-4)}
+.wm-root[data-taskbar="top"] .wm-taskview{top:var(--taskbar-h);bottom:0}
+/* Pins: an app's pin is also its windows' button (a bar under it while one is open) */
+.wm-task--pin{position:relative;width:40px;justify-content:center;padding:0}
+.wm-task--pin.is-running{box-shadow:inset 0 -2px 0 var(--border-strong)}
+.wm-task--pin.is-active{background:var(--accent-tint);box-shadow:inset 0 -2px 0 var(--accent)}
+.wm-task--pin.is-drop-before{box-shadow:inset 3px 0 0 var(--accent)}
+.wm-task__thumb{width:22px;height:22px;border-radius:var(--radius-xs);object-fit:cover;pointer-events:none}
+.wm-task__count{position:absolute;right:2px;top:2px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--surface-sunken);color:var(--text);border:var(--bw) solid var(--border);font:var(--weight-bold) 10px/12px var(--font-sans)}
+.wm-task__dropend{width:3px;height:28px;border-radius:2px;background:var(--accent);flex:none}
+.wm-taskbar.is-drop{background:var(--accent-tint)}
+/* Centred, the launcher opens in the middle like Windows 11's Start */
+.wm-taskbar--center .wm-launcher{left:50%;transform:translateX(-50%)}
+/* ---------- Taskbar on the left or right edge (epic #90): a vertical bar of icons ---------- */
+.wm-root[data-taskbar="left"],.wm-root[data-taskbar="right"]{grid-template-rows:minmax(0,1fr)}
+.wm-root[data-taskbar="left"]{grid-template-columns:auto minmax(0,1fr)}
+.wm-root[data-taskbar="right"]{grid-template-columns:minmax(0,1fr) auto}
+.wm-root[data-taskbar="left"]>.wm-taskbar{order:-1;border-top:0;border-right:var(--bw) solid var(--border-subtle)}
+.wm-root[data-taskbar="right"]>.wm-taskbar{border-top:0;border-left:var(--bw) solid var(--border-subtle)}
+.wm-root[data-taskbar="left"] .wm-taskbar,.wm-root[data-taskbar="right"] .wm-taskbar{flex-direction:column;height:auto;width:var(--taskbar-w);padding:8px 0}
+.wm-root[data-taskbar="left"] :is(.wm-taskbar__main,.wm-taskbar__tasks,.wm-taskbar__tray),.wm-root[data-taskbar="right"] :is(.wm-taskbar__main,.wm-taskbar__tasks,.wm-taskbar__tray){flex-direction:column;min-width:0;min-height:0;width:100%}
+.wm-root[data-taskbar="left"] .wm-taskbar__tasks,.wm-root[data-taskbar="right"] .wm-taskbar__tasks{overflow-y:auto;overflow-x:hidden}
+.wm-root[data-taskbar="left"] .wm-taskbar--center .wm-taskbar__tray,.wm-root[data-taskbar="right"] .wm-taskbar--center .wm-taskbar__tray{justify-content:flex-end;min-width:0;min-height:max-content}
+/* Windows show their icon only (the title is the tooltip) */
+.wm-root[data-taskbar="left"] .wm-taskbar__tasks .wm-task--win,.wm-root[data-taskbar="right"] .wm-taskbar__tasks .wm-task--win{flex:none;width:40px;min-width:40px;justify-content:center;padding:0}
+.wm-root[data-taskbar="left"] .wm-task__txt,.wm-root[data-taskbar="right"] .wm-task__txt,.wm-root[data-taskbar="left"] .wm-taskbar__projname,.wm-root[data-taskbar="right"] .wm-taskbar__projname,.wm-root[data-taskbar="left"] .wm-taskbar__project .mdi-unfold-more-horizontal,.wm-root[data-taskbar="right"] .wm-taskbar__project .mdi-unfold-more-horizontal{display:none}
+.wm-root[data-taskbar="left"] .wm-taskbar__project,.wm-root[data-taskbar="right"] .wm-taskbar__project{width:40px;justify-content:center;padding:0}
+.wm-root[data-taskbar="left"] .wm-task--win,.wm-root[data-taskbar="right"] .wm-task--win{box-shadow:none}
+.wm-root[data-taskbar="left"] .wm-task--win.is-active,.wm-root[data-taskbar="left"] .wm-task--pin.is-active{box-shadow:inset 2px 0 0 var(--accent)}
+.wm-root[data-taskbar="right"] .wm-task--win.is-active,.wm-root[data-taskbar="right"] .wm-task--pin.is-active{box-shadow:inset -2px 0 0 var(--accent)}
+.wm-root[data-taskbar="left"] .wm-task--pin.is-running{box-shadow:inset 2px 0 0 var(--border-strong)}
+.wm-root[data-taskbar="right"] .wm-task--pin.is-running{box-shadow:inset -2px 0 0 var(--border-strong)}
+.wm-root[data-taskbar="left"] .wm-task--pin.is-drop-before,.wm-root[data-taskbar="right"] .wm-task--pin.is-drop-before{box-shadow:inset 0 3px 0 var(--accent)}
+.wm-root[data-taskbar="left"] .wm-task__dropend,.wm-root[data-taskbar="right"] .wm-task__dropend{width:28px;height:3px}
+.wm-root[data-taskbar="left"] .wm-taskbar__clock,.wm-root[data-taskbar="right"] .wm-taskbar__clock{align-self:stretch;padding:4px 2px;font-size:var(--text-caption);text-align:center;white-space:normal;line-height:1.2}
+/* Popovers open beside the bar; notifications keep clear of it */
+.wm-root[data-taskbar="left"] .wm-launcher{left:calc(100% + 8px);top:8px;bottom:auto;transform:none}
+.wm-root[data-taskbar="right"] .wm-launcher{left:auto;right:calc(100% + 8px);top:8px;bottom:auto;transform:none}
+.wm-root[data-taskbar="left"] .wm-taskbar--center .wm-launcher,.wm-root[data-taskbar="right"] .wm-taskbar--center .wm-launcher{top:50%;transform:translateY(-50%)}
+.wm-root[data-taskbar="left"] .wm-project__menu{left:calc(100% + 8px);right:auto;bottom:0}
+.wm-root[data-taskbar="right"] .wm-project__menu{right:calc(100% + 8px);bottom:0}
+.wm-root[data-taskbar="left"] .toasts{bottom:var(--space-4)}
+.wm-root[data-taskbar="right"] .toasts{bottom:var(--space-4);right:calc(var(--taskbar-w) + var(--space-4))}
+.wm-root[data-taskbar="left"] .wm-taskview{top:0;bottom:0;left:var(--taskbar-w)}
+.wm-root[data-taskbar="right"] .wm-taskview{top:0;bottom:0;right:var(--taskbar-w)}
