@@ -31,3 +31,7 @@ Things that may go wrong but are not fixed (or not verified on a device) yet. Ad
 ## Recycle bin: a restored shot is off its timelines and days (epic #90)
 
 Binning a shot removes its clips from timelines (with the clips' own overlays) and its places on shooting days at once, because the Timeline and Plan save a cut or a day whole and would drop hidden rows on their next save anyway. A restore brings the shot, its folder placement and its desktop shortcuts back, not those clips and places. The dashboard asks before binning a shot that is used there.
+
+## Task view shows wireframes, not live pictures (epic #90)
+
+The task view draws each workspace's windows as outlined boxes with the app's icon, and each window as a card with its title and icon. A live screenshot of every window would need rendering each app twice; the boxes keep the layout recognisable without it.

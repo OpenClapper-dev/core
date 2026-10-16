@@ -59,6 +59,7 @@
   --snap-preview-border: #0040D8;
   --marquee-bg: rgba(0,64,216,0.10); /* @kind other */
   --marquee-border: #0040D8;
+  --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
   color-scheme: light;
 }
 [data-theme="sun"] {
@@ -115,6 +116,7 @@
   --snap-preview-border: #0040D8;
   --marquee-bg: rgba(0,64,216,0.10); /* @kind other */
   --marquee-border: #0040D8;
+  --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
   color-scheme: light;
 }
 [data-theme="set"] {
@@ -171,6 +173,7 @@
   --snap-preview-border: #6FA2FF;
   --marquee-bg: rgba(111,162,255,0.14); /* @kind other */
   --marquee-border: #6FA2FF;
+  --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
   color-scheme: dark;
 }
 /* Aliases kept from the old dashboard so existing CSS keeps working during migration. */

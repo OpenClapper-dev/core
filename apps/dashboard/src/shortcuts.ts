@@ -92,6 +92,13 @@ export const SHORTCUTS = [
   { scope: "wm", action: "snapLeft", keys: ["Mod+Alt+ArrowLeft"], label: "Snap the window to the left half" },
   { scope: "wm", action: "snapRight", keys: ["Mod+Alt+ArrowRight"], label: "Snap the window to the right half" },
   { scope: "wm", action: "desktop", keys: ["Mod+Alt+d"], label: "Show the desktop (again: bring the windows back)" },
+  // ---- Workspaces (virtual desktops, epic #90)
+  { scope: "wm", action: "taskView", keys: ["Mod+Alt+v"], label: "Task view: every workspace and its windows" },
+  { scope: "wm", action: "wsNext", keys: ["Mod+Alt+Shift+ArrowRight"], label: "Next workspace" },
+  { scope: "wm", action: "wsPrev", keys: ["Mod+Alt+Shift+ArrowLeft"], label: "Previous workspace" },
+  { scope: "wm", action: "wsNew", keys: ["Mod+Alt+n"], label: "New workspace (and go there)" },
+  { scope: "wm", action: "wsGo", keys: ["Mod+Alt+1", "Mod+Alt+2", "Mod+Alt+3", "Mod+Alt+4", "Mod+Alt+5", "Mod+Alt+6", "Mod+Alt+7", "Mod+Alt+8", "Mod+Alt+9"], label: "Go to workspace 1–9" },
+  { scope: "wm", action: "wsMove", keys: ["Mod+Alt+Shift+1", "Mod+Alt+Shift+2", "Mod+Alt+Shift+3", "Mod+Alt+Shift+4", "Mod+Alt+Shift+5", "Mod+Alt+Shift+6", "Mod+Alt+Shift+7", "Mod+Alt+Shift+8", "Mod+Alt+Shift+9"], label: "Move the window to workspace 1–9" },
 
   // ---- Shots
   { scope: "shots", action: "search", keys: ["/"], label: "Focus the search" },

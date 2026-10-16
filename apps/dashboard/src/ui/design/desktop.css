@@ -105,3 +105,35 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 /* Rubber-band selection on the empty desktop, and a folder icon taking dropped icons (epic #90). */
 .wm-marquee{position:absolute;z-index:5;pointer-events:none;background:var(--marquee-bg);border:var(--bw) solid var(--marquee-border)}
 .wm-icon[data-folder].is-drop{background:var(--accent-tint);border-color:var(--accent)}
+/* ---------- Workspaces (epic #90) ---------- */
+.wm-window--away{display:none}
+.wm-task--view{position:relative;width:40px;justify-content:center;padding:0}
+.wm-task__badge{position:absolute;right:3px;bottom:3px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--accent);color:var(--on-accent);font:var(--weight-bold) 10px/14px var(--font-sans);text-align:center}
+/* Task view: a layer over the desktop area, above every window */
+.wm-taskview{position:fixed;left:0;right:0;top:0;bottom:var(--taskbar-h);z-index:100000;display:flex;flex-direction:column;gap:24px;padding:24px 32px;overflow:auto;background:color-mix(in srgb,var(--scrim) 82%,transparent);color:var(--taskview-text);outline:none}
+.wm-taskview__strip{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;justify-content:center;padding-bottom:20px;border-bottom:var(--bw) solid color-mix(in srgb,var(--taskview-text) 18%,transparent)}
+.wm-taskview__tile{display:flex;flex-direction:column;gap:6px;padding:6px;border:var(--bw-strong) solid transparent;border-radius:var(--radius-md);background:transparent;color:inherit;font:inherit}
+.wm-taskview__tile.is-shown{background:color-mix(in srgb,var(--taskview-text) 10%,transparent)}
+.wm-taskview__tile.is-active .wm-taskview__mini{border-color:var(--snap-preview-border);box-shadow:0 0 0 2px var(--snap-preview-border)}
+.wm-taskview__tile.is-drop .wm-taskview__mini,.wm-taskview__plus.is-drop{border-color:var(--snap-preview-border);background:var(--snap-preview-bg)}
+.wm-taskview__head{display:flex;align-items:center;gap:6px;min-height:28px}
+.wm-taskview__name{flex:1;min-width:0;font:var(--weight-semibold) var(--text-small)/1.2 var(--font-sans);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+.wm-taskview__name small{opacity:.7;font-weight:var(--weight-regular)}
+.wm-taskview__x{color:inherit;opacity:.8}
+.wm-taskview__rename{flex:1;min-width:0;height:26px;padding:0 6px;border:var(--bw) solid var(--focus);border-radius:var(--radius-xs);background:var(--surface);color:var(--text);font:var(--weight-semibold) var(--text-small)/1 var(--font-sans)}
+.wm-taskview__mini{position:relative;display:block;padding:0;overflow:hidden;border:var(--bw) solid color-mix(in srgb,var(--taskview-text) 35%,transparent);border-radius:var(--radius-sm);background:var(--desktop-bg);cursor:pointer}
+.wm-taskview__mini:focus-visible,.wm-taskview__card:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:2px}
+.wm-taskview__miniwin{position:absolute;display:flex;align-items:flex-start;justify-content:flex-start;padding:1px 2px;background:var(--surface);border:1px solid var(--border-strong);border-radius:2px;color:var(--text-dim);overflow:hidden}
+.wm-taskview__add{cursor:pointer}
+.wm-taskview__plus{display:flex;align-items:center;justify-content:center;border:var(--bw) dashed color-mix(in srgb,var(--taskview-text) 45%,transparent);border-radius:var(--radius-sm)}
+.wm-taskview__add:hover .wm-taskview__plus{background:color-mix(in srgb,var(--taskview-text) 10%,transparent)}
+.wm-taskview__cards{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;align-content:flex-start;flex:1}
+.wm-taskview__cardwrap{position:relative}
+.wm-taskview__card{display:flex;flex-direction:column;width:240px;height:168px;padding:0;overflow:hidden;border:var(--bw) solid var(--border-strong);border-radius:var(--wm-radius);background:var(--surface);color:var(--text);box-shadow:var(--elev-window);cursor:pointer;text-align:left}
+.wm-taskview__card.is-cursor{box-shadow:0 0 0 3px var(--snap-preview-border),var(--elev-window)}
+.wm-taskview__card.is-min{opacity:.7}
+.wm-taskview__cardhead{display:flex;align-items:center;gap:6px;height:32px;padding:0 36px 0 10px;background:var(--surface-sunken);border-bottom:var(--bw) solid var(--border-subtle);font:var(--weight-semibold) var(--text-small)/1 var(--font-sans)}
+.wm-taskview__cardtitle{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.wm-taskview__cardbody{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
+.wm-taskview__cardx{position:absolute;top:2px;right:2px}
+.wm-taskview__empty,.wm-taskview__hint{margin:0;text-align:center;opacity:.8;font-size:var(--text-small)}
