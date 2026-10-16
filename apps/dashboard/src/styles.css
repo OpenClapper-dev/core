@@ -463,7 +463,16 @@ button { font: inherit; }
 .vf-area { display: flex; align-items: center; justify-content: center; position: relative; flex: none; }
 .vf-area__warn { position: absolute; color: var(--warn); font-weight: 700; font-size: var(--text-caption); }
 .vf-cam { position: relative; background: linear-gradient(160deg, var(--surface-sunken), var(--photo-bg)); }
+.vf-cam { overflow: hidden; }
 .vf-cam__frame { position: absolute; inset: 18% 12%; border: 2px solid var(--accent); }
+.vf-cam__hud { position: absolute; top: 6px; left: 6px; right: 6px; display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none; }
+.vf-hud { padding: 2px 8px; border-radius: var(--radius-pill); background: var(--chrome-bg); color: var(--chrome-text); border: 1px solid var(--chrome-border); font-size: 11px; font-weight: 700; }
+.vf-hud--warn { background: var(--warn); color: var(--on-warn); }
+.vf-look { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: var(--bw-strong) solid var(--border); }
+.vf-look.is-readonly { opacity: 0.55; pointer-events: none; }
+.vf-look__title { margin: 4px 0 0; font-size: var(--text-body); }
+.vf-look__label { font-weight: 700; font-size: var(--text-small); }
+.vf-swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid var(--border-strong); display: inline-block; }
 .vf-chrome { display: flex; flex-direction: column; gap: 10px; padding: 10px 8px 12px; background: var(--surface); border-top: 2px solid var(--border); flex: none; }
 .vf-chrome--top { border-top: 0; border-bottom: 2px solid var(--border); }
 .vf-side { width: 80px; flex: none; display: flex; background: var(--surface); }

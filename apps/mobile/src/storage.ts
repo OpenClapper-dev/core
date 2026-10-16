@@ -19,6 +19,7 @@ const KEYS = {
   locations: "locations.v2",
   spots: "spots.v1",
   layouts: "viewfinderLayouts.v1",
+  pendingLayouts: "pendingLayouts.v1",
   projects: "projects.v1",
   activeProjectId: "activeProjectId.v1",
   sequence: "sequence.v1",
@@ -72,13 +73,7 @@ export function onPendingChange(cb: (count: number) => void): () => void {
 }
 
 export const store = {
-  loadSettings: (): Settings => {
-    const s = read<Settings & { hudEnabled?: boolean }>(KEYS.settings, DEFAULT_SETTINGS);
-    // Before the per-chip switches there was one HUD switch; off meant warnings only.
-    if (s.hudEnabled === false && s.hudChips === DEFAULT_SETTINGS.hudChips) s.hudChips = { project: false, rig: false, fov: false, gps: false, warnings: true };
-    delete s.hudEnabled;
-    return { ...s, hudChips: { ...DEFAULT_SETTINGS.hudChips, ...s.hudChips } };
-  },
+  loadSettings: (): Settings => read<Settings>(KEYS.settings, DEFAULT_SETTINGS),
   saveSettings: (s: Settings) => write(KEYS.settings, s),
 
   loadPresets: (): Preset[] =>
@@ -118,6 +113,9 @@ export const store = {
   saveSpots: (l: SpotEntry[]) => write(KEYS.spots, l),
   loadLayouts: (): LayoutEntry[] => readArray<LayoutEntry>(KEYS.layouts),
   saveLayouts: (l: LayoutEntry[]) => write(KEYS.layouts, l),
+  /** Layouts changed on the phone and not on the server yet (issue #68), the latest per id. */
+  loadPendingLayouts: (): LayoutEntry[] => readArray<LayoutEntry>(KEYS.pendingLayouts),
+  savePendingLayouts: (l: LayoutEntry[]) => write(KEYS.pendingLayouts, l),
 
   loadProjects: (): ProjectEntry[] => readArray<ProjectEntry>(KEYS.projects),
   saveProjects: (p: ProjectEntry[]) => write(KEYS.projects, p),

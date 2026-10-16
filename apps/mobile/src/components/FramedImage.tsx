@@ -1,6 +1,6 @@
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Image, type ImageSource } from "expo-image";
-import type { Settings } from "../types";
+import type { ViewSettings } from "../types";
 import { clampCentre } from "@fielder/vocab";
 import { FIXED, Seg } from "../ui";
 import { Overlay } from "./Overlay";
@@ -20,7 +20,7 @@ interface Props {
   /** Rig frame relative to the photo, centred; null when unknown. */
   frame: FrameFractions | null;
   width: number;
-  settings: Settings;
+  settings: ViewSettings;
   mode: FrameMode;
   style?: StyleProp<ViewStyle>;
 }

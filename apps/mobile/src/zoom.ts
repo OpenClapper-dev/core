@@ -1,3 +1,5 @@
+import type { VfLenses } from "@fielder/vocab";
+
 /**
  * The phone's lenses as magnifications (issue #26). Android exposes the back cameras as one logical
  * camera whose zoom ratio is measured against the main lens: a minimum below 1 means an ultra-wide
@@ -5,8 +7,6 @@
  * range but not the switch points on Android, so the strip offers fixed stops inside it.
  */
 
-/** Which magnifications the strip offers (Setup → Viewfinder → Phone lenses). */
-export type PhoneLenses = { mode: "all" } | { mode: "list"; zooms: number[] } | { mode: "fixed"; zoom: number };
 
 /** The zoom range of the camera in use, as the camera reported it once it ran. */
 export interface ZoomRange { min: number; max: number }
@@ -21,9 +21,10 @@ export function zoomStops(range: ZoomRange | null): number[] {
 }
 
 /** What the strip shows: all stops, the picked ones the camera can do (at least 1×), or the fixed one alone. */
-export function offeredZooms(stops: number[], setting: PhoneLenses): number[] {
+/** Which magnifications the strip offers: the layout's phone-lenses option (issue #68). */
+export function offeredZooms(stops: number[], setting: VfLenses): number[] {
   if (setting.mode === "fixed") return [stops.includes(setting.zoom) ? setting.zoom : 1];
-  if (setting.mode === "list") {
+  if (setting.mode === "pick") {
     const picked = stops.filter((z) => setting.zooms.includes(z));
     return picked.length ? picked : [1];
   }

@@ -2,7 +2,8 @@ import { createContext, useContext } from "react";
 import type { Shot, ShootingDay } from "./api";
 import type { ShotsData } from "./shots";
 import type { LivePreview } from "./preview";
-import type { LayoutEntry, LocationEntry, ProjectEntry, Settings, SpotEntry } from "./types";
+import type { ViewfinderLayout, VfLook, VfOptions } from "@fielder/vocab";
+import type { LayoutEntry, LocationEntry, ProjectEntry, Settings, SpotEntry, ViewSettings } from "./types";
 
 /** The five tabs. Everything else is a pushed full screen (Route) or a sheet. */
 export type Tab = "shoot" | "history" | "shots" | "day" | "setup";
@@ -29,8 +30,17 @@ export type Route =
 export type ShotsView = "grid" | "map";
 
 export interface AppState {
-  settings: Settings;
+  /** The phone's settings with the current layout's look and options on top (issue #68). */
+  settings: ViewSettings;
+  /** Changes the phone's own settings only; the look and options are edited with `editLayout`. */
   setSettings: (u: Settings | ((s: Settings) => Settings)) => void;
+  /** The layout Shoot uses (the dashboard's preview while one runs), and its cached entry (null = the built-in Default, read-only). */
+  layout: ViewfinderLayout;
+  layoutEntry: LayoutEntry | null;
+  /** Change the current layout's look or options; saved on the phone at once, sent with the next flush. */
+  editLayout: (patch: { look?: Partial<VfLook>; options?: Partial<VfOptions> }) => void;
+  /** The Default can't be changed: make an editable copy and switch to it. */
+  copyDefaultLayout: () => void;
   project: ProjectEntry | null;
   projects: ProjectEntry[];
   shots: ShotsData;

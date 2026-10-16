@@ -227,12 +227,14 @@ export const api = {
       body: JSON.stringify({ location_id: x.locationId, name: x.name }),
     }),
 
-  /** Viewfinder layouts made on the dashboard (issue #49); the phone only reads them. */
+  /** Viewfinder layouts (issue #49), made on the dashboard; since #68 the phone also edits their look and options. */
   listLayouts: () => call<{ layouts: LayoutEntry[] }>("/api/viewfinder-layouts").then((r) => r.layouts.map((l) => ({ id: l.id, name: l.name, layout: l.layout }))),
 
   /** Device specs (issue #68): the phone keeps its own record current once the dashboard saved it. */
   listDevices: () => call<{ devices: { id: string; name: string; specs: DeviceSpecs }[] }>("/api/devices").then((r) => r.devices),
   putDeviceSpecs: (id: string, specs: DeviceSpecs) => call<unknown>(`/api/devices/${id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ specs }) }),
+
+  putLayout: (id: string, l: { name: string; layout: unknown }) => call<unknown>(`/api/viewfinder-layouts/${id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(l) }),
 
   listDays: (projectId: string) => call<{ days: ShootingDay[] }>(`/api/days?project_id=${projectId}`).then((r) => r.days),
   listFields: () => call<{ fields: FieldDefinition[] }>("/api/fields").then((r) => r.fields),

@@ -7,7 +7,7 @@ import { editShot, isWaiting } from "../localShots";
 import { isOfflineMode, isOnline } from "../net";
 import { discardPending } from "../uploads";
 import { useApp } from "../appState";
-import type { Settings } from "../types";
+import type { ViewSettings } from "../types";
 import { extraLine, placeLabel, rigLabel, shortTime, shotTitle, tagsLabel } from "../shots";
 import { BORDER, confirm, FIXED, IconButton, ListRow, makeStyles, notice, num, PhotoTag, RADIUS, SeqBadge, Sheet, SheetList, StateMarker, toast, type, useTheme } from "../ui";
 import { useSwipe } from "./gestures";
@@ -103,7 +103,7 @@ export function ShotSummary({ shot, photo }: { shot: Shot; photo: Photo }) {
  * A stored shot's photo with its badges (SEQ top-left, "Photo i / n" top-right). Swipe moves
  * between shots, the strip between photos; double-tap opens the full-screen photo.
  */
-export function ShotPhoto({ shot, index, mode, settings, maxW, maxH, onNext, onPrev, onOpen }: { shot: Shot; index: number; mode: FrameMode; settings: Settings; maxW: number; maxH: number; onNext?: () => void; onPrev?: () => void; onOpen?: () => void }) {
+export function ShotPhoto({ shot, index, mode, settings, maxW, maxH, onNext, onPrev, onOpen }: { shot: Shot; index: number; mode: FrameMode; settings: ViewSettings; maxW: number; maxH: number; onNext?: () => void; onPrev?: () => void; onOpen?: () => void }) {
   const s = useStyles();
   const photo = shot.photos[Math.min(index, shot.photos.length - 1)];
   const pan = useSwipe({ width: maxW, next: onNext, prev: onPrev, doubleTap: onOpen });
@@ -117,7 +117,7 @@ export function ShotPhoto({ shot, index, mode, settings, maxW, maxH, onNext, onP
 }
 
 /** Double-tap: the photo on black, as large as it goes, the mode switch on an opaque card; swipe = photos. */
-export function FullPhoto({ shot, index, mode, onMode, settings, onClose }: { shot: Shot; index: number; mode: FrameMode; onMode: (m: FrameMode) => void; settings: Settings; onClose: () => void }) {
+export function FullPhoto({ shot, index, mode, onMode, settings, onClose }: { shot: Shot; index: number; mode: FrameMode; onMode: (m: FrameMode) => void; settings: ViewSettings; onClose: () => void }) {
   const s = useStyles();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();

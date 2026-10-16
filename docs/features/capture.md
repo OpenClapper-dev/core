@@ -5,7 +5,7 @@ The Shoot tab (`apps/mobile/src/screens/Viewfinder.tsx`) is a viewfinder for a c
 ## Camera (react-native-vision-camera, issue #26)
 
 - The back camera is Android's logical camera (`useCameraDevice("back")`), so one zoom ratio reaches every lens: below 1× is the ultra-wide, the phone switches to its tele by itself. The `<Camera>` gets a 4:3 photo output (`UHD_4_3`), `resizeMode="contain"` in the 4:3 preview box, `orientationSource="interface"` (photos follow the UI orientation, like the frame), the zoom and the torch.
-- **Phone lenses** (`zoom.ts`, `ZoomStrip` in `LensStrip.tsx`): stops inside the camera's zoom range: its minimum when below 1× (e.g. 0.5×), 1×, then 2× 3× 5× 10× up to its maximum. vision-camera reports the range (from the controller once the camera runs; remembered as `zoomRange.v1` for Setup) but not the lens switch points on Android. Setup → Viewfinder → **Phone lenses**: All · Pick (chips) · Fixed (one, no buttons). The strip shows only with two or more stops. The choice is remembered (`zoom.v1`); a stop no longer offered falls back to the nearest.
+- **Phone lenses** (`zoom.ts`, `ZoomStrip` in `LensStrip.tsx`): stops inside the camera's zoom range: its minimum when below 1× (e.g. 0.5×), 1×, then 2× 3× 5× 10× up to its maximum. vision-camera reports the range (from the controller once the camera runs; remembered as `zoomRange.v1` for Setup) but not the lens switch points on Android. Which stops the strip offers is the layout's **Phone lenses** option (issue #68): All · Pick · Fixed (one, no buttons); List or Carousel per placement. The strip shows only with two or more stops. The choice is remembered (`zoom.v1`); a stop no longer offered falls back to the nearest.
 - **FOV with a zoom**: the phone's 35 mm equivalent is the main lens's times the zoom. Auto calibration from EXIF runs only at 1× (other zooms are other lenses or a crop); captures at other zooms log the EXIF next to the computed value.
 - The app runs only in a development build or an APK from here on (vision-camera is not in Expo Go; [development](../development.md)).
 - Every step is in the [debug log](debug-log.md): the device (`camera device`: type, virtual, physical lenses, zoom range), `camera started` (the controller's range and stops), `phone lens`, `photo taken` (size, orientation, EXIF), `capture resized`, `capture at zoom`, `camera error`.
@@ -45,10 +45,10 @@ In landscape the row becomes an 80 dp column next to the tab bar, read top to bo
 | Light | Flashlight on/off (`torchMode`). Manual, not a flash; not remembered across launches. |
 | Shutter | Capture. Red ring and disc with the photo count while a sequence runs. Dashed when it can't fire (no project, rig or camera). |
 | Fit | Digital zoom so the rig frame fills the screen |
-| Human | Cyan reference frame for roughly what a person sees, labelled "HUMAN 43". Setup → Viewfinder: **cycle** (off → 35 → 43 → 50 → off) or **toggle** (off ↔ the chosen value). |
+| Human | Cyan reference frame for roughly what a person sees, labelled "HUMAN 43". The layout says (issue #68): **cycle** (off → 35 → 43 → 50 → off) or **toggle** (off ↔ the chosen value). |
 | Rig | The Rig sheet |
 
-**HUD**: solid chips over the image, top left (centred between the columns in landscape). Each is switched on its own in Setup → Viewfinder (`settings.hudChips`):
+**HUD**: solid chips over the image, top left (centred between the columns in landscape). Each is switched on its own in the layout's look (issue #68; Setup → Viewfinder or the dashboard editor):
 - **Project**: tap opens the Project sheet.
 - **Rig and lens**.
 - **FOV**: FF-equivalent and angle of view, with the fit zoom, plus the human-view relation.
@@ -61,7 +61,7 @@ There is no theme button on the HUD any more; the theme is Setup → Theme.
 
 **Blocking states** get an opaque card over the image with the one action that fixes them: "Set up a rig" → Rig editor, "No project" → Project sheet.
 
-Setup → Viewfinder / Capture / Phone calibration hold the rest: frame colour and width, blackout and its tint (the neutral 62 % black is the default), rig orientation, orientation lock, the phone's focal length ([phone app](phone-app.md)).
+The layout's look holds the frame colour and width and the blackout and its tint (the neutral 62 % black is the default); Setup → Capture / Phone calibration hold rig orientation, orientation lock and the phone's focal length ([phone app](phone-app.md)). Fit and Human on/off are button states on the phone, not settings.
 
 ## What a capture produces
 

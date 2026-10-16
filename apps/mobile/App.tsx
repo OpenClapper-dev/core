@@ -16,6 +16,8 @@ import { isConfigured } from "./src/config";
 import { setLogging } from "./src/log";
 import { setOfflineMode, useOnline } from "./src/net";
 import { useLivePreview } from "./src/preview";
+import { copyDefault, editLayout as writeLayout, withLook } from "./src/layouts";
+import { resolveLayout } from "./src/vfLayout";
 import { useShots } from "./src/shots";
 import { store, usePref } from "./src/storage";
 import type { LayoutEntry, LocationEntry, ProjectEntry, Settings, SpotEntry } from "./src/types";
@@ -162,15 +164,33 @@ function App() {
     [shots.shots],
   );
 
+  // Issue #68: the layout carries the look and control options; the screens read them merged into the settings.
+  const layoutEntry = layouts.find((l) => l.id === settings.viewfinderLayoutId) ?? null;
+  const layout = live.preview?.layout ?? resolveLayout(settings.viewfinderLayoutId, layouts);
+  const viewSettings = useMemo(() => withLook(settings, layout), [settings, layout]);
+  const editLayout = useCallback((patch: Parameters<AppState["editLayout"]>[0]) => {
+    if (!layoutEntry) return; // the Default is read-only
+    writeLayout(layoutEntry, patch);
+    setLayouts(store.loadLayouts());
+    if (isSignedIn()) void flush();
+  }, [layoutEntry]);
+  const copyDefaultLayout = useCallback(() => {
+    const e = copyDefault("My layout");
+    setLayouts(store.loadLayouts());
+    setSettings((s) => ({ ...s, viewfinderLayoutId: e.id }));
+    toast("Copied the Default as “My layout”: change it here or on the dashboard");
+    if (isSignedIn()) void flush();
+  }, []);
+
   const state: AppState = useMemo(() => ({
-    settings, setSettings, project, projects, shots, locations, setLocations, spots, setSpots, layouts, countAt,
+    settings: viewSettings, setSettings, layout, layoutEntry, editLayout, copyDefaultLayout, project, projects, shots, locations, setLocations, spots, setSpots, layouts, countAt,
     preview: live.preview, exitPreview: live.exit,
     tab, setTab: (t: Tab) => { setStack([]); setMapFocus(null); setTab(t); }, push, pop,
     openProjectSheet: () => setProjectSheet(true),
     signIn: () => setLogin("webApp"),
     shotsView, setShotsView, mapFocus,
     showOnMap: (id: string) => { setMapFocus(id); setShotsView("map"); setStack([]); setTab("shots"); },
-  }), [settings, project, projects, shots, locations, spots, layouts, live.preview, countAt, tab, push, pop, shotsView, mapFocus]);
+  }), [viewSettings, layout, layoutEntry, editLayout, copyDefaultLayout, project, projects, shots, locations, spots, layouts, live.preview, countAt, tab, push, pop, shotsView, mapFocus]);
 
   const unreviewed = (shots.shots ?? []).filter((s) => s.state === "unreviewed").length;
   // The tab bar sits on the navigation-bar edge; keep at least the edge pad clear of it.

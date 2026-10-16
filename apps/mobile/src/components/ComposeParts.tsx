@@ -6,7 +6,7 @@ import { referencedFrame, sketchKindLabel } from "@fielder/vocab";
 import { imageHeaders, renderUri, type Composed, type Overlay, type Photo, type Shot, type Sketch } from "../api";
 import { isOfflineMode } from "../net";
 import { offlineRenderUri } from "../offline";
-import type { Settings } from "../types";
+import type { ViewSettings } from "../types";
 import { BORDER, FIXED, Icon, IconButton, ListRow, makeStyles, RADIUS, SectionLabel, type, useTheme } from "../ui";
 import { FramedImage } from "./FramedImage";
 import { fitWidth, FrameModeSeg, frameOf, imageAspect, type FrameMode } from "./ShotFrame";
@@ -67,7 +67,7 @@ export function ComposeRows({ shot, photo, onOpen }: { shot: Shot; photo: Photo;
  * Full screen: the render on black (overlays with the frame modes, opening in the presentation they
  * were drawn in), the name and kind, and the description on an opaque card.
  */
-export function ComposeViewer({ item, photo, settings, onClose }: { item: Composed; photo: Photo; settings: Settings; onClose: () => void }) {
+export function ComposeViewer({ item, photo, settings, onClose }: { item: Composed; photo: Photo; settings: ViewSettings; onClose: () => void }) {
   const s = useStyles();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();

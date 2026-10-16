@@ -35,13 +35,12 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 - Rows, each with its current value; every row opens a screen, and settings save on change:
   - **Project**: opens the Project sheet.
   - **Rigs & lenses**: the rig list; tap a rig to edit it, "New rig" is pinned.
-  - **Viewfinder**: the **Layout** ([viewfinder layouts](viewfinder-layouts.md), made on the dashboard), a pinned preview (the latest shot, or black, with the current frame, blackout, human frame and HUD chips) above:
+  - **Viewfinder**: the **Layout** ([viewfinder layouts](viewfinder-layouts.md)) and its look and control options, which belong to the layout (issue #68): a change here edits the layout (saved on the phone, sent with the next flush; the dashboard sees it). With the built-in **Default** they are greyed out, with **Make a copy** ("My layout", selected at once). A pinned preview (the latest shot, or black, with the current frame, blackout, human frame and HUD chips) above:
+    - **Phone lenses**: All · Pick · Fixed ([capture](capture.md#camera-react-native-vision-camera-issue-26))
     - one switch per HUD chip (Project, Rig and lens, FOV, GPS accuracy, Warnings)
-    - Fit
     - frame colour and width
     - blackout and its tint
-    - the human-view button (cycle/toggle) and its value
-    - **Phone lenses**: All · Pick · Fixed ([capture](capture.md#camera-react-native-vision-camera-issue-26))
+    - the Human button: cycle or toggle, and the toggle value
   - **Capture**: direct upload, **GPS** (High · Low · Off, [positions](positions.md)), rig orientation, the screen orientation on launch.
   - **Offline**: offline mode, what waits on the phone, and the project kept on the phone ([offline](day-mode-offline.md)).
   - **Phone calibration**: the 35 mm-equivalent of the main camera: **From the photos** (EXIF of each capture, with the phone model it came from) or **Manual** (5–200).

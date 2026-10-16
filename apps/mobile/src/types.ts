@@ -1,4 +1,4 @@
-import type { PhoneLenses } from "./zoom";
+import type { VfLenses } from "@fielder/vocab";
 import type { Extra } from "@fielder/vocab";
 
 export interface Preset {
@@ -47,32 +47,40 @@ export interface Settings {
   phoneModel: string | null;
   /** The viewfinder layout made on the dashboard (issue #49); null = the shipped default. */
   viewfinderLayoutId: string | null;
-  /** Issue #26: which of the phone's lenses the Shoot screen offers (all, a picked list, or one fixed). */
-  phoneLenses: PhoneLenses;
-  borderColor: string;
-  borderWidthPx: number;
-  blackoutEnabled: boolean;
-  blackoutColor: string;
   rigOrientation: RigOrientation;
   /** Digitally scale the preview so the rig frame fills the screen. */
   fitToFrame: boolean;
   orientationLock: OrientationLock;
   /** Draw a second, thin frame showing roughly what a human sees (a "normal" lens, in FF-equivalent mm). */
   humanViewEnabled: boolean;
+  /** The Human button's current step while it cycles (35 → 43 → 50); in toggle mode the layout's value is used. */
   humanViewFocalMm: number;
-  /** Human button: "cycle" steps off -> 35 -> 43 -> 50 -> off; "toggle" flips between off and humanViewFocalMm. */
-  humanViewButton: "cycle" | "toggle";
   /** Skip the tag form after a capture: every shot (or finished sequence) goes straight into the upload queue. */
   directUpload: boolean;
   /** Record a detailed log on the phone that can be shared for debugging. */
   loggingEnabled: boolean;
-  /** Which info chips the live view shows (Setup → Viewfinder); each is switched on its own. */
-  hudChips: HudChips;
   /** "auto" follows the phone's dark mode; "sun" = light (daylight), "set" = dark. */
   theme: "auto" | "sun" | "set";
   gpsMode: GpsMode;
   /** Never touch the network: uploads and edits wait on the phone until this is switched off. */
   offlineMode: boolean;
+}
+
+/**
+ * What the screens read: the phone's own settings plus the current layout's look and control options
+ * (issue #68: those live in the layout, so the dashboard and the phone edit the same thing). Built in
+ * App.tsx (`withLook`), never stored as such.
+ */
+export interface ViewSettings extends Settings {
+  hudChips: HudChips;
+  borderColor: string;
+  borderWidthPx: number;
+  blackoutEnabled: boolean;
+  blackoutColor: string;
+  /** Human button: "cycle" steps off -> 35 -> 43 -> 50 -> off; "toggle" flips between off and humanViewFocalMm. */
+  humanViewButton: "cycle" | "toggle";
+  /** Which of the phone's lenses the Shoot screen offers (issue #26). */
+  phoneLenses: VfLenses;
 }
 
 /** Scouting tags entered in the review form after capture. Values are @fielder/vocab ids; null / [] / false = not specified. */

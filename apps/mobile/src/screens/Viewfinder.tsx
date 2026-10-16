@@ -7,17 +7,16 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import { File, Paths } from "expo-file-system";
 import { StatusBar } from "expo-status-bar";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { HUMAN_STEPS } from "../defaults";
 import { api } from "../api";
 import { useApp } from "../appState";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { isConfigured } from "../config";
-import { VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem } from "@fielder/vocab";
+import { VF_HUMAN_STEPS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem } from "@fielder/vocab";
 import { calibrationFromExif } from "../calibration";
 import { notifyDeviceChange, recordViewport } from "../device";
 import { readExif, uprightSize } from "../exif";
 import { effectiveZoom, offeredZooms, zoomStops, type ZoomRange } from "../zoom";
-import { edgeExtent, resolveLayout, rowHeight, VF_SIZES } from "../vfLayout";
+import { edgeExtent, rowHeight, VF_SIZES } from "../vfLayout";
 import { computeOverlay, formatDeg, previewBox, type Box } from "../framing";
 import { clampToRange } from "../lens";
 import { log } from "../log";
@@ -30,7 +29,7 @@ import { enqueue, flush } from "../uploads";
 import { Badge, BORDER, Button, Empty, FIXED, Icon, makeStyles, notice, num, RADIUS, SeqBadge, SIZE, toast, type, useTheme, useToastOffset } from "../ui";
 import { HudChip } from "../components/Hud";
 import { LensSheet } from "../components/LensSheet";
-import { LensCarousel, LensStrip, ZoomStrip } from "../components/LensStrip";
+import { LensCarousel, LensStrip, ZoomCarousel, ZoomStrip } from "../components/LensStrip";
 import { HUMAN_COLOR, Overlay } from "../components/Overlay";
 import { RigSheet } from "../components/RigSheet";
 import { EMPTY_TAGS } from "../components/TagEditor";
@@ -172,7 +171,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   }, [tabActive, locPerm?.granted, gpsMode]);
 
   // The bars come from the chosen viewfinder layout (issue #49), or from the dashboard while it previews one (#50).
-  const vfLayout = app.preview?.layout ?? resolveLayout(settings.viewfinderLayoutId, app.layouts);
+  const vfLayout = app.layout;
   const inert = !!app.preview;
   const bars = portrait ? vfLayout.portrait : vfLayout.landscape;
   const startBars = bars.bars.filter((b) => b.edge === "start");
@@ -400,14 +399,16 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
     else setDraft(d);
   }
 
-  /** Cycle: off -> 35 -> 43 -> 50 -> off. Toggle: off <-> the chosen value (Setup). */
+  /** Cycle: off -> 35 -> 43 -> 50 -> off. Toggle: off <-> the layout's value. Which one is the layout's choice (issue #68). */
   function pressHuman() {
+    const toggle = settings.humanViewButton === "toggle";
     setSettings((x) => {
-      if (x.humanViewButton === "toggle") return { ...x, humanViewEnabled: !x.humanViewEnabled };
-      if (!x.humanViewEnabled) return { ...x, humanViewEnabled: true, humanViewFocalMm: HUMAN_STEPS[0] };
-      const i = HUMAN_STEPS.indexOf(x.humanViewFocalMm);
-      if (i < 0 || i === HUMAN_STEPS.length - 1) return { ...x, humanViewEnabled: false };
-      return { ...x, humanViewFocalMm: HUMAN_STEPS[i + 1] };
+      if (toggle) return { ...x, humanViewEnabled: !x.humanViewEnabled };
+      if (!x.humanViewEnabled) return { ...x, humanViewEnabled: true, humanViewFocalMm: VF_HUMAN_STEPS[0] };
+      const steps: readonly number[] = VF_HUMAN_STEPS;
+      const i = steps.indexOf(x.humanViewFocalMm);
+      if (i < 0 || i === steps.length - 1) return { ...x, humanViewEnabled: false };
+      return { ...x, humanViewFocalMm: steps[i + 1] };
     });
   }
 
@@ -456,7 +457,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   };
   const barItem = (it: VfItem, fixed: boolean) => {
     if (it.control === "shutter") return <View key="shutter" style={s.shutterCell}>{shutter}</View>;
-    if (it.control === "zoom") return <ZoomStrip key="zoom" zoom={zoom} zooms={zooms} onChange={pickZoom} vertical={vertical} />;
+    if (it.control === "zoom") { const Z = it.display === "carousel" ? ZoomCarousel : ZoomStrip; return <Z key="zoom" zoom={zoom} zooms={zooms} onChange={pickZoom} vertical={vertical} />; }
     if (it.control === "lens") {
       const Strip = it.display === "carousel" ? LensCarousel : LensStrip;
       return <View key="lens" style={it.size === "fit" ? s.lensFit : s.lensFill}><Strip lensMm={lensMm} onChange={setLensMm} vertical={vertical} range={lensRange} onPressValue={() => setSheet("lens")} /></View>;
