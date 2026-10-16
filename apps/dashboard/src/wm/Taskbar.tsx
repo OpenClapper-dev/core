@@ -233,7 +233,7 @@ function ProjectSwitch({ projectId }: { projectId: string }) {
   };
   return (
     <div ref={box} class="wm-project">
-      <button type="button" class={cx("wm-taskbar__project", open && "is-open")} aria-haspopup="menu" aria-expanded={open} title="Switch project" onClick={() => setOpen(!open)}>
+      <button type="button" class={cx("wm-taskbar__project", open && "is-open")} aria-haspopup="menu" aria-expanded={open} title={`Switch project · ${name}`} onClick={() => setOpen(!open)}>
         <Icon name="folder-outline" /><span class="wm-taskbar__projname">{name}</span><Icon name="unfold-more-horizontal" />
       </button>
       {open && (

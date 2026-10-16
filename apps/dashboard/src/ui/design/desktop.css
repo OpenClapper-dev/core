@@ -170,3 +170,35 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-taskbar.is-drop{background:var(--accent-tint)}
 /* Centred, the launcher opens in the middle like Windows 11's Start */
 .wm-taskbar--center .wm-launcher{left:50%;transform:translateX(-50%)}
+/* ---------- Taskbar on the left or right edge (epic #90): a vertical bar of icons ---------- */
+.wm-root[data-taskbar="left"],.wm-root[data-taskbar="right"]{grid-template-rows:minmax(0,1fr)}
+.wm-root[data-taskbar="left"]{grid-template-columns:auto minmax(0,1fr)}
+.wm-root[data-taskbar="right"]{grid-template-columns:minmax(0,1fr) auto}
+.wm-root[data-taskbar="left"]>.wm-taskbar{order:-1;border-top:0;border-right:var(--bw) solid var(--border-subtle)}
+.wm-root[data-taskbar="right"]>.wm-taskbar{border-top:0;border-left:var(--bw) solid var(--border-subtle)}
+.wm-root[data-taskbar="left"] .wm-taskbar,.wm-root[data-taskbar="right"] .wm-taskbar{flex-direction:column;height:auto;width:var(--taskbar-w);padding:8px 0}
+.wm-root[data-taskbar="left"] :is(.wm-taskbar__main,.wm-taskbar__tasks,.wm-taskbar__tray),.wm-root[data-taskbar="right"] :is(.wm-taskbar__main,.wm-taskbar__tasks,.wm-taskbar__tray){flex-direction:column;min-width:0;min-height:0;width:100%}
+.wm-root[data-taskbar="left"] .wm-taskbar__tasks,.wm-root[data-taskbar="right"] .wm-taskbar__tasks{overflow-y:auto;overflow-x:hidden}
+.wm-root[data-taskbar="left"] .wm-taskbar--center .wm-taskbar__tray,.wm-root[data-taskbar="right"] .wm-taskbar--center .wm-taskbar__tray{justify-content:flex-end;min-width:0;min-height:max-content}
+/* Windows show their icon only (the title is the tooltip) */
+.wm-root[data-taskbar="left"] .wm-taskbar__tasks .wm-task--win,.wm-root[data-taskbar="right"] .wm-taskbar__tasks .wm-task--win{flex:none;width:40px;min-width:40px;justify-content:center;padding:0}
+.wm-root[data-taskbar="left"] .wm-task__txt,.wm-root[data-taskbar="right"] .wm-task__txt,.wm-root[data-taskbar="left"] .wm-taskbar__projname,.wm-root[data-taskbar="right"] .wm-taskbar__projname,.wm-root[data-taskbar="left"] .wm-taskbar__project .mdi-unfold-more-horizontal,.wm-root[data-taskbar="right"] .wm-taskbar__project .mdi-unfold-more-horizontal{display:none}
+.wm-root[data-taskbar="left"] .wm-taskbar__project,.wm-root[data-taskbar="right"] .wm-taskbar__project{width:40px;justify-content:center;padding:0}
+.wm-root[data-taskbar="left"] .wm-task--win,.wm-root[data-taskbar="right"] .wm-task--win{box-shadow:none}
+.wm-root[data-taskbar="left"] .wm-task--win.is-active,.wm-root[data-taskbar="left"] .wm-task--pin.is-active{box-shadow:inset 2px 0 0 var(--accent)}
+.wm-root[data-taskbar="right"] .wm-task--win.is-active,.wm-root[data-taskbar="right"] .wm-task--pin.is-active{box-shadow:inset -2px 0 0 var(--accent)}
+.wm-root[data-taskbar="left"] .wm-task--pin.is-running{box-shadow:inset 2px 0 0 var(--border-strong)}
+.wm-root[data-taskbar="right"] .wm-task--pin.is-running{box-shadow:inset -2px 0 0 var(--border-strong)}
+.wm-root[data-taskbar="left"] .wm-task--pin.is-drop-before,.wm-root[data-taskbar="right"] .wm-task--pin.is-drop-before{box-shadow:inset 0 3px 0 var(--accent)}
+.wm-root[data-taskbar="left"] .wm-task__dropend,.wm-root[data-taskbar="right"] .wm-task__dropend{width:28px;height:3px}
+.wm-root[data-taskbar="left"] .wm-taskbar__clock,.wm-root[data-taskbar="right"] .wm-taskbar__clock{align-self:stretch;padding:4px 2px;font-size:var(--text-caption);text-align:center;white-space:normal;line-height:1.2}
+/* Popovers open beside the bar; notifications keep clear of it */
+.wm-root[data-taskbar="left"] .wm-launcher{left:calc(100% + 8px);top:8px;bottom:auto;transform:none}
+.wm-root[data-taskbar="right"] .wm-launcher{left:auto;right:calc(100% + 8px);top:8px;bottom:auto;transform:none}
+.wm-root[data-taskbar="left"] .wm-taskbar--center .wm-launcher,.wm-root[data-taskbar="right"] .wm-taskbar--center .wm-launcher{top:50%;transform:translateY(-50%)}
+.wm-root[data-taskbar="left"] .wm-project__menu{left:calc(100% + 8px);right:auto;bottom:0}
+.wm-root[data-taskbar="right"] .wm-project__menu{right:calc(100% + 8px);bottom:0}
+.wm-root[data-taskbar="left"] .toasts{bottom:var(--space-4)}
+.wm-root[data-taskbar="right"] .toasts{bottom:var(--space-4);right:calc(var(--taskbar-w) + var(--space-4))}
+.wm-root[data-taskbar="left"] .wm-taskview{top:0;bottom:0;left:var(--taskbar-w)}
+.wm-root[data-taskbar="right"] .wm-taskview{top:0;bottom:0;right:var(--taskbar-w)}
