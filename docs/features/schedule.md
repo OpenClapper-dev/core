@@ -1,6 +1,6 @@
 # Schedule (shooting days)
 
-Dashboard **Plan** (`apps/dashboard/src/Plan.tsx`, route `#/plan/<dayId>`), per project. It plans which scouted shots are shot on which day, against the available light.
+Dashboard **Plan** (`apps/dashboard/src/Plan.tsx`, route `#/plan/<dayId>`), per project. On the desktop it is one window (`apps/PlanApp.tsx`) for all of the project's days, the day picked in its list; a deep link or ⌘K → day switches it (one window for the same reason as Timeline). Closing it while the last save failed asks first. It plans which scouted shots are shot on which day, against the available light.
 
 ## Using it
 
