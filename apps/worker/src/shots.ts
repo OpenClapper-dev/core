@@ -8,7 +8,7 @@ import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid,
 import { fileRefCleanup } from "./files.ts";
 import { binResource } from "./trash.ts";
 import type { Ctx } from "./index.ts";
-import { assertProjectExists } from "./projects.ts";
+import { assertAccess, assertProjectRef, assertRank, inWorkspaces } from "./tenancy.ts";
 
 interface ShotRow {
   id: string;
@@ -262,6 +262,12 @@ function parsePhoto(v: unknown, i: number): PhotoInput {
   };
 }
 
+/**
+ * Projects of another workspace are out of reach for a move: rigs, extra fields and the recycle bin
+ * all assume a shot stays in its workspace.
+ */
+const CROSS_WORKSPACE = "a shot cannot move to a project of another workspace";
+
 /** Interactive edits may only pick a location of the shot's (new) project. */
 async function assertLocationOf(env: Ctx["env"], id: string, projectId: string) {
   if ((await locationInProject(env, id, projectId, false)) !== id) throw new HttpError(400, "location_id is not a location of the shot's project");
@@ -270,12 +276,12 @@ async function assertLocationOf(env: Ctx["env"], id: string, projectId: string) 
 export function registerShotRoutes(r: Router<Ctx>) {
   // Newest first, keyset-paginated on (captured_at, id). Pass ?before=<captured_at>&before_id=<id>.
   // Optional filters: ?project_id=<uuid>&state=approved&location_id=<uuid>
-  r.on("GET", "/api/shots", async ({ env, url }) => {
+  r.on("GET", "/api/shots", async ({ env, url, tenant }) => {
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 100) || 100, 1), 500);
     const before = url.searchParams.get("before");
     const beforeId = url.searchParams.get("before_id") ?? "";
-    const where: string[] = ["s.deleted_at IS NULL"];
-    const args: unknown[] = [];
+    const args: unknown[] = [tenant.wsList];
+    const where: string[] = ["s.deleted_at IS NULL", inWorkspaces("pr.workspace_id", 1)];
     if (before) { args.push(before, beforeId); where.push(`(s.captured_at < ?${args.length - 1} OR (s.captured_at = ?${args.length - 1} AND s.id < ?${args.length}))`); }
     const project = url.searchParams.get("project_id");
     if (project) { args.push(assertUuid(project, "project_id")); where.push(`s.project_id = ?${args.length}`); }
@@ -294,8 +300,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
     });
   });
 
-  r.on("GET", "/api/shots/:id", async ({ env }, { id }) => {
+  r.on("GET", "/api/shots/:id", async (ctx, { id }) => {
+    const { env } = ctx;
     const sid = assertUuid(id, "id");
+    await assertAccess(ctx, "shot", sid, "viewer");
     const binned = await env.DB.prepare("SELECT deleted_at FROM shots WHERE id = ?1").bind(sid).first<{ deleted_at: string | null }>();
     const shot = binned && !binned.deleted_at ? await loadShot(env, sid) : null;
     if (!shot) throw new HttpError(404, "shot not found");
@@ -303,8 +311,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
   });
 
   // Same-origin image delivery so the dashboard can use plain <img> tags behind Access.
-  r.on("GET", "/api/photos/:id/image", async ({ env, request }, { id }) => {
+  r.on("GET", "/api/photos/:id/image", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const pid = assertUuid(id, "id");
+    await assertAccess(ctx, "photo", pid, "viewer");
     const row = await env.DB.prepare("SELECT r2_object_key FROM photos WHERE id = ?1").bind(pid).first<{ r2_object_key: string }>();
     if (!row) throw new HttpError(404, "photo not found");
     const obj = await env.SHOTS_BUCKET.get(row.r2_object_key, { onlyIf: request.headers });
@@ -329,7 +339,8 @@ export function registerShotRoutes(r: Router<Ctx>) {
    * tags are left alone (they may have been edited since) and only photos not stored yet are added,
    * so a retried or continued upload (a sequence sent in parts) never duplicates anything.
    */
-  r.on("POST", "/api/shots", async ({ env, request }) => {
+  r.on("POST", "/api/shots", async (ctx) => {
+    const { env, request } = ctx;
     const ct = request.headers.get("content-type") ?? "";
     if (!ct.startsWith("multipart/form-data")) throw new HttpError(415, "expected multipart/form-data");
     const form = await request.formData();
@@ -344,6 +355,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     const photos = m.photos.map(parsePhoto);
 
     const existing = await env.DB.prepare("SELECT id, deleted_at FROM shots WHERE id = ?1").bind(id).first<{ id: string; deleted_at: string | null }>();
+    if (existing) await assertAccess(ctx, "shot", id, "editor");
     let insertShot: D1PreparedStatement | null = null;
     // A capture continued or retried for a shot that was binned meanwhile brings it back: never lose a capture.
     if (existing?.deleted_at) insertShot = env.DB.prepare("UPDATE shots SET deleted_at = NULL, deleted_with = NULL WHERE id = ?1").bind(id);
@@ -354,7 +366,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
       // of another project (a stale phone) becomes the shot's project's location of that name.
       if (typeof m.name === "string" && m.name.length > 120) m.name = m.name.slice(0, 120);
       const tags = parseTags(m, true);
-      await assertProjectExists(env, projectId);
+      await assertProjectRef(ctx, projectId);
       if (tags.location_id) tags.location_id = await locationInProject(env, tags.location_id, projectId, true);
       if (tags.spot_id) tags.spot_id = await spotUnder(env, tags.spot_id, tags.location_id, true);
       const capturedAt = photos.map((p) => p.timestamp).sort()[0];
@@ -366,11 +378,17 @@ export function registerShotRoutes(r: Router<Ctx>) {
       ).bind(id, projectId, tags.location_id, tags.name, tags.int_ext, tags.light, tags.artificial, tags.weather, tags.shot_size, tags.camera_support, tags.movement, state, tags.extra, capturedAt, tags.spot_id);
     }
 
+    // Stored = already in this shot; an id taken by another shot is a conflict, not a duplicate.
     const stored = new Set(
-      (await env.DB.prepare("SELECT id FROM photos WHERE id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(photos.map((p) => p.id))).all<{ id: string }>())
+      (await env.DB.prepare("SELECT id FROM photos WHERE shot_id = ?2 AND id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(photos.map((p) => p.id)), id).all<{ id: string }>())
         .results.map((x) => x.id),
     );
     const fresh = photos.filter((p) => !stored.has(p.id));
+    // The R2 key comes from the photo id and R2 is written before D1, so a taken id must be refused
+    // before anything is stored, or it would overwrite another shot's image.
+    if (fresh.length && await env.DB.prepare("SELECT 1 FROM photos WHERE id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(fresh.map((p) => p.id))).first()) {
+      throw new HttpError(409, "a photo id is already used by another shot");
+    }
     // A rig deleted (or never synced) meanwhile becomes NULL; the framing snapshot on the photo keeps it.
     const presetIds = [...new Set(fresh.map((p) => p.preset_id).filter((x): x is string => !!x))];
     if (presetIds.length) {
@@ -413,8 +431,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
   });
 
   /** Edit tags, review state and/or project. JSON body with any of the tag fields, state, project_id. */
-  r.on("PATCH", "/api/shots/:id", async ({ env, request }, { id }) => {
+  r.on("PATCH", "/api/shots/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const sid = assertUuid(id, "id");
+    const ws = await assertAccess(ctx, "shot", sid, "editor");
     const b = await readJson<Record<string, unknown>>(request);
     const tags = parseTags(b, false);
     const sets: string[] = [];
@@ -424,7 +444,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     let movedTo: string | null = null;
     if (b.project_id !== undefined) {
       movedTo = assertUuid(b.project_id, "project_id");
-      await assertProjectExists(env, movedTo);
+      if ((await assertProjectRef(ctx, movedTo)) !== ws) throw new HttpError(400, CROSS_WORKSPACE);
       args.push(movedTo); sets.push(`project_id = ?${args.length}`);
     }
     if (sets.length === 0) throw new HttpError(400, "nothing to update");
@@ -476,7 +496,8 @@ export function registerShotRoutes(r: Router<Ctx>) {
    * Only the given fields change. `extra` is per top-level key (a group as a whole; null clears it), merged
    * into each shot's own values and checked against its (new) project's fields. One transaction: all or nothing.
    */
-  r.on("PATCH", "/api/shots", async ({ env, request }) => {
+  r.on("PATCH", "/api/shots", async (ctx) => {
+    const { env, request } = ctx;
     const b = await readJson<Record<string, unknown>>(request);
     if (!Array.isArray(b.ids) || b.ids.length === 0) throw new HttpError(400, "ids must be a non-empty array");
     if (b.ids.length > MAX_BULK) throw new HttpError(413, `at most ${MAX_BULK} shots per request`);
@@ -490,9 +511,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
     for (const [k, v] of Object.entries(tags)) { args.push(v); sets.push(`${k} = ?${args.length}`); }
     if (set.state !== undefined) { args.push(assertEnum(set.state, "state", SHOT_STATES)); sets.push(`state = ?${args.length}`); }
     let movedTo: string | null = null;
+    let targetWs: string | null = null;
     if (set.project_id !== undefined) {
       movedTo = assertUuid(set.project_id, "project_id");
-      await assertProjectExists(env, movedTo);
+      targetWs = await assertProjectRef(ctx, movedTo);
       args.push(movedTo); sets.push(`project_id = ?${args.length}`);
     }
     const extraPatch = b.extra ?? {};
@@ -502,9 +524,17 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (sets.length === 0 && keys.length === 0) throw new HttpError(400, "nothing to update");
 
     const list = JSON.stringify(ids);
-    const { results: rows } = await env.DB.prepare("SELECT id, project_id, location_id, spot_id, extra FROM shots WHERE id IN (SELECT value FROM json_each(?1))")
-      .bind(list).all<{ id: string; project_id: string; location_id: string | null; spot_id: string | null; extra: string }>();
+    const { results: found } = await env.DB.prepare(
+      `SELECT s.id, s.project_id, s.location_id, s.spot_id, s.extra, p.workspace_id AS ws FROM shots s JOIN projects p ON p.id = s.project_id
+       WHERE s.id IN (SELECT value FROM json_each(?1))`,
+    ).bind(list).all<{ id: string; project_id: string; location_id: string | null; spot_id: string | null; extra: string; ws: string }>();
+    // Every shot is checked, not only the target: another workspace's shot counts as not found.
+    const rows = found.filter((row) => ctx.tenant.ranks.has(row.ws));
     if (rows.length !== ids.length) throw new HttpError(404, `${ids.length - rows.length} of the shots not found`);
+    for (const row of rows) {
+      assertRank(ctx, row.ws, "editor");
+      if (targetWs && row.ws !== targetWs) throw new HttpError(400, CROSS_WORKSPACE);
+    }
     const moving = rows.filter((row) => movedTo && row.project_id !== movedTo);
     if (tags.location_id) for (const pid of new Set(rows.map((row) => movedTo ?? row.project_id))) await assertLocationOf(env, tags.location_id, pid);
     // A spot must be one of every shot's (new) location; a new location without a spot clears it.
@@ -563,8 +593,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
   });
 
   /** Correct a position by hand: JSON { lat, lon, all_in_shot? }. all_in_shot moves every photo of the shot (a sequence taken on one spot). */
-  r.on("PATCH", "/api/photos/:id", async ({ env, request }, { id }) => {
+  r.on("PATCH", "/api/photos/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const pid = assertUuid(id, "id");
+    await assertAccess(ctx, "photo", pid, "editor");
     const b = await readJson<Record<string, unknown>>(request);
     const lat = assertNumber(b.lat, "lat", { min: -90, max: 90 });
     const lon = assertNumber(b.lon, "lon", { min: -180, max: 180 });
@@ -576,5 +608,9 @@ export function registerShotRoutes(r: Router<Ctx>) {
   });
 
   /** Moves the shot to the recycle bin (purged after 30 days, see trash.ts). */
-  r.on("DELETE", "/api/shots/:id", async ({ env }, { id }) => json(await binResource(env, "shot", assertUuid(id, "id"))));
+  r.on("DELETE", "/api/shots/:id", async (ctx, { id }) => {
+    const sid = assertUuid(id, "id");
+    await assertAccess(ctx, "shot", sid, "editor");
+    return json(await binResource(ctx.env, "shot", sid));
+  });
 }
