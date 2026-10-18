@@ -9,6 +9,7 @@ Everything runs on Cloudflare (account id pinned in `apps/worker/wrangler.jsonc`
 | R2 `fielder-shots` (WEUR) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.jpg` |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` in `wrangler.jsonc` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
 | Cloudflare Access | Team `weathered-salad-6072`, app "Fielder" on the Worker hostname, one policy: Allow the single allow-listed email via One-time PIN. No service tokens. |
+| Worker `fielder-admin` | The admin plane (`apps/admin`): its own hostname, the same D1 and R2. Behind its own Cloudflare Access application (set up below); its `ACCESS_AUD` in `apps/admin/wrangler.jsonc` is a placeholder until then, so every request is refused. |
 | Expo / EAS | Project `@bubulux/fielder`; the only production env var is `EXPO_PUBLIC_API_URL` |
 | Open-Meteo | Weather forecast, called from the dashboard browser directly (free, no key) |
 | OpenStreetMap tiles | Maps in the dashboard (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
@@ -20,6 +21,13 @@ Everything runs on Cloudflare (account id pinned in `apps/worker/wrangler.jsonc`
 - **Phone (from #115)**: email and password, a bearer token. Cloudflare Access in front of the hostname blocks it (the app says so), so install such an APK only after the cutover.
 - **Sign-in (epic #107, not live yet)**: the Worker already accepts first-party sessions next to Access (dual mode, `index.ts` `identify`); an Access login stands for the bootstrap user. Cutover: give the bootstrap user your email and a password (`node scripts/user.mjs --bootstrap --email … --remote`), sign in with it while Access is still on, then remove the Access app from the Worker hostname. `PBKDF2_ITERATIONS` (optional var) lowers the password hashing cost if sign-ins fail on CPU time ([known issues](known-issues.md)).
 - **Worker**: verifies the JWT on every request (`src/access.ts`, JWKS cached per isolate). `ACCESS_DEV_BYPASS="true"` in `.dev.vars` is for local development only and must never be set in `wrangler.jsonc`. Under it `/auth/mobile` hands the phone an unsigned placeholder token (`dev@localhost`), since there is no Access JWT to pass on.
+
+## Admin plane setup (once)
+
+1. Deploy it: `pnpm -C apps/admin run deploy` (it refuses every request until step 3).
+2. Zero Trust → Access → Applications → Add a self-hosted application on the admin Worker's hostname. Policy: Allow, the operators' emails, with the login methods you trust (one-time PIN, an IdP with 2FA). This is a different application from the app's.
+3. Copy its Application Audience (AUD) tag into `ACCESS_AUD` in `apps/admin/wrangler.jsonc` and deploy again.
+4. Make your own app account there, or give the bootstrap user your email: `node scripts/user.mjs --bootstrap --email … --remote`.
 
 ## Secrets and rotation
 

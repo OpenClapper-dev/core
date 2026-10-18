@@ -10,7 +10,8 @@
     "dev:seed": "node scripts/seed-local.mjs",
     "dev:dashboard": "pnpm -C apps/dashboard dev",
     "dev:mobile": "bash scripts/mobile.sh",
-    "wrangler": "wrangler"
+    "wrangler": "wrangler",
+    "dev:admin": "pnpm -C apps/admin dev"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

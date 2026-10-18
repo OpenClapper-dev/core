@@ -5,7 +5,7 @@
  * the app's hostname (epic #107), a verified Access JWT, which stands for the bootstrap user.
  */
 import { provider } from "@fielder/auth-provider";
-import { AccessError, verifyAccessJwt } from "./access.ts";
+import { AccessError, BOOTSTRAP_USER_ID, HttpError, json, Router, verifyAccessJwt } from "@fielder/service-kit";
 import { registerAuthRoutes } from "./auth.ts";
 import type { Identity, PublicCtx } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
@@ -15,7 +15,6 @@ import { registerDeviceRoutes } from "./devices.ts";
 import { registerFieldRoutes } from "./fields.ts";
 import { registerFileRoutes } from "./files.ts";
 import { registerFramingRoutes } from "./framings.ts";
-import { HttpError, json, Router } from "./http.ts";
 import { registerLayoutRoutes } from "./layouts.ts";
 import { registerLocationRoutes } from "./locations.ts";
 import { registerPresetRoutes } from "./presets.ts";
@@ -23,7 +22,7 @@ import { registerPreviewRoutes } from "./preview.ts";
 import { registerProjectRoutes } from "./projects.ts";
 import { registerShotRoutes } from "./shots.ts";
 import { registerSpotRoutes } from "./spots.ts";
-import { BOOTSTRAP_USER_ID, loadTenant, type Tenant } from "./tenancy.ts";
+import { loadTenant, type Tenant } from "./tenancy.ts";
 import { registerTimelineRoutes } from "./timelines.ts";
 import { purgeExpired, registerTrashRoutes } from "./trash.ts";
 import { registerViewRoutes } from "./views.ts";

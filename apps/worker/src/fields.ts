@@ -1,5 +1,5 @@
 import { validateFieldDef, type FieldDef } from "@fielder/vocab";
-import { assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertProjectRef, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";

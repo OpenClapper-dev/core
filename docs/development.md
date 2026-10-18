@@ -5,16 +5,20 @@ Node 22 and pnpm 11 (via nvm). `pnpm install` enforces a 7-day dependency cooldo
 ## Checks (run before every commit)
 
 ```sh
-for p in packages/vocab packages/fov-math apps/worker apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
+for p in packages/vocab packages/fov-math packages/service-kit apps/worker apps/admin apps/admin/ui apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
 pnpm -C packages/vocab test        # fields, filters, daylight
 pnpm -C packages/fov-math test     # FOV, overlay, reframe
+pnpm -C apps/worker test           # passwords, sessions, workspace roles
 (cd apps/mobile && node --test src/*.test.ts)
 pnpm -C apps/dashboard test         # shortcut registry: collisions, docs/shortcuts.md
 (cd apps/dashboard && npx vite build)
+(cd apps/admin && npx vite build)
 (cd apps/mobile && npx expo export --platform android --output-dir /tmp/fielder-export)   # proves Metro can bundle
 ```
 
-The Worker typecheck needs `apps/worker/worker-configuration.d.ts` (gitignored): `pnpm -C apps/worker types` generates it.
+The Workers' typechecks need `worker-configuration.d.ts` (gitignored): `pnpm -C apps/worker types` and `pnpm -C apps/admin types` generate them (`make init` does both).
+
+The admin plane locally: `pnpm -C apps/admin dev` (Worker on :8788 on the app's local D1, board on :5174, no Access: see [admin](features/admin.md#local)).
 
 ## Local API + dashboard
 
@@ -70,6 +74,7 @@ Shortcuts (`make help` lists all): `make login` (wrangler, device code), `make d
 ```sh
 CLOUDFLARE_ACCOUNT_ID=3868cbc17be171c90972dd32e41e7783 pnpm -C apps/worker migrate:remote   # apply new migrations first
 pnpm -C apps/worker run deploy     # builds the dashboard, deploys Worker + assets
+pnpm -C apps/admin run deploy      # the admin plane (its own Worker + board); needs its Access AUD set first
 ```
 
 - Wrangler needs a login (`npx wrangler login --device` works in WSL). The OAuth token lacks `account:read`, so set `CLOUDFLARE_ACCOUNT_ID` when a command cannot find the account.

@@ -4,7 +4,7 @@
  * line of config for its own module, e.g. one that wraps the first-party provider and checks a
  * subscription in `allow`. Workers are bundled at build time, so this is the whole plugin system.
  */
-import type { Router } from "../http.ts";
+import type { Router } from "@fielder/service-kit";
 import type { Env } from "../index.ts";
 
 export interface Identity {

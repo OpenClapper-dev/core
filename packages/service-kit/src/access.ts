@@ -45,7 +45,7 @@ async function getJwks(teamDomain: string, forceRefresh = false): Promise<Jwk[]>
   return body.keys;
 }
 
-function b64urlToBytes(s: string): Uint8Array {
+function b64urlToBytes(s: string): Uint8Array<ArrayBuffer> {
   const pad = s.length % 4 === 0 ? "" : "=".repeat(4 - (s.length % 4));
   const bin = atob(s.replace(/-/g, "+").replace(/_/g, "/") + pad);
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));

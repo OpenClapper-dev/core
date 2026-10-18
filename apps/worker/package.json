@@ -12,6 +12,7 @@
     "migrate:remote": "wrangler d1 migrations apply DB --remote"
   },
   "dependencies": {
-    "@fielder/vocab": "workspace:*"
+    "@fielder/vocab": "workspace:*",
+    "@fielder/service-kit": "workspace:*"
   }
 }

@@ -4,7 +4,7 @@ import { framingsFor, type FramingApi } from "./framings.ts";
 import { projectFieldDefs } from "./fields.ts";
 import { locationInProject } from "./locations.ts";
 import { spotUnder } from "./spots.ts";
-import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
 import { fileRefCleanup } from "./files.ts";
 import { binResource } from "./trash.ts";
 import type { Ctx } from "./index.ts";

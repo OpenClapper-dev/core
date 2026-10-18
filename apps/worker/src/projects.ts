@@ -1,4 +1,4 @@
-import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces } from "./tenancy.ts";
 import { purgeBinned } from "./trash.ts";

@@ -1,5 +1,5 @@
 import { MAX_FRAMING_NAME, validateFrame, withCentre, type Frame } from "@fielder/vocab";
-import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
 import type { Ctx } from "./index.ts";
 import { loadShot } from "./shots.ts";
 import { accessIfExists, assertAccess, workspaceOf } from "./tenancy.ts";
