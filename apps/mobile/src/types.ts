@@ -180,6 +180,8 @@ export interface PendingUpload {
   editedAfterSend?: boolean;
   /** At least one part reached the server. */
   sent?: boolean;
+  /** The account signed in when it was captured (null: nobody, or an earlier build); only that account uploads it. */
+  userId?: string | null;
 }
 /** Changes to an uploaded shot made without a connection; replayed in order by flush(). */
 export interface PendingEdit {

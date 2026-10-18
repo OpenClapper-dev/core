@@ -1,6 +1,7 @@
 import { File } from "expo-file-system";
 import { dataDir } from "./kv";
 import { api, ApiError, type Shot } from "./api";
+import { signedInUserId } from "./auth";
 import { syncDevice } from "./device";
 import { flushLayouts, withPending } from "./layouts";
 import { flushEdits, remapEdits } from "./localShots";
@@ -43,7 +44,7 @@ export function enqueue(metadata: ShotMetadata, tempUris: Record<string, string>
     deleteFiles(Object.values(files));
     throw err;
   }
-  const entry: PendingUpload = { metadata, files, attempts: 0 };
+  const entry: PendingUpload = { metadata, files, attempts: 0, userId: signedInUserId() };
   store.savePending([...store.loadPending(), entry]);
   log("info", "queued", { shot: metadata.id, photos: metadata.photos.length, project: metadata.project_id });
   return entry;
@@ -57,7 +58,7 @@ function setEdited(shotId: string, v: boolean) {
   store.savePending(store.loadPending().map((p) => (p.metadata.id === shotId ? { ...p, editedAfterSend: v } : p)));
 }
 
-const rejected = (err: unknown) => err instanceof ApiError && err.status >= 400 && err.status < 500 && ![401, 403, 408, 429].includes(err.status);
+const rejected = (err: unknown) => err instanceof ApiError && err.status >= 400 && err.status < 500 && ![401, 408, 429].includes(err.status);
 
 /**
  * The PATCH after an upload. Its photos are already safe on the server, so a rejection must not
@@ -171,6 +172,8 @@ export function flush(opts: { includeStuck?: boolean } = {}): Promise<FlushResul
     for (const queued of store.loadPending()) {
       let entry = queued;
       if (entry.stuck && !opts.includeStuck) continue;
+      // Another account's capture waits on the phone for that account to sign in again.
+      if (entry.userId && entry.userId !== signedInUserId()) continue;
       const missing = entry.metadata.photos.filter((p) => !entry.files[p.id] || !new File(entry.files[p.id]).exists);
       if (missing.length) {
         // Upload what is left rather than losing the whole shot for one missing file.
@@ -212,8 +215,8 @@ export function flush(opts: { includeStuck?: boolean } = {}): Promise<FlushResul
         const msg = err instanceof Error ? err.message : String(err);
         lastError = msg;
         log("warn", "upload failed", { shot: entry.metadata.id, attempts: entry.attempts + 1, error: msg });
-        // 4xx other than 401/403/408/429 means the payload itself is rejected; retrying won't help by itself.
-        const rejected = err instanceof ApiError && err.status >= 400 && err.status < 500 && ![401, 403, 408, 429].includes(err.status);
+        // 4xx other than 401/408/429 means the shot itself is rejected (403: the role cannot add to that project); retrying won't help by itself.
+        const rejected = err instanceof ApiError && err.status >= 400 && err.status < 500 && ![401, 408, 429].includes(err.status);
         const q = store.loadPending();
         const i = q.findIndex((p) => p.metadata.id === entry.metadata.id);
         if (i >= 0) {

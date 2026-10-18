@@ -44,7 +44,7 @@ export function Setup() {
             : (
               <View style={{ gap: 8 }}>
                 <Banner kind="warn" icon="account-alert-outline" title="Not signed in" meta={sync.pending ? `${sync.pending} shot(s) wait on this phone until you sign in.` : "Shots stay on this phone until you sign in."} />
-                <Button icon="login" label="Sign in with email PIN" onPress={app.signIn} />
+                <Button icon="login" label="Sign in" onPress={app.signIn} />
               </View>
             )}
           <SectionLabel>Theme</SectionLabel>

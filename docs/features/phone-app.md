@@ -6,7 +6,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 
 - **Five tabs**: Shoot · History (badge: unreviewed count) · Shots · Day · Setup. The tab bar is a right-hand column in landscape.
 - **Gates**, full screen, before the tabs (`screens/Gates.tsx`):
-  - **Sign in**: on launch without a session, and whenever a request finds it gone. "Sign in with email PIN" opens the Access login in a WebView. "Continue without signing in" keeps shots on the phone.
+  - **Sign in**: on launch without a session, and whenever a request finds it gone. "Sign in" opens the email and password form ([accounts](accounts.md)); a wrong password, a locked account or a server still behind Cloudflare Access each say so. "Continue without signing in" keeps shots on the phone.
   - **Pick a project**: when none is active, or the active one no longer exists. "New project" works offline.
 - **Pushed screens** replace the tab (the tab bar is hidden, the tab stays mounted underneath). The stack is `Route` in `appState.tsx`: Uploads, Offline, Shot details, Correct position, the focused map, Step-through, Rigs & lenses, the Rig editor and the Setup sub-screens. Android back pops one; on a tab it returns to Shoot first. There is no navigation library.
 - **Sheet vs screen**: a sheet for a single choice that returns you where you were (project, rig pick, lens, tag fields). A full screen for anything with its own photo or map.
@@ -30,7 +30,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 
 ## Setup hub
 
-- First the **status card** (tap opens Uploads). Signed out: a warning with "Sign in with email PIN", and an Uploads row in the list.
+- First the **status card** (tap opens Uploads). Signed out: a warning with "Sign in", and an Uploads row in the list.
 - **Theme**: Auto · Sun · Set. This is the only theme control ([design](../design.md)).
 - Rows, each with its current value; every row opens a screen, and settings save on change:
   - **Project**: opens the Project sheet.
@@ -44,7 +44,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
   - **Capture**: direct upload, **GPS** (High · Low · Off, [positions](positions.md)), rig orientation, the screen orientation on launch.
   - **Offline**: offline mode, what waits on the phone, and the project kept on the phone ([offline](day-mode-offline.md)).
   - **Phone calibration**: the 35 mm-equivalent of the main camera: **From the photos** (EXIF of each capture, with the phone model it came from) or **Manual** (5–200).
-  - **Account**: email, session end, Sign out (queued shots stay).
+  - **Account**: email, Sign out (queued shots stay). The session renews while the app is used; a 401 signs out, a 403 (your role cannot do it) or a web page (Wi-Fi login) does not. Queued shots remember the account that took them and upload only while it is signed in.
   - **Debug log**: see [debug log](debug-log.md).
 - **Uploads** screen:
   - Stuck shots first, with the server's error and Retry | Discard (Discard confirms).

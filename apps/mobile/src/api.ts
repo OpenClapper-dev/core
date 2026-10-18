@@ -1,5 +1,5 @@
 import { File } from "expo-file-system";
-import { getToken, setToken } from "./auth";
+import { getSession, getToken, setSession } from "./auth";
 import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
@@ -12,11 +12,20 @@ export class ApiError extends Error {
   }
 }
 
-/** Access session token as the documented `cf-access-token` header (validated by Access at the edge). */
+/** The session token as a bearer header (every request, images and the preview socket included). */
 function headers(extra: Record<string, string> = {}): Record<string, string> {
   const token = getToken();
-  return token ? { "cf-access-token": token, ...extra } : { ...extra };
+  return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra };
 }
+
+/**
+ * A web page instead of the API: Cloudflare Access still in front of the server (before its switch
+ * to password sign-in), or a Wi-Fi login page. Neither means the session is gone.
+ */
+function isWebPage(res: Response): boolean {
+  return res.redirected || (res.headers.get("content-type") ?? "").includes("text/html") || (!!res.url && !res.url.startsWith(API_URL));
+}
+const WEB_PAGE = "the server answered with a web page (a Wi-Fi login, or Cloudflare Access still in front of it)";
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!isConfigured) throw new ApiError(0, "API not configured in this build");
@@ -34,12 +43,11 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   markOnline(true);
   log(res.ok ? "debug" : "warn", "api", { method, path, status: res.status, ms: Date.now() - started });
-  // Without a valid session Access redirects to its login page instead of reaching the Worker.
-  const html = (res.headers.get("content-type") ?? "").includes("text/html");
-  if (res.status === 401 || res.status === 403 || res.redirected || html || (res.url && !res.url.startsWith(API_URL))) {
-    setToken(null); // the session is gone; the app shows the login screen
+  if (res.status === 401) {
+    setSession(null); // the session is gone; the app shows the sign-in screen, the queue stays
     throw new ApiError(401, "session expired, please sign in again");
   }
+  if (isWebPage(res)) throw new ApiError(0, WEB_PAGE);
   const text = await res.text();
   let body: unknown = null;
   try { body = text ? JSON.parse(text) : null; } catch { /* non-JSON body */ }
@@ -48,6 +56,27 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError(res.status, msg, body);
   }
   return body as T;
+}
+
+/**
+ * Sign in with email and password. Not through call(): there is no session yet, and a 401 here is a
+ * wrong password, not an expired session.
+ */
+export async function signIn(email: string, password: string): Promise<void> {
+  if (!isConfigured) throw new ApiError(0, "API not configured in this build");
+  const res = await fetch(`${API_URL}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ email, password, client: "mobile" }) });
+  if (isWebPage(res)) throw new ApiError(0, "The server still uses the Cloudflare Access login. Password sign-in works once it has been switched over.");
+  const body = (await res.json().catch(() => null)) as { token?: string; user?: { id: string; email: string }; error?: string } | null;
+  if (!res.ok || !body?.token || !body.user) throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`, body);
+  log("info", "signed in", { email: body.user.email });
+  setSession({ token: body.token, email: body.user.email, userId: body.user.id });
+}
+
+/** Ends the session on the server (best effort: offline, the token just stays unused) and on the phone. */
+export async function signOut(): Promise<void> {
+  const session = getSession();
+  setSession(null);
+  if (session && isConfigured) await fetch(`${API_URL}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${session.token}` } }).catch(() => {});
 }
 
 interface ServerPreset {

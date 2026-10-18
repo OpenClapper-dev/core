@@ -38,7 +38,7 @@ The phone uses the **deployed** Worker, even in the dev loop. The dashboard dev 
 Moving from Cloudflare Access to first-party sign-in (epic #107): email + password accounts in D1, opaque sessions (`src/authn/`), behind one seam, `@fielder/auth-provider` (`src/authn/provider.ts`), which wrangler's `alias` maps to the first-party provider; another build (the hosted one) points it at its own module. Until the cutover the Worker takes either a session or the Access JWT, which stands for the bootstrap user that owns the pre-sign-in data ([api](api.md#sign-in-authn-epic-107)). Today, in production: Access (One-time PIN) in front of the Worker hostname, and the Worker verifies the Access JWT again (`src/access.ts`). Details in [infrastructure](infrastructure.md).
 
 - Dashboard: Access session cookie.
-- Phone: `/auth/mobile` in a WebView hands the Access JWT to the app, which stores it in `expo-secure-store` and sends it as the `cf-access-token` header.
+- Phone: signs in with email and password (`client: "mobile"`), keeps the session token in `expo-secure-store` and sends it as `Authorization: Bearer`. Until the cutover Access blocks that at the edge, so new APKs work only after it (#107).
 - Local dev: `ACCESS_DEV_BYPASS="true"` in `apps/worker/.dev.vars` makes every request without a session the bootstrap user.
 
 ## Principles worth keeping
