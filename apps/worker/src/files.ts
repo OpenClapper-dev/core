@@ -1,7 +1,7 @@
 import { FILE_RESOURCE_TYPES, MAX_FOLDER_DEPTH, MAX_FOLDER_NAME, validateDesktopItem, type DesktopArea, type DesktopItemKind, type FileResourceType } from "@fielder/vocab";
 import { assertEnum, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx, Env } from "./index.ts";
-import { assertProjectExists } from "./projects.ts";
+import { accessIfExists, assertAccess, assertProjectRef } from "./tenancy.ts";
 import { binFolder } from "./trash.ts";
 
 /**
@@ -80,8 +80,10 @@ export function registerFileRoutes(r: Router<Ctx>) {
    * One payload for the Files app and the desktop: the project's live folders (the Desktop folder
    * among them, created here on first use), placements in them, and the desktop and taskbar items.
    */
-  r.on("GET", "/api/files", async ({ env, url }) => {
+  r.on("GET", "/api/files", async (ctx) => {
+    const { env, url } = ctx;
     const pid = assertUuid(url.searchParams.get("project_id"), "project_id");
+    await assertAccess(ctx, "project", pid, "viewer");
     await ensureDesktopFolder(env, pid);
     const [folders, items, desktop] = await Promise.all([
       env.DB.prepare(`SELECT ${FOLDER_COLS} FROM folders WHERE project_id = ?1 AND deleted_at IS NULL ORDER BY name COLLATE NOCASE`).bind(pid).all<FolderRow>(),
@@ -96,15 +98,17 @@ export function registerFileRoutes(r: Router<Ctx>) {
    * absent keeps the current parent, null moves to the root. Rejects cycles, depth > 8 and folders
    * of another project; a name taken in the directory answers 409 + existing_id.
    */
-  r.on("PUT", "/api/folders/:id", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/folders/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const fid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const name = assertString(b.name, "name", MAX_FOLDER_NAME);
+    await accessIfExists(ctx, "folder", fid, "editor");
     const stored = await env.DB.prepare("SELECT project_id, parent_id, name, kind, deleted_at FROM folders WHERE id = ?1").bind(fid).first<{ project_id: string; parent_id: string | null; name: string; kind: string; deleted_at: string | null }>();
     if (stored?.deleted_at) throw new HttpError(409, "the folder is in the recycle bin; restore it first");
     const projectId = stored?.project_id ?? assertUuid(b.project_id, "project_id");
     if (stored && b.project_id !== undefined && b.project_id !== stored.project_id) throw new HttpError(400, "a folder cannot move to another project");
-    if (!stored) await assertProjectExists(env, projectId);
+    if (!stored) await assertProjectRef(ctx, projectId);
     const parentId = b.parent_id === undefined ? stored?.parent_id ?? null : b.parent_id === null ? null : assertUuid(b.parent_id, "parent_id");
     // The Desktop folder is fixed: always "Desktop", always at the top level.
     if (stored?.kind === "desktop" && (name !== stored.name || parentId !== null)) throw new HttpError(400, "the Desktop folder cannot be renamed or moved");
@@ -129,12 +133,19 @@ export function registerFileRoutes(r: Router<Ctx>) {
   });
 
   /** Moves a folder to the recycle bin with everything in it (see trash.ts); the Desktop folder stays. */
-  r.on("DELETE", "/api/folders/:id", async ({ env }, { id }) => json(await binFolder(env, assertUuid(id, "id"))));
+  r.on("DELETE", "/api/folders/:id", async (ctx, { id }) => {
+    const fid = assertUuid(id, "id");
+    await assertAccess(ctx, "folder", fid, "editor");
+    return json(await binFolder(ctx.env, fid));
+  });
 
   /** Put a resource into a folder: JSON { folder_id: uuid | null }; null puts it back at the root. */
-  r.on("PUT", "/api/folder-items/:type/:id", async ({ env, request }, { type, id }) => {
+  r.on("PUT", "/api/folder-items/:type/:id", async (ctx, { type, id }) => {
+    const { env, request } = ctx;
     const t = assertEnum(type, "type", FILE_RESOURCE_TYPES);
     const rid = assertUuid(id, "id");
+    // The folder must be of the resource's project (checked below), so one check covers both.
+    await assertAccess(ctx, t, rid, "editor");
     const b = await readJson<Record<string, unknown>>(request);
     if (b.folder_id === null) {
       await env.DB.prepare("DELETE FROM folder_items WHERE resource_type = ?1 AND resource_id = ?2").bind(t, rid).run();
@@ -160,7 +171,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
    * What it points at and its area never change after creation (409); a target that already has an
    * item in this area answers 409 + existing_id.
    */
-  r.on("PUT", "/api/desktop/:id", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/desktop/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const did = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const bad = validateDesktopItem(b);
@@ -178,6 +190,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const now = new Date().toISOString();
     const stored = await env.DB.prepare("SELECT * FROM desktop_items WHERE id = ?1").bind(did).first<DesktopRow>();
     if (stored) {
+      await assertAccess(ctx, "project", stored.project_id, "editor");
       if (b.project_id !== undefined && b.project_id !== stored.project_id) throw new HttpError(400, "a shortcut cannot move to another project");
       const same = stored.kind === kind && stored.resource_type === target.resource_type && stored.resource_id === target.resource_id && stored.folder_id === target.folder_id && stored.app_id === target.app_id
         && (b.area === undefined || stored.area === area);
@@ -185,7 +198,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
       await env.DB.prepare("UPDATE desktop_items SET label = ?1, x = ?2, y = ?3, position = ?4, updated_at = ?5 WHERE id = ?6").bind(label, b.x, b.y, position, now, did).run();
     } else {
       const projectId = assertUuid(b.project_id, "project_id");
-      await assertProjectExists(env, projectId);
+      await assertProjectRef(ctx, projectId);
       if (target.folder_id) {
         const folder = await env.DB.prepare("SELECT project_id FROM folders WHERE id = ?1 AND deleted_at IS NULL").bind(target.folder_id).first<{ project_id: string }>();
         if (!folder) throw new HttpError(400, "folder_id: folder not found");
@@ -220,8 +233,12 @@ export function registerFileRoutes(r: Router<Ctx>) {
     return json({ item: row });
   });
 
-  r.on("DELETE", "/api/desktop/:id", async ({ env }, { id }) => {
+  r.on("DELETE", "/api/desktop/:id", async (ctx, { id }) => {
+    const { env } = ctx;
     const did = assertUuid(id, "id");
+    const item = await env.DB.prepare("SELECT project_id FROM desktop_items WHERE id = ?1").bind(did).first<{ project_id: string }>();
+    if (!item) throw new HttpError(404, "shortcut not found");
+    await assertAccess(ctx, "project", item.project_id, "editor");
     const res = await env.DB.prepare("DELETE FROM desktop_items WHERE id = ?1").bind(did).run();
     if (!res.meta.changes) throw new HttpError(404, "shortcut not found");
     return json({ deleted: did });
