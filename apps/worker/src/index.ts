@@ -123,7 +123,8 @@ async function identify(request: Request, env: Env): Promise<Identity | null> {
   const signedIn = await provider.identify(request, env);
   if (signedIn) return signedIn;
   if (env.ACCESS_DEV_BYPASS === "true") return bootstrapIdentity(env);
-  if (request.headers.has("Cf-Access-Jwt-Assertion")) {
+  // Only where Access is configured in front of the app; elsewhere the header means nothing.
+  if (env.ACCESS_AUD && request.headers.has("Cf-Access-Jwt-Assertion")) {
     const access = await verifyAccessJwt(request, env);
     if (access.kind === "user") return bootstrapIdentity(env);
   }

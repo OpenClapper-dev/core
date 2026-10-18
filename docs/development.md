@@ -71,13 +71,16 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 
 Shortcuts (`make help` lists all): `make login` (wrangler, device code), `make deploy` (remote migrations, then the deploy below), `make apk-cloud` (EAS), `make apk-local` (`scripts/apk-local.sh`: the local build below, then copies `fielder-<commit>.apk` to the Windows Downloads folder; override with `DOWNLOADS=…` or `API_URL=…`).
 
+Deploying needs this deployment's settings in `deploy.env` (gitignored; template `deploy.env.example`, [self-hosting](self-hosting.md)). The commands below write the deploy configs from it (`scripts/deploy-config.mjs`) and use those; the tracked `wrangler.jsonc` are for local development only.
+
 ```sh
-CLOUDFLARE_ACCOUNT_ID=3868cbc17be171c90972dd32e41e7783 pnpm -C apps/worker migrate:remote   # apply new migrations first
+pnpm -C apps/worker migrate:remote   # apply new migrations first
 pnpm -C apps/worker run deploy     # builds the dashboard, deploys Worker + assets
 pnpm -C apps/admin run deploy      # the admin plane (its own Worker + board); needs its Access AUD set first
 ```
 
-- Wrangler needs a login (`npx wrangler login --device` works in WSL). The OAuth token lacks `account:read`, so set `CLOUDFLARE_ACCOUNT_ID` when a command cannot find the account.
+- Wrangler needs a login (`npx wrangler login --device` works in WSL), or `CLOUDFLARE_API_TOKEN`. The OAuth token lacks `account:read`; `CLOUDFLARE_ACCOUNT_ID` from `deploy.env` fills it in.
+- GitHub Actions: `.github/workflows/deploy.yml` does the same (provision, migrate, deploy both Workers) from repository secrets and variables, or when called from another repository.
 - The user runs production deploys themselves. AI sessions prepare the change and the migration, then ask.
 - Migrations are additive: always a new numbered file.
 
@@ -88,7 +91,7 @@ Cloud: `pnpm -C apps/mobile eas build --platform android --profile apk` (EAS fre
 Local (same keystore, fetched from Expo): `make apk-local`, in a Docker container (`docker/android.Dockerfile`: JDK 17, Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1, Node 22.20.0, pnpm 11.13.1; nothing installed in WSL).
 - Once: Docker Desktop → Settings → Resources → WSL integration → enable this distro; `npx eas login` (the session in `~/.expo` is mounted into the container; `EXPO_TOKEN` works too).
 - `scripts/apk-local.sh` builds the image (cached after the first run), runs `eas build --local --profile apk` with the repo mounted and Gradle's cache in the `fielder-gradle` volume, writes `~/fielder-builds/fielder-<commit>.apk` and copies it to the Windows Downloads folder.
-- The app points at `https://fielder-api.fielder-worker.workers.dev` unless `API_URL=…` is set. The first run downloads the SDK and Gradle dependencies (several GB); later builds take about 10 minutes.
+- The app points at `APP_URL` from `deploy.env` unless `API_URL=…` is set. The first run downloads the SDK and Gradle dependencies (several GB); later builds take about 10 minutes.
 
 ## Debugging on the phone
 

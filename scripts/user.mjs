@@ -7,7 +7,8 @@
 //
 // --bootstrap  give the bootstrap user (the owner of the pre-sign-in data, migration 0021) this email
 //              and password instead of creating a user: the first sign-in of an existing instance.
-// --remote     the deployed database (default: the local one of `wrangler dev`).
+// --remote     the deployed database (default: the local one of `wrangler dev`); needs deploy.env or the same
+//              environment as scripts/deploy-config.mjs, whose config it uses.
 // The password is read from FIELDER_PASSWORD, or asked for.
 import { spawnSync } from "node:child_process";
 import { webcrypto as crypto } from "node:crypto";
@@ -74,7 +75,13 @@ if (opts.bootstrap) {
     INSERT INTO workspace_members (workspace_id, user_id, role) SELECT ${wid}, ${uid}, 'owner' WHERE EXISTS (SELECT 1 FROM users WHERE id = ${uid});`;
 }
 
-const worker = join(dirname(fileURLToPath(import.meta.url)), "..", "apps", "worker");
-const res = spawnSync("npx", ["wrangler", "d1", "execute", "DB", opts.remote ? "--remote" : "--local", "--command", sql], { cwd: worker, stdio: "inherit" });
+const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+const worker = join(root, "apps", "worker");
+if (opts.remote) {
+  const cfg = spawnSync("node", [join(root, "scripts", "deploy-config.mjs")], { stdio: "inherit" });
+  if (cfg.status !== 0) process.exit(cfg.status ?? 1);
+}
+const where = opts.remote ? ["--remote", "--config", "wrangler.deploy.jsonc"] : ["--local"];
+const res = spawnSync("npx", ["wrangler", "d1", "execute", "DB", ...where, "--command", sql], { cwd: worker, stdio: "inherit" });
 if (res.status !== 0) process.exit(res.status ?? 1);
 console.log(`${opts.bootstrap ? "Bootstrap user" : "User"} ${opts.email}: password set (${opts.remote ? "remote" : "local"} database).`);

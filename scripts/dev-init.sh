@@ -4,7 +4,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-API_URL="https://fielder-api.fielder-worker.workers.dev"
+# The phone's server for EAS builds and Expo Go-style runs: APP_URL from deploy.env, if there is one.
+API_URL="$(sed -n 's/^APP_URL=//p' "$root/deploy.env" 2>/dev/null)"
 
 write_if_missing() {
   local path="$1" content="$2"

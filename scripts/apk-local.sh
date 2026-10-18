@@ -33,7 +33,7 @@ mkdir -p "$out" ~/.expo
 docker build -t fielder-android -f docker/android.Dockerfile docker
 docker run --rm \
   -v "$PWD":/work -v ~/.expo:/root/.expo -v "$out":/out -v fielder-gradle:/root/.gradle \
-  -e EXPO_TOKEN -e EXPO_PUBLIC_API_URL="${API_URL:-https://fielder-api.fielder-worker.workers.dev}" \
+  -e EXPO_TOKEN -e EXPO_PUBLIC_API_URL="${API_URL:-${APP_URL:?set API_URL, or APP_URL in deploy.env}}" \
   -w /work/apps/mobile fielder-android \
   bash -c "node /work/node_modules/eas-cli/bin/run build --local --platform android --profile $profile --non-interactive --output /out/$name \
            && chown $(id -u):$(id -g) /out/$name"

@@ -8,7 +8,7 @@
     "dev:worker": "wrangler dev --port 8788 --persist-to ../worker/.wrangler/state",
     "dev:ui": "vite",
     "build": "vite build",
-    "deploy": "vite build && wrangler deploy",
+    "deploy": "node ../../scripts/deploy-config.mjs && vite build && wrangler deploy --config wrangler.deploy.jsonc",
     "types": "wrangler types",
     "typecheck": "tsc -p . && tsc -p ui"
   },

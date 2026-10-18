@@ -41,7 +41,7 @@ A **shot** holds the metadata (name, location, INT/EXT, light phases + artificia
 - **Shared rules go in `packages/vocab`** and are reused by the Worker. Interactive edits are validated strictly, uploads leniently.
 - **Migrations**: a new numbered file for every change; never edit an applied one. Production holds real data now: ask before anything destructive.
 - **Match the surrounding code**: terse doc comments on exported functions explaining *why*; plain CSS on the design tokens, never hard-coded colours (`docs/design.md`; both themes, Sun and Set, must stay high contrast); mobile UI from `src/ui` (primitives, `makeStyles`/`useTheme`). No new dependencies without a reason (the sun math and combobox are hand-written on purpose).
-- **Deploys to production are done by the owner** (`pnpm -C apps/worker run deploy`). You prepare, check and commit. You may apply additive remote migrations when asked. Commit only when asked or when working through an agreed plan; work on a branch.
+- **Deploys to production are done by the owner** (`make deploy`, or `pnpm -C apps/worker run deploy`; both read the gitignored `deploy.env`, see `docs/self-hosting.md`). The tracked `wrangler.jsonc` files are local-dev only: never put an account, database or Access id back into them. You prepare, check and commit. You may apply additive remote migrations when asked. Commit only when asked or when working through an agreed plan; work on a branch.
 
 ## Working from a GitHub issue
 

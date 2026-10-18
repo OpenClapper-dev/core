@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "pnpm --filter @fielder/dashboard build && wrangler deploy",
+    "deploy": "node ../../scripts/deploy-config.mjs && pnpm --filter @fielder/dashboard build && wrangler deploy --config wrangler.deploy.jsonc",
     "types": "wrangler types",
     "test": "node --test test/*.test.ts",
     "migrate:local": "wrangler d1 migrations apply DB --local",
-    "migrate:remote": "wrangler d1 migrations apply DB --remote"
+    "migrate:remote": "node ../../scripts/deploy-config.mjs && wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc"
   },
   "dependencies": {
     "@fielder/vocab": "workspace:*",
