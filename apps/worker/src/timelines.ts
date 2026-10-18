@@ -1,7 +1,7 @@
 import { groupLayoutProblem, PRESENTATION_MODES, splitDuration, validateGroup, validatePresentation, type ClipGroup, type Presentation } from "@fielder/vocab";
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
-import { assertProjectExists } from "./projects.ts";
+import { accessIfExists, assertAccess, assertProjectRef, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";
 import { clipComposeFor, deleteClipCompose } from "./compose.ts";
 import { registerPromote } from "./promote.ts";
@@ -52,23 +52,28 @@ export async function timelineCountOfShot(env: Ctx["env"], shotId: string): Prom
 }
 
 export function registerTimelineRoutes(r: Router<Ctx>) {
-  r.on("GET", "/api/timelines", async ({ env, url }) => {
+  // The timelines of every project in the caller's workspaces, or one project's with ?project_id=.
+  r.on("GET", "/api/timelines", async ({ env, url, tenant }) => {
     const project = url.searchParams.get("project_id");
+    const mine = `project_id IN (SELECT id FROM projects WHERE ${inWorkspaces("workspace_id", 1)})`;
     const stmt = project
-      ? env.DB.prepare("SELECT * FROM timelines WHERE project_id = ?1 AND deleted_at IS NULL ORDER BY created_at").bind(assertUuid(project, "project_id"))
-      : env.DB.prepare("SELECT * FROM timelines WHERE deleted_at IS NULL ORDER BY created_at");
+      ? env.DB.prepare(`SELECT * FROM timelines WHERE ${mine} AND project_id = ?2 AND deleted_at IS NULL ORDER BY created_at`).bind(tenant.wsList, assertUuid(project, "project_id"))
+      : env.DB.prepare(`SELECT * FROM timelines WHERE ${mine} AND deleted_at IS NULL ORDER BY created_at`).bind(tenant.wsList);
     const { results } = await stmt.all<TimelineRow>();
     return json({ timelines: await withClips(env, results) });
   });
 
-  r.on("GET", "/api/timelines/:id", async ({ env }, { id }) => {
-    const row = await env.DB.prepare("SELECT * FROM timelines WHERE id = ?1 AND deleted_at IS NULL").bind(assertUuid(id, "id")).first<TimelineRow>();
+  r.on("GET", "/api/timelines/:id", async (ctx, { id }) => {
+    const tid = assertUuid(id, "id");
+    await assertAccess(ctx, "timeline", tid, "viewer");
+    const row = await ctx.env.DB.prepare("SELECT * FROM timelines WHERE id = ?1 AND deleted_at IS NULL").bind(tid).first<TimelineRow>();
     if (!row) throw new HttpError(404, "timeline not found");
-    return json({ timeline: (await withClips(env, [row]))[0] });
+    return json({ timeline: (await withClips(ctx.env, [row]))[0] });
   });
 
   /** JSON { project_id, name, notes?, lock_mode?, groups?, clips: [...] } — the whole timeline. `groups` are the sequence blocks' settings; a photo clip may carry `group_id`. `lock_mode` forces one presentation mode on every clip (null = per clip). A clip is { id, photo_id, overlay_id?, presentation, duration_ms, notes? } or a placeholder { id, title, duration_ms, notes? }. */
-  r.on("PUT", "/api/timelines/:id", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/timelines/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const tid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const projectId = assertUuid(b.project_id, "project_id");
@@ -115,7 +120,9 @@ export function registerTimelineRoutes(r: Router<Ctx>) {
       };
     });
     if (new Set(clips.map((c) => c.id)).size !== clips.length) throw new HttpError(400, "a clip id is listed twice");
-    await assertProjectExists(env, projectId);
+    const ws = await assertProjectRef(ctx, projectId);
+    const stored = await accessIfExists(ctx, "timeline", tid, "editor");
+    if (stored && stored !== ws) throw new HttpError(400, "a timeline cannot move to a project of another workspace");
     const photoIdList = [...new Set(clips.map((c) => c.photo_id).filter((x): x is string => !!x))];
     const shotOf = new Map<string, string>();
     if (photoIdList.length) {
@@ -171,7 +178,11 @@ export function registerTimelineRoutes(r: Router<Ctx>) {
   });
 
   /** Moves the timeline to the recycle bin (its clips and their drawings stay until it is purged). */
-  r.on("DELETE", "/api/timelines/:id", async ({ env }, { id }) => json(await binResource(env, "timeline", assertUuid(id, "id"))));
+  r.on("DELETE", "/api/timelines/:id", async (ctx, { id }) => {
+    const tid = assertUuid(id, "id");
+    await assertAccess(ctx, "timeline", tid, "editor");
+    return json(await binResource(ctx.env, "timeline", tid));
+  });
 
   registerPromote(r);
 }

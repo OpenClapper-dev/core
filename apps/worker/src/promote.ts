@@ -2,6 +2,7 @@ import { MAX_FRAMING_NAME, validateFrame, withCentre, type Frame, type Presentat
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
 import { loadShot } from "./shots.ts";
+import { assertAccess } from "./tenancy.ts";
 import { withClips, type TimelineRow } from "./timelines.ts";
 
 /**
@@ -23,9 +24,12 @@ const sameFrame = (a: Frame, b: Frame) => {
 
 export function registerPromote(r: Router<Ctx>) {
   /** JSON { what: "framing" | "overlay" | "sketch", name? (framing), shot_id? + sketch_id? (sketch) }. Returns { timeline, shot }. */
-  r.on("POST", "/api/timelines/:id/clips/:clip/promote", async ({ env, request }, { id, clip }) => {
+  r.on("POST", "/api/timelines/:id/clips/:clip/promote", async (ctx, { id, clip }) => {
+    const { env, request } = ctx;
     const tid = assertUuid(id, "id");
     const cid = assertUuid(clip, "clip");
+    // Everything promoted stays in the timeline's project (checked per kind below), so one check covers it.
+    await assertAccess(ctx, "timeline", tid, "editor");
     const b = await readJson<Record<string, unknown>>(request);
     const t = await env.DB.prepare("SELECT * FROM timelines WHERE id = ?1").bind(tid).first<TimelineRow>();
     if (!t) throw new HttpError(404, "timeline not found");
