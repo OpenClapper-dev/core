@@ -1,11 +1,12 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
-import { BOOTSTRAP_WORKSPACE_ID } from "./tenancy.ts";
+import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces } from "./tenancy.ts";
 import { purgeBinned } from "./trash.ts";
 
 export interface ProjectRow {
   id: string;
   name: string;
+  workspace_id: string;
   notes: string | null;
   created_at: string;
   updated_at: string | null;
@@ -20,39 +21,52 @@ const LIST_SQL = `SELECT pr.*, (SELECT count(*) FROM shots s WHERE s.project_id 
   (SELECT json_group_array(id) FROM (SELECT id FROM field_definitions WHERE project_id = pr.id AND deleted_at IS NULL ORDER BY position, key)) AS field_ids
   FROM projects pr`;
 
+/** Superseded by assertProjectRef (tenancy.ts); goes once every route checks workspaces (#111, #112). */
 export async function assertProjectExists(env: Ctx["env"], id: string) {
   const p = await env.DB.prepare("SELECT 1 FROM projects WHERE id = ?1").bind(id).first();
   if (!p) throw new HttpError(400, "project_id does not exist");
 }
 
-/** Every shot belongs to one project. Client-owned UUIDs with upsert semantics, like locations. */
+/**
+ * Every shot belongs to one project, every project to a workspace. Client-owned UUIDs with upsert
+ * semantics, like locations. Lists hold the projects of all the caller's workspaces.
+ */
 export function registerProjectRoutes(r: Router<Ctx>) {
-  r.on("GET", "/api/projects", async ({ env }) => {
-    const { results } = await env.DB.prepare(`${LIST_SQL} ORDER BY pr.name COLLATE NOCASE`).all<ProjectRow>();
+  r.on("GET", "/api/projects", async ({ env, tenant }) => {
+    const { results } = await env.DB.prepare(`${LIST_SQL} WHERE ${inWorkspaces("pr.workspace_id", 1)} ORDER BY pr.name COLLATE NOCASE`)
+      .bind(tenant.wsList).all<ProjectRow>();
     return json({ projects: results.map(toApi) });
   });
 
-  // Names are unique case-insensitively: a clash answers 409 + existing_id so the client can adopt that project.
-  r.on("PUT", "/api/projects/:id", async ({ env, request }, { id }) => {
+  // Names are unique case-insensitively within a workspace: a clash answers 409 + existing_id so the
+  // client can adopt that project. A new project goes to `workspace_id` (default: the caller's own
+  // workspace); an existing one never changes workspace.
+  r.on("PUT", "/api/projects/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const pid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const name = assertString(b.name, "name", 80);
     const notes = b.notes === undefined || b.notes === null || b.notes === "" ? null : assertString(b.notes, "notes", 4000);
-    const clash = await env.DB.prepare("SELECT id FROM projects WHERE name = ?1 COLLATE NOCASE AND id != ?2").bind(name, pid).first<{ id: string }>();
+    const ws = (await accessIfExists(ctx, "project", pid, "editor"))
+      ?? (b.workspace_id == null ? await defaultWorkspace(ctx) : assertRank(ctx, assertUuid(b.workspace_id, "workspace_id"), "editor", "workspace not found"));
+    const clash = await env.DB.prepare("SELECT id FROM projects WHERE workspace_id = ?3 AND name = ?1 COLLATE NOCASE AND id != ?2")
+      .bind(name, pid, ws).first<{ id: string }>();
     if (clash) return json({ error: "a project with this name already exists", existing_id: clash.id }, 409);
     const now = new Date().toISOString();
     await env.DB.prepare(
       `INSERT INTO projects (id, name, notes, updated_at, workspace_id) VALUES (?1, ?2, ?3, ?4, ?5)
        ON CONFLICT(id) DO UPDATE SET name = ?2, notes = ?3, updated_at = ?4`,
-    ).bind(pid, name, notes, now, BOOTSTRAP_WORKSPACE_ID).run();
+    ).bind(pid, name, notes, now, ws).run();
     const row = await env.DB.prepare(`${LIST_SQL} WHERE pr.id = ?1`).bind(pid).first<ProjectRow>();
     return json({ project: toApi(row!) });
   });
 
   // Only projects without live shots can be deleted; their recycle bin is emptied first (the shots
   // in it would block the delete). Live shots are never removed as a side effect.
-  r.on("DELETE", "/api/projects/:id", async ({ env }, { id }) => {
+  r.on("DELETE", "/api/projects/:id", async (ctx, { id }) => {
+    const { env } = ctx;
     const pid = assertUuid(id, "id");
+    await assertAccess(ctx, "project", pid, "editor");
     const used = await env.DB.prepare("SELECT count(*) AS n FROM shots WHERE project_id = ?1 AND deleted_at IS NULL").bind(pid).first<{ n: number }>();
     if (used && used.n > 0) throw new HttpError(409, `project still has ${used.n} shot(s); move or delete them first`);
     await purgeBinned(env, { projectId: pid });

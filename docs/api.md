@@ -13,12 +13,14 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 
 Who a request is (`index.ts` `identify`): a session (bearer header, else cookie; sliding: dashboard 30 days, phone 180, extended at most once a day), else, until Cloudflare Access is removed from the app (#118), a verified Access JWT, which is the bootstrap user. Locally, `ACCESS_DEV_BYPASS` makes a request without a session the bootstrap user. Before any change the auth provider's `allow` is asked (`403` when it says no; the first-party provider always allows).
 
+**Access** (`tenancy.ts`). Lists hold what is in the caller's workspaces. A route by id answers `404` for a row of a workspace the caller is not in (exactly like a missing one) and `403` when their role there is too low: `viewer` reads, `editor` changes content, `admin`/`owner` manage the workspace. A PUT upsert to an id of another workspace is a `404`, never an overwrite. A project named in a body (an upload, a move target) that the caller cannot reach is `400 project_id does not exist`, as an unknown one, so a phone parks such an upload as stuck. Shots never move to a project of another workspace (`400`).
+
 ## Projects (`projects.ts`, `fields.ts`)
 
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/api/projects` | Each with `workspace_id`, `shot_count` and `field_ids` (ordered) |
-| PUT | `/api/projects/:id` | `{ name, notes? }` upsert. Name clash → `409 { existing_id }`. New projects go to the bootstrap workspace until sign-in exists (#109) |
+| PUT | `/api/projects/:id` | `{ name, notes?, workspace_id? }` upsert. A new project goes to `workspace_id` (editor there), default the caller's own workspace; an existing one keeps its workspace. Names are unique per workspace: clash → `409 { existing_id }` (of that workspace) |
 | DELETE | `/api/projects/:id` | Only without live shots, else `409`; the project's recycle bin is emptied first |
 | PUT | `/api/projects/:id/fields` | `{ field_ids: [...] }` reorders the project's own fields (must list exactly them) |
 
@@ -45,7 +47,7 @@ Who a request is (`index.ts` `identify`): a session (bearer header, else cookie;
                "preset_id": null, "lens_mm": 24, "width": 1280, "height": 960, "framing": {…}, "device": {…} }] }
 ```
 
-- Idempotent. An existing shot keeps its tags (they may have been edited since); only photos not stored yet are added. That is how retries and chunked sequence uploads work (the phone sends 12 photos per request, the server allows 60).
+- Idempotent. An existing shot keeps its tags (they may have been edited since); only photos not stored yet are added. That is how retries and chunked sequence uploads work (the phone sends 12 photos per request, the server allows 60). A photo id already stored in another shot is `409` before anything is written (the R2 key comes from the id).
 - `lat`/`lon` may be null or missing (captured without GPS); half a position is dropped. `position_corrected` marks a position set by hand on the phone before upload. `state` carries a review decision made on the phone before upload; anything invalid becomes `unreviewed`.
 - `photos[].source`: `camera` (default), `upload` or `drawn` (dashboard-made, [new shot](features/new-shot.md)); for the last two `lens_mm` is optional and stored as 0.
 - Lenient on purpose: unknown `preset_id`/`location_id` become null, names over 120 characters are cut, `extra` is only pruned, not validated.
