@@ -16,6 +16,7 @@ D1 (SQLite) database `fielder-db`, schema in `apps/worker/migrations/`. Images l
 | `0018_devices.sql` | `devices` (device specs), `viewfinder_layouts.device_id` ([viewfinder layouts](features/viewfinder-layouts.md#device-specs-68)) |
 | `0019_folders_desktop.sql` | `folders`, `folder_items`, `desktop_items`: folders and desktop shortcuts per project; additive, no backfill (epic #72; see Tables) |
 | `0020_trash_desktop_taskbar.sql` | The recycle bin: `deleted_at`, `deleted_with` on `shots`, `timelines`, `shooting_days`, `views`, `locations`, `field_definitions`, `folders`, and the unique name/key indexes of locations, fields and folders made partial (`WHERE deleted_at IS NULL`); `folders.kind` (`normal` \| `desktop`, one Desktop folder per project); `desktop_items.area` (`desktop` \| `taskbar`) and `position`, the target index per area. Additive (epic #90, issue #91) |
+| `0021_tenancy.sql` | `users`, `sessions`, `workspaces`, `workspace_members`; `projects.workspace_id` (name unique per workspace), `presets.workspace_id`, `devices.user_id`, `viewfinder_layouts.user_id`, `photos.size_bytes`. A bootstrap user and workspace own all existing rows. Additive (epic #107, issue #108; see Tables) |
 | `0016_spots.sql` | `spots` (a place within a location, optional pin); `shots.spot_id` ([projects](features/projects.md)) |
 | `0015_project_scope.sql` | `locations.project_id`, `field_definitions.project_id` + `position`, `views.project_id`; shared rows copied per project, unused ones to the project with the most shots; `project_fields` folded in and dropped ([projects](features/projects.md)) |
 | `0014_sequence_blocks.sql` | `timelines.groups` (JSON), `timeline_clips.group_id`: sequence blocks ([timeline](features/timeline.md)) |
@@ -31,9 +32,13 @@ Add a new numbered file for every change; never edit one that was applied to pro
 
 ## Tables
 
-`projects(id, name UNIQUE NOCASE, notes, created_at, updated_at)`
+**Tenancy** (epic #107). `users(id, email UNIQUE NOCASE, name, password_hash, status active|blocked, failed_logins, locked_until, created_at, updated_at)`: `password_hash` is `pbkdf2-sha256$<iterations>$<salt>$<hash>`, or `!`, which never verifies (sign-in disabled). `sessions(id, user_id → users CASCADE, client dashboard|mobile, expires_at, last_used_at, created_at)`: the id is the SHA-256 (hex) of the opaque token; the token itself is never stored. `workspaces(id, name, owner_user_id → users, created_at, updated_at)` and `workspace_members(workspace_id → CASCADE, user_id → CASCADE, role owner|admin|editor|viewer)`, primary key (workspace, user). Access is decided by `workspace_members` alone; `owner_user_id` is bookkeeping and nullable, so organisations can own workspaces later (an added `owner_org_id`).
 
-`presets(id, name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm, created_at, updated_at)`: rigs. Sensor dimensions are the source of truth for the math; `camera_id`/`format_id` refer to `packages/fov-math/src/cameras.ts` (null = custom sensor).
+Every project and rig belongs to a workspace, every device and viewfinder layout to a user. Migration 0021 gave all existing rows to a bootstrap user `00000000-0000-4000-8000-000000000001` (email `owner@fielder.invalid`, sign-in disabled) and its workspace `00000000-0000-4000-8000-000000000002` (`tenancy.ts`). Until requests carry a real user (#109), the Worker writes those ids on every new row.
+
+`projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, notes, created_at, updated_at)`
+
+`presets(id, workspace_id → workspaces, name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm, created_at, updated_at)`: rigs. Sensor dimensions are the source of truth for the math; `camera_id`/`format_id` refer to `packages/fov-math/src/cameras.ts` (null = custom sensor).
 
 `locations(id, project_id → projects CASCADE, name UNIQUE NOCASE per project, lat, lon, created_at, updated_at)`: a location belongs to one project. `lat`/`lon` is the location's pin (null = none). No district (removed in the rework).
 
@@ -49,7 +54,7 @@ Add a new numbered file for every change; never edit one that was applied to pro
 - `position_from_location` 0/1: maps use the place's pin (the spot's, else the location's; the API's `location_position`) instead of the photos' GPS (the photos keep theirs). The API adds `location_position: { lat, lon } | null` from the join.
 - `description`: Markdown subset (`packages/vocab/src/markdown.ts`), max 20 000 characters.
 
-`photos(id, shot_id → shots CASCADE, ordinal UNIQUE per shot, source camera|upload|drawn (non-camera photos: no framing, lens_mm 0), timestamp, lat, lon (both NULL when captured without GPS), gps_accuracy_m, position_corrected, preset_id → presets SET NULL, lens_mm, r2_object_key UNIQUE, width, height, framing JSON, device JSON, created_at)`
+`photos(id, shot_id → shots CASCADE, ordinal UNIQUE per shot, source camera|upload|drawn (non-camera photos: no framing, lens_mm 0), timestamp, lat, lon (both NULL when captured without GPS), gps_accuracy_m, position_corrected, preset_id → presets SET NULL, lens_mm, r2_object_key UNIQUE, width, height, framing JSON, device JSON, created_at, size_bytes)`. `size_bytes` (the stored image, for storage accounting) is NULL for photos uploaded before migration 0021
 
 `overlays(id, photo_id → photos CASCADE, name, description, drawing JSON, presentation JSON, render_key UNIQUE, position, created_at, updated_at)`: a drawing + look over one photo. `drawing` = `{ v: 1, shapes: [...], look: {...} }`, `presentation` = `{ mode, frame: { width_fraction, height_fraction } | null, label, rig_id?, lens_mm? }` (shapes in `packages/vocab/src/compose.ts`). `render_key` is the flattened image in R2 (`renders/overlays/<id>.<ext>`). See [compose](features/compose.md). `timeline_id → timelines CASCADE` + `clip_id` (no FK) make it a timeline clip's own overlay (issue #31); shots do not embed those.
 
@@ -57,9 +62,9 @@ Add a new numbered file for every change; never edit one that was applied to pro
 
 `framings(id, photo_id → photos CASCADE, name, rig_id → presets SET NULL (null = as shot), lens_mm, frame JSON { width_fraction, height_fraction, x, y }, position, created_at, updated_at)` and `photos.root_framing_id → framings SET NULL` (null = as captured). The API embeds `framings` and `root_framing_id` in every photo. See [framing](features/rig-explorer.md).
 
-`viewfinder_layouts(id, name, layout JSON, device_id → devices SET NULL, created_at, updated_at)`: phone layouts made on the dashboard; global. The shipped default is in code. `device_id` is the device the layout is designed for.
+`viewfinder_layouts(id, user_id → users, name, layout JSON, device_id → devices SET NULL, created_at, updated_at)`: phone layouts made on the dashboard; a user's own. The shipped default is in code. `device_id` is the device the layout is designed for.
 
-`devices(id, name, specs JSON, created_at, updated_at)`: phones read out on the dashboard (issue #68). The id is the phone's own (`device.v1` on the phone), so the phone keeps the row current. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
+`devices(id, user_id → users, name, specs JSON, created_at, updated_at)`: phones read out on the dashboard (issue #68), a user's own. The id is the phone's own (`device.v1` on the phone), so the phone keeps the row current. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
 
 `views(id, project_id → projects CASCADE, name, filter JSON, …)`: a project's saved dashboard filters (model in `packages/vocab/src/filter.ts`).
 

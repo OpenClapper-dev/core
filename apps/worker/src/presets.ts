@@ -1,5 +1,6 @@
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
+import { BOOTSTRAP_WORKSPACE_ID } from "./tenancy.ts";
 
 export interface PresetRow {
   id: string;
@@ -47,11 +48,11 @@ export function registerPresetRoutes(r: Router<Ctx>) {
     const now = new Date().toISOString();
 
     await env.DB.prepare(
-      `INSERT INTO presets (id, name, sensor_width_mm, sensor_height_mm, speedbooster_factor, camera_id, format_id, lens_min_mm, lens_max_mm, updated_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+      `INSERT INTO presets (id, name, sensor_width_mm, sensor_height_mm, speedbooster_factor, camera_id, format_id, lens_min_mm, lens_max_mm, updated_at, workspace_id)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
        ON CONFLICT(id) DO UPDATE SET name = ?2, sensor_width_mm = ?3, sensor_height_mm = ?4, speedbooster_factor = ?5,
          camera_id = ?6, format_id = ?7, lens_min_mm = ?8, lens_max_mm = ?9, updated_at = ?10`,
-    ).bind(pid, name, w, h, sb, cameraId, formatId, lensMin, lensMax, now).run();
+    ).bind(pid, name, w, h, sb, cameraId, formatId, lensMin, lensMax, now, BOOTSTRAP_WORKSPACE_ID).run();
 
     const row = await env.DB.prepare("SELECT * FROM presets WHERE id = ?1").bind(pid).first<PresetRow>();
     return json({ preset: row });

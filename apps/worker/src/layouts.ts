@@ -1,6 +1,7 @@
 import { validateViewfinderLayout, type ViewfinderLayout } from "@fielder/vocab";
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
+import { BOOTSTRAP_USER_ID } from "./tenancy.ts";
 
 interface LayoutRow { id: string; name: string; layout: string; device_id: string | null; created_at: string; updated_at: string | null }
 const toApi = (r: LayoutRow) => ({ ...r, layout: JSON.parse(r.layout) as ViewfinderLayout });
@@ -28,9 +29,9 @@ export function registerLayoutRoutes(r: Router<Ctx>) {
     const deviceId = b.device_id == null ? null : assertUuid(b.device_id, "device_id");
     if (deviceId && !(await env.DB.prepare("SELECT 1 FROM devices WHERE id = ?1").bind(deviceId).first())) throw new HttpError(400, "device_id: no such device");
     await env.DB.prepare(
-      `INSERT INTO viewfinder_layouts (id, name, layout, device_id, updated_at) VALUES (?1, ?2, ?3, ?5, ?4)
+      `INSERT INTO viewfinder_layouts (id, name, layout, device_id, updated_at, user_id) VALUES (?1, ?2, ?3, ?5, ?4, ?6)
        ON CONFLICT(id) DO UPDATE SET name = ?2, layout = ?3, updated_at = ?4${hasDevice ? ", device_id = ?5" : ""}`,
-    ).bind(lid, name, layout, new Date().toISOString(), deviceId).run();
+    ).bind(lid, name, layout, new Date().toISOString(), deviceId, BOOTSTRAP_USER_ID).run();
     const row = await env.DB.prepare("SELECT * FROM viewfinder_layouts WHERE id = ?1").bind(lid).first<LayoutRow>();
     return json({ layout: toApi(row!) });
   });
