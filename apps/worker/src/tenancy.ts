@@ -5,11 +5,6 @@ import { HttpError } from "@fielder/service-kit";
  * viewfinder layout to a user; access is decided by workspace_members.
  */
 
-/**
- * The owner of the data that existed before users did (migration 0021; its workspace is
- * 00000000-0000-4000-8000-000000000002). A Cloudflare Access login and the local dev bypass stand for it.
- */
-export const BOOTSTRAP_USER_ID = "00000000-0000-4000-8000-000000000001";
 
 export const ROLES = ["viewer", "editor", "admin", "owner"] as const;
 export type Role = (typeof ROLES)[number];

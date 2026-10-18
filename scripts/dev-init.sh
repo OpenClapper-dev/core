@@ -19,9 +19,16 @@ write_if_missing() {
 echo "Local dev files:"
 # Lets the worker skip Cloudflare Access verification; dev only, never deployed.
 write_if_missing "apps/worker/.dev.vars" 'ACCESS_DEV_BYPASS="true"'
+# The admin plane without Cloudflare Access in front: every request is admin@localhost. Dev only.
+write_if_missing "apps/admin/.dev.vars" 'ADMIN_DEV_BYPASS="true"'
 # Expo inlines EXPO_PUBLIC_* into the bundle. Without it the login WebView
 # resolves the bare path /auth/mobile against file:// and fails.
 write_if_missing "apps/mobile/.env.local" "EXPO_PUBLIC_API_URL=$API_URL"
+
+# Both Workers type-check against wrangler's generated runtime types (gitignored).
+pnpm -C "$root/apps/worker" types >/dev/null
+pnpm -C "$root/apps/admin" types >/dev/null
+mkdir -p "$root/apps/admin/dist"
 
 # wrangler dev refuses to boot unless assets.directory exists. In the local loop
 # Vite serves the dashboard on :5173 and proxies /api here, so an empty directory

@@ -1,0 +1,23 @@
+{
+  "name": "@fielder/admin",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --parallel /^dev:/",
+    "dev:worker": "wrangler dev --port 8788 --persist-to ../worker/.wrangler/state",
+    "dev:ui": "vite",
+    "build": "vite build",
+    "deploy": "vite build && wrangler deploy",
+    "types": "wrangler types",
+    "typecheck": "tsc -p . && tsc -p ui"
+  },
+  "dependencies": {
+    "@fielder/service-kit": "workspace:*",
+    "preact": "^10.27.0"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.0",
+    "vite": "^7.0.0"
+  }
+}
