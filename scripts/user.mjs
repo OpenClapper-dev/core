@@ -70,7 +70,7 @@ if (opts.bootstrap) {
       WHERE email = ${email} COLLATE NOCASE;
     INSERT INTO users (id, email, name, password_hash) SELECT ${uid}, ${email}, ${q(opts.name)}, ${q(hash)}
       WHERE NOT EXISTS (SELECT 1 FROM users WHERE email = ${email} COLLATE NOCASE);
-    INSERT INTO workspaces (id, name, owner_user_id) SELECT ${wid}, 'Personal', ${uid} WHERE EXISTS (SELECT 1 FROM users WHERE id = ${uid});
+    INSERT INTO workspaces (id, name, owner_user_id, kind) SELECT ${wid}, 'Personal', ${uid}, 'personal' WHERE EXISTS (SELECT 1 FROM users WHERE id = ${uid});
     INSERT INTO workspace_members (workspace_id, user_id, role) SELECT ${wid}, ${uid}, 'owner' WHERE EXISTS (SELECT 1 FROM users WHERE id = ${uid});`;
 }
 

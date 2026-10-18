@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { AccountSettings } from "./AccountSettings";
 import { FRAME_MODES, frameModeLabel } from "./format";
 import type { MaskMode } from "./Framed";
 import { DEFAULT_SETTINGS, updateSettings, useSettings } from "./settings";
@@ -9,10 +10,18 @@ import { Icon, LinkButton, Seg, Toolbar, ToolbarTitle } from "./ui";
 
 interface Props { tab: SettingsTab; onTab: (t: SettingsTab) => void; theme: ThemeChoice; onTheme: (t: ThemeChoice) => void; mask: MaskMode; onMask: (m: MaskMode) => void }
 
-/** Settings (route #/settings): dashboard preferences, saved on change, per browser; and the shortcut reference (#/settings/shortcuts). */
+/** Settings (route #/settings): dashboard preferences, saved on change, per browser; the account and workspaces (#/settings/account); the shortcut reference (#/settings/shortcuts). */
 export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props) {
   const s = useSettings();
-  const tabs = <Seg label="Settings section" value={tab} onChange={onTab} options={[{ id: "general", label: "General" }, { id: "shortcuts", label: "Shortcuts" }]} />;
+  const tabs = <Seg label="Settings section" value={tab} onChange={onTab} options={[{ id: "general", label: "General" }, { id: "account", label: "Account" }, { id: "shortcuts", label: "Shortcuts" }]} />;
+  if (tab === "account") {
+    return (
+      <>
+        <Toolbar><ToolbarTitle icon="cog-outline">Settings</ToolbarTitle>{tabs}<span class="meta">Your account, workspaces and their members</span></Toolbar>
+        <div class="f-scroll"><AccountSettings /></div>
+      </>
+    );
+  }
   if (tab === "shortcuts") {
     return (
       <>

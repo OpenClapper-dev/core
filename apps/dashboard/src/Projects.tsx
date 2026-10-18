@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { deleteProject, existingIdOf, putProject, type FieldDefinition, type Project } from "./api";
 import { Button, confirmDialog, Empty, Field, Input, ListRow, Mark, MenuItem, Panel, PanelBody, PanelHead, ProjectTag, promptDialog, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { useUser } from "./user";
 
 const sortByName = (list: Project[]) => [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
 
@@ -50,6 +51,9 @@ interface Props {
 
 /** Library › Projects: list with counts | detail (name, notes, ordered extra fields, delete when empty). */
 export function ProjectsPage({ projects, onChange, fields, scope, selectedId, onSelect, onActivate, onShowShots, onEditFields }: Props) {
+  const user = useUser();
+  // With more than one workspace each project says which it is in.
+  const spaces = user.status === "signed-in" && user.me.workspaces.length > 1 ? new Map(user.me.workspaces.map((w) => [w.id, w.name])) : null;
   const selected = projects.find((p) => p.id === selectedId) ?? projects.find((p) => p.id === scope) ?? projects[0] ?? null;
   return (
     <div class="f-app__body">
@@ -59,7 +63,7 @@ export function ProjectsPage({ projects, onChange, fields, scope, selectedId, on
           {projects.map((p) => (
             <ListRow key={p.id} role="option" aria-selected={p.id === selected?.id} selected={p.id === selected?.id} onClick={() => onSelect(p.id)}
               title={p.name}
-              meta={`${p.shot_count} shot${p.shot_count === 1 ? "" : "s"} · ${p.field_ids.length} field${p.field_ids.length === 1 ? "" : "s"}${p.shot_count === 0 ? " · can be deleted" : ""}`}
+              meta={`${spaces ? `${spaces.get(p.workspace_id) ?? "Shared"} · ` : ""}${p.shot_count} shot${p.shot_count === 1 ? "" : "s"} · ${p.field_ids.length} field${p.field_ids.length === 1 ? "" : "s"}${p.shot_count === 0 ? " · can be deleted" : ""}`}
               trailing={p.id === scope && <ProjectTag>Active</ProjectTag>} />
           ))}
         </PanelBody>

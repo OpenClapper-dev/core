@@ -4,7 +4,7 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 
 ## Startup and projects
 
-- `main.tsx` mounts `wm/Shell.tsx`. Data loads first (`data.ts`, every collection at once, as before). Without a valid project (`project.ts`, `localStorage["project"]`) the project gate (`ProjectGate` in `Projects.tsx`) is shown on the wallpaper, without a taskbar, with "New project".
+- `main.tsx` mounts `wm/Shell.tsx`. It asks who is signed in first (`user.ts`, `GET /api/me`) and shows the sign-in page until someone is ([accounts](accounts.md)). Then data loads (`data.ts`, every collection at once, as before). Without a valid project (`project.ts`, `localStorage["project"]`) the project gate (`ProjectGate` in `Projects.tsx`) is shown on the wallpaper, without a taskbar, with "New project".
 - Then that project's desktop is restored as it was left, and a deep link in the URL opens or focuses its window on top.
 - **Switching project** (the taskbar switcher, ⌘K → project, Projects → Make active): every app with unsaved work may veto first (`beforeProjectSwitch`); then the current desktop is saved and the other project's comes back. Each project has its own windows (per browser) and its own icons and folders (on the server, [files](files.md)).
 
@@ -51,6 +51,7 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 | Files | `apps/FilesApp.tsx` | Folders and files of the project ([files](files.md)) |
 | Projects | `apps/LibraryApps.tsx` + `Projects.tsx` | [Projects](projects.md): list with counts, detail with name, notes and ordered extra fields |
 | Fields | `apps/LibraryApps.tsx` + `Fields.tsx` | [Extra fields](extra-fields.md): list, JSON editor, live preview |
+| Settings › Account | `AccountSettings.tsx` | Who is signed in, workspaces, members and roles ([accounts](accounts.md)) |
 | Rigs | `apps/LibraryApps.tsx` + `Rigs.tsx` | Rig table (body, format, sensor, speedbooster, lens range, shots) and an editor panel; shared by all projects of a workspace |
 | Locations | `apps/LibraryApps.tsx` + `Locations.tsx` | Filterable table, inline rename (F2), the pin (Set position `P`, see [positions](positions.md)), counts that open the Gallery filtered to the location, delete |
 | Viewfinder layouts | `apps/LibraryApps.tsx` + `ViewfinderLayouts.tsx` | [Viewfinder layouts](viewfinder-layouts.md); the signed-in user's own, shared by all projects |

@@ -25,7 +25,8 @@ export interface DataState {
   trash: { projectId: string; entries: TrashEntry[] } | null;
 }
 
-let state: DataState = { shots: null, projects: null, presets: null, locations: null, views: null, spots: null, fields: null, error: null, loadedAt: null, files: null, trash: null };
+const EMPTY: DataState = { shots: null, projects: null, presets: null, locations: null, views: null, spots: null, fields: null, error: null, loadedAt: null, files: null, trash: null };
+let state: DataState = EMPTY;
 const listeners = new Set<(s: DataState) => void>();
 function put(p: Partial<DataState>) {
   state = { ...state, ...p };
@@ -78,6 +79,8 @@ export function load(): Promise<void> {
     .catch((e: Error) => put({ error: e.message }));
 }
 export const reload = () => { void load().then(() => toast("Reloaded", "info")); };
+/** Forget everything loaded (another user signs in): the shell shows Loading until load() is back. */
+export const clear = () => put(EMPTY);
 /** Counts (shots per location, spot, project) follow an edit elsewhere. */
 export function refreshCounts() {
   void fetchLocations().then(setLocations).catch(() => {});

@@ -39,7 +39,7 @@ export type Route =
   | { page: "files"; folderId: string | null }
   | { page: "trash" };
 
-export type SettingsTab = "general" | "shortcuts";
+export type SettingsTab = "general" | "account" | "shortcuts";
 
 export const DEFAULT_ROUTE: Route = { page: "shots", viewId: null };
 
@@ -57,7 +57,7 @@ export function parseRoute(hash: string): Route {
     case "plan": return { page: "plan", dayId: parts[1] ?? null };
     case "metadata": return { page: "metadata", field: (META_FIELDS as readonly string[]).includes(parts[1]) ? (parts[1] as MetaField) : "location" };
     case "timeline": return { page: "timeline", timelineId: parts[1] ?? null, at: parts[1] ? parseCutPosition(q) : null };
-    case "settings": return { page: "settings", tab: parts[1] === "shortcuts" ? "shortcuts" : "general" };
+    case "settings": return { page: "settings", tab: parts[1] === "shortcuts" || parts[1] === "account" ? parts[1] : "general" };
     case "files": return { page: "files", folderId: parts[1] ?? null };
     case "trash": return { page: "trash" };
     case "library": {
@@ -75,7 +75,7 @@ export function routeHash(r: Route): string {
     case "plan": return r.dayId ? `#/plan/${r.dayId}` : "#/plan";
     case "metadata": return `#/metadata/${r.field}`;
     case "timeline": return r.timelineId ? `#/timeline/${r.timelineId}${cutQuery(r.at)}` : "#/timeline";
-    case "settings": return r.tab === "shortcuts" ? "#/settings/shortcuts" : "#/settings";
+    case "settings": return r.tab === "general" ? "#/settings" : `#/settings/${r.tab}`;
     case "library": return `#/library/${r.section}${r.id ? `/${r.id}` : ""}`;
     case "files": return r.folderId ? `#/files/${r.folderId}` : "#/files";
     case "trash": return "#/trash";

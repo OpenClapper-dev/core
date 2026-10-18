@@ -121,7 +121,7 @@ export const inWorkspaces = (column: string, n: number) => `${column} IN (SELECT
  * workspace, else the first one they can edit.
  */
 export async function defaultWorkspace(a: Access): Promise<string> {
-  const own = await a.env.DB.prepare("SELECT id FROM workspaces WHERE owner_user_id = ?1 ORDER BY created_at LIMIT 1")
+  const own = await a.env.DB.prepare("SELECT id FROM workspaces WHERE owner_user_id = ?1 AND kind = 'personal' ORDER BY created_at LIMIT 1")
     .bind(a.tenant.userId).first<{ id: string }>();
   if (own && (a.tenant.ranks.get(own.id) ?? -1) >= RANK.editor) return own.id;
   for (const [ws, rank] of a.tenant.ranks) if (rank >= RANK.editor) return ws;
