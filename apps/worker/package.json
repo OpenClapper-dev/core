@@ -7,6 +7,7 @@
     "dev": "wrangler dev",
     "deploy": "pnpm --filter @fielder/dashboard build && wrangler deploy",
     "types": "wrangler types",
+    "test": "node --test test/*.test.ts",
     "migrate:local": "wrangler d1 migrations apply DB --local",
     "migrate:remote": "wrangler d1 migrations apply DB --remote"
   },

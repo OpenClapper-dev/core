@@ -9,7 +9,8 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "paths": { "@fielder/auth-provider": ["./src/authn/first-party.ts"] }
   },
   "include": ["src/**/*.ts", "worker-configuration.d.ts"]
 }

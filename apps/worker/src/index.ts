@@ -1,10 +1,14 @@
 /**
  * Fielder API Worker.
- * Every request runs behind Cloudflare Access at the edge AND verifies the
- * Access JWT here before touching any route.
+ * Every request except signing in needs a user: a session from the auth provider
+ * (`@fielder/auth-provider`, first-party.ts by default) or, until Cloudflare Access is removed from
+ * the app's hostname (epic #107), a verified Access JWT, which stands for the bootstrap user.
  */
-import { AccessError, verifyAccessJwt, type AccessIdentity } from "./access.ts";
+import { provider } from "@fielder/auth-provider";
+import { AccessError, verifyAccessJwt } from "./access.ts";
 import { registerAuthRoutes } from "./auth.ts";
+import type { Identity, PublicCtx } from "./authn/provider.ts";
+import { purgeExpiredSessions } from "./authn/sessions.ts";
 import { registerComposeRoutes } from "./compose.ts";
 import { registerDayRoutes } from "./days.ts";
 import { registerDeviceRoutes } from "./devices.ts";
@@ -19,6 +23,7 @@ import { registerPreviewRoutes } from "./preview.ts";
 import { registerProjectRoutes } from "./projects.ts";
 import { registerShotRoutes } from "./shots.ts";
 import { registerSpotRoutes } from "./spots.ts";
+import { BOOTSTRAP_USER_ID, loadTenant, type Tenant } from "./tenancy.ts";
 import { registerTimelineRoutes } from "./timelines.ts";
 import { purgeExpired, registerTrashRoutes } from "./trash.ts";
 import { registerViewRoutes } from "./views.ts";
@@ -26,16 +31,19 @@ import { registerViewRoutes } from "./views.ts";
 export interface Env {
   DB: D1Database;
   SHOTS_BUCKET: R2Bucket;
+  /** Cloudflare Access in front of the app, until the cutover to sign-in (epic #107). */
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
   /** Live layout preview rooms, one per user (preview.ts, issue #50). */
   PREVIEW: DurableObjectNamespace<import("./preview.ts").PreviewRoom>;
   /**
    * Local development only. Set `ACCESS_DEV_BYPASS="true"` in a gitignored
-   * `.dev.vars` file so `wrangler dev` works without Access in front of it.
-   * Never define this in wrangler.jsonc.
+   * `.dev.vars` file so `wrangler dev` works without signing in: a request
+   * without a session is the bootstrap user. Never define this in wrangler.jsonc.
    */
   ACCESS_DEV_BYPASS?: string;
+  /** PBKDF2 iterations for new password hashes (password.ts); default and maximum 100 000. */
+  PBKDF2_ITERATIONS?: string;
 }
 
 export { PreviewRoom } from "./preview.ts";
@@ -44,26 +52,43 @@ export interface Ctx {
   request: Request;
   env: Env;
   url: URL;
-  identity: AccessIdentity;
+  identity: Identity;
+  tenant: Tenant;
 }
+
+/** Routes that run without a user: the provider's /api/auth/* and a liveness probe. */
+const publicRouter = new Router<PublicCtx>();
+publicRouter.on("GET", "/api/ping", async () => json({ ok: true }));
+provider.registerPublic(publicRouter);
+const isPublic = (path: string) => path === "/api/ping" || path.startsWith("/api/auth/");
 
 const router = new Router<Ctx>();
 
 router.on("GET", "/health", async ({ env, identity }) => {
   const [d1, r2] = await Promise.allSettled([
-    env.DB.prepare("SELECT count(*) AS n FROM shots WHERE deleted_at IS NULL").first<{ n: number }>(),
+    env.DB.prepare("SELECT 1").first(),
     env.SHOTS_BUCKET.list({ limit: 1 }),
   ]);
   const ok = d1.status === "fulfilled" && r2.status === "fulfilled";
   return json(
     {
       ok,
-      identity: identity.kind === "user" ? identity.email : `service:${identity.serviceTokenId}`,
-      d1: d1.status === "fulfilled" ? { shots: d1.value?.n ?? 0 } : { error: String(d1.reason) },
+      identity: identity.email,
+      d1: d1.status === "fulfilled" ? { reachable: true } : { error: String(d1.reason) },
       r2: r2.status === "fulfilled" ? { reachable: true } : { error: String(r2.reason) },
     },
     ok ? 200 : 503,
   );
+});
+
+/** The signed-in user and their workspaces; the clients' "am I signed in" probe. */
+router.on("GET", "/api/me", async ({ env, identity }) => {
+  const user = await env.DB.prepare("SELECT id, email, name FROM users WHERE id = ?1").bind(identity.userId).first();
+  const { results } = await env.DB.prepare(
+    `SELECT w.id, w.name, m.role, w.owner_user_id = ?1 AS personal FROM workspace_members m JOIN workspaces w ON w.id = m.workspace_id
+     WHERE m.user_id = ?1 ORDER BY w.created_at`,
+  ).bind(identity.userId).all<{ id: string; name: string; role: string; personal: number }>();
+  return json({ user, workspaces: results.map((w) => ({ ...w, personal: w.personal === 1 })) });
 });
 registerAuthRoutes(router);
 registerPresetRoutes(router);
@@ -83,17 +108,40 @@ registerLayoutRoutes(router);
 registerDeviceRoutes(router);
 registerPreviewRoutes(router);
 
-async function authenticate(request: Request, env: Env): Promise<AccessIdentity> {
-  if (env.ACCESS_DEV_BYPASS === "true") return { email: "dev@localhost", kind: "user" };
-  return verifyAccessJwt(request, env);
+async function bootstrapIdentity(env: Env): Promise<Identity | null> {
+  const u = await env.DB.prepare("SELECT email FROM users WHERE id = ?1 AND status = 'active'").bind(BOOTSTRAP_USER_ID).first<{ email: string }>();
+  return u ? { userId: BOOTSTRAP_USER_ID, email: u.email } : null;
+}
+
+/**
+ * A session first. Then, while Cloudflare Access still guards the app (until #118), an Access login,
+ * which can only be the owner and so is the bootstrap user that owns the pre-sign-in data. Locally,
+ * the dev bypass makes a request without a session the bootstrap user too.
+ */
+async function identify(request: Request, env: Env): Promise<Identity | null> {
+  const signedIn = await provider.identify(request, env);
+  if (signedIn) return signedIn;
+  if (env.ACCESS_DEV_BYPASS === "true") return bootstrapIdentity(env);
+  if (request.headers.has("Cf-Access-Jwt-Assertion")) {
+    const access = await verifyAccessJwt(request, env);
+    if (access.kind === "user") return bootstrapIdentity(env);
+  }
+  return null;
 }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     try {
-      const identity = await authenticate(request, env);
-      return await router.handle(request.method, url.pathname, { request, env, url, identity });
+      if (isPublic(url.pathname)) return await publicRouter.handle(request.method, url.pathname, { request, env, url });
+      const identity = await identify(request, env);
+      if (!identity) return json({ error: "unauthorized" }, 401);
+      if (request.method !== "GET" && request.method !== "HEAD") {
+        const capability = request.method === "POST" && url.pathname === "/api/shots" ? "upload" : "write";
+        if (!(await provider.allow(identity, capability, env))) throw new HttpError(403, "not allowed for this account");
+      }
+      const tenant = await loadTenant(env, identity.userId);
+      return await router.handle(request.method, url.pathname, { request, env, url, identity, tenant });
     } catch (err) {
       if (err instanceof AccessError) return json({ error: "unauthorized", reason: err.message }, 401);
       if (err instanceof HttpError) return json({ error: err.message }, err.status);
@@ -101,8 +149,9 @@ export default {
       return json({ error: "internal error" }, 500);
     }
   },
-  /** Daily (wrangler.jsonc triggers): empty what has been in the recycle bin for 30 days. */
+  /** Daily (wrangler.jsonc triggers): empty what has been in the recycle bin for 30 days, drop expired sessions. */
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(purgeExpired(env).then((n) => console.log(`recycle bin: purged ${n} item(s)`)));
+    ctx.waitUntil(purgeExpiredSessions(env).then((n) => console.log(`sessions: purged ${n} expired`)));
   },
 } satisfies ExportedHandler<Env>;
