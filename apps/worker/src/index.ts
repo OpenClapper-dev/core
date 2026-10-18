@@ -27,6 +27,7 @@ import { BOOTSTRAP_USER_ID, loadTenant, type Tenant } from "./tenancy.ts";
 import { registerTimelineRoutes } from "./timelines.ts";
 import { purgeExpired, registerTrashRoutes } from "./trash.ts";
 import { registerViewRoutes } from "./views.ts";
+import { registerWorkspaceRoutes } from "./workspaces.ts";
 
 export interface Env {
   DB: D1Database;
@@ -85,8 +86,8 @@ router.on("GET", "/health", async ({ env, identity }) => {
 router.on("GET", "/api/me", async ({ env, identity }) => {
   const user = await env.DB.prepare("SELECT id, email, name FROM users WHERE id = ?1").bind(identity.userId).first();
   const { results } = await env.DB.prepare(
-    `SELECT w.id, w.name, m.role, w.owner_user_id = ?1 AS personal FROM workspace_members m JOIN workspaces w ON w.id = m.workspace_id
-     WHERE m.user_id = ?1 ORDER BY w.created_at`,
+    `SELECT w.id, w.name, m.role, (w.kind = 'personal' AND w.owner_user_id = ?1) AS personal FROM workspace_members m JOIN workspaces w ON w.id = m.workspace_id
+     WHERE m.user_id = ?1 ORDER BY personal DESC, w.created_at`,
   ).bind(identity.userId).all<{ id: string; name: string; role: string; personal: number }>();
   return json({ user, workspaces: results.map((w) => ({ ...w, personal: w.personal === 1 })) });
 });
@@ -107,6 +108,7 @@ registerFramingRoutes(router);
 registerLayoutRoutes(router);
 registerDeviceRoutes(router);
 registerPreviewRoutes(router);
+registerWorkspaceRoutes(router);
 
 async function bootstrapIdentity(env: Env): Promise<Identity | null> {
   const u = await env.DB.prepare("SELECT email FROM users WHERE id = ?1 AND status = 'active'").bind(BOOTSTRAP_USER_ID).first<{ email: string }>();

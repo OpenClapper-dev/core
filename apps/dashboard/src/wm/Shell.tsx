@@ -9,8 +9,10 @@ import { bind, useKeys } from "../keys";
 import { setProjectId, switchProject, useProjectId } from "../project";
 import { ProjectGate } from "../Projects";
 import { routeHash } from "../router";
+import { SignInPage } from "../SignIn";
 import { useSettings } from "../settings";
 import { setTheme, useTheme } from "../theme";
+import { boot, signOut, useUser } from "../user";
 import { Button, ConfirmHost, Empty, Loading, toast, ToastHost } from "../ui";
 import { requestClose } from "./closeGuards";
 import { Desktop } from "./Desktop";
@@ -43,18 +45,41 @@ function showDesktop(projectId: string) {
 }
 
 /**
- * The desktop shell (replaces App in main.tsx, epic #72): loads the data cache, asks for a
- * project when none is chosen, then shows that project's desktop — windows, snap preview,
- * taskbar — with the global overlays (Go to…, shortcuts, confirm, toasts) above it.
+ * The dashboard (main.tsx): the sign-in page until someone is signed in (epic #107), then their
+ * desktop. Keyed by the user, so another account starts from a fresh data cache.
  */
 export function Shell() {
+  const user = useUser();
+  useEffect(() => { void boot(); }, []);
+  if (user.status === "signed-in") return <SignedIn key={user.me.user.id} />;
+  return (
+    <div class="wm-root wm-root--bare">
+      {user.status === "signed-out" ? <SignInPage />
+        : user.status === "error" ? <Empty icon="cloud-alert" title="Could not reach Fielder" actions={<Button onClick={() => void boot()}>Try again</Button>}>{user.message}</Empty>
+        : <Loading />}
+      <ToastHost />
+    </div>
+  );
+}
+
+/**
+ * The desktop shell (epic #72): loads the data cache, asks for a project when none is chosen,
+ * then shows that project's desktop — windows, snap preview, taskbar — with the global overlays
+ * (Go to…, shortcuts, confirm, toasts) above it.
+ */
+function SignedIn() {
   const d = data.useData();
   const projectId = useProjectId();
   const loaded = data.loaded(d);
   const valid = loaded && !!projectId && d.projects!.some((p) => p.id === projectId) ? projectId : null;
   const [ready, setReady] = useState<string | null>(null);
 
-  useEffect(() => { void data.load(); }, []);
+  useEffect(() => {
+    data.clear();
+    void data.load();
+    // The sign-in page's #/register is no deep link into the desktop.
+    if (location.hash === "#/register") history.replaceState(null, "", "#/");
+  }, []);
   useEffect(() => {
     if (!valid) return;
     const first = ready === null;
@@ -96,6 +121,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const [days, setDays] = useState<ShootingDay[]>([]);
   const pd = data.useProjectData(projectId);
   const [theme] = useTheme();
+  const user = useUser();
 
   useEffect(() => {
     const el = area.current!;
@@ -158,6 +184,8 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     { id: "a-newws", group: "Actions", icon: "monitor-multiple", title: "New workspace", keys: "⌘Alt N", run: () => { wm.addWorkspace({ go: true }); } },
     { id: "a-reload", group: "Actions", icon: "refresh", title: "Reload data", run: data.reload },
     { id: "a-keys", group: "Actions", icon: "keyboard-outline", title: "Keyboard shortcuts", keys: "?", run: () => openOverlay("sheet") },
+    { id: "a-account", group: "Open", icon: "account-circle-outline", title: "Account and workspaces", sub: "Members, roles, sign out", run: () => launch({ app: "settings", state: { tab: "account" } }) },
+    { id: "a-signout", group: "Actions", icon: "logout", title: "Sign out", sub: user.status === "signed-in" ? user.me.user.email : undefined, run: () => void signOut() },
   ];
 
   return (

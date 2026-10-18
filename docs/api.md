@@ -10,6 +10,11 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 | POST | `/api/auth/logout` | Public. Deletes the request's session if any and clears the cookie; always `204` |
 | GET | `/api/me` | `{ user: { id, email, name }, workspaces: [{ id, name, role, personal }] }`; the clients' signed-in probe |
 | GET | `/api/ping` | Public. `{ ok: true }`, touches nothing |
+| GET | `/api/workspaces` | The caller's: `[{ id, name, role, personal, member_count, project_count, created_at }]`, personal first |
+| PUT | `/api/workspaces/:id` | `{ name }`: a new shared workspace, the caller its owner (201), or a rename (admin) |
+| GET | `/api/workspaces/:id/members` | `[{ user_id, email, name, role, created_at }]`, any member |
+| POST | `/api/workspaces/:id/members` | `{ email, role }` (admin, editor, viewer): adds an existing account of this instance (`404` for an unknown email) or changes its role. Admins manage editors and viewers, the owner also admins; the owner's role never changes |
+| DELETE | `/api/workspaces/:id/members/:user` | Remove (same rule), or leave (your own id). The owner cannot leave (`400`) |
 
 Who a request is (`index.ts` `identify`): a session (bearer header, else cookie; sliding: dashboard 30 days, phone 180, extended at most once a day), else, until Cloudflare Access is removed from the app (#118), a verified Access JWT, which is the bootstrap user. Locally, `ACCESS_DEV_BYPASS` makes a request without a session the bootstrap user. Before any change the auth provider's `allow` is asked (`403` when it says no; the first-party provider always allows).
 

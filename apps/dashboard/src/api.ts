@@ -83,7 +83,7 @@ export interface Sketch {
   id: string; shot_id: string; timeline_id?: string | null; clip_id?: string | null; name: string; kind: string | null; description: string | null;
   drawing?: Drawing; aspect: number; position: number; render_url: string | null; created_at: string; updated_at: string | null;
 }
-export interface Project { id: string; name: string; notes: string | null; created_at: string; updated_at: string | null; shot_count: number; /** Extra-field definitions the project uses, in order. */ field_ids: string[] }
+export interface Project { id: string; workspace_id: string; name: string; notes: string | null; created_at: string; updated_at: string | null; shot_count: number; /** Extra-field definitions the project uses, in order. */ field_ids: string[] }
 export interface Preset {
   id: string;
   name: string;
@@ -123,12 +123,20 @@ export class ApiError extends Error {
   constructor(public status: number, message: string, public body: unknown = null) { super(message); }
 }
 
+/** What a 401 does: user.ts swaps the desktop for the sign-in page. */
+let onUnauthorized = () => {};
+export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, { ...init, headers: { accept: "application/json", ...(init.headers ?? {}) }, credentials: "same-origin" });
-  if (res.status === 401 || res.redirected) {
-    // Access session expired: reload to trigger the login redirect.
+  if (res.redirected) {
+    // Cloudflare Access (while it still guards the app) sent its login page: reload to go through it.
     location.reload();
     throw new ApiError(401, "session expired");
+  }
+  if (res.status === 401) {
+    onUnauthorized();
+    throw new ApiError(401, "signed out");
   }
   const text = await res.text();
   let body: unknown = null;
@@ -139,6 +147,41 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 const get = <T,>(path: string) => request<T>(path);
 const send = <T,>(method: string, path: string, body?: unknown) =>
   request<T>(path, { method, headers: body === undefined ? {} : { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
+
+// ---------------------------------------------------------------- sign-in and workspaces (epic #107)
+
+export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
+export interface Me {
+  user: { id: string; email: string; name: string | null };
+  workspaces: { id: string; name: string; role: WorkspaceRole; personal: boolean }[];
+}
+export interface Workspace { id: string; name: string; role: WorkspaceRole; personal: boolean; member_count: number; project_count: number; created_at: string }
+export interface Member { user_id: string; email: string; name: string | null; role: WorkspaceRole; created_at: string }
+
+/** The signed-in user, or null when nobody is (no 401 handling: this is how the dashboard finds out). */
+export async function fetchMe(): Promise<Me | null> {
+  const res = await fetch("/api/me", { headers: { accept: "application/json" }, credentials: "same-origin" });
+  if (res.status === 401) return null;
+  if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
+  return (await res.json()) as Me;
+}
+
+/** Signs in; the session comes back as an HttpOnly cookie. A wrong password is an ApiError with the server's message. */
+export async function signIn(email: string, password: string): Promise<void> {
+  const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, credentials: "same-origin", body: JSON.stringify({ email, password, client: "dashboard" }) });
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { error?: string } | null;
+    throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`, body);
+  }
+}
+export const signOut = () => fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).then(() => undefined);
+
+export const fetchWorkspaces = () => get<{ workspaces: Workspace[] }>("/api/workspaces").then((r) => r.workspaces);
+export const putWorkspace = (id: string, name: string) => send<{ workspace: { id: string; name: string } }>("PUT", `/api/workspaces/${id}`, { name });
+export const fetchMembers = (workspaceId: string) => get<{ members: Member[] }>(`/api/workspaces/${workspaceId}/members`).then((r) => r.members);
+export const putMember = (workspaceId: string, email: string, role: Exclude<WorkspaceRole, "owner">) =>
+  send<{ member: { user_id: string; role: WorkspaceRole } }>("POST", `/api/workspaces/${workspaceId}/members`, { email, role });
+export const deleteMember = (workspaceId: string, userId: string) => send<{ removed: string }>("DELETE", `/api/workspaces/${workspaceId}/members/${userId}`);
 
 /** The 409 body of an upsert whose name is taken carries the id of the row that has it. */
 export const existingIdOf = (err: unknown): string | undefined =>
@@ -163,8 +206,8 @@ export async function fetchAllShots(): Promise<Shot[]> {
 
 export const fetchProjects = () => get<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
 /** Upsert; a 409 carries body.existing_id when another project already has the name. */
-export const putProject = (p: { id: string; name: string; notes: string | null }) =>
-  send<{ project: Project }>("PUT", `/api/projects/${p.id}`, { name: p.name, notes: p.notes }).then((r) => r.project);
+export const putProject = (p: { id: string; name: string; notes: string | null; workspace_id?: string }) =>
+  send<{ project: Project }>("PUT", `/api/projects/${p.id}`, { name: p.name, notes: p.notes, workspace_id: p.workspace_id }).then((r) => r.project);
 /** Listeners told when a project was created somewhere other than Library › Projects (App refreshes its list). */
 const projectCreated = new Set<(p: Project) => void>();
 export function onProjectCreated(cb: (p: Project) => void): () => void { projectCreated.add(cb); return () => { projectCreated.delete(cb); }; }

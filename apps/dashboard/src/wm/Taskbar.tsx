@@ -8,6 +8,7 @@ import { useSettings } from "../settings";
 import { switchProject } from "../project";
 import { appDef, launch, type AppId } from "../apps/registry";
 import { useTheme, type ThemeChoice } from "../theme";
+import { signOut, useUser } from "../user";
 import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, toast, useCtxMenu, useOutsideClick } from "../ui";
 import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
@@ -163,6 +164,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
         <IconButton icon="magnify" label="Go to… (⌘K)" title="Go to… (⌘K)" onClick={onPalette} />
         <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_NEXT[theme])} />
         <IconButton icon="refresh" label="Reload" title="Reload" onClick={() => location.reload()} />
+        <UserMenu />
         <span class="wm-taskbar__clock num">{clock}</span>
       </div>
       {launcher && <Launcher onClose={() => setLauncher(false)} />}
@@ -213,6 +215,35 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
  * The active project and its switcher (opens upwards): switching swaps the whole desktop, after
  * every app with unsaved edits had its say (beforeProjectSwitch).
  */
+/** The signed-in account (epic #107): who you are, your workspaces and members, signing out. */
+function UserMenu() {
+  const user = useUser();
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  useOutsideClick(() => box.current, () => setOpen(false), open);
+  useEffect(() => {
+    if (!open) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); setOpen(false); } };
+    window.addEventListener("keydown", esc, true);
+    return () => window.removeEventListener("keydown", esc, true);
+  }, [open]);
+  if (user.status !== "signed-in") return null;
+  const { email, name } = user.me.user;
+  return (
+    <div ref={box} class="wm-project wm-user">
+      <IconButton icon="account-circle-outline" label={`Account · ${email}`} title={`Account · ${email}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)} />
+      {open && (
+        <div class="f-menu wm-project__menu" role="menu" aria-label="Account" data-overlay>
+          <div class="f-menu__label">{name ? `${name} · ${email}` : email}</div>
+          <MenuItem icon="account-group-outline" onClick={() => { setOpen(false); launch({ app: "settings", state: { tab: "account" } }); }}>Account and workspaces…</MenuItem>
+          <div class="f-menu__sep" />
+          <MenuItem icon="logout" onClick={() => { setOpen(false); void signOut(); }}>Sign out</MenuItem>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ProjectSwitch({ projectId }: { projectId: string }) {
   const { projects } = useData();
   const [open, setOpen] = useState(false);
