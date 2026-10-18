@@ -51,9 +51,9 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 | Files | `apps/FilesApp.tsx` | Folders and files of the project ([files](files.md)) |
 | Projects | `apps/LibraryApps.tsx` + `Projects.tsx` | [Projects](projects.md): list with counts, detail with name, notes and ordered extra fields |
 | Fields | `apps/LibraryApps.tsx` + `Fields.tsx` | [Extra fields](extra-fields.md): list, JSON editor, live preview |
-| Rigs | `apps/LibraryApps.tsx` + `Rigs.tsx` | Rig table (body, format, sensor, speedbooster, lens range, shots) and an editor panel; shared by all projects |
+| Rigs | `apps/LibraryApps.tsx` + `Rigs.tsx` | Rig table (body, format, sensor, speedbooster, lens range, shots) and an editor panel; shared by all projects of a workspace |
 | Locations | `apps/LibraryApps.tsx` + `Locations.tsx` | Filterable table, inline rename (F2), the pin (Set position `P`, see [positions](positions.md)), counts that open the Gallery filtered to the location, delete |
-| Viewfinder layouts | `apps/LibraryApps.tsx` + `ViewfinderLayouts.tsx` | [Viewfinder layouts](viewfinder-layouts.md); shared by all projects |
+| Viewfinder layouts | `apps/LibraryApps.tsx` + `ViewfinderLayouts.tsx` | [Viewfinder layouts](viewfinder-layouts.md); the signed-in user's own, shared by all projects |
 | Recycle bin | `apps/TrashApp.tsx`, `apps/trashOps.ts` | What was deleted in the project: restore, delete permanently, empty ([files](files.md#recycle-bin-epic-90)) |
 | Settings | `apps/SettingsApp.tsx` + `SettingsPage.tsx`, `settings.ts` | Preferences saved on change, per browser (`localStorage["settings"]`; theme and frame mode keep their own keys): theme, default frame mode, the recycle bin on the desktop, the review state of shots made with New shot (Approved by default), and Timeline → the playhead while a clip is edited inline and what Remove takes on a sequence block's clip. Also `#/settings/shortcuts`. |
 

@@ -6,11 +6,10 @@ import { HttpError } from "./http.ts";
  */
 
 /**
- * The owner of the data that existed before users did (migration 0021). Until requests carry a real
- * user (#109), new rows are attributed to it so nothing is created without an owner.
+ * The owner of the data that existed before users did (migration 0021; its workspace is
+ * 00000000-0000-4000-8000-000000000002). A Cloudflare Access login and the local dev bypass stand for it.
  */
 export const BOOTSTRAP_USER_ID = "00000000-0000-4000-8000-000000000001";
-export const BOOTSTRAP_WORKSPACE_ID = "00000000-0000-4000-8000-000000000002";
 
 export const ROLES = ["viewer", "editor", "admin", "owner"] as const;
 export type Role = (typeof ROLES)[number];

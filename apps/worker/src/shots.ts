@@ -355,7 +355,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     const photos = m.photos.map(parsePhoto);
 
     const existing = await env.DB.prepare("SELECT id, deleted_at FROM shots WHERE id = ?1").bind(id).first<{ id: string; deleted_at: string | null }>();
-    if (existing) await assertAccess(ctx, "shot", id, "editor");
+    let ws = existing ? await assertAccess(ctx, "shot", id, "editor") : null;
     let insertShot: D1PreparedStatement | null = null;
     // A capture continued or retried for a shot that was binned meanwhile brings it back: never lose a capture.
     if (existing?.deleted_at) insertShot = env.DB.prepare("UPDATE shots SET deleted_at = NULL, deleted_with = NULL WHERE id = ?1").bind(id);
@@ -366,7 +366,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
       // of another project (a stale phone) becomes the shot's project's location of that name.
       if (typeof m.name === "string" && m.name.length > 120) m.name = m.name.slice(0, 120);
       const tags = parseTags(m, true);
-      await assertProjectRef(ctx, projectId);
+      ws = await assertProjectRef(ctx, projectId);
       if (tags.location_id) tags.location_id = await locationInProject(env, tags.location_id, projectId, true);
       if (tags.spot_id) tags.spot_id = await spotUnder(env, tags.spot_id, tags.location_id, true);
       const capturedAt = photos.map((p) => p.timestamp).sort()[0];
@@ -389,10 +389,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (fresh.length && await env.DB.prepare("SELECT 1 FROM photos WHERE id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(fresh.map((p) => p.id))).first()) {
       throw new HttpError(409, "a photo id is already used by another shot");
     }
-    // A rig deleted (or never synced) meanwhile becomes NULL; the framing snapshot on the photo keeps it.
+    // A rig deleted (or never synced, or of another workspace) becomes NULL; the framing snapshot on the photo keeps it.
     const presetIds = [...new Set(fresh.map((p) => p.preset_id).filter((x): x is string => !!x))];
     if (presetIds.length) {
-      const known = new Set((await env.DB.prepare("SELECT id FROM presets WHERE id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(presetIds)).all<{ id: string }>()).results.map((x) => x.id));
+      const known = new Set((await env.DB.prepare("SELECT id FROM presets WHERE workspace_id = ?2 AND id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(presetIds), ws).all<{ id: string }>()).results.map((x) => x.id));
       for (const p of fresh) if (p.preset_id && !known.has(p.preset_id)) p.preset_id = null;
     }
     const files = fresh.map((p) => {
@@ -400,20 +400,20 @@ export function registerShotRoutes(r: Router<Ctx>) {
       if (!(f instanceof File)) throw new HttpError(400, `image file missing for photo ${p.id}`);
       if (!ALLOWED_IMAGE_TYPES.has(f.type)) throw new HttpError(415, `unsupported image type ${f.type || "(none)"}`);
       if (f.size === 0 || f.size > MAX_IMAGE_BYTES) throw new HttpError(413, "image empty or too large");
-      return { photo: p, file: f, key: objectKey(p.id, f.type) };
+      return { photo: p, file: f, key: objectKey(p.id, f.type), size: f.size };
     });
 
     const written: string[] = [];
     try {
       for (const { photo, file, key } of files) {
-        await env.SHOTS_BUCKET.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { shot_id: id, photo_id: photo.id } });
+        await env.SHOTS_BUCKET.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { shot_id: id, photo_id: photo.id, workspace_id: ws! } });
         written.push(key);
       }
       // One batch = one transaction: the shot row and its photo rows land together or not at all.
-      const stmts = files.map(({ photo: p, key }) => env.DB.prepare(
-        `INSERT INTO photos (id, shot_id, ordinal, timestamp, lat, lon, gps_accuracy_m, position_corrected, preset_id, lens_mm, r2_object_key, width, height, framing, device, source)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)`,
-      ).bind(p.id, id, p.ordinal, p.timestamp, p.lat, p.lon, p.gps_accuracy_m, p.position_corrected, p.preset_id, p.lens_mm, key, p.width, p.height, p.framing, p.device, p.source));
+      const stmts = files.map(({ photo: p, key, size }) => env.DB.prepare(
+        `INSERT INTO photos (id, shot_id, ordinal, timestamp, lat, lon, gps_accuracy_m, position_corrected, preset_id, lens_mm, r2_object_key, width, height, framing, device, source, size_bytes)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)`,
+      ).bind(p.id, id, p.ordinal, p.timestamp, p.lat, p.lon, p.gps_accuracy_m, p.position_corrected, p.preset_id, p.lens_mm, key, p.width, p.height, p.framing, p.device, p.source, size));
       if (insertShot) stmts.unshift(insertShot);
       // A continued sequence may start earlier than what is stored (upload order is not capture order).
       stmts.push(env.DB.prepare("UPDATE shots SET captured_at = (SELECT min(timestamp) FROM photos WHERE shot_id = ?1) WHERE id = ?1").bind(id));
