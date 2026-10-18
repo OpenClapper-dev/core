@@ -1,5 +1,5 @@
 import { validateFilter } from "@fielder/vocab";
-import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertProjectRef, assertAccess, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";

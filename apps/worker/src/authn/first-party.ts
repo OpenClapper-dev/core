@@ -1,5 +1,5 @@
-import { HttpError, json, readJson, type Router } from "../http.ts";
-import { burnVerification, hashPassword, targetIterations, verifyPassword } from "./password.ts";
+import { HttpError, json, readJson, type Router } from "@fielder/service-kit";
+import { burnVerification, hashPassword, targetIterations, verifyPassword } from "@fielder/service-kit";
 import type { AuthProvider, PublicCtx } from "./provider.ts";
 import { CLEAR_COOKIE, createSession, deleteSession, requestToken, resolveSession, sessionCookie, type SessionClient } from "./sessions.ts";
 

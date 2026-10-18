@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { HttpError } from "../src/http.ts";
+import { HttpError } from "@fielder/service-kit";
 import { assertRank, RANK, type Access } from "../src/tenancy.ts";
 
 const ranks = new Map([["ws-view", RANK.viewer], ["ws-edit", RANK.editor], ["ws-own", RANK.owner]]);

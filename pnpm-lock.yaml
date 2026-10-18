@@ -133,11 +133,16 @@ importers:
 
   apps/worker:
     dependencies:
+      '@fielder/service-kit':
+        specifier: workspace:*
+        version: link:../../packages/service-kit
       '@fielder/vocab':
         specifier: workspace:*
         version: link:../../packages/vocab
 
   packages/fov-math: {}
+
+  packages/service-kit: {}
 
   packages/vocab: {}
 

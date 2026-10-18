@@ -1,4 +1,4 @@
-import { HttpError, type Router } from "./http.ts";
+import { HttpError, type Router } from "@fielder/service-kit";
 import type { Ctx } from "./index.ts";
 
 /**

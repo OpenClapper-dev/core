@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hashPassword, NO_PASSWORD, passwordProblem, targetIterations, verifyPassword } from "../src/authn/password.ts";
+import { hashPassword, NO_PASSWORD, passwordProblem, targetIterations, verifyPassword } from "@fielder/service-kit";
 import { requestToken, sessionCookie, sha256Hex } from "../src/authn/sessions.ts";
 
 const FAST = 10_000;

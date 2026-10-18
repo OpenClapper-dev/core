@@ -5,7 +5,7 @@
  * the app's hostname (epic #107), a verified Access JWT, which stands for the bootstrap user.
  */
 import { provider } from "@fielder/auth-provider";
-import { AccessError, verifyAccessJwt } from "./access.ts";
+import { AccessError, verifyAccessJwt } from "@fielder/service-kit";
 import { registerAuthRoutes } from "./auth.ts";
 import type { Identity, PublicCtx } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
@@ -15,7 +15,7 @@ import { registerDeviceRoutes } from "./devices.ts";
 import { registerFieldRoutes } from "./fields.ts";
 import { registerFileRoutes } from "./files.ts";
 import { registerFramingRoutes } from "./framings.ts";
-import { HttpError, json, Router } from "./http.ts";
+import { HttpError, json, Router } from "@fielder/service-kit";
 import { registerLayoutRoutes } from "./layouts.ts";
 import { registerLocationRoutes } from "./locations.ts";
 import { registerPresetRoutes } from "./presets.ts";

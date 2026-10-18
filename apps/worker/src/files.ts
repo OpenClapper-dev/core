@@ -1,5 +1,5 @@
 import { FILE_RESOURCE_TYPES, MAX_FOLDER_DEPTH, MAX_FOLDER_NAME, validateDesktopItem, type DesktopArea, type DesktopItemKind, type FileResourceType } from "@fielder/vocab";
-import { assertEnum, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
+import { assertEnum, assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
 import type { Ctx, Env } from "./index.ts";
 import { accessIfExists, assertAccess, assertProjectRef } from "./tenancy.ts";
 import { binFolder } from "./trash.ts";

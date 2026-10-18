@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
 import { validateDeviceSpecs, validateViewfinderLayout } from "@fielder/vocab";
-import { HttpError, type Router } from "./http.ts";
+import { HttpError, type Router } from "@fielder/service-kit";
 import type { Ctx, Env } from "./index.ts";
 
 /**
