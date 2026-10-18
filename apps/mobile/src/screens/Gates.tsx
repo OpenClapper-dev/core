@@ -1,14 +1,9 @@
-import { useState, type ComponentType } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
-import { WebView as RNWebView, type WebViewMessageEvent, type WebViewProps } from "react-native-webview";
-import { setToken } from "../auth";
-import { API_URL } from "../config";
-import { ActionBar, Banner, BORDER, Button, Empty, Hint, IconButton, ListRow, makeStyles, Mark, SIZE, type, useTheme } from "../ui";
+import { useState } from "react";
+import { ScrollView, Text, View } from "react-native";
+import { ApiError, signIn } from "../api";
+import { ActionBar, Banner, BORDER, Button, Hint, IconButton, Input, ListRow, makeStyles, Mark, SectionLabel, SIZE, type } from "../ui";
 import { NewProjectSheet, projectMeta, type PickProject } from "../components/ProjectSheet";
 import type { ProjectEntry } from "../types";
-
-// react-native-webview's class typings collapse to `never` under this TS/React combination; use the props type directly.
-const WebView = RNWebView as unknown as ComponentType<WebViewProps>;
 
 /** Full-screen gate on launch without a session and whenever a request finds it gone. Buttons at the thumb. */
 export function SignInGate({ onSignIn, onSkip }: { onSignIn: () => void; onSkip: () => void }) {
@@ -18,10 +13,10 @@ export function SignInGate({ onSignIn, onSkip }: { onSignIn: () => void; onSkip:
       <ScrollView contentContainerStyle={s.gateBody}>
         <View style={s.brandRow}><Mark size={32} /><Text style={s.brand}>Fielder</Text></View>
         <Text style={s.gateTitle}>Sign in</Text>
-        <Text style={s.gateText}>Same login as the dashboard: a one-time PIN by email. The session lasts up to 30 days.</Text>
+        <Text style={s.gateText}>With your Fielder account, the same as on the dashboard. You stay signed in while you use the app.</Text>
       </ScrollView>
       <ActionBar edge style={{ flexDirection: "column" }}>
-        <Button icon="login" label="Sign in with email PIN" onPress={onSignIn} />
+        <Button icon="login" label="Sign in" onPress={onSignIn} />
         <Button kind="secondary" label="Continue without signing in" onPress={onSkip} />
         <Hint>Without signing in, shots stay on the phone.</Hint>
       </ActionBar>
@@ -29,23 +24,25 @@ export function SignInGate({ onSignIn, onSkip }: { onSignIn: () => void; onSkip:
   );
 }
 
-/**
- * The server's Access login inside a WebView; the Worker's /auth/mobile page posts the Access
- * token back. We only frame it: spinner until the first load, an error state with Try again.
- */
-export function LoginWeb({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+/** What a failed sign-in tells the user: ours for a wrong password or no network, the server's for the rest (locked, blocked). */
+function problem(e: unknown): string {
+  if (e instanceof ApiError) return e.status === 401 ? "Wrong email or password." : e.message;
+  return "Couldn't reach the server. Check the connection; shots you take meanwhile stay on the phone.";
+}
+
+/** Email and password (epic #107), the same account as the dashboard. The button sits under the fields, so the keyboard never covers it. */
+export function LoginForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const s = useStyles();
-  const { c } = useTheme();
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const onMessage = (e: WebViewMessageEvent) => {
-    try {
-      const m = JSON.parse(e.nativeEvent.data) as { token?: string };
-      if (m.token && m.token.split(".").length === 3) { setToken(m.token); onDone(); }
-      else setError("The login page returned no token. Try again.");
-    } catch { /* not our message */ }
+  const ready = !!email.trim() && !!password && !busy;
+  const submit = async () => {
+    if (!ready) return;
+    setBusy(true);
+    setError(null);
+    try { await signIn(email.trim(), password); onDone(); } catch (e) { setError(problem(e)); setBusy(false); }
   };
   return (
     <View style={s.root}>
@@ -53,28 +50,15 @@ export function LoginWeb({ onDone, onCancel }: { onDone: () => void; onCancel: (
         <IconButton plain icon="close" label="Cancel sign-in" onPress={onCancel} />
         <Text style={s.webTitle}>Sign in</Text>
       </View>
-      {error && <View style={{ padding: 12 }}><Banner kind="danger" title={error} /></View>}
-      {failed ? (
-        <Empty icon="cloud-alert" title="Couldn't reach the login page" body="Check the connection. Shots you take meanwhile stay on the phone.">
-          <Button icon="refresh" label="Try again" onPress={() => { setFailed(false); setLoading(true); setAttempt((n) => n + 1); }} />
-        </Empty>
-      ) : (
-        <View style={{ flex: 1 }}>
-          <WebView
-            key={attempt}
-            source={{ uri: `${API_URL}/auth/mobile` }}
-            onMessage={onMessage}
-            onLoadEnd={() => setLoading(false)}
-            onError={() => setFailed(true)}
-            incognito
-            javaScriptEnabled
-            domStorageEnabled
-            setSupportMultipleWindows={false}
-            style={{ flex: 1, backgroundColor: c.bg }}
-          />
-          {loading && <View style={s.spinner} pointerEvents="none"><ActivityIndicator size="large" color={c.text} /></View>}
-        </View>
-      )}
+      <ScrollView contentContainerStyle={s.gateBody} keyboardShouldPersistTaps="handled">
+        <SectionLabel>Email</SectionLabel>
+        <Input value={email} onChangeText={setEmail} editable={!busy} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="username" returnKeyType="next" />
+        <SectionLabel>Password</SectionLabel>
+        <Input value={password} onChangeText={setPassword} editable={!busy} secureTextEntry autoComplete="password" textContentType="password" returnKeyType="go" onSubmitEditing={() => void submit()} />
+        {error && <Banner kind="danger" title={error} />}
+        <Button icon="login" label={busy ? "Signing in…" : "Sign in"} busy={busy} disabled={!ready} onPress={() => void submit()} />
+        <Hint>Same account as the dashboard. There is no sign-up yet: an administrator makes accounts.</Hint>
+      </ScrollView>
     </View>
   );
 }
@@ -111,5 +95,4 @@ const useStyles = makeStyles((c) => ({
   gateText: { ...type("body"), color: c.textDim },
   webHead: { height: SIZE.header, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, backgroundColor: c.surface, borderBottomWidth: BORDER.control, borderBottomColor: c.borderSubtle },
   webTitle: { ...type("title", "bold"), color: c.text },
-  spinner: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center", backgroundColor: c.bg },
 }));

@@ -35,3 +35,8 @@ fi
 
 echo "Applying D1 migrations to the local database:"
 pnpm -C "$root/apps/worker" migrate:local
+
+# The phone always signs in (epic #107); locally the bootstrap user, who owns the local data, gets a
+# known login. Local database only.
+echo "Local sign-in: dev@localhost / fielder-local-dev"
+FIELDER_PASSWORD="fielder-local-dev" node "$root/scripts/user.mjs" --bootstrap --email dev@localhost --name Dev --iterations 10000 >/dev/null

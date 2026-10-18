@@ -35,7 +35,7 @@ export function useLivePreview(enabled: boolean): { preview: LivePreview | null;
     const connect = () => {
       const token = getToken();
       // React Native's WebSocket takes headers (a third argument the DOM typings don't know): the Access token, as on every API call.
-      const w = new NativeWebSocket(`${API_URL.replace(/^http/, "ws")}/api/preview/socket?role=phone`, null, { headers: token ? { "cf-access-token": token } : {} });
+      const w = new NativeWebSocket(`${API_URL.replace(/^http/, "ws")}/api/preview/socket?role=phone`, null, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
       ws.current = w;
       w.onopen = () => {
         tries = 0;

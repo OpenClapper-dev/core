@@ -25,7 +25,7 @@ import { flush, onFlushed } from "./src/uploads";
 import { ConfirmHost, Icon, makeStyles, PALETTES, resolveTheme, SIZE, ThemeProvider, toast, ToastHost, type, useTheme } from "./src/ui";
 import { ProjectSheet } from "./src/components/ProjectSheet";
 import { Day } from "./src/screens/Day";
-import { LoginWeb, ProjectGate, SignInGate } from "./src/screens/Gates";
+import { LoginForm, ProjectGate, SignInGate } from "./src/screens/Gates";
 import { Offline } from "./src/screens/Offline";
 import { History } from "./src/screens/History";
 import { RigEditor, RigList } from "./src/screens/Rigs";
@@ -87,7 +87,7 @@ function App() {
   // A preview from the dashboard brings the Shoot screen to the front.
   useEffect(() => { if (live.preview) { setStack([]); setTab("shoot"); } }, [!!live.preview]);
   // Sign-in gate on launch without a session, and again whenever a request finds the session gone.
-  // "web" is the PIN page opened from the gate; "webApp" the same page opened from inside the app (cancel returns there).
+  // "web" is the sign-in form opened from the gate; "webApp" the same form opened from inside the app (cancel returns there).
   const [login, setLogin] = useState<"gate" | "web" | "webApp" | null>(() => (isConfigured && !isSignedIn() ? "gate" : null));
 
   // flush() syncs projects first and repoints queued shots (and the active id) when a name clashed on the server.
@@ -226,7 +226,7 @@ function App() {
           </View>
         )}
         {gate === "signin" && <SignInGate onSignIn={() => setLogin("web")} onSkip={() => setLogin(null)} />}
-        {gate === "web" && <LoginWeb onDone={() => setLogin(null)} onCancel={() => setLogin(login === "web" && !isSignedIn() ? "gate" : null)} />}
+        {gate === "web" && <LoginForm onDone={() => setLogin(null)} onCancel={() => setLogin(login === "web" && !isSignedIn() ? "gate" : null)} />}
         {gate === "project" && <ProjectGate projects={projects} onPick={pickProject} />}
         {!gate && top && <Screen route={top} />}
       </View>

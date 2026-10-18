@@ -59,7 +59,7 @@ export async function flushLayouts(): Promise<void> {
       store.savePendingLayouts(store.loadPendingLayouts().filter((x) => !(x.id === e.id && JSON.stringify(x) === JSON.stringify(e))));
     } catch (err) {
       const status = err instanceof ApiError ? err.status : 0;
-      if (status >= 400 && status < 500 && status !== 401 && status !== 403) {
+      if (status >= 400 && status < 500 && status !== 401) {
         log("warn", "layout edit refused, dropped", { id: e.id, status });
         store.savePendingLayouts(store.loadPendingLayouts().filter((x) => x.id !== e.id));
       } else throw err;

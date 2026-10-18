@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
 import { layoutOptions, VF_FRAME_COLORS, VF_FRAME_WIDTHS, VF_HUMAN_STEPS, VF_TINTS, type VfLenses } from "@fielder/vocab";
-import { cover } from "../api";
+import { cover, signOut } from "../api";
 import { useApp } from "../appState";
-import { isSignedIn, onAuthChange, sessionExpiry, setToken, signedInEmail } from "../auth";
+import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { API_URL, isConfigured } from "../config";
 import { computeOverlay, formatDeg } from "../framing";
 import { clearLog, logCount, logText, setLogging } from "../log";
@@ -183,7 +183,6 @@ export function Account() {
   const app = useApp();
   const [email, setEmail] = useState(() => (isSignedIn() ? signedInEmail() : null));
   useEffect(() => onAuthChange(() => setEmail(isSignedIn() ? signedInEmail() : null)), []);
-  const until = sessionExpiry();
   return (
     <PushScreen title="Account">
       <Block>
@@ -193,15 +192,15 @@ export function Account() {
           <>
             <SectionLabel>Signed in as</SectionLabel>
             <Text style={s.value}>{email}</Text>
-            {until && <Text style={s.meta}>Session until {until.toLocaleDateString([], { day: "numeric", month: "short" })}</Text>}
-            <Button kind="secondary" icon="logout" label="Sign out" onPress={() => { setToken(null); toast("Signed out", "neutral"); }} />
+            <Text style={s.meta}>The session renews while you use the app.</Text>
+            <Button kind="secondary" icon="logout" label="Sign out" onPress={() => { void signOut(); toast("Signed out", "neutral"); }} />
             <Hint>Signing out keeps queued shots on the phone. They upload after the next sign-in.</Hint>
           </>
         ) : (
           <>
             <Text style={s.value}>Not signed in</Text>
-            <Hint>Same login as the dashboard: a one-time PIN by email. Until then, shots stay on the phone.</Hint>
-            <Button icon="login" label="Sign in with email PIN" onPress={app.signIn} />
+            <Hint>With your Fielder account, the same as on the dashboard. Until then, shots stay on the phone.</Hint>
+            <Button icon="login" label="Sign in" onPress={app.signIn} />
           </>
         )}
       </Block>
