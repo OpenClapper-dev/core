@@ -1,6 +1,7 @@
 import { validateDeviceSpecs, type DeviceSpecs } from "@fielder/vocab";
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
+import { BOOTSTRAP_USER_ID } from "./tenancy.ts";
 
 interface DeviceRow { id: string; name: string; specs: string; created_at: string; updated_at: string | null }
 const toApi = (r: DeviceRow) => ({ ...r, specs: JSON.parse(r.specs) as DeviceSpecs });
@@ -27,9 +28,9 @@ export function registerDeviceRoutes(r: Router<Ctx>) {
     const stored = await env.DB.prepare("SELECT name FROM devices WHERE id = ?1").bind(did).first<{ name: string }>();
     const name = b.name === undefined && stored ? stored.name : assertString(b.name, "name", 80);
     await env.DB.prepare(
-      `INSERT INTO devices (id, name, specs, updated_at) VALUES (?1, ?2, ?3, ?4)
+      `INSERT INTO devices (id, name, specs, updated_at, user_id) VALUES (?1, ?2, ?3, ?4, ?5)
        ON CONFLICT(id) DO UPDATE SET name = ?2, specs = ?3, updated_at = ?4`,
-    ).bind(did, name, JSON.stringify(b.specs), new Date().toISOString()).run();
+    ).bind(did, name, JSON.stringify(b.specs), new Date().toISOString(), BOOTSTRAP_USER_ID).run();
     const row = await env.DB.prepare("SELECT * FROM devices WHERE id = ?1").bind(did).first<DeviceRow>();
     return json({ device: toApi(row!) });
   });

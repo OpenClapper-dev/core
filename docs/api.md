@@ -6,8 +6,8 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/projects` | Each with `shot_count` and `field_ids` (ordered) |
-| PUT | `/api/projects/:id` | `{ name, notes? }` upsert. Name clash → `409 { existing_id }` |
+| GET | `/api/projects` | Each with `workspace_id`, `shot_count` and `field_ids` (ordered) |
+| PUT | `/api/projects/:id` | `{ name, notes? }` upsert. Name clash → `409 { existing_id }`. New projects go to the bootstrap workspace until sign-in exists (#109) |
 | DELETE | `/api/projects/:id` | Only without live shots, else `409`; the project's recycle bin is emptied first |
 | PUT | `/api/projects/:id/fields` | `{ field_ids: [...] }` reorders the project's own fields (must list exactly them) |
 
@@ -83,10 +83,10 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 | --- | --- | --- |
 | GET / PUT / DELETE | `/api/locations[/:id]` | `{ project_id, name, lat?, lon? }`: `project_id` is required to create and never changes (GET takes `?project_id=`); names are unique per project. Without `lat`/`lon` the stored pin is kept, `null` for both removes it; `shot_count`, `approved_count`; clash → `409 { existing_id }` (a binned location's name is free); DELETE bins it: its shots read as without a location until it is restored, uploads naming it drop it, edits naming it are 400 |
 | GET (websocket) | `/api/preview/socket?role=phone\|dashboard` | Live layout preview ([viewfinder layouts](features/viewfinder-layouts.md#live-preview-on-the-phone-50)): one Durable Object room per user. Dashboard sends `{ type: "preview", layout, orientation }` / `{ type: "stop" }` / `{ type: "readout" }`; the phone `{ type: "hello", device: { id, model } }`, `{ type: "exit" }`, `{ type: "specs", id, specs }` (relayed to dashboards, checked by `validateDeviceSpecs`); dashboards get `{ type: "presence", phones: [{ id, model }], previewing }`. Without `Upgrade: websocket`: 426 |
-| GET / PUT / DELETE | `/api/viewfinder-layouts[/:id]` | `{ name, layout, device_id? }`, layout checked by `validateViewfinderLayout` ([viewfinder layouts](features/viewfinder-layouts.md)); `device_id` absent keeps it, null clears it, an unknown one is 400; global, not per project |
-| GET / PUT / DELETE | `/api/devices[/:id]` | Device specs ([viewfinder layouts](features/viewfinder-layouts.md#device-specs-68)): PUT `{ name?, specs }`, specs checked by `validateDeviceSpecs`; `name` required to create, absent keeps the stored one (the phone's updates). DELETE leaves layouts without a device |
+| GET / PUT / DELETE | `/api/viewfinder-layouts[/:id]` | `{ name, layout, device_id? }`, layout checked by `validateViewfinderLayout` ([viewfinder layouts](features/viewfinder-layouts.md)); `device_id` absent keeps it, null clears it, an unknown one is 400; a user's own (`user_id`; the bootstrap user until sign-in exists, #109) |
+| GET / PUT / DELETE | `/api/devices[/:id]` | Device specs ([viewfinder layouts](features/viewfinder-layouts.md#device-specs-68)): PUT `{ name?, specs }`, specs checked by `validateDeviceSpecs`; `name` required to create, absent keeps the stored one (the phone's updates); a user's own (`user_id`, as layouts). DELETE leaves layouts without a device |
 | GET / PUT / DELETE | `/api/spots[/:id]` | `{ location_id, name, lat?, lon? }`: a place within a location ([projects](features/projects.md)); `location_id` required to create, never changes (GET takes `?project_id=`); names unique per location (409 + `existing_id`); `shot_count`; delete nulls `shots.spot_id` |
-| GET / PUT / DELETE | `/api/presets[/:id]` | Rigs: `name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm` |
+| GET / PUT / DELETE | `/api/presets[/:id]` | Rigs: `name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm`; each carries its `workspace_id` (the bootstrap workspace until sign-in exists, #109) |
 | GET / PUT / DELETE | `/api/views[/:id]` | `{ project_id, name, filter }` (`project_id` required to create), filter validated by `validateFilter` |
 
 ## Extra fields (`fields.ts`)

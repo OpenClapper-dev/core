@@ -1,5 +1,6 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
+import { BOOTSTRAP_WORKSPACE_ID } from "./tenancy.ts";
 import { purgeBinned } from "./trash.ts";
 
 export interface ProjectRow {
@@ -41,9 +42,9 @@ export function registerProjectRoutes(r: Router<Ctx>) {
     if (clash) return json({ error: "a project with this name already exists", existing_id: clash.id }, 409);
     const now = new Date().toISOString();
     await env.DB.prepare(
-      `INSERT INTO projects (id, name, notes, updated_at) VALUES (?1, ?2, ?3, ?4)
+      `INSERT INTO projects (id, name, notes, updated_at, workspace_id) VALUES (?1, ?2, ?3, ?4, ?5)
        ON CONFLICT(id) DO UPDATE SET name = ?2, notes = ?3, updated_at = ?4`,
-    ).bind(pid, name, notes, now).run();
+    ).bind(pid, name, notes, now, BOOTSTRAP_WORKSPACE_ID).run();
     const row = await env.DB.prepare(`${LIST_SQL} WHERE pr.id = ?1`).bind(pid).first<ProjectRow>();
     return json({ project: toApi(row!) });
   });
