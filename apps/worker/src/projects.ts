@@ -21,12 +21,6 @@ const LIST_SQL = `SELECT pr.*, (SELECT count(*) FROM shots s WHERE s.project_id 
   (SELECT json_group_array(id) FROM (SELECT id FROM field_definitions WHERE project_id = pr.id AND deleted_at IS NULL ORDER BY position, key)) AS field_ids
   FROM projects pr`;
 
-/** Superseded by assertProjectRef (tenancy.ts); goes once every route checks workspaces (#111, #112). */
-export async function assertProjectExists(env: Ctx["env"], id: string) {
-  const p = await env.DB.prepare("SELECT 1 FROM projects WHERE id = ?1").bind(id).first();
-  if (!p) throw new HttpError(400, "project_id does not exist");
-}
-
 /**
  * Every shot belongs to one project, every project to a workspace. Client-owned UUIDs with upsert
  * semantics, like locations. Lists hold the projects of all the caller's workspaces.

@@ -2,6 +2,7 @@ import { MAX_FRAMING_NAME, validateFrame, withCentre, type Frame } from "@fielde
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
 import { loadShot } from "./shots.ts";
+import { accessIfExists, assertAccess, workspaceOf } from "./tenancy.ts";
 
 /**
  * Framings (issue #29): saved re-framings of one photo and the photo's root framing. Dashboard
@@ -35,7 +36,8 @@ export function registerFramingRoutes(r: Router<Ctx>) {
    * Upsert: { photo_id, name, rig_id?, lens_mm, frame: { width_fraction, height_fraction, x, y }, root? }.
    * The centre is clamped to the photo. `root: true` also makes it the photo's root. Returns the shot.
    */
-  r.on("PUT", "/api/framings/:id", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/framings/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const fid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const photoId = assertUuid(b.photo_id, "photo_id");
@@ -45,8 +47,11 @@ export function registerFramingRoutes(r: Router<Ctx>) {
     const err = validateFrame(b.frame);
     if (err) throw new HttpError(400, err);
     const frame = JSON.stringify(withCentre(b.frame as Frame));
+    const ws = await assertAccess(ctx, "photo", photoId, "editor");
+    await accessIfExists(ctx, "framing", fid, "editor");
     const shotId = await shotOfPhoto(env, photoId);
-    if (rigId && !(await env.DB.prepare("SELECT 1 FROM presets WHERE id = ?1").bind(rigId).first())) throw new HttpError(400, "rig_id does not exist");
+    // A rig of the photo's workspace only.
+    if (rigId && (await workspaceOf(env, "preset", rigId)) !== ws) throw new HttpError(400, "rig_id does not exist");
     const cur = await env.DB.prepare("SELECT photo_id, position FROM framings WHERE id = ?1").bind(fid).first<{ photo_id: string; position: number }>();
     if (cur && cur.photo_id !== photoId) throw new HttpError(409, "a framing cannot move to another photo");
     const position = cur?.position ?? ((await env.DB.prepare("SELECT coalesce(max(position), -1) + 1 AS p FROM framings WHERE photo_id = ?1").bind(photoId).first<{ p: number }>())?.p ?? 0);
@@ -60,8 +65,10 @@ export function registerFramingRoutes(r: Router<Ctx>) {
     return json({ shot: await loadShot(env, shotId) }, cur ? 200 : 201);
   });
 
-  r.on("DELETE", "/api/framings/:id", async ({ env }, { id }) => {
+  r.on("DELETE", "/api/framings/:id", async (ctx, { id }) => {
+    const { env } = ctx;
     const fid = assertUuid(id, "id");
+    await assertAccess(ctx, "framing", fid, "editor");
     const row = await env.DB.prepare("SELECT photo_id FROM framings WHERE id = ?1").bind(fid).first<{ photo_id: string }>();
     if (!row) throw new HttpError(404, "framing not found");
     // A root that is deleted falls back to as captured (ON DELETE SET NULL); overlays and clips keep their frame copy.
@@ -70,8 +77,10 @@ export function registerFramingRoutes(r: Router<Ctx>) {
   });
 
   /** { framing_id: uuid | null } sets (or clears: as captured) the photo's root framing. */
-  r.on("PUT", "/api/photos/:id/root", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/photos/:id/root", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const pid = assertUuid(id, "id");
+    await assertAccess(ctx, "photo", pid, "editor");
     const b = await readJson<Record<string, unknown>>(request);
     const fid = b.framing_id === null || b.framing_id === undefined ? null : assertUuid(b.framing_id, "framing_id");
     const shotId = await shotOfPhoto(env, pid);
