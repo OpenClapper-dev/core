@@ -1,9 +1,10 @@
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
-import { BOOTSTRAP_WORKSPACE_ID } from "./tenancy.ts";
+import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces } from "./tenancy.ts";
 
 export interface PresetRow {
   id: string;
+  workspace_id: string;
   name: string;
   sensor_width_mm: number;
   sensor_height_mm: number;
@@ -25,16 +26,25 @@ const optionalId = (v: unknown, field: string): string | null => {
 const optionalNumber = (v: unknown, field: string, opts: { min: number; max: number }): number | null =>
   v === undefined || v === null ? null : assertNumber(v, field, opts);
 
+/**
+ * Rigs belong to a workspace and are shared by its projects. Lists hold the rigs of all the caller's
+ * workspaces (each carries workspace_id), so the phone needs no notion of workspaces to pick one.
+ */
 export function registerPresetRoutes(r: Router<Ctx>) {
-  r.on("GET", "/api/presets", async ({ env }) => {
-    const { results } = await env.DB.prepare("SELECT * FROM presets ORDER BY name COLLATE NOCASE").all<PresetRow>();
+  r.on("GET", "/api/presets", async ({ env, tenant }) => {
+    const { results } = await env.DB.prepare(`SELECT * FROM presets WHERE ${inWorkspaces("workspace_id", 1)} ORDER BY name COLLATE NOCASE`)
+      .bind(tenant.wsList).all<PresetRow>();
     return json({ presets: results });
   });
 
-  // Upsert. The client owns the id so offline-created presets can be synced later.
-  r.on("PUT", "/api/presets/:id", async ({ env, request }, { id }) => {
+  // Upsert. The client owns the id so offline-created presets can be synced later. A new rig goes to
+  // `workspace_id` (default: the caller's own workspace); an existing one keeps its workspace.
+  r.on("PUT", "/api/presets/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const pid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
+    const ws = (await accessIfExists(ctx, "preset", pid, "editor"))
+      ?? (b.workspace_id == null ? await defaultWorkspace(ctx) : assertRank(ctx, assertUuid(b.workspace_id, "workspace_id"), "editor", "workspace not found"));
     const name = assertString(b.name, "name", 80);
     const w = assertNumber(b.sensor_width_mm, "sensor_width_mm", { min: 1, max: 100 });
     const h = assertNumber(b.sensor_height_mm, "sensor_height_mm", { min: 1, max: 100 });
@@ -52,14 +62,16 @@ export function registerPresetRoutes(r: Router<Ctx>) {
        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
        ON CONFLICT(id) DO UPDATE SET name = ?2, sensor_width_mm = ?3, sensor_height_mm = ?4, speedbooster_factor = ?5,
          camera_id = ?6, format_id = ?7, lens_min_mm = ?8, lens_max_mm = ?9, updated_at = ?10`,
-    ).bind(pid, name, w, h, sb, cameraId, formatId, lensMin, lensMax, now, BOOTSTRAP_WORKSPACE_ID).run();
+    ).bind(pid, name, w, h, sb, cameraId, formatId, lensMin, lensMax, now, ws).run();
 
     const row = await env.DB.prepare("SELECT * FROM presets WHERE id = ?1").bind(pid).first<PresetRow>();
     return json({ preset: row });
   });
 
-  r.on("DELETE", "/api/presets/:id", async ({ env }, { id }) => {
+  r.on("DELETE", "/api/presets/:id", async (ctx, { id }) => {
+    const { env } = ctx;
     const pid = assertUuid(id, "id");
+    await assertAccess(ctx, "preset", pid, "editor");
     const res = await env.DB.prepare("DELETE FROM presets WHERE id = ?1").bind(pid).run();
     if (!res.meta.changes) throw new HttpError(404, "preset not found");
     // photos.preset_id becomes NULL via ON DELETE SET NULL; the framing snapshot on

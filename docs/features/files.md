@@ -4,7 +4,7 @@ The desktop's explorer (epic #72): a project's shots, timelines, shooting days, 
 
 ## Model
 
-- **File types**: `FILE_RESOURCE_TYPES` in `packages/vocab/src/files.ts`: shot, timeline, day, view, location, field. `FILE_TYPE_META` names each type, its icon and the app that opens it. Spots live inside their location; rigs, viewfinder layouts and devices are shared by all projects, so they are apps, not files.
+- **File types**: `FILE_RESOURCE_TYPES` in `packages/vocab/src/files.ts`: shot, timeline, day, view, location, field. `FILE_TYPE_META` names each type, its icon and the app that opens it. Spots live inside their location; rigs (per workspace), viewfinder layouts and devices (per user) are shared by all projects, so they are apps, not files.
 - **Folders** belong to one project and nest up to 8 deep. Names are unique within a folder (case-insensitive).
 - **A file sits in at most one folder**; without one it is at the top level. There is no manual order inside a folder: Files sorts by name, date or type (remembered per browser).
 - **The Desktop folder**: every project has one, at the top level, named "Desktop" (made by the Worker on first use; it cannot be renamed, moved or deleted). What is in it is on the desktop, as on Windows or macOS (epic #90).
