@@ -1,9 +1,11 @@
 # Thin wrappers around the pnpm scripts in package.json, which stay the source
 # of truth. Everything runs in the foreground; stop a server with Ctrl-C.
-.PHONY: help init all all-down all-restart dev worker dashboard mobile dev-build login deploy apk-cloud apk-local
+.PHONY: help init all all-down all-restart dev worker dashboard mobile dev-build login deploy deploy-admin apk-cloud apk-local
 
-# Wrangler's OAuth token lacks account:read, so commands that look up the account need the id.
-export CLOUDFLARE_ACCOUNT_ID ?= 3868cbc17be171c90972dd32e41e7783
+# This deployment's settings (gitignored deploy.env, docs/self-hosting.md): the account id for
+# wrangler (its OAuth token lacks account:read), APP_URL for the APK builds.
+-include deploy.env
+export CLOUDFLARE_ACCOUNT_ID APP_URL
 
 help: ## Show this list
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -39,9 +41,12 @@ dev-build: ## Development build (Fielder Dev) locally in Docker, no EAS quota; r
 login: ## Log wrangler in to Cloudflare (device code, works in WSL)
 	pnpm wrangler login --device
 
-deploy: ## Production: apply new D1 migrations, build the dashboard, deploy Worker + assets
+deploy: ## Production (deploy.env): apply new D1 migrations, build the dashboard, deploy Worker + assets
 	pnpm -C apps/worker migrate:remote
 	pnpm -C apps/worker run deploy
+
+deploy-admin: ## Production (deploy.env): build and deploy the admin plane
+	pnpm -C apps/admin run deploy
 
 apk-cloud: ## APK on EAS (cloud build; counts against the monthly quota)
 	pnpm -C apps/mobile build:apk

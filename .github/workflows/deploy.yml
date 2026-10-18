@@ -1,0 +1,85 @@
+# Deploys Fielder to a Cloudflare account: migrates D1, then the app Worker (API + dashboard) and,
+# once its Access application exists, the admin plane. Self-hosters run it on their copy of this
+# repository (Actions → Deploy → Run workflow); another repository can call it with this one as a
+# submodule (`path`). Settings are repository secrets and variables: docs/self-hosting.md.
+name: Deploy
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      path:
+        description: Where this repository is checked out in the calling one (a submodule)
+        type: string
+        default: "."
+    secrets:
+      CLOUDFLARE_API_TOKEN:
+        required: true
+      CLOUDFLARE_ACCOUNT_ID:
+        required: true
+
+concurrency:
+  group: fielder-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.path || '.' }}
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
+      D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+      R2_BUCKET: ${{ vars.R2_BUCKET }}
+      APP_WORKER_NAME: ${{ vars.APP_WORKER_NAME }}
+      ADMIN_WORKER_NAME: ${{ vars.ADMIN_WORKER_NAME }}
+      ACCESS_TEAM_DOMAIN: ${{ vars.ACCESS_TEAM_DOMAIN }}
+      ADMIN_ACCESS_AUD: ${{ vars.ADMIN_ACCESS_AUD }}
+      APP_ACCESS_AUD: ${{ vars.APP_ACCESS_AUD }}
+      PBKDF2_ITERATIONS: ${{ vars.PBKDF2_ITERATIONS }}
+      AUTH_PROVIDER: ${{ vars.AUTH_PROVIDER }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ inputs.path || '.' }}/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.path || '.' }}/pnpm-lock.yaml
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Deploy configs (creates the D1 database and R2 bucket on the first run)
+        run: node scripts/deploy-config.mjs --provision
+
+      - name: Migrate D1
+        working-directory: ${{ inputs.path || '.' }}/apps/worker
+        run: pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc
+
+      - name: Deploy the app (API + dashboard)
+        run: |
+          pnpm --filter @fielder/dashboard build
+          cd apps/worker && pnpm exec wrangler deploy --config wrangler.deploy.jsonc
+
+      # Deployed from the first run: without its Access application's AUD it refuses every request, and
+      # the application can then be created on its (existing) hostname.
+      - name: Deploy the admin plane
+        working-directory: ${{ inputs.path || '.' }}/apps/admin
+        run: pnpm exec vite build && pnpm exec wrangler deploy --config wrangler.deploy.jsonc
+
+      - name: Admin plane locked
+        if: env.ACCESS_TEAM_DOMAIN == '' || env.ADMIN_ACCESS_AUD == ''
+        run: echo "::notice::The admin plane refuses every request until ACCESS_TEAM_DOMAIN and ADMIN_ACCESS_AUD are set (docs/self-hosting.md)."

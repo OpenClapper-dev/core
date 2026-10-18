@@ -1,9 +1,10 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
+  // Local development. A deployment gets its own copy, wrangler.deploy.jsonc, with its account,
+  // database and Access settings (scripts/deploy-config.mjs, docs/self-hosting.md).
   "name": "fielder-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-04",
-  "account_id": "3868cbc17be171c90972dd32e41e7783",
   "observability": { "enabled": true },
   // The auth seam (src/authn/provider.ts): another build points this at its own provider module.
   "alias": { "@fielder/auth-provider": "./src/authn/first-party.ts" },
@@ -17,9 +18,9 @@
     "run_worker_first": ["/api/*", "/auth/*", "/health"]
   },
   "vars": {
-    // Cloudflare Access (Zero Trust). Not secrets: the AUD tag is public in the login redirect.
-    "ACCESS_TEAM_DOMAIN": "weathered-salad-6072.cloudflareaccess.com",
-    "ACCESS_AUD": "8512a955cdb50da65faefe935b15cded1660e2e47cbd4c73bd5c24dbe7d81ed4"
+    // Cloudflare Access in front of the app, only until the switch to sign-in (epic #107). Empty: none.
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
   },
   "r2_buckets": [
     { "binding": "SHOTS_BUCKET", "bucket_name": "fielder-shots" }
@@ -35,7 +36,7 @@
     {
       "binding": "DB",
       "database_name": "fielder-db",
-      "database_id": "b12cf742-e055-4f75-aa01-0cf73e36dc63",
+      "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
   ]

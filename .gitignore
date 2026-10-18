@@ -11,3 +11,7 @@ worker-configuration.d.ts
 .secrets/
 references/
 .playwright-mcp/
+
+# Per-deployment settings and generated deploy configs (scripts/deploy-config.mjs, docs/self-hosting.md).
+deploy.env
+wrangler.deploy.jsonc
