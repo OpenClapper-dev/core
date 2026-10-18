@@ -1,6 +1,6 @@
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
-import { assertProjectExists } from "./projects.ts";
+import { accessIfExists, assertAccess, assertProjectRef, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";
 
 export interface LocationRow {
@@ -22,12 +22,15 @@ const LIST_SQL = `SELECT l.*, count(s.id) AS shot_count, coalesce(sum(s.state = 
 /**
  * The location `id` as seen from `projectId`: itself when it belongs there, else the project's location
  * of the same name, created as a copy when `create` (a move or a lenient upload) and missing. Null when
- * the location does not exist at all, or has no counterpart and `create` is off.
+ * the location does not exist at all, belongs to another workspace than the project (a name and pin
+ * must not cross workspaces), or has no counterpart and `create` is off.
  */
 export async function locationInProject(env: Ctx["env"], id: string, projectId: string, create: boolean): Promise<string | null> {
   // A location in the recycle bin counts as gone: an upload drops it, an edit is refused.
-  const l = await env.DB.prepare("SELECT project_id, name, lat, lon FROM locations WHERE id = ?1 AND deleted_at IS NULL").bind(id)
-    .first<{ project_id: string; name: string; lat: number | null; lon: number | null }>();
+  const l = await env.DB.prepare(
+    `SELECT l.project_id, l.name, l.lat, l.lon FROM locations l JOIN projects lp ON lp.id = l.project_id
+     WHERE l.id = ?1 AND l.deleted_at IS NULL AND lp.workspace_id = (SELECT workspace_id FROM projects WHERE id = ?2)`,
+  ).bind(id, projectId).first<{ project_id: string; name: string; lat: number | null; lon: number | null }>();
   if (!l) return null;
   if (l.project_id === projectId) return id;
   const same = await env.DB.prepare("SELECT id FROM locations WHERE project_id = ?1 AND name = ?2 COLLATE NOCASE AND deleted_at IS NULL").bind(projectId, l.name).first<{ id: string }>();
@@ -39,12 +42,13 @@ export async function locationInProject(env: Ctx["env"], id: string, projectId: 
 }
 
 export function registerLocationRoutes(r: Router<Ctx>) {
-  // Every project's locations (each carries project_id), or one project's with ?project_id=.
-  r.on("GET", "/api/locations", async ({ env, url }) => {
+  // The locations of every project in the caller's workspaces (each carries project_id), or one project's with ?project_id=.
+  r.on("GET", "/api/locations", async ({ env, url, tenant }) => {
     const project = url.searchParams.get("project_id");
+    const mine = `l.project_id IN (SELECT id FROM projects WHERE ${inWorkspaces("workspace_id", 1)})`;
     const stmt = project
-      ? env.DB.prepare(`${LIST_SQL} AND l.project_id = ?1 GROUP BY l.id ORDER BY l.name COLLATE NOCASE`).bind(assertUuid(project, "project_id"))
-      : env.DB.prepare(`${LIST_SQL} GROUP BY l.id ORDER BY l.name COLLATE NOCASE`);
+      ? env.DB.prepare(`${LIST_SQL} AND ${mine} AND l.project_id = ?2 GROUP BY l.id ORDER BY l.name COLLATE NOCASE`).bind(tenant.wsList, assertUuid(project, "project_id"))
+      : env.DB.prepare(`${LIST_SQL} AND ${mine} GROUP BY l.id ORDER BY l.name COLLATE NOCASE`).bind(tenant.wsList);
     const { results } = await stmt.all<LocationRow>();
     return json({ locations: results });
   });
@@ -54,13 +58,15 @@ export function registerLocationRoutes(r: Router<Ctx>) {
   // lat/lon are optional: absent keeps the stored pin (the phone only sends the name), null clears it.
   // Names are unique per project, case-insensitively: a clash answers 409 + existing_id
   // so the client can adopt that location instead.
-  r.on("PUT", "/api/locations/:id", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/locations/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const lid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const name = assertString(b.name, "name", 80);
+    await accessIfExists(ctx, "location", lid, "editor");
     const stored = await env.DB.prepare("SELECT project_id FROM locations WHERE id = ?1").bind(lid).first<{ project_id: string }>();
     const projectId = stored?.project_id ?? assertUuid(b.project_id, "project_id");
-    if (!stored) await assertProjectExists(env, projectId);
+    if (!stored) await assertProjectRef(ctx, projectId);
     const hasPos = b.lat !== undefined || b.lon !== undefined;
     let lat: number | null = null, lon: number | null = null;
     if (hasPos && !(b.lat === null && b.lon === null)) {
@@ -79,5 +85,9 @@ export function registerLocationRoutes(r: Router<Ctx>) {
   });
 
   /** Moves the location (with its spots) to the recycle bin; its shots read as without a location meanwhile. */
-  r.on("DELETE", "/api/locations/:id", async ({ env }, { id }) => json(await binResource(env, "location", assertUuid(id, "id"))));
+  r.on("DELETE", "/api/locations/:id", async (ctx, { id }) => {
+    const rid = assertUuid(id, "id");
+    await assertAccess(ctx, "location", rid, "editor");
+    return json(await binResource(ctx.env, "location", rid));
+  });
 }

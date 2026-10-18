@@ -3,6 +3,7 @@ import { deleteClipCompose, renderKeysOf } from "./compose.ts";
 import { fileRefCleanup, RESOURCE_TABLE } from "./files.ts";
 import { assertEnum, assertUuid, HttpError, json, type Router } from "./http.ts";
 import type { Ctx, Env } from "./index.ts";
+import { assertAccess } from "./tenancy.ts";
 import { ownedBy } from "./timelines.ts";
 
 /**
@@ -263,14 +264,30 @@ export async function listTrash(env: Env, projectId: string): Promise<TrashEntry
 }
 
 export function registerTrashRoutes(r: Router<Ctx>) {
-  r.on("GET", "/api/trash", async ({ env, url }) => json({ entries: await listTrash(env, assertUuid(url.searchParams.get("project_id"), "project_id")) }));
+  r.on("GET", "/api/trash", async (ctx) => {
+    const pid = assertUuid(ctx.url.searchParams.get("project_id"), "project_id");
+    await assertAccess(ctx, "project", pid, "viewer");
+    return json({ entries: await listTrash(ctx.env, pid) });
+  });
 
   /** Put an entry back where it was (or at the top level when that folder is gone). */
-  r.on("POST", "/api/trash/:type/:id/restore", async ({ env }, { type, id }) => json(await restore(env, assertEnum(type, "type", TRASH_TYPES), assertUuid(id, "id"))));
+  r.on("POST", "/api/trash/:type/:id/restore", async (ctx, { type, id }) => {
+    const t = assertEnum(type, "type", TRASH_TYPES), rid = assertUuid(id, "id");
+    await assertAccess(ctx, t, rid, "editor");
+    return json(await restore(ctx.env, t, rid));
+  });
 
   /** Delete one entry for good. */
-  r.on("DELETE", "/api/trash/:type/:id", async ({ env }, { type, id }) => json(await purgeOne(env, assertEnum(type, "type", TRASH_TYPES), assertUuid(id, "id"))));
+  r.on("DELETE", "/api/trash/:type/:id", async (ctx, { type, id }) => {
+    const t = assertEnum(type, "type", TRASH_TYPES), rid = assertUuid(id, "id");
+    await assertAccess(ctx, t, rid, "editor");
+    return json(await purgeOne(ctx.env, t, rid));
+  });
 
   /** Empty a project's bin. */
-  r.on("DELETE", "/api/trash", async ({ env, url }) => json({ purged: await purgeBinned(env, { projectId: assertUuid(url.searchParams.get("project_id"), "project_id") }) }));
+  r.on("DELETE", "/api/trash", async (ctx) => {
+    const pid = assertUuid(ctx.url.searchParams.get("project_id"), "project_id");
+    await assertAccess(ctx, "project", pid, "editor");
+    return json({ purged: await purgeBinned(ctx.env, { projectId: pid }) });
+  });
 }

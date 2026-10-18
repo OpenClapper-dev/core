@@ -102,14 +102,17 @@ export async function accessIfExists(a: Access, kind: Owned, id: string, min: Ro
 }
 
 /**
- * A project named in a body (a new row's project, a move target). Unknown and foreign both answer 400
- * "does not exist", as before tenancy, so a phone's upload to a project it cannot reach parks as stuck.
+ * A row named in a body (a new row's project or location, a move target). Unknown and foreign both
+ * answer 400 "<kind>_id does not exist", as before tenancy, so a phone's upload to a project it cannot
+ * reach parks as stuck. Returns the workspace id.
  */
-export async function assertProjectRef(a: Access, projectId: string, min: Role = "editor"): Promise<string> {
-  const ws = await workspaceOf(a.env, "project", projectId);
-  if (!ws || !a.tenant.ranks.has(ws)) throw new HttpError(400, "project_id does not exist");
+export async function assertRef(a: Access, kind: Owned, id: string, min: Role = "editor"): Promise<string> {
+  const ws = await workspaceOf(a.env, kind, id);
+  if (!ws || !a.tenant.ranks.has(ws)) throw new HttpError(400, `${kind}_id does not exist`);
   return assertRank(a, ws, min);
 }
+
+export const assertProjectRef = (a: Access, projectId: string, min: Role = "editor") => assertRef(a, "project", projectId, min);
 
 /** SQL condition: `column` is one of the caller's workspaces; bind `tenant.wsList` at `?n`. */
 export const inWorkspaces = (column: string, n: number) => `${column} IN (SELECT value FROM json_each(?${n}))`;

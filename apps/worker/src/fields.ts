@@ -1,7 +1,7 @@
 import { validateFieldDef, type FieldDef } from "@fielder/vocab";
 import { assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
-import { assertProjectExists } from "./projects.ts";
+import { accessIfExists, assertAccess, assertProjectRef, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";
 
 interface FieldRow { id: string; project_id: string; position: number; key: string; definition: string; created_at: string; updated_at: string | null }
@@ -36,24 +36,27 @@ async function upsert(env: Ctx["env"], id: string, projectId: string, def: Field
 
 /** Extra-field definitions, each owned by one project (issue #44): CRUD, bulk JSON import (e.g. written by an AI), order. */
 export function registerFieldRoutes(r: Router<Ctx>) {
-  // Every project's fields (each carries project_id and position), or one project's with ?project_id=.
-  r.on("GET", "/api/fields", async ({ env, url }) => {
+  // The fields of every project in the caller's workspaces (each carries project_id and position), or one project's with ?project_id=.
+  r.on("GET", "/api/fields", async ({ env, url, tenant }) => {
     const project = url.searchParams.get("project_id");
+    const mine = `project_id IN (SELECT id FROM projects WHERE ${inWorkspaces("workspace_id", 1)})`;
     const stmt = project
-      ? env.DB.prepare(`SELECT * FROM field_definitions WHERE project_id = ?1 AND deleted_at IS NULL ${ORDER}`).bind(assertUuid(project, "project_id"))
-      : env.DB.prepare(`SELECT * FROM field_definitions WHERE deleted_at IS NULL ${ORDER}`);
+      ? env.DB.prepare(`SELECT * FROM field_definitions WHERE ${mine} AND project_id = ?2 AND deleted_at IS NULL ${ORDER}`).bind(tenant.wsList, assertUuid(project, "project_id"))
+      : env.DB.prepare(`SELECT * FROM field_definitions WHERE ${mine} AND deleted_at IS NULL ${ORDER}`).bind(tenant.wsList);
     const { results } = await stmt.all<FieldRow>();
     return json({ fields: results.map(toApi) });
   });
 
   /** JSON { project_id (required to create; a field never changes project), definition }. New fields go last. */
-  r.on("PUT", "/api/fields/:id", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/fields/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const fid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const def = parseDefinition(b.definition);
+    await accessIfExists(ctx, "field", fid, "editor");
     const stored = await env.DB.prepare("SELECT project_id FROM field_definitions WHERE id = ?1").bind(fid).first<{ project_id: string }>();
     const projectId = stored?.project_id ?? assertUuid(b.project_id, "project_id");
-    if (!stored) await assertProjectExists(env, projectId);
+    if (!stored) await assertProjectRef(ctx, projectId);
     await upsert(env, fid, projectId, def);
     const row = await env.DB.prepare("SELECT * FROM field_definitions WHERE id = ?1").bind(fid).first<FieldRow>();
     return json({ field: toApi(row!) });
@@ -63,10 +66,11 @@ export function registerFieldRoutes(r: Router<Ctx>) {
    * JSON { project_id, fields: FieldDef[] }: creates new keys in the project and replaces the definition
    * of its existing keys. All definitions are validated before anything is written.
    */
-  r.on("POST", "/api/fields/import", async ({ env, request }) => {
+  r.on("POST", "/api/fields/import", async (ctx) => {
+    const { env, request } = ctx;
     const b = await readJson<Record<string, unknown>>(request);
     const projectId = assertUuid(b.project_id, "project_id");
-    await assertProjectExists(env, projectId);
+    await assertProjectRef(ctx, projectId);
     const list = Array.isArray(b.fields) ? b.fields : null;
     if (!list || list.length === 0) throw new HttpError(400, "fields must be a non-empty array");
     if (list.length > 200) throw new HttpError(413, "at most 200 fields per import");
@@ -85,15 +89,20 @@ export function registerFieldRoutes(r: Router<Ctx>) {
   });
 
   // Moves the field to the recycle bin. Shots keep their stored values; they just stop being shown/validated.
-  r.on("DELETE", "/api/fields/:id", async ({ env }, { id }) => json(await binResource(env, "field", assertUuid(id, "id"))));
+  r.on("DELETE", "/api/fields/:id", async (ctx, { id }) => {
+    const rid = assertUuid(id, "id");
+    await assertAccess(ctx, "field", rid, "editor");
+    return json(await binResource(ctx.env, "field", rid));
+  });
 
   /** JSON { field_ids: [...] }: the project's fields in display order (every one of them, nothing else). */
-  r.on("PUT", "/api/projects/:id/fields", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/projects/:id/fields", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const pid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     if (!Array.isArray(b.field_ids)) throw new HttpError(400, "field_ids must be an array");
     const ids = b.field_ids.map((x, i) => assertUuid(x, `field_ids[${i}]`));
-    await assertProjectExists(env, pid);
+    await assertAccess(ctx, "project", pid, "editor");
     const own = new Set((await env.DB.prepare("SELECT id FROM field_definitions WHERE project_id = ?1 AND deleted_at IS NULL").bind(pid).all<{ id: string }>()).results.map((x) => x.id));
     if (ids.length !== own.size || new Set(ids).size !== ids.length || ids.some((x) => !own.has(x))) throw new HttpError(400, "field_ids must list exactly the project's fields");
     await env.DB.batch(ids.map((fid, i) => env.DB.prepare("UPDATE field_definitions SET position = ?1 WHERE id = ?2").bind(i, fid)));

@@ -1,6 +1,6 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "./http.ts";
 import type { Ctx } from "./index.ts";
-import { assertProjectExists } from "./projects.ts";
+import { accessIfExists, assertAccess, assertProjectRef, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";
 
 interface DayRow { id: string; project_id: string; date: string; title: string | null; notes: string | null; created_at: string; updated_at: string | null }
@@ -23,23 +23,28 @@ async function withShots(env: Ctx["env"], days: DayRow[]) {
 
 /** Shooting days of a project, each with its planned shots in order. Client-owned ids; PUT replaces a day. */
 export function registerDayRoutes(r: Router<Ctx>) {
-  r.on("GET", "/api/days", async ({ env, url }) => {
+  // The days of every project in the caller's workspaces, or one project's with ?project_id=.
+  r.on("GET", "/api/days", async ({ env, url, tenant }) => {
     const project = url.searchParams.get("project_id");
+    const mine = `project_id IN (SELECT id FROM projects WHERE ${inWorkspaces("workspace_id", 1)})`;
     const stmt = project
-      ? env.DB.prepare("SELECT * FROM shooting_days WHERE project_id = ?1 AND deleted_at IS NULL ORDER BY date, created_at").bind(assertUuid(project, "project_id"))
-      : env.DB.prepare("SELECT * FROM shooting_days WHERE deleted_at IS NULL ORDER BY date, created_at");
+      ? env.DB.prepare(`SELECT * FROM shooting_days WHERE ${mine} AND project_id = ?2 AND deleted_at IS NULL ORDER BY date, created_at`).bind(tenant.wsList, assertUuid(project, "project_id"))
+      : env.DB.prepare(`SELECT * FROM shooting_days WHERE ${mine} AND deleted_at IS NULL ORDER BY date, created_at`).bind(tenant.wsList);
     const { results } = await stmt.all<DayRow>();
     return json({ days: await withShots(env, results) });
   });
 
-  r.on("GET", "/api/days/:id", async ({ env }, { id }) => {
-    const row = await env.DB.prepare("SELECT * FROM shooting_days WHERE id = ?1 AND deleted_at IS NULL").bind(assertUuid(id, "id")).first<DayRow>();
+  r.on("GET", "/api/days/:id", async (ctx, { id }) => {
+    const did = assertUuid(id, "id");
+    await assertAccess(ctx, "day", did, "viewer");
+    const row = await ctx.env.DB.prepare("SELECT * FROM shooting_days WHERE id = ?1 AND deleted_at IS NULL").bind(did).first<DayRow>();
     if (!row) throw new HttpError(404, "day not found");
-    return json({ day: (await withShots(env, [row]))[0] });
+    return json({ day: (await withShots(ctx.env, [row]))[0] });
   });
 
   /** JSON { project_id, date, title?, notes?, shots: [{ shot_id, planned_time?, notes? }] } — the whole day. */
-  r.on("PUT", "/api/days/:id", async ({ env, request }, { id }) => {
+  r.on("PUT", "/api/days/:id", async (ctx, { id }) => {
+    const { env, request } = ctx;
     const did = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const projectId = assertUuid(b.project_id, "project_id");
@@ -56,7 +61,9 @@ export function registerDayRoutes(r: Router<Ctx>) {
       return { shot_id: assertUuid(o.shot_id, `shots[${i}].shot_id`), planned_time: time as string | null, notes: opt(o.notes, `shots[${i}].notes`, 1000) };
     });
     if (new Set(shots.map((s) => s.shot_id)).size !== shots.length) throw new HttpError(400, "a shot is listed twice");
-    await assertProjectExists(env, projectId);
+    const ws = await assertProjectRef(ctx, projectId);
+    const stored = await accessIfExists(ctx, "day", did, "editor");
+    if (stored && stored !== ws) throw new HttpError(400, "a day cannot move to a project of another workspace");
     // Shots deleted or moved to another project meanwhile are dropped from the day instead of failing the save.
     if (shots.length) {
       const ok = new Set((await env.DB.prepare("SELECT id FROM shots WHERE project_id = ?1 AND deleted_at IS NULL AND id IN (SELECT value FROM json_each(?2))")
@@ -78,5 +85,9 @@ export function registerDayRoutes(r: Router<Ctx>) {
   });
 
   /** Moves the day to the recycle bin. */
-  r.on("DELETE", "/api/days/:id", async ({ env }, { id }) => json(await binResource(env, "day", assertUuid(id, "id"))));
+  r.on("DELETE", "/api/days/:id", async (ctx, { id }) => {
+    const rid = assertUuid(id, "id");
+    await assertAccess(ctx, "day", rid, "editor");
+    return json(await binResource(ctx.env, "day", rid));
+  });
 }
