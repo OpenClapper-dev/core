@@ -1,6 +1,17 @@
 # API
 
-All routes live in `apps/worker/src/` and are registered in `index.ts`. Every request passes Cloudflare Access and the JWT check first. Errors are JSON `{ "error": "…" }` with a 4xx/5xx status. Ids are UUIDs chosen by the client unless noted.
+All routes live in `apps/worker/src/` and are registered in `index.ts`. Every request except the sign-in routes below needs a user (see [Sign-in](#sign-in-authn-epic-107)); without one the answer is `401`. Errors are JSON `{ "error": "…" }` with a 4xx/5xx status. Ids are UUIDs chosen by the client unless noted.
+
+## Sign-in (`authn/`, epic #107)
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/api/auth/login` | Public. `{ email, password, client?: "dashboard" \| "mobile" }` → `{ user: { id, email, name }, expires_at }`. The dashboard gets the session as an HttpOnly cookie `fielder_session`; `client: "mobile"` gets `token` in the body, to send as `Authorization: Bearer <token>`. One `401` for an unknown email and a wrong password; `429` while locked (5 failures in a row lock for 1 minute, doubling, at most an hour); `403` for a blocked account (only after the right password) |
+| POST | `/api/auth/logout` | Public. Deletes the request's session if any and clears the cookie; always `204` |
+| GET | `/api/me` | `{ user: { id, email, name }, workspaces: [{ id, name, role, personal }] }`; the clients' signed-in probe |
+| GET | `/api/ping` | Public. `{ ok: true }`, touches nothing |
+
+Who a request is (`index.ts` `identify`): a session (bearer header, else cookie; sliding: dashboard 30 days, phone 180, extended at most once a day), else, until Cloudflare Access is removed from the app (#118), a verified Access JWT, which is the bootstrap user. Locally, `ACCESS_DEV_BYPASS` makes a request without a session the bootstrap user. Before any change the auth provider's `allow` is asked (`403` when it says no; the first-party provider always allows).
 
 ## Projects (`projects.ts`, `fields.ts`)
 
@@ -135,5 +146,5 @@ A binned shot comes back by itself when the phone uploads to it again (a continu
 
 ## Other
 
-- `GET /auth/mobile`: page that hands the Access JWT to the phone's WebView (`auth.ts`).
-- `GET /health`: D1 and R2 reachability plus the caller's identity.
+- `GET /auth/mobile`: page that hands the Access JWT to the phone's WebView (`auth.ts`); goes away with Access (#118).
+- `GET /health`: D1 and R2 reachability plus the caller's email; needs a user.

@@ -5,6 +5,8 @@
   "compatibility_date": "2026-09-04",
   "account_id": "3868cbc17be171c90972dd32e41e7783",
   "observability": { "enabled": true },
+  // The auth seam (src/authn/provider.ts): another build points this at its own provider module.
+  "alias": { "@fielder/auth-provider": "./src/authn/first-party.ts" },
   // Daily at 03:17 UTC: purge what has been in the recycle bin for 30 days (trash.ts).
   "triggers": { "crons": ["17 3 * * *"] },
   // Web dashboard (apps/dashboard) served as static assets from the same hostname,

@@ -26,7 +26,7 @@ pnpm dev:dashboard
 ```
 
 `dev:init` never overwrites existing files. It creates:
-- `apps/worker/.dev.vars` with `ACCESS_DEV_BYPASS="true"` (every request is `dev@localhost`)
+- `apps/worker/.dev.vars` with `ACCESS_DEV_BYPASS="true"` (a request without a session is the bootstrap user, who owns the local data)
 - `apps/mobile/.env.local`
 - an empty `apps/dashboard/dist`: `wrangler dev` refuses to start without it
 
@@ -34,7 +34,7 @@ Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start
 
 Demo data: `pnpm dev:seed [count]` (worker running) uploads 40 shots by default with stock photos from picsum.photos into the projects "Stock demo" and "Stock demo B", with locations, random tags (camera fields too), review states, some sequences and some shots without a position. Ids are derived from the seed, so a re-run adds nothing twice. It refuses any API other than localhost.
 
-API smoke tests work with plain `curl` against `localhost:8787` (no auth needed locally). Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
+API smoke tests work with plain `curl` against `localhost:8787` (no auth needed locally). To try real sign-in, create a user (`node scripts/user.mjs --email you@example.com`, password from `FIELDER_PASSWORD` or asked; `--bootstrap` gives the bootstrap user that email instead) and run the Worker with `npx wrangler dev --var ACCESS_DEV_BYPASS:false`. Worker unit tests: `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
 
 Agents can click through the dashboard with the Playwright MCP: headless Chrome against `localhost:5173` (`pnpm dev` running). It is set up per machine, not in the repo: `claude mcp add playwright -- npx -y @playwright/mcp@latest --headless --isolated`, then `npx playwright install --with-deps chrome`. Snapshots land in `.playwright-mcp/` (gitignored). The phone app cannot be driven this way.
 
@@ -56,7 +56,7 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 - `scripts/dev-all.sh` (`make all`) opens a tmux session `fielder`: Worker and dashboard stacked on the left, `make mobile` on the right (it waits for the Worker, so it only adds a tunnel), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
 - `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --go --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
-- Sign in once: under `ACCESS_DEV_BYPASS` `/auth/mobile` hands out an unsigned placeholder token for `dev@localhost`.
+- Sign in once: under `ACCESS_DEV_BYPASS` `/auth/mobile` hands out an unsigned placeholder token for the bootstrap user.
 - The `local` scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders), so a production build on the same phone never sees them.
 - The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL with auth bypassed.
 - Production is reached only by a built APK (`make apk-local` / `make apk-cloud`, `API_URL` defaults to the deployed Worker).

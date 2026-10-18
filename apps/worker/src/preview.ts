@@ -26,8 +26,7 @@ export function registerPreviewRoutes(r: Router<Ctx>) {
     const role = url.searchParams.get("role");
     if (role !== "phone" && role !== "dashboard") throw new HttpError(400, "role must be phone or dashboard");
     // One room per signed-in person: their phone and their dashboard find each other without pairing.
-    const who = identity.kind === "user" ? identity.email : `service:${identity.serviceTokenId}`;
-    return env.PREVIEW.get(env.PREVIEW.idFromName(who)).fetch(request);
+    return env.PREVIEW.get(env.PREVIEW.idFromName(identity.userId)).fetch(request);
   });
 }
 

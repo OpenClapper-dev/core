@@ -61,7 +61,7 @@ When the owner hands you an issue (a number or a link), that means: read it, cha
 
 ```sh
 for p in packages/vocab packages/fov-math apps/worker apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
-pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/dashboard test && (cd apps/mobile && node --test src/*.test.ts)
+pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/dashboard test && (cd apps/mobile && node --test src/*.test.ts)
 (cd apps/dashboard && npx vite build)
 (cd apps/mobile && npx expo export --platform android --output-dir /tmp/fielder-export)
 ```

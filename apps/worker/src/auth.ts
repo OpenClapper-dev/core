@@ -7,11 +7,12 @@ import type { Ctx } from "./index.ts";
  * Access JWT attached. This page hands that JWT to the app (postMessage), which
  * stores it and sends it back as the `cf-access-token` header on API calls.
  * Nothing new is exposed: the browser already holds the same token as a cookie.
+ * Goes away with Access (#118); the phone then signs in with a password (#115).
  */
 export function registerAuthRoutes(r: Router<Ctx>) {
   r.on("GET", "/auth/mobile", async ({ request, env, identity }) => {
-    if (identity.kind !== "user") throw new HttpError(403, "sign in with your email, not a service token");
-    const token = env.ACCESS_DEV_BYPASS === "true" ? devToken(identity.email) : request.headers.get("Cf-Access-Jwt-Assertion") ?? "";
+    const token = env.ACCESS_DEV_BYPASS === "true" ? devToken(identity.email) : request.headers.get("Cf-Access-Jwt-Assertion");
+    if (!token) throw new HttpError(403, "sign in through Cloudflare Access");
     const payload = JSON.stringify({ token, email: identity.email }).replace(/</g, "\\u003c");
     const email = identity.email.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
     const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Fielder</title>
