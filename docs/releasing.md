@@ -25,7 +25,7 @@ From an up-to-date, clean `main`:
 scripts/release.sh 0.2.0
 ```
 
-It checks the branch, a clean tree, that `main` matches `origin/main`, and that the new version is greater than the current one. Then it:
+It checks the branch, a clean tree, that `main` matches `origin/main`, and that the new version is greater than the current one (or is the current one while that has no tag yet: then nothing is bumped, only tagged). Then it:
 1. sets the root `package.json` version;
 2. commits "Release v0.2.0";
 3. tags `v0.2.0` and pushes both;
