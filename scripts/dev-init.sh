@@ -4,8 +4,6 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# The phone's server for EAS builds and Expo Go-style runs: APP_URL from deploy.env, if there is one.
-API_URL="$(sed -n 's/^APP_URL=//p' "$root/deploy.env" 2>/dev/null)"
 
 write_if_missing() {
   local path="$1" content="$2"
@@ -22,8 +20,9 @@ echo "Local dev files:"
 write_if_missing "apps/worker/.dev.vars" 'AUTH_DEV_BYPASS="true"'
 # The admin plane without Cloudflare Access in front: every request is admin@localhost. Dev only.
 write_if_missing "apps/admin/.dev.vars" 'ADMIN_DEV_BYPASS="true"'
-# Expo inlines EXPO_PUBLIC_* into the bundle. Without it the phone has no server to sign in to.
-write_if_missing "apps/mobile/.env.local" "EXPO_PUBLIC_API_URL=$API_URL"
+# Expo inlines EXPO_PUBLIC_* into the bundle. make mobile sets the tunnel's URL itself and a production
+# APK gets its server at build time (docs/self-hosting.md); set one here only for other local runs.
+write_if_missing "apps/mobile/.env.local" "EXPO_PUBLIC_API_URL="
 
 # Both Workers type-check against wrangler's generated runtime types (gitignored).
 pnpm -C "$root/apps/worker" types >/dev/null

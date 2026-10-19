@@ -33,4 +33,4 @@ The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107)
 - To cut a user off: block the account in the admin plane (every session ends at once) or reset its password.
 - The deploy API token (`CLOUDFLARE_API_TOKEN`, [self-hosting](self-hosting.md#1-a-cloudflare-api-token)) is the only secret; Access AUDs, team domains and resource ids are not secret (they show in login redirects and URLs).
 - `.secrets/` (gitignored, never commit) is the place for local copies of such values.
-- Wrangler's OAuth login lacks `account:read`; `CLOUDFLARE_ACCOUNT_ID` (from `deploy.env`, exported by the Makefile) fills it in.
+- Wrangler's OAuth login lacks `account:read`; `CLOUDFLARE_ACCOUNT_ID` (from `deploy.env`, read by `scripts/deploy-config.mjs`) fills it in.

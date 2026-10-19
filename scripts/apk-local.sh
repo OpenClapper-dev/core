@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Build the APK locally (EAS --local, same keystore from Expo) in a Docker container, then copy
-# it to the Windows Downloads folder. WSL + Docker Desktop (WSL integration on).
+# Build an APK locally (EAS --local) in a Docker container, then copy it to the Windows Downloads
+# folder. WSL + Docker Desktop (WSL integration on). `make dev-build` runs it with PROFILE=dev-client:
+# the development build "Fielder Dev" (debug-signed, no bundle inside: it loads the JavaScript, and
+# with it the server's address, from Metro, see make mobile).
+# A production APK (PROFILE=apk, the keystore from Expo) needs API_URL=<your server>; deployments
+# build it with the Build APK workflow instead (docs/self-hosting.md).
 # Needs an Expo session: `npx eas login` once (kept in ~/.expo), or EXPO_TOKEN in the environment.
-# Overrides: API_URL (the Worker the app talks to), DOWNLOADS (target folder),
-# PROFILE=dev-client for the development build "Fielder Dev" (make dev-build: debug-signed, no
-# Expo credentials, no bundle inside: it loads the JavaScript from Metro, see make mobile).
+# Overrides: API_URL, DOWNLOADS (target folder), PROFILE.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -22,6 +24,8 @@ fi
 [ -d "$DOWNLOADS" ] || { echo "No folder $DOWNLOADS; set DOWNLOADS=…" >&2; exit 1; }
 
 profile="${PROFILE:-apk}"
+# The development build takes its server from Metro, so the inlined one is never used.
+[ "$profile" = dev-client ] && api_url="${API_URL:-http://localhost:8787}" || api_url="${API_URL:?set API_URL to your server (or use the Build APK workflow)}"
 commit=$(git rev-parse --short HEAD)
 name="fielder-$commit.apk"
 [ "$profile" = apk ] || name="fielder-$profile-$commit.apk"
@@ -33,7 +37,7 @@ mkdir -p "$out" ~/.expo
 docker build -t fielder-android -f docker/android.Dockerfile docker
 docker run --rm \
   -v "$PWD":/work -v ~/.expo:/root/.expo -v "$out":/out -v fielder-gradle:/root/.gradle \
-  -e EXPO_TOKEN -e EXPO_PUBLIC_API_URL="${API_URL:-${APP_URL:?set API_URL, or APP_URL in deploy.env}}" \
+  -e EXPO_TOKEN -e EXPO_PUBLIC_API_URL="$api_url" \
   -w /work/apps/mobile fielder-android \
   bash -c "node /work/node_modules/eas-cli/bin/run build --local --platform android --profile $profile --non-interactive --output /out/$name \
            && chown $(id -u):$(id -g) /out/$name"
