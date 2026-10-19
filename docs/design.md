@@ -58,6 +58,7 @@ Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone 
 - Use the `translate` and `scale` properties, not `transform`, where code measures the element (`getBoundingClientRect`) or writes `transform` itself.
 - **Never moves**: focus rings, the press `translateY(1px)`, text, photos, frames and masks (their geometry is measured), anything a gesture writes per frame (window drag and resize, the split grip, icon drag, the panel grip), scroll positions, the list cursor `is-hi`. While a window gesture runs, `body.wm-gesture` switches transitions off.
 - **Reduced motion** (`prefers-reduced-motion: reduce`): the duration tokens are zeroed, not `transition: none`, so meaningful keyframes (spinner, skeleton) keep running. JS-driven motion asks `reducedMotion()`; `withViewTransition` then just runs the change.
+- Switched content (a tab, a layout) fades in with the `f-fade` class plus a `key` that changes with it. A collapsible section keeps its body mounted in `.f-sec__body` (a 1fr ↔ 0fr grid row) so it folds open and shut.
 - Not used: native `<dialog>` and the `popover` attribute (the top layer would put modals above the toasts and the task view).
 
 ## Where it lives

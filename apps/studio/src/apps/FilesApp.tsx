@@ -237,7 +237,7 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
             options={[{ value: "name", label: "Name" }, { value: "date", label: "Date" }, { value: "type", label: "Type" }]} />
           <Seg label="Layout" value={layout} onChange={(v) => { setLayoutState(v); setPref("files.layout", v); }} options={[{ id: "list", icon: "view-list-outline", label: "List" }, { id: "grid", icon: "view-grid-outline", label: "Grid" }]} />
         </Toolbar>
-        <div ref={list} class={cx("f-scroll files-list", layout === "grid" && "files-list--grid")} role="listbox" aria-label={placeName}
+        <div key={layout} ref={list} class={cx("f-scroll f-fade files-list", layout === "grid" && "files-list--grid")} role="listbox" aria-label={placeName}
           onContextMenu={(e) => { if (place.kind === "folder" && (e.target as HTMLElement).closest("[data-key]") === null) bgMenu.openMenu(e, null); }}
           onClick={(e) => { if ((e.target as HTMLElement).closest("[data-key]") === null) setSel(new Set()); }}>
           {d.files === null && <Empty icon="folder-alert-outline" title="Folders not loaded">Files and folders need the server's folders; reload to try again.</Empty>}

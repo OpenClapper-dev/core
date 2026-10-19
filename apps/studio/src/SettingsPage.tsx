@@ -19,7 +19,7 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
     return (
       <>
         <Toolbar><ToolbarTitle icon="cog-outline">Settings</ToolbarTitle>{tabs}<span class="meta">Your account, workspaces and their members</span></Toolbar>
-        <div class="f-scroll"><AccountSettings /></div>
+        <div key="account" class="f-scroll f-fade"><AccountSettings /></div>
       </>
     );
   }
@@ -27,14 +27,14 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
     return (
       <>
         <Toolbar><ToolbarTitle icon="cog-outline">Settings</ToolbarTitle>{tabs}<span class="meta">Every keyboard shortcut, from the registry the pages use. Not rebindable yet.</span></Toolbar>
-        <div class="f-scroll"><div class="shortcut-grid settings__shortcuts"><ShortcutList /></div></div>
+        <div key="shortcuts" class="f-scroll f-fade"><div class="shortcut-grid settings__shortcuts"><ShortcutList /></div></div>
       </>
     );
   }
   return (
     <>
       <Toolbar><ToolbarTitle icon="cog-outline">Settings</ToolbarTitle>{tabs}<span class="meta">Saved on change, in this browser</span></Toolbar>
-      <div class="f-scroll">
+      <div key="general" class="f-scroll f-fade">
         <div class="settings">
           <Section icon="theme-light-dark" title="Appearance">
             <Row label="Theme" help="Auto follows the system. Sun is light for daylight, Set is dark for a dark set.">
