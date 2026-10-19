@@ -19,3 +19,7 @@ Documentation for developers and AI agents lives in [`docs/`](docs/README.md); s
 - **Debug log** on the phone to share with an AI agent when something goes wrong.
 
 Runs on Cloudflare (Workers, D1, R2; Access for the admin plane); the phone app is built with Expo.
+
+## Licence
+
+Fielder is source-available under the [Elastic License 2.0](LICENSE) (SPDX `Elastic-2.0`). In plain words: you may use, copy, modify and self-host it, for yourself or your own crew and company. You may not offer it to others as a hosted or managed service, and you may not remove the licence and copyright notices. This is not an OSI-approved open-source licence. The LICENSE file is the binding text.
