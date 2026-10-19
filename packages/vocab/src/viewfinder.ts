@@ -1,6 +1,6 @@
 /**
  * Viewfinder layouts (issue #49): which controls the phone's Shoot screen shows, in which bars, per
- * orientation. Edited on the dashboard, stored by the Worker, rendered by the phone; the shipped
+ * orientation. Edited in the Studio, stored by the Worker, rendered by the phone; the shipped
  * DEFAULT_VIEWFINDER_LAYOUT is today's arrangement and can always be gone back to.
  */
 

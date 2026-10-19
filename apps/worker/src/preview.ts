@@ -5,17 +5,17 @@ import type { Ctx, Env } from "./index.ts";
 
 /**
  * Live layout preview (issue #50). The phone keeps a websocket open while the app is in the
- * foreground; the dashboard's layout editor opens one too. Both land in one Durable Object per
+ * foreground; the Studio's layout editor opens one too. Both land in one Durable Object per
  * user, which relays the edited layout to the phone. Nothing is stored in D1: a preview is a
- * look at an unsaved draft, gone when the dashboard closes it.
+ * look at an unsaved draft, gone when the Studio closes it.
  *
- * Dashboard → phone: `{ type: "preview", layout, orientation }`, `{ type: "stop" }`, `{ type: "readout" }`
+ * Studio → phone: `{ type: "preview", layout, orientation }`, `{ type: "stop" }`, `{ type: "readout" }`
  * (issue #68: send your specs now).
  * Phone → room: `{ type: "hello", device: { id, model } }` on connect (kept on the socket for presence).
- * Phone → dashboard: `{ type: "exit" }` (left the preview on the phone), `{ type: "specs", id, specs }`.
- * Room → dashboards: `{ type: "presence", phones: [{ id, model }], previewing }` on every change.
+ * Phone → Studio: `{ type: "exit" }` (left the preview on the phone), `{ type: "specs", id, specs }`.
+ * Room → Studio tabs: `{ type: "presence", phones: [{ id, model }], previewing }` on every change.
  */
-type Role = "phone" | "dashboard";
+type Role = "phone" | "studio";
 interface Preview { type: "preview"; layout: unknown; orientation: "portrait" | "landscape" }
 interface PhoneHello { id: string; model: string | null }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,8 +24,8 @@ export function registerPreviewRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/preview/socket", async ({ request, env, url, identity }) => {
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") throw new HttpError(426, "websocket upgrade expected");
     const role = url.searchParams.get("role");
-    if (role !== "phone" && role !== "dashboard") throw new HttpError(400, "role must be phone or dashboard");
-    // One room per signed-in person: their phone and their dashboard find each other without pairing.
+    if (role !== "phone" && role !== "studio") throw new HttpError(400, "role must be phone or studio");
+    // One room per signed-in person: their phone and their Studio tab find each other without pairing.
     return env.PREVIEW.get(env.PREVIEW.idFromName(identity.userId)).fetch(request);
   });
 }
@@ -45,7 +45,7 @@ export class PreviewRoom extends DurableObject<Env> {
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
     let msg: { type?: unknown; layout?: unknown; orientation?: unknown; device?: { id?: unknown; model?: unknown }; id?: unknown; specs?: unknown };
     try { msg = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw)) as typeof msg; } catch { return; }
-    if (this.ctx.getTags(ws)[0] === "dashboard") {
+    if (this.ctx.getTags(ws)[0] === "studio") {
       if (msg.type === "preview") {
         if (validateViewfinderLayout(msg.layout) || (msg.orientation !== "portrait" && msg.orientation !== "landscape")) return;
         const p: Preview = { type: "preview", layout: msg.layout, orientation: msg.orientation };
@@ -64,14 +64,14 @@ export class PreviewRoom extends DurableObject<Env> {
       await this.presence();
     } else if (msg.type === "specs") {
       if (typeof msg.id !== "string" || !UUID.test(msg.id) || validateDeviceSpecs(msg.specs)) return;
-      this.send("dashboard", { type: "specs", id: msg.id, specs: msg.specs });
+      this.send("studio", { type: "specs", id: msg.id, specs: msg.specs });
     }
   }
 
   async webSocketClose(ws: WebSocket, code: number) {
     try { ws.close(code === 1005 ? 1000 : code); } catch { /* already closed */ }
-    // The last dashboard gone ends the preview: the phone never stays stuck in it.
-    if (this.ctx.getTags(ws)[0] === "dashboard" && this.open("dashboard", ws).length === 0) await this.stop();
+    // The last Studio tab gone ends the preview: the phone never stays stuck in it.
+    if (this.ctx.getTags(ws)[0] === "studio" && this.open("studio", ws).length === 0) await this.stop();
     await this.presence(ws);
   }
 
@@ -99,6 +99,6 @@ export class PreviewRoom extends DurableObject<Env> {
     const previewing = !!(await this.ctx.storage.get("preview"));
     // A phone that has not said hello yet (just connected) shows without an id.
     const phones = this.open("phone", closing).map((w) => (w.deserializeAttachment() as PhoneHello | null) ?? { id: null, model: null });
-    this.send("dashboard", { type: "presence", phones, previewing }, closing);
+    this.send("studio", { type: "presence", phones, previewing }, closing);
   }
 }

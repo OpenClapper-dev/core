@@ -2,7 +2,7 @@
 
 ## One version
 
-Fielder has **one version for the whole product**: the Worker and the dashboard deploy together, the admin plane reads the same database, and the phone talks to that API. Nothing is published as a separate library. The workspace packages (`apps/*`, `packages/*`) are private and stay at `0.0.0`.
+Fielder has **one version for the whole product**: the Worker and the Studio deploy together, the admin plane reads the same database, and the phone talks to that API. Nothing is published as a separate library. The workspace packages (`apps/*`, `packages/*`) are private and stay at `0.0.0`.
 
 - **Source**: the `version` of the root `package.json`, and nothing else.
 - **SemVer, `0.x` during the alpha**:
@@ -12,7 +12,7 @@ Fielder has **one version for the whole product**: the Worker and the dashboard 
 - **Releases** are git tags `vX.Y.Z` on `main`, each with a GitHub release whose notes list the merged pull requests. While the major version is 0 they are marked as pre-releases.
 - **Where it shows**, always with the commit it was built from:
   - `GET /api/ping` → `{ ok, version, commit }`; the admin Worker's `/api/whoami` too. The commit is a wrangler `define` written by `scripts/deploy-config.mjs`; locally it is `dev`.
-  - Dashboard: Settings › General › About, next to the server's version. They differ while a tab still has the bundle from before a deploy.
+  - Studio: Settings › General › About, next to the server's version. They differ while a tab still has the bundle from before a deploy.
   - Admin board: its header.
   - Phone: the Setup footer and the debug log.
 - **Android**: `versionName` is the version and `versionCode` is derived from it (`major·1 000 000 + minor·1 000 + patch`: 0.1.0 → 1000), so it grows with every release (`apps/mobile/app.config.ts`). Builds between releases carry the same code as the last release; Android installs a same-code update over it.

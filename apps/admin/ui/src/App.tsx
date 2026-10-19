@@ -10,7 +10,7 @@ const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString([], 
 function showPassword(email: string, password: string) {
   void confirmDialog({
     title: `Password for ${email}`,
-    body: <><p class="meta">Shown once. Pass it on to them; it works on the dashboard and the phone.</p><p class="admin-password num">{password}</p></>,
+    body: <><p class="meta">Shown once. Pass it on to them; it works in the Studio and the phone.</p><p class="admin-password num">{password}</p></>,
     confirmLabel: "Done",
   });
 }

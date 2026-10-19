@@ -1,7 +1,7 @@
 /**
  * Device specs (issue #68): what a phone reports about itself, so the layout editor previews on the
  * real screen and the phone-lenses control offers the real lenses. Read out from the connected
- * phone (dashboard › Add device specs), stored by the Worker, kept up to date by the phone.
+ * phone (Studio › Add device specs), stored by the Worker, kept up to date by the phone.
  */
 
 /** The Shoot screen's area in dp (bars + camera image), after the tab bar and system bars. */
@@ -28,7 +28,7 @@ const size = (v: unknown, at: string): string | null => {
   return null;
 };
 
-/** Strict check (the phone builds these; the dashboard only stores what it was sent). */
+/** Strict check (the phone builds these; the Studio only stores what it was sent). */
 export function validateDeviceSpecs(v: unknown): string | null {
   if (typeof v !== "object" || v === null) return "specs must be an object";
   const d = v as Record<string, unknown>;

@@ -130,9 +130,9 @@ export interface Photo {
   height: number | null;
   framing: Record<string, unknown> | null;
   device: Record<string, unknown> | null;
-  /** camera (phone capture), upload or drawn (made on the dashboard: no rig, lens_mm 0). Absent on queued shots = camera. */
+  /** camera (phone capture), upload or drawn (made in the Studio: no rig, lens_mm 0). Absent on queued shots = camera. */
   source?: "camera" | "upload" | "drawn";
-  /** Re-framings made on the dashboard (issue #29); absent on queued shots. */
+  /** Re-framings made in the Studio (issue #29); absent on queued shots. */
   framings?: Framing[];
   /** The framing every view shows; null/absent = as captured. */
   root_framing_id?: string | null;
@@ -161,9 +161,9 @@ export interface Shot {
   movement: string[];
   state: "unreviewed" | "approved" | "archived";
   extra: Extra;
-  /** Markdown subset, written on the dashboard. */
+  /** Markdown subset, written in the Studio. */
   description: string | null;
-  /** Maps use the location's pin instead of the photos' GPS (set on the dashboard; the photos keep theirs). */
+  /** Maps use the location's pin instead of the photos' GPS (set in the Studio; the photos keep theirs). */
   position_from_location: boolean;
   /** The location's pin, null when it has none. */
   location_position: { lat: number; lon: number } | null;
@@ -172,7 +172,7 @@ export interface Shot {
   updated_at: string | null;
   /** Ordered; never empty. */
   photos: Photo[];
-  /** Drawings over single photos (dashboard-made); the phone shows their renders. */
+  /** Drawings over single photos (Studio-made); the phone shows their renders. */
   overlays: Overlay[];
   /** Free canvases on the shot (floor plans, diagrams); the phone shows their renders. */
   sketches: Sketch[];
@@ -186,7 +186,7 @@ export interface Sketch { id: string; shot_id: string; name: string; kind: strin
 /** Either kind, for strips and the viewer. */
 export type Composed = ({ type: "overlay" } & Overlay) | ({ type: "sketch" } & Sketch);
 
-/** A shooting day of a project with its planned shots in order (planned in the dashboard). */
+/** A shooting day of a project with its planned shots in order (planned in the Studio). */
 export interface DayShot { shot_id: string; planned_time: string | null; notes: string | null }
 export interface ShootingDay { id: string; project_id: string; date: string; title: string | null; notes: string | null; updated_at: string | null; shots: DayShot[] }
 
@@ -212,7 +212,7 @@ interface ShotsPage { shots: Shot[]; next: Cursor }
 /** Headers for <Image> requests to the API (the session token). */
 export const imageHeaders = (): Record<string, string> => headers();
 export const imageUri = (photo: Photo) => `${API_URL}${photo.image_url}`;
-/** Absolute URL of an overlay or sketch render; null before the dashboard saved one. */
+/** Absolute URL of an overlay or sketch render; null before the Studio saved one. */
 export const renderUri = (item: { render_url: string | null }) => (item.render_url ? `${API_URL}${item.render_url}` : null);
 
 export const api = {
@@ -260,10 +260,10 @@ export const api = {
       body: JSON.stringify({ location_id: x.locationId, name: x.name }),
     }),
 
-  /** Viewfinder layouts (issue #49), made on the dashboard; since #68 the phone also edits their look and options. */
+  /** Viewfinder layouts (issue #49), made in the Studio; since #68 the phone also edits their look and options. */
   listLayouts: () => call<{ layouts: LayoutEntry[] }>("/api/viewfinder-layouts").then((r) => r.layouts.map((l) => ({ id: l.id, name: l.name, layout: l.layout }))),
 
-  /** Device specs (issue #68): the phone keeps its own record current once the dashboard saved it. */
+  /** Device specs (issue #68): the phone keeps its own record current once the Studio saved it. */
   listDevices: () => call<{ devices: { id: string; name: string; specs: DeviceSpecs }[] }>("/api/devices").then((r) => r.devices),
   putDeviceSpecs: (id: string, specs: DeviceSpecs) => call<unknown>(`/api/devices/${id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ specs }) }),
 

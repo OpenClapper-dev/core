@@ -19,7 +19,7 @@ The Shoot tab (`apps/mobile/src/screens/Viewfinder.tsx`) is a viewfinder for a c
     - speedbooster (none, ×0.71, ×0.64, ×0.58, other)
     - an optional lens range
     - a live facts line (crop, FF-equivalent)
-  - Setup → Rigs & lenses lists every rig with the same editor. The dashboard has Library › Rigs.
+  - Setup → Rigs & lenses lists every rig with the same editor. The Studio has Library › Rigs.
   - Rigs live on the server. `src/rigs.ts` holds them and the one in use for every screen, saves locally first, and pushes. `presetSync.ts` pushes offline edits and pulls the list.
 - **Lens**: the **lens strip** (`LensStrip.tsx`) is a scrollable row of `LENS_PRESETS_MM` (12–135 mm) inside the rig's range (`lens.ts`).
   - Tap a value to use it. The selected one is an accent pill with "mm"; tapping it opens the **Lens sheet**, which takes any focal length (auto-focused number field plus the range presets; "Use 32 mm").
@@ -48,7 +48,7 @@ In landscape the row becomes an 80 dp column next to the tab bar, read top to bo
 | Human | Cyan reference frame for roughly what a person sees, labelled "HUMAN 43". The layout says (issue #68): **cycle** (off → 35 → 43 → 50 → off) or **toggle** (off ↔ the chosen value). |
 | Rig | The Rig sheet |
 
-**HUD**: solid chips over the image, top left (centred between the columns in landscape). Each is switched on its own in the layout's look (issue #68; Setup → Viewfinder or the dashboard editor):
+**HUD**: solid chips over the image, top left (centred between the columns in landscape). Each is switched on its own in the layout's look (issue #68; Setup → Viewfinder or the Studio editor):
 - **Project**: tap opens the Project sheet.
 - **Rig and lens**.
 - **FOV**: FF-equivalent and angle of view, with the fit zoom, plus the human-view relation.

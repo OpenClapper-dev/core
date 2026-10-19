@@ -19,7 +19,7 @@ export async function createProject(projects: Project[], onChange: (p: Project[]
   }
 }
 
-/** First run: nothing chosen yet, so choosing is all the dashboard shows. */
+/** First run: nothing chosen yet, so choosing is all the Studio shows. */
 export function ProjectGate({ projects, onChange, onActivate }: { projects: Project[]; onChange: (p: Project[]) => void; onActivate: (id: string) => void }) {
   return (
     <div class="gate">

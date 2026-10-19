@@ -1,6 +1,6 @@
 # Fielder
 
-A personal tool for film location scouting and shoot planning. The phone becomes a viewfinder for your cinema rig: pick the camera, speedbooster and lens, see the real frame over the live image, and capture reference photos with GPS and framing data. A private web dashboard organises them by project, and plans shooting days against daylight and the weather forecast.
+A personal tool for film location scouting and shoot planning. The phone becomes a viewfinder for your cinema rig: pick the camera, speedbooster and lens, see the real frame over the live image, and capture reference photos with GPS and framing data. A private web app, the Studio, organises them by project, and plans shooting days against daylight and the weather forecast.
 
 Documentation for developers and AI agents lives in [`docs/`](docs/README.md); start with [`CLAUDE.md`](CLAUDE.md).
 
@@ -8,7 +8,7 @@ Documentation for developers and AI agents lives in [`docs/`](docs/README.md); s
 
 - **Rig viewfinder**: camera body/format or custom sensor, speedbooster, lens range. The true frame is drawn over the phone preview, with mask/frame/fit views and a human-eye reference frame.
 - **Capture**: flashlight, sequence mode (a set of photos as one shot), optional direct upload without tagging, high-accuracy GPS, an offline upload queue that never loses a shot.
-- **Projects**: every shot belongs to a project; both apps remember which one you are working on; the dashboard can browse all projects at once.
+- **Projects**: every shot belongs to a project; both apps remember which one you are working on; the Studio can browse all projects at once.
 - **Review and tagging** on phone and web: arrow-key navigation, in-place editing, type-to-search fields, light phases (dawn/day/dusk/night) plus artificial light, INT/EXT, weather, locations.
 - **Extra fields**: your own fields as JSON (nested groups, dependent selects), writable by an AI, chosen per project.
 - **Position correction**: drag the pin when GPS was off, for one photo or a whole sequence.

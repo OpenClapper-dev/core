@@ -7,7 +7,7 @@ import { binFolder } from "./trash.ts";
 /**
  * Folders and desktop shortcuts (epic #72). Everything here is interactive, so validation is
  * strict; reads are lenient about stale placements and shortcuts (a resource deleted elsewhere is
- * swept by its delete route, and the dashboard ignores what it cannot resolve).
+ * swept by its delete route, and the Studio ignores what it cannot resolve).
  */
 
 interface FolderRow { id: string; project_id: string; parent_id: string | null; name: string; kind: "normal" | "desktop"; created_at: string; updated_at: string | null }

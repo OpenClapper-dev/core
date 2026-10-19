@@ -4,7 +4,7 @@ The **Day** tab (`apps/mobile/src/screens/Day.tsx`, step-through in `StepThrough
 
 ## Flow
 
-1. **Days list**: the active project's shooting days from `GET /api/days` (planned in the dashboard [Plan](schedule.md)), as Upcoming and Past (dimmed). Pull to refresh.
+1. **Days list**: the active project's shooting days from `GET /api/days` (planned in the Studio [Plan](schedule.md)), as Upcoming and Past (dimmed). Pull to refresh.
    - Each row has a date block (accent with a TODAY tag for today), the title, shots · locations, and the offline state: Online only · Saving n / m · Offline · up to date · Offline copy out of date.
    - Long-press a row: make (or update) it offline.
 2. **Day overview**: header with back, the date and shot count.

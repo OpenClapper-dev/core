@@ -23,7 +23,7 @@ export const offlineDays = (): OfflineDay[] => Object.values(readAll()).sort((a,
 export const offlineDay = (id: string): OfflineDay | null => readAll()[id] ?? null;
 
 const photoFile = (id: string) => new File(dir, `${id}.jpg`);
-// Renders change when the dashboard saves again, so the file carries the version from render_url (?v=…).
+// Renders change when the Studio saves again, so the file carries the version from render_url (?v=…).
 const renderVersion = (item: { render_url: string | null }) => (item.render_url?.split("v=")[1] ?? "").replace(/[^0-9A-Za-z]/g, "").slice(0, 24);
 const renderFile = (item: { id: string; render_url: string | null }) => new File(dir, `r-${item.id}-${renderVersion(item)}.jpg`);
 const rendersOf = (shots: Shot[]): (Overlay | Sketch)[] => shots.flatMap((s) => [...s.overlays, ...s.sketches]).filter((r) => !!r.render_url);

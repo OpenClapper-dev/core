@@ -43,7 +43,7 @@ export function splitDuration(totalMs: number, n: number, split: GroupSplit, edg
 
 const isUuid = (v: unknown) => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 
-/** A block's settings as sent by the dashboard; null when valid. */
+/** A block's settings as sent by the Studio; null when valid. */
 export function validateGroup(v: unknown): string | null {
   if (!v || typeof v !== "object") return "must be an object";
   const g = v as Record<string, unknown>;

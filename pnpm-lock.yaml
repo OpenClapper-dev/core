@@ -37,34 +37,6 @@ importers:
         specifier: ^7.0.0
         version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0)
 
-  apps/dashboard:
-    dependencies:
-      '@fielder/fov-math':
-        specifier: workspace:*
-        version: link:../../packages/fov-math
-      '@fielder/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
-      '@fielder/vocab':
-        specifier: workspace:*
-        version: link:../../packages/vocab
-      leaflet:
-        specifier: ^1.9.4
-        version: 1.9.4
-      preact:
-        specifier: ^10.27.0
-        version: 10.29.8
-    devDependencies:
-      '@preact/preset-vite':
-        specifier: ^2.10.0
-        version: 2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.63.1)(supports-color@8.1.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
-      '@types/leaflet':
-        specifier: ^1.9.0
-        version: 1.9.22
-      vite:
-        specifier: ^7.0.0
-        version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0)
-
   apps/mobile:
     dependencies:
       '@expo-google-fonts/atkinson-hyperlegible-next':
@@ -152,6 +124,34 @@ importers:
       typescript:
         specifier: ~6.0.3
         version: 6.0.3
+
+  apps/studio:
+    dependencies:
+      '@fielder/fov-math':
+        specifier: workspace:*
+        version: link:../../packages/fov-math
+      '@fielder/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@fielder/vocab':
+        specifier: workspace:*
+        version: link:../../packages/vocab
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
+      preact:
+        specifier: ^10.27.0
+        version: 10.29.8
+    devDependencies:
+      '@preact/preset-vite':
+        specifier: ^2.10.0
+        version: 2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.63.1)(supports-color@8.1.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+      '@types/leaflet':
+        specifier: ^1.9.0
+        version: 1.9.22
+      vite:
+        specifier: ^7.0.0
+        version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0)
 
   apps/worker:
     dependencies:

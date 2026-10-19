@@ -2,7 +2,7 @@
  * The Markdown subset used for descriptions (shots, overlays, sketches): headings (#, ##, ###),
  * paragraphs, bullet and numbered lists, **bold**, *italic* (or _italic_), `code` and
  * [links](https://…). Nothing else is interpreted; unknown syntax stays literal text. Both clients
- * render the block tree this returns (the dashboard as HTML elements, the phone as native Text),
+ * render the block tree this returns (the Studio as HTML elements, the phone as native Text),
  * so the text is stored as plain Markdown and never as HTML.
  */
 

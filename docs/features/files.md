@@ -21,7 +21,7 @@ The desktop's explorer (epic #72): a project's shots, timelines, shooting days, 
 - **Where it is**: an icon on the desktop (Settings › Desktop › Recycle bin on the desktop; on by default), and always at the bottom of Files' side bar. Both are drop targets: files and folders dragged from Files go to the bin; a desktop shortcut dropped on the bin icon is only removed (never its target). The icon shows full or empty, moves like any icon (its spot is per browser, `localStorage["desktop.bin.<projectId>"]`) and its menu has Open and Empty the bin.
 - Open Timeline and Plan windows follow: a cut or day binned elsewhere leaves their list (the next one opens), a restored one comes back (`data.onTrash`).
 
-## Files app (`apps/dashboard/src/apps/FilesApp.tsx`, route `#/files/<folderId>`)
+## Files app (`apps/studio/src/apps/FilesApp.tsx`, route `#/files/<folderId>`)
 
 - **Left**: the folder tree under the project's name (expand with the chevrons; the open folder's path stays expanded), then **All files**: every shot, timeline, day, view, location or field, wherever it sits, with counts.
 - **Toolbar**: the path (each part is a link and a drop target), New folder (`⇧N`), search (this folder; tick **Subfolders** to search below it too, then each hit shows its folder; the match is marked in the name or the sub line, as in the command palette), sort, List · Grid (in the grid, long names and sub lines end in an ellipsis; hovering shows them whole).
@@ -35,7 +35,7 @@ The desktop's explorer (epic #72): a project's shots, timelines, shooting days, 
 - Keys (`files` scope): `/` search, `j`/`k` or arrows move, `Enter` open, `Backspace` or `Alt ↑` up a folder, `F2` rename, `Delete` to the bin, `⇧N` new folder ([shortcuts](../shortcuts.md)).
 - Files reads nothing of its own: it joins `/api/files` (loaded with the project) with the collections already loaded; timelines and days come from the same cached fetch as the inspector, refreshed when the Files window gets focus.
 
-## Desktop icons (`apps/dashboard/src/wm/Desktop.tsx`)
+## Desktop icons (`apps/studio/src/wm/Desktop.tsx`)
 
 - Icons dragged onto the taskbar are pinned there (they stay on the desktop too); see [desktop](desktop.md#taskbar-launcher-desktop).
 

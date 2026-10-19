@@ -170,7 +170,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
     return () => { cancelled = true; sub?.remove(); };
   }, [tabActive, locPerm?.granted, gpsMode]);
 
-  // The bars come from the chosen viewfinder layout (issue #49), or from the dashboard while it previews one (#50).
+  // The bars come from the chosen viewfinder layout (issue #49), or from the Studio while it previews one (#50).
   const vfLayout = app.layout;
   const inert = !!app.preview;
   const bars = portrait ? vfLayout.portrait : vfLayout.landscape;
@@ -288,7 +288,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
           full_frame_equivalent_mm: round(used.framing.fullFrameEquivalentMm),
           hfov_deg: round(used.framing.fov.horizontal),
           vfov_deg: round(used.framing.fov.vertical),
-          // Rig frame relative to the uploaded photo, centred. Lets the dashboard re-apply the mask.
+          // Rig frame relative to the uploaded photo, centred. Lets the Studio re-apply the mask.
           frame: { width_fraction: frame.width, height_fraction: frame.height },
           // Phone view the photo was taken with, so other rigs/lenses can be simulated on it later.
           phone_equivalent_focal_mm: round(usedPhoneMm),
@@ -467,7 +467,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   };
   const bar = (b: VfBar) => {
     const fixed = b.items.some((i) => i.control === "lens" && i.size !== "fit");
-    // In a dashboard preview the buttons only show where they would be: no capture, no toggles.
+    // In a Studio preview the buttons only show where they would be: no capture, no toggles.
     return <View key={b.id} pointerEvents={inert ? "none" : "auto"} style={[vertical ? s.barV : [s.row, { height: rowHeight(b) }], inert && s.inert]}>{b.items.map((i) => barItem(i, fixed))}</View>;
   };
   const sideBar = (b: VfBar, start: boolean, first: boolean) => {
@@ -478,7 +478,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
 
   const hud = (
     <View style={[s.hud, !portrait && { justifyContent: "center" }]} pointerEvents="box-none">
-      {inert && <HudChip icon="cellphone-play" kind="warn" onPress={app.exitPreview} label="Layout preview from the dashboard, buttons off. Tap to leave">Dashboard preview · buttons off · tap to leave</HudChip>}
+      {inert && <HudChip icon="cellphone-play" kind="warn" onPress={app.exitPreview} label="Layout preview from the Studio, buttons off. Tap to leave">Studio preview · buttons off · tap to leave</HudChip>}
       {project && chips.project && <HudChip icon="folder-outline" onPress={app.openProjectSheet} label={`Project ${project.name}, tap to switch`}>{project.name}</HudChip>}
       {!project && chips.warnings && <HudChip icon="folder-alert-outline" kind="danger" onPress={app.openProjectSheet} label="No project, tap to pick">No project</HudChip>}
       {rig && chips.rig && <HudChip icon="camera-outline">{rig.name} · {lensMm} mm{rig.speedboosterFactor !== 1 ? ` ×${rig.speedboosterFactor}` : ""}</HudChip>}

@@ -6,7 +6,7 @@ interface DeviceRow { id: string; user_id: string; name: string; specs: string; 
 const toApi = (r: DeviceRow) => ({ ...r, specs: JSON.parse(r.specs) as DeviceSpecs });
 
 /**
- * Device specs (issue #68). Created by the dashboard from a phone's readout, then kept current by the
+ * Device specs (issue #68). Created by the Studio from a phone's readout, then kept current by the
  * phone itself (its calibration and measured sizes); the id is the phone's own, so both write the same row.
  * A device is its user's: lists and deletes see only your own.
  */
@@ -18,7 +18,7 @@ export function registerDeviceRoutes(r: Router<Ctx>) {
 
   /**
    * JSON { name?, specs }. Upsert, specs checked strictly. `name` is required to create a device (the
-   * dashboard names it); the phone's updates leave it out and keep the stored one.
+   * Studio names it); the phone's updates leave it out and keep the stored one.
    * The id is the phone's, so a phone signed in to another account writes a row someone else has:
    * the phone has one current user, so the row becomes theirs and the old owner's layouts let go of it.
    */

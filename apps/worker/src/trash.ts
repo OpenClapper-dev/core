@@ -14,7 +14,7 @@ import { ownedBy } from "./timelines.ts";
  * daily cron once they are TRASH_RETENTION_DAYS old.
  *
  * What is not kept while binned: a shot's clips on timelines and its places on shooting days.
- * Timelines and days are saved whole by the dashboard, so hidden rows would be dropped by their
+ * Timelines and days are saved whole by the Studio, so hidden rows would be dropped by their
  * next save anyway; removing them at once keeps that honest (docs/features/files.md).
  */
 

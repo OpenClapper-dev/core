@@ -252,7 +252,7 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
         <div class="f-sec">
           <div class="f-sec__head"><Icon name="camera-outline" />Camera{shot.photos.length > 1 ? ` · photo ${photo.ordinal + 1} of ${shot.photos.length}` : ""}</div>
           {sourceLabel(photo) ? (
-            <dl class="f-facts"><dt>Source</dt><dd>{sourceLabel(photo)} · made on the dashboard, no rig or lens</dd>{photo.width && photo.height ? <><dt>Size</dt><dd>{photo.width} × {photo.height} px</dd></> : null}</dl>
+            <dl class="f-facts"><dt>Source</dt><dd>{sourceLabel(photo)} · made in the Studio, no rig or lens</dd>{photo.width && photo.height ? <><dt>Size</dt><dd>{photo.width} × {photo.height} px</dd></> : null}</dl>
           ) : (
           <dl class="f-facts">
             <dt>Rig</dt><dd>{[photo.preset_name ?? (f.preset_name as string | undefined) ?? "deleted / unsynced", rigDescription(photo)].filter(Boolean).join(" · ")}</dd>

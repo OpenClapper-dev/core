@@ -1,7 +1,7 @@
 /**
  * Folders and desktop shortcuts (epic #72): the resource types that are "files", the apps a
  * desktop shortcut may open, and the shape a desktop item must have. The Worker validates with
- * these; the dashboard's Files app and desktop render with them.
+ * these; the Studio's Files app and desktop render with them.
  */
 
 /** Resources that can sit in a folder or on the desktop. Rigs, layouts and devices are global: they are apps, not files. */
@@ -11,7 +11,7 @@ export type FileResourceType = (typeof FILE_RESOURCE_TYPES)[number];
 export const DESKTOP_ITEM_KINDS = ["resource", "folder", "app"] as const;
 export type DesktopItemKind = (typeof DESKTOP_ITEM_KINDS)[number];
 
-/** Every app of the dashboard desktop (the shell's registry uses the same ids). */
+/** Every app of the Studio desktop (the shell's registry uses the same ids). */
 export const APP_IDS = ["gallery", "shot", "timeline", "plan", "metadata", "files", "projects", "fields", "rigs", "locations", "viewfinder", "settings", "trash"] as const;
 export type AppIdV = (typeof APP_IDS)[number];
 

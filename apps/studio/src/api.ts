@@ -23,7 +23,7 @@ export interface Photo {
   height: number | null;
   framing: Record<string, unknown> | null;
   device: Record<string, unknown> | null;
-  /** camera = captured on the phone (rig framing); upload / drawn = made on the dashboard, no rig or lens (lens_mm 0). */
+  /** camera = captured on the phone (rig framing); upload / drawn = made in the Studio, no rig or lens (lens_mm 0). */
   source: PhotoSource;
   /** Saved re-framings (issue #29), in order. */
   framings: Framing[];
@@ -162,7 +162,7 @@ export interface ServerBuild { version: string; commit: string }
 /** Which version the server runs (public, no session needed). */
 export const fetchServerBuild = () => get<ServerBuild & { ok: true }>("/api/ping");
 
-/** The signed-in user, or null when nobody is (no 401 handling: this is how the dashboard finds out). */
+/** The signed-in user, or null when nobody is (no 401 handling: this is how the Studio finds out). */
 export async function fetchMe(): Promise<Me | null> {
   const res = await fetch("/api/me", { headers: { accept: "application/json" }, credentials: "same-origin" });
   if (res.status === 401) return null;
@@ -172,7 +172,7 @@ export async function fetchMe(): Promise<Me | null> {
 
 /** Signs in; the session comes back as an HttpOnly cookie. A wrong password is an ApiError with the server's message. */
 export async function signIn(email: string, password: string): Promise<void> {
-  const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, credentials: "same-origin", body: JSON.stringify({ email, password, client: "dashboard" }) });
+  const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, credentials: "same-origin", body: JSON.stringify({ email, password, client: "studio" }) });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: string } | null;
     throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`, body);
@@ -280,7 +280,7 @@ export const putPreset = (p: Omit<Preset, "created_at" | "updated_at">) =>
   }).then((r) => r.preset);
 export const deletePreset = (id: string) => send<{ deleted: string }>("DELETE", `/api/presets/${id}`).then(() => undefined);
 
-/** A shot made on the dashboard (issue #27): images uploaded or drawn here, sent like a phone upload. */
+/** A shot made in the Studio (issue #27): images uploaded or drawn here, sent like a phone upload. */
 export interface NewShotPhoto { id: string; blob: Blob; width: number; height: number; source: "upload" | "drawn"; timestamp: string }
 export async function createShot(m: { id: string; project_id: string; name: string | null; location_id: string | null; state: ShotState; description: string | null }, photos: NewShotPhoto[]): Promise<Shot> {
   const form = new FormData();
@@ -321,7 +321,7 @@ export const patchPhotoPosition = (id: string, lat: number, lon: number, allInSh
 export const fetchOverlay = (id: string) => get<{ overlay: Overlay & { drawing: Drawing } }>(`/api/overlays/${id}`).then((r) => r.overlay);
 export const fetchSketch = (id: string) => get<{ sketch: Sketch & { drawing: Drawing } }>(`/api/sketches/${id}`).then((r) => r.sketch);
 
-/** Multipart save: the metadata JSON plus the flattened render the dashboard produced. */
+/** Multipart save: the metadata JSON plus the flattened render the Studio produced. */
 async function putComposed<T>(path: string, metadata: unknown, render: Blob | null): Promise<T> {
   const form = new FormData();
   form.append("metadata", JSON.stringify(metadata));

@@ -6,7 +6,7 @@ import { accessIfExists, assertAccess, type Access } from "./tenancy.ts";
 
 /**
  * Overlays (a drawing + look over one photo) and sketches (a free canvas on a shot), issue #12.
- * The dashboard owns them: it edits the vector JSON and uploads a flattened render with every
+ * The Studio owns them: it edits the vector JSON and uploads a flattened render with every
  * save, which is what the phone shows. Shots embed both lists without the drawing
  * (`composeFor`); the drawing comes with GET /api/overlays/:id and /api/sketches/:id.
  *

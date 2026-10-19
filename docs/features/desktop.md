@@ -1,6 +1,6 @@
-# Dashboard desktop
+# Studio desktop
 
-The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files on it, apps in windows, a taskbar. It replaced the sidebar shell designed in Claude Design (2026-09-28; exports in the gitignored `references/dashboard/`), whose pages now live inside the windows unchanged.
+The Studio is a desktop scoped to one project (epic #72, 2026-10-16): files on it, apps in windows, a taskbar. It replaced the sidebar shell designed in Claude Design (2026-09-28; exports in the gitignored `references/dashboard/`), whose pages now live inside the windows unchanged.
 
 ## Startup and projects
 
@@ -36,7 +36,7 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
   - **Pins** are apps, folders and files, stored on the server as desktop items in the taskbar area, ordered by `position` (epic #90), so they follow to another browser. An app's pin is also the button of its windows: a bar under it while one is open, a number with several (click lists them). A folder or file pin opens it. Pin from the launcher or a window's menu (apps), by dragging rows from Files or icons from the desktop onto the taskbar (anything; dropped between pins it lands there), and reorder by dragging pins. Right-click a pin: its windows, Open, Unpin, Close.
   - A project's first taskbar gets the pins this browser had before they moved to the server (`v: 1` layouts kept them locally), else Gallery, Timeline, Plan and Files (`localStorage["taskbar.seeded.<projectId>"]`).
 - **Launcher** (`wm/Launcher.tsx`): every app; right-click pins one to the taskbar (or unpins it).
-- **Desktop** (`wm/Desktop.tsx`): the files and folders of the project's Desktop folder, shortcuts to apps, folders and files elsewhere ([files](files.md#desktop-icons-appsdashboardsrcwmdesktoptsx)), and the recycle bin icon (unless Settings › Desktop hides it). Icons sit on a grid without overlapping; rubber band, Ctrl/Shift-click and group drags as on Windows. Clicking the empty desktop takes focus away from the windows (the URL shows `#/`); right-click for New folder, New shortcut…, Arrange icons, Settings and the theme.
+- **Desktop** (`wm/Desktop.tsx`): the files and folders of the project's Desktop folder, shortcuts to apps, folders and files elsewhere ([files](files.md#desktop-icons-appsstudiosrcwmdesktoptsx)), and the recycle bin icon (unless Settings › Desktop hides it). Icons sit on a grid without overlapping; rubber band, Ctrl/Shift-click and group drags as on Windows. Clicking the empty desktop takes focus away from the windows (the URL shows `#/`); right-click for New folder, New shortcut…, Arrange icons, Settings and the theme.
 - **Global overlays** (`wm/overlays.ts`): Go to… (⌘K), the shortcut sheet (`?`) and New shot open above every window, from any app; confirmations, prompts and toasts too (`confirmDialog`, `promptDialog`, `toast` in `ui/`; no `window.confirm`/`alert`).
 
 ## Apps (`apps/registry.ts`)
@@ -47,7 +47,7 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 | Shot | `apps/ShotApp.tsx` + `ShotView.tsx`, `Inspector.tsx`, `RigExplorer.tsx`, `PositionEditor.tsx`, `compose/` | One shot per window. See [review and tagging](review-and-tagging.md) and [compose](compose.md). |
 | Timeline | `apps/TimelineApp.tsx` + `Timeline.tsx` | [Timelines](timeline.md): rough cuts with hold times and playback |
 | Plan | `apps/PlanApp.tsx` + `Plan.tsx` | [Shooting days](schedule.md) |
-| Metadata | `apps/MetadataApp.tsx` + `MetadataPage.tsx` | Sort shots into one field's values by drag and drop (issue #42). See [review and tagging](review-and-tagging.md#metadata-board-dashboard). |
+| Metadata | `apps/MetadataApp.tsx` + `MetadataPage.tsx` | Sort shots into one field's values by drag and drop (issue #42). See [review and tagging](review-and-tagging.md#metadata-board-studio). |
 | Files | `apps/FilesApp.tsx` | Folders and files of the project ([files](files.md)) |
 | Projects | `apps/LibraryApps.tsx` + `Projects.tsx` | [Projects](projects.md): list with counts, detail with name, notes and ordered extra fields |
 | Fields | `apps/LibraryApps.tsx` + `Fields.tsx` | [Extra fields](extra-fields.md): list, JSON editor, live preview |
@@ -56,7 +56,7 @@ The dashboard is a desktop scoped to one project (epic #72, 2026-10-16): files o
 | Locations | `apps/LibraryApps.tsx` + `Locations.tsx` | Filterable table, inline rename (F2), the pin (Set position `P`, see [positions](positions.md)), counts that open the Gallery filtered to the location, delete |
 | Viewfinder layouts | `apps/LibraryApps.tsx` + `ViewfinderLayouts.tsx` | [Viewfinder layouts](viewfinder-layouts.md); the signed-in user's own, shared by all projects |
 | Recycle bin | `apps/TrashApp.tsx`, `apps/trashOps.ts` | What was deleted in the project: restore, delete permanently, empty ([files](files.md#recycle-bin-epic-90)) |
-| Settings | `apps/SettingsApp.tsx` + `SettingsPage.tsx`, `settings.ts` | Preferences saved on change, per browser (`localStorage["settings"]`; theme and frame mode keep their own keys): theme, default frame mode, the recycle bin on the desktop, the review state of shots made with New shot (Approved by default), and Timeline → the playhead while a clip is edited inline and what Remove takes on a sequence block's clip. **About**: this dashboard's version and commit next to the server's (`/api/ping`; they differ while a tab still has an older bundle), a link to the release notes. Also `#/settings/shortcuts`. |
+| Settings | `apps/SettingsApp.tsx` + `SettingsPage.tsx`, `settings.ts` | Preferences saved on change, per browser (`localStorage["settings"]`; theme and frame mode keep their own keys): theme, default frame mode, the recycle bin on the desktop, the review state of shots made with New shot (Approved by default), and Timeline → the playhead while a clip is edited inline and what Remove takes on a sequence block's clip. **About**: this Studio's version and commit next to the server's (`/api/ping`; they differ while a tab still has an older bundle), a link to the release notes. Also `#/settings/shortcuts`. |
 
 An app is a thin wrapper: it reads the shared data store (`data.ts`: one copy for every window, so an edit in one shows in all), keeps what the old `App.tsx` held for its page, reports its title and route, and opens other apps (`open`). The frame mode is one value for every window (`frameMode.ts`, `localStorage["maskMode"]`); a shot window may change its own while it is open.
 
@@ -91,12 +91,12 @@ An app is a thin wrapper: it reads the shared data store (`data.ts`: one copy fo
 Every shortcut is declared once in the registry `src/shortcuts.ts` (issue #32): scope, action, keys and label. Pages bind handlers by action (`useKeys(bind("timeline", { next, play, … }))` in `keys.ts`), so no page writes a key string. The `?` sheet, **Settings › Shortcuts** (`#/settings/shortcuts`, read-only, no rebinding yet) and [docs/shortcuts.md](../shortcuts.md) are rendered from it. There is no key hint bar on the desktop.
 
 - Single keys never fire while typing in a field. Plain letters step aside for 1.2 s after `G`, so `G T` on Plan or `G P` on the Timeline or Locations jumps instead of acting on the page (they used to collide).
-- Each scope lists the scopes live with it in one window (`SCOPES[id].with`); `global` and `wm` are live next to every scope. `pnpm -C apps/dashboard test` fails when a key does two things there, and when docs/shortcuts.md drifts. The drawing and re-frame editors on the timeline stage and the rig editor are modal: the page's keys pause while they are open.
+- Each scope lists the scopes live with it in one window (`SCOPES[id].with`); `global` and `wm` are live next to every scope. `pnpm -C apps/studio test` fails when a key does two things there, and when docs/shortcuts.md drifts. The drawing and re-frame editors on the timeline stage and the rig editor are modal: the page's keys pause while they are open.
 - The audit's changes: Shots list bulk edit is `B` (`E` archives everywhere else); on the Timeline `A`/`E` act on the clip's shot while the clip panel shows, on the browser's selection while the browser does (separate scopes, so `D` and Del only work with the clip panel open, as before).
 
 ## Shared pieces
 
-- `ui/`: the component library; pages build from it instead of writing `f-*` markup ([design](../design.md#dashboard-component-library)).
+- `ui/`: the component library; pages build from it instead of writing `f-*` markup ([design](../design.md#web-component-library)).
 - `Framed.tsx`: a photo with its frame (optional frame override), also used in the map popup; `FramedThumb` is the map list's thumbnail.
 - `format.ts`: `cover`, labels, frame geometry, `filterable(shot)`. `api.ts`: types and calls; a `401` reloads the page (Access login).
-- Styles: design-system tokens and component classes in `packages/ui/src/design/*.css` (the rework's additions, such as toolbar, panels, tables, stage, plan grid, palette and JSON editor, are in `design/dashboard.css`; the library's own additions in `design/components.css`); the desktop's windows, taskbar and icons in `src/wm/desktop.css`, page layouts in `styles.css`. See [design](../design.md).
+- Styles: design-system tokens and component classes in `packages/ui/src/design/*.css` (the rework's additions, such as toolbar, panels, tables, stage, plan grid, palette and JSON editor, are in `design/studio.css`; the library's own additions in `design/components.css`); the desktop's windows, taskbar and icons in `src/wm/desktop.css`, page layouts in `styles.css`. See [design](../design.md).

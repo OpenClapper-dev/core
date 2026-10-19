@@ -7,7 +7,7 @@
 .f-sheet__done{min-width:72px;height:48px;padding:0 14px;border:0;border-radius:8px;background:transparent;color:var(--accent);font:var(--weight-bold) 17px/1 var(--font-sans);cursor:pointer}
 .f-sheet__done:active,.f-sheet__done.is-pressed{background:var(--accent-tint)}
 .f-sheet__body{padding:16px 20px 24px;overflow:auto;display:flex;flex-direction:column;gap:18px}
-/* Modal dialog (dashboard) */
+/* Modal dialog (web) */
 .f-modal{position:relative;background:var(--surface);color:var(--text);border:var(--bw) solid var(--border-strong);border-radius:var(--radius-lg);box-shadow:var(--elev-3);display:flex;flex-direction:column;max-width:100%;overflow:hidden}
 .f-modal__head{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 20px;border-bottom:var(--bw) solid var(--border-subtle)}
 .f-modal__title{font:var(--weight-bold) var(--text-title)/1.2 var(--font-sans);margin:0;flex:1}

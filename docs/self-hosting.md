@@ -1,6 +1,6 @@
 # Self-hosting
 
-Fielder runs entirely on your own Cloudflare account: one Worker serves the API and the dashboard, a second one the admin plane, D1 holds the data, R2 the photos. Nothing calls home, and nothing is shared between instances. You pay Cloudflare for what you use (the free plan goes a long way for a crew, see [the free plan](#the-free-plan)).
+Fielder runs entirely on your own Cloudflare account: one Worker serves the API and the Studio, a second one the admin plane, D1 holds the data, R2 the photos. Nothing calls home, and nothing is shared between instances. You pay Cloudflare for what you use (the free plan goes a long way for a crew, see [the free plan](#the-free-plan)).
 
 ## What you need
 
@@ -38,7 +38,7 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
 - **GitHub**: Actions → Deploy → Run workflow. The first run:
   1. creates the D1 database and the R2 bucket;
   2. applies every migration;
-  3. builds the dashboard;
+  3. builds the Studio;
   4. deploys the app Worker;
   5. deploys the admin plane (locked until step 4).
 
@@ -73,11 +73,11 @@ Open the admin plane, add an account under Accounts → New account, and pass on
 node scripts/user.mjs --email you@example.com --name "You" --remote
 ```
 
-Sign in on the dashboard with it. There is no public sign-up; every account is made this way.
+Sign in to the Studio with it. There is no public sign-up; every account is made this way.
 
 ## Updating
 
-Releases are tags `vX.Y.Z` with release notes on GitHub ([releasing](releasing.md)). Bring your copy up to the new tag (merge it), then run Deploy, then Build APK. Migrations only ever add (they never delete data), and the workflow applies them before the new code goes live. Settings › General › About in the dashboard shows which version runs.
+Releases are tags `vX.Y.Z` with release notes on GitHub ([releasing](releasing.md)). Bring your copy up to the new tag (merge it), then run Deploy, then Build APK. Migrations only ever add (they never delete data), and the workflow applies them before the new code goes live. Settings › General › About in the Studio shows which version runs.
 
 ## The phone
 

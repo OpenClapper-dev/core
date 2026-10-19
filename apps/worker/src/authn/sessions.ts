@@ -1,10 +1,11 @@
 /**
  * Sessions (epic #107): an opaque random token, stored only as its SHA-256. One mechanism, two
- * transports: the phone (and its websocket) sends `Authorization: Bearer <token>`, the dashboard
+ * transports: the phone (and its websocket) sends `Authorization: Bearer <token>`, the Studio
  * an HttpOnly cookie. Revoking or blocking takes effect on the next request, which a signed JWT
  * could not do.
  */
 
+/** `dashboard` = the Studio: the value `sessions.client` has held since migration 0021 (kept, not migrated). */
 export type SessionClient = "dashboard" | "mobile";
 
 export const COOKIE = "fielder_session";

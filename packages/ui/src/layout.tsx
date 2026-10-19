@@ -1,5 +1,5 @@
 /**
- * The dashboard shell's building blocks (dashboard.css, the rework's additions to the design
+ * The Studio shell's building blocks (studio.css, the rework's additions to the design
  * system): toolbars above a page and side panels next to it.
  */
 import type { ComponentChildren, JSX } from "preact";

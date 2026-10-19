@@ -10,10 +10,10 @@
   "alias": { "@fielder/auth-provider": "./src/authn/first-party.ts" },
   // Daily at 03:17 UTC: purge what has been in the recycle bin for 30 days (trash.ts).
   "triggers": { "crons": ["17 3 * * *"] },
-  // Web dashboard (apps/dashboard) served as static assets from the same hostname, so the
+  // The Studio (apps/studio) served as static assets from the same hostname, so the
   // session cookie covers both UI and API.
   "assets": {
-    "directory": "../dashboard/dist",
+    "directory": "../studio/dist",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/health"]
   },

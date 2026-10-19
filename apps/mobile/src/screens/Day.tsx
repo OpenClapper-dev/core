@@ -52,7 +52,7 @@ export function windowFit(planned: Date | null, w: Interval[]): "inside" | "befo
 type OfflineState = "none" | "saving" | "saved" | "stale" | "error";
 
 /**
- * Shooting days planned in the dashboard for the active project. Opens on today when a day is
+ * Shooting days planned in the Studio for the active project. Opens on today when a day is
  * planned for today. A day can be saved offline (its shots and photos); without a connection the
  * tab shows only the saved days.
  */
@@ -146,7 +146,7 @@ export function Day() {
           renderSectionHeader={({ section }) => <SectionHeading>{section.title}</SectionHeading>}
           ListEmptyComponent={failed
             ? <Empty icon="cloud-off-outline" title="Nothing saved offline" body="Make a day available offline while you have a connection." />
-            : <Empty icon="calendar-blank-outline" title="No shooting days yet" body="Plan them in the dashboard (Plan). They show up here with their light and shots." />}
+            : <Empty icon="calendar-blank-outline" title="No shooting days yet" body="Plan them in the Studio (Plan). They show up here with their light and shots." />}
           renderItem={({ item }) => {
             const st = stateOf(item);
             const locs = new Set(shotsFor(item).map((x) => x.location_id ?? "none")).size;
@@ -300,7 +300,7 @@ function DayOverview({ day, shots, offlineCopy, onBack, onStart, state, progress
           {!!day.notes && <Text style={s.notes}><Text style={{ fontFamily: type("small", "bold").fontFamily }}>Notes · </Text>{day.notes}</Text>}
           {!offlineCopy && <OfflineControl state={state} progress={progress} savedAt={savedAt} canSave={canSave} onMake={onMakeOffline} onRemove={onRemove} />}
         </View>
-        {shots.length === 0 && <Empty icon="image-off-outline" title="No shots on this day" body={day.shots.length ? "Its shots aren't loaded on the phone." : "Add shots in the dashboard (Plan)."} />}
+        {shots.length === 0 && <Empty icon="image-off-outline" title="No shots on this day" body={day.shots.length ? "Its shots aren't loaded on the phone." : "Add shots in the Studio (Plan)."} />}
         {groups.map((g, gi) => {
           const gw = g.items.flatMap((x) => shootableWindows(light, x.shot.light));
           return (

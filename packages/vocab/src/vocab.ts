@@ -1,6 +1,6 @@
 /**
  * Shared vocabularies for shot metadata. Stored values are the lowercase ids;
- * `label()` gives the display string. Worker, mobile app and dashboard all import this.
+ * `label()` gives the display string. Worker, mobile app and Studio all import this.
  */
 
 /**
@@ -20,7 +20,7 @@ export type IntExt = (typeof INT_EXT)[number];
 
 export const SHOT_STATES = ["unreviewed", "approved", "archived"] as const;
 
-/** Where a photo comes from: the phone camera (with rig framing), an uploaded image, or a sketch drawn on the dashboard. */
+/** Where a photo comes from: the phone camera (with rig framing), an uploaded image, or a sketch drawn in the Studio. */
 export const PHOTO_SOURCES = ["camera", "upload", "drawn"] as const;
 export type PhotoSource = (typeof PHOTO_SOURCES)[number];
 
@@ -83,7 +83,7 @@ export const STATE_COLORS: Record<ShotState, string> = {
 };
 
 /**
- * Material Design Icons names, identical on both clients (MDI webfont on the dashboard,
+ * Material Design Icons names, identical on both clients (MDI webfont in the Studio,
  * MaterialCommunityIcons on the phone). State and phase are never shown by colour alone.
  */
 export const STATE_ICONS: Record<ShotState, string> = { unreviewed: "circle-half-full", approved: "check-circle", archived: "archive" };

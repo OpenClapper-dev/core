@@ -15,7 +15,7 @@ export function useLayoutSize(): [{ width: number; height: number }, (e: LayoutC
   return [box, onLayout];
 }
 
-/** Material Design Icons, same names as the dashboard (shared ones are in @fielder/vocab). */
+/** Material Design Icons, same names as the Studio (shared ones are in @fielder/vocab). */
 export function Icon({ name, size = SIZE.icon, color }: { name: string; size?: number; color?: string }) {
   const { c } = useTheme();
   return <MaterialCommunityIcons name={name as ComponentProps<typeof MaterialCommunityIcons>["name"]} size={size} color={color ?? c.text} />;
