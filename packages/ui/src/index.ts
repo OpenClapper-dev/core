@@ -32,3 +32,4 @@ export * from "./hooks";
 export * from "./Markdown";
 export * from "./theme";
 export * from "./motion";
+export * from "./Presence";

@@ -86,7 +86,8 @@ Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone 
 | `data.tsx` | `ListRow`, `MenuItem`, `StateMarker`, `SeqBadge`, `ProjectTag` |
 | `feedback.tsx` | `Banner`, `Empty` (a whole page), `EmptyNote` (inside a list), `Loading`, `Spinner`, `ProgressBar`, `ErrorLine`, `SaveStatus`, `toast`/`ToastHost` |
 | `Markdown.tsx` | `MarkdownView` (rendered description), `MarkdownField` (textarea + formatting toolbar + Write · Preview) |
-| `overlays.tsx` | `Overlay`, `Modal`, `Popover`, `confirmDialog`/`promptDialog`/`ConfirmHost` |
+| `overlays.tsx` | `Overlay`, `Modal`, `Popover`, `confirmDialog`/`promptDialog`/`ConfirmHost`; `Overlay` focuses the first `autofocus` field itself (Chrome ignores the attribute on inserted elements while something has focus) |
+| `Presence.tsx` | `Presence`: keeps a modal-like overlay mounted while it fades out ([Motion](#motion)) |
 | `layout.tsx` | `Toolbar`, `ToolbarTitle`, `ToolbarSpacer`, `Panel`, `PanelHead`, `PanelBody`, `PanelFoot` |
 | `hooks.ts` | `useOutsideClick` |
 | `theme.ts` | `useTheme`, `getTheme`, `setTheme`, and the theme button's `THEME_CYCLE`, `THEME_LABEL`, `THEME_ICON` |
