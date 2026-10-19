@@ -246,6 +246,8 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
             const k = rowKey(r);
             const isFolder = r.kind === "folder";
             const e = r.kind === "file" ? r.entry : null;
+            const name = isFolder ? r.folder.name : e!.name;
+            const sub = isFolder ? (r.folder.kind === "desktop" ? "What is on the desktop" : "Folder") : e!.sub;
             return (
               <div key={k} data-key={k} role="option" aria-selected={sel.has(k)} tabIndex={-1}
                 class={cx("files-row", sel.has(k) && "is-selected", e?.archived && "is-archived", dropOn === k && "is-drop")}
@@ -255,8 +257,8 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
                   {e?.thumb ? <img src={e.thumb.image_url} alt="" loading="lazy" /> : <Icon name={isFolder ? folderIcon(r.folder) : FILE_TYPE_META[e!.type].icon} size={layout === "grid" ? 36 : 20} />}
                 </span>
                 <span class="files-row__main">
-                  <b>{isFolder ? r.folder.name : e!.name}</b>
-                  <small>{isFolder ? (r.folder.kind === "desktop" ? "What is on the desktop" : "Folder") : e!.sub}</small>
+                  <b title={name}>{name}</b>
+                  <small title={sub}>{sub}</small>
                 </span>
                 {layout === "list" && <span class="files-row__type">{isFolder ? "Folder" : FILE_TYPE_META[e!.type].label}{e?.archived ? " · archived" : ""}</span>}
                 {layout === "list" && <span class="files-row__date num">{e ? when(e.date) : ""}</span>}
