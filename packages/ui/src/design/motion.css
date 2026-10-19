@@ -1,0 +1,12 @@
+/*
+ * Motion (epic #156; rules in docs/design.md "Motion"). Everything that moves lives here, so the
+ * files copied from the design export stay as exported. Durations come from the tokens in
+ * spacing.css; reduced motion zeroes them, so transitions become instant while meaningful
+ * keyframes (spinner, skeleton) keep running.
+ */
+:root { --ease-in: cubic-bezier(.4, 0, 1, 1); /* exits: start slow, leave fast */ }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
+  .wm-icon.is-flash { animation-iteration-count: 1; }
+}
