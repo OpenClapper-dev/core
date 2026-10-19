@@ -72,6 +72,10 @@ export async function signIn(email: string, password: string): Promise<void> {
   setSession({ token: body.token, email: body.user.email, userId: body.user.id });
 }
 
+/** Changes the signed-in user's password (issue #148); every other session of the account ends, this one stays. A wrong current password is a 403. */
+export const changePassword = (current: string, password: string) =>
+  call<null>("/api/auth/password", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ current, password }) });
+
 /** Ends the session on the server (best effort: offline, the token just stays unused) and on the phone. */
 export async function signOut(): Promise<void> {
   const session = getSession();

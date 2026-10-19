@@ -25,6 +25,7 @@ export type Route =
   | { name: "captureSettings" }
   | { name: "calibration" }
   | { name: "account" }
+  | { name: "password" }
   | { name: "debugLog" };
 
 export type ShotsView = "grid" | "map";

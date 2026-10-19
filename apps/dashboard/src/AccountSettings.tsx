@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { deleteMember, fetchMembers, fetchWorkspaces, putMember, putProject, putWorkspace, type Member, type Workspace, type WorkspaceRole } from "./api";
+import { changePassword, deleteMember, fetchMembers, fetchWorkspaces, putMember, putProject, putWorkspace, type Member, type Workspace, type WorkspaceRole } from "./api";
 import * as data from "./data";
-import { Button, confirmDialog, ErrorLine, Icon, IconButton, Input, Loading, ProjectTag, promptDialog, Select, toast } from "./ui";
+import { Button, confirmDialog, ErrorLine, Field, Icon, IconButton, Input, Loading, Modal, PasswordInput, ProjectTag, promptDialog, Select, toast } from "./ui";
 import { boot, signOut, useUser } from "./user";
 
 const RANK: Record<WorkspaceRole, number> = { viewer: 0, editor: 1, admin: 2, owner: 3 };
@@ -26,6 +26,7 @@ function canManage(mine: WorkspaceRole, from: WorkspaceRole | null, to: Workspac
 export function AccountSettings() {
   const user = useUser();
   const [list, setList] = useState<Workspace[] | null>(null);
+  const [changing, setChanging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const load = () => fetchWorkspaces().then((w) => { setList(w); setError(null); }).catch((e: Error) => setError(e.message));
   useEffect(() => { void load(); }, []);
@@ -46,6 +47,10 @@ export function AccountSettings() {
           <div><strong>{me.name ?? me.email}</strong><span class="meta">{me.name ? `${me.email} · ` : ""}Signed in on this browser. Accounts are made by an administrator of this Fielder.</span></div>
           <div><Button kind="secondary" icon="logout" onClick={() => void signOut()}>Sign out</Button></div>
         </div>
+        <div class="settings__row">
+          <div><strong>Password</strong><span class="meta">Change the one you were given. Every other browser and phone signed in to your account is signed out.</span></div>
+          <div><Button kind="secondary" icon="form-textbox-password" onClick={() => setChanging(true)}>Change password</Button></div>
+        </div>
       </section>
       <section class="settings__sec">
         <h2><Icon name="account-group-outline" />Workspaces</h2>
@@ -57,7 +62,47 @@ export function AccountSettings() {
         {!list && !error && <div class="settings__row"><Loading /></div>}
         {list?.map((w) => <WorkspaceRow key={w.id} ws={w} meId={me.id} onChanged={() => void load()} />)}
       </section>
+      {changing && <PasswordDialog email={me.email} onClose={() => setChanging(false)} />}
     </div>
+  );
+}
+
+/** Change password (issue #148): the current one, the new one twice. The hidden username lets password managers file the new one. */
+function PasswordDialog({ email, onClose }: { email: string; onClose: () => void }) {
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const mismatch = again !== "" && again !== next;
+  const short = next !== "" && next.length < 10;
+  const ready = !!current && next.length >= 10 && next === again && !busy;
+  const save = async () => {
+    if (!ready) return;
+    setBusy(true);
+    try {
+      await changePassword(current, next);
+      toast("Password changed. Other sessions are signed out.");
+      onClose();
+    } catch (e) { setError((e as Error).message); setBusy(false); }
+  };
+  return (
+    <Modal title="Change password" width="min(440px, 94vw)" onClose={onClose} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } }}>
+      <form onSubmit={(e) => { e.preventDefault(); void save(); }}>
+        <div class="f-modal__body" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <input type="text" autocomplete="username" value={email} readOnly hidden />
+          <Field label="Current password"><PasswordInput autoFocus autocomplete="current-password" value={current} disabled={busy} onInput={(e) => setCurrent((e.target as HTMLInputElement).value)} /></Field>
+          <Field label="New password" help={short ? undefined : "At least 10 characters."} error={short ? "Too short: at least 10 characters." : null}><PasswordInput invalid={short} autocomplete="new-password" value={next} disabled={busy} onInput={(e) => setNext((e.target as HTMLInputElement).value)} /></Field>
+          <Field label="New password again" error={mismatch ? "Not the same as above." : null}><PasswordInput invalid={mismatch} autocomplete="new-password" value={again} disabled={busy} onInput={(e) => setAgain((e.target as HTMLInputElement).value)} /></Field>
+          {error && <ErrorLine>{error}</ErrorLine>}
+        </div>
+        <div class="f-modal__foot">
+          <span class="f-grow" />
+          <Button kind="ghost" kbd="Esc" onClick={onClose}>Cancel</Button>
+          <Button type="submit" icon="check" disabled={!ready}>Change password</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

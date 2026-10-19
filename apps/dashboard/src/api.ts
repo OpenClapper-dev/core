@@ -179,6 +179,8 @@ export async function signIn(email: string, password: string): Promise<void> {
   }
 }
 export const signOut = () => fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).then(() => undefined);
+/** Changes the signed-in user's password (issue #148); every other session of the account ends. A wrong current password is a 403. */
+export const changePassword = (current: string, password: string) => send<null>("POST", "/api/auth/password", { current, password });
 
 export const fetchWorkspaces = () => get<{ workspaces: Workspace[] }>("/api/workspaces").then((r) => r.workspaces);
 export const putWorkspace = (id: string, name: string) => send<{ workspace: { id: string; name: string } }>("PUT", `/api/workspaces/${id}`, { name });

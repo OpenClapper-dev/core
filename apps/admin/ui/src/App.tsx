@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { Button, ConfirmHost, confirmDialog, Empty, Icon, Input, Loading, Mark, ProjectTag, toast, ToastHost } from "../../../dashboard/src/ui";
+import { Button, ConfirmHost, confirmDialog, Empty, ErrorLine, Field, Icon, Input, Loading, Mark, Modal, ProjectTag, toast, ToastHost } from "../../../dashboard/src/ui";
 import { createUser, deleteUser, fetchOverview, fetchUsers, fetchWorkspaces, patchUser, resetPassword, whoami, type AdminUser, type AdminWorkspace, type Overview } from "./api";
 
 const bytes = (n: number) => (n < 1024 ** 2 ? `${Math.round(n / 1024)} KB` : n < 1024 ** 3 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${(n / 1024 ** 3).toFixed(2)} GB`);
@@ -68,6 +68,7 @@ function Section({ icon, title, action, children }: { icon: string; title: strin
 function Users({ users, act }: { users: AdminUser[]; act: (fn: () => Promise<unknown>, ok?: string) => Promise<void> }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
+  const [editing, setEditing] = useState<AdminUser | null>(null);
   const create = () => act(async () => {
     const r = await createUser(email.trim(), name.trim() || null);
     setEmail(""); setName("");
@@ -108,6 +109,7 @@ function Users({ users, act }: { users: AdminUser[]; act: (fn: () => Promise<unk
                 <td class="num">{u.workspaces}</td>
                 <td>{day(u.created_at)}</td>
                 <td class="admin-table__act">
+                  <Button size="sm" kind="ghost" icon="pencil-outline" onClick={() => setEditing(u)}>Edit</Button>
                   <Button size="sm" kind="ghost" icon="key-variant" onClick={() => void reset(u)}>Password</Button>
                   <Button size="sm" kind="ghost" icon={u.status === "active" ? "block-helper" : "check-circle-outline"} onClick={() => void block(u)}>{u.status === "active" ? "Block" : "Unblock"}</Button>
                   <Button size="sm" kind="danger" icon="delete-outline" onClick={() => void remove(u)}>Delete</Button>
@@ -117,7 +119,41 @@ function Users({ users, act }: { users: AdminUser[]; act: (fn: () => Promise<unk
           </tbody>
         </table>
       </div>
+      {editing && <EditUser user={editing} onSaved={(email) => { setEditing(null); void act(async () => {}, `Saved ${email}`); }} onClose={() => setEditing(null)} />}
     </Section>
+  );
+}
+
+/** Email and name of an account (issue #148). The email is what they sign in with from now on; their sessions stay. */
+function EditUser({ user, onSaved, onClose }: { user: AdminUser; onSaved: (email: string) => void; onClose: () => void }) {
+  const [email, setEmail] = useState(user.email);
+  const [name, setName] = useState(user.name ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const save = async () => {
+    const patch: { email?: string; name?: string | null } = {};
+    if (email.trim() !== user.email) patch.email = email.trim();
+    if ((name.trim() || null) !== user.name) patch.name = name.trim() || null;
+    if (!Object.keys(patch).length) { onClose(); return; }
+    setBusy(true);
+    // A refusal (409: the email is taken) stays in the dialog.
+    try { await patchUser(user.id, patch); onSaved(email.trim()); } catch (e) { setError((e as Error).message); setBusy(false); }
+  };
+  return (
+    <Modal title={`Edit ${user.email}`} width="min(440px, 94vw)" onClose={onClose} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } }}>
+      <form onSubmit={(e) => { e.preventDefault(); if (email.trim()) void save(); }}>
+        <div class="f-modal__body" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <Field label="Email" help="What they sign in with. Tell them when it changes; their sessions stay."><Input type="email" autoFocus value={email} disabled={busy} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} /></Field>
+          <Field label="Name"><Input value={name} maxLength={80} placeholder="Optional" disabled={busy} onInput={(e) => setName((e.target as HTMLInputElement).value)} /></Field>
+          {error && <ErrorLine>{error}</ErrorLine>}
+        </div>
+        <div class="f-modal__foot">
+          <span class="f-grow" />
+          <Button kind="ghost" kbd="Esc" onClick={onClose}>Cancel</Button>
+          <Button type="submit" icon="check" disabled={busy || !email.trim()}>Save</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

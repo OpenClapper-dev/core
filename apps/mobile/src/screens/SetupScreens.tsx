@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Share, Text, View } from "react-native";
 import { layoutOptions, VF_FRAME_COLORS, VF_FRAME_WIDTHS, VF_HUMAN_STEPS, VF_TINTS, type VfLenses } from "@fielder/vocab";
-import { cover, signOut } from "../api";
+import { changePassword, cover, signOut } from "../api";
 import { useApp } from "../appState";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { API_URL, isConfigured } from "../config";
@@ -13,7 +13,7 @@ import { store } from "../storage";
 import { zoomLabel, zoomStops } from "../zoom";
 import { registeredName } from "../device";
 import type { GpsMode, HudChips, Settings } from "../types";
-import { Block, BORDER, Button, ListRow, Chip, ChipCell, ChipGrid, ChipRow, confirm, ErrorText, FIXED, Hint, Input, makeStyles, num, PushScreen, SectionLabel, Seg, toast, Toggle, type } from "../ui";
+import { Block, BORDER, Button, ListRow, Chip, ChipCell, ChipGrid, ChipRow, confirm, ErrorText, FIXED, Hint, Input, makeStyles, num, PasswordInput, PushScreen, SectionLabel, Seg, toast, Toggle, type } from "../ui";
 import { HudChip } from "../components/Hud";
 import { Overlay } from "../components/Overlay";
 import { ShotFrame } from "../components/ShotFrame";
@@ -194,6 +194,7 @@ export function Account() {
             <SectionLabel>Signed in as</SectionLabel>
             <Text style={s.value}>{email}</Text>
             <Text style={s.meta}>The session renews while you use the app.</Text>
+            <Button kind="secondary" icon="form-textbox-password" label="Change password" onPress={() => app.push({ name: "password" })} />
             <Button kind="secondary" icon="logout" label="Sign out" onPress={() => { void signOut(); toast("Signed out", "neutral"); }} />
             <Hint>Signing out keeps queued shots on the phone. They upload after the next sign-in.</Hint>
           </>
@@ -204,6 +205,44 @@ export function Account() {
             <Button icon="login" label="Sign in" onPress={app.signIn} />
           </>
         )}
+      </Block>
+    </PushScreen>
+  );
+}
+
+/** Change password (issue #148): the current one, the new one twice. Signs out every other browser and phone of the account. */
+export function ChangePassword() {
+  const app = useApp();
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [again, setAgain] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const short = next !== "" && next.length < 10;
+  const mismatch = again !== "" && again !== next;
+  const ready = !!current && next.length >= 10 && next === again && !busy;
+  const save = async () => {
+    if (!ready) return;
+    setBusy(true);
+    try {
+      await changePassword(current, next);
+      toast("Password changed. Other sessions are signed out.");
+      app.pop();
+    } catch (e) { setError((e as Error).message); setBusy(false); }
+  };
+  return (
+    <PushScreen title="Change password" footer={<Button style={{ flex: 1 }} icon="check" label="Change password" onPress={() => void save()} busy={busy} disabled={!ready} />}>
+      <Block>
+        <SectionLabel>Current password</SectionLabel>
+        <PasswordInput value={current} onChangeText={setCurrent} editable={!busy} autoComplete="current-password" textContentType="password" />
+        <SectionLabel>New password</SectionLabel>
+        <PasswordInput value={next} onChangeText={setNext} editable={!busy} autoComplete="new-password" textContentType="newPassword" />
+        {short ? <ErrorText>Too short: at least 10 characters.</ErrorText> : <Hint>At least 10 characters.</Hint>}
+        <SectionLabel>New password again</SectionLabel>
+        <PasswordInput value={again} onChangeText={setAgain} editable={!busy} autoComplete="new-password" textContentType="newPassword" returnKeyType="go" onSubmitEditing={() => void save()} />
+        {mismatch && <ErrorText>Not the same as above.</ErrorText>}
+        {error && <ErrorText>{error}</ErrorText>}
+        <Hint>Every other phone and browser signed in to your account is signed out; this phone stays signed in.</Hint>
       </Block>
     </PushScreen>
   );

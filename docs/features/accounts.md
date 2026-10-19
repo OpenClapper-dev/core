@@ -7,6 +7,7 @@ Epic [#107](https://github.com/bubulux/fielder/issues/107). Fielder has users, a
 - **Sign-in** is email + password (`apps/worker/src/authn/`). There is no sign-up during the alpha: `#/register` says so. Accounts are made by an administrator: the admin board (#116), or `node scripts/user.mjs --email … [--remote]` ([development](../development.md)).
 - **Sessions** are opaque tokens, stored hashed. The dashboard keeps its session in an HttpOnly cookie for 30 days; the phone keeps a bearer token for 180 days. Both slide while in use. A session that ends (it expires, or the account is blocked or signed out elsewhere) shows the sign-in page at the next request.
 - After 5 wrong passwords in a row the account locks for 1 minute, doubling up to an hour. The message for an unknown email and for a wrong password is the same.
+- **Changing one's password** (#148): Settings › Account on the dashboard, Setup › Account › Change password on the phone. The current password, then the new one twice (at least 10 characters, the same rule as everywhere). A wrong current password counts towards the same lock as sign-in. Every other session of the account ends; the one that changed it stays signed in. Only an administrator can change an account's email or name (admin board › Edit).
 - **The bootstrap user** owns everything from before accounts (migration 0021). On an instance from before accounts, `node scripts/user.mjs --bootstrap --email … --remote` gives it an email and a password ([infrastructure](../infrastructure.md)).
 
 ## Workspaces
@@ -34,6 +35,7 @@ Epic [#107](https://github.com/bubulux/fielder/issues/107). Fielder has users, a
 - **Taskbar**: the account button (last in the tray) shows who is signed in, and opens Account and workspaces or signs out. The palette (⌘K) has the same two entries.
 - **Settings › Account** (`AccountSettings.tsx`, `#/settings/account`):
   - Who is signed in, and Sign out.
+  - Change password: a dialog with the current password and the new one twice (eye buttons as on the sign-in page).
   - Every workspace with your role and its members. Admins get a role picker per member and an invite form (email + role).
   - Remove or Leave, after a confirm.
   - New project here, Rename (shared workspaces, admins), and New workspace.
