@@ -72,7 +72,20 @@ Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone 
 
 **Head contract** (both web `index.html`, kept in step by hand because it must run before the first paint, which a module cannot): the inline theme script, `<meta name="theme-color">` (its target), `color-scheme`, and the font and MDI `<link>` tags.
 
-**App icon and mark** (Claude Design, "Frame in a frame"; sources in the gitignored `references/Fielder app icon design/`): four viewfinder corners (the phone) around a solid frame (the cinema camera), white on cobalt `#0040D8`. Studio icons in `apps/studio/public/icons/`; Android: `apps/mobile/assets/icon.png`, the adaptive foreground and monochrome PNGs, background colour `#0040D8` in `app.json` (shown in APK builds; Expo Go shows its own icon). Inside the apps the mark is `Mark` (web `core.tsx` in `@fielder/ui`, an inline SVG; phone `components/ui.tsx`, drawn with Views): corners in the text colour, the frame in the accent, so it works in Sun and Set.
+**App icon and mark** (Claude Design, "Frame in a frame", extended into a family in #170; sources in the gitignored `references/Fielder app icon design/`). One family, three surfaces, the same four viewfinder corners around a different glyph:
+- **Phone**: a solid cinema frame (the original mark).
+- **Studio**: a window with its title bar.
+- **Admin**: a padlock.
+
+Each exists in two colourways, white on the background: **production** cobalt `#0040D8`, **development** signal green `#2E7D00` (5.2:1 against white; clear of approve green, recording red and warn amber), so a dev build or dev server is never mistaken for the real one.
+
+| Surface | Files | Which set |
+| --- | --- | --- |
+| Studio | `apps/studio/public/icons/{prod,dev}/`: `favicon.svg` (pixel-snapped 16-unit), `icon-192/512.png`, `icon-maskable-512.png`, `manifest.webmanifest` | `index.html` links `/icons/%VITE_ICON_SET%/…`; `vite.config.ts` sets `dev` for the dev server, `prod` for builds |
+| Admin | `apps/admin/ui/public/icons/{prod,dev}/`, the same files | the same switch in `apps/admin/vite.config.ts` |
+| Phone | `apps/mobile/assets/icons/{prod,dev}/`: `app-icon-1024.png`, `android-adaptive-foreground-1024.png`, `android-adaptive-monochrome-1024.png` | `app.json` names the prod set and background; `APP_VARIANT=development` (`app.config.ts`) switches to the dev set and green (APK and dev builds; Expo Go shows its own icon) |
+
+Inside the apps the mark is `Mark`: web `core.tsx` in `@fielder/ui` (an inline SVG; `surface="studio"`, the default, or `"admin"`), phone `src/ui/core.tsx` (the frame, drawn with Views). Corners in the text colour, the glyph in the accent, so it works in Sun and Set; the in-app mark has no dev colourway (the accent stays cobalt).
 
 ## Web component library
 

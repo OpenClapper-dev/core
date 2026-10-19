@@ -52,7 +52,8 @@ const withReleaseSigning = (config: ExpoConfig): ExpoConfig =>
  * app.json holds the config; this adds the version (the product's), the commit it was built from
  * (GIT_COMMIT, set by the build scripts) and release signing. APP_VARIANT=development (make dev-build,
  * make mobile) renames the development build: its own package id lets "Fielder Dev" sit next to the
- * production app instead of replacing it, with its own storage.
+ * production app instead of replacing it, with its own storage, and its green icon set
+ * (assets/icons/dev, #170) tells the two apart in the drawer.
  */
 export default ({ config }: ConfigContext): ExpoConfig => {
   const base = config as ExpoConfig;
@@ -67,6 +68,15 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ...app,
     name: "Fielder Dev",
     scheme: "fielder-dev",
-    android: { ...app.android, package: "app.fielder.scout.dev" },
+    icon: "./assets/icons/dev/app-icon-1024.png",
+    android: {
+      ...app.android,
+      package: "app.fielder.scout.dev",
+      adaptiveIcon: {
+        backgroundColor: "#2E7D00",
+        foregroundImage: "./assets/icons/dev/android-adaptive-foreground-1024.png",
+        monochromeImage: "./assets/icons/dev/android-adaptive-monochrome-1024.png",
+      },
+    },
   });
 };

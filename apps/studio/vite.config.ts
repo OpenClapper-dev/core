@@ -13,13 +13,17 @@ const build = { __FIELDER_VERSION__: JSON.stringify(version), __FIELDER_COMMIT__
 const uiSrc = fileURLToPath(new URL("../../packages/ui/src", import.meta.url));
 const watchUi = { name: "fielder-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
 
-export default defineConfig({
-  plugins: [preact(), watchUi],
-  define: build,
-  build: { outDir: "dist", emptyOutDir: true, sourcemap: false },
-  server: {
-    // Local dev: proxy API calls to `wrangler dev` (apps/worker; sign in as dev@localhost, make init).
-    // ws: the live layout preview socket (/api/preview/socket).
-    proxy: { "/api": { target: "http://localhost:8787", ws: true }, "/health": "http://localhost:8787" },
-  },
+export default defineConfig(({ command }) => {
+  // Which icon set index.html links (public/icons/<set>/): green on the dev server, the real one in builds.
+  process.env.VITE_ICON_SET = command === "build" ? "prod" : "dev";
+  return {
+    plugins: [preact(), watchUi],
+    define: build,
+    build: { outDir: "dist", emptyOutDir: true, sourcemap: false },
+    server: {
+      // Local dev: proxy API calls to `wrangler dev` (apps/worker; sign in as dev@localhost, make init).
+      // ws: the live layout preview socket (/api/preview/socket).
+      proxy: { "/api": { target: "http://localhost:8787", ws: true }, "/health": "http://localhost:8787" },
+    },
+  };
 });

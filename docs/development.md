@@ -62,7 +62,7 @@ make studio      # beside it: the Studio on :5173 against the same local Worker
 ```
 
 - **The development build** ("Fielder Dev", `app.fielder.scout.dev`) is this app with its native modules plus Expo's dev launcher and menu (`expo-dev-client`). It carries no JavaScript: it loads the bundle from Metro, so Fast Refresh works as in Expo Go. Rebuild only when the native side changes: a new native module, a plugin or permission in `app.json`, an SDK upgrade. A bundle that calls a native module the build lacks fails at runtime.
-- `APP_VARIANT=development` (`make dev-build` and `make mobile`) switches `app.config.ts` to the dev name, package id and scheme, so it installs next to the production app with its own storage.
+- `APP_VARIANT=development` (`make dev-build` and `make mobile`) switches `app.config.ts` to the dev name, package id, scheme and the green dev icons, so it installs next to the production app with its own storage. The Studio and admin dev servers show the green icons too (tab, installed app); builds the real ones ([design](design.md)).
 - `make dev-build` = `VARIANT=dev scripts/apk-local.sh`: `expo prebuild` and `./gradlew assembleDebug` in the Docker toolchain, no account. Signed with the debug key of Expo's prebuild template, the same on every machine. Install the APK from Downloads once (allow installs from the file manager); later builds install over it.
 - In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 

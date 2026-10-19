@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Fielder</title>
-    <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="/icons/icon-192.png" type="image/png" sizes="192x192" />
-    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <!-- Icons: the production set in builds, the development (green) set on the dev server (VITE_ICON_SET, vite.config.ts). -->
+    <link rel="icon" href="/icons/%VITE_ICON_SET%/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/%VITE_ICON_SET%/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/icons/%VITE_ICON_SET%/icon-192.png" />
     <!-- Behind Cloudflare Access: the manifest must be fetched with the session cookie. -->
-    <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials" />
+    <link rel="manifest" href="/icons/%VITE_ICON_SET%/manifest.webmanifest" crossorigin="use-credentials" />
     <meta name="theme-color" content="#FFFFFF" />
     <script>
       // Theme before first paint: localStorage["theme"] = "sun" | "set" overrides, absent = follow the OS (see src/theme.ts).

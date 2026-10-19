@@ -3,13 +3,13 @@
     "name": "Fielder",
     "slug": "fielder",
     "orientation": "default",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icons/prod/app-icon-1024.png",
     "userInterfaceStyle": "automatic",
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#0040D8",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/icons/prod/android-adaptive-foreground-1024.png",
+        "monochromeImage": "./assets/icons/prod/android-adaptive-monochrome-1024.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "app.fielder.scout",
