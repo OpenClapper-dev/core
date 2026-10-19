@@ -33,6 +33,33 @@ Switching:
 - **Scrollbars** (Studio, `styles.css`): a 6 px pill on a clear track, `--text-disabled`, `--border` on hover, `--accent` while dragged (Chrome's `::-webkit-scrollbar`; setting `scrollbar-color` or `scrollbar-width` anywhere switches them off). Scrolling areas keep the scrollbar's room at all times (`scrollbar-gutter: stable`; the timeline and photo strips keep a permanent clear track), so a scrollbar appearing never shifts the layout.
 - **Copy**: sentence case, units spaced (`24 mm`, `±5 m`, `30 %`), `·` between facts, no emoji.
 
+## Motion
+
+Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone has its own platform animations). Everything that moves is in `packages/ui/src/design/motion.css`; the files copied from the design export stay as exported.
+
+**Tokens** (`spacing.css`, `motion.css`): `--dur-fast` 90 ms, `--dur` 160 ms, `--dur-slow` 240 ms, `--ease` (enter and state changes), `--ease-in` (exits).
+
+**Tiers**:
+- `--dur-fast`: hover, active, colour, border, shadow.
+- `--dur`: menus, lists, toasts, the switch knob, chips, section collapse.
+- `--dur-slow`: modals, the command palette, windows, the task view, the workspace switch, the theme crossfade.
+
+**Mechanisms**:
+
+| Shape of change | Mechanism |
+| --- | --- |
+| An element mounts (`{open && <X/>}`) | `@starting-style` + `transition` on opacity, translate, scale. Pure CSS. |
+| A state is a class on a kept element (`--min`, `--away`, `is-collapsed`, `is-focused`) | `transition-behavior: allow-discrete` with `display` in the transition list. |
+| An element unmounts and needs an exit | `<Presence show>` (keeps the last render, adds `is-leaving`, unmounts on `transitionend`). Only for modal-like overlays. |
+| A whole-page change (workspace switch, theme) | `withViewTransition(fn)` from `@fielder/ui` (`motion.ts`). |
+
+**Rules**:
+- Menus, popovers, context menus and Select/Combobox lists enter but never exit: native desktops close menus at once, and an exit would keep stale handlers and `[data-overlay]` (which pauses shortcuts) alive.
+- Use the `translate` and `scale` properties, not `transform`, where code measures the element (`getBoundingClientRect`) or writes `transform` itself.
+- **Never moves**: focus rings, the press `translateY(1px)`, text, photos, frames and masks (their geometry is measured), anything a gesture writes per frame (window drag and resize, the split grip, icon drag, the panel grip), scroll positions, the list cursor `is-hi`. While a window gesture runs, `body.wm-gesture` switches transitions off.
+- **Reduced motion** (`prefers-reduced-motion: reduce`): the duration tokens are zeroed, not `transition: none`, so meaningful keyframes (spinner, skeleton) keep running. JS-driven motion asks `reducedMotion()`; `withViewTransition` then just runs the change.
+- Not used: native `<dialog>` and the `popover` attribute (the top layer would put modals above the toasts and the task view).
+
 ## Where it lives
 
 | Surface | Files |
@@ -63,6 +90,7 @@ Switching:
 | `layout.tsx` | `Toolbar`, `ToolbarTitle`, `ToolbarSpacer`, `Panel`, `PanelHead`, `PanelBody`, `PanelFoot` |
 | `hooks.ts` | `useOutsideClick` |
 | `theme.ts` | `useTheme`, `getTheme`, `setTheme`, and the theme button's `THEME_CYCLE`, `THEME_LABEL`, `THEME_ICON` |
+| `motion.ts` | `reducedMotion()`, `withViewTransition(fn)` (see [Motion](#motion)) |
 
 Domain pieces that draw photos (`Framed`, `FramedThumb`, `ShotCard`) stay next to the pages because they depend on the frame math in `format.ts`. The compose editor (`src/compose/`) draws over photos with the fixed `COMPOSE_PALETTE` colours; its own classes (`compose__*`, `swatch`, `f-range`, `md*`) are in `styles.css`.
 

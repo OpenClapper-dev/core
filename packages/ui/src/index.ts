@@ -8,6 +8,7 @@
 import "./design/colors.css";
 import "./design/typography.css";
 import "./design/spacing.css";
+import "./design/motion.css";
 import "./design/actions.css";
 import "./design/navigation.css";
 import "./design/forms.css";
@@ -29,3 +30,4 @@ export * from "./layout";
 export * from "./hooks";
 export * from "./Markdown";
 export * from "./theme";
+export * from "./motion";
