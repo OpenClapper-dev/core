@@ -18,7 +18,7 @@ pnpm -C apps/studio test         # shortcut registry: collisions, docs/shortcuts
 
 The Workers' typechecks need `worker-configuration.d.ts` (gitignored): `pnpm -C apps/worker types` and `pnpm -C apps/admin types` generate them (`make init` does both).
 
-The admin plane locally: `pnpm -C apps/admin dev` (Worker on :8788 on the app's local D1, board on :5174, no Access: see [admin](features/admin.md#local)).
+The admin plane locally: part of `make all`, or alone with `make admin` (`pnpm -C apps/admin dev`: Worker on :8788 on the app's local D1, board on :5174, no Access: see [admin](features/admin.md#local)).
 
 ## Local API + Studio
 
@@ -56,7 +56,7 @@ Agents can click through the Studio with the Playwright MCP: headless Chrome aga
 ```sh
 make dev-build      # once, and after every native change: "Fielder Dev" APK into the Windows Downloads folder
 make mobile         # local Worker behind a quick tunnel + Metro for Fielder Dev; the phone works on LOCAL data
-make all            # all of it at once: Worker, Studio and mobile in one tmux session ("fielder"), one pane each
+make all            # all of it at once: Worker, Studio, admin board and mobile in one tmux session ("fielder"), one pane each
 make all-down       # stop all of it and close the session · make all-restart: restart the servers in place
 make studio      # beside it: the Studio on :5173 against the same local Worker
 ```
@@ -66,7 +66,7 @@ make studio      # beside it: the Studio on :5173 against the same local Worker
 - `make dev-build` = `VARIANT=dev scripts/apk-local.sh`: `expo prebuild` and `./gradlew assembleDebug` in the Docker toolchain, no account. Signed with the debug key of Expo's prebuild template, the same on every machine. Install the APK from Downloads once (allow installs from the file manager); later builds install over it.
 - In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 
-- `scripts/dev-all.sh` (`make all`) opens a tmux session `fielder`: Worker and Studio stacked on the left, `make mobile` on the right (it waits for the Worker, so it only adds a tunnel), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
+- `scripts/dev-all.sh` (`make all`) opens a tmux session `fielder`: Worker, Studio (:5173) and admin board (:5174, its Worker on :8788) stacked on the left, `make mobile` on the right (it and the admin pane wait for the Worker: mobile only adds a tunnel, and two wranglers starting together collide on their inspector port), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
 - `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --dev-client --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. It refuses to start while an `apps/mobile/.env*` file sets `EXPO_PUBLIC_*`: in development Expo serves those files ahead of the environment (`expo/virtual/env`), so the app would talk to that server instead of the tunnel. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
 - Sign in once with `dev@localhost` / `fielder-local-dev`: `make init` (`scripts/dev-init.sh`) gives the local bootstrap user that login. On an older checkout run `FIELDER_PASSWORD=fielder-local-dev node scripts/user.mjs --bootstrap --email dev@localhost`.
