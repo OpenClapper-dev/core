@@ -10,6 +10,7 @@ import { useSync } from "../sync";
 import { AppHeader, Banner, Button, ListRow, makeStyles, num, SectionLabel, Seg, SyncCard, type } from "../ui";
 import { colourName } from "./SetupScreens";
 import type { ViewSettings } from "../types";
+import { APP_VERSION } from "../version";
 
 export const THEME_OPTIONS = [
   { id: "auto", icon: "theme-light-dark", label: "Auto" },
@@ -61,7 +62,7 @@ export function Setup() {
           <ListRow icon="account-outline" title="Account" meta={email ?? (isConfigured ? "Not signed in" : "This build has no server")} onPress={() => app.push({ name: "account" })} />
           <ListRow icon="bug-outline" title="Debug log" meta={isLogging() ? `Recording · ${logCount()} entries` : `Off · ${logCount()} entries`} onPress={() => app.push({ name: "debugLog" })} />
         </View>
-        <Text style={s.footer}>API: {isConfigured ? API_URL.replace(/^https?:\/\//, "") : "not configured"}</Text>
+        <Text style={s.footer}>Fielder {APP_VERSION} · API: {isConfigured ? API_URL.replace(/^https?:\/\//, "") : "not configured"}</Text>
       </ScrollView>
     </View>
   );

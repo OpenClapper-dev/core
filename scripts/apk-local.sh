@@ -57,7 +57,8 @@ docker run --rm \
             # Hand everything back to the host user and drop the generated android/, even on failure.
             trap 'rm -rf /work/apps/mobile/android; find /work -xdev -uid 0 -exec chown -h $(id -u):$(id -g) {} +' EXIT
             rm -rf android
-            pnpm exec expo prebuild --platform android --no-install
+            # Not pnpm exec: it checks the workspace and would reinstall the host's node_modules from here.
+            node_modules/.bin/expo prebuild --platform android --no-install
             cd android && chmod +x gradlew
             ./gradlew $task --no-daemon
             apk=app/build/outputs/apk/$out_dir/app-$out_dir.apk

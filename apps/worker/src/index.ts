@@ -4,7 +4,7 @@
  * (`@fielder/auth-provider`, first-party.ts by default).
  */
 import { provider } from "@fielder/auth-provider";
-import { BOOTSTRAP_USER_ID, HttpError, json, Router } from "@fielder/service-kit";
+import { BOOTSTRAP_USER_ID, BUILD, HttpError, json, Router } from "@fielder/service-kit";
 import type { Identity, PublicCtx } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
 import { registerComposeRoutes } from "./compose.ts";
@@ -51,9 +51,9 @@ export interface Ctx {
   tenant: Tenant;
 }
 
-/** Routes that run without a user: the provider's /api/auth/* and a liveness probe. */
+/** Routes that run without a user: the provider's /api/auth/* and a liveness probe that also says which version runs. */
 const publicRouter = new Router<PublicCtx>();
-publicRouter.on("GET", "/api/ping", async () => json({ ok: true }));
+publicRouter.on("GET", "/api/ping", async () => json({ ok: true, ...BUILD }));
 provider.registerPublic(publicRouter);
 const isPublic = (path: string) => path === "/api/ping" || path.startsWith("/api/auth/");
 

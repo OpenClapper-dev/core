@@ -32,6 +32,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 
 - First the **status card** (tap opens Uploads). Signed out: a warning with "Sign in", and an Uploads row in the list.
 - **Theme**: Auto · Sun · Set. This is the only theme control ([design](../design.md)).
+- The **footer** shows the app's version with its commit ([releasing](../releasing.md)) and the server address; the debug log carries both too.
 - Rows, each with its current value; every row opens a screen, and settings save on change:
   - **Project**: opens the Project sheet.
   - **Rigs & lenses**: the rig list; tap a rig to edit it, "New rig" is pinned.

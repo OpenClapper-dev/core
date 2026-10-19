@@ -5,6 +5,7 @@ import { cover, signOut } from "../api";
 import { useApp } from "../appState";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { API_URL, isConfigured } from "../config";
+import { APP_VERSION } from "../version";
 import { computeOverlay, formatDeg } from "../framing";
 import { clearLog, logCount, logText, setLogging } from "../log";
 import { useRigs } from "../rigs";
@@ -218,7 +219,7 @@ export function DebugLog() {
     const text = logText({
       exported: new Date().toISOString(),
       phone: `${st.phoneModel ?? "unknown"} · ${st.phoneEquivalentFocalMm} mm-eq (${st.phoneCalibration})`,
-      build: `API: ${isConfigured ? API_URL.replace(/^https?:\/\//, "") : "not configured"}`,
+      build: `${APP_VERSION} · API: ${isConfigured ? API_URL.replace(/^https?:\/\//, "") : "not configured"}`,
       project: app.project ? `${app.project.name} (${app.project.id})` : "none",
       signedIn: signedInEmail() ?? "no",
       pending: pending.map((p) => ({ shot: p.metadata.id, photos: p.metadata.photos.length, attempts: p.attempts, stuck: !!p.stuck, lastError: p.lastError })),

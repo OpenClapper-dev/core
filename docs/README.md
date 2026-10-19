@@ -11,6 +11,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [api.md](api.md) | Every Worker endpoint, with request and response shapes |
 | [development.md](development.md) | Local dev loops, checks, deploy, migrations, APK builds |
 | [infrastructure.md](infrastructure.md) | Cloudflare resources, auth, secrets |
+| [releasing.md](releasing.md) | One product version (SemVer 0.x), cutting a release, what a deployment does after |
 | [self-hosting.md](self-hosting.md) | Running your own instance: API token, settings, the deploy workflow, the admin plane's Access app, updates, the phone |
 | [known-issues.md](known-issues.md) | Risks and untested cases we know about, with where they live |
 | [design.md](design.md) | Design system: Sun/Set themes, contrast rules, tokens, icons, where the styles live |

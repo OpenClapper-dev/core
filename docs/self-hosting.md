@@ -77,7 +77,7 @@ Sign in on the dashboard with it. There is no public sign-up; every account is m
 
 ## Updating
 
-Releases are tagged. Bring your copy up to the new tag (merge or rebase), then run Deploy again. Migrations only ever add (they never delete data), and the workflow applies them before the new code goes live.
+Releases are tags `vX.Y.Z` with release notes on GitHub ([releasing](releasing.md)). Bring your copy up to the new tag (merge it), then run Deploy, then Build APK. Migrations only ever add (they never delete data), and the workflow applies them before the new code goes live. Settings › General › About in the dashboard shows which version runs.
 
 ## The phone
 

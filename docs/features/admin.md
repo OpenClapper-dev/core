@@ -16,6 +16,8 @@ Issue [#116](https://github.com/bubulux/fielder/issues/116), epic [#107](https:/
 
 ## The board
 
+The header shows the operator and the board's version with its commit.
+
 - **Totals**:
   - accounts (active in 30 days, blocked);
   - workspaces and projects;
@@ -34,7 +36,7 @@ Every change is written to the Worker log as `{ "audit": "user.create" | "user.u
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/whoami` | `{ email }` of the operator |
+| GET | `/api/whoami` | `{ email, version, commit }`: the operator and what runs |
 | GET | `/api/overview` | `{ users, blocked, active_30d, workspaces, projects, shots, photos, bytes, unsized }` |
 | GET | `/api/users` | Every account with status, sessions, last seen, workspaces (never a password hash) |
 | POST | `/api/users` | `{ email, name? }` → `{ user, password }` (201); `409` for a taken email |
