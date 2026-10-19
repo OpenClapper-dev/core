@@ -6,6 +6,14 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# In development Expo serves EXPO_PUBLIC_* from the .env files ahead of the environment
+# (expo/virtual/env), so a URL there would beat the tunnel and the phone would talk to that server.
+if envs=$(grep -ls "^[[:space:]]*EXPO_PUBLIC_" "$root"/apps/mobile/.env* 2>/dev/null); then
+  echo "These files set EXPO_PUBLIC_* and would override the local server in the app: $envs" >&2
+  echo "Remove the EXPO_PUBLIC_* lines (or the files); make mobile sets them itself." >&2
+  exit 1
+fi
 port="${PORT:-8787}"
 log="$(mktemp -t fielder-worker.XXXXXX.log)"
 

@@ -30,7 +30,6 @@ pnpm dev:dashboard
 ```
 
 `dev:init` never overwrites existing files. It creates:
-- `apps/mobile/.env.local`
 - an empty `apps/dashboard/dist`: `wrangler dev` refuses to start without it
 
 Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start fresh, then `pnpm -C apps/worker migrate:local`). Local data is separate from production: say which one you mean.
@@ -66,7 +65,7 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 - In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 
 - `scripts/dev-all.sh` (`make all`) opens a tmux session `fielder`: Worker and dashboard stacked on the left, `make mobile` on the right (it waits for the Worker, so it only adds a tunnel), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
-- `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --dev-client --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
+- `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --dev-client --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. It refuses to start while an `apps/mobile/.env*` file sets `EXPO_PUBLIC_*`: in development Expo serves those files ahead of the environment (`expo/virtual/env`), so the app would talk to that server instead of the tunnel. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
 - Sign in once with `dev@localhost` / `fielder-local-dev`: `make init` (`scripts/dev-init.sh`) gives the local bootstrap user that login. On an older checkout run `FIELDER_PASSWORD=fielder-local-dev node scripts/user.mjs --bootstrap --email dev@localhost`.
 - The `local` scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders), so a production build on the same phone never sees them.

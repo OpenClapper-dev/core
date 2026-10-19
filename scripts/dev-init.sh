@@ -18,9 +18,8 @@ write_if_missing() {
 echo "Local dev files:"
 # The admin plane without Cloudflare Access in front: every request is admin@localhost. Dev only.
 write_if_missing "apps/admin/.dev.vars" 'ADMIN_DEV_BYPASS="true"'
-# Expo inlines EXPO_PUBLIC_* into the bundle. make mobile sets the tunnel's URL itself and a production
-# APK gets its server at build time (docs/self-hosting.md); set one here only for other local runs.
-write_if_missing "apps/mobile/.env.local" "EXPO_PUBLIC_API_URL="
+# No apps/mobile/.env.local: in development Expo lets .env files override the environment, so one would
+# hide the tunnel URL that make mobile sets (scripts/mobile.sh refuses to start with one).
 
 # Both Workers type-check against wrangler's generated runtime types (gitignored).
 pnpm -C "$root/apps/worker" types >/dev/null
