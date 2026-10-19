@@ -49,7 +49,8 @@
 .f-combo__list.is-static{position:static;margin-top:4px}
 .f-combo__opt{display:flex;align-items:center;gap:8px;min-height:32px;padding:6px 8px;border-radius:var(--radius-sm);color:var(--text);font-size:var(--text-body);cursor:pointer}
 .f-combo__opt .mdi{font-size:16px;width:16px}
-.f-combo__opt mark{background:var(--warn);color:var(--on-warn);border-radius:var(--radius-xs)}
+/* Highlight (core.tsx): a search match, wherever it is shown */
+mark{background:var(--warn);color:var(--on-warn);border-radius:var(--radius-xs)}
 .f-combo__opt.is-hi{background:var(--accent-tint);box-shadow:inset 3px 0 0 var(--accent)}
 .f-combo__opt.is-sel{font-weight:var(--weight-bold)}
 .f-combo__opt--create{color:var(--accent);font-weight:var(--weight-semibold);border-top:var(--bw) solid var(--border-subtle);border-radius:0 0 var(--radius-sm) var(--radius-sm);margin-top:2px}

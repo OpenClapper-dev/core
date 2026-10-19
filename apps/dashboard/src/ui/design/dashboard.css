@@ -117,7 +117,6 @@ textarea.f-textarea:focus{outline:var(--focus-width) solid var(--focus);outline-
 .f-cmdk__item.is-hi{background:var(--accent-tint);box-shadow:inset 3px 0 0 var(--accent)}
 .f-cmdk__main{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
 .f-cmdk__main b{font-weight:var(--weight-semibold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.f-cmdk__main b mark{background:var(--warn);color:var(--on-warn);border-radius:var(--radius-xs)}
 .f-cmdk__main small{font-size:var(--text-caption);color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .f-cmdk__thumb{width:48px;height:36px;border-radius:3px;overflow:hidden;position:relative;flex:none;background:var(--photo-bg)}
 .f-cmdk__foot{display:flex;gap:16px;align-items:center;padding:8px 16px;border-top:var(--bw) solid var(--border-subtle);background:var(--bg);font-size:var(--text-caption);color:var(--text-dim)}
