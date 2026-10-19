@@ -139,3 +139,18 @@ body.wm-gesture :is(.wm-window, .wm-area, .wm-split-grip) { transition: none !im
 /* Thumbnails and photos (#166, `Img` in core.tsx) fade in once loaded instead of popping in line by line. */
 .f-img { opacity: 0; transition: opacity var(--dur) var(--ease); }
 .f-img.is-loaded { opacity: 1; }
+
+/* Switched content (#168): add `f-fade` and a `key` that changes with the tab, so the new content fades in. No exit. */
+.f-fade { transition: opacity var(--dur) var(--ease); }
+@starting-style { .f-fade { opacity: 0; } }
+
+/*
+ * A collapsible section (#168): the body stays mounted and folds through a one-row grid (1fr ↔ 0fr);
+ * its content keeps the section's 12 px gap as its own margin, so nothing jumps. Collapsed, it is
+ * hidden from focus and from the accessibility tree once folded (visibility, allow-discrete).
+ */
+.f-sec:has(> .f-sec__body) { gap: 0; }
+.f-sec__body { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--dur) var(--ease), visibility var(--dur) allow-discrete; }
+.f-sec__body > div { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
+.f-sec__body > div > :first-child { margin-top: 12px; }
+.f-sec.is-collapsed .f-sec__body { grid-template-rows: 0fr; visibility: hidden; }

@@ -270,12 +270,13 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
           <button type="button" class="f-sec__head sec-toggle" aria-expanded={raw} onClick={() => setRaw(!raw)}>
             <Icon name={raw ? "chevron-down" : "chevron-right"} />Raw metadata<span class="f-sec__aside">framing · device</span>
           </button>
-          {raw && (
-            <>
+          {/* Kept mounted so it can fold open and shut (motion.css, #168). */}
+          <div class="f-sec__body" inert={!raw}>
+            <div>
               <pre class="raw">{JSON.stringify({ id: shot.id, photo: photo.id, framing: photo.framing, device: photo.device }, null, 2)}</pre>
               <Button kind="secondary" size="sm" icon="content-copy" style={{ alignSelf: "flex-start" }} onClick={() => void navigator.clipboard.writeText(JSON.stringify({ framing: photo.framing, device: photo.device }, null, 2))}>Copy</Button>
-            </>
-          )}
+            </div>
+          </div>
         </div>
       </div>
     </aside>
