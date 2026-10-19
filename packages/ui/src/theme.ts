@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { withViewTransition } from "./motion";
 
 /** "auto" follows the OS; "sun" (light, for daylight) and "set" (dark) are manual overrides kept in localStorage. */
 export type ThemeChoice = "auto" | "sun" | "set";
@@ -19,16 +20,16 @@ function apply(choice: ThemeChoice) {
 let current = stored();
 const listeners = new Set<(c: ThemeChoice) => void>();
 if (typeof window !== "undefined") {
-  apply(current); // index.html sets data-theme before first paint; this syncs the theme-color meta
-  mq()?.addEventListener("change", () => { if (current === "auto") apply("auto"); });
+  apply(current); // index.html sets data-theme before first paint; this syncs the theme-color meta (no crossfade)
+  mq()?.addEventListener("change", () => { if (current === "auto") void withViewTransition(() => apply("auto")); });
 }
 
 export const getTheme = () => current;
 export function setTheme(c: ThemeChoice) {
   try { if (c === "auto") localStorage.removeItem("theme"); else localStorage.setItem("theme", c); } catch { /* ignore */ }
   current = c;
-  apply(c);
-  for (const cb of listeners) cb(c);
+  // A crossfade of the whole page (#167); the buttons update inside it, so the old picture is all old.
+  void withViewTransition(() => { apply(c); for (const cb of listeners) cb(c); });
 }
 
 /** The theme choice as state (the inline script in index.html sets it before first paint). */
