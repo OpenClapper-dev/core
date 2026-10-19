@@ -9,7 +9,7 @@ Both themes are high contrast, and both follow the OS by default.
 - **Set** (dark): near-black page (`#0B0B0C`), stepped grey surfaces, off-white text. No large bright areas, so it doesn't glare on a dark set.
 
 Switching:
-- **Studio and admin board**: the theme button (the Studio's taskbar, also in ⌘K and Settings; the admin board's header) cycles Auto → Sun → Set. Stored in `localStorage["theme"]`; absent means Auto. An inline script in each `index.html` sets `data-theme` on `<html>` before first paint; `theme.ts` in `@fielder/ui` keeps it in sync (OS changes, the `theme-color` meta).
+- **Studio and admin board**: the theme button (the Studio's taskbar, also in ⌘K and Settings; the admin board's header) cycles Auto → Sun → Set. Stored in `localStorage["theme"]`; absent means Auto. An inline script in each `index.html` sets `data-theme` on `<html>` before first paint; `theme.ts` in `@fielder/ui` keeps it in sync (OS changes, the `theme-color` meta). A change crossfades the whole page (a View Transition over `--dur-slow`, #167), except under reduced motion and at page load.
 - **Phone**: `settings.theme` (`"auto" | "sun" | "set"`), set on the Setup hub (Auto · Sun · Set), the only theme control; the camera screen has no theme button. Auto uses `useColorScheme()` (`app.json` has `userInterfaceStyle: "automatic"`).
 
 ## Rules
