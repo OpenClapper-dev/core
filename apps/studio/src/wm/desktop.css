@@ -14,7 +14,7 @@
 .wm-window--snap-left{width:calc(var(--wm-split,.5) * 100%)!important}
 .wm-window--snap-right{width:calc((1 - var(--wm-split,.5)) * 100%)!important}
 .wm-window--snap-left{left:0!important;border-left:0}
-.wm-window--snap-right{left:auto!important;right:0;border-right:0}
+.wm-window--snap-right{left:calc(var(--wm-split,.5) * 100%)!important;border-right:0}
 .wm-window--min{display:none}
 .wm-window__bar{display:flex;align-items:center;gap:8px;height:36px;padding:0 4px 0 12px;background:var(--surface-sunken);border-bottom:var(--bw) solid var(--border-subtle);flex:none;user-select:none;touch-action:none;color:var(--text-dim)}
 .wm-window__bar>.mdi{font-size:17px;flex:none}

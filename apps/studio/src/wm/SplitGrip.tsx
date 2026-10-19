@@ -1,3 +1,4 @@
+import { endGesture, startGesture } from "./gesture";
 import * as wm from "./wm";
 
 /**
@@ -23,7 +24,7 @@ export function startSplitDrag(e: PointerEvent) {
     handle.removeEventListener("pointermove", move);
     handle.removeEventListener("pointerup", up);
     handle.removeEventListener("pointercancel", cancel);
-    document.body.classList.remove("wm-gesture");
+    endGesture();
     handle.classList.remove("is-dragging");
     if (raf) cancelAnimationFrame(raf);
     // The shell writes the var from the store again on render; set it here so nothing jumps.
@@ -32,7 +33,7 @@ export function startSplitDrag(e: PointerEvent) {
   };
   const up = () => done(true);
   const cancel = () => done(false);
-  document.body.classList.add("wm-gesture");
+  startGesture();
   handle.classList.add("is-dragging");
   handle.setPointerCapture(e.pointerId);
   handle.addEventListener("pointermove", move);

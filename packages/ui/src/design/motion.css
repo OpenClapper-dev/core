@@ -87,11 +87,12 @@
  * and writes geometry per frame, so nothing may transition then. A window never transitions
  * `transform` (the title-bar drag writes it); it uses the `scale` property.
  */
-body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area) { transition: none !important; }
+body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area, .wm-split-grip) { transition: none !important; }
 .wm-window {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
     opacity var(--dur-slow) var(--ease), scale var(--dur-slow) var(--ease), translate var(--dur-slow) var(--ease),
-    display var(--dur-slow) allow-discrete;
+    display var(--dur-slow) allow-discrete,
+    left var(--dur-slow) var(--ease), top var(--dur-slow) var(--ease), width var(--dur-slow) var(--ease), height var(--dur-slow) var(--ease);
 }
 .wm-window__bar { transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
 /* Opening: only once the desktop stands (Shell sets is-settled), not for the windows a project restores. */
@@ -112,3 +113,12 @@ body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area) { transition: none !
 .wm-root[data-taskbar="right"] { --wm-min-x: 40px; --wm-min-y: 0px; }
 .wm-window--min { display: none; opacity: 0; scale: .9; translate: var(--wm-min-x) var(--wm-min-y); pointer-events: none; transition-timing-function: var(--ease-in); }
 .wm-window--away { transition: none; }
+
+/*
+ * Maximise, snap, restore and the split reset (#164) move the frame: left, top, width and height
+ * ease over --dur-slow (px and percentages interpolate; a right-snapped window is placed with
+ * `left` for that). The content is a size container, so the app relays out per frame: accepted
+ * for 240 ms. Drags and resizes stay instant (wm-gesture, kept until the result is painted,
+ * wm/gesture.ts). The split grip follows the split the same way.
+ */
+.wm-split-grip { transition: left var(--dur-slow) var(--ease); }

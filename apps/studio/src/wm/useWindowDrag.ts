@@ -1,4 +1,5 @@
 import type { RefObject } from "preact";
+import { endGesture, startGesture } from "./gesture";
 import * as wm from "./wm";
 import type { Rect, SnapZone, Win } from "./wm";
 
@@ -49,7 +50,7 @@ export function useWindowDrag(win: Win, rootRef: RefObject<HTMLElement>) {
       if (!moved) {
         if (Math.abs(ev.clientX - start.x) < DRAG_START && Math.abs(ev.clientY - start.y) < DRAG_START) return;
         moved = true;
-        document.body.classList.add("wm-gesture");
+        startGesture();
         if (!base) {
           // Restore under the cursor: normal width/height, the grab point kept proportional.
           const r = el.getBoundingClientRect();
@@ -73,7 +74,7 @@ export function useWindowDrag(win: Win, rootRef: RefObject<HTMLElement>) {
       bar.removeEventListener("pointermove", onMove);
       bar.removeEventListener("pointerup", onUp);
       bar.removeEventListener("pointercancel", onCancel);
-      document.body.classList.remove("wm-gesture");
+      endGesture();
       wm.setSnapPreview(null);
       if (raf) cancelAnimationFrame(raf);
       el.style.transform = "";
@@ -125,14 +126,14 @@ export function useWindowDrag(win: Win, rootRef: RefObject<HTMLElement>) {
       handle.removeEventListener("pointermove", onMove);
       handle.removeEventListener("pointerup", onUp);
       handle.removeEventListener("pointercancel", onCancel);
-      document.body.classList.remove("wm-gesture");
+      endGesture();
       if (raf) cancelAnimationFrame(raf);
       if (commit) wm.setBounds(win.id, next);
       else { next = base; apply(); }
     };
     const onUp = () => done(true);
     const onCancel = () => done(false);
-    document.body.classList.add("wm-gesture");
+    startGesture();
     handle.setPointerCapture(e.pointerId);
     handle.addEventListener("pointermove", onMove);
     handle.addEventListener("pointerup", onUp);
