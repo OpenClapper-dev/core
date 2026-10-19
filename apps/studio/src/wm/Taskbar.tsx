@@ -7,7 +7,7 @@ import { FILE_DRAG, readDrag } from "../fileTree";
 import { useSettings } from "../settings";
 import { switchProject } from "../project";
 import { appDef, launch, type AppId } from "../apps/registry";
-import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, useCtxMenu, useOutsideClick, useTheme } from "@fielder/ui";
+import { ContextMenu, cx, Icon, IconButton, Img, Mark, MenuItem, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, useCtxMenu, useOutsideClick, useTheme } from "@fielder/ui";
 import { signOut, useUser } from "../user";
 import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
@@ -138,7 +138,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
                 onClick={(e) => clickPin(p, e)}
                 onContextMenu={(e) => pinMenu.openMenu(e, p)}
                 onDragStart={(e) => { e.dataTransfer?.setData(PIN_DRAG, p.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }}>
-                {v.thumb ? <img class="wm-task__thumb" src={v.thumb.image_url} alt="" draggable={false} /> : <Icon name={v.icon} />}
+                {v.thumb ? <Img class="wm-task__thumb" src={v.thumb.image_url} alt="" draggable={false} /> : <Icon name={v.icon} />}
                 {wins.length > 1 && <span class="wm-task__count num">{wins.length}</span>}
               </button>
             );

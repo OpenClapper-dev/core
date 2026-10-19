@@ -4,7 +4,7 @@ import * as data from "../data";
 import { folderPath, matches } from "../fileTree";
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
-import { Button, Checkbox, cx, Empty, Icon, Loading, SearchInput, Toolbar, ToolbarSpacer } from "@fielder/ui";
+import { Button, Checkbox, cx, Empty, Icon, Img, Loading, SearchInput, Toolbar, ToolbarSpacer } from "@fielder/ui";
 import type { AppProps } from "./registry";
 import { emptyBin, purge, restore } from "./trashOps";
 
@@ -101,7 +101,7 @@ export function TrashApp({ focused, replaceRoute }: AppProps) {
                     <td onClick={(ev) => { ev.stopPropagation(); toggle(e); }}><Checkbox checked={on} aria-label={`Select ${e.name}`} /></td>
                     <td class="is-strong is-wrap">
                       <span class="trash__name">
-                        <span class="trash__icon">{e.photo_id ? <img src={`/api/photos/${e.photo_id}/image`} alt="" loading="lazy" /> : <Icon name={typeIcon(e)} />}</span>
+                        <span class="trash__icon">{e.photo_id ? <Img src={`/api/photos/${e.photo_id}/image`} alt="" loading="lazy" /> : <Icon name={typeIcon(e)} />}</span>
                         <span><b>{e.name}</b>{e.sub && <small class="meta">{e.sub}</small>}</span>
                       </span>
                     </td>

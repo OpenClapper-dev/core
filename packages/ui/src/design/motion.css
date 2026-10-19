@@ -135,3 +135,7 @@ body.wm-gesture :is(.wm-window, .wm-area, .wm-split-grip) { transition: none !im
 /* A window's taskbar button rises in; it goes at once. */
 .wm-task--win { transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), opacity var(--dur) var(--ease), translate var(--dur) var(--ease); }
 @starting-style { .wm-root.is-settled:not(.is-switching) .wm-task--win { opacity: 0; translate: 0 4px; } }
+
+/* Thumbnails and photos (#166, `Img` in core.tsx) fade in once loaded instead of popping in line by line. */
+.f-img { opacity: 0; transition: opacity var(--dur) var(--ease); }
+.f-img.is-loaded { opacity: 1; }

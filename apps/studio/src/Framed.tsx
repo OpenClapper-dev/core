@@ -2,7 +2,7 @@ import type { ComponentChildren, JSX } from "preact";
 import { withCentre } from "@fielder/vocab";
 import type { Photo } from "./api";
 import { frameLayout, frameOf, imageAspect, type FrameGeometry, type FrameMode, type PctRect } from "./format";
-import { cx } from "@fielder/ui";
+import { cx, Img } from "@fielder/ui";
 
 export type MaskMode = FrameMode;
 
@@ -29,12 +29,12 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
   // No inline height: thumbnails fix theirs in CSS; elsewhere the aspect ratio gives it. The width is
   // explicit with maxHeight, so the box never depends on a shrink-to-fit parent (its children are absolute).
   const style = { aspectRatio: String(aspect), width: maxHeight ? `min(100%, calc(${maxHeight} * ${aspect}))` : undefined };
-  if (!l) return <div class={`framed ${className ?? ""}`} style={style}><img src={img} alt="" loading="lazy" style={imgStyle} />{children}</div>;
+  if (!l) return <div class={`framed ${className ?? ""}`} style={style}><Img src={img} alt="" loading="lazy" style={imgStyle} />{children}</div>;
 
   const fullImg = l.img.left === 0 && l.img.width === 100 && l.img.height === 100;
   return (
     <div class={`framed ${className ?? ""}`} style={style}>
-      <img src={img} alt="" loading="lazy" style={fullImg ? imgStyle : { inset: "auto", ...pct(l.img), ...imgStyle }} />
+      <Img src={img} alt="" loading="lazy" style={fullImg ? imgStyle : { inset: "auto", ...pct(l.img), ...imgStyle }} />
       {mode === "mask" && l.frame && (
         <>
           {/* Four bands around the frame; a re-framed frame is off-centre, so each side has its own size. */}
@@ -67,7 +67,7 @@ export function FramedThumb({ photo, mode }: { photo: Photo; mode: MaskMode }) {
   const l = f && mode !== "off" && mode !== "fit" ? frameLayout(f, "frame", imageAspect(photo)) : null;
   return (
     <div class="framed" style={{ aspectRatio: "4 / 3" }}>
-      <img src={photo.image_url} alt="" loading="lazy" style={{ objectFit: "cover" }} />
+      <Img src={photo.image_url} alt="" loading="lazy" style={{ objectFit: "cover" }} />
       {l?.frame && <div class={cx("f-framed__frame f-framed__frame--thin", mode === "mask" && "f-framed__frame--mask")} style={pct(l.frame)} />}
     </div>
   );
