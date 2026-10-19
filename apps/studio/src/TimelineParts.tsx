@@ -8,7 +8,7 @@ import { frameModeLabel, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateTimelines } from "./Inspector";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
-import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, Seg, Select, SeqBadge, Spinner, StateMarker, toast, type SaveState } from "@fielder/ui";
+import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, type SaveState, Seg, Select, SeqBadge, Spinner, StateMarker, toast, withViewTransition } from "@fielder/ui";
 import type { EditKind } from "./ClipEditing";
 import { useSettings } from "./settings";
 import type { CutPosition } from "./router";
@@ -969,15 +969,23 @@ export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, 
 
 // ---------- The project's timelines: a rail that collapses to win width (issue #31) ----------
 
+const RAIL_VT = { viewTransitionName: "tl-rail" };
 const loadRail = () => { try { return localStorage.getItem("timelineRail") === "collapsed"; } catch { return false; } };
 
 export function TimelineRail({ list, selectedId, onSelect, onCreate, onContext }: { list: Timeline[] | null; selectedId: string | null; onSelect: (id: string) => void; onCreate: () => void; onContext?: (t: Timeline, e: MouseEvent) => void }) {
   const [collapsed, setCollapsed] = useState(loadRail);
-  const toggle = () => { const v = !collapsed; setCollapsed(v); try { localStorage.setItem("timelineRail", v ? "collapsed" : "full"); } catch { /* a preference */ } };
+  // The two rails are different trees, so a View Transition morphs one into the other (#169); only
+  // the rail takes part (html.vt-part keeps the rest of the page out of it).
+  const toggle = () => {
+    const v = !collapsed;
+    document.documentElement.classList.add("vt-part");
+    void withViewTransition(() => setCollapsed(v)).then(() => document.documentElement.classList.remove("vt-part"));
+    try { localStorage.setItem("timelineRail", v ? "collapsed" : "full"); } catch { /* a preference */ }
+  };
   const total = (t: Timeline) => t.clips.reduce((a, c) => a + c.duration_ms, 0);
   if (collapsed) {
     return (
-      <Panel left width="56px" label="Timelines">
+      <Panel left width="56px" label="Timelines" style={RAIL_VT}>
         <div class="tl-rail">
           <IconButton icon="chevron-double-right" label="Expand the timelines" title="Expand the timelines" onClick={toggle} />
           <IconButton icon="plus" label="New timeline (⇧N)" title="New timeline (⇧N)" onClick={onCreate} />
@@ -991,7 +999,7 @@ export function TimelineRail({ list, selectedId, onSelect, onCreate, onContext }
     );
   }
   return (
-    <Panel left width="240px" label="Timelines">
+    <Panel left width="240px" label="Timelines" style={RAIL_VT}>
       <PanelHead title="Timelines">
         <Button size="sm" icon="plus" title="New timeline (⇧N)" onClick={onCreate}>New</Button>
         <IconButton icon="chevron-double-left" label="Collapse the timelines" title="Collapse the timelines" onClick={toggle} />

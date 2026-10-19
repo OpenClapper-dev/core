@@ -154,3 +154,14 @@ body.wm-gesture :is(.wm-window, .wm-area, .wm-split-grip) { transition: none !im
 .f-sec__body > div { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 12px; }
 .f-sec__body > div > :first-child { margin-top: 12px; }
 .f-sec.is-collapsed .f-sec__body { grid-template-rows: 0fr; visibility: hidden; }
+
+/*
+ * Timeline rail (#169): collapsing and expanding morphs the 240 px list into the 56 px strip (a View
+ * Transition on the named rail). While it runs, html.vt-part keeps the rest of the page out of the
+ * transition. The pictures are not stretched: they keep their size and crossfade inside the
+ * morphing box. Task-view copies of windows must never carry a transition name (names are unique).
+ */
+html.vt-part { view-transition-name: none; }
+::view-transition-group(tl-rail) { animation-duration: var(--dur-slow); overflow: clip; }
+::view-transition-old(tl-rail), ::view-transition-new(tl-rail) { animation-duration: var(--dur-slow); inline-size: auto; block-size: 100%; object-fit: none; object-position: 0 0; }
+.wm-taskview__shot * { view-transition-name: none !important; }
