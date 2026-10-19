@@ -1,4 +1,5 @@
-import type { VfLenses } from "@fielder/vocab";
+import type { VfLenses, ViewfinderLayout } from "@fielder/vocab";
+import type { LayoutPatch } from "./layoutPatch";
 import type { Extra } from "@fielder/vocab";
 
 export interface Preset {
@@ -146,6 +147,12 @@ export interface LocationEntry {
 
 /** A viewfinder layout as cached from the server (issue #49). */
 export interface LayoutEntry { id: string; name: string; layout: unknown }
+
+/**
+ * A phone edit waiting for the server (issue #198): the change, not the result, so it lands on the
+ * server's current layout. `base` is set for a layout made on the phone and not yet on the server.
+ */
+export interface PendingLayout { id: string; name: string; patch: LayoutPatch; base?: ViewfinderLayout }
 
 /** A named place within a location (issue #44). Created on the phone like locations, offline too. */
 export interface SpotEntry {

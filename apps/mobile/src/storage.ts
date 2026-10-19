@@ -3,7 +3,7 @@ import { kv as Storage } from "./kv";
 import { DEFAULT_SETTINGS } from "./defaults";
 import type { ZoomRange } from "./zoom";
 import type { FieldDef, FieldDefinition } from "@fielder/vocab";
-import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord, LayoutEntry } from "./types";
+import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord, LayoutEntry, PendingLayout } from "./types";
 
 export { DEFAULT_SETTINGS };
 
@@ -19,7 +19,8 @@ const KEYS = {
   locations: "locations.v2",
   spots: "spots.v1",
   layouts: "viewfinderLayouts.v1",
-  pendingLayouts: "pendingLayouts.v1",
+  // v2: patches, not whole layouts (#198); v1 entries are not migrated.
+  pendingLayouts: "pendingLayouts.v2",
   projects: "projects.v1",
   activeProjectId: "activeProjectId.v1",
   sequence: "sequence.v1",
@@ -114,8 +115,8 @@ export const store = {
   loadLayouts: (): LayoutEntry[] => readArray<LayoutEntry>(KEYS.layouts),
   saveLayouts: (l: LayoutEntry[]) => write(KEYS.layouts, l),
   /** Layouts changed on the phone and not on the server yet (issue #68), the latest per id. */
-  loadPendingLayouts: (): LayoutEntry[] => readArray<LayoutEntry>(KEYS.pendingLayouts),
-  savePendingLayouts: (l: LayoutEntry[]) => write(KEYS.pendingLayouts, l),
+  loadPendingLayouts: (): PendingLayout[] => readArray<PendingLayout>(KEYS.pendingLayouts),
+  savePendingLayouts: (l: PendingLayout[]) => write(KEYS.pendingLayouts, l),
 
   loadProjects: (): ProjectEntry[] => readArray<ProjectEntry>(KEYS.projects),
   saveProjects: (p: ProjectEntry[]) => write(KEYS.projects, p),

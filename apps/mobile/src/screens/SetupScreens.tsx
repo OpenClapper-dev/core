@@ -54,7 +54,7 @@ export function ViewfinderSettings() {
   const overlay = useMemo(() => (active ? computeOverlay(st, active, store.loadLensMm(), { width: W, height: H }, false) : null), [st, active]);
   const readOnly = !app.layoutEntry;
   const look = (patch: Parameters<typeof app.editLayout>[0]["look"]) => app.editLayout({ look: patch });
-  const chip = (k: keyof HudChips, v: boolean) => look({ hud: { ...st.hudChips, [k]: v } });
+  const chip = (k: keyof HudChips, v: boolean) => look({ hud: { [k]: v } });
   const human = (patch: Partial<{ mode: "cycle" | "toggle"; mm: number }>) => app.editLayout({ options: { human: { mode: st.humanViewButton, mm: st.humanViewButton === "toggle" ? st.humanViewFocalMm : humanMm(app.layout), ...patch } } });
   const setLenses = (l: VfLenses) => app.editLayout({ options: { lenses: l } });
   const [layoutSheet, setLayoutSheet] = useState(false);

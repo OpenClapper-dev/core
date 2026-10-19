@@ -2,7 +2,8 @@ import { createContext, useContext } from "react";
 import type { Shot, ShootingDay } from "./api";
 import type { ShotsData } from "./shots";
 import type { LivePreview } from "./preview";
-import type { ViewfinderLayout, VfLook, VfOptions } from "@fielder/vocab";
+import type { ViewfinderLayout } from "@fielder/vocab";
+import type { LayoutPatch } from "./layoutPatch";
 import type { LayoutEntry, LocationEntry, ProjectEntry, Settings, SpotEntry, ViewSettings } from "./types";
 
 /** The five tabs. Everything else is a pushed full screen (Route) or a sheet. */
@@ -39,7 +40,7 @@ export interface AppState {
   layout: ViewfinderLayout;
   layoutEntry: LayoutEntry | null;
   /** Change the current layout's look or options; saved on the phone at once, sent with the next flush. */
-  editLayout: (patch: { look?: Partial<VfLook>; options?: Partial<VfOptions> }) => void;
+  editLayout: (patch: LayoutPatch) => void;
   /** The Default can't be changed: make an editable copy and switch to it. */
   copyDefaultLayout: () => void;
   project: ProjectEntry | null;
