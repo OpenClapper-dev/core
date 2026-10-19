@@ -9,7 +9,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 | D1 `D1_DATABASE_NAME` (default `fielder-db`) | Binding `DB`, migrations in `apps/worker/migrations/` (only the app Worker's config applies them) |
 | R2 `R2_BUCKET` (default `fielder-shots`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with the workspace in their custom metadata |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
-| Cloudflare Access | The admin plane's sign-in. On the reference instance also in front of the app until the cutover below. |
+| Cloudflare Access | The admin plane's sign-in. |
 | Expo / EAS | Phone builds; the only production env var is `EXPO_PUBLIC_API_URL` |
 | Open-Meteo | Weather forecast, called from the dashboard browser directly (free, no key) |
 | OpenStreetMap tiles | Maps in the dashboard (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
@@ -18,19 +18,15 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 
 - **App users** sign in with email and password ([accounts](features/accounts.md)): the dashboard keeps an HttpOnly session cookie, the phone a bearer token in its keystore. Accounts are made in the admin plane (or with `scripts/user.mjs`); there is no public sign-up.
 - **Operators** of the admin plane sign in through its Cloudflare Access application, never with an app account.
-- **Local development**: `ACCESS_DEV_BYPASS="true"` (app) and `ADMIN_DEV_BYPASS="true"` (admin) in the gitignored `.dev.vars` stand for a signed-in user; they must never be set in a deployed config. Locally the bootstrap user signs in as `dev@localhost` / `fielder-local-dev` (`make init`).
+- **Local development**: `AUTH_DEV_BYPASS="true"` (app) and `ADMIN_DEV_BYPASS="true"` (admin) in the gitignored `.dev.vars` stand for a signed-in user; they must never be set in a deployed config. Locally the bootstrap user signs in as `dev@localhost` / `fielder-local-dev` (`make init`).
 
-## Cutover from Cloudflare Access (reference instance, epic #107)
+## An instance from before accounts
 
-Until it, Access guards the app as well (`APP_ACCESS_AUD` in `deploy.env`), and the Worker takes either a session or the Access JWT, which stands for the bootstrap user that owns the pre-sign-in data (`index.ts` `identify`). Old APKs sign in through `/auth/mobile` (a WebView on the Access PIN login, the token sent as `cf-access-token`). In order:
+The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107); migration 0021 gave all its data to the bootstrap user. Such an instance switches over like this:
 
-1. Apply migrations 0021 and 0022 (`pnpm -C apps/worker migrate:remote`), deploy the app and the admin plane.
-2. Set up the admin plane's Access application ([self-hosting](self-hosting.md#4-the-admin-planes-sign-in)), set `ADMIN_ACCESS_AUD`, deploy it again.
-3. Give the bootstrap user your email and a password: `node scripts/user.mjs --bootstrap --email … --remote`.
-4. Sign in on the dashboard with that password **while Access is still on** (it accepts both); do not go on until this works.
-5. Remove the Access application from the app's hostname (keep a note of its settings to put it back), remove `APP_ACCESS_AUD` from `deploy.env`, deploy.
-6. Install the new APK and sign in on the phone. Shots queued meanwhile stay on the phone and upload after the sign-in.
-7. Then #118 removes the Access fallback and `/auth/mobile` from the app Worker.
+1. Deploy (it applies migrations 0021 and 0022), set up the admin plane's Access application ([self-hosting](self-hosting.md#4-the-admin-planes-sign-in)).
+2. Give the bootstrap user your email and a password: `node scripts/user.mjs --bootstrap --email … --remote`. It keeps its id, so the data stays with it.
+3. Delete the Access application (not only its policy) of the app's hostname. The dashboard shows its sign-in page; the phone needs an APK from #115 on.
 
 ## Secrets and rotation
 

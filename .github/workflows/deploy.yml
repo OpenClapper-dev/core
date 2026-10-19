@@ -41,7 +41,6 @@ jobs:
       ADMIN_WORKER_NAME: ${{ vars.ADMIN_WORKER_NAME }}
       ACCESS_TEAM_DOMAIN: ${{ vars.ACCESS_TEAM_DOMAIN }}
       ADMIN_ACCESS_AUD: ${{ vars.ADMIN_ACCESS_AUD }}
-      APP_ACCESS_AUD: ${{ vars.APP_ACCESS_AUD }}
       PBKDF2_ITERATIONS: ${{ vars.PBKDF2_ITERATIONS }}
       AUTH_PROVIDER: ${{ vars.AUTH_PROVIDER }}
     steps:

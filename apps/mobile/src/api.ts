@@ -19,13 +19,13 @@ function headers(extra: Record<string, string> = {}): Record<string, string> {
 }
 
 /**
- * A web page instead of the API: Cloudflare Access still in front of the server (before its switch
- * to password sign-in), or a Wi-Fi login page. Neither means the session is gone.
+ * A web page instead of the API: a Wi-Fi login page, or a login proxy in front of the server. Neither
+ * means the session is gone.
  */
 function isWebPage(res: Response): boolean {
   return res.redirected || (res.headers.get("content-type") ?? "").includes("text/html") || (!!res.url && !res.url.startsWith(API_URL));
 }
-const WEB_PAGE = "the server answered with a web page (a Wi-Fi login, or Cloudflare Access still in front of it)";
+const WEB_PAGE = "the server answered with a web page (a Wi-Fi login?)";
 
 async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!isConfigured) throw new ApiError(0, "API not configured in this build");
@@ -65,7 +65,7 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
 export async function signIn(email: string, password: string): Promise<void> {
   if (!isConfigured) throw new ApiError(0, "API not configured in this build");
   const res = await fetch(`${API_URL}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ email, password, client: "mobile" }) });
-  if (isWebPage(res)) throw new ApiError(0, "The server still uses the Cloudflare Access login. Password sign-in works once it has been switched over.");
+  if (isWebPage(res)) throw new ApiError(0, WEB_PAGE);
   const body = (await res.json().catch(() => null)) as { token?: string; user?: { id: string; email: string }; error?: string } | null;
   if (!res.ok || !body?.token || !body.user) throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`, body);
   log("info", "signed in", { email: body.user.email });
@@ -205,7 +205,7 @@ const namedFromServer = (l: ServerNamed) => ({ id: l.id, name: l.name, createdAt
 type Cursor = { before: string; before_id: string } | null;
 interface ShotsPage { shots: Shot[]; next: Cursor }
 
-/** Headers for <Image> requests to the API (Access session token). */
+/** Headers for <Image> requests to the API (the session token). */
 export const imageHeaders = (): Record<string, string> => headers();
 export const imageUri = (photo: Photo) => `${API_URL}${photo.image_url}`;
 /** Absolute URL of an overlay or sketch render; null before the dashboard saved one. */

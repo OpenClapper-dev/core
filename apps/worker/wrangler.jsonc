@@ -1,7 +1,7 @@
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  // Local development. A deployment gets its own copy, wrangler.deploy.jsonc, with its account,
-  // database and Access settings (scripts/deploy-config.mjs, docs/self-hosting.md).
+  // Local development. A deployment gets its own copy, wrangler.deploy.jsonc, with its account
+  // and database (scripts/deploy-config.mjs, docs/self-hosting.md).
   "name": "fielder-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-04",
@@ -10,17 +10,12 @@
   "alias": { "@fielder/auth-provider": "./src/authn/first-party.ts" },
   // Daily at 03:17 UTC: purge what has been in the recycle bin for 30 days (trash.ts).
   "triggers": { "crons": ["17 3 * * *"] },
-  // Web dashboard (apps/dashboard) served as static assets from the same hostname,
-  // so one Cloudflare Access session covers both UI and API.
+  // Web dashboard (apps/dashboard) served as static assets from the same hostname, so the
+  // session cookie covers both UI and API.
   "assets": {
     "directory": "../dashboard/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/auth/*", "/health"]
-  },
-  "vars": {
-    // Cloudflare Access in front of the app, only until the switch to sign-in (epic #107). Empty: none.
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
+    "run_worker_first": ["/api/*", "/health"]
   },
   "r2_buckets": [
     { "binding": "SHOTS_BUCKET", "bucket_name": "fielder-shots" }

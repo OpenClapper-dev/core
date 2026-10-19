@@ -43,7 +43,7 @@ Every change is written to the Worker log as `{ "audit": "user.create" | "user.u
 | DELETE | `/api/users/:id` | `409` while its workspaces hold projects, `400` for the bootstrap user |
 | GET | `/api/workspaces` | Every workspace with owner, counts and storage |
 
-Without a valid Access JWT of the admin application every request is `401`. Until its AUD is set in `apps/admin/wrangler.jsonc` that includes every request.
+Without a valid Access JWT of the admin application every request is `401`. Until its AUD is set (`ADMIN_ACCESS_AUD`, [self-hosting](../self-hosting.md#4-the-admin-planes-sign-in)) that includes every request.
 
 ## Local
 

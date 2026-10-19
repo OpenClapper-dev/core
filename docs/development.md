@@ -30,7 +30,7 @@ pnpm dev:dashboard
 ```
 
 `dev:init` never overwrites existing files. It creates:
-- `apps/worker/.dev.vars` with `ACCESS_DEV_BYPASS="true"` (a request without a session is the bootstrap user, who owns the local data)
+- `apps/worker/.dev.vars` with `AUTH_DEV_BYPASS="true"` (a request without a session is the bootstrap user, who owns the local data)
 - `apps/mobile/.env.local`
 - an empty `apps/dashboard/dist`: `wrangler dev` refuses to start without it
 
@@ -38,7 +38,7 @@ Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start
 
 Demo data: `pnpm dev:seed [count]` (worker running) uploads 40 shots by default with stock photos from picsum.photos into the projects "Stock demo" and "Stock demo B", with locations, random tags (camera fields too), review states, some sequences and some shots without a position. Ids are derived from the seed, so a re-run adds nothing twice. It refuses any API other than localhost.
 
-API smoke tests work with plain `curl` against `localhost:8787` (no auth needed locally). To try real sign-in, create a user (`node scripts/user.mjs --email you@example.com`, password from `FIELDER_PASSWORD` or asked; `--bootstrap` gives the bootstrap user that email instead) and run the Worker with `npx wrangler dev --var ACCESS_DEV_BYPASS:false`. Worker unit tests: `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
+API smoke tests work with plain `curl` against `localhost:8787` (no auth needed locally). To try real sign-in, create a user (`node scripts/user.mjs --email you@example.com`, password from `FIELDER_PASSWORD` or asked; `--bootstrap` gives the bootstrap user that email instead) and run the Worker with `npx wrangler dev --var AUTH_DEV_BYPASS:false`. A `.dev.vars` from before #118 still says `ACCESS_DEV_BYPASS`: rename it. Worker unit tests: `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
 
 Agents can click through the dashboard with the Playwright MCP: headless Chrome against `localhost:5173` (`pnpm dev` running). It is set up per machine, not in the repo: `claude mcp add playwright -- npx -y @playwright/mcp@latest --headless --isolated`, then `npx playwright install --with-deps chrome`. Snapshots land in `.playwright-mcp/` (gitignored). The phone app cannot be driven this way.
 
