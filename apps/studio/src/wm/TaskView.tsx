@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { appDef } from "../apps/registry";
 import { cx, Icon, IconButton } from "@fielder/ui";
 import { requestClose } from "./closeGuards";
 import * as wm from "./wm";
 import type { Rect, Win } from "./wm";
+import { contentOf, contentSize, snapshot } from "./windowPreview";
 
 const TILE_W = 196;
 const onKeyStub = (_e: KeyboardEvent) => {};
@@ -121,7 +122,7 @@ export function TaskView({ onClose }: { onClose: () => void }) {
               onDragEnd={() => setDragging(false)}
               onFocus={() => setCursor(i)} onClick={() => bring(w)} title={w.mode === "min" ? `${w.title} (minimized)` : w.title}>
               <span class="wm-taskview__cardhead"><Icon name={appDef(w.app)?.icon ?? "application-outline"} /><span class="wm-taskview__cardtitle">{w.title}</span></span>
-              <span class="wm-taskview__cardbody"><Icon name={appDef(w.app)?.icon ?? "application-outline"} size={44} /></span>
+              <span class="wm-taskview__cardbody"><Icon name={appDef(w.app)?.icon ?? "application-outline"} size={44} /><WindowPreview win={w} frame={frameOf(w, view, spaces.find((s) => s.id === w.ws)?.split ?? 0.5) ?? w.bounds} /></span>
             </div>
             <IconButton icon="close" label={`Close ${w.title}`} class="wm-taskview__cardx" onClick={() => void requestClose(w.id)} />
           </div>
@@ -130,4 +131,28 @@ export function TaskView({ onClose }: { onClose: () => void }) {
       <p class="wm-taskview__hint">Drag a window onto a workspace to move it · double-click a name to rename · Esc to leave</p>
     </div>
   );
+}
+
+/**
+ * What a window shows, as a picture on its card (issue #153): a copy of its content laid out at the
+ * window's own size, scaled to fit and centred, `inert` so the card stays the only target. The app
+ * icon underneath shows when there is nothing to copy.
+ */
+function WindowPreview({ win, frame }: { win: Win; frame: Rect }) {
+  const box = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    const host = box.current;
+    const content = contentOf(win.id);
+    const size = content && contentSize(content, frame);
+    if (!host || !content || !size) return;
+    const k = Math.min(host.clientWidth / size.w, host.clientHeight / size.h);
+    const copy = snapshot(content);
+    Object.assign(copy.style, {
+      position: "absolute", width: `${size.w}px`, height: `${size.h}px`, transformOrigin: "0 0", transform: `scale(${k})`,
+      left: `${(host.clientWidth - size.w * k) / 2}px`, top: `${(host.clientHeight - size.h * k) / 2}px`,
+    });
+    host.replaceChildren(copy);
+    return () => host.replaceChildren();
+  }, [win.id, frame.w, frame.h]);
+  return <span ref={box} class="wm-taskview__shot" inert aria-hidden="true" />;
 }

@@ -136,7 +136,10 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-taskview__card.is-min{opacity:.7}
 .wm-taskview__cardhead{display:flex;align-items:center;gap:6px;height:32px;padding:0 36px 0 10px;background:var(--surface-sunken);border-bottom:var(--bw) solid var(--border-subtle);font:var(--weight-semibold) var(--text-small)/1 var(--font-sans)}
 .wm-taskview__cardtitle{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.wm-taskview__cardbody{flex:1;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
+.wm-taskview__cardbody{position:relative;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--text-dim)}
+/* The window's picture (TaskView.tsx WindowPreview, issue #153) over the app icon; inert, the card takes the clicks */
+.wm-taskview__shot{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.wm-taskview__shot:not(:empty){background:var(--surface-sunken)}
 .wm-taskview__cardx{position:absolute;top:2px;right:2px}
 .wm-taskview__empty,.wm-taskview__hint{margin:0;text-align:center;opacity:.8;font-size:var(--text-small)}
 /* The split grip between snapped windows (epic #90): a strip at the split, a thumb on hover */
