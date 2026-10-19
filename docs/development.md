@@ -32,6 +32,8 @@ pnpm dev:studio
 `dev:init` never overwrites existing files. It creates:
 - an empty `apps/studio/dist`: `wrangler dev` refuses to start without it
 
+Both Vite dev servers (Studio, admin board) watch the `packages/ui/src` folder as a whole: files outside an app's root are otherwise watched one by one, and a git branch switch replaces them, so later edits to the ui package went unseen until a restart.
+
 Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start fresh, then `pnpm -C apps/worker migrate:local`). Local data is separate from production: say which one you mean.
 
 Demo data: `pnpm dev:seed [count]` (worker running) uploads 40 shots by default with stock photos from picsum.photos into the projects "Stock demo" and "Stock demo B", with locations, random tags (camera fields too), review states, some sequences and some shots without a position. Ids are derived from the seed, so a re-run adds nothing twice. It refuses any API other than localhost.

@@ -39,7 +39,7 @@ export function SaveStatus({ state, onRetry, savedLabel = "Saved" }: { state: Sa
 }
 
 
-interface ToastReq { id: number; text: string; kind: "ok" | "danger" | "info"; action?: { label: string; run: () => void } }
+interface ToastReq { id: number; text: string; kind: "ok" | "danger" | "info"; action?: { label: string; run: () => void }; leaving?: true }
 let pushToast: ((t: ToastReq) => void) | null = null;
 let toastId = 0;
 
@@ -50,10 +50,16 @@ export function toast(text: string, kind: ToastReq["kind"] = "ok", action?: Toas
 
 export function ToastHost() {
   const [items, setItems] = useState<ToastReq[]>([]);
+  // A toast slides out (`is-leaving`, motion.css) before it goes; --dur is 0 under reduced motion.
+  const dismiss = (id: number) => {
+    setItems((cur) => cur.map((x) => (x.id === id ? { ...x, leaving: true } : x)));
+    const ms = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--dur")) || 0;
+    setTimeout(() => setItems((cur) => cur.filter((x) => x.id !== id)), ms);
+  };
   useEffect(() => {
     pushToast = (t) => {
       setItems((cur) => [...cur.slice(-2), t]);
-      setTimeout(() => setItems((cur) => cur.filter((x) => x.id !== t.id)), t.action ? 6000 : 2500);
+      setTimeout(() => dismiss(t.id), t.action ? 6000 : 2500);
     };
     return () => { pushToast = null; };
   }, []);
@@ -61,10 +67,10 @@ export function ToastHost() {
   return (
     <div class="toasts" role="status">
       {items.map((t) => (
-        <div key={t.id} class={cx("f-toast", t.kind === "danger" && "f-toast--danger", t.kind === "ok" && "f-toast--ok")}>
+        <div key={t.id} class={cx("f-toast", t.kind === "danger" && "f-toast--danger", t.kind === "ok" && "f-toast--ok", t.leaving && "is-leaving")}>
           <Icon name={t.kind === "danger" ? "alert-circle" : t.kind === "ok" ? "check-circle" : "information-outline"} />
           <span class="f-toast__text">{t.text}</span>
-          {t.action && <button type="button" class="f-btn f-btn--secondary f-btn--sm" onClick={() => { t.action!.run(); setItems((cur) => cur.filter((x) => x.id !== t.id)); }}>{t.action.label}</button>}
+          {t.action && <button type="button" class="f-btn f-btn--secondary f-btn--sm" onClick={() => { t.action!.run(); dismiss(t.id); }}>{t.action.label}</button>}
         </div>
       ))}
     </div>
