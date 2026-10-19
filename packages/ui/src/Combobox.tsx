@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Highlight, Icon } from "./core";
+import { useDropDirection } from "./hooks";
 
 export interface ComboOption { value: string; label: string; hint?: string }
 
@@ -67,6 +68,8 @@ export function Combobox({ options, value, onChange, placeholder, onCreate, clea
     const anchorRight = el.parentElement!.getBoundingClientRect().right;
     if (box.right > right && anchorRight - box.width >= left) setAlignEnd(true);
   }, [open, entries.length > 0]);
+
+  useDropDirection(list, open && entries.length > 0);
 
   const close = () => { setOpen(false); setQuery(null); };
   const cancel = () => { close(); onCancel?.(); };

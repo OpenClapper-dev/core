@@ -55,6 +55,7 @@ Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone 
 
 **Rules**:
 - Menus, popovers, context menus and Select/Combobox lists enter but never exit: native desktops close menus at once, and an exit would keep stale handlers and `[data-overlay]` (which pauses shortcuts) alive.
+- Select, Combobox and Popover lists hang below their anchor unless the list does not fit there and there is more room above (`useDropDirection` in `hooks.ts`, #196); either way they are capped to the room on that side and scroll. Room is measured inside the nearest ancestor that clips vertically (a window, a panel), else the window. A list that opened upward slides up out of its anchor with its own animation (`f-drop-up`).
 - Use the `translate` and `scale` properties, not `transform`, where code measures the element (`getBoundingClientRect`) or writes `transform` itself.
 - **Never moves**: focus rings, the press `translateY(1px)`, text, photos, frames and masks (their geometry is measured), anything a gesture writes per frame (window drag and resize, the split grip, icon drag, the panel grip), scroll positions, the list cursor `is-hi`. While a window gesture runs, `body.wm-gesture` switches transitions off.
 - **Reduced motion** (`prefers-reduced-motion: reduce`): the duration tokens are zeroed, not `transition: none`, so meaningful keyframes (spinner, skeleton) keep running. JS-driven motion asks `reducedMotion()`; `withViewTransition` then just runs the change.

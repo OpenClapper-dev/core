@@ -77,6 +77,14 @@
   .wm-root[data-taskbar="right"] .wm-launcher, .wm-root[data-taskbar="right"] .wm-project__menu { translate: 6px 0; }
 }
 
+/*
+ * A list that opened upward (#196) slides up out of its anchor instead. Its direction is decided
+ * after the enter transition has already taken its start style, so it gets its own animation and
+ * drops the transition.
+ */
+.f-menu.popover[data-drop="up"], .f-select__list[data-drop="up"], .f-combo__list[data-drop="up"] { transition: none; animation: f-drop-up var(--dur) var(--ease); }
+@keyframes f-drop-up { from { opacity: 0; translate: 0 4px; } }
+
 /* Toasts (#161): rise in from 8 px below; leave sliding right with the exit curve. The others close the gap at once. */
 .f-toast { transition: opacity var(--dur) var(--ease), translate var(--dur) var(--ease); }
 @starting-style { .f-toast { opacity: 0; translate: 0 8px; } }
