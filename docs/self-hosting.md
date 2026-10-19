@@ -6,7 +6,7 @@ Fielder runs entirely on your own Cloudflare account: one Worker serves the API 
 
 - A Cloudflare account. Zero Trust (free for up to 50 users) is used for the admin plane's sign-in.
 - A copy of this repository on GitHub (a fork, or "Use this template"), to deploy with GitHub Actions. Deploying from your own machine works too.
-- For the phone app: a free Expo account, to build the Android app with your server's address (see [The phone](#the-phone)).
+- For the phone app: a signing key you make once (see [The phone](#the-phone)).
 
 ## 1. A Cloudflare API token
 
@@ -81,19 +81,16 @@ Releases are tagged. Bring your copy up to the new tag (merge or rebase), then r
 
 ## The phone
 
-The Android app is built for one server: its address goes into the APK. Build it with the **Build APK** workflow (`.github/workflows/build-apk.yml`).
+The Android app is built for one server: its address goes into the APK. Every build of one deployment must be signed with the same key, or Android refuses to install it over the app. No Expo account is needed: the build is `expo prebuild` and Gradle.
 
 Once:
-1. A free [Expo](https://expo.dev) account. Create an access token (expo.dev → Account settings → Access tokens) and add it as the repository secret `EXPO_TOKEN`.
-2. Add the repository variable `APP_URL`: your app's address, `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`.
-3. Your own Expo project: in a checkout, `cd apps/mobile && npx eas init` and copy the project id and your Expo account name into the variables `EAS_PROJECT_ID` and `EAS_OWNER` (`app.json` names the reference instance's project).
-4. A signing key, once: `npx eas credentials -p android` in `apps/mobile` (with `EAS_OWNER`/`EAS_PROJECT_ID` set in your shell) → production → generate a keystore. Expo keeps it; every build signs with it, so updates install over the old app.
+1. Make the signing key in a checkout: `bash scripts/keystore.sh <owner>/<repo>` (needs a JDK's `keytool`, or Docker). It writes `.secrets/android/fielder-release.jks` and `.secrets/android.env` (gitignored) and prints the commands that set the four repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
+2. **Back up both files** (a password manager or an encrypted drive). Lose them and nobody can update the app without uninstalling it, which deletes whatever is still queued on the phones.
+3. Add the repository variable `APP_URL`: your app's address, `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`.
 
-Then Actions → Build APK → Run workflow, with a mode:
-- **runner** (default): the build runs on GitHub's runner (about 20–30 minutes; no EAS quota). The APK is the run's artifact, **deleted after 3 days** (`retention-days`; GitHub removes it itself, nothing to clean up). Download it, open it on the phone and allow installs from that source. A private repository on GitHub's Free plan has 500 MB of artifact storage, so a few builds a week fit.
-- **cloud**: the workflow queues the build on EAS and ends; it sets `EXPO_PUBLIC_API_URL` in the Expo project's production environment first. Download the APK from the build's page on expo.dev. EAS's free plan has a monthly build quota.
+Then Actions → **Build APK** → Run workflow. The build runs on GitHub's runner (about 20–30 minutes). The APK is the run's artifact and is **deleted after 3 days** (`retention-days`: GitHub removes it, nothing to clean up). Download it, open it on the phone and allow installs from that source. A private repository on GitHub's Free plan has 500 MB of artifact storage; one APK is about 120 MB.
 
-Without GitHub: `API_URL=… PROFILE=apk bash scripts/apk-local.sh` builds it locally in Docker ([development](development.md#apk-builds)).
+Without GitHub, from a checkout with the key in `.secrets/` and Docker: `API_URL=https://… make apk-local` ([development](development.md#apk-builds)).
 
 ## The free plan
 

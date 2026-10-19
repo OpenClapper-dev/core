@@ -10,7 +10,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 | R2 `R2_BUCKET` (default `fielder-shots`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with the workspace in their custom metadata |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
 | Cloudflare Access | The admin plane's sign-in. |
-| Expo / EAS | Phone builds; the only production env var is `EXPO_PUBLIC_API_URL` |
+| Android signing key | Per deployment, made once with `scripts/keystore.sh`; in the deployment repository's secrets and a backup, never in git. Builds need no other service; the only build-time setting is `EXPO_PUBLIC_API_URL` ([self-hosting](self-hosting.md#the-phone)) |
 | Open-Meteo | Weather forecast, called from the dashboard browser directly (free, no key) |
 | OpenStreetMap tiles | Maps in the dashboard (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
 

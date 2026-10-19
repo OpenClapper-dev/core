@@ -1,6 +1,6 @@
 {
   "name": "@fielder/mobile",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/atkinson-hyperlegible-next": "^0.4.1",
@@ -8,6 +8,7 @@
     "@fielder/fov-math": "workspace:*",
     "@fielder/vocab": "workspace:*",
     "expo": "~57.0.0",
+    "expo-constants": "~57.0.16",
     "expo-crypto": "~57.0.0",
     "expo-dev-client": "~57.0.0",
     "expo-file-system": "~57.0.0",
@@ -35,14 +36,11 @@
   },
   "scripts": {
     "start": "expo start --go --tunnel",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
     "web": "expo start --web",
     "typecheck": "tsc -p .",
-    "build:apk": "eas build --platform android --profile apk",
     "start:lan": "expo start --go",
-    "build:dev-client": "eas build --platform android --profile dev-client",
-    "build:apk:local": "eas build --local --platform android --profile apk --output ../../../fielder-builds/fielder-$(git rev-parse --short HEAD).apk"
+    "prebuild": "expo prebuild --platform android --no-install"
   },
   "private": true
 }

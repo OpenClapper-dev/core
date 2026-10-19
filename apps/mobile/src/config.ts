@@ -1,4 +1,4 @@
-/** Build-time configuration, injected by EAS environment variables (EXPO_PUBLIC_*). */
+/** Build-time configuration: EXPO_PUBLIC_* variables, inlined into the bundle when it is built. */
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? "").replace(/\/$/, "");
 
 export const isConfigured = Boolean(API_URL);

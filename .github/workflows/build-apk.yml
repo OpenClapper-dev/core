@@ -1,32 +1,26 @@
-# Builds the Android app for a deployment, pointed at its server (the APP_URL variable). Two modes:
-#   runner  `eas build --local` on the GitHub runner: no EAS build queue or quota. The APK becomes
-#           a workflow artifact, deleted after 3 days (download and install it before then).
-#   cloud   queues the build on EAS and exits; download it from the build page on expo.dev.
-# Both sign with the keystore in the Expo project's credentials, so both need EXPO_TOKEN.
+# Builds the Android app for a deployment, pointed at its server (the APP_URL variable): expo prebuild
+# + Gradle on the GitHub runner, signed with the deployment's own key (scripts/keystore.sh). No Expo
+# account. The APK is the run's artifact, deleted after 3 days: download and install it before then.
 # Self-hosters run it on their copy of this repository (Actions → Build APK → Run workflow); another
 # repository can call it with this one as a submodule (`path`). Setup: docs/self-hosting.md#the-phone.
 name: Build APK
 
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        description: Where the build runs
-        type: choice
-        options: [runner, cloud]
-        default: runner
   workflow_call:
     inputs:
       path:
         description: Where this repository is checked out in the calling one (a submodule)
         type: string
         default: "."
-      mode:
-        description: runner (on the GitHub runner, APK as artifact) or cloud (queued on EAS)
-        type: string
-        default: runner
     secrets:
-      EXPO_TOKEN:
+      ANDROID_KEYSTORE_BASE64:
+        required: true
+      ANDROID_KEYSTORE_PASSWORD:
+        required: true
+      ANDROID_KEY_ALIAS:
+        required: true
+      ANDROID_KEY_PASSWORD:
         required: true
 
 concurrency:
@@ -44,19 +38,20 @@ jobs:
       run:
         working-directory: ${{ inputs.path || '.' }}
     env:
-      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EXPO_PUBLIC_API_URL: ${{ vars.APP_URL }}
-      # Optional: your own Expo project instead of the one in app.json (apps/mobile/app.config.ts).
-      EAS_OWNER: ${{ vars.EAS_OWNER }}
-      EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
-      MODE: ${{ inputs.mode || 'runner' }}
+      ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      EXPO_NO_GIT_STATUS: "1"
     steps:
       - name: Settings
+        working-directory: .
         run: |
           [ -n "$EXPO_PUBLIC_API_URL" ] || { echo "::error::Set the APP_URL variable to your server, e.g. https://fielder-api.<subdomain>.workers.dev"; exit 1; }
-          [ -n "$EXPO_TOKEN" ] || { echo "::error::Set the EXPO_TOKEN secret (expo.dev → Access tokens)"; exit 1; }
-          case "$MODE" in runner|cloud) ;; *) echo "::error::mode must be runner or cloud"; exit 1;; esac
-        working-directory: .
+          for v in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            [ -n "${!v}" ] || { echo "::error::Set the $v secret (scripts/keystore.sh prints all four)"; exit 1; }
+          done
 
       - uses: actions/checkout@v4
         with:
@@ -73,13 +68,11 @@ jobs:
           cache-dependency-path: ${{ inputs.path || '.' }}/pnpm-lock.yaml
 
       - uses: actions/setup-java@v4
-        if: env.MODE == 'runner'
         with:
           distribution: temurin
           java-version: 17
 
       - uses: actions/cache@v4
-        if: env.MODE == 'runner'
         with:
           path: |
             ~/.gradle/caches
@@ -90,28 +83,24 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
-      - name: Build on the runner
-        if: env.MODE == 'runner'
+      - name: Build
         working-directory: ${{ inputs.path || '.' }}/apps/mobile
         run: |
-          name="fielder-$(git rev-parse --short HEAD).apk"
-          pnpm exec eas build --local --platform android --profile apk --non-interactive --output "$RUNNER_TEMP/$name"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks" GIT_COMMIT=$(git rev-parse --short HEAD)
+          pnpm exec expo prebuild --platform android --no-install
+          (cd android && ./gradlew assembleRelease --no-daemon)
+          name="fielder-$(node -p 'require("../../package.json").version')-$GIT_COMMIT.apk"
+          mv android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/$name"
+          # Never hand out a release signed with the debug key (it would not update a real install).
+          signer=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          if "$signer" verify --print-certs "$RUNNER_TEMP/$name" | grep -q "CN=Android Debug"; then echo "::error::The APK is debug-signed"; exit 1; fi
+          rm "$RUNNER_TEMP/release.jks"
           echo "APK_NAME=$name" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
-        if: env.MODE == 'runner'
         with:
           name: ${{ env.APK_NAME }}
           path: ${{ runner.temp }}/${{ env.APK_NAME }}
           retention-days: 3
           compression-level: 0
-
-      # An EAS build runs on Expo's servers, which never see this job's environment: the server's
-      # address goes into the Expo project's production environment first.
-      - name: Queue on EAS
-        if: env.MODE == 'cloud'
-        working-directory: ${{ inputs.path || '.' }}/apps/mobile
-        run: |
-          pnpm exec eas env:set production --name EXPO_PUBLIC_API_URL --value "$EXPO_PUBLIC_API_URL" --visibility plaintext --non-interactive
-          id=$(pnpm exec eas build --platform android --profile apk --non-interactive --no-wait --json | jq -r '.[0].id')
-          echo "Queued on EAS: build \`$id\`. Download it from your project's Builds page on expo.dev." >> "$GITHUB_STEP_SUMMARY"

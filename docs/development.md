@@ -53,8 +53,8 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 ```
 
 - **The development build** ("Fielder Dev", `app.fielder.scout.dev`) is this app with its native modules plus Expo's dev launcher and menu (`expo-dev-client`). It carries no JavaScript: it loads the bundle from Metro, so Fast Refresh works as in Expo Go. Rebuild only when the native side changes: a new native module, a plugin or permission in `app.json`, an SDK upgrade. A bundle that calls a native module the build lacks fails at runtime.
-- `APP_VARIANT=development` (eas.json `dev-client` profile, and `make mobile`) switches `app.config.ts` to the dev name, package id and scheme, so it installs next to the production app with its own storage.
-- `make dev-build` = `PROFILE=dev-client scripts/apk-local.sh`: `eas build --local` in the Docker toolchain, no EAS quota. The profile is a debug build (`:app:assembleDebug`, `withoutCredentials`): signed with the debug key, so no keystore from Expo, but the Expo login is still needed. Install the APK from Downloads once (allow installs from the file manager); later builds install over it.
+- `APP_VARIANT=development` (`make dev-build` and `make mobile`) switches `app.config.ts` to the dev name, package id and scheme, so it installs next to the production app with its own storage.
+- `make dev-build` = `VARIANT=dev scripts/apk-local.sh`: `expo prebuild` and `./gradlew assembleDebug` in the Docker toolchain, no account. Signed with the debug key of Expo's prebuild template, the same on every machine. Install the APK from Downloads once (allow installs from the file manager); later builds install over it.
 - In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 
 - `scripts/dev-all.sh` (`make all`) opens a tmux session `fielder`: Worker and dashboard stacked on the left, `make mobile` on the right (it waits for the Worker, so it only adds a tunnel), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
@@ -76,13 +76,14 @@ Not from this checkout: deploying and production APKs belong to a deployment, wh
 
 ## APK builds
 
-- **The development build** for the phone loop: `make dev-build` (above), or in the cloud `pnpm -C apps/mobile build:dev-client`.
-- **Production APKs** are built for a deployment with its server's address ([self-hosting](self-hosting.md#the-phone)).
+- **The development build** for the phone loop: `make dev-build` (above).
+- **Production APKs** are built for one server and signed with its deployment's key: the Build APK workflow, or locally `API_URL=https://… make apk-local` with the key from `scripts/keystore.sh` in `.secrets/` ([self-hosting](self-hosting.md#the-phone)).
 
 `scripts/apk-local.sh` builds in a Docker container (`docker/android.Dockerfile`: JDK 17, Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1, Node 22.20.0, pnpm 11.13.1; nothing installed in WSL):
-- Once: Docker Desktop → Settings → Resources → WSL integration → enable this distro; `npx eas login` (the session in `~/.expo` is mounted into the container; `EXPO_TOKEN` works too).
-- It builds the image (cached after the first run), runs `eas build --local` with the repo mounted and Gradle's cache in the `fielder-gradle` volume, writes `~/fielder-builds/fielder-dev-client-<commit>.apk` (a production one `fielder-<commit>.apk`) and copies it to the Windows Downloads folder (`DOWNLOADS=…` overrides).
-- `PROFILE=apk` (a production APK, the keystore from Expo) needs `API_URL=…`. The first run downloads the SDK and Gradle dependencies (several GB); later builds take about 10 minutes.
+- Once: Docker Desktop → Settings → Resources → WSL integration → enable this distro.
+- It builds the image (cached after the first run), then in the container with the repo mounted and Gradle's cache in the `fielder-gradle` volume: `expo prebuild --platform android` (generates the gitignored `apps/mobile/android/` from the template in `node_modules/expo`, removed again afterwards) and Gradle. It writes `~/fielder-builds/fielder-dev-<commit>.apk` (a production one `fielder-<version>-<commit>.apk`) and copies it to the Windows Downloads folder (`DOWNLOADS=…` overrides).
+- `VARIANT=release` (`make apk-local`) needs `API_URL=…` and the key: `.secrets/android/fielder-release.jks` and its passwords in `.secrets/android.env` (`scripts/keystore.sh`). Release signing comes from a config plugin in `app.config.ts` that reads `ANDROID_KEYSTORE*` at Gradle time; a release that still carries the debug key fails the build. The first run downloads Gradle's dependencies (several GB); later builds take about 10 minutes.
+- `versionCode` and `versionName` come from the root `package.json` version (`app.config.ts`), the commit from `GIT_COMMIT`.
 
 ## Debugging on the phone
 
