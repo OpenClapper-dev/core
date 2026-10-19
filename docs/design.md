@@ -50,7 +50,7 @@ Switching:
 | --- | --- |
 | `core.tsx` | `cx`, `Icon` (optional slot class), `Mark`, `Kbd`, `Highlight` |
 | `actions.tsx` | `Button` (kind, size, icon, iconAfter, kbd hint), `IconButton` (ghost/sm by default, needs a label), `ReorderButtons` (up, down, remove), `LinkButton` |
-| `forms.tsx` | `Field` (label, help, error), `Input` (sm, unit, invalid, after), `PasswordInput` (an eye button shows the password), `SearchInput`, `Checkbox`, `Switch`, `Select`, `Chip`, `LightChips`; `Combobox.tsx` |
+| `forms.tsx` | `Field` (label, help, error), `Input` (sm, unit, invalid, after), `PasswordInput` (an eye button beside it shows the password), `SearchInput`, `Checkbox`, `Switch`, `Select`, `Chip`, `LightChips`; `Combobox.tsx` |
 | `navigation.tsx` | `Seg` |
 | `data.tsx` | `ListRow`, `MenuItem`, `StateMarker`, `SeqBadge`, `ProjectTag` |
 | `feedback.tsx` | `Banner`, `Empty` (a whole page), `EmptyNote` (inside a list), `Loading`, `Spinner`, `ProgressBar`, `ErrorLine`, `SaveStatus`, `toast`/`ToastHost` |
