@@ -24,6 +24,7 @@ import { TaskView } from "./TaskView";
 import { SplitGrip } from "./SplitGrip";
 import { WindowGhosts } from "./WindowGhosts";
 import { Window } from "./Window";
+import { goToWorkspace } from "./switchWorkspace";
 import * as wm from "./wm";
 
 setFocusSource(wm.getFocusedId);
@@ -170,10 +171,10 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     snapRight: onFocused((id) => wm.setSnap(id, focusedWin()?.snap === "right" && focusedWin()?.mode === "snapped" ? null : "right")),
     desktop: () => wm.toggleDesktop(),
     taskView: () => openOverlay("taskview"),
-    wsNext: () => wm.switchWorkspace(1),
-    wsPrev: () => wm.switchWorkspace(-1),
+    wsNext: () => goToWorkspace(1),
+    wsPrev: () => goToWorkspace(-1),
     wsNew: () => { wm.addWorkspace({ go: true }); },
-    wsGo: (e) => { const ws = wsOfKey(e); if (ws) wm.switchWorkspace(ws.id); else return false; },
+    wsGo: (e) => { const ws = wsOfKey(e); if (ws) goToWorkspace(ws.id); else return false; },
     wsMove: (e) => { const w = focusedWin(); const ws = wsOfKey(e); if (!w || !ws) return false; wm.moveToWorkspace(w.id, ws.id); },
   }), !overlay);
 
@@ -216,7 +217,8 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
         })}
         <WindowGhosts activeWs={activeWs} />
         <SplitGrip />
-        {preview && <div class={`wm-snap-preview wm-snap-preview--${preview}`} />}
+        {/* Always there, so it can fade in and out (motion.css); data-zone none hides it. */}
+        <div class={preview ? `wm-snap-preview wm-snap-preview--${preview}` : "wm-snap-preview"} data-zone={preview ?? "none"} />
       </div>
       <Taskbar projectId={projectId} onPalette={openPalette} />
       {/* Overlays fade out (Presence): the palette, the shortcut sheet, the task view, New shot. */}

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { appDef } from "../apps/registry";
 import { cx, Icon, IconButton } from "@fielder/ui";
 import { requestClose } from "./closeGuards";
+import { goToWorkspace } from "./switchWorkspace";
 import * as wm from "./wm";
 import type { Rect, Win } from "./wm";
 import { contentOf, contentSize, snapshot } from "./windowPreview";
@@ -49,7 +50,7 @@ export function TaskView({ onClose }: { onClose: () => void }) {
   useEffect(() => { setCursor((c) => Math.min(c, Math.max(0, cards.length - 1))); }, [cards.length]);
   useEffect(() => { root.current?.querySelectorAll<HTMLElement>(".wm-taskview__card")[cursor]?.focus(); }, [cursor, shownWs]);
 
-  const go = (id: string) => { wm.switchWorkspace(id); onClose(); };
+  const go = (id: string) => { goToWorkspace(id); onClose(); };
   const bring = (w: Win) => { wm.focus(w.id); onClose(); };
   const scale = TILE_W / Math.max(1, view.w);
 

@@ -87,7 +87,7 @@
  * and writes geometry per frame, so nothing may transition then. A window never transitions
  * `transform` (the title-bar drag writes it); it uses the `scale` property.
  */
-body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area, .wm-split-grip) { transition: none !important; }
+body.wm-gesture :is(.wm-window, .wm-area, .wm-split-grip) { transition: none !important; }
 .wm-window {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
     opacity var(--dur-slow) var(--ease), scale var(--dur-slow) var(--ease), translate var(--dur-slow) var(--ease),
@@ -96,7 +96,7 @@ body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area, .wm-split-grip) { tr
 }
 .wm-window__bar { transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
 /* Opening: only once the desktop stands (Shell sets is-settled), not for the windows a project restores. */
-@starting-style { .wm-root.is-settled .wm-window { opacity: 0; scale: .96; } }
+@starting-style { .wm-root.is-settled:not(.is-switching) .wm-window { opacity: 0; scale: .96; } }
 /* Closing: the shell's empty frame in the closed window's place (WindowGhosts.tsx) fades and shrinks. */
 .wm-window--ghost { opacity: 0; scale: .96; pointer-events: none; transition-timing-function: var(--ease-in); }
 @starting-style { .wm-root .wm-window.wm-window--ghost, .wm-root.is-settled .wm-window.wm-window--ghost { opacity: 1; scale: 1; } }
@@ -122,3 +122,16 @@ body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area, .wm-split-grip) { tr
  * wm/gesture.ts). The split grip follows the split the same way.
  */
 .wm-split-grip { transition: left var(--dur-slow) var(--ease); }
+
+/*
+ * Workspaces (#165). A switch crossfades the whole desktop (a View Transition, wm/switchWorkspace.ts);
+ * while it runs (.is-switching) windows and taskbar buttons skip their own entrance.
+ */
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-slow); }
+/* The snap preview during a window drag fades in; between zones it just moves, and it goes at once (its zone class is its geometry). */
+.wm-snap-preview { transition: opacity var(--dur) var(--ease); }
+.wm-snap-preview[data-zone="none"] { display: none; }
+@starting-style { .wm-snap-preview { opacity: 0; } }
+/* A window's taskbar button rises in; it goes at once. */
+.wm-task--win { transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), opacity var(--dur) var(--ease), translate var(--dur) var(--ease); }
+@starting-style { .wm-root.is-settled:not(.is-switching) .wm-task--win { opacity: 0; translate: 0 4px; } }

@@ -7,8 +7,10 @@ export const reducedMotion = () => typeof window !== "undefined" && !!window.mat
  * Runs a state change inside a View Transition (a crossfade or morph of the whole page), or plainly
  * when the browser has none, motion is reduced or a window gesture is running. The callback waits
  * one macrotask after `fn` so Preact (which re-renders on a microtask) has painted the new state.
+ * Resolves when the transition has finished (at once on the plain path).
  */
-export function withViewTransition(fn: () => void): void {
-  if (!document.startViewTransition || reducedMotion() || document.body.classList.contains("wm-gesture")) { fn(); return; }
-  document.startViewTransition(async () => { fn(); await new Promise((r) => setTimeout(r)); });
+export function withViewTransition(fn: () => void): Promise<void> {
+  if (!document.startViewTransition || reducedMotion() || document.body.classList.contains("wm-gesture")) { fn(); return Promise.resolve(); }
+  const t = document.startViewTransition(async () => { fn(); await new Promise((r) => setTimeout(r)); });
+  return t.finished.catch(() => undefined);
 }
