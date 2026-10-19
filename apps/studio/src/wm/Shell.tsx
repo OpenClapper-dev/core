@@ -11,7 +11,7 @@ import { ProjectGate } from "../Projects";
 import { routeHash } from "../router";
 import { SignInPage } from "../SignIn";
 import { useSettings } from "../settings";
-import { Button, ConfirmHost, Empty, Loading, setTheme, toast, ToastHost, useTheme } from "@fielder/ui";
+import { Button, ConfirmHost, Empty, Loading, Presence, setTheme, toast, ToastHost, useTheme } from "@fielder/ui";
 import { boot, signOut, useUser } from "../user";
 import { requestClose } from "./closeGuards";
 import { Desktop } from "./Desktop";
@@ -208,23 +208,24 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
         {preview && <div class={`wm-snap-preview wm-snap-preview--${preview}`} />}
       </div>
       <Taskbar projectId={projectId} onPalette={openPalette} />
-      {overlay === "palette" && (
+      {/* Overlays fade out (Presence): the palette, the shortcut sheet, the task view, New shot. */}
+      <Presence show={overlay === "palette"}>{overlay === "palette" && (
         <CommandPalette shots={pd.scoped} locations={pd.locations} views={pd.views} projects={pd.data.projects ?? []} days={days} actions={actions} onClose={closeOverlay}
           onOpenShot={(s) => launch({ app: "shot", resource: { type: "shot", id: s.id }, state: { stage: "photo", list: [s.id] } })}
           onLocation={(l) => launch({ app: "gallery", state: { locationId: l.id } })}
           onView={(v) => launch({ app: "gallery", state: { viewId: v.id } })}
           onProject={(p) => void switchProject(p.id).then((ok) => ok && toast(`Now working on ${p.name}`))}
           onDay={(day) => launch({ app: "plan", state: { dayId: day.id } })} />
-      )}
-      {overlay === "sheet" && <ShortcutSheet onClose={closeOverlay} />}
-      {overlay === "taskview" && <TaskView onClose={closeOverlay} />}
-      {overlay === "newShot" && <NewShotDialog projectId={projectId} locations={pd.locations} onLocations={data.setLocationsOf(projectId)} onClose={closeOverlay}
+      )}</Presence>
+      <Presence show={overlay === "sheet"}>{overlay === "sheet" && <ShortcutSheet onClose={closeOverlay} />}</Presence>
+      <Presence show={overlay === "taskview"}>{overlay === "taskview" && <TaskView onClose={closeOverlay} />}</Presence>
+      <Presence show={overlay === "newShot"}>{overlay === "newShot" && <NewShotDialog projectId={projectId} locations={pd.locations} onLocations={data.setLocationsOf(projectId)} onClose={closeOverlay}
         onCreated={(list) => {
           data.created(list);
           closeOverlay();
           const first = list[0];
           if (first) launch({ app: "shot", resource: { type: "shot", id: first.id }, state: { stage: "photo", list: list.map((x) => x.id), line: "Just created" } });
-        }} />}
+        }} />}</Presence>
       <ConfirmHost />
       <ToastHost />
     </div>

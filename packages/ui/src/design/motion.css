@@ -32,3 +32,30 @@
 .f-chip { transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), padding-left var(--dur) var(--ease); }
 .f-chip > .mdi-check { transition: opacity var(--dur) var(--ease); }
 @starting-style { .f-chip > .mdi-check { opacity: 0; } }
+
+/*
+ * Modal overlays (#159): the scrim and the dialog fade in, the dialog rising 8 px from 98 %;
+ * on the way out (Presence adds is-leaving) they fade with the exit curve and stop taking clicks.
+ * Scrim and dialog share one duration, since the first finished fade ends the exit. The command
+ * palette only rises, never scales: its input has focus and a scaled caret renders wrong.
+ */
+.overlay > .f-scrim { transition: opacity var(--dur-slow) var(--ease); }
+.overlay > .f-modal { transition: opacity var(--dur-slow) var(--ease), translate var(--dur-slow) var(--ease), scale var(--dur-slow) var(--ease); }
+.overlay > .f-cmdk { transition: opacity var(--dur-slow) var(--ease), translate var(--dur-slow) var(--ease); }
+@starting-style {
+  .overlay > .f-scrim { opacity: 0; }
+  .overlay > .f-modal { opacity: 0; translate: 0 8px; scale: .98; }
+  .overlay > .f-cmdk { opacity: 0; translate: 0 -8px; }
+}
+.overlay.is-leaving { pointer-events: none; }
+.overlay.is-leaving > * { opacity: 0; transition-timing-function: var(--ease-in); }
+.overlay.is-leaving > .f-modal { scale: .98; }
+
+/* Task view (#159): fades over the desktop; the window cards rise into place. */
+.wm-taskview { transition: opacity var(--dur-slow) var(--ease); }
+.wm-taskview__cardwrap { transition: opacity var(--dur-slow) var(--ease), translate var(--dur-slow) var(--ease); }
+@starting-style {
+  .wm-taskview { opacity: 0; }
+  .wm-taskview__cardwrap { opacity: 0; translate: 0 8px; }
+}
+.wm-taskview.is-leaving { opacity: 0; pointer-events: none; transition-timing-function: var(--ease-in); }

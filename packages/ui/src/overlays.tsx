@@ -8,6 +8,7 @@ import { Button } from "./actions";
 import { cx } from "./core";
 import { Field, Input } from "./forms";
 import { useOutsideClick } from "./hooks";
+import { Presence } from "./Presence";
 
 /**
  * A full-window layer over the page with a scrim; a click on the scrim calls `onClose`.
@@ -15,8 +16,12 @@ import { useOutsideClick } from "./hooks";
  * content to the top (command palette) instead of centring it.
  */
 export function Overlay({ top, onClose, onKeyDown, children }: { top?: boolean; onClose: () => void; onKeyDown?: (e: KeyboardEvent) => void; children: ComponentChildren }) {
+  // `autofocus` is ignored for inserted elements while something else has focus (the button that
+  // opened this), so the first field that asks for it is focused here.
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => { ref.current?.querySelector<HTMLElement>("[autofocus]")?.focus(); }, []);
   return (
-    <div class={cx("overlay", top && "overlay--top")} data-overlay onKeyDown={onKeyDown}>
+    <div ref={ref} class={cx("overlay", top && "overlay--top")} data-overlay onKeyDown={onKeyDown}>
       <div class="f-scrim" onClick={onClose} />
       {children}
     </div>
@@ -127,8 +132,9 @@ export function ConfirmHost() {
   const ok = useRef<HTMLButtonElement>(null);
   const field = useRef<HTMLInputElement>(null);
   useEffect(() => { if (req?.input) { field.current?.focus(); field.current?.select(); } else ok.current?.focus(); }, [req]);
-  if (!req) return null;
+  // Fades out after a choice (Presence); the kept dialog shows the last request meanwhile.
   return (
+    <Presence show={!!req}>{req && (
     <Modal title={req.title} role="alertdialog" width="460px" onClose={() => done(false)} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); done(false); } }}>
       {(req.body || req.input) && (
         <div class="f-modal__body" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -143,5 +149,6 @@ export function ConfirmHost() {
         <Button btnRef={ok} kind={req.danger ? "danger-solid" : "primary"} disabled={!!req.input && !text.trim()} onClick={() => done(true)}>{req.confirmLabel}</Button>
       </div>
     </Modal>
+    )}</Presence>
   );
 }
