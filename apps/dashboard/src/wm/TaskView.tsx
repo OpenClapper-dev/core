@@ -107,8 +107,8 @@ export function TaskView({ onClose }: { onClose: () => void }) {
           onDragOver={(e) => { if (e.dataTransfer?.types.includes(WIN_DRAG)) { e.preventDefault(); setDropOn("new"); } }}
           onDragLeave={() => setDropOn((d) => (d === "new" ? null : d))}
           onDrop={(e) => { e.preventDefault(); setDropOn(null); const id = e.dataTransfer?.getData(WIN_DRAG); if (id) wm.moveToWorkspace(id, "new"); }}>
+          <span class="wm-taskview__head"><span class="wm-taskview__name">New workspace</span></span>
           <span class={cx("wm-taskview__plus", dropOn === "new" && "is-drop")} style={{ width: `${TILE_W}px`, height: `${Math.round(view.h * scale)}px` }}><Icon name="plus" size={28} /></span>
-          <span class="wm-taskview__name">New workspace</span>
         </button>
       </div>
       <div class="wm-taskview__cards" role="list" aria-label={`Windows on ${spaces.find((s) => s.id === shownWs)?.name ?? ""}`}>
