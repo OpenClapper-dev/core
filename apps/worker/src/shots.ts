@@ -310,7 +310,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     return json({ shot });
   });
 
-  // Same-origin image delivery so the dashboard can use plain <img> tags behind Access.
+  // Same-origin image delivery so the dashboard can use plain <img> tags with its session cookie.
   r.on("GET", "/api/photos/:id/image", async (ctx, { id }) => {
     const { env, request } = ctx;
     const pid = assertUuid(id, "id");

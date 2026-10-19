@@ -6,7 +6,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 
 - **Five tabs**: Shoot · History (badge: unreviewed count) · Shots · Day · Setup. The tab bar is a right-hand column in landscape.
 - **Gates**, full screen, before the tabs (`screens/Gates.tsx`):
-  - **Sign in**: on launch without a session, and whenever a request finds it gone. "Sign in" opens the email and password form ([accounts](accounts.md)); a wrong password, a locked account or a server still behind Cloudflare Access each say so. "Continue without signing in" keeps shots on the phone.
+  - **Sign in**: on launch without a session, and whenever a request finds it gone. "Sign in" opens the email and password form ([accounts](accounts.md)); a wrong password, a locked account or a web page instead of the server (a Wi-Fi login) each say so. "Continue without signing in" keeps shots on the phone.
   - **Pick a project**: when none is active, or the active one no longer exists. "New project" works offline.
 - **Pushed screens** replace the tab (the tab bar is hidden, the tab stays mounted underneath). The stack is `Route` in `appState.tsx`: Uploads, Offline, Shot details, Correct position, the focused map, Step-through, Rigs & lenses, the Rig editor and the Setup sub-screens. Android back pops one; on a tab it returns to Shoot first. There is no navigation library.
 - **Sheet vs screen**: a sheet for a single choice that returns you where you were (project, rig pick, lens, tag fields). A full screen for anything with its own photo or map.

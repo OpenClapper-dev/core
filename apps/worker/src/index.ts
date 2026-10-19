@@ -1,12 +1,10 @@
 /**
  * Fielder API Worker.
  * Every request except signing in needs a user: a session from the auth provider
- * (`@fielder/auth-provider`, first-party.ts by default) or, until Cloudflare Access is removed from
- * the app's hostname (epic #107), a verified Access JWT, which stands for the bootstrap user.
+ * (`@fielder/auth-provider`, first-party.ts by default).
  */
 import { provider } from "@fielder/auth-provider";
-import { AccessError, BOOTSTRAP_USER_ID, HttpError, json, Router, verifyAccessJwt } from "@fielder/service-kit";
-import { registerAuthRoutes } from "./auth.ts";
+import { BOOTSTRAP_USER_ID, HttpError, json, Router } from "@fielder/service-kit";
 import type { Identity, PublicCtx } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
 import { registerComposeRoutes } from "./compose.ts";
@@ -31,17 +29,14 @@ import { registerWorkspaceRoutes } from "./workspaces.ts";
 export interface Env {
   DB: D1Database;
   SHOTS_BUCKET: R2Bucket;
-  /** Cloudflare Access in front of the app, until the cutover to sign-in (epic #107). */
-  ACCESS_TEAM_DOMAIN: string;
-  ACCESS_AUD: string;
   /** Live layout preview rooms, one per user (preview.ts, issue #50). */
   PREVIEW: DurableObjectNamespace<import("./preview.ts").PreviewRoom>;
   /**
-   * Local development only. Set `ACCESS_DEV_BYPASS="true"` in a gitignored
+   * Local development only. Set `AUTH_DEV_BYPASS="true"` in a gitignored
    * `.dev.vars` file so `wrangler dev` works without signing in: a request
    * without a session is the bootstrap user. Never define this in wrangler.jsonc.
    */
-  ACCESS_DEV_BYPASS?: string;
+  AUTH_DEV_BYPASS?: string;
   /** PBKDF2 iterations for new password hashes (password.ts); default and maximum 100 000. */
   PBKDF2_ITERATIONS?: string;
 }
@@ -90,7 +85,6 @@ router.on("GET", "/api/me", async ({ env, identity }) => {
   ).bind(identity.userId).all<{ id: string; name: string; role: string; personal: number }>();
   return json({ user, workspaces: results.map((w) => ({ ...w, personal: w.personal === 1 })) });
 });
-registerAuthRoutes(router);
 registerPresetRoutes(router);
 registerProjectRoutes(router);
 registerFieldRoutes(router);
@@ -114,21 +108,11 @@ async function bootstrapIdentity(env: Env): Promise<Identity | null> {
   return u ? { userId: BOOTSTRAP_USER_ID, email: u.email } : null;
 }
 
-/**
- * A session first. Then, while Cloudflare Access still guards the app (until #118), an Access login,
- * which can only be the owner and so is the bootstrap user that owns the pre-sign-in data. Locally,
- * the dev bypass makes a request without a session the bootstrap user too.
- */
+/** A session; locally, the dev bypass makes a request without one the bootstrap user. */
 async function identify(request: Request, env: Env): Promise<Identity | null> {
   const signedIn = await provider.identify(request, env);
   if (signedIn) return signedIn;
-  if (env.ACCESS_DEV_BYPASS === "true") return bootstrapIdentity(env);
-  // Only where Access is configured in front of the app; elsewhere the header means nothing.
-  if (env.ACCESS_AUD && request.headers.has("Cf-Access-Jwt-Assertion")) {
-    const access = await verifyAccessJwt(request, env);
-    if (access.kind === "user") return bootstrapIdentity(env);
-  }
-  return null;
+  return env.AUTH_DEV_BYPASS === "true" ? bootstrapIdentity(env) : null;
 }
 
 export default {
@@ -145,7 +129,6 @@ export default {
       const tenant = await loadTenant(env, identity.userId);
       return await router.handle(request.method, url.pathname, { request, env, url, identity, tenant });
     } catch (err) {
-      if (err instanceof AccessError) return json({ error: "unauthorized", reason: err.message }, 401);
       if (err instanceof HttpError) return json({ error: err.message }, err.status);
       console.error("unhandled", err);
       return json({ error: "internal error" }, 500);

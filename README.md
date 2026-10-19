@@ -18,4 +18,4 @@ Documentation for developers and AI agents lives in [`docs/`](docs/README.md); s
 - **Day mode** on the phone: step through the day's shots on set, and keep a day offline with all its photos.
 - **Debug log** on the phone to share with an AI agent when something goes wrong.
 
-Runs on Cloudflare (Workers, D1, R2, Access); the phone app is built with Expo.
+Runs on Cloudflare (Workers, D1, R2; Access for the admin plane); the phone app is built with Expo.

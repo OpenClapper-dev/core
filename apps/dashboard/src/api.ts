@@ -1,4 +1,4 @@
-/** Same-origin API; the Access session cookie is sent automatically. */
+/** Same-origin API; the session cookie is sent automatically. */
 import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@fielder/vocab";
 export type { ClipGroup } from "@fielder/vocab";
 export type { FieldDefinition };
@@ -130,7 +130,7 @@ export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(path, { ...init, headers: { accept: "application/json", ...(init.headers ?? {}) }, credentials: "same-origin" });
   if (res.redirected) {
-    // Cloudflare Access (while it still guards the app) sent its login page: reload to go through it.
+    // A login page in front of the app (an access proxy put on its hostname) answered: reload to go through it.
     location.reload();
     throw new ApiError(401, "session expired");
   }

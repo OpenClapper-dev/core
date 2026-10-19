@@ -16,7 +16,7 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 | POST | `/api/workspaces/:id/members` | `{ email, role }` (admin, editor, viewer): adds an existing account of this instance (`404` for an unknown email) or changes its role. Admins manage editors and viewers, the owner also admins; the owner's role never changes |
 | DELETE | `/api/workspaces/:id/members/:user` | Remove (same rule), or leave (your own id). The owner cannot leave (`400`) |
 
-Who a request is (`index.ts` `identify`): a session (bearer header, else cookie; sliding: dashboard 30 days, phone 180, extended at most once a day), else, until Cloudflare Access is removed from the app (#118), a verified Access JWT, which is the bootstrap user. Locally, `ACCESS_DEV_BYPASS` makes a request without a session the bootstrap user. Before any change the auth provider's `allow` is asked (`403` when it says no; the first-party provider always allows).
+Who a request is (`index.ts` `identify`): a session (bearer header, else cookie; sliding: dashboard 30 days, phone 180, extended at most once a day). Locally, `AUTH_DEV_BYPASS` makes a request without a session the bootstrap user. Before any change the auth provider's `allow` is asked (`403` when it says no; the first-party provider always allows).
 
 **Access** (`tenancy.ts`). Lists hold what is in the caller's workspaces. A route by id answers `404` for a row of a workspace the caller is not in (exactly like a missing one) and `403` when their role there is too low: `viewer` reads, `editor` changes content, `admin`/`owner` manage the workspace. A PUT upsert to an id of another workspace is a `404`, never an overwrite. A project named in a body (an upload, a move target) that the caller cannot reach is `400 project_id does not exist`, as an unknown one, so a phone parks such an upload as stuck. Shots never move to a project of another workspace (`400`). Lists without `?project_id=` (locations, spots, fields, views, days, shots) cover every project of the caller's workspaces. A location or spot named by id is only ever matched or copied by name within the same workspace: an upload naming one of another workspace drops it (as a deleted one), an edit is `400`. Files, the desktop and the recycle bin need `viewer` on the project to read and `editor` to change. Timelines and days never move to a project of another workspace (`400`); a sketch is copied only within its workspace, and a framing's rig must be one of the photo's workspace.
 
@@ -153,5 +153,4 @@ A binned shot comes back by itself when the phone uploads to it again (a continu
 
 ## Other
 
-- `GET /auth/mobile`: page that hands the Access JWT to the phone's WebView (`auth.ts`); goes away with Access (#118).
 - `GET /health`: D1 and R2 reachability plus the caller's email; needs a user.

@@ -18,12 +18,11 @@ write_if_missing() {
 }
 
 echo "Local dev files:"
-# Lets the worker skip Cloudflare Access verification; dev only, never deployed.
-write_if_missing "apps/worker/.dev.vars" 'ACCESS_DEV_BYPASS="true"'
+# A request without a session is the bootstrap user (curl without signing in); dev only, never deployed.
+write_if_missing "apps/worker/.dev.vars" 'AUTH_DEV_BYPASS="true"'
 # The admin plane without Cloudflare Access in front: every request is admin@localhost. Dev only.
 write_if_missing "apps/admin/.dev.vars" 'ADMIN_DEV_BYPASS="true"'
-# Expo inlines EXPO_PUBLIC_* into the bundle. Without it the login WebView
-# resolves the bare path /auth/mobile against file:// and fails.
+# Expo inlines EXPO_PUBLIC_* into the bundle. Without it the phone has no server to sign in to.
 write_if_missing "apps/mobile/.env.local" "EXPO_PUBLIC_API_URL=$API_URL"
 
 # Both Workers type-check against wrangler's generated runtime types (gitignored).
