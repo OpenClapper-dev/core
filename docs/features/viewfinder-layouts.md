@@ -1,6 +1,6 @@
 # Viewfinder layouts
 
-[Issue #49](https://github.com/bubulux/fielder/issues/49). Which controls the phone's Shoot screen shows, in which bars, per orientation. Made on the dashboard, picked on the phone.
+[Issue #49](https://github.com/bubulux/fielder/issues/49). Which controls the phone's Shoot screen shows, in which bars, per orientation. Made in the Studio, picked on the phone.
 
 ## Model (`packages/vocab/src/viewfinder.ts`)
 
@@ -11,7 +11,7 @@
 - Each control at most once per orientation; the shutter exactly once (`validateViewfinderLayout`, strict, used by the Worker).
 - `DEFAULT_VIEWFINDER_LAYOUT` is the arrangement from before layouts: portrait, the lens strip and the control row at the bottom; landscape, the lens column left and the control column right. It lives in code, not in the database, so it is always there to go back to.
 
-## Dashboard (Library › Viewfinder, `ViewfinderLayouts.tsx`)
+## Studio (Library › Viewfinder, `ViewfinderLayouts.tsx`)
 
 - The list: **Default** (built in, read-only: Duplicate to edit) and the saved layouts; **New layout** starts from the default.
 - Toolbar: the phone link as a pill: grey "No phone connected" / "Offline", amber "<model> connected", green "Previewing on <model>".
@@ -31,17 +31,17 @@
 ## Device specs (#68)
 
 - A device is a phone read out over the preview socket: **Add device specs** (`DeviceSpecs.tsx`) asks the connected phone (`readout`) and shows what it sends: model, the Shoot screen per orientation (dp, measured whenever Shoot lays out, `device.ts` on the phone), the phone lenses (stops and zoom range) and the main lens's 35 mm equivalent. Turning the phone on Shoot fills in the other orientation live. Name it, save.
-- The record's id is the phone's own, so with every flush the phone keeps it current (calibration, sizes, lenses; `syncDevice`). The phone never creates the record. Setup → Phone calibration says the name it has on the dashboard.
+- The record's id is the phone's own, so with every flush the phone keeps it current (calibration, sizes, lenses; `syncDevice`). The phone never creates the record. Setup → Phone calibration says the name it has in the Studio.
 - The calibration stays editable only on the phone; the device record carries a copy.
 
 ## Live preview on the phone (#50)
 
 - While the app is in the foreground, signed in and not in offline mode, the phone keeps a websocket to the Worker (`src/preview.ts`, reconnects after 2 / 5 / 15 / 30 s). The layout editor opens one too (`phonePreview.ts`); the toolbar says "Phone connected" or not.
 - **Preview on phone** (editor head, needs a connected phone and a valid layout) shows the layout being edited on the phone: Shoot comes to the front with those bars, in the orientation picked in the editor (it overrides the phone's orientation setting), and follows every edit and orientation switch within ~120 ms, also after switching to another layout. **Stop phone preview** ends it.
-- On the phone the buttons and the lens strip are inert (no capture, no toggles); a chip "Dashboard preview · buttons off · tap to leave" ends it from the phone. Closing the editor, or the phone going to the background, ends it too; a phone that comes back while the editor still previews gets the layout again.
+- On the phone the buttons and the lens strip are inert (no capture, no toggles); a chip "Studio preview · buttons off · tap to leave" ends it from the phone. Closing the editor, or the phone going to the background, ends it too; a phone that comes back while the editor still previews gets the layout again.
 - Nothing is saved: the preview is a look at the draft, the phone's own layout choice is untouched.
-- Worker: `GET /api/preview/socket?role=phone|dashboard` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a dashboard is connected.
-- Test it against local data with `make mobile` + `make dashboard` ([development](../development.md)).
+- Worker: `GET /api/preview/socket?role=phone|studio` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a Studio is connected.
+- Test it against local data with `make mobile` + `make studio` ([development](../development.md)).
 
 ## Not done
 

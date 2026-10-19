@@ -1,17 +1,17 @@
 # Architecture
 
-Single-user tool for film location scouting and shoot planning. A phone (Android, Expo) is the viewfinder and camera; a Cloudflare Worker stores everything; a web dashboard is where shots are reviewed, organised and shoots are planned.
+Single-user tool for film location scouting and shoot planning. A phone (Android, Expo) is the viewfinder and camera; a Cloudflare Worker stores everything; a web app, the Studio, is where shots are reviewed, organised and shoots are planned.
 
 ## Repo layout (pnpm workspace)
 
 | Path | Stack | Role |
 | --- | --- | --- |
-| `apps/worker` | Cloudflare Worker, D1 (SQLite), R2, a daily cron | JSON API, image proxy, serves the dashboard as static assets. Hand-written router (`src/http.ts`). The cron (`scheduled` in `src/index.ts`) empties what has been in the recycle bin for 30 days. |
-| `apps/dashboard` | Vite + Preact + Leaflet, plain CSS (component library and design-system classes from `@fielder/ui`, layouts in `src/styles.css`), a desktop shell (window manager with workspaces in `src/wm/`, one app per page in `src/apps/`, shared data store `src/data.ts`), hash routes as launch commands | Web UI: a desktop per project with windows, workspaces, a taskbar, folders and a recycle bin ([desktop](features/desktop.md), [files](features/files.md)). Built into `dist/`, served by the Worker. |
+| `apps/worker` | Cloudflare Worker, D1 (SQLite), R2, a daily cron | JSON API, image proxy, serves the Studio as static assets. Hand-written router (`src/http.ts`). The cron (`scheduled` in `src/index.ts`) empties what has been in the recycle bin for 30 days. |
+| `apps/studio` | Vite + Preact + Leaflet, plain CSS (component library and design-system classes from `@fielder/ui`, layouts in `src/styles.css`), a desktop shell (window manager with workspaces in `src/wm/`, one app per page in `src/apps/`, shared data store `src/data.ts`), hash routes as launch commands | Web UI: a desktop per project with windows, workspaces, a taskbar, folders and a recycle bin ([desktop](features/desktop.md), [files](features/files.md)). Built into `dist/`, served by the Worker. |
 | `apps/mobile` | Expo SDK 57, React Native 0.86, react-native-vision-camera; runs as a **development build** (Fielder Dev) or an APK, not in Expo Go | Viewfinder, capture, review, shots, day mode; 5 tabs plus pushed screens ([phone app](features/phone-app.md)). Own component library in `src/ui/`. |
 | `apps/admin` | Cloudflare Worker + Preact page on the shared web design system (`@fielder/ui`) | The admin plane: user management across the instance, on its own hostname behind its own Cloudflare Access app; same D1/R2, never migrates ([admin](features/admin.md)). |
 | `packages/service-kit` | Pure TS | What both Workers share: router and request checks, Access verification, password hashing. |
-| `packages/ui` | Preact components + CSS (`@fielder/ui`) | The web design system: tokens, component classes, components and the theme switch, shared by the dashboard and the admin board ([design](design.md#web-component-library)). |
+| `packages/ui` | Preact components + CSS (`@fielder/ui`) | The web design system: tokens, component classes, components and the theme switch, shared by the Studio and the admin board ([design](design.md#web-component-library)). |
 | `packages/fov-math` | Pure TS, `node --test` | Camera bodies/formats, lenses, speedboosters, FOV and overlay math, re-framing. |
 | `packages/vocab` | Pure TS, `node --test` | Shared vocabularies (light, weather, INT/EXT, states), filter model, extra-field definitions, sun/daylight math. |
 
@@ -23,10 +23,10 @@ The shared packages are imported as TypeScript source (`"exports": { ".": "./src
 2. **Draft**: goes to the Tag screen (`screens/Tag.tsx`), or straight to the queue with direct upload. Sequences collect several photos into one draft. Drafts are persisted (see [capture](features/capture.md)).
 3. **Queue** (`src/uploads.ts`): photos copied to `pending-photos/`, entry stored in the kv-store. `flush()` syncs projects, field definitions and locations first, then posts each shot.
 4. **Upload**: `POST /api/shots` (multipart, idempotent). Worker writes each photo to R2 (`photos/<photoId>.jpg`) and the shot + photo rows to D1 in one batch.
-5. **Dashboard** loads all shots (`fetchAllShots`, paginated) and filters client-side by the active project. Images come through `GET /api/photos/:id/image`.
-6. **Planning** (dashboard Plan) stores shooting days; the phone's Day tab reads them and can keep a day offline.
+5. **Studio** loads all shots (`fetchAllShots`, paginated) and filters client-side by the active project. Images come through `GET /api/photos/:id/image`.
+6. **Planning** (Studio Plan) stores shooting days; the phone's Day tab reads them and can keep a day offline.
 
-The phone uses the **deployed** Worker, even in the dev loop. The dashboard dev server proxies to a local Worker.
+The phone uses the **deployed** Worker, even in the dev loop. The Studio dev server proxies to a local Worker.
 
 ## Core concepts
 
@@ -40,7 +40,7 @@ The phone uses the **deployed** Worker, even in the dev loop. The dashboard dev 
 
 First-party sign-in (epic #107): email + password accounts in D1, opaque sessions (`src/authn/`), behind one seam, `@fielder/auth-provider` (`src/authn/provider.ts`), which wrangler's `alias` maps to the first-party provider; another build (the hosted one) points it at its own module ([api](api.md#sign-in-authn-epic-107)). Cloudflare Access guards only the admin plane. Details in [infrastructure](infrastructure.md).
 
-- Dashboard: an HttpOnly session cookie.
+- Studio: an HttpOnly session cookie.
 - Phone: signs in with email and password (`client: "mobile"`), keeps the session token in `expo-secure-store` and sends it as `Authorization: Bearer`.
 - Local dev signs in like production: `dev@localhost` / `fielder-local-dev`, the bootstrap user that owns the local data (`make init`).
 

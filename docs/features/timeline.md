@@ -1,6 +1,6 @@
 # Timeline
 
-Second half of [GitHub issue #12](https://github.com/bubulux/fielder/issues/12). A **timeline** is a rough cut of a project out of its scouted photos: clips in order, each with a hold time ("Vorstopp"), played back to see which shots carry a sequence. Dashboard only; the phone does not read timelines. The shot browser beside the cut makes it the place to review too (issue #31; issue #48 merged the former Review page into it).
+Second half of [GitHub issue #12](https://github.com/bubulux/fielder/issues/12). A **timeline** is a rough cut of a project out of its scouted photos: clips in order, each with a hold time ("Vorstopp"), played back to see which shots carry a sequence. Studio only; the phone does not read timelines. The shot browser beside the cut makes it the place to review too (issue #31; issue #48 merged the former Review page into it).
 
 ## Model
 
@@ -36,7 +36,7 @@ Changes made to a clip in the timeline belong to the timeline, like in a video e
 
 The same photo can be in a timeline several times. Deleting a shot removes its clips everywhere (the shot's delete dialog says "Used in n timelines"); deleting an overlay keeps the clip, which then shows the photo as is. A shot moved to another project leaves that project's timelines, like it leaves its shooting days.
 
-## Using it (`apps/dashboard/src/Timeline.tsx`, route `#/timeline/<id>`)
+## Using it (`apps/studio/src/Timeline.tsx`, route `#/timeline/<id>`)
 
 On the desktop Timeline is one window (`apps/TimelineApp.tsx`) for all of the project's cuts; the cut is picked in its rail, and a deep link, the inspector's "open in timeline" or ⌘K switch that window to the cut (and the position). It is a single window on purpose: the page keeps its own copy of every timeline, so a second window could overwrite the first one's autosave ([known issues](../known-issues.md)). Closing it while the last save failed asks first. The stage height follows the window, and the stage grip stops at the window's bottom.
 
@@ -65,7 +65,7 @@ The inspector's **Shot** section lists the timelines a shot is in (links).
 
 `timelines` + `timeline_clips` (`apps/worker/src/timelines.ts`), the clips' own overlays and sketches in `overlays` / `sketches` with `timeline_id` + `clip_id`, promotion in `promote.ts`. `PUT /api/timelines/:id` replaces the whole timeline; clips whose photo is not in the project are dropped silently, an overlay that does not belong to the clip's photo (or is another clip's) is nulled, and clips that leave take their own drawings along. See [api](../api.md) and [data model](../data-model.md).
 
-The strip, preview, clip panel, playback and autosave live in `apps/dashboard/src/TimelineParts.tsx`; the page and the browser in `Timeline.tsx`.
+The strip, preview, clip panel, playback and autosave live in `apps/studio/src/TimelineParts.tsx`; the page and the browser in `Timeline.tsx`.
 
 ## Not done
 

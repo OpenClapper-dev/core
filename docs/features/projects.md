@@ -4,8 +4,8 @@ Every shot belongs to exactly one project (a film, a commercial). Projects are a
 
 ## Behaviour
 
-- **Active project, chosen once.** Both clients ask which project to work on and remember it until you change it: dashboard in `localStorage["project"]`, phone in the kv-store (`activeProjectId.v1`).
-- **Dashboard:**
+- **Active project, chosen once.** Both clients ask which project to work on and remember it until you change it: Studio in `localStorage["project"]`, phone in the kv-store (`activeProjectId.v1`).
+- **Studio:**
   - A first visit (or a remembered project that no longer exists) shows the full-window project picker (`ProjectGate` in `Projects.tsx`).
   - The taskbar's project switcher lists the projects and "Manage projects…"; ⌘K → a project name switches too. Switching swaps the whole desktop: each project has its own windows (per browser) and its own icons and folders (on the server, [files](files.md)). Every app (Gallery, Timeline, Metadata, Plan, Fields, Locations, Files, saved views) shows the active project only.
   - Projects (an app; Library on the old sidebar): a list (shots, fields, "can be deleted") and a detail with name and notes (saved when leaving the field), the project's [extra fields](extra-fields.md) in order ("Edit fields" makes it active and opens Fields), "Show n shots" and "Make active". Only empty projects can be deleted; its locations, fields and views go with it.
@@ -22,7 +22,7 @@ Every shot belongs to exactly one project (a film, a commercial). Projects are a
 
 A **Spot** is a named place within a location (the north gate, the roof, the bridge's east end; "Position" already means GPS, hence the name). It has an optional pin and belongs to one location; a shot has at most one, always of its own location.
 
-- **Dashboard**: Library › Locations shows the focused location's spots in a side panel (Add spot, rename, Set position, delete). The inspector has a Spot box under Location ("Create “…”" adds one). Lists show "Location · Spot" (`placeLabel`); the filter has a Spot field.
+- **Studio**: Library › Locations shows the focused location's spots in a side panel (Add spot, rename, Set position, delete). The inspector has a Spot box under Location ("Create “…”" adds one). Lists show "Location · Spot" (`placeLabel`); the filter has a Spot field.
 - **Phone**: the tag editor's Spot row appears once a location is set; spots are created offline like locations (`spots.v1`, synced after locations in `flush()`, a name clash adopts the server's spot).
 - Changing a shot's location clears its spot. Moving a shot to another project takes the spot along by name under the remapped location. Uploads resolve a stale spot leniently (by name under the shot's location, else none).
 - Maps: a synced shot uses the spot's pin, else the location's ([positions](positions.md)).
@@ -37,5 +37,5 @@ A **Spot** is a named place within a location (the north gate, the roof, the bri
 ## Code
 
 - Worker: `apps/worker/src/projects.ts`
-- Dashboard: `project.ts` (active project, switch guards), `data.ts` (`useProjectData`: one project's slice), `wm/Shell.tsx` (gate, desktop per project), `Projects.tsx`, `apps/LibraryApps.tsx`
+- Studio: `project.ts` (active project, switch guards), `data.ts` (`useProjectData`: one project's slice), `wm/Shell.tsx` (gate, desktop per project), `Projects.tsx`, `apps/LibraryApps.tsx`
 - Phone: `App.tsx`, `screens/Gates.tsx`, `components/ProjectSheet.tsx`, `namedSync.ts`, `storage.ts`

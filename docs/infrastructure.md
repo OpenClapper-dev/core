@@ -4,19 +4,19 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 
 | Resource | Details |
 | --- | --- |
-| Worker `APP_WORKER_NAME` (default `fielder-api`) | API and dashboard on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA. A daily cron empties the recycle bin and old sessions. Observability enabled. |
+| Worker `APP_WORKER_NAME` (default `fielder-api`) | API and Studio on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA. A daily cron empties the recycle bin and old sessions. Observability enabled. |
 | Worker `ADMIN_WORKER_NAME` (default `fielder-admin`) | The admin plane (`apps/admin`), its own hostname, the same D1 and R2, behind its own Cloudflare Access application ([admin](features/admin.md)). Without `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` it refuses every request. |
 | D1 `D1_DATABASE_NAME` (default `fielder-db`) | Binding `DB`, migrations in `apps/worker/migrations/` (only the app Worker's config applies them) |
 | R2 `R2_BUCKET` (default `fielder-shots`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with the workspace in their custom metadata |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
 | Cloudflare Access | The admin plane's sign-in. |
 | Android signing key | Per deployment, made once with `scripts/keystore.sh`; in the deployment repository's secrets and a backup, never in git. Builds need no other service; the only build-time setting is `EXPO_PUBLIC_API_URL` ([self-hosting](self-hosting.md#the-phone)) |
-| Open-Meteo | Weather forecast, called from the dashboard browser directly (free, no key) |
-| OpenStreetMap tiles | Maps in the dashboard (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
+| Open-Meteo | Weather forecast, called from the Studio browser directly (free, no key) |
+| OpenStreetMap tiles | Maps in the Studio (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
 
 ## Auth
 
-- **App users** sign in with email and password ([accounts](features/accounts.md)): the dashboard keeps an HttpOnly session cookie, the phone a bearer token in its keystore. Accounts are made in the admin plane (or with `scripts/user.mjs`); there is no public sign-up.
+- **App users** sign in with email and password ([accounts](features/accounts.md)): the Studio keeps an HttpOnly session cookie, the phone a bearer token in its keystore. Accounts are made in the admin plane (or with `scripts/user.mjs`); there is no public sign-up.
 - **Operators** of the admin plane sign in through its Cloudflare Access application, never with an app account.
 - **Local development**: the app signs in as in production, as `dev@localhost` / `fielder-local-dev` (the bootstrap user, `make init`). Only the admin plane has a bypass, `ADMIN_DEV_BYPASS="true"` in its gitignored `.dev.vars`, since no Access application sits in front of it on a laptop; it must never be set in a deployed config.
 
@@ -26,7 +26,7 @@ The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107)
 
 1. Deploy (it applies migrations 0021 and 0022), set up the admin plane's Access application ([self-hosting](self-hosting.md#4-the-admin-planes-sign-in)).
 2. Give the bootstrap user your email and a password: `node scripts/user.mjs --bootstrap --email … --remote`. It keeps its id, so the data stays with it.
-3. Delete the Access application (not only its policy) of the app's hostname. The dashboard shows its sign-in page; the phone needs an APK from #115 on.
+3. Delete the Access application (not only its policy) of the app's hostname. The Studio shows its sign-in page; the phone needs an APK from #115 on.
 
 ## Secrets and rotation
 

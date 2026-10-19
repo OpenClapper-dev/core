@@ -18,18 +18,18 @@ Three **GPS modes** (Setup → Capture → GPS, `settings.gpsMode`, default High
 
 ## Photos without a position
 
-- Lists show them; maps leave them out (dashboard Map lists them as "No position · not on the map"). Plan and Day centre the daylight on the shots that have one (Berlin when none has). Filter: "Has position is no".
+- Lists show them; maps leave them out (Studio Map lists them as "No position · not on the map"). Plan and Day centre the daylight on the shots that have one (Berlin when none has). Filter: "Has position is no".
 - **Set position**: the same map as Correct, starting at another photo of the shot (else Berlin); on the phone also **Use my location** (asks the phone once, also in GPS off). Saving sets `position_corrected`.
 
 ## Manual correction
 
-- **Dashboard** (`PositionEditor.tsx`): the shot view → stage **Position** (or the inspector’s Position → Correct). The stage becomes a map at zoom 18 with the reported accuracy circle and the original position. Drag the pin or click the map; the bar shows the coordinates and the distance moved. Save position (Enter) or Cancel (Esc).
+- **Studio** (`PositionEditor.tsx`): the shot view → stage **Position** (or the inspector’s Position → Correct). The stage becomes a map at zoom 18 with the reported accuracy circle and the original position. Drag the pin or click the map; the bar shows the coordinates and the distance moved. Save position (Enter) or Cancel (Esc).
 - **Phone** (`CorrectPosition` in `screens/ShotDetails.tsx`): Shot details → Correct, or ⋯ → Correct position in History. A full-screen Leaflet map in a WebView at zoom 18 with the reported accuracy as a dashed circle; drag the pin or tap the map. The bottom bar shows "All n photos of this shot" (sequences, on by default), the live coordinates and the distance moved, and Cancel | Save position (disabled until moved). Offline it says the map needs a connection.
 - For a sequence, "All n photos of this shot" moves every photo (default on).
 - On the phone the correction works on queued shots too (it rewrites the queue entry, `position_corrected` goes up with the upload) and offline (kept on the phone and sent later). The map itself needs a connection.
 - API: `PATCH /api/photos/:id { lat, lon, all_in_shot }`. It sets `photos.position_corrected = 1`, keeps the original `gps_accuracy_m`, and the UI shows "corrected" instead of the accuracy.
 
-Maps use the cover photo's position for a shot (dashboard Shots › Map, `MapView.tsx`; phone Shots › Map and Show on map, `screens/Shots.tsx`, `ShotDetails.tsx`).
+Maps use the cover photo's position for a shot (Studio Shots › Map, `MapView.tsx`; phone Shots › Map and Show on map, `screens/Shots.tsx`, `ShotDetails.tsx`).
 
 ## Location positions and synced shots ([issue #19](https://github.com/bubulux/fielder/issues/19))
 

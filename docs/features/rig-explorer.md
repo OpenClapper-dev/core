@@ -1,6 +1,6 @@
 # Framing (re-framing and the rig explorer)
 
-Dashboard shot view → stage **Framing** (`R`; `apps/dashboard/src/RigExplorer.tsx`; was "Rigs", [issue #29](https://github.com/bubulux/fielder/issues/29)). The phone usually captures more than the rig frame, so a photo can be **re-framed**: another rig and lens (the size) at another place on the photo (the position). The inspector stays visible.
+Studio shot view → stage **Framing** (`R`; `apps/studio/src/RigExplorer.tsx`; was "Rigs", [issue #29](https://github.com/bubulux/fielder/issues/29)). The phone usually captures more than the rig frame, so a photo can be **re-framed**: another rig and lens (the size) at another place on the photo (the position). The inspector stays visible.
 
 ## Framings
 
@@ -21,10 +21,10 @@ Dashboard shot view → stage **Framing** (`R`; `apps/dashboard/src/RigExplorer.
 
 ## Who uses a framing
 
-- `frameOf()` on both clients returns the root (`rootFrame()` in `packages/vocab/src/framing.ts`); `frameLayout()` (dashboard) and `FramedImage` (phone) place an off-centre frame and crop Fit around it.
+- `frameOf()` on both clients returns the root (`rootFrame()` in `packages/vocab/src/framing.ts`); `frameLayout()` (Studio) and `FramedImage` (phone) place an off-centre frame and crop Fit around it.
 - Overlay presentations and timeline clips pick a framing (As captured or a saved one) in a **Framing** select. They store `framing_id` and follow its edits, plus a copy of the frame that is used when the framing is deleted (`referencedFrame()`). New overlays and clips start on the root. Presentations from before #29 (a rig + lens without a framing) show as "Kept: …" until another framing is picked.
 - **Timeline clips re-framed inline** (issue #31) keep their frame in the clip only (no framing on the photo). The Framing stage bar shows **From timelines · n** for the photo on stage: each such re-frame with its timeline and clip, and **Make the shot's** (asks for a name) turns it into a saved framing of the photo; the clip then references it. A re-frame identical to an existing framing (same rig, lens and frame) links that one instead of saving a twin.
 
 ## Math (`packages/fov-math/src/fov.ts`, tested)
 
-A photo only stores what the phone saw. The phone's field of view for that photo is recovered from the rig FOV it was framed with and the **as-captured** frame fractions (`phoneViewFromFrame`, the inverse of `overlayRect`), whatever the root is. Any rig + lens is then sized on it with `reframe(source, sourceFrame, target)`. Portrait rigs swap axes (`fovOnPhoto`). The source rig comes from the photo's `framing` snapshot (`sourceRigOf` in `apps/dashboard/src/format.ts`), so it works even if the preset was deleted. A combination wider than the phone's view gives fractions > 1: the frame is drawn beyond the photo (dashed), it cannot move, and the facts line says "sees more than this photo".
+A photo only stores what the phone saw. The phone's field of view for that photo is recovered from the rig FOV it was framed with and the **as-captured** frame fractions (`phoneViewFromFrame`, the inverse of `overlayRect`), whatever the root is. Any rig + lens is then sized on it with `reframe(source, sourceFrame, target)`. Portrait rigs swap axes (`fovOnPhoto`). The source rig comes from the photo's `framing` snapshot (`sourceRigOf` in `apps/studio/src/format.ts`), so it works even if the preset was deleted. A combination wider than the phone's view gives fractions > 1: the frame is drawn beyond the photo (dashed), it cannot move, and the facts line says "sees more than this photo".

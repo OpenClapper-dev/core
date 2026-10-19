@@ -1,6 +1,6 @@
-# Keyboard shortcuts (dashboard)
+# Keyboard shortcuts (Studio)
 
-Generated from `apps/dashboard/src/shortcuts.ts` (issue #32); `shortcuts.test.ts` fails when this file drifts. Regenerate with `node apps/dashboard/src/shortcuts.docs.ts > docs/shortcuts.md`.
+Generated from `apps/studio/src/shortcuts.ts` (issue #32); `shortcuts.test.ts` fails when this file drifts. Regenerate with `node apps/studio/src/shortcuts.docs.ts > docs/shortcuts.md`.
 The same list is in the app: `?`, and Settings › Shortcuts. Single keys never fire while you type in a field; plain letters wait while a G jump is pending.
 
 ## Everywhere

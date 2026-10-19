@@ -15,7 +15,7 @@ Project-specific details of a shot (nearest U-Bahn station, access notes, parkin
 - `select` takes either `options` (a fixed list) or `optionsBy` (options that depend on a sibling field in the same group, i.e. a cascading select). `multiple: true` stores an array.
 - `group` holds `fields` and nests up to 4 levels. Keys are `[a-z][a-z0-9_]{0,39}` and unique within their level.
 - `validateFieldDef` returns an error with a path, e.g. `ubahn.station: optionsBy.field "x" is not a sibling field`.
-- `FIELD_PROMPT` is the text of the dashboard's "Copy prompt for AI" button. It explains this format to a model.
+- `FIELD_PROMPT` is the text of the Studio's "Copy prompt for AI" button. It explains this format to a model.
 
 ## Values on a shot
 
@@ -35,12 +35,12 @@ Project-specific details of a shot (nearest U-Bahn station, access notes, parkin
 
 ## UI
 
-- **Dashboard Library › Fields** (`Fields.tsx`):
+- **Studio Library › Fields** (`Fields.tsx`):
   - a list with type and usage
   - "New field ▾" from templates (text, number, yes/no, select, group with a dependent select)
   - a JSON editor with line numbers; a parse error highlights its line and shows the message. Save field (⌘S) or Revert.
   - a live form preview (`ExtraEditor.tsx`, showing the last valid version while the JSON is broken)
   - Import JSON…, Copy all, Copy prompt for AI
-- **Tag forms**: dashboard `ExtraEditor.tsx` (combobox selects), phone `components/TagEditor.tsx` (a row per field that opens a sheet: chips up to 12 options, a search list above; groups expand in place). They render the fields of the shot's project.
+- **Tag forms**: Studio `ExtraEditor.tsx` (combobox selects), phone `components/TagEditor.tsx` (a row per field that opens a sheet: chips up to 12 options, a search list above; groups expand in place). They render the fields of the shot's project.
 - **Phone offline**: definitions and each project's `fieldIds` are cached during `flush()`. `store.fieldsForProject(projectId)` reads them.
 - **Filters**: `extraFilterFields(defs)` turns every leaf into a filter field `extra.<path>` (select → enum/set, boolean → yes/no, number, text). The Shots filter panel shows them under "Extra fields" (the active project's fields).

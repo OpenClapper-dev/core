@@ -36,7 +36,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 - Rows, each with its current value; every row opens a screen, and settings save on change:
   - **Project**: opens the Project sheet.
   - **Rigs & lenses**: the rig list; tap a rig to edit it, "New rig" is pinned.
-  - **Viewfinder**: the **Layout** ([viewfinder layouts](viewfinder-layouts.md)) and its look and control options, which belong to the layout (issue #68): a change here edits the layout (saved on the phone, sent with the next flush; the dashboard sees it). With the built-in **Default** they are greyed out, with **Make a copy** ("My layout", selected at once). A pinned preview (the latest shot, or black, with the current frame, blackout, human frame and HUD chips) above:
+  - **Viewfinder**: the **Layout** ([viewfinder layouts](viewfinder-layouts.md)) and its look and control options, which belong to the layout (issue #68): a change here edits the layout (saved on the phone, sent with the next flush; the Studio sees it). With the built-in **Default** they are greyed out, with **Make a copy** ("My layout", selected at once). A pinned preview (the latest shot, or black, with the current frame, blackout, human frame and HUD chips) above:
     - **Phone lenses**: All · Pick · Fixed ([capture](capture.md#camera-react-native-vision-camera-issue-26))
     - one switch per HUD chip (Project, Rig and lens, FOV, GPS accuracy, Warnings)
     - frame colour and width

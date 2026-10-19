@@ -3,7 +3,7 @@
 Single-user tool for film location scouting and shoot planning:
 - an Android phone app (Expo, a development build "Fielder Dev" or an APK; not Expo Go since vision-camera) is a viewfinder that shows a cinema rig's frame and captures reference photos
 - a Cloudflare Worker (D1 + R2) stores them
-- a Preact dashboard reviews, organises and plans shooting days
+- a Preact web client, the Studio, reviews, organises and plans shooting days
 
 The owner talks to you in English.
 
@@ -20,11 +20,11 @@ The owner talks to you in English.
 | `apps/worker/src` | API routes (`shots.ts`, `projects.ts`, `fields.ts`, `days.ts`, …), `authn/` (sign-in, sessions, the provider seam), `tenancy.ts` (workspace access checks) |
 | `apps/admin` | Admin plane: its own Worker (`src/index.ts`) and board (`ui/`) behind its own Cloudflare Access app; user management across the instance |
 | `apps/worker/migrations` | D1 schema, numbered, additive |
-| `apps/dashboard/src` | `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, desktop icons, route bridge, key dispatch), `apps/` (one app per page + `registry.ts`, Files), `data.ts` (shared data store), `project.ts`, one file per page (`ShotsPage`, `ShotView` + `Inspector`, `Timeline`, `Plan`, library pages), `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `styles.css` (layouts) |
+| `apps/studio/src` | `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, desktop icons, route bridge, key dispatch), `apps/` (one app per page + `registry.ts`, Files), `data.ts` (shared data store), `project.ts`, one file per page (`ShotsPage`, `ShotView` + `Inspector`, `Timeline`, `Plan`, library pages), `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `styles.css` (layouts) |
 | `apps/mobile` | `App.tsx` (tabs, gates, pushed-screen stack), `src/screens/` (Viewfinder + Tag, Review, Shots + ShotDetails, Day + StepThrough, Setup hub + sub-screens, Uploads, Gates), `src/ui/` (component library: `theme.tsx`, primitives by design-system group, `chrome.tsx` header/rows/bars, `dialogs.tsx` confirm + toast), `src/components/` (`TagEditor.tsx`, sheets, viewfinder parts), `uploads.ts` (queue), `sync.ts`, `rigs.ts`, `storage.ts` (kv), `api.ts` |
 | `packages/vocab` | Shared vocabularies, filters, extra-field definitions, daylight math: anything both the Worker and a client must agree on |
 | `packages/fov-math` | Camera/lens/FOV/overlay/reframe math |
-| `packages/ui` | The web design system (`@fielder/ui`): components, tokens and component CSS, theme switch; used by the dashboard and the admin board |
+| `packages/ui` | The web design system (`@fielder/ui`): components, tokens and component CSS, theme switch; used by the Studio and the admin board |
 | `packages/service-kit` | What both Workers share: `http.ts` router + `assert*` helpers, Access verification, password hashing |
 
 ## Core model in one paragraph
@@ -65,10 +65,10 @@ When the owner hands you an issue (a number or a link), that means: read it, cha
 ## Verify before you say "done"
 
 ```sh
-for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/admin apps/admin/ui apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
-pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/dashboard test && (cd apps/mobile && node --test src/*.test.ts)
-(cd apps/dashboard && npx vite build) && (cd apps/admin && npx vite build)
+for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/admin apps/admin/ui apps/studio apps/mobile; do (cd $p && npx tsc -p .); done
+pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/studio test && (cd apps/mobile && node --test src/*.test.ts)
+(cd apps/studio && npx vite build) && (cd apps/admin && npx vite build)
 (cd apps/mobile && npx expo export --platform android --output-dir /tmp/fielder-export)
 ```
 
-For the API, run the local worker (`pnpm dev:worker`) and exercise it with `curl`, signed in as `dev@localhost` / `fielder-local-dev` (the snippet is in `docs/development.md`). For the dashboard, the Playwright MCP (headless Chrome, configured per machine) can click through `localhost:5173` with `pnpm dev` running. Say what was and was not clicked through, and ask the owner to test on the phone. For phone bugs, ask for the debug log (Setup → Debug log → Share). More in `docs/development.md`.
+For the API, run the local worker (`pnpm dev:worker`) and exercise it with `curl`, signed in as `dev@localhost` / `fielder-local-dev` (the snippet is in `docs/development.md`). For the Studio, the Playwright MCP (headless Chrome, configured per machine) can click through `localhost:5173` with `pnpm dev` running. Say what was and was not clicked through, and ask the owner to test on the phone. For phone bugs, ask for the debug log (Setup → Debug log → Share). More in `docs/development.md`.

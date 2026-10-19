@@ -19,7 +19,7 @@ All optional, editable at any time (`PATCH /api/shots/:id`). The vocabularies ar
 
 The light model feeds the [schedule](schedule.md): phases are defined by sun elevation.
 
-## Metadata board (dashboard)
+## Metadata board (Studio)
 
 **Metadata** (`MetadataPage.tsx`, route `#/metadata/<field>`, issue #42; its own app on the desktop) sets one single-value field on many shots by drag and drop, kanban style.
 
@@ -29,7 +29,7 @@ The light model feeds the [schedule](schedule.md): phases are defined by sun ele
 - **Layout** (head, remembered with the filters): the values as **columns** (side by side) or **rows** (stacked, the cards running sideways and sized by the row height), each in **S · M · L** (columns 200 / 260 / 340 px wide, rows 190 / 260 / 360 px high; the board scrolls) or **Fit**: every lane shares the board, so it never scrolls (a short row shows the covers only).
 - **Drag** a card onto a column to set the value, onto another column to change it, back to the left list to clear it (review state: back to review). Each drop saves at once (`PATCH /api/shots/:id`) with Undo in the toast. Double-click opens the shot view.
 
-## Shot view (dashboard)
+## Shot view (Studio)
 
 The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp.tsx`): one window per shot, so two shots can sit side by side (opening a shot that is already open focuses its window). It keeps the list it was opened from (the Gallery's result, the map, Plan, Timeline or ⌘K); ←/→ move this window on to the next shot, and from a deep link without a list they walk the project's shots, newest first.
 
@@ -60,7 +60,7 @@ The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp
   - **Raw metadata**: collapsed, with Copy.
 ## Reviewing
 
-Reviewing is finding the shots that carry a sequence. On the dashboard it happens in the [Timeline](timeline.md) (issue #48 merged the former Review page into it): the cut on stage, the shot browser beside it, decisions on browser cards, clips and the whole cut. The Gallery's state switch counts the unreviewed shots.
+Reviewing is finding the shots that carry a sequence. On the Studio it happens in the [Timeline](timeline.md) (issue #48 merged the former Review page into it): the cut on stage, the shot browser beside it, decisions on browser cards, clips and the whole cut. The Gallery's state switch counts the unreviewed shots.
 
 ## History on the phone
 
@@ -92,7 +92,7 @@ The **History** tab (`screens/History.tsx`, was Review until issue #48) steps th
 
 ## Tag editing UI
 
-- **Dashboard**: the inspector (above). The combobox (`ui/Combobox.tsx`):
+- **Studio**: the inspector (above). The combobox (`ui/Combobox.tsx`):
   - Type to filter; matches at the start rank first. The typed text is marked in yellow in each match (also in ⌘K).
   - The list takes the width of its options; when that would spill past the right edge of its panel, it opens from the input's right edge.
   - ↑/↓ move, Enter or Tab take the highlighted entry (Tab also moves on), Esc cancels.
@@ -113,6 +113,6 @@ The **History** tab (`screens/History.tsx`, was Review until issue #48) steps th
 
 `mask` (neutral dark mask outside the frame), `frame` (border only), `fit` (crop to exactly the frame), `raw`.
 
-- **Fit** always shows exactly the rig frame. Where the rig saw more than the phone (fraction > 1) the rest stays black, like the live view (`frameLayout` in `apps/dashboard/src/format.ts`, `FramedImage.tsx` on the phone).
-- **Dashboard**: the Shots toolbar switch sets the global mode (`localStorage["maskMode"]`) for the grid, list, map, Plan and the Timeline browser's thumbnails. The shot view has its own switch (above).
+- **Fit** always shows exactly the rig frame. Where the rig saw more than the phone (fraction > 1) the rest stays black, like the live view (`frameLayout` in `apps/studio/src/format.ts`, `FramedImage.tsx` on the phone).
+- **Studio**: the Shots toolbar switch sets the global mode (`localStorage["maskMode"]`) for the grid, list, map, Plan and the Timeline browser's thumbnails. The shot view has its own switch (above).
 - **Phone**: History, Shots (shared by grid and map) and step-through remember their own mode (`reviewMode.v1`, `shotsMode.v1`, `stepMode.v1`); Shot details starts from the Shots mode.
