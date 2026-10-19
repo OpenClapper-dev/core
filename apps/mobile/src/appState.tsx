@@ -51,6 +51,8 @@ export interface AppState {
   setSpots: (l: SpotEntry[]) => void;
   /** Viewfinder layouts from the Studio (cached; refreshed by every flush). */
   layouts: LayoutEntry[];
+  /** Pull the layouts now (issue #197), e.g. when a screen that shows them opens. */
+  refreshLayouts: () => void;
   /** The Studio is showing a layout on this phone (issue #50): Shoot renders it, inert. */
   preview: LivePreview | null;
   exitPreview: () => void;
