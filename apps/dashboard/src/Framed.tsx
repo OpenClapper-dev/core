@@ -2,7 +2,7 @@ import type { ComponentChildren, JSX } from "preact";
 import { withCentre } from "@fielder/vocab";
 import type { Photo } from "./api";
 import { frameLayout, frameOf, imageAspect, type FrameGeometry, type FrameMode, type PctRect } from "./format";
-import { cx } from "./ui";
+import { cx } from "@fielder/ui";
 
 export type MaskMode = FrameMode;
 

@@ -5,7 +5,7 @@ import { deleteDevice, deleteLayout, fetchDevices, fetchLayouts, putDevice, putL
 import { DeviceDialog, deviceScreen } from "./DeviceSpecs";
 import { applyDrop, insertIndex, VF_DRAG_TYPE, type VfDrag, type VfDrop } from "./vfDnd";
 import { usePhonePreview, type PhonePreview } from "./phonePreview";
-import { Banner, Button, Checkbox, Chip, Switch, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, Chip, Switch, confirmDialog, cx, Empty, EmptyNote, Icon, IconButton, Input, ListRow, Loading, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, SaveStatus, Seg, Select, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@fielder/ui";
 
 /**
  * Library › Viewfinder (issue #49): layouts for the phone's Shoot screen. Which controls show, in which

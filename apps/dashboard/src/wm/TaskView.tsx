@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appDef } from "../apps/registry";
-import { cx, Icon, IconButton } from "../ui";
+import { cx, Icon, IconButton } from "@fielder/ui";
 import { requestClose } from "./closeGuards";
 import * as wm from "./wm";
 import type { Rect, Win } from "./wm";

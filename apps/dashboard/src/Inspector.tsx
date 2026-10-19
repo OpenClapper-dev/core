@@ -4,7 +4,7 @@ import { CAMERA_SUPPORTS, cameraLabel, droppedKeys, INT_EXT, label, lightLabel, 
 import { createProjectNamed, existingIdOf, fetchDays, fetchTimelines, patchShot, putLocation, putSpot, type Location, type Photo, type Project, type Shot, type ShootingDay, type ShotState, type Spot, type Timeline } from "./api";
 import { ExtraEditor } from "./ExtraEditor";
 import { coords, fovLabel, placeLabel, rigDescription, shotTitle, sourceLabel } from "./format";
-import { Button, Chip, Combobox, Icon, Input, LightChips, MarkdownField, SaveStatus, Seg, StateMarker, Switch, toast, type SaveState } from "./ui";
+import { Button, Chip, Combobox, Icon, Input, LightChips, MarkdownField, SaveStatus, Seg, StateMarker, Switch, toast, type SaveState } from "@fielder/ui";
 
 // Shooting days per project, fetched on demand for the "Days" fact and the move warning.
 const daysCache = new Map<string, Promise<ShootingDay[]>>();

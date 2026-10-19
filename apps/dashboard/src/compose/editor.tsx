@@ -5,7 +5,7 @@
  */
 import { useRef, useState } from "preact/hooks";
 import { COMPOSE_PALETTE, moveShape, NEUTRAL_LOOK, STENCIL_GROUPS, STENCIL_LABELS, type Look, type Shape, type Stencil } from "@fielder/vocab";
-import { Button, Chip, cx, Icon, IconButton, Input, Kbd, Popover, SearchInput, Seg, Switch } from "../ui";
+import { Button, Chip, cx, Icon, IconButton, Input, Kbd, Popover, SearchInput, Seg, Switch } from "@fielder/ui";
 import { STENCIL_BOX, STENCIL_PATHS, STENCIL_STROKE } from "./stencils";
 import { defaultStyle, shapeId, TOOLS, WIDTHS, type Style, type TextEdit, type Tool } from "./DrawSurface";
 import { bind } from "../keys";

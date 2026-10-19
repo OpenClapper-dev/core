@@ -11,7 +11,7 @@ import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
 import { initialRigs, RigsStage, type RigsState } from "./RigExplorer";
 import type { Stage } from "./router";
-import { Button, cx, Icon, IconButton, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "./ui";
+import { Button, cx, Icon, IconButton, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "@fielder/ui";
 
 export interface ShotContext { line: string; onBack: () => void; backLabel: string }
 

@@ -6,7 +6,7 @@ import { ExtraEditor } from "./ExtraEditor";
 import { cover, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateDays, projectDays } from "./Inspector";
-import { Button, Chip, Combobox, cx, Icon, IconButton, Input, LinkButton, Modal, Panel, PanelBody, PanelFoot, PanelHead, Seg, Switch, toast } from "./ui";
+import { Button, Chip, Combobox, cx, Icon, IconButton, Input, LinkButton, Modal, Panel, PanelBody, PanelFoot, PanelHead, Seg, Switch, toast } from "@fielder/ui";
 
 /** Edited fields of a bulk edit by column id ("location_id", "light", "extra.<key>"); a missing id keeps every shot's value. */
 export type BulkDraft = Record<string, unknown>;

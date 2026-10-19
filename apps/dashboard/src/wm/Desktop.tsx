@@ -9,8 +9,7 @@ import { APPS, launch, type AppId } from "../apps/registry";
 import * as data from "../data";
 import { cellAt, cellKey, cellSpot, FILE_DRAG, matches, nearestFreeCell, placementOf, readDrag, type Cell, type FileDrag, type Grid } from "../fileTree";
 import { bind, useKeys } from "../keys";
-import { setTheme, useTheme } from "../theme";
-import { Button, ContextMenu, cx, Icon, MenuItem, Modal, SearchInput, toast, useCtxMenu } from "../ui";
+import { Button, ContextMenu, cx, Icon, MenuItem, Modal, SearchInput, setTheme, toast, useCtxMenu, useTheme } from "@fielder/ui";
 import { useOverlay } from "./overlays";
 import * as wm from "./wm";
 

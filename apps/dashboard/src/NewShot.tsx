@@ -5,7 +5,7 @@ import { defaultStyle, DrawSurface, TOOLS, WIDTHS, type Style, type TextEdit, ty
 import { renderSketch } from "./compose/render";
 import { bind, useKeys } from "./keys";
 import { getSettings } from "./settings";
-import { Button, Chip, Combobox, cx, Field, Icon, IconButton, Input, MarkdownField, Modal, Seg, toast } from "./ui";
+import { Button, Chip, Combobox, cx, Field, Icon, IconButton, Input, MarkdownField, Modal, Seg, toast } from "@fielder/ui";
 
 /**
  * New shot without the camera (issue #27): upload images (one shot as a sequence, or one shot per

@@ -12,7 +12,7 @@ import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSel
 import { bind, NUDGE, useKeys } from "./keys";
 import { AS_SHOT, choiceLabel, DragFrame, frameForChoice, lensesFor, Pickers, type RigChoice } from "./RigExplorer";
 import { DRAWER_RESIZE, ownReframe, STAGE_H, type Cut, type ResolvedClip } from "./TimelineParts";
-import { Button, confirmDialog, Empty, Icon, Input, Panel, PanelBody, PanelHead, SaveStatus, Seg, Spinner, toast, type SaveState } from "./ui";
+import { Button, confirmDialog, Empty, Icon, Input, Panel, PanelBody, PanelHead, SaveStatus, Seg, Spinner, toast, type SaveState } from "@fielder/ui";
 
 /**
  * Inline clip editing on the timeline stage (issue #31), like a video editor's inspector: the

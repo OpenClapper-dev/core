@@ -37,3 +37,8 @@ export function useTheme(): [ThemeChoice, (c: ThemeChoice) => void] {
   useEffect(() => { listeners.add(setChoice); return () => { listeners.delete(setChoice); }; }, []);
   return [choice, setTheme];
 }
+
+/** The theme button's cycle (taskbar, admin header): Auto → Sun → Set → Auto. */
+export const THEME_CYCLE: Record<ThemeChoice, ThemeChoice> = { auto: "sun", sun: "set", set: "auto" };
+export const THEME_LABEL: Record<ThemeChoice, string> = { auto: "Theme: Auto (follows the system)", sun: "Theme: Sun", set: "Theme: Set" };
+export const THEME_ICON: Record<ThemeChoice, string> = { auto: "theme-light-dark", sun: "white-balance-sunny", set: "weather-night" };

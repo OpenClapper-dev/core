@@ -1,0 +1,19 @@
+{
+  "name": "@fielder/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@fielder/vocab": "workspace:*"
+  },
+  "peerDependencies": {
+    "preact": "^10.27.0"
+  },
+  "devDependencies": {
+    "preact": "^10.27.0"
+  }
+}

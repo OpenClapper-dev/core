@@ -62,3 +62,10 @@ button.f-check.is-indeterminate .f-check__box { background: var(--accent); borde
 .f-panel__grip { position: absolute; top: 0; bottom: 0; left: -3px; width: 6px; cursor: col-resize; z-index: 5; touch-action: none; }
 .f-panel--left > .f-panel__grip { left: auto; right: -3px; }
 .f-panel__grip:hover, .f-panel__grip:active { background: var(--accent); opacity: 0.5; }
+
+/* ---------- Utilities (used by the components, e.g. `meta` lines and `num` columns) ---------- */
+.meta { color: var(--text-dim); font-size: var(--text-caption); }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--font-mono); }
+.grow { flex: 1; }
+.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

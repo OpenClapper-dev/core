@@ -1,7 +1,7 @@
 import { COMPOSE_PALETTE } from "@fielder/vocab";
 import type { Photo, Preset } from "./api";
 import { imageAspect, type FrameGeometry } from "./format";
-import { Button, Checkbox, IconButton, Select } from "./ui";
+import { Button, Checkbox, IconButton, Select } from "@fielder/ui";
 import { AS_SHOT, choiceLabel, frameForChoice, Pickers, type RigChoice } from "./RigExplorer";
 
 /**

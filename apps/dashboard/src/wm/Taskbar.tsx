@@ -7,9 +7,8 @@ import { FILE_DRAG, readDrag } from "../fileTree";
 import { useSettings } from "../settings";
 import { switchProject } from "../project";
 import { appDef, launch, type AppId } from "../apps/registry";
-import { useTheme, type ThemeChoice } from "../theme";
+import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, useCtxMenu, useOutsideClick, useTheme } from "@fielder/ui";
 import { signOut, useUser } from "../user";
-import { ContextMenu, cx, Icon, IconButton, Mark, MenuItem, toast, useCtxMenu, useOutsideClick } from "../ui";
 import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
 import { openOverlay } from "./overlays";
@@ -17,9 +16,6 @@ import { WindowMenu } from "./Window";
 import * as wm from "./wm";
 import type { Win } from "./wm";
 
-const THEME_NEXT: Record<ThemeChoice, ThemeChoice> = { auto: "sun", sun: "set", set: "auto" };
-const THEME_LABEL: Record<ThemeChoice, string> = { auto: "Theme: Auto (follows the system)", sun: "Theme: Sun", set: "Theme: Set" };
-const THEME_ICON: Record<ThemeChoice, string> = { auto: "theme-light-dark", sun: "white-balance-sunny", set: "weather-night" };
 
 function useClock(): string {
   const fmt = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -162,7 +158,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
       <div class="wm-taskbar__tray">
         <ProjectSwitch projectId={projectId} />
         <IconButton icon="magnify" label="Go to… (⌘K)" title="Go to… (⌘K)" onClick={onPalette} />
-        <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_NEXT[theme])} />
+        <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_CYCLE[theme])} />
         <IconButton icon="refresh" label="Reload" title="Reload" onClick={() => location.reload()} />
         <UserMenu />
         <span class="wm-taskbar__clock num">{clock}</span>

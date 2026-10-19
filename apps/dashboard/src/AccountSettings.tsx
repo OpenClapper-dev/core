@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { changePassword, deleteMember, fetchMembers, fetchWorkspaces, putMember, putProject, putWorkspace, type Member, type Workspace, type WorkspaceRole } from "./api";
 import * as data from "./data";
-import { Button, confirmDialog, ErrorLine, Field, Icon, IconButton, Input, Loading, Modal, PasswordInput, ProjectTag, promptDialog, Select, toast } from "./ui";
+import { Button, confirmDialog, ErrorLine, Field, Icon, IconButton, Input, Loading, Modal, PasswordInput, ProjectTag, promptDialog, Select, toast } from "@fielder/ui";
 import { boot, signOut, useUser } from "./user";
 
 const RANK: Record<WorkspaceRole, number> = { viewer: 0, editor: 1, admin: 2, owner: 3 };

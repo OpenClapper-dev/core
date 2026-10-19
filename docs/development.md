@@ -5,7 +5,7 @@ Node 22 and pnpm 11 (via nvm). `pnpm install` enforces a 7-day dependency cooldo
 ## Checks (run before every commit)
 
 ```sh
-for p in packages/vocab packages/fov-math packages/service-kit apps/worker apps/admin apps/admin/ui apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
+for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/admin apps/admin/ui apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
 pnpm -C packages/vocab test        # fields, filters, daylight
 pnpm -C packages/fov-math test     # FOV, overlay, reframe
 pnpm -C apps/worker test           # passwords, sessions, workspace roles

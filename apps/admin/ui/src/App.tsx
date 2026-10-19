@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useState } from "preact/hooks";
-import { Button, ConfirmHost, confirmDialog, Empty, ErrorLine, Field, Icon, Input, Loading, Mark, Modal, ProjectTag, toast, ToastHost } from "../../../dashboard/src/ui";
+import { Button, ConfirmHost, confirmDialog, Empty, ErrorLine, Field, Icon, IconButton, Input, Loading, Mark, Modal, ProjectTag, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, ToastHost, useTheme } from "@fielder/ui";
 import { createUser, deleteUser, fetchOverview, fetchUsers, fetchWorkspaces, patchUser, resetPassword, whoami, type AdminUser, type AdminWorkspace, type Overview } from "./api";
 
 const bytes = (n: number) => (n < 1024 ** 2 ? `${Math.round(n / 1024)} KB` : n < 1024 ** 3 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${(n / 1024 ** 3).toFixed(2)} GB`);
@@ -25,6 +25,7 @@ export function App() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [workspaces, setWorkspaces] = useState<AdminWorkspace[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [theme, setTheme] = useTheme();
   const load = () => Promise.all([whoami().then(setMe), fetchOverview().then(setOverview), fetchUsers().then(setUsers), fetchWorkspaces().then(setWorkspaces)])
     .then(() => setError(null)).catch((e: Error) => setError(e.message));
   useEffect(() => { void load(); }, []);
@@ -37,7 +38,10 @@ export function App() {
     <div class="admin">
       <header class="admin__head">
         <span class="admin__brand"><Mark size={24} />Fielder admin</span>
-        <span class="meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span class="num">{__FIELDER_VERSION__} ({__FIELDER_COMMIT__})</span></span>
+        <span class="admin__headend">
+          <span class="meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span class="num">{__FIELDER_VERSION__} ({__FIELDER_COMMIT__})</span></span>
+          <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_CYCLE[theme])} />
+        </span>
       </header>
       {error && <Empty icon="cloud-alert" title="Could not load" actions={<Button onClick={() => void load()}>Try again</Button>}>{error}</Empty>}
       {!error && !overview && <Loading />}

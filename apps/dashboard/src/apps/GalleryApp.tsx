@@ -7,7 +7,7 @@ import { useProjectId } from "../project";
 import { parseRoute } from "../router";
 import { ShotsPage } from "../ShotsPage";
 import { decodeView, emptyQuery, encodeView, runQuery, type Layout, type ShotsQuery } from "../shotsQuery";
-import { confirmDialog, promptDialog, toast } from "../ui";
+import { confirmDialog, promptDialog, toast } from "@fielder/ui";
 import { openOverlay } from "../wm/overlays";
 import type { AppProps } from "./registry";
 import { useAppGuard } from "./useAppGuard";

@@ -23,6 +23,9 @@ importers:
       '@fielder/service-kit':
         specifier: workspace:*
         version: link:../../packages/service-kit
+      '@fielder/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       preact:
         specifier: ^10.27.0
         version: 10.29.8
@@ -39,6 +42,9 @@ importers:
       '@fielder/fov-math':
         specifier: workspace:*
         version: link:../../packages/fov-math
+      '@fielder/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       '@fielder/vocab':
         specifier: workspace:*
         version: link:../../packages/vocab
@@ -159,6 +165,16 @@ importers:
   packages/fov-math: {}
 
   packages/service-kit: {}
+
+  packages/ui:
+    dependencies:
+      '@fielder/vocab':
+        specifier: workspace:*
+        version: link:../vocab
+    devDependencies:
+      preact:
+        specifier: ^10.27.0
+        version: 10.29.8
 
   packages/vocab: {}
 

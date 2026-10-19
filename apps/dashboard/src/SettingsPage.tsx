@@ -7,8 +7,7 @@ import type { MaskMode } from "./Framed";
 import { DEFAULT_SETTINGS, updateSettings, useSettings } from "./settings";
 import { ShortcutList } from "./CommandPalette";
 import type { SettingsTab } from "./router";
-import type { ThemeChoice } from "./theme";
-import { Icon, LinkButton, Seg, Toolbar, ToolbarTitle } from "./ui";
+import { Icon, LinkButton, Seg, type ThemeChoice, Toolbar, ToolbarTitle } from "@fielder/ui";
 
 interface Props { tab: SettingsTab; onTab: (t: SettingsTab) => void; theme: ThemeChoice; onTheme: (t: ThemeChoice) => void; mask: MaskMode; onMask: (m: MaskMode) => void }
 

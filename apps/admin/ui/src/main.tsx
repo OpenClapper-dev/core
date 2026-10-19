@@ -1,6 +1,6 @@
 import { render } from "preact";
-// The dashboard's design system (tokens, component classes and components), so both boards look alike.
-import "../../../dashboard/src/ui";
+// The web design system (tokens, component classes and components), shared with the dashboard.
+import "@fielder/ui";
 import "./admin.css";
 import { App } from "./App";
 

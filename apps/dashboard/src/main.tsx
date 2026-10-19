@@ -1,6 +1,9 @@
 import { render } from "preact";
-// Design system: tokens + component classes are imported by the component library (./ui); styles.css holds the layouts.
-import "./ui";
+// Design system: tokens, component classes and components come with @fielder/ui; then the
+// client's own CSS (photo framing, the desktop shell) and styles.css with the page layouts.
+import "@fielder/ui";
+import "./fielder.css";
+import "./wm/desktop.css";
 import "./styles.css";
 import { Shell } from "./wm/Shell";
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { DeviceSpecs, DeviceSize } from "@fielder/vocab";
 import { putDevice, type DeviceRecord } from "./api";
 import type { PhonePreview } from "./phonePreview";
-import { Button, EmptyNote, Field, Icon, Input, Modal, Spinner, toast } from "./ui";
+import { Button, EmptyNote, Field, Icon, Input, Modal, Spinner, toast } from "@fielder/ui";
 
 /**
  * Add device specs (issue #68): read a connected phone out over the preview socket (its Shoot screen

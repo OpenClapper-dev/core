@@ -13,7 +13,7 @@ import { Framed, framedLayout } from "../Framed";
 import { FromTimelines } from "../FromTimelines";
 import { useKeys } from "../keys";
 import { FramingSelect, presentationFrame, rootPresentation } from "../FramingSelect";
-import { Button, Combobox, confirmDialog, cx, Empty, Icon, IconButton, Input, MarkdownField, ReorderButtons, SaveStatus, Seg, toast, ToolbarSpacer, type SaveState } from "../ui";
+import { Button, Combobox, confirmDialog, cx, Empty, Icon, IconButton, Input, MarkdownField, ReorderButtons, SaveStatus, Seg, toast, ToolbarSpacer, type SaveState } from "@fielder/ui";
 import { DrawSurface } from "./DrawSurface";
 import { DrawToolbar, drawingKeys, LookSection, ShapeSection, useDrawingEditor } from "./editor";
 import type { CanvasRect } from "./geometry";

@@ -3,7 +3,7 @@ import { ApiError, deleteDay, deleteDesktopItem, deleteField, deleteFolder, dele
 import * as data from "../data";
 import { placementOf, subtree } from "../fileTree";
 import { invalidateDays, invalidateTimelines } from "../Inspector";
-import { promptDialog, toast } from "../ui";
+import { promptDialog, toast } from "@fielder/ui";
 import type { FileEntry } from "./fileEntries";
 import { binned, confirmShotBin, type Binned } from "./trashOps";
 
