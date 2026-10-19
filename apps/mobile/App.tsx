@@ -84,7 +84,7 @@ function App() {
   const shots = useShots(project?.id ?? null);
   const online = useOnline();
   const live = useLivePreview(!settings.offlineMode);
-  // A preview from the dashboard brings the Shoot screen to the front.
+  // A preview from the Studio brings the Shoot screen to the front.
   useEffect(() => { if (live.preview) { setStack([]); setTab("shoot"); } }, [!!live.preview]);
   // Sign-in gate on launch without a session, and again whenever a request finds the session gone.
   // "web" is the sign-in form opened from the gate; "webApp" the same form opened from inside the app (cancel returns there).
@@ -122,7 +122,7 @@ function App() {
   const wasOnline = useRef(online);
   useEffect(() => { if (online && !wasOnline.current && isSignedIn()) void shots.load(); wasOnline.current = online; }, [online]);
 
-  // The dashboard owns the orientation while it previews a layout.
+  // The Studio owns the orientation while it previews a layout.
   const previewOrientation = live.preview?.orientation ?? null;
   useEffect(() => {
     const lock = previewOrientation ?? settings.orientationLock;
@@ -178,7 +178,7 @@ function App() {
     const e = copyDefault("My layout");
     setLayouts(store.loadLayouts());
     setSettings((s) => ({ ...s, viewfinderLayoutId: e.id }));
-    toast("Copied the Default as “My layout”: change it here or on the dashboard");
+    toast("Copied the Default as “My layout”: change it here or in the Studio");
     if (isSignedIn()) void flush();
   }, []);
 

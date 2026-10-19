@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # make all / all-down / all-restart: the whole local stack in one tmux session "fielder":
-#   left top: the Worker (:8787) · left bottom: the dashboard (:5173) · right: make mobile (tunnel + Metro)
+#   left top: the Worker (:8787) · left bottom: the Studio (:5173) · right: make mobile (tunnel + Metro)
 #   bottom, full width: the control pane (which servers are up; r restarts them, q stops everything).
 # The mobile pane waits for the Worker, so mobile.sh only adds a tunnel to it (one Worker, one local D1).
 #   up (default)  start it, or attach when it is already running
@@ -13,22 +13,22 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 session="${SESSION:-fielder}"
 port="${PORT:-8787}"
-# Worker, dashboard, Metro.
+# Worker, Studio, Metro.
 ports=("$port" 5173 8081)
-names=(worker dashboard mobile)
+names=(worker studio mobile)
 
 command -v tmux >/dev/null || { echo "tmux is not installed (sudo apt install tmux)." >&2; exit 1; }
 
 running() { tmux has-session -t "$session" 2>/dev/null; }
 attach() { if [ -n "${TMUX:-}" ]; then tmux switch-client -t "$session"; else tmux attach -t "$session"; fi; }
-# The pane id stored for a role (@worker, @dashboard, @mobile, @control) when the session was made.
+# The pane id stored for a role (@worker, @studio, @mobile, @control) when the session was made.
 pane() { tmux show-option -qv -t "$session" "@$1"; }
 
 # What each server pane runs (typed into its shell, so Ctrl-C leaves a prompt to run it again).
 command_for() {
   case "$1" in
     worker) echo "pnpm dev:worker" ;;
-    dashboard) echo "pnpm dev:dashboard" ;;
+    studio) echo "pnpm dev:studio" ;;
     mobile) echo "echo 'Waiting for the Worker on :$port…'; until curl -fs -o /dev/null http://localhost:$port/api/ping; do sleep 1; done; pnpm dev:mobile" ;;
   esac
 }
@@ -98,16 +98,16 @@ up() {
   tmux set-option -t "$session" pane-border-status top
   tmux set-option -t "$session" pane-border-format " #{pane_title} "
 
-  local worker mobile dashboard control kv n
+  local worker mobile studio control kv n
   worker="$(tmux display-message -p -t "$session:stack" '#{pane_id}')"
   # The control strip first, across the full width at the bottom; then the servers above it.
   control="$(tmux split-window -v -f -l 3 -t "$worker" -c "$root" -P -F '#{pane_id}')"
   mobile="$(tmux split-window -h -t "$worker" -c "$root" -P -F '#{pane_id}')"
-  dashboard="$(tmux split-window -v -t "$worker" -c "$root" -P -F '#{pane_id}')"
-  for kv in "worker=$worker" "dashboard=$dashboard" "mobile=$mobile" "control=$control"; do tmux set-option -t "$session" "@${kv%%=*}" "${kv#*=}"; done
+  studio="$(tmux split-window -v -t "$worker" -c "$root" -P -F '#{pane_id}')"
+  for kv in "worker=$worker" "studio=$studio" "mobile=$mobile" "control=$control"; do tmux set-option -t "$session" "@${kv%%=*}" "${kv#*=}"; done
 
   tmux select-pane -t "$worker" -T "worker :$port"
-  tmux select-pane -t "$dashboard" -T "dashboard :5173"
+  tmux select-pane -t "$studio" -T "studio :5173"
   tmux select-pane -t "$mobile" -T "mobile (tunnel + Metro)"
   tmux select-pane -t "$control" -T "control: click here, then r / q / d"
 
@@ -145,7 +145,7 @@ control() {
   local key state p
   while true; do
     state=""
-    for p in "$port:worker" "5173:dashboard" "8081:metro"; do
+    for p in "$port:worker" "5173:studio" "8081:metro"; do
       if (exec 3<>"/dev/tcp/127.0.0.1/${p%%:*}") 2>/dev/null; then state+=" ● ${p#*:}"; else state+=" ○ ${p#*:}"; fi
     done
     printf '\r\033[2K%s   │  r restart  ·  q quit (stop all)  ·  d detach' "$state"

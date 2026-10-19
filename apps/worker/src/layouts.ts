@@ -6,7 +6,7 @@ interface LayoutRow { id: string; user_id: string; name: string; layout: string;
 const toApi = (r: LayoutRow) => ({ ...r, layout: JSON.parse(r.layout) as ViewfinderLayout });
 
 /**
- * Viewfinder layouts (issue #49): edited on the dashboard, read by the phone. Client-owned UUIDs,
+ * Viewfinder layouts (issue #49): edited in the Studio, read by the phone. Client-owned UUIDs,
  * upserts. A layout is its user's, like the devices it is designed for.
  */
 export function registerLayoutRoutes(r: Router<Ctx>) {

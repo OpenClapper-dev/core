@@ -11,7 +11,7 @@ import { Icon, LinkButton, Seg, type ThemeChoice, Toolbar, ToolbarTitle } from "
 
 interface Props { tab: SettingsTab; onTab: (t: SettingsTab) => void; theme: ThemeChoice; onTheme: (t: ThemeChoice) => void; mask: MaskMode; onMask: (m: MaskMode) => void }
 
-/** Settings (route #/settings): dashboard preferences, saved on change, per browser; the account and workspaces (#/settings/account); the shortcut reference (#/settings/shortcuts). */
+/** Settings (route #/settings): Studio preferences, saved on change, per browser; the account and workspaces (#/settings/account); the shortcut reference (#/settings/shortcuts). */
 export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props) {
   const s = useSettings();
   const tabs = <Seg label="Settings section" value={tab} onChange={onTab} options={[{ id: "general", label: "General" }, { id: "account", label: "Account" }, { id: "shortcuts", label: "Shortcuts" }]} />;
@@ -81,18 +81,18 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
 
 const REPO = "https://github.com/bubulux/fielder";
 
-/** Which version this dashboard is and which the server runs: they differ while a deploy is new and this tab still has the old bundle. */
+/** Which version this Studio is and which the server runs: they differ while a deploy is new and this tab still has the old bundle. */
 function About() {
   const [server, setServer] = useState<ServerBuild | null | undefined>(undefined);
   useEffect(() => { fetchServerBuild().then(setServer, () => setServer(null)); }, []);
   const label = (b: ServerBuild) => `${b.version} (${b.commit})`;
-  const dashboard = { version: __FIELDER_VERSION__, commit: __FIELDER_COMMIT__ };
+  const studio = { version: __FIELDER_VERSION__, commit: __FIELDER_COMMIT__ };
   // "dev" is a local Worker, which has no commit to compare.
-  const stale = server && (server.version !== dashboard.version || (server.commit !== "dev" && server.commit !== dashboard.commit));
+  const stale = server && (server.version !== studio.version || (server.commit !== "dev" && server.commit !== studio.commit));
   return (
     <Section icon="information-outline" title="About">
-      <Row label="Dashboard" help="The version of this page. Alpha: everything may still change.">
-        <span class="num">{label(dashboard)}</span>
+      <Row label="Studio" help="The version of this page. Alpha: everything may still change.">
+        <span class="num">{label(studio)}</span>
       </Row>
       <Row label="Server" help={stale ? "Another version than this page: reload to get the server's." : "The version the server runs."}>
         <span class="num">{server === undefined ? "…" : server ? label(server) : "not reachable"}</span>

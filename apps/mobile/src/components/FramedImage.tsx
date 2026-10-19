@@ -36,7 +36,7 @@ export function FramedImage({ source, aspect, frame: f, width, settings, mode, s
   let img: { width: number; height: number };
   let imgPos = { left: 0, top: 0 };
   let rect: { left: number; top: number; width: number; height: number } | null = null;
-  // A re-framed frame (issue #29) is off-centre; the centre is clamped to the photo like on the dashboard.
+  // A re-framed frame (issue #29) is off-centre; the centre is clamped to the photo like in the Studio.
   const c = f ? clampCentre({ width_fraction: f.width, height_fraction: f.height, x: f.x, y: f.y }) : { x: 0.5, y: 0.5 };
   if (fit && f) {
     img = { width: box.width / f.width, height: box.height / f.height };

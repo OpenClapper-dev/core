@@ -8,7 +8,7 @@ import { FramedImage, type FrameFractions, type FrameMode } from "./FramedImage"
 
 export { FRAME_MODES, FrameModeSeg, frameModeLabel, type FrameMode } from "./FramedImage";
 
-/** The frame a photo is shown with: its root framing (issue #29, set on the dashboard), else as captured. */
+/** The frame a photo is shown with: its root framing (issue #29, set in the Studio), else as captured. */
 export function frameOf(photo: Photo): FrameFractions | null {
   const r = rootFrame({ framing: photo.framing, framings: photo.framings, root_framing_id: photo.root_framing_id });
   return r ? { width: r.width_fraction, height: r.height_fraction, x: r.x, y: r.y } : null;

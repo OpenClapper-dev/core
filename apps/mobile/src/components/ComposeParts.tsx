@@ -13,7 +13,7 @@ import { fitWidth, FrameModeSeg, frameOf, imageAspect, type FrameMode } from "./
 import { MarkdownText } from "./Markdown";
 
 /**
- * Overlays and sketches on the phone (issue #12): read-only renders made on the dashboard. An
+ * Overlays and sketches on the phone (issue #12): read-only renders made in the Studio. An
  * overlay render is the photo's size, so it takes the frame modes like the photo (opening in the
  * presentation it was drawn in); a sketch is shown as is. Offline copies are used when present.
  */

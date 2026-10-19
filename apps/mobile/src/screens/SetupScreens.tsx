@@ -19,7 +19,7 @@ import { Overlay } from "../components/Overlay";
 import { ShotFrame } from "../components/ShotFrame";
 import { OptionSheet } from "../components/OptionSheet";
 
-/** Frame colours and tints on offer (shared with the dashboard; they draw over the camera image, not the UI). */
+/** Frame colours and tints on offer (shared with the Studio; they draw over the camera image, not the UI). */
 export const colourName = (hex: string) => VF_FRAME_COLORS.find((x) => x.value.toUpperCase() === hex.toUpperCase())?.label ?? hex;
 const HUD: { key: keyof HudChips; label: string; meta?: string; icon: string }[] = [
   { key: "project", label: "Project", icon: "folder-outline" },
@@ -39,7 +39,7 @@ function useSet() {
 
 /**
  * The layout in use and its look and control options (issue #68: they belong to the layout, so a
- * change here edits the layout, offline-first, and the dashboard sees it). The built-in Default is
+ * change here edits the layout, offline-first, and the Studio sees it). The built-in Default is
  * read-only: greyed out, with Make a copy. A pinned preview (the latest shot, or a plain grey image)
  * shows the frame, blackout, human frame and chips, so every change shows at once.
  */
@@ -79,10 +79,10 @@ export function ViewfinderSettings() {
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
           <ListRow icon="view-dashboard-edit-outline" title="Layout" meta={app.layouts.find((l) => l.id === st.viewfinderLayoutId)?.name ?? "Default"} onPress={() => setLayoutSheet(true)} />
-          <Block><Hint>Where the buttons go, how the frame looks and how the controls behave. Made on the dashboard (Library › Viewfinder); changes here edit the layout too and sync with the next upload.</Hint></Block>
+          <Block><Hint>Where the buttons go, how the frame looks and how the controls behave. Made in the Studio (Library › Viewfinder); changes here edit the layout too and sync with the next upload.</Hint></Block>
           {readOnly && (
             <Block>
-              <Hint>The Default is built in and can't be changed. Make a copy to change its look or controls here or on the dashboard.</Hint>
+              <Hint>The Default is built in and can't be changed. Make a copy to change its look or controls here or in the Studio.</Hint>
               <Button kind="secondary" icon="content-copy" label="Make a copy" onPress={app.copyDefaultLayout} />
             </Block>
           )}
@@ -133,7 +133,7 @@ export function CaptureSettings() {
   const set = useSet();
   return (
     <PushScreen title="Capture">
-      <Toggle icon="cloud-upload-outline" label="Direct upload" meta="Skip the Tag screen: shots queue untagged; tag them later in History or the dashboard." value={st.directUpload} onChange={(v) => set("directUpload", v)} />
+      <Toggle icon="cloud-upload-outline" label="Direct upload" meta="Skip the Tag screen: shots queue untagged; tag them later in History or the Studio." value={st.directUpload} onChange={(v) => set("directUpload", v)} />
       <Block>
         <SectionLabel>GPS</SectionLabel>
         <Seg size="lg" block accessibilityLabel="GPS mode" value={st.gpsMode} onChange={(v) => set("gpsMode", v)} options={[{ id: "high", icon: "crosshairs-gps", label: "High" }, { id: "low", icon: "crosshairs", label: "Low" }, { id: "off", icon: "crosshairs-off", label: "Off" }]} />
@@ -173,7 +173,7 @@ export function Calibration() {
             <Hint>Kept as typed; photos no longer change it. A smaller value makes the frame smaller on screen.</Hint>
           </>
         )}
-        <Hint>{registeredName() ? `On the dashboard as “${registeredName()}” (device specs); each sync updates it.` : "Not on the dashboard yet: Library › Viewfinder › Add device specs reads this phone out."}</Hint>
+        <Hint>{registeredName() ? `On the Studio as “${registeredName()}” (device specs); each sync updates it.` : "Not in the Studio yet: Library › Viewfinder › Add device specs reads this phone out."}</Hint>
       </Block>
     </PushScreen>
   );
@@ -201,7 +201,7 @@ export function Account() {
         ) : (
           <>
             <Text style={s.value}>Not signed in</Text>
-            <Hint>With your Fielder account, the same as on the dashboard. Until then, shots stay on the phone.</Hint>
+            <Hint>With your Fielder account, the same as in the Studio. Until then, shots stay on the phone.</Hint>
             <Button icon="login" label="Sign in" onPress={app.signIn} />
           </>
         )}

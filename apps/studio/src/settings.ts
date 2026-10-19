@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { ShotState } from "./api";
 
 /**
- * Dashboard preferences (Settings page). Kept per browser in localStorage["settings"], like the
+ * Studio preferences (Settings page). Kept per browser in localStorage["settings"], like the
  * theme and the frame mode; a missing or unknown value falls back to the default, so new
  * settings need no migration.
  */

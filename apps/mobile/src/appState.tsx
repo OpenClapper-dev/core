@@ -35,7 +35,7 @@ export interface AppState {
   settings: ViewSettings;
   /** Changes the phone's own settings only; the look and options are edited with `editLayout`. */
   setSettings: (u: Settings | ((s: Settings) => Settings)) => void;
-  /** The layout Shoot uses (the dashboard's preview while one runs), and its cached entry (null = the built-in Default, read-only). */
+  /** The layout Shoot uses (the Studio's preview while one runs), and its cached entry (null = the built-in Default, read-only). */
   layout: ViewfinderLayout;
   layoutEntry: LayoutEntry | null;
   /** Change the current layout's look or options; saved on the phone at once, sent with the next flush. */
@@ -49,9 +49,9 @@ export interface AppState {
   setLocations: (l: LocationEntry[]) => void;
   spots: SpotEntry[];
   setSpots: (l: SpotEntry[]) => void;
-  /** Viewfinder layouts from the dashboard (cached; refreshed by every flush). */
+  /** Viewfinder layouts from the Studio (cached; refreshed by every flush). */
   layouts: LayoutEntry[];
-  /** The dashboard is showing a layout on this phone (issue #50): Shoot renders it, inert. */
+  /** The Studio is showing a layout on this phone (issue #50): Shoot renders it, inert. */
   preview: LivePreview | null;
   exitPreview: () => void;
   /** Shots at a location (uploaded + queued). */

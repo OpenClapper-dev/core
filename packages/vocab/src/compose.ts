@@ -8,7 +8,7 @@
  * *presentation*. A **sketch** is the same drawing model on a blank canvas of a chosen aspect ratio
  * (floor plan, lighting diagram, …) and belongs to the shot, not to a photo.
  *
- * The dashboard edits the vector JSON and uploads a flattened render; the phone only shows renders.
+ * The Studio edits the vector JSON and uploads a flattened render; the phone only shows renders.
  * The Worker validates with `validateDrawing` / `validatePresentation` (strict: these are
  * interactive edits, never captures).
  */
@@ -20,7 +20,7 @@ export const COMPOSE_PALETTE = ["#FFFFFF", "#0B0B0C", "#FF3B30", "#FF9500", "#FF
 /** [x, y] as fractions of the canvas (the raw photo, or the sketch box). */
 export type Point = [number, number];
 
-/** Stencil names: four hand-drawn diagram glyphs, then a curated set from Lucide (ISC; issue #46). The paths live in the dashboard. */
+/** Stencil names: four hand-drawn diagram glyphs, then a curated set from Lucide (ISC; issue #46). The paths live in the Studio. */
 export const STENCILS = [
   "camera", "light", "actor", "flag",
   "video", "clapperboard", "film", "still-camera", "monitor", "tv", "mic", "headphones", "speaker", "drone", "cctv",

@@ -310,7 +310,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     return json({ shot });
   });
 
-  // Same-origin image delivery so the dashboard can use plain <img> tags with its session cookie.
+  // Same-origin image delivery so the Studio can use plain <img> tags with its session cookie.
   r.on("GET", "/api/photos/:id/image", async (ctx, { id }) => {
     const { env, request } = ctx;
     const pid = assertUuid(id, "id");
@@ -460,7 +460,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
       const err = validateValues(await projectFieldDefs(env, projectId), JSON.parse(tags.extra) as Extra);
       if (err) throw new HttpError(400, err);
     } else if (movedTo) {
-      // Moving takes along only the values the new project's fields accept (the dashboard warns first).
+      // Moving takes along only the values the new project's fields accept (the Studio warns first).
       args.push(JSON.stringify(fitExtra(await projectFieldDefs(env, movedTo), JSON.parse(cur.extra) as Extra))); sets.push(`extra = ?${args.length}`);
     }
     let location = tags.location_id !== undefined ? tags.location_id : cur.location_id;

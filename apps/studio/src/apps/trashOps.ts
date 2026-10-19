@@ -4,7 +4,7 @@ import { invalidateDays, invalidateTimelines, projectDays, projectTimelines } fr
 import { confirmDialog, toast } from "@fielder/ui";
 
 /**
- * The recycle bin from the dashboard's side (epic #90): every delete moves to the bin and says so
+ * The recycle bin from the Studio's side (epic #90): every delete moves to the bin and says so
  * with Undo; restore and purge go through here so the store, the bin and open windows follow.
  */
 

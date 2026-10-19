@@ -4,11 +4,11 @@
   "version": "0.1.0",
   "packageManager": "pnpm@11.13.1",
   "scripts": {
-    "dev": "pnpm --parallel --filter @fielder/worker --filter @fielder/dashboard dev",
+    "dev": "pnpm --parallel --filter @fielder/worker --filter @fielder/studio dev",
     "dev:init": "bash scripts/dev-init.sh",
     "dev:worker": "pnpm -C apps/worker dev",
     "dev:seed": "node scripts/seed-local.mjs",
-    "dev:dashboard": "pnpm -C apps/dashboard dev",
+    "dev:studio": "pnpm -C apps/studio dev",
     "dev:mobile": "bash scripts/mobile.sh",
     "wrangler": "wrangler",
     "dev:admin": "pnpm -C apps/admin dev"

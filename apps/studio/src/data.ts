@@ -5,7 +5,7 @@ import { getProjectId, onProjectChange } from "./project";
 import { toast } from "@fielder/ui";
 
 /**
- * The dashboard's data cache (epic #72), moved out of App.tsx into a module store (settings.ts
+ * The Studio's data cache (epic #72), moved out of App.tsx into a module store (settings.ts
  * idiom) so every window reads one copy: an edit in one window shows in all of them. Collections
  * are loaded whole, as before; null until the first load.
  */

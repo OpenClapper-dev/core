@@ -1,5 +1,5 @@
 /**
- * Shot filter model shared by the dashboard (builder + evaluation) and the Worker
+ * Shot filter model shared by the Studio (builder + evaluation) and the Worker
  * (validation of saved views). A filter is a group of rules joined by all/any;
  * groups nest so "A and (B or C)" is expressible.
  */

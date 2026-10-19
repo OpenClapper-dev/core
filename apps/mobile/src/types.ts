@@ -45,7 +45,7 @@ export interface Settings {
   phoneCalibration: "auto" | "manual";
   /** The phone model the auto value came from (EXIF), for Setup; null before the first capture. */
   phoneModel: string | null;
-  /** The viewfinder layout made on the dashboard (issue #49); null = the shipped default. */
+  /** The viewfinder layout made in the Studio (issue #49); null = the shipped default. */
   viewfinderLayoutId: string | null;
   rigOrientation: RigOrientation;
   /** Digitally scale the preview so the rig frame fills the screen. */
@@ -68,7 +68,7 @@ export interface Settings {
 
 /**
  * What the screens read: the phone's own settings plus the current layout's look and control options
- * (issue #68: those live in the layout, so the dashboard and the phone edit the same thing). Built in
+ * (issue #68: those live in the layout, so the Studio and the phone edit the same thing). Built in
  * App.tsx (`withLook`), never stored as such.
  */
 export interface ViewSettings extends Settings {
@@ -118,7 +118,7 @@ export interface PhotoMetadata {
   preset_id: string | null;
   width: number;
   height: number;
-  /** Rig/lens snapshot incl. `frame` fractions, so the dashboard can re-apply the mask. */
+  /** Rig/lens snapshot incl. `frame` fractions, so the Studio can re-apply the mask. */
   framing: Record<string, unknown>;
   /** Phone model, EXIF focal lengths, GPS extras. */
   device: Record<string, unknown>;

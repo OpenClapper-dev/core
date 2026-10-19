@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { validateDeviceSpecs, type DeviceSpecs, type ViewfinderLayout, type VfOrientationName } from "@fielder/vocab";
 
 /**
- * The dashboard's end of the live layout preview (issue #50, worker/src/preview.ts). Connected while
+ * The Studio's end of the live layout preview (issue #50, worker/src/preview.ts). Connected while
  * the layout editor is open; the phone is connected whenever the app is in the foreground. Leaving the
  * editor closes the socket, which ends the preview on the phone. Issue #68: the room says which
  * phones are there (id, model), and a phone's specs arrive on connect, on change and on `readout()`.
@@ -30,7 +30,7 @@ export function usePhonePreview(): PhonePreview {
   useEffect(() => {
     let closed = false, tries = 0, timer: ReturnType<typeof setTimeout> | undefined;
     const connect = () => {
-      const w = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/preview/socket?role=dashboard`);
+      const w = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/preview/socket?role=studio`);
       ws.current = w;
       w.onopen = () => { tries = 0; setState((s) => ({ ...s, connected: true })); };
       w.onmessage = (e) => {

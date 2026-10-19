@@ -6,7 +6,7 @@ import { Icon } from "./core";
 import { FIXED, useTheme } from "./theme";
 import { useStyles } from "./styles";
 
-/** Review state: fill + icon + label (colours shared with the dashboard). */
+/** Review state: fill + icon + label (colours shared with the Studio). */
 export function StateMarker({ state, iconOnly, lg }: { state: ShotState; iconOnly?: boolean; lg?: boolean }) {
   const s = useStyles();
   const { c } = useTheme();

@@ -41,5 +41,5 @@ test("no key does two things where scopes are live together (within one window)"
 
 test("docs/shortcuts.md is generated from the registry", () => {
   const doc = readFileSync(new URL("../../../docs/shortcuts.md", import.meta.url), "utf8");
-  assert.equal(doc.trimEnd(), shortcutsMarkdown().trimEnd(), "regenerate: node apps/dashboard/src/shortcuts.docs.ts > docs/shortcuts.md");
+  assert.equal(doc.trimEnd(), shortcutsMarkdown().trimEnd(), "regenerate: node apps/studio/src/shortcuts.docs.ts > docs/shortcuts.md");
 });

@@ -1,5 +1,5 @@
 /**
- * Actions from the design system (actions.css): "rectangles act". Every button on the dashboard
+ * Actions from the design system (actions.css): "rectangles act". Every button in the Studio
  * is one of these, so variants, sizes and the key hint look the same everywhere.
  */
 import type { ComponentChildren, JSX, Ref } from "preact";

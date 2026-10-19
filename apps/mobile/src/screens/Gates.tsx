@@ -13,7 +13,7 @@ export function SignInGate({ onSignIn, onSkip }: { onSignIn: () => void; onSkip:
       <ScrollView contentContainerStyle={s.gateBody}>
         <View style={s.brandRow}><Mark size={32} /><Text style={s.brand}>Fielder</Text></View>
         <Text style={s.gateTitle}>Sign in</Text>
-        <Text style={s.gateText}>With your Fielder account, the same as on the dashboard. You stay signed in while you use the app.</Text>
+        <Text style={s.gateText}>With your Fielder account, the same as in the Studio. You stay signed in while you use the app.</Text>
       </ScrollView>
       <ActionBar edge style={{ flexDirection: "column" }}>
         <Button icon="login" label="Sign in" onPress={onSignIn} />
@@ -30,7 +30,7 @@ function problem(e: unknown): string {
   return "Couldn't reach the server. Check the connection; shots you take meanwhile stay on the phone.";
 }
 
-/** Email and password (epic #107), the same account as the dashboard. The button sits under the fields, so the keyboard never covers it. */
+/** Email and password (epic #107), the same account as the Studio. The button sits under the fields, so the keyboard never covers it. */
 export function LoginForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const s = useStyles();
   const [email, setEmail] = useState("");
@@ -57,7 +57,7 @@ export function LoginForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
         <PasswordInput value={password} onChangeText={setPassword} editable={!busy} autoComplete="password" textContentType="password" returnKeyType="go" onSubmitEditing={() => void submit()} />
         {error && <Banner kind="danger" title={error} />}
         <Button icon="login" label={busy ? "Signing in…" : "Sign in"} busy={busy} disabled={!ready} onPress={() => void submit()} />
-        <Hint>Same account as the dashboard. There is no sign-up yet: an administrator makes accounts.</Hint>
+        <Hint>Same account as the Studio. There is no sign-up yet: an administrator makes accounts.</Hint>
       </ScrollView>
     </View>
   );

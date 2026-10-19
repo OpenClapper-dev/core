@@ -27,13 +27,13 @@ pnpm -C "$root/apps/admin" types >/dev/null
 mkdir -p "$root/apps/admin/dist"
 
 # wrangler dev refuses to boot unless assets.directory exists. In the local loop
-# Vite serves the dashboard on :5173 and proxies /api here, so an empty directory
-# is enough; `pnpm -C apps/dashboard build` fills it if you want :8787 to serve the UI.
-if [ -d "$root/apps/dashboard/dist" ]; then
-  echo "  = apps/dashboard/dist (exists, left alone)"
+# Vite serves the Studio on :5173 and proxies /api here, so an empty directory
+# is enough; `pnpm -C apps/studio build` fills it if you want :8787 to serve the UI.
+if [ -d "$root/apps/studio/dist" ]; then
+  echo "  = apps/studio/dist (exists, left alone)"
 else
-  mkdir -p "$root/apps/dashboard/dist"
-  echo "  + apps/dashboard/dist (empty; wrangler dev requires it)"
+  mkdir -p "$root/apps/studio/dist"
+  echo "  + apps/studio/dist (empty; wrangler dev requires it)"
 fi
 
 echo "Applying D1 migrations to the local database:"

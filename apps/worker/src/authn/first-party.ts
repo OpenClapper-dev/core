@@ -35,11 +35,12 @@ export const provider: AuthProvider = {
 
   registerPublic(r: Router<PublicCtx>) {
     // `client: "mobile"` gets the token in the body (the phone keeps it in secure storage);
-    // the dashboard gets it only as an HttpOnly cookie, out of reach of page scripts.
+    // the Studio gets it only as an HttpOnly cookie, out of reach of page scripts.
     r.on("POST", "/api/auth/login", async ({ request, env }) => {
       const b = await readJson<Record<string, unknown>>(request);
       const email = typeof b.email === "string" ? b.email.trim() : "";
       const password = typeof b.password === "string" ? b.password : "";
+      // `dashboard` = the Studio: the value `sessions.client` has held since migration 0021.
       const client: SessionClient = b.client === "mobile" ? "mobile" : "dashboard";
       if (!email || !password) throw new HttpError(400, "email and password are required");
       if (email.length > 320 || password.length > 200) throw new HttpError(401, BAD_CREDENTIALS);

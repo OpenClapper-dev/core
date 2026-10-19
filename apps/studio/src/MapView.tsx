@@ -111,7 +111,7 @@ function LeafletMap({ shots, mask, selectedId, onSelect, onOpen }: Props) {
   );
 }
 
-/** Leaflet wants a DOM node for the popup: render the same components the rest of the dashboard uses into one. */
+/** Leaflet wants a DOM node for the popup: render the same components the rest of the Studio uses into one. */
 function popupContent(s: Shot, mask: MaskMode, open: () => void): HTMLElement {
   const el = document.createElement("div");
   el.className = "map-popup";

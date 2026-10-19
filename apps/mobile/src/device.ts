@@ -6,7 +6,7 @@ import type { Settings } from "./types";
 import { zoomStops, type ZoomRange } from "./zoom";
 
 /**
- * This phone as a device (issue #68): its own id (the dashboard saves the specs under it, so the phone
+ * This phone as a device (issue #68): its own id (the Studio saves the specs under it, so the phone
  * can keep that record current) and the Shoot screen's size per orientation, measured whenever Shoot
  * lays out. The specs are built from that, the camera's zoom range and the calibration in Settings.
  */
@@ -67,13 +67,13 @@ export function deviceSpecs(settings: Pick<Settings, "phoneEquivalentFocalMm" | 
 }
 
 const NAME_KEY = "deviceName.v1";
-/** The name the dashboard saved this phone under, or null while it has no device record. */
+/** The name the Studio saved this phone under, or null while it has no device record. */
 export const registeredName = (): string | null => { try { return kv.getItemSync(NAME_KEY); } catch { return null; } };
 
 /**
- * Part of every flush: once the dashboard has saved this phone, keep its record in step with the
+ * Part of every flush: once the Studio has saved this phone, keep its record in step with the
  * phone (calibration, measured sizes, lenses). The phone never creates the record: naming is the
- * dashboard's readout. Offline it simply waits for the next flush.
+ * Studio's readout. Offline it simply waits for the next flush.
  */
 export async function syncDevice(settings: Pick<Settings, "phoneEquivalentFocalMm" | "phoneCalibration">, zoom: ZoomRange | null, api: { listDevices: () => Promise<{ id: string; name: string; specs: DeviceSpecs }[]>; putDeviceSpecs: (id: string, s: DeviceSpecs) => Promise<unknown> }) {
   const mine = (await api.listDevices()).find((d) => d.id === deviceId());

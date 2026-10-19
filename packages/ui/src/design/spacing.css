@@ -5,7 +5,7 @@
   --radius-md: 10px;  /* cards, panels, popovers */
   --radius-lg: 14px;  /* modal, bottom sheet top corners */
   --radius-pill: 999px; /* tabs, segmented, chips — "pills show which one is on" */
-  --control-sm: 28px; --control-md: 36px; --control-lg: 44px; /* dashboard; phone minimum is 48dp */
+  --control-sm: 28px; --control-md: 36px; --control-lg: 44px; /* web; phone minimum is 48dp */
   --bw: 1px; --bw-strong: 2px; --bw-selected: 3px;
   --focus-width: 2px; --focus-offset: 2px;
   --taskbar-h: 44px;  /* desktop shell: bottom taskbar */

@@ -44,7 +44,7 @@ function showDesktop(projectId: string) {
 }
 
 /**
- * The dashboard (main.tsx): the sign-in page until someone is signed in (epic #107), then their
+ * The Studio (main.tsx): the sign-in page until someone is signed in (epic #107), then their
  * desktop. Keyed by the user, so another account starts from a fresh data cache.
  */
 export function Shell() {

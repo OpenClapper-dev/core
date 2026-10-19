@@ -1,7 +1,7 @@
 /*
- * Dashboard layouts. Colours, type and spacing come from the design tokens in @fielder/ui (packages/ui/src/design/*.css)
+ * Studio layouts. Colours, type and spacing come from the design tokens in @fielder/ui (packages/ui/src/design/*.css)
  * (Sun = light, Set = dark, switched by [data-theme] on <html>); primitives are the f-* classes there,
- * the app shell, panels, tables, stage and plan grid are in design/dashboard.css, and the component
+ * the app shell, panels, tables, stage and plan grid are in design/studio.css, and the component
  * library's own additions in design/components.css.
  * Never hard-code a colour here except for things drawn over photos (black letterbox, white frame).
  */

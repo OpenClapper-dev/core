@@ -36,7 +36,7 @@ export function ProjectSheet({ visible, projects, activeId, onPick, onClose }: {
   );
 }
 
-/** Name only on the phone (notes and fields stay in the dashboard). A name that exists opens that project. */
+/** Name only on the phone (notes and fields stay in the Studio). A name that exists opens that project. */
 export function NewProjectSheet({ visible, projects, onPick, onClose }: { visible: boolean; projects: ProjectEntry[]; onPick: PickProject; onClose: () => void }) {
   const s = useStyles();
   const [name, setName] = useState("");
@@ -54,7 +54,7 @@ export function NewProjectSheet({ visible, projects, onPick, onClose }: { visibl
       footer={<Button icon={clash ? "folder-outline" : "plus"} label={clash ? `Open “${clash.name}”` : "Create and use"} onPress={create} disabled={!trimmed} />}>
       <Text style={s.label}>Name</Text>
       <Input value={name} onChangeText={setName} placeholder="e.g. Nachtfalter" autoCapitalize="sentences" autoFocus onSubmitEditing={create} maxLength={80} returnKeyType="done" />
-      <Hint>{clash ? `“${clash.name}” already exists; this opens it.` : "Works offline; it syncs with the next upload. Notes and extra fields are set in the dashboard."}</Hint>
+      <Hint>{clash ? `“${clash.name}” already exists; this opens it.` : "Works offline; it syncs with the next upload. Notes and extra fields are set in the Studio."}</Hint>
     </Sheet>
   );
 }

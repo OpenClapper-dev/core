@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 
 /**
- * The active project (issue #44: the dashboard always works inside one; epic #72: the desktop is
+ * The active project (issue #44: the Studio always works inside one; epic #72: the desktop is
  * scoped to it). Remembered per browser in localStorage["project"]. Whether the id still names a
  * project is the shell's call, once data.ts has loaded the list.
  */

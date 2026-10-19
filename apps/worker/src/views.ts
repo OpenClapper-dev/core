@@ -7,7 +7,7 @@ import { binResource } from "./trash.ts";
 interface ViewRow { id: string; project_id: string; name: string; filter: string; created_at: string; updated_at: string | null }
 const toApi = (r: ViewRow) => ({ ...r, filter: JSON.parse(r.filter) as unknown });
 
-/** Saved dashboard filters ("views"), each in one project: client-owned UUIDs, upsert semantics like presets. */
+/** Saved Studio filters ("views"), each in one project: client-owned UUIDs, upsert semantics like presets. */
 export function registerViewRoutes(r: Router<Ctx>) {
   // The views of every project in the caller's workspaces (each carries project_id).
   r.on("GET", "/api/views", async ({ env, tenant }) => {

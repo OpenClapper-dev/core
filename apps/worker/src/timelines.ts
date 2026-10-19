@@ -7,7 +7,7 @@ import { clipComposeFor, deleteClipCompose } from "./compose.ts";
 import { registerPromote } from "./promote.ts";
 
 /**
- * Timelines (issue #12, part 2): a project's rough cuts out of scouted photos. Dashboard only.
+ * Timelines (issue #12, part 2): a project's rough cuts out of scouted photos. Studio only.
  * Client-owned ids; PUT replaces the whole timeline like a shooting day. Clips whose photo left the
  * project (or was deleted) are dropped silently; an overlay that does not belong to the clip's photo
  * is nulled. A clip without a photo is a placeholder (issue #31): a title holds the spot until a

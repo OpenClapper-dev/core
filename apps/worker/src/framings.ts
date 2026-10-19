@@ -5,7 +5,7 @@ import { loadShot } from "./shots.ts";
 import { accessIfExists, assertAccess, workspaceOf } from "./tenancy.ts";
 
 /**
- * Framings (issue #29): saved re-framings of one photo and the photo's root framing. Dashboard
+ * Framings (issue #29): saved re-framings of one photo and the photo's root framing. Studio
  * only (interactive, strict). Shots embed them per photo (`framingsFor`).
  */
 

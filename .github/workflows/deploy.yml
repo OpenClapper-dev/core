@@ -1,4 +1,4 @@
-# Deploys Fielder to a Cloudflare account: migrates D1, then the app Worker (API + dashboard) and,
+# Deploys Fielder to a Cloudflare account: migrates D1, then the app Worker (API + Studio) and,
 # once its Access application exists, the admin plane. Self-hosters run it on their copy of this
 # repository (Actions → Deploy → Run workflow); another repository can call it with this one as a
 # submodule (`path`). Settings are repository secrets and variables: docs/self-hosting.md.
@@ -68,9 +68,9 @@ jobs:
         working-directory: ${{ inputs.path || '.' }}/apps/worker
         run: pnpm exec wrangler d1 migrations apply DB --remote --config wrangler.deploy.jsonc
 
-      - name: Deploy the app (API + dashboard)
+      - name: Deploy the app (API + Studio)
         run: |
-          pnpm --filter @fielder/dashboard build
+          pnpm --filter @fielder/studio build
           cd apps/worker && pnpm exec wrangler deploy --config wrangler.deploy.jsonc
 
       # Deployed from the first run: without its Access application's AUD it refuses every request, and

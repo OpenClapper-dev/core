@@ -9,11 +9,11 @@ import { store } from "./storage";
 
 /**
  * The phone's end of the live layout preview (issue #50, worker/src/preview.ts). While the app is in
- * the foreground and signed in, a websocket stays open so the dashboard sees "phone connected"; when
+ * the foreground and signed in, a websocket stays open so the Studio sees "phone connected"; when
  * the layout editor starts a preview, the Shoot screen shows that layout, in the orientation the
- * dashboard picked, with inert buttons. The preview never touches stored settings or data.
+ * Studio picked, with inert buttons. The preview never touches stored settings or data.
  * Issue #68: on connect the phone says hello (its device id and model) and sends its specs, again on
- * every change of them and whenever the dashboard asks (the Add device specs readout).
+ * every change of them and whenever the Studio asks (the Add device specs readout).
  */
 export interface LivePreview { layout: ViewfinderLayout; orientation: "portrait" | "landscape" }
 
@@ -66,7 +66,7 @@ export function useLivePreview(enabled: boolean): { preview: LivePreview | null;
     };
     const offDevice = onDeviceChange(sendSpecs);
     connect();
-    // Backgrounded or signed out: close; the preview ends with it (the dashboard sees the phone leave).
+    // Backgrounded or signed out: close; the preview ends with it (the Studio sees the phone leave).
     return () => { closed = true; offDevice(); clearTimeout(timer); ws.current?.close(); ws.current = null; setPreview(null); };
   }, [enabled, active, signedIn]);
 

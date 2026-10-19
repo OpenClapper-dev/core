@@ -1,5 +1,5 @@
 /**
- * Every keyboard shortcut of the dashboard (issue #32), in one place. Pages bind handlers to these
+ * Every keyboard shortcut of the Studio (issue #32), in one place. Pages bind handlers to these
  * entries (`bind` in keys.ts) instead of writing key strings, so a key's meaning is visible here and
  * `shortcuts.test.ts` can assert that no key does two things where scopes are live together. The `?`
  * sheet, Settings › Shortcuts and docs/shortcuts.md are all rendered from this list.
@@ -291,9 +291,9 @@ export const keysLabel = (s: Shortcut): string => s.display ?? `${s.chord ? "G "
 /** docs/shortcuts.md, generated so it cannot drift (shortcuts.test.ts compares it). */
 export function shortcutsMarkdown(): string {
   const out = [
-    "# Keyboard shortcuts (dashboard)",
+    "# Keyboard shortcuts (Studio)",
     "",
-    "Generated from `apps/dashboard/src/shortcuts.ts` (issue #32); `shortcuts.test.ts` fails when this file drifts. Regenerate with `node apps/dashboard/src/shortcuts.docs.ts > docs/shortcuts.md`.",
+    "Generated from `apps/studio/src/shortcuts.ts` (issue #32); `shortcuts.test.ts` fails when this file drifts. Regenerate with `node apps/studio/src/shortcuts.docs.ts > docs/shortcuts.md`.",
     "The same list is in the app: `?`, and Settings › Shortcuts. Single keys never fire while you type in a field; plain letters wait while a G jump is pending.",
     "",
   ];

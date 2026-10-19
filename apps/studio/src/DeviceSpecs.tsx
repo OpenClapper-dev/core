@@ -34,7 +34,7 @@ export function DeviceDialog({ phone, devices, onSaved, onClose }: { phone: Phon
   return (
     <Modal title={known ? `Read out “${known.name}” again` : "Add device specs"} width="min(560px, 94vw)" onClose={onClose} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } }}>
       <div class="f-modal__body device-dialog">
-        {!phone.connected ? <EmptyNote title="Not connected to the server">The dashboard reconnects by itself; try again in a moment.</EmptyNote>
+        {!phone.connected ? <EmptyNote title="Not connected to the server">The Studio reconnects by itself; try again in a moment.</EmptyNote>
           : !candidates.length ? (
             <EmptyNote title="Open Fielder on the phone">Signed in and in the foreground, the phone connects here by itself. Then open the Shoot tab.</EmptyNote>
           ) : (
