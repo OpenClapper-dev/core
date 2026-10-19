@@ -1,14 +1,20 @@
 import { defineConfig } from "vite";
 import preact from "@preact/preset-vite";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { version } from "../../package.json";
 
 // The product version (root package.json, docs/releasing.md) and the commit this bundle is built from.
 const commit = (() => { try { return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); } catch { return "dev"; } })();
 const build = { __FIELDER_VERSION__: JSON.stringify(version), __FIELDER_COMMIT__: JSON.stringify(commit) };
 
+// @fielder/ui lives outside this root, where Vite watches single files; a git branch switch replaces
+// them and those watches are lost until a restart. Watching the folder survives that.
+const uiSrc = fileURLToPath(new URL("../../packages/ui/src", import.meta.url));
+const watchUi = { name: "fielder-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
+
 export default defineConfig({
-  plugins: [preact()],
+  plugins: [preact(), watchUi],
   define: build,
   build: { outDir: "dist", emptyOutDir: true, sourcemap: false },
   server: {
