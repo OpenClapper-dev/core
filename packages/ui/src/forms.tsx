@@ -9,7 +9,7 @@ import { LIGHT, PHASE_ICONS, label } from "@fielder/vocab";
 import { IconButton } from "./actions";
 import { cx, Icon, Kbd } from "./core";
 import { ErrorLine } from "./feedback";
-import { useOutsideClick } from "./hooks";
+import { useDropDirection, useOutsideClick } from "./hooks";
 
 export interface SelectOption { value: string; label: string; /** Heading shown above the first option of a group. */ group?: string }
 
@@ -28,6 +28,7 @@ export function Select({ value, options, onChange, label: aria, prefix, icon, wi
   const current = options.find((o) => o.value === value);
   useEffect(() => { if (open) setHi(sel); }, [open]);
   useOutsideClick(() => box.current, () => setOpen(false), open);
+  useDropDirection(list, open);
   useEffect(() => { if (open) list.current?.querySelector(".is-hi")?.scrollIntoView({ block: "nearest" }); }, [hi, open]);
   const pick = (i: number) => { const o = options[i]; if (o) onChange(o.value); setOpen(false); };
   const onKey = (e: KeyboardEvent) => {

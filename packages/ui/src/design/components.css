@@ -23,7 +23,7 @@ button.f-row { width: 100%; }
 .f-pick { position: relative; }
 .f-pick b { flex: none; font-weight: var(--weight-bold); }
 .f-select { position: relative; min-width: 0; }
-.f-select__list { position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%; max-height: 320px; overflow: auto; z-index: 30; }
+.f-select__list { position: absolute; top: calc(100% + 4px); left: 0; min-width: 100%; max-height: min(320px, var(--drop-max, 320px)); overflow: auto; z-index: 30; }
 .f-pick:focus-within { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); }
 
 /* Combobox input wrapper (list styles are f-combo__*). */
@@ -47,7 +47,10 @@ button.f-row { width: 100%; }
 
 /* Menus anchored under a button. */
 .menu-anchor { position: relative; }
-.popover { position: absolute; top: calc(100% + 4px); z-index: 70; }
+.popover { position: absolute; top: calc(100% + 4px); z-index: 70; max-height: var(--drop-max, none); }
+.popover[data-capped] { overflow-y: auto; }
+/* No room below (useDropDirection, #196): hang above the anchor instead. */
+.f-select__list[data-drop="up"], .f-combo__list[data-drop="up"], .popover[data-drop="up"] { top: auto; bottom: calc(100% + 4px); }
 
 /* Context menu at the pointer (right-click on a resource, issue #31). */
 .ctx { position: fixed; inset: 0; z-index: 2000; }

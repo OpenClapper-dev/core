@@ -45,7 +45,7 @@
 /* Combobox */
 .f-combo{position:relative}
 .f-combo__caret{padding:0 8px;color:var(--text);font-size:20px}
-.f-combo__list{position:absolute;z-index:50;left:0;right:0;top:calc(100% + 4px);margin:0;padding:4px;list-style:none;background:var(--surface-raised);border:var(--bw) solid var(--border-strong);border-radius:var(--radius-md);box-shadow:var(--elev-2);max-height:264px;overflow:auto}
+.f-combo__list{position:absolute;z-index:50;left:0;right:0;top:calc(100% + 4px);margin:0;padding:4px;list-style:none;background:var(--surface-raised);border:var(--bw) solid var(--border-strong);border-radius:var(--radius-md);box-shadow:var(--elev-2);max-height:min(264px,var(--drop-max,264px));overflow:auto}
 .f-combo__list.is-static{position:static;margin-top:4px}
 .f-combo__opt{display:flex;align-items:center;gap:8px;min-height:32px;padding:6px 8px;border-radius:var(--radius-sm);color:var(--text);font-size:var(--text-body);cursor:pointer}
 .f-combo__opt .mdi{font-size:16px;width:16px}

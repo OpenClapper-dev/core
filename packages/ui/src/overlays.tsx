@@ -7,7 +7,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Button } from "./actions";
 import { cx } from "./core";
 import { Field, Input } from "./forms";
-import { useOutsideClick } from "./hooks";
+import { useDropDirection, useOutsideClick } from "./hooks";
 import { Presence } from "./Presence";
 
 /**
@@ -46,10 +46,11 @@ export function Modal({ title, role = "dialog", width, onClose, onKeyDown, headA
   );
 }
 
-/** A small menu (f-menu) anchored under its button inside a .menu-anchor; closes on an outside press or Esc. */
+/** A small menu (f-menu) anchored under its button inside a .menu-anchor (above it when there is no room below); closes on an outside press or Esc. */
 export function Popover({ children, onClose, right }: { children: ComponentChildren; onClose: () => void; right?: boolean }) {
   const box = useRef<HTMLDivElement>(null);
   useOutsideClick(() => box.current?.parentElement, onClose);
+  useDropDirection(box, true);
   useEffect(() => {
     const esc = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
     window.addEventListener("keydown", esc, true);
