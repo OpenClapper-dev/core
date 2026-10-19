@@ -1,0 +1,117 @@
+# Builds the Android app for a deployment, pointed at its server (the APP_URL variable). Two modes:
+#   runner  `eas build --local` on the GitHub runner: no EAS build queue or quota. The APK becomes
+#           a workflow artifact, deleted after 3 days (download and install it before then).
+#   cloud   queues the build on EAS and exits; download it from the build page on expo.dev.
+# Both sign with the keystore in the Expo project's credentials, so both need EXPO_TOKEN.
+# Self-hosters run it on their copy of this repository (Actions → Build APK → Run workflow); another
+# repository can call it with this one as a submodule (`path`). Setup: docs/self-hosting.md#the-phone.
+name: Build APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Where the build runs
+        type: choice
+        options: [runner, cloud]
+        default: runner
+  workflow_call:
+    inputs:
+      path:
+        description: Where this repository is checked out in the calling one (a submodule)
+        type: string
+        default: "."
+      mode:
+        description: runner (on the GitHub runner, APK as artifact) or cloud (queued on EAS)
+        type: string
+        default: runner
+    secrets:
+      EXPO_TOKEN:
+        required: true
+
+concurrency:
+  group: fielder-build-apk
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: ${{ inputs.path || '.' }}
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EXPO_PUBLIC_API_URL: ${{ vars.APP_URL }}
+      # Optional: your own Expo project instead of the one in app.json (apps/mobile/app.config.ts).
+      EAS_OWNER: ${{ vars.EAS_OWNER }}
+      EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+      MODE: ${{ inputs.mode || 'runner' }}
+    steps:
+      - name: Settings
+        run: |
+          [ -n "$EXPO_PUBLIC_API_URL" ] || { echo "::error::Set the APP_URL variable to your server, e.g. https://fielder-api.<subdomain>.workers.dev"; exit 1; }
+          [ -n "$EXPO_TOKEN" ] || { echo "::error::Set the EXPO_TOKEN secret (expo.dev → Access tokens)"; exit 1; }
+          case "$MODE" in runner|cloud) ;; *) echo "::error::mode must be runner or cloud"; exit 1;; esac
+        working-directory: .
+
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ inputs.path || '.' }}/package.json
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: ${{ inputs.path || '.' }}/pnpm-lock.yaml
+
+      - uses: actions/setup-java@v4
+        if: env.MODE == 'runner'
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: actions/cache@v4
+        if: env.MODE == 'runner'
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ hashFiles(format('{0}/pnpm-lock.yaml', inputs.path || '.')) }}
+          restore-keys: gradle-
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build on the runner
+        if: env.MODE == 'runner'
+        working-directory: ${{ inputs.path || '.' }}/apps/mobile
+        run: |
+          name="fielder-$(git rev-parse --short HEAD).apk"
+          pnpm exec eas build --local --platform android --profile apk --non-interactive --output "$RUNNER_TEMP/$name"
+          echo "APK_NAME=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        if: env.MODE == 'runner'
+        with:
+          name: ${{ env.APK_NAME }}
+          path: ${{ runner.temp }}/${{ env.APK_NAME }}
+          retention-days: 3
+          compression-level: 0
+
+      # An EAS build runs on Expo's servers, which never see this job's environment: the server's
+      # address goes into the Expo project's production environment first.
+      - name: Queue on EAS
+        if: env.MODE == 'cloud'
+        working-directory: ${{ inputs.path || '.' }}/apps/mobile
+        run: |
+          pnpm exec eas env:set production --name EXPO_PUBLIC_API_URL --value "$EXPO_PUBLIC_API_URL" --visibility plaintext --non-interactive
+          id=$(pnpm exec eas build --platform android --profile apk --non-interactive --no-wait --json | jq -r '.[0].id')
+          echo "Queued on EAS: build \`$id\`. Download it from your project's Builds page on expo.dev." >> "$GITHUB_STEP_SUMMARY"
