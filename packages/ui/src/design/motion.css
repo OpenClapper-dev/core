@@ -81,3 +81,20 @@
 .f-toast { transition: opacity var(--dur) var(--ease), translate var(--dur) var(--ease); }
 @starting-style { .f-toast { opacity: 0; translate: 0 8px; } }
 .f-toast.is-leaving { opacity: 0; translate: 16px 0; pointer-events: none; transition-timing-function: var(--ease-in); }
+
+/*
+ * Windows (#162). Ground rule: a gesture (window drag or resize, the split grip) sets body.wm-gesture
+ * and writes geometry per frame, so nothing may transition then. A window never transitions
+ * `transform` (the title-bar drag writes it); it uses the `scale` property.
+ */
+body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area) { transition: none !important; }
+.wm-window {
+  transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
+    opacity var(--dur-slow) var(--ease), scale var(--dur-slow) var(--ease);
+}
+.wm-window__bar { transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+/* Opening: only once the desktop stands (Shell sets is-settled), not for the windows a project restores. */
+@starting-style { .wm-root.is-settled .wm-window { opacity: 0; scale: .96; } }
+/* Closing: the shell's empty frame in the closed window's place (WindowGhosts.tsx) fades and shrinks. */
+.wm-window--ghost { opacity: 0; scale: .96; pointer-events: none; transition-timing-function: var(--ease-in); }
+@starting-style { .wm-root .wm-window.wm-window--ghost, .wm-root.is-settled .wm-window.wm-window--ghost { opacity: 1; scale: 1; } }

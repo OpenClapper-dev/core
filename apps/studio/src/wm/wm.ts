@@ -90,6 +90,9 @@ let viewport: Size = { w: 1280, h: 768 };
 const listeners = new Set<() => void>();
 function notify() { for (const cb of listeners) cb(); }
 export function subscribe(cb: () => void): () => void { listeners.add(cb); return () => { listeners.delete(cb); }; }
+const closeListeners = new Set<(w: Win) => void>();
+/** Called with a window as it is closed (not when a project switch replaces them all): the shell draws its fade-out. */
+export function onClose(cb: (w: Win) => void): () => void { closeListeners.add(cb); return () => { closeListeners.delete(cb); }; }
 
 /** The active workspace's windows (what the taskbar, cycling and Show desktop work on). */
 export const getWindows = () => onHere();
@@ -173,8 +176,10 @@ export function focus(id: string) {
 const topmost = () => onHere().filter((w) => w.mode !== "min").sort((a, b) => b.z - a.z)[0] ?? null;
 
 export function close(id: string) {
-  if (!windows.some((w) => w.id === id)) return;
+  const gone = windows.find((w) => w.id === id);
+  if (!gone) return;
   windows = windows.filter((w) => w.id !== id);
+  for (const cb of closeListeners) cb(gone);
   if (focused === id) focused = topmost()?.id ?? null;
   notify();
 }
