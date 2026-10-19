@@ -35,7 +35,7 @@ Switching:
 
 ## Motion
 
-Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone has its own platform animations). Everything that moves is in `packages/ui/src/design/motion.css`; the files copied from the design export stay as exported.
+Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone has its own platform animations). Everything that moves is in `packages/ui/src/design/motion.css`, imported last of the package's CSS so it overrides the transitions of the files copied from the design export, which stay as exported (the switch knob now slides with a transform instead of `left`, #158).
 
 **Tokens** (`spacing.css`, `motion.css`): `--dur-fast` 90 ms, `--dur` 160 ms, `--dur-slow` 240 ms, `--ease` (enter and state changes), `--ease-in` (exits).
 

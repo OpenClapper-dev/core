@@ -8,7 +8,6 @@
 import "./design/colors.css";
 import "./design/typography.css";
 import "./design/spacing.css";
-import "./design/motion.css";
 import "./design/actions.css";
 import "./design/navigation.css";
 import "./design/forms.css";
@@ -17,6 +16,8 @@ import "./design/data.css";
 import "./design/feedback.css";
 import "./design/studio.css";
 import "./design/components.css";
+// Last: motion overrides the transitions of the files above (and zeroes the duration tokens under reduced motion).
+import "./design/motion.css";
 
 export * from "./core";
 export * from "./forms";

@@ -10,3 +10,25 @@
   :root { --dur-fast: 0ms; --dur: 0ms; --dur-slow: 0ms; }
   .wm-icon.is-flash { animation-iteration-count: 1; }
 }
+
+/*
+ * Controls and rows (#158): colour, border, shadow and opacity ease over --dur-fast on hover,
+ * focus and selection. `transform` and `outline` stay out: a press and a focus ring are instant.
+ * The panel grip is left out on purpose (a drag writes it per frame).
+ */
+.f-btn, .f-tab, .f-seg__opt, .f-chip, .f-check__box, .f-switch__track, .f-input, .f-pick, .f-row, .f-menu__item,
+.f-combo__opt, .f-cmdk__item, .f-card, .f-fpill, .f-fpill__x, .f-input__step, .f-dayitem, .f-strip__it,
+.wm-task, .wm-icon, .wm-launcher__app, .wm-taskbar__project, .wm-taskview__tile, .wm-taskview__card, .tl-rail__it {
+  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.f-table tbody td { transition: background-color var(--dur-fast) var(--ease); }
+
+/* Switch: the knob slides with a transform instead of animating `left` (forms.css), 52 − 2·2 border − 2·3 inset − 20 knob = 22 px. */
+.f-switch__knob { transition: transform var(--dur) var(--ease), background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.f-switch.is-on .f-switch__knob { left: 3px; transform: translateX(22px); }
+
+/* Chip: the selected state's smaller left padding eases, and its check fades in instead of popping. */
+.f-chip { transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), padding-left var(--dur) var(--ease); }
+.f-chip > .mdi-check { transition: opacity var(--dur) var(--ease); }
+@starting-style { .f-chip > .mdi-check { opacity: 0; } }
