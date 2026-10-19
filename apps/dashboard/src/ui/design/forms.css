@@ -21,6 +21,9 @@
 .f-field__error .mdi{font-size:15px}
 /* Inputs */
 .f-input{position:relative;display:flex;align-items:center;height:var(--control-md);border:var(--bw) solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);transition:border-color var(--dur-fast) var(--ease)}
+/* PasswordInput: the input and its show/hide button side by side. */
+.f-password{display:flex;gap:var(--space-2)}
+.f-password__input{flex:1;min-width:0}
 .f-input input{flex:1;min-width:0;height:100%;border:0;background:transparent;color:inherit;font:var(--weight-regular) var(--text-body)/1 var(--font-sans);padding:0 10px;outline:none}
 .f-input input::placeholder{color:var(--text-dim);opacity:1}
 .f-input .f-input__icon{padding-left:10px;color:var(--text-dim);font-size:18px}
