@@ -8,6 +8,7 @@ Issue [#116](https://github.com/bubulux/fielder/issues/116), epic [#107](https:/
   - It verifies the Access JWT of its own application on every request (`verifyAccessJwt` with its own `ACCESS_AUD`) and then reads across all workspaces.
   - Same D1 and R2 bindings as the app. It never runs migrations; those belong to `apps/worker`.
 - `apps/admin/ui/`: the board, a Preact page on the shared web design system (`@fielder/ui`, `packages/ui`; theme button in the header), built into `apps/admin/dist` and served by the admin Worker.
+  - **Installable (PWA)**, like the Studio: `ui/public/icons/<set>/manifest.webmanifest` ("Fielder admin", standalone, start `/`; the `prod` set in builds, the green `dev` set on the dev server), the padlock icons next to it, linked from `ui/index.html` with `crossorigin="use-credentials"` so the manifest request carries the admin Access cookie. No service worker. Chrome or Edge: the install button in the address bar; the installed app opens in its own window with its own taskbar icon, separate from the Studio's.
 - `packages/service-kit`: what both Workers share.
   - The router, request checks and JSON errors.
   - Access verification.
