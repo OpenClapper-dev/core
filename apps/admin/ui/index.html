@@ -7,6 +7,12 @@
     <meta name="robots" content="noindex" />
     <meta name="theme-color" content="#FFFFFF" />
     <title>Fielder admin</title>
+    <!-- Icons: the production set in builds, the development (green) set on the dev server (VITE_ICON_SET, vite.config.ts). -->
+    <link rel="icon" href="/icons/%VITE_ICON_SET%/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/%VITE_ICON_SET%/icon-192.png" type="image/png" sizes="192x192" />
+    <link rel="apple-touch-icon" href="/icons/%VITE_ICON_SET%/icon-192.png" />
+    <!-- Behind Cloudflare Access: the manifest must be fetched with the session cookie. -->
+    <link rel="manifest" href="/icons/%VITE_ICON_SET%/manifest.webmanifest" crossorigin="use-credentials" />
     <script>
       // Theme before first paint, like the Studio: localStorage["theme"] = "sun" | "set", else the OS.
       (function () {

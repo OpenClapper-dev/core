@@ -37,7 +37,7 @@ export function App() {
   return (
     <div class="admin">
       <header class="admin__head">
-        <span class="admin__brand"><Mark size={24} />Fielder admin</span>
+        <span class="admin__brand"><Mark size={24} surface="admin" />Fielder admin</span>
         <span class="admin__headend">
           <span class="meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span class="num">{__FIELDER_VERSION__} ({__FIELDER_COMMIT__})</span></span>
           <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_CYCLE[theme])} />

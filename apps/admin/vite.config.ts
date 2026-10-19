@@ -13,11 +13,15 @@ const build = { __FIELDER_VERSION__: JSON.stringify(version), __FIELDER_COMMIT__
 const uiSrc = fileURLToPath(new URL("../../packages/ui/src", import.meta.url));
 const watchUi = { name: "fielder-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
 
-export default defineConfig({
-  root: "ui",
-  plugins: [preact(), watchUi],
-  define: build,
-  build: { outDir: "../dist", emptyOutDir: true, sourcemap: false },
-  // Local dev: the admin Worker (`pnpm -C apps/admin dev:worker`, ADMIN_DEV_BYPASS on) on :8788.
-  server: { port: 5174, strictPort: true, proxy: { "/api": "http://localhost:8788" } },
+export default defineConfig(({ command }) => {
+  // Which icon set index.html links (public/icons/<set>/): green on the dev server, the real one in builds.
+  process.env.VITE_ICON_SET = command === "build" ? "prod" : "dev";
+  return {
+    root: "ui",
+    plugins: [preact(), watchUi],
+    define: build,
+    build: { outDir: "../dist", emptyOutDir: true, sourcemap: false },
+    // Local dev: the admin Worker (`pnpm -C apps/admin dev:worker`, ADMIN_DEV_BYPASS on) on :8788.
+    server: { port: 5174, strictPort: true, proxy: { "/api": "http://localhost:8788" } },
+  };
 });
