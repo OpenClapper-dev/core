@@ -6,6 +6,7 @@ import { Fragment } from "preact";
 import type { ComponentChildren, JSX, Ref } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { LIGHT, PHASE_ICONS, label } from "@fielder/vocab";
+import { IconButton } from "./actions";
 import { cx, Icon, Kbd } from "./core";
 import { ErrorLine } from "./feedback";
 import { useOutsideClick } from "./hooks";
@@ -137,6 +138,23 @@ export function Input({ sm, invalid, unit, after, box = "span", boxClass, boxSty
       {unit && <span class="f-input__unit">{unit}</span>}
       {after}
     </Box>
+  );
+}
+
+/**
+ * A password input with an eye button that shows what was typed (issue #144: passwords are easy to
+ * mistype). Hidden again on every mount; only the input's type flips, so autofill keeps working.
+ */
+export function PasswordInput(props: Omit<InputProps, "type" | "after">) {
+  const [shown, setShown] = useState(false);
+  return (
+    <Input
+      {...props}
+      type={shown ? "text" : "password"}
+      autocapitalize="off"
+      spellcheck={false}
+      after={<IconButton icon={shown ? "eye-off-outline" : "eye-outline"} label={shown ? "Hide password" : "Show password"} title={shown ? "Hide password" : "Show password"} aria-pressed={shown} disabled={props.disabled} onClick={() => setShown((v) => !v)} />}
+    />
   );
 }
 

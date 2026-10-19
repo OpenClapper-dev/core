@@ -30,7 +30,7 @@ Epic [#107](https://github.com/bubulux/fielder/issues/107). Fielder has users, a
 
 ## Dashboard
 
-- **Sign-in page** (`SignIn.tsx`): shown by the shell (`wm/Shell.tsx`) while `user.ts` knows no user. Signing in as another account starts from a fresh data cache. Window layouts are per browser and project, so they come back.
+- **Sign-in page** (`SignIn.tsx`): an eye button in the password field shows what was typed (hidden again each time). Shown by the shell (`wm/Shell.tsx`) while `user.ts` knows no user. Signing in as another account starts from a fresh data cache. Window layouts are per browser and project, so they come back.
 - **Taskbar**: the account button (last in the tray) shows who is signed in, and opens Account and workspaces or signs out. The palette (⌘K) has the same two entries.
 - **Settings › Account** (`AccountSettings.tsx`, `#/settings/account`):
   - Who is signed in, and Sign out.

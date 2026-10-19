@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { ApiError, signIn } from "../api";
-import { ActionBar, Banner, BORDER, Button, Hint, IconButton, Input, ListRow, makeStyles, Mark, SectionLabel, SIZE, type } from "../ui";
+import { ActionBar, Banner, BORDER, Button, Hint, IconButton, Input, ListRow, makeStyles, Mark, PasswordInput, SectionLabel, SIZE, type } from "../ui";
 import { NewProjectSheet, projectMeta, type PickProject } from "../components/ProjectSheet";
 import type { ProjectEntry } from "../types";
 
@@ -54,7 +54,7 @@ export function LoginForm({ onDone, onCancel }: { onDone: () => void; onCancel: 
         <SectionLabel>Email</SectionLabel>
         <Input value={email} onChangeText={setEmail} editable={!busy} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="email" textContentType="username" returnKeyType="next" />
         <SectionLabel>Password</SectionLabel>
-        <Input value={password} onChangeText={setPassword} editable={!busy} secureTextEntry autoComplete="password" textContentType="password" returnKeyType="go" onSubmitEditing={() => void submit()} />
+        <PasswordInput value={password} onChangeText={setPassword} editable={!busy} autoComplete="password" textContentType="password" returnKeyType="go" onSubmitEditing={() => void submit()} />
         {error && <Banner kind="danger" title={error} />}
         <Button icon="login" label={busy ? "Signing in…" : "Sign in"} busy={busy} disabled={!ready} onPress={() => void submit()} />
         <Hint>Same account as the dashboard. There is no sign-up yet: an administrator makes accounts.</Hint>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { ApiError } from "./api";
-import { Button, ErrorLine, Field, Input, Mark } from "./ui";
+import { Button, ErrorLine, Field, Input, Mark, PasswordInput } from "./ui";
 import { signIn } from "./user";
 
 const REGISTER = "#/register";
@@ -62,7 +62,7 @@ export function SignInPage() {
           <Input type="email" autocomplete="username" required value={email} disabled={busy} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} />
         </Field>
         <Field label="Password">
-          <Input type="password" autocomplete="current-password" required value={password} disabled={busy} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
+          <PasswordInput aria-label="Password" autocomplete="current-password" required value={password} disabled={busy} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
         </Field>
         {error && <ErrorLine>{error}</ErrorLine>}
         <Button type="submit" icon="login" disabled={busy || !email.trim() || !password}>{busy ? "Signing in…" : "Sign in"}</Button>

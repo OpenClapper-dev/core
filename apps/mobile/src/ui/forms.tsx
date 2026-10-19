@@ -1,6 +1,7 @@
 /** Form controls from the design system: chips, input, switch, toggle row, checkbox. */
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
+import { IconButton } from "./actions";
 import { Icon } from "./core";
 import { SIZE, useTheme } from "./theme";
 import { useStyles } from "./styles";
@@ -45,6 +46,21 @@ export function Input(props: TextInputProps) {
       onFocus={(e) => { setFocused(true); props.onFocus?.(e); }}
       onBlur={(e) => { setFocused(false); props.onBlur?.(e); }}
       style={[s.input, focused && s.inputFocused, props.style]} />
+  );
+}
+
+/**
+ * A password input with an eye button beside it that shows what was typed (issue #144: passwords are
+ * easy to mistype on a phone). Hidden again on every mount; only secureTextEntry flips, so autofill
+ * and the keyboard keep working.
+ */
+export function PasswordInput(props: Omit<TextInputProps, "secureTextEntry">) {
+  const [shown, setShown] = useState(false);
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Input autoCapitalize="none" autoCorrect={false} {...props} secureTextEntry={!shown} style={[{ flex: 1 }, props.style]} />
+      <IconButton icon={shown ? "eye-off-outline" : "eye-outline"} label={shown ? "Hide password" : "Show password"} disabled={props.editable === false} onPress={() => setShown((v) => !v)} />
+    </View>
   );
 }
 
