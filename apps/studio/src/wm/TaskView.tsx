@@ -20,8 +20,8 @@ function frameOf(w: Win, view: { w: number; h: number }, split: number): Rect | 
 }
 
 /**
- * Task view (epic #90, like Windows' Win+Tab): the workspaces as tiles with a wireframe of their
- * windows, and the windows of the one under the pointer as cards. Click a tile to go there, a card
+ * Task view (epic #90, like Windows' Win+Tab): the workspaces as tiles with a miniature of their
+ * windows (each showing its content, #195), and the windows of the one under the pointer as cards. Click a tile to go there, a card
  * to bring that window up; drag a card onto a tile to move the window; double-click a name to
  * rename; × removes a workspace (its windows go to the one before). Esc leaves.
  */
@@ -98,6 +98,7 @@ export function TaskView({ onClose }: { onClose: () => void }) {
                   return (
                     <span key={w.id} class="wm-taskview__miniwin" style={{ left: `${r.x * scale}px`, top: `${r.y * scale}px`, width: `${Math.max(8, r.w * scale)}px`, height: `${Math.max(6, r.h * scale)}px` }}>
                       <Icon name={appDef(w.app)?.icon ?? "application-outline"} size={10} />
+                      <WindowPreview win={w} frame={r} />
                     </span>
                   );
                 })}
@@ -135,8 +136,8 @@ export function TaskView({ onClose }: { onClose: () => void }) {
 }
 
 /**
- * What a window shows, as a picture on its card (issue #153): a copy of its content laid out at the
- * window's own size, scaled to fit and centred, `inert` so the card stays the only target. The app
+ * What a window shows, as a picture on its card (issue #153) and in its workspace tile (#195): a copy
+ * of its content laid out at the window's own size, scaled to fit its host and centred, `inert` so the card stays the only target. The app
  * icon underneath shows when there is nothing to copy.
  */
 function WindowPreview({ win, frame }: { win: Win; frame: Rect }) {
