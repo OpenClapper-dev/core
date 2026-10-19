@@ -144,7 +144,7 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-taskview__empty,.wm-taskview__hint{margin:0;text-align:center;opacity:.8;font-size:var(--text-small)}
 /* The split grip between snapped windows (epic #90): a strip at the split, a thumb on hover */
 .wm-split-grip{position:absolute;top:0;bottom:0;left:calc(var(--wm-split,.5) * 100% - 5px);width:10px;z-index:99990;cursor:ew-resize;touch-action:none;display:flex;align-items:center;justify-content:center;outline:none}
-.wm-split-grip__thumb{width:6px;height:56px;border-radius:3px;background:var(--split-grip);box-shadow:0 0 0 var(--bw) var(--surface);opacity:0;transition:opacity var(--dur-fast,120ms) var(--ease)}
+.wm-split-grip__thumb{width:6px;height:56px;border-radius:3px;background:var(--split-grip);box-shadow:0 0 0 var(--bw) var(--surface);opacity:0;transition:opacity var(--dur-fast) var(--ease)}
 .wm-split-grip:hover .wm-split-grip__thumb,.wm-split-grip.is-dragging .wm-split-grip__thumb,.wm-split-grip:focus-visible .wm-split-grip__thumb{opacity:1}
 .wm-split-grip:focus-visible .wm-split-grip__thumb{outline:var(--focus-width) solid var(--focus);outline-offset:2px}
 .wm-handle--split{cursor:ew-resize}
