@@ -51,4 +51,4 @@ Without a valid Access JWT of the admin application every request is `401`. Unti
 
 ## Local
 
-`pnpm -C apps/admin dev` runs the admin Worker on :8788 (on the app's local D1, `--persist-to ../worker/.wrangler/state`) and the board on :5174. `ADMIN_DEV_BYPASS="true"` in `apps/admin/.dev.vars` (written by `make init`) stands for Access: every request is `admin@localhost`.
+`make all` (its own pane) or `make admin` (`pnpm -C apps/admin dev`) runs the admin Worker on :8788 (on the app's local D1, `--persist-to ../worker/.wrangler/state`) and the board on :5174. `ADMIN_DEV_BYPASS="true"` in `apps/admin/.dev.vars` (written by `make init`) stands for Access: every request is `admin@localhost`.

@@ -1,7 +1,7 @@
 # The local development stack: thin wrappers around the pnpm scripts in package.json, which stay the
 # source of truth. Everything runs in the foreground; stop a server with Ctrl-C. Deploying is not
 # here: it runs from a deployment repository (docs/self-hosting.md).
-.PHONY: help init all all-down all-restart dev worker studio mobile dev-build apk-local
+.PHONY: help init all all-down all-restart dev worker studio admin mobile dev-build apk-local
 
 help: ## Show this list
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -10,7 +10,7 @@ help: ## Show this list
 init: ## Write the gitignored dev files and apply D1 migrations (once per checkout)
 	pnpm dev:init
 
-all: ## Everything local in one tmux session: Worker, Studio, mobile (tunnel + Metro) and a control strip (r restart, q quit)
+all: ## Everything local in one tmux session: Worker, Studio, admin board, mobile (tunnel + Metro) and a control strip (r restart, q quit)
 	bash scripts/dev-all.sh up
 
 all-down: ## Stop all of `make all`: Ctrl-C each server, close the session, free the ports
@@ -27,6 +27,9 @@ worker: ## Worker only -> http://localhost:8787
 
 studio: ## Studio only -> http://localhost:5173 (needs `make worker` for /api)
 	pnpm dev:studio
+
+admin: ## Admin board -> http://localhost:5174 with its Worker on :8788 (local D1, no Access: admin@localhost)
+	pnpm dev:admin
 
 mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (Fielder Dev); LOCAL data
 	pnpm dev:mobile
