@@ -24,6 +24,7 @@ export function Window({ win, icon, focused, away, children }: { win: Win; icon:
       ref={ref}
       class={cx("wm-window", focused && "is-focused", away && "wm-window--away", win.mode === "max" && "wm-window--max", win.mode === "min" && "wm-window--min", win.mode === "snapped" && `wm-window--snap-${win.snap}`)}
       style={normal ? { left: `${win.bounds.x}px`, top: `${win.bounds.y}px`, width: `${win.bounds.w}px`, height: `${win.bounds.h}px`, zIndex: win.z } : { zIndex: win.z }}
+      data-win-id={win.id}
       role="group"
       aria-label={win.title}
       aria-hidden={away || undefined}
