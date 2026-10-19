@@ -30,7 +30,6 @@ pnpm dev:dashboard
 ```
 
 `dev:init` never overwrites existing files. It creates:
-- `apps/worker/.dev.vars` with `AUTH_DEV_BYPASS="true"` (a request without a session is the bootstrap user, who owns the local data)
 - `apps/mobile/.env.local`
 - an empty `apps/dashboard/dist`: `wrangler dev` refuses to start without it
 
@@ -38,7 +37,16 @@ Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start
 
 Demo data: `pnpm dev:seed [count]` (worker running) uploads 40 shots by default with stock photos from picsum.photos into the projects "Stock demo" and "Stock demo B", with locations, random tags (camera fields too), review states, some sequences and some shots without a position. Ids are derived from the seed, so a re-run adds nothing twice. It refuses any API other than localhost.
 
-API smoke tests work with plain `curl` against `localhost:8787` (no auth needed locally). To try real sign-in, create a user (`node scripts/user.mjs --email you@example.com`, password from `FIELDER_PASSWORD` or asked; `--bootstrap` gives the bootstrap user that email instead) and run the Worker with `npx wrangler dev --var AUTH_DEV_BYPASS:false`. A `.dev.vars` from before #118 still says `ACCESS_DEV_BYPASS`: rename it. Worker unit tests: `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
+API smoke tests with `curl` against `localhost:8787` sign in first, as everywhere (`dev@localhost` / `fielder-local-dev`, from `make init`; on an older checkout `FIELDER_PASSWORD=fielder-local-dev node scripts/user.mjs --bootstrap --email dev@localhost`):
+
+```sh
+T=$(curl -s localhost:8787/api/auth/login -H 'content-type: application/json' -d '{"email":"dev@localhost","password":"fielder-local-dev","client":"mobile"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
+curl -H "Authorization: Bearer $T" localhost:8787/api/projects
+```
+
+More accounts: `node scripts/user.mjs --email you@example.com` (password from `FIELDER_PASSWORD` or asked).
+
+Worker unit tests: `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
 
 Agents can click through the dashboard with the Playwright MCP: headless Chrome against `localhost:5173` (`pnpm dev` running). It is set up per machine, not in the repo: `claude mcp add playwright -- npx -y @playwright/mcp@latest --headless --isolated`, then `npx playwright install --with-deps chrome`. Snapshots land in `.playwright-mcp/` (gitignored). The phone app cannot be driven this way.
 
@@ -62,7 +70,7 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
 - Sign in once with `dev@localhost` / `fielder-local-dev`: `make init` (`scripts/dev-init.sh`) gives the local bootstrap user that login. On an older checkout run `FIELDER_PASSWORD=fielder-local-dev node scripts/user.mjs --bootstrap --email dev@localhost`.
 - The `local` scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders), so a production build on the same phone never sees them.
-- The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL with auth bypassed.
+- The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL; like production, it answers only with a session.
 - Production is reached only by a production APK, built for a deployment ([self-hosting](self-hosting.md#the-phone)). The local loop needs no deployment settings: the quick tunnel takes no account.
 - If the tunnel fails with `Cannot read properties of undefined (reading 'body')`, an old ngrok session is still registered: wait 30 s or set `EXPO_TUNNEL_SUBDOMAIN`.
 - Expo changed a lot. Read the versioned docs at https://docs.expo.dev/versions/v57.0.0/ before using an Expo API (`apps/mobile/AGENTS.md`). Example: `expo-file-system` exposes `File`/`Directory`/`Paths` with sync `copySync`, `textSync`, `write`, and `File.downloadFileAsync`.

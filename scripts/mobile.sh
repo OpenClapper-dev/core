@@ -11,7 +11,7 @@ log="$(mktemp -t fielder-worker.XXXXXX.log)"
 
 # A Worker already running (make dev / make worker) is reused: only the tunnel starts. A second
 # Worker on another port would share the same local D1 files, and the dashboard proxies to :$port.
-if curl -fs -o /dev/null "http://localhost:$port/health" 2>/dev/null; then
+if curl -fs -o /dev/null "http://localhost:$port/api/ping" 2>/dev/null; then
   echo "Reusing the local Worker on :$port; starting a quick tunnel to it (log: $log)…"
   (cd "$root/apps/worker" && exec pnpm exec wrangler tunnel quick-start "http://localhost:$port") >"$log" 2>&1 &
 elif (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
@@ -34,7 +34,7 @@ done
 [ -n "$url" ] || { cat "$log" >&2; echo "No tunnel URL after 90 s." >&2; exit 1; }
 
 # The tunnel answers a few seconds after the URL is printed.
-for _ in $(seq 1 30); do curl -fs -o /dev/null "$url/health" 2>/dev/null && break; sleep 1; done
+for _ in $(seq 1 30); do curl -fs -o /dev/null "$url/api/ping" 2>/dev/null && break; sleep 1; done
 echo "Local Worker: $url  (dashboard: make dashboard → http://localhost:5173)"
 
 # --clear: EXPO_PUBLIC_* values are inlined, and the URL is new on every run.

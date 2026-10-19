@@ -41,7 +41,7 @@ First-party sign-in (epic #107): email + password accounts in D1, opaque session
 
 - Dashboard: an HttpOnly session cookie.
 - Phone: signs in with email and password (`client: "mobile"`), keeps the session token in `expo-secure-store` and sends it as `Authorization: Bearer`.
-- Local dev: `AUTH_DEV_BYPASS="true"` in `apps/worker/.dev.vars` makes every request without a session the bootstrap user.
+- Local dev signs in like production: `dev@localhost` / `fielder-local-dev`, the bootstrap user that owns the local data (`make init`).
 
 ## Principles worth keeping
 

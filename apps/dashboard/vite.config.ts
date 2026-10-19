@@ -12,7 +12,7 @@ export default defineConfig({
   define: build,
   build: { outDir: "dist", emptyOutDir: true, sourcemap: false },
   server: {
-    // Local dev: proxy API calls to `wrangler dev` (apps/worker, AUTH_DEV_BYPASS on).
+    // Local dev: proxy API calls to `wrangler dev` (apps/worker; sign in as dev@localhost, make init).
     // ws: the live layout preview socket (/api/preview/socket).
     proxy: { "/api": { target: "http://localhost:8787", ws: true }, "/health": "http://localhost:8787" },
   },

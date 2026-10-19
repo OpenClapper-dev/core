@@ -4,7 +4,7 @@
  * (`@fielder/auth-provider`, first-party.ts by default).
  */
 import { provider } from "@fielder/auth-provider";
-import { BOOTSTRAP_USER_ID, BUILD, HttpError, json, Router } from "@fielder/service-kit";
+import { BUILD, HttpError, json, Router } from "@fielder/service-kit";
 import type { Identity, PublicCtx } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
 import { registerComposeRoutes } from "./compose.ts";
@@ -31,12 +31,6 @@ export interface Env {
   SHOTS_BUCKET: R2Bucket;
   /** Live layout preview rooms, one per user (preview.ts, issue #50). */
   PREVIEW: DurableObjectNamespace<import("./preview.ts").PreviewRoom>;
-  /**
-   * Local development only. Set `AUTH_DEV_BYPASS="true"` in a gitignored
-   * `.dev.vars` file so `wrangler dev` works without signing in: a request
-   * without a session is the bootstrap user. Never define this in wrangler.jsonc.
-   */
-  AUTH_DEV_BYPASS?: string;
   /** PBKDF2 iterations for new password hashes (password.ts); default and maximum 100 000. */
   PBKDF2_ITERATIONS?: string;
 }
@@ -103,17 +97,8 @@ registerDeviceRoutes(router);
 registerPreviewRoutes(router);
 registerWorkspaceRoutes(router);
 
-async function bootstrapIdentity(env: Env): Promise<Identity | null> {
-  const u = await env.DB.prepare("SELECT email FROM users WHERE id = ?1 AND status = 'active'").bind(BOOTSTRAP_USER_ID).first<{ email: string }>();
-  return u ? { userId: BOOTSTRAP_USER_ID, email: u.email } : null;
-}
-
-/** A session; locally, the dev bypass makes a request without one the bootstrap user. */
-async function identify(request: Request, env: Env): Promise<Identity | null> {
-  const signedIn = await provider.identify(request, env);
-  if (signedIn) return signedIn;
-  return env.AUTH_DEV_BYPASS === "true" ? bootstrapIdentity(env) : null;
-}
+/** A session, everywhere: local development signs in too (dev@localhost, `make init`), so it behaves like production. */
+const identify = (request: Request, env: Env): Promise<Identity | null> => provider.identify(request, env);
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
