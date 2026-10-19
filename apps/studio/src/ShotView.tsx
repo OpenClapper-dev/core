@@ -11,7 +11,7 @@ import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
 import { initialRigs, RigsStage, type RigsState } from "./RigExplorer";
 import type { Stage } from "./router";
-import { Button, cx, Icon, IconButton, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "@fielder/ui";
+import { Button, cx, Icon, IconButton, Img, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "@fielder/ui";
 
 export interface ShotContext { line: string; onBack: () => void; backLabel: string }
 
@@ -137,7 +137,7 @@ export function ShotView(p: Props) {
                     <div class="f-strip" role="listbox" aria-label="Photos in this shot">
                       {shot.photos.map((ph, i) => (
                         <button key={ph.id} type="button" role="option" aria-selected={i === photoIndex} class={cx("f-strip__it", i === photoIndex && "is-sel")} onClick={() => setPhotoIndex(i)}>
-                          <img src={ph.image_url} alt="" loading="lazy" />
+                          <Img src={ph.image_url} alt="" loading="lazy" />
                           <span class="f-strip__n">{i + 1}</span>
                         </button>
                       ))}

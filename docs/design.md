@@ -79,7 +79,7 @@ Epic [#156](https://github.com/bubulux/fielder/issues/156). Web only (the phone 
 
 | File | Components |
 | --- | --- |
-| `core.tsx` | `cx`, `Icon` (optional slot class), `Mark`, `Kbd`, `Highlight` |
+| `core.tsx` | `cx`, `Icon` (optional slot class), `Mark`, `Kbd`, `Highlight`, `Img` (an image that fades in once loaded; use it for photos and thumbnails) |
 | `actions.tsx` | `Button` (kind, size, icon, iconAfter, kbd hint), `IconButton` (ghost/sm by default, needs a label), `ReorderButtons` (up, down, remove), `LinkButton` |
 | `forms.tsx` | `Field` (label, help, error), `Input` (sm, unit, invalid, after), `PasswordInput` (an eye button beside it shows the password), `SearchInput`, `Checkbox`, `Switch`, `Select`, `Chip`, `LightChips`; `Combobox.tsx` |
 | `navigation.tsx` | `Seg` |

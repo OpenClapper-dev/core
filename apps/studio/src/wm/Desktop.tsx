@@ -9,7 +9,7 @@ import { APPS, launch, type AppId } from "../apps/registry";
 import * as data from "../data";
 import { cellAt, cellKey, cellSpot, FILE_DRAG, matches, nearestFreeCell, placementOf, readDrag, type Cell, type FileDrag, type Grid } from "../fileTree";
 import { bind, useKeys } from "../keys";
-import { Button, ContextMenu, cx, Icon, MenuItem, Modal, SearchInput, setTheme, toast, useCtxMenu, useTheme } from "@fielder/ui";
+import { Button, ContextMenu, cx, Icon, Img, MenuItem, Modal, SearchInput, setTheme, toast, useCtxMenu, useTheme } from "@fielder/ui";
 import { useOverlay } from "./overlays";
 import * as wm from "./wm";
 
@@ -370,7 +370,7 @@ export function Desktop({ projectId }: { projectId: string }) {
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); openIcon(i.item.id); } }}
           onContextMenu={(e) => { if (!sel.has(i.item.id)) setSel(new Set([i.item.id])); iconMenu.openMenu(e, i.item.id); }}>
           <span class="wm-icon__glyph">
-            {i.thumb ? <img src={i.thumb.image_url} alt="" draggable={false} /> : <Icon name={i.icon} size={34} />}
+            {i.thumb ? <Img src={i.thumb.image_url} alt="" draggable={false} /> : <Icon name={i.icon} size={34} />}
             {i.item.kind !== "app" && !i.real && <Icon name="arrow-top-right-thin" class="wm-icon__link" />}
           </span>
           <span class="wm-icon__label">{i.name}</span>

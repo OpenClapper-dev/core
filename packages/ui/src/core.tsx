@@ -1,5 +1,6 @@
-/** Base pieces every other component uses: class joining, MDI icons, the mark, key caps. */
-import type { ComponentChildren } from "preact";
+/** Base pieces every other component uses: class joining, MDI icons, the mark, key caps, images that fade in. */
+import type { ComponentChildren, JSX } from "preact";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 
 export const cx = (...a: (string | false | null | undefined)[]) => a.filter(Boolean).join(" ");
 
@@ -28,4 +29,21 @@ export function Highlight({ text, q }: { text: string; q: string }) {
   const i = q ? text.toLowerCase().indexOf(q) : -1;
   if (i < 0) return <>{text}</>;
   return <>{text.slice(0, i)}<mark>{text.slice(i, i + q.length)}</mark>{text.slice(i + q.length)}</>;
+}
+
+/**
+ * An image that fades in once loaded (motion, #166): CSS cannot see the load state, so the state
+ * lives here. A cached image may already be complete when mounted; a failed load counts as loaded
+ * too, so it never stays invisible. Behind it shows whatever the container paints (the photo
+ * letterbox for photos).
+ */
+export function Img({ class: extra, onLoad, onError, ...rest }: Omit<JSX.ImgHTMLAttributes<HTMLImageElement>, "ref">) {
+  const ref = useRef<HTMLImageElement>(null);
+  const [loaded, setLoaded] = useState(false);
+  useLayoutEffect(() => { setLoaded(!!ref.current?.complete); }, [rest.src]);
+  return (
+    <img {...rest} ref={ref} class={cx("f-img", extra as string | undefined, loaded && "is-loaded")}
+      onLoad={(e) => { setLoaded(true); onLoad?.call(e.currentTarget, e); }}
+      onError={(e) => { setLoaded(true); onError?.call(e.currentTarget, e); }} />
+  );
 }

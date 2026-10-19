@@ -7,7 +7,7 @@ import { childFolders, FILE_DRAG, folderPath, matches, moveTargets, placementOf,
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
 import { parseRoute } from "../router";
-import { Button, Checkbox, ContextMenu, cx, Empty, Highlight, Icon, IconButton, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "@fielder/ui";
+import { Button, Checkbox, ContextMenu, cx, Empty, Highlight, Icon, IconButton, Img, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "@fielder/ui";
 import { addShortcut, binItems, canRename, desktopFolderId, fileTarget, folderTarget, moveItems, newFolder, renameEntry, renameFolder, type Item } from "./fileOps";
 import { openResource, useFileEntries, type FileEntry } from "./fileEntries";
 import { launch, type AppProps } from "./registry";
@@ -255,7 +255,7 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
                 onClick={(ev) => clickRow(r, ev)} onDblClick={() => open(r)} onContextMenu={(ev) => { if (!sel.has(k)) { setSel(new Set([k])); setAnchor(k); } rowMenu.openMenu(ev, withSel(r)); }}
                 {...dragProps(r)} {...(isFolder ? dropProps(r.folder.id, k) : {})}>
                 <span class="files-row__icon">
-                  {e?.thumb ? <img src={e.thumb.image_url} alt="" loading="lazy" /> : <Icon name={isFolder ? folderIcon(r.folder) : FILE_TYPE_META[e!.type].icon} size={layout === "grid" ? 36 : 20} />}
+                  {e?.thumb ? <Img src={e.thumb.image_url} alt="" loading="lazy" /> : <Icon name={isFolder ? folderIcon(r.folder) : FILE_TYPE_META[e!.type].icon} size={layout === "grid" ? 36 : 20} />}
                 </span>
                 <span class="files-row__main">
                   <b title={name}><Highlight text={name} q={hq} /></b>
