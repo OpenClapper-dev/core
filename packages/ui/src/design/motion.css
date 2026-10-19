@@ -90,7 +90,8 @@
 body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area) { transition: none !important; }
 .wm-window {
   transition: border-color var(--dur-fast) var(--ease), box-shadow var(--dur-fast) var(--ease),
-    opacity var(--dur-slow) var(--ease), scale var(--dur-slow) var(--ease);
+    opacity var(--dur-slow) var(--ease), scale var(--dur-slow) var(--ease), translate var(--dur-slow) var(--ease),
+    display var(--dur-slow) allow-discrete;
 }
 .wm-window__bar { transition: background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
 /* Opening: only once the desktop stands (Shell sets is-settled), not for the windows a project restores. */
@@ -98,3 +99,16 @@ body.wm-gesture :is(.wm-window, .wm-snap-preview, .wm-area) { transition: none !
 /* Closing: the shell's empty frame in the closed window's place (WindowGhosts.tsx) fades and shrinks. */
 .wm-window--ghost { opacity: 0; scale: .96; pointer-events: none; transition-timing-function: var(--ease-in); }
 @starting-style { .wm-root .wm-window.wm-window--ghost, .wm-root.is-settled .wm-window.wm-window--ghost { opacity: 1; scale: 1; } }
+
+/*
+ * Minimise and restore (#163): a minimised window shrinks and slides towards the taskbar while it
+ * fades, then goes display:none (allow-discrete keeps it painted until then; it takes no clicks).
+ * Restoring plays the opening above. Show desktop minimises them all the same way. A window of
+ * another workspace hides at once: the workspace switch has its own motion.
+ */
+.wm-root { --wm-min-x: 0px; --wm-min-y: 40px; }
+.wm-root[data-taskbar="top"] { --wm-min-y: -40px; }
+.wm-root[data-taskbar="left"] { --wm-min-x: -40px; --wm-min-y: 0px; }
+.wm-root[data-taskbar="right"] { --wm-min-x: 40px; --wm-min-y: 0px; }
+.wm-window--min { display: none; opacity: 0; scale: .9; translate: var(--wm-min-x) var(--wm-min-y); pointer-events: none; transition-timing-function: var(--ease-in); }
+.wm-window--away { transition: none; }
