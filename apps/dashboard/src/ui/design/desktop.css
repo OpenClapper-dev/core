@@ -126,7 +126,7 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-taskview__mini{position:relative;display:block;padding:0;overflow:hidden;border:var(--bw) solid color-mix(in srgb,var(--taskview-text) 35%,transparent);border-radius:var(--radius-sm);background:var(--desktop-bg);cursor:pointer}
 .wm-taskview__mini:focus-visible,.wm-taskview__card:focus-visible{outline:var(--focus-width) solid var(--focus);outline-offset:2px}
 .wm-taskview__miniwin{position:absolute;display:flex;align-items:flex-start;justify-content:flex-start;padding:1px 2px;background:var(--surface);border:1px solid var(--border-strong);border-radius:2px;color:var(--text-dim);overflow:hidden}
-.wm-taskview__add{cursor:pointer}
+.wm-taskview__add{cursor:pointer;text-align:left}
 .wm-taskview__plus{display:flex;align-items:center;justify-content:center;border:var(--bw) dashed color-mix(in srgb,var(--taskview-text) 45%,transparent);border-radius:var(--radius-sm)}
 .wm-taskview__add:hover .wm-taskview__plus{background:color-mix(in srgb,var(--taskview-text) 10%,transparent)}
 .wm-taskview__cards{display:flex;flex-wrap:wrap;gap:20px;justify-content:center;align-content:flex-start;flex:1}
