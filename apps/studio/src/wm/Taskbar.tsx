@@ -13,6 +13,7 @@ import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
 import { openOverlay } from "./overlays";
 import { WindowMenu } from "./Window";
+import { goToWorkspace } from "./switchWorkspace";
 import * as wm from "./wm";
 import type { Win } from "./wm";
 
@@ -196,7 +197,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
       {wsMenu.menu && (
         <ContextMenu x={wsMenu.menu.x} y={wsMenu.menu.y} label="Workspaces" onClose={wsMenu.closeMenu}>
           {spaces.map((s, i) => (
-            <MenuItem key={s.id} icon="monitor" selected={s.id === activeWs} count={i < 9 ? `⌘Alt${i + 1}` : undefined} onClick={() => wm.switchWorkspace(s.id)}>{s.name}</MenuItem>
+            <MenuItem key={s.id} icon="monitor" selected={s.id === activeWs} count={i < 9 ? `⌘Alt${i + 1}` : undefined} onClick={() => goToWorkspace(s.id)}>{s.name}</MenuItem>
           ))}
           <div class="f-menu__sep" />
           <MenuItem icon="monitor-multiple" onClick={() => { wm.addWorkspace({ go: true }); }}>New workspace</MenuItem>
