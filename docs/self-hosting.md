@@ -88,7 +88,7 @@ Once:
 2. **Back up both files** (a password manager or an encrypted drive). Lose them and nobody can update the app without uninstalling it, which deletes whatever is still queued on the phones.
 3. Add the repository variable `APP_URL`: your app's address, `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`.
 
-Then Actions → **Build APK** → Run workflow. The build runs on GitHub's runner (about 20–30 minutes). The APK is the run's artifact and is **deleted after 3 days** (`retention-days`: GitHub removes it, nothing to clean up). Download it, open it on the phone and allow installs from that source. A private repository on GitHub's Free plan has 500 MB of artifact storage; one APK is about 120 MB.
+Then Actions → **Build APK** → Run workflow. The build runs on GitHub's runner. It compiles only for `arm64-v8a`, which every current Android phone runs; for older 32-bit phones set the variable `ANDROID_ABIS=arm64-v8a,armeabi-v7a` (each architecture adds build time, disk and APK size). The job first deletes preinstalled tools it does not use, since a standard runner has only about 14 GB free. The APK is the run's artifact and is **deleted after 3 days** (`retention-days`: GitHub removes it, nothing to clean up). Download it, open it on the phone and allow installs from that source. A private repository on GitHub's Free plan has 500 MB of artifact storage; one APK is about 50 MB.
 
 Without GitHub, from a checkout with the key in `.secrets/` and Docker: `API_URL=https://… make apk-local` ([development](development.md#apk-builds)).
 

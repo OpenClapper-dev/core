@@ -83,6 +83,7 @@ Not from this checkout: deploying and production APKs belong to a deployment, wh
 - Once: Docker Desktop → Settings → Resources → WSL integration → enable this distro.
 - It builds the image (cached after the first run), then in the container with the repo mounted and Gradle's cache in the `fielder-gradle` volume: `expo prebuild --platform android` (generates the gitignored `apps/mobile/android/` from the template in `node_modules/expo`, removed again afterwards) and Gradle. It writes `~/fielder-builds/fielder-dev-<commit>.apk` (a production one `fielder-<version>-<commit>.apk`) and copies it to the Windows Downloads folder (`DOWNLOADS=…` overrides).
 - `VARIANT=release` (`make apk-local`) needs `API_URL=…` and the key: `.secrets/android/fielder-release.jks` and its passwords in `.secrets/android.env` (`scripts/keystore.sh`). Release signing comes from a config plugin in `app.config.ts` that reads `ANDROID_KEYSTORE*` at Gradle time; a release that still carries the debug key fails the build. The first run downloads Gradle's dependencies (several GB); later builds take about 10 minutes.
+- Native code is compiled only for `arm64-v8a` (`-PreactNativeArchitectures`; `ANDROID_ABIS=arm64-v8a,x86_64` for an emulator, comma-separated). All four architectures would take about four times the native build and the APK size.
 - `versionCode` and `versionName` come from the root `package.json` version (`app.config.ts`), the commit from `GIT_COMMIT`.
 
 ## Debugging on the phone

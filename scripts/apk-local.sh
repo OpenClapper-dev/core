@@ -6,7 +6,9 @@
 #                    (make mobile).
 #   VARIANT=release  (make apk-local) a production APK for one server: API_URL=https://… and the
 #                    signing key from scripts/keystore.sh (.secrets/android/, .secrets/android.env).
-# Overrides: API_URL, DOWNLOADS (target folder), ANDROID_KEYSTORE (another .jks).
+# Overrides: API_URL, DOWNLOADS (target folder), ANDROID_KEYSTORE (another .jks), ANDROID_ABIS (CPU
+# architectures, comma-separated; default arm64-v8a, what phones run: each one more multiplies the
+# native build and the APK).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -60,7 +62,7 @@ docker run --rm \
             # Not pnpm exec: it checks the workspace and would reinstall the host's node_modules from here.
             node_modules/.bin/expo prebuild --platform android --no-install
             cd android && chmod +x gradlew
-            ./gradlew $task --no-daemon
+            ./gradlew $task --no-daemon -PreactNativeArchitectures=${ANDROID_ABIS:-arm64-v8a}
             apk=app/build/outputs/apk/$out_dir/app-$out_dir.apk
             # A release signed with the debug key would not update a real install.
             if [ $variant = release ] && \$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \$apk | grep -q 'CN=Android Debug'; then echo 'release APK is debug-signed' >&2; exit 1; fi

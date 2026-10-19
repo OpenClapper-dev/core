@@ -44,6 +44,8 @@ jobs:
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       EXPO_NO_GIT_STATUS: "1"
+      # Phones are arm64; every other ABI multiplies the native build (and the APK). Variable to override.
+      ANDROID_ABIS: ${{ vars.ANDROID_ABIS || 'arm64-v8a' }}
     steps:
       - name: Settings
         working-directory: .
@@ -52,6 +54,16 @@ jobs:
           for v in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
             [ -n "${!v}" ] || { echo "::error::Set the $v secret (scripts/keystore.sh prints all four)"; exit 1; }
           done
+
+      # A standard runner has ~14 GB free; Gradle's native build of React Native needs more. Tools this
+      # job never uses go first (the Android SDK stays).
+      - name: Free disk space
+        working-directory: .
+        run: |
+          df -h /
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/local/share/boost /usr/share/swift /usr/local/share/powershell /usr/local/julia* || true
+          docker image prune -af > /dev/null || true
+          df -h /
 
       - uses: actions/checkout@v4
         with:
@@ -74,8 +86,9 @@ jobs:
 
       - uses: actions/cache@v4
         with:
+          # Only the downloads: the transformed artifacts are several GB and quicker to rebuild than to restore.
           path: |
-            ~/.gradle/caches
+            ~/.gradle/caches/modules-2
             ~/.gradle/wrapper
           key: gradle-${{ hashFiles(format('{0}/pnpm-lock.yaml', inputs.path || '.')) }}
           restore-keys: gradle-
@@ -89,7 +102,7 @@ jobs:
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
           export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks" GIT_COMMIT=$(git rev-parse --short HEAD)
           pnpm exec expo prebuild --platform android --no-install
-          (cd android && ./gradlew assembleRelease --no-daemon)
+          (cd android && ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures="$ANDROID_ABIS")
           name="fielder-$(node -p 'require("../../package.json").version')-$GIT_COMMIT.apk"
           mv android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/$name"
           # Never hand out a release signed with the debug key (it would not update a real install).
@@ -97,6 +110,11 @@ jobs:
           if "$signer" verify --print-certs "$RUNNER_TEMP/$name" | grep -q "CN=Android Debug"; then echo "::error::The APK is debug-signed"; exit 1; fi
           rm "$RUNNER_TEMP/release.jks"
           echo "APK_NAME=$name" >> "$GITHUB_ENV"
+
+      - name: Disk
+        if: always()
+        working-directory: .
+        run: df -h /
 
       - uses: actions/upload-artifact@v4
         with:
