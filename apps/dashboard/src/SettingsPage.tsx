@@ -1,4 +1,6 @@
 import type { ComponentChildren } from "preact";
+import { useEffect, useState } from "preact/hooks";
+import { fetchServerBuild, type ServerBuild } from "./api";
 import { AccountSettings } from "./AccountSettings";
 import { FRAME_MODES, frameModeLabel } from "./format";
 import type { MaskMode } from "./Framed";
@@ -70,10 +72,36 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
               <Seg label="Removing a sequence's photo" value={s.seqRemove} onChange={(v) => updateSettings({ seqRemove: v })} options={[{ id: "photo", label: "Just the photo" }, { id: "block", label: "Whole sequence" }]} />
             </Row>
           </Section>
+          <About />
           <LinkButton onClick={() => updateSettings(DEFAULT_SETTINGS)}>Reset these settings</LinkButton>
         </div>
       </div>
     </>
+  );
+}
+
+const REPO = "https://github.com/bubulux/fielder";
+
+/** Which version this dashboard is and which the server runs: they differ while a deploy is new and this tab still has the old bundle. */
+function About() {
+  const [server, setServer] = useState<ServerBuild | null | undefined>(undefined);
+  useEffect(() => { fetchServerBuild().then(setServer, () => setServer(null)); }, []);
+  const label = (b: ServerBuild) => `${b.version} (${b.commit})`;
+  const dashboard = { version: __FIELDER_VERSION__, commit: __FIELDER_COMMIT__ };
+  // "dev" is a local Worker, which has no commit to compare.
+  const stale = server && (server.version !== dashboard.version || (server.commit !== "dev" && server.commit !== dashboard.commit));
+  return (
+    <Section icon="information-outline" title="About">
+      <Row label="Dashboard" help="The version of this page. Alpha: everything may still change.">
+        <span class="num">{label(dashboard)}</span>
+      </Row>
+      <Row label="Server" help={stale ? "Another version than this page: reload to get the server's." : "The version the server runs."}>
+        <span class="num">{server === undefined ? "…" : server ? label(server) : "not reachable"}</span>
+      </Row>
+      <Row label="Release notes" help="What changed in each version.">
+        <a href={`${REPO}/releases`} target="_blank" rel="noreferrer">GitHub releases</a>
+      </Row>
+    </Section>
   );
 }
 

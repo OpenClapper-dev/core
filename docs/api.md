@@ -9,7 +9,7 @@ All routes live in `apps/worker/src/` and are registered in `index.ts`. Every re
 | POST | `/api/auth/login` | Public. `{ email, password, client?: "dashboard" \| "mobile" }` → `{ user: { id, email, name }, expires_at }`. The dashboard gets the session as an HttpOnly cookie `fielder_session`; `client: "mobile"` gets `token` in the body, to send as `Authorization: Bearer <token>`. One `401` for an unknown email and a wrong password; `429` while locked (5 failures in a row lock for 1 minute, doubling, at most an hour); `403` for a blocked account (only after the right password) |
 | POST | `/api/auth/logout` | Public. Deletes the request's session if any and clears the cookie; always `204` |
 | GET | `/api/me` | `{ user: { id, email, name }, workspaces: [{ id, name, role, personal }] }`; the clients' signed-in probe |
-| GET | `/api/ping` | Public. `{ ok: true }`, touches nothing |
+| GET | `/api/ping` | Public. `{ ok: true, version, commit }`: the product version and the deployed commit (`dev` locally, [releasing](releasing.md)); touches nothing |
 | GET | `/api/workspaces` | The caller's: `[{ id, name, role, personal, member_count, project_count, created_at }]`, personal first |
 | PUT | `/api/workspaces/:id` | `{ name }`: a new shared workspace, the caller its owner (201), or a rename (admin) |
 | GET | `/api/workspaces/:id/members` | `[{ user_id, email, name, role, created_at }]`, any member |

@@ -37,7 +37,7 @@ export function App() {
     <div class="admin">
       <header class="admin__head">
         <span class="admin__brand"><Mark size={24} />Fielder admin</span>
-        <span class="meta">{me ? `Signed in as ${me} (Cloudflare Access)` : ""}</span>
+        <span class="meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span class="num">{__FIELDER_VERSION__} ({__FIELDER_COMMIT__})</span></span>
       </header>
       {error && <Empty icon="cloud-alert" title="Could not load" actions={<Button onClick={() => void load()}>Try again</Button>}>{error}</Empty>}
       {!error && !overview && <Loading />}

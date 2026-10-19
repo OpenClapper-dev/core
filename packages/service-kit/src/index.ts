@@ -3,6 +3,7 @@
  * router, request checks and JSON errors; Cloudflare Access verification (the admin plane's sign-in);
  * password hashing, so the admin plane makes passwords the app accepts.
  */
+export * from "./build.ts";
 export * from "./http.ts";
 export * from "./access.ts";
 export * from "./password.ts";

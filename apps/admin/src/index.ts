@@ -5,7 +5,7 @@
  * so this is where accounts are made. Same D1 as the app, whose migrations it never runs.
  */
 import {
-  AccessError, assertEnum, assertString, assertUuid, BOOTSTRAP_USER_ID, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
+  AccessError, assertEnum, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
 } from "@fielder/service-kit";
 
 export interface Env {
@@ -39,7 +39,7 @@ function tempPassword(): string {
 
 const router = new Router<Ctx>();
 
-router.on("GET", "/api/whoami", async ({ admin }) => json({ email: admin }));
+router.on("GET", "/api/whoami", async ({ admin }) => json({ email: admin, ...BUILD }));
 
 router.on("GET", "/api/overview", async ({ env }) => {
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
