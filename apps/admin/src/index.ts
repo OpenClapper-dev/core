@@ -68,12 +68,15 @@ router.on("GET", "/api/users", async ({ env }) => {
   return json({ users: results.map((u) => ({ ...u, no_password: u.no_password === 1 })) });
 });
 
+/** Loose on purpose: the address is only a sign-in name, nothing is mailed to it. */
+const EMAIL = /^[^\s@]+@[^\s@]+$/;
+
 /** A new account with its personal workspace: JSON { email, name? }. The temporary password comes back once. */
 router.on("POST", "/api/users", async (ctx) => {
   const { env, request } = ctx;
   const b = await readJson<Record<string, unknown>>(request);
   const email = assertString(b.email, "email", 320);
-  if (!/^[^\s@]+@[^\s@]+$/.test(email)) throw new HttpError(400, "email is not an email address");
+  if (!EMAIL.test(email)) throw new HttpError(400, "email is not an email address");
   const name = b.name === undefined || b.name === null || b.name === "" ? null : assertString(b.name, "name", 80);
   if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ?1 COLLATE NOCASE").bind(email).first()) throw new HttpError(409, "an account with this email exists");
   const id = crypto.randomUUID();
@@ -101,6 +104,7 @@ router.on("PATCH", "/api/users/:id", async (ctx, { id }) => {
   const now = new Date().toISOString();
   if (b.email !== undefined) {
     const email = assertString(b.email, "email", 320);
+    if (!EMAIL.test(email)) throw new HttpError(400, "email is not an email address");
     if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ?1 COLLATE NOCASE AND id != ?2").bind(email, uid).first()) throw new HttpError(409, "an account with this email exists");
     stmts.push(env.DB.prepare("UPDATE users SET email = ?2, updated_at = ?3 WHERE id = ?1").bind(uid, email, now));
   }

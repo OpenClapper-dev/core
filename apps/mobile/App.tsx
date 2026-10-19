@@ -30,7 +30,7 @@ import { Offline } from "./src/screens/Offline";
 import { History } from "./src/screens/History";
 import { RigEditor, RigList } from "./src/screens/Rigs";
 import { Setup } from "./src/screens/Setup";
-import { Account, Calibration, CaptureSettings, DebugLog, ViewfinderSettings } from "./src/screens/SetupScreens";
+import { Account, Calibration, CaptureSettings, ChangePassword, DebugLog, ViewfinderSettings } from "./src/screens/SetupScreens";
 import { CorrectPosition, MapFocus, ShotDetails } from "./src/screens/ShotDetails";
 import { Shots } from "./src/screens/Shots";
 import { StepThrough } from "./src/screens/StepThrough";
@@ -255,6 +255,7 @@ function Screen({ route }: { route: Route }) {
     case "captureSettings": return <CaptureSettings />;
     case "calibration": return <Calibration />;
     case "account": return <Account />;
+    case "password": return <ChangePassword />;
     case "debugLog": return <DebugLog />;
   }
 }

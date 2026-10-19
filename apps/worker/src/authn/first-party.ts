@@ -1,7 +1,7 @@
 import { HttpError, json, readJson, type Router } from "@fielder/service-kit";
-import { burnVerification, hashPassword, targetIterations, verifyPassword } from "@fielder/service-kit";
+import { burnVerification, hashPassword, passwordProblem, targetIterations, verifyPassword } from "@fielder/service-kit";
 import type { AuthProvider, PublicCtx } from "./provider.ts";
-import { CLEAR_COOKIE, createSession, deleteSession, requestToken, resolveSession, sessionCookie, type SessionClient } from "./sessions.ts";
+import { CLEAR_COOKIE, createSession, deleteSession, requestToken, resolveSession, sessionCookie, sha256Hex, type SessionClient } from "./sessions.ts";
 
 interface UserRow {
   id: string;
@@ -74,6 +74,41 @@ export const provider: AuthProvider = {
         ...(client === "mobile" ? { token: session.token } : {}),
       };
       return json(body, 200, client === "dashboard" ? { "set-cookie": sessionCookie(session.token) } : {});
+    });
+
+    // Changing one's own password (issue #148). Under /api/auth/ because only this provider has
+    // passwords, so it resolves the session itself. A wrong current password counts towards the
+    // same lock as sign-in (a stolen session must not become a password oracle) and answers 403,
+    // not 401, which the clients read as "signed out". Every other session of the account ends.
+    r.on("POST", "/api/auth/password", async ({ request, env }) => {
+      const token = requestToken(request);
+      const me = token ? await resolveSession(env, token) : null;
+      if (!token || !me) throw new HttpError(401, "unauthorized");
+      const b = await readJson<Record<string, unknown>>(request);
+      const current = typeof b.current === "string" ? b.current : "";
+      if (!current) throw new HttpError(400, "current is required");
+      const problem = passwordProblem(b.password);
+      if (problem) throw new HttpError(400, problem);
+      const password = b.password as string;
+      if (password === current) throw new HttpError(400, "the new password is the same as the current one");
+      const target = targetIterations(env);
+      const user = await env.DB.prepare("SELECT password_hash, failed_logins, locked_until FROM users WHERE id = ?1")
+        .bind(me.userId).first<Pick<UserRow, "password_hash" | "failed_logins" | "locked_until">>();
+      if (!user) throw new HttpError(401, "unauthorized");
+      const now = Date.now();
+      if (user.locked_until && Date.parse(user.locked_until) > now) throw new HttpError(429, "too many wrong passwords, try again later");
+      if (current.length > 200 || !(await verifyPassword(current, user.password_hash, target)).ok) {
+        const failures = user.failed_logins + 1;
+        await env.DB.prepare("UPDATE users SET failed_logins = ?2, locked_until = ?3 WHERE id = ?1")
+          .bind(me.userId, failures, lockUntil(failures, now)).run();
+        throw new HttpError(403, "the current password is wrong");
+      }
+      await env.DB.batch([
+        env.DB.prepare("UPDATE users SET password_hash = ?2, failed_logins = 0, locked_until = NULL, updated_at = ?3 WHERE id = ?1")
+          .bind(me.userId, await hashPassword(password, target), new Date(now).toISOString()),
+        env.DB.prepare("DELETE FROM sessions WHERE user_id = ?1 AND id != ?2").bind(me.userId, await sha256Hex(token)),
+      ]);
+      return new Response(null, { status: 204 });
     });
 
     // Works without a valid session (an expired one still clears the cookie).

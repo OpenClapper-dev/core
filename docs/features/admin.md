@@ -25,6 +25,7 @@ The header shows the operator and the board's version with its commit.
   - storage (`photos.size_bytes`; photos from before migration 0021 have no recorded size and are counted apart).
 - **Accounts**: email, name, status (active, blocked, locked after failed sign-ins, no password), live sessions, last seen, workspaces, created.
   - **New account** (email, name): the account and its personal workspace. A temporary password is shown once, in 4 groups of 4 easy-to-read characters, for the operator to pass on.
+  - **Edit** (#148): email and name. The email is what the account signs in with from now on; its sessions stay. A taken email is refused (409) inside the dialog.
   - **Password**: a new temporary password, shown once. The old one stops working and every session ends.
   - **Block / Unblock**: blocking ends every session at once and refuses sign-in (the data stays). Unblocking also clears a sign-in lock.
   - **Delete**: only when the account's workspaces hold no projects; its devices, layouts and empty workspaces go with it. The bootstrap user is never deleted.
@@ -40,7 +41,7 @@ Every change is written to the Worker log as `{ "audit": "user.create" | "user.u
 | GET | `/api/overview` | `{ users, blocked, active_30d, workspaces, projects, shots, photos, bytes, unsized }` |
 | GET | `/api/users` | Every account with status, sessions, last seen, workspaces (never a password hash) |
 | POST | `/api/users` | `{ email, name? }` → `{ user, password }` (201); `409` for a taken email |
-| PATCH | `/api/users/:id` | `{ email?, name?, status? }` |
+| PATCH | `/api/users/:id` | `{ email?, name?, status? }`; `400` for an email without `@`, `409` for a taken one |
 | POST | `/api/users/:id/password` | → `{ password }` |
 | DELETE | `/api/users/:id` | `409` while its workspaces hold projects, `400` for the bootstrap user |
 | GET | `/api/workspaces` | Every workspace with owner, counts and storage |
