@@ -58,6 +58,8 @@ export function ViewfinderSettings() {
   const human = (patch: Partial<{ mode: "cycle" | "toggle"; mm: number }>) => app.editLayout({ options: { human: { mode: st.humanViewButton, mm: st.humanViewButton === "toggle" ? st.humanViewFocalMm : humanMm(app.layout), ...patch } } });
   const setLenses = (l: VfLenses) => app.editLayout({ options: { lenses: l } });
   const [layoutSheet, setLayoutSheet] = useState(false);
+  // Issue #197: show what the Studio saved since the last flush.
+  useEffect(() => { app.refreshLayouts(); }, []);
   const lenses = st.phoneLenses;
   const stops = zoomStops(store.loadZoomRange());
 

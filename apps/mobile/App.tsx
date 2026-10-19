@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BackHandler, Pressable, Text, useColorScheme, useWindowDimensions, View } from "react-native";
+import { AppState as RNAppState, BackHandler, Pressable, Text, useColorScheme, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ScreenOrientation from "expo-screen-orientation";
 import { StatusBar } from "expo-status-bar";
@@ -16,7 +16,7 @@ import { isConfigured } from "./src/config";
 import { setLogging } from "./src/log";
 import { setOfflineMode, useOnline } from "./src/net";
 import { useLivePreview } from "./src/preview";
-import { copyDefault, editLayout as writeLayout, withLook } from "./src/layouts";
+import { copyDefault, editLayout as writeLayout, refreshLayouts, withLook } from "./src/layouts";
 import { resolveLayout } from "./src/vfLayout";
 import { useShots } from "./src/shots";
 import { store, usePref } from "./src/storage";
@@ -174,6 +174,13 @@ function App() {
     setLayouts(store.loadLayouts());
     if (isSignedIn()) void flush();
   }, [layoutEntry]);
+  // Issue #197: the Studio may have changed a layout since the last flush; pull at the moments it shows.
+  const reloadLayouts = useCallback(() => {
+    if (isSignedIn()) void refreshLayouts().then((ok) => { if (ok) setLayouts(store.loadLayouts()); });
+  }, []);
+  const hadPreview = useRef(false);
+  useEffect(() => { if (hadPreview.current && !live.preview) reloadLayouts(); hadPreview.current = !!live.preview; }, [!!live.preview]);
+  useEffect(() => { const sub = RNAppState.addEventListener("change", (s) => { if (s === "active") reloadLayouts(); }); return () => sub.remove(); }, []);
   const copyDefaultLayout = useCallback(() => {
     const e = copyDefault("My layout");
     setLayouts(store.loadLayouts());
@@ -183,14 +190,14 @@ function App() {
   }, []);
 
   const state: AppState = useMemo(() => ({
-    settings: viewSettings, setSettings, layout, layoutEntry, editLayout, copyDefaultLayout, project, projects, shots, locations, setLocations, spots, setSpots, layouts, countAt,
+    settings: viewSettings, setSettings, layout, layoutEntry, editLayout, copyDefaultLayout, project, projects, shots, locations, setLocations, spots, setSpots, layouts, refreshLayouts: reloadLayouts, countAt,
     preview: live.preview, exitPreview: live.exit,
     tab, setTab: (t: Tab) => { setStack([]); setMapFocus(null); setTab(t); }, push, pop,
     openProjectSheet: () => setProjectSheet(true),
     signIn: () => setLogin("webApp"),
     shotsView, setShotsView, mapFocus,
     showOnMap: (id: string) => { setMapFocus(id); setShotsView("map"); setStack([]); setTab("shots"); },
-  }), [viewSettings, layout, layoutEntry, editLayout, copyDefaultLayout, project, projects, shots, locations, spots, layouts, live.preview, countAt, tab, push, pop, shotsView, mapFocus]);
+  }), [viewSettings, layout, layoutEntry, editLayout, copyDefaultLayout, project, projects, shots, locations, spots, layouts, live.preview, reloadLayouts, countAt, tab, push, pop, shotsView, mapFocus]);
 
   const unreviewed = (shots.shots ?? []).filter((s) => s.state === "unreviewed").length;
   // The tab bar sits on the navigation-bar edge; keep at least the edge pad clear of it.

@@ -3,7 +3,7 @@ import { dataDir } from "./kv";
 import { api, ApiError, type Shot } from "./api";
 import { signedInUserId } from "./auth";
 import { syncDevice } from "./device";
-import { flushLayouts, withPending } from "./layouts";
+import { refreshLayouts } from "./layouts";
 import { flushEdits, remapEdits } from "./localShots";
 import { log } from "./log";
 import { isOfflineMode } from "./net";
@@ -153,7 +153,7 @@ export function flush(opts: { includeStuck?: boolean } = {}): Promise<FlushResul
     }
     try { store.saveFields(await api.listFields()); } catch { /* offline: keep the cached definitions */ }
     // Layouts: the phone's own edits go out first, then the list comes back with any still unsent on top.
-    try { await flushLayouts(); store.saveLayouts(withPending(await api.listLayouts())); } catch { /* offline: keep the cached layouts */ }
+    await refreshLayouts(); // offline: keeps the cached layouts
     try { await syncDevice(store.loadSettings(), store.loadZoomRange(), api); } catch (e) { log("warn", "device sync failed", e); }
     const locations = await syncLocations(store.loadLocations());
     if (locations) {

@@ -2,6 +2,7 @@ import { DEFAULT_VIEWFINDER_LAYOUT, layoutLook, layoutOptions, type ViewfinderLa
 import * as Crypto from "expo-crypto";
 import { api, ApiError } from "./api";
 import { log } from "./log";
+import { isOfflineMode } from "./net";
 import { store } from "./storage";
 import type { LayoutEntry, Settings, ViewSettings } from "./types";
 
@@ -72,3 +73,26 @@ export const withPending = (server: LayoutEntry[]): LayoutEntry[] => {
   const pending = store.loadPendingLayouts();
   return [...server.filter((s) => !pending.some((p) => p.id === s.id)), ...pending].sort((a, b) => a.name.localeCompare(b.name));
 };
+
+let refreshing: Promise<boolean> | null = null;
+
+/**
+ * Send the phone's edits and pull the list (issue #197). Runs with every flush, and on its own at the
+ * moments the user is about to look at a layout (a Studio preview ends, Setup → Viewfinder opens, the
+ * app comes back to the front): otherwise a Look set in the Studio waits for the next app start.
+ * Concurrent calls share one request; offline it keeps the cache and resolves false.
+ */
+export function refreshLayouts(): Promise<boolean> {
+  if (isOfflineMode()) return Promise.resolve(false);
+  return (refreshing ??= (async () => {
+    try {
+      await flushLayouts();
+      store.saveLayouts(withPending(await api.listLayouts()));
+      return true;
+    } catch {
+      return false;
+    } finally {
+      refreshing = null;
+    }
+  })());
+}
