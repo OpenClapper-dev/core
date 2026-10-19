@@ -1,7 +1,7 @@
 # The local development stack: thin wrappers around the pnpm scripts in package.json, which stay the
-# source of truth. Everything runs in the foreground; stop a server with Ctrl-C. Deploying and
-# production APKs are not here: they run from a deployment repository (docs/self-hosting.md).
-.PHONY: help init all all-down all-restart dev worker dashboard mobile dev-build
+# source of truth. Everything runs in the foreground; stop a server with Ctrl-C. Deploying is not
+# here: it runs from a deployment repository (docs/self-hosting.md).
+.PHONY: help init all all-down all-restart dev worker dashboard mobile dev-build apk-local
 
 help: ## Show this list
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -31,5 +31,8 @@ dashboard: ## Dashboard only -> http://localhost:5173 (needs `make worker` for /
 mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (Fielder Dev); LOCAL data
 	pnpm dev:mobile
 
-dev-build: ## Development build (Fielder Dev) locally in Docker, no EAS quota; rebuild after native changes
-	PROFILE=dev-client bash scripts/apk-local.sh
+dev-build: ## Development build (Fielder Dev) in Docker, to the Windows Downloads folder; rebuild after native changes
+	VARIANT=dev bash scripts/apk-local.sh
+
+apk-local: ## Production APK in Docker for one server: API_URL=https://… make apk-local (key: scripts/keystore.sh)
+	VARIANT=release bash scripts/apk-local.sh

@@ -11,4 +11,3 @@ minimumReleaseAge: 10080
 allowBuilds:
   esbuild: true
   workerd: true
-  dtrace-provider: false # optional native tracing dep of eas-cli, not needed

@@ -1,6 +1,6 @@
-# Toolchain for local APK builds (`make apk-local`): JDK 17, Android SDK + NDK, Node, pnpm.
-# Versions match React Native 0.86 (node_modules/react-native/gradle/libs.versions.toml) and eas.json.
-# eas-cli is not installed here: the repo's own copy (node_modules/.bin/eas) runs from the mount.
+# Toolchain for local APK builds (scripts/apk-local.sh: expo prebuild + Gradle): JDK 17, Android SDK +
+# NDK, Node, pnpm. Versions match React Native 0.86 (node_modules/react-native/gradle/libs.versions.toml)
+# and the root package.json's packageManager.
 FROM eclipse-temurin:17-jdk-jammy
 
 ARG NODE_VERSION=22.20.0

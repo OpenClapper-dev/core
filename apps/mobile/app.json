@@ -2,7 +2,6 @@
   "expo": {
     "name": "Fielder",
     "slug": "fielder",
-    "version": "0.1.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -33,12 +32,6 @@
         }
       ],
       "expo-font"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "e221d23c-93e3-4729-9cc7-1c513eabecca"
-      }
-    },
-    "owner": "bubulux"
+    ]
   }
 }

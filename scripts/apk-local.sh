@@ -1,19 +1,16 @@
 #!/usr/bin/env bash
-# Build an APK locally (EAS --local) in a Docker container, then copy it to the Windows Downloads
-# folder. WSL + Docker Desktop (WSL integration on). `make dev-build` runs it with PROFILE=dev-client:
-# the development build "Fielder Dev" (debug-signed, no bundle inside: it loads the JavaScript, and
-# with it the server's address, from Metro, see make mobile).
-# A production APK (PROFILE=apk, the keystore from Expo) needs API_URL=<your server>; deployments
-# build it with the Build APK workflow instead (docs/self-hosting.md).
-# Needs an Expo session: `npx eas login` once (kept in ~/.expo), or EXPO_TOKEN in the environment.
-# Overrides: API_URL, DOWNLOADS (target folder), PROFILE.
+# Builds the Android app locally in a Docker container (expo prebuild + Gradle; no Expo account), then
+# copies the APK to the Windows Downloads folder. WSL + Docker Desktop (WSL integration on).
+#   VARIANT=dev      (make dev-build) the development build "Fielder Dev": debug-signed, no bundle
+#                    inside; it loads the JavaScript, and with it the server's address, from Metro
+#                    (make mobile).
+#   VARIANT=release  (make apk-local) a production APK for one server: API_URL=https://… and the
+#                    signing key from scripts/keystore.sh (.secrets/android/, .secrets/android.env).
+# Overrides: API_URL, DOWNLOADS (target folder), ANDROID_KEYSTORE (another .jks).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 command -v docker > /dev/null || { echo "docker not found: Docker Desktop → Settings → Resources → WSL integration → enable this distro" >&2; exit 1; }
-if [ -z "${EXPO_TOKEN:-}" ] && ! npx --no-install eas whoami > /dev/null 2>&1; then
-  echo "Not logged in to Expo: run 'npx eas login' once (or set EXPO_TOKEN)" >&2; exit 1
-fi
 
 # The Windows user's Downloads, as a WSL path (cmd.exe complains about a UNC cwd; hence /mnt/c).
 if [ -z "${DOWNLOADS:-}" ]; then
@@ -23,24 +20,52 @@ if [ -z "${DOWNLOADS:-}" ]; then
 fi
 [ -d "$DOWNLOADS" ] || { echo "No folder $DOWNLOADS; set DOWNLOADS=…" >&2; exit 1; }
 
-profile="${PROFILE:-apk}"
-# The development build takes its server from Metro, so the inlined one is never used.
-[ "$profile" = dev-client ] && api_url="${API_URL:-http://localhost:8787}" || api_url="${API_URL:?set API_URL to your server (or use the Build APK workflow)}"
+variant="${VARIANT:-dev}"
 commit=$(git rev-parse --short HEAD)
-name="fielder-$commit.apk"
-[ "$profile" = apk ] || name="fielder-$profile-$commit.apk"
+version=$(node -p 'require("./package.json").version')
 [ -z "$(git status --porcelain)" ] || echo "Note: uncommitted changes are built, but the file is named after $commit."
+run=(-e GIT_COMMIT="$commit" -e EXPO_NO_GIT_STATUS=1 -e CI=1)
+case "$variant" in
+  dev)
+    task=assembleDebug; out_dir=debug; name="fielder-dev-$commit.apk"
+    # The development build takes its server from Metro, so the inlined one is never used.
+    run+=(-e APP_VARIANT=development -e EXPO_PUBLIC_API_URL="${API_URL:-http://localhost:8787}")
+    ;;
+  release)
+    task=assembleRelease; out_dir=release; name="fielder-$version-$commit.apk"
+    if [ -f .secrets/android.env ]; then set -a; . .secrets/android.env; set +a; fi
+    keystore="${ANDROID_KEYSTORE:-$PWD/.secrets/android/fielder-release.jks}"
+    [ -n "${API_URL:-}" ] || { echo "Set API_URL to the server this APK talks to: API_URL=https://… make apk-local" >&2; exit 1; }
+    [ -f "$keystore" ] || { echo "No signing key at $keystore: run scripts/keystore.sh once (docs/self-hosting.md#the-phone)" >&2; exit 1; }
+    for v in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+      [ -n "${!v:-}" ] || { echo "$v is not set (.secrets/android.env)" >&2; exit 1; }
+    done
+    run+=(-e EXPO_PUBLIC_API_URL="$API_URL" -v "$(realpath "$keystore")":/keystore.jks:ro -e ANDROID_KEYSTORE=/keystore.jks
+          -e ANDROID_KEYSTORE_PASSWORD -e ANDROID_KEY_ALIAS -e ANDROID_KEY_PASSWORD)
+    ;;
+  *) echo "VARIANT must be dev or release" >&2; exit 1 ;;
+esac
 out=~/fielder-builds
-mkdir -p "$out" ~/.expo
+mkdir -p "$out"
 
 # Rebuilds only when the Dockerfile changed (layer cache). Gradle's cache lives in a volume.
 docker build -t fielder-android -f docker/android.Dockerfile docker
 docker run --rm \
-  -v "$PWD":/work -v ~/.expo:/root/.expo -v "$out":/out -v fielder-gradle:/root/.gradle \
-  -e EXPO_TOKEN -e EXPO_PUBLIC_API_URL="$api_url" \
+  -v "$PWD":/work -v "$out":/out -v fielder-gradle:/root/.gradle "${run[@]}" \
   -w /work/apps/mobile fielder-android \
-  bash -c "node /work/node_modules/eas-cli/bin/run build --local --platform android --profile $profile --non-interactive --output /out/$name \
-           && chown $(id -u):$(id -g) /out/$name"
+  bash -ec "# The build runs as root in place: Gradle also writes into node_modules/*/android/build.
+            # Hand everything back to the host user and drop the generated android/, even on failure.
+            trap 'rm -rf /work/apps/mobile/android; find /work -xdev -uid 0 -exec chown -h $(id -u):$(id -g) {} +' EXIT
+            rm -rf android
+            pnpm exec expo prebuild --platform android --no-install
+            cd android && chmod +x gradlew
+            ./gradlew $task --no-daemon
+            apk=app/build/outputs/apk/$out_dir/app-$out_dir.apk
+            # A release signed with the debug key would not update a real install.
+            if [ $variant = release ] && \$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \$apk | grep -q 'CN=Android Debug'; then echo 'release APK is debug-signed' >&2; exit 1; fi
+            cp \$apk /out/$name
+            chown $(id -u):$(id -g) /out/$name
+            cd .."
 
 cp "$out/$name" "$DOWNLOADS/"
 echo "APK: $DOWNLOADS/$name"
