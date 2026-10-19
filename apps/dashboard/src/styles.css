@@ -1,5 +1,5 @@
 /*
- * Dashboard layouts. Colours, type and spacing come from the design tokens in ui/design/*.css
+ * Dashboard layouts. Colours, type and spacing come from the design tokens in @fielder/ui (packages/ui/src/design/*.css)
  * (Sun = light, Set = dark, switched by [data-theme] on <html>); primitives are the f-* classes there,
  * the app shell, panels, tables, stage and plan grid are in design/dashboard.css, and the component
  * library's own additions in design/components.css.
@@ -27,11 +27,6 @@ kbd { font: var(--weight-bold) var(--text-micro)/1 var(--font-sans); display: in
 h1, h2, h3 { margin: 0; }
 button { font: inherit; }
 
-.meta { color: var(--text-dim); font-size: var(--text-caption); }
-.num { font-variant-numeric: tabular-nums; }
-.mono { font-family: var(--font-mono); }
-.grow { flex: 1; }
-.ellipsis { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .btn-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .section-title { font: var(--weight-bold) var(--text-micro)/1.2 var(--font-sans); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-dim); margin: 0 0 var(--space-2); }
 .status { padding: var(--space-8) var(--space-6); color: var(--text-dim); display: flex; justify-content: center; }

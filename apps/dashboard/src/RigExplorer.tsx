@@ -7,7 +7,7 @@ import { Framed, type MaskMode } from "./Framed";
 import { FromTimelines } from "./FromTimelines";
 import { bind, NUDGE, useKeys } from "./keys";
 import { initialStack, StackBar, StackCanvas, StackLayers, type StackState } from "./StackedFrames";
-import { Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, promptDialog, Seg, Select, toast, ToolbarSpacer } from "./ui";
+import { Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, promptDialog, Seg, Select, toast, ToolbarSpacer } from "@fielder/ui";
 
 /**
  * Shot view stage "Framing" (was Rigs; issue #29). Re-frame a photo for another rig and lens and

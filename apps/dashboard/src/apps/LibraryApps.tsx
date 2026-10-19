@@ -7,7 +7,7 @@ import { ProjectsPage } from "../Projects";
 import { RigsPage } from "../Rigs";
 import { parseRoute, type LibrarySection } from "../router";
 import { fetchAllShots } from "../api";
-import { toast } from "../ui";
+import { toast } from "@fielder/ui";
 import { ViewfinderLayoutsPage } from "../ViewfinderLayouts";
 import type { AppProps } from "./registry";
 

@@ -3,7 +3,7 @@ import { promoteClip, type Overlay, type Photo, type Shot, type Sketch, type Tim
 import { ownReframe } from "./TimelineParts";
 import { Framed } from "./Framed";
 import { invalidateTimelines, projectTimelines } from "./Inspector";
-import { Button, Icon, Popover, promptDialog, toast } from "./ui";
+import { Button, Icon, Popover, promptDialog, toast } from "@fielder/ui";
 
 /**
  * "From timelines" (issue #31): what timeline clips changed for themselves on this photo or shot —

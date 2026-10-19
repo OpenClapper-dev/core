@@ -7,7 +7,7 @@ Issue [#116](https://github.com/bubulux/fielder/issues/116), epic [#107](https:/
 - `apps/admin/src/index.ts`: the admin Worker (`fielder-admin`).
   - It verifies the Access JWT of its own application on every request (`verifyAccessJwt` with its own `ACCESS_AUD`) and then reads across all workspaces.
   - Same D1 and R2 bindings as the app. It never runs migrations; those belong to `apps/worker`.
-- `apps/admin/ui/`: the board, a Preact page on the dashboard's design system (it imports `apps/dashboard/src/ui`), built into `apps/admin/dist` and served by the admin Worker.
+- `apps/admin/ui/`: the board, a Preact page on the shared web design system (`@fielder/ui`, `packages/ui`; theme button in the header), built into `apps/admin/dist` and served by the admin Worker.
 - `packages/service-kit`: what both Workers share.
   - The router, request checks and JSON errors.
   - Access verification.

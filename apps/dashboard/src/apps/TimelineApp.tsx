@@ -5,7 +5,7 @@ import { useMask } from "../frameMode";
 import { useProjectId } from "../project";
 import { parseRoute, type CutPosition } from "../router";
 import { TimelinePage } from "../Timeline";
-import { confirmDialog, type SaveState } from "../ui";
+import { confirmDialog, type SaveState } from "@fielder/ui";
 import { openOverlay } from "../wm/overlays";
 import type { AppProps } from "./registry";
 import { useAppGuard } from "./useAppGuard";

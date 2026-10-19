@@ -1,6 +1,5 @@
 import { selectOptions, type Extra, type ExtraValue, type FieldDef } from "@fielder/vocab";
-import { Combobox } from "./ui";
-import { Chip } from "./ui";
+import { Chip, Combobox } from "@fielder/ui";
 
 interface Props {
   defs: readonly FieldDef[];

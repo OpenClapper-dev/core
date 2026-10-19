@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import type { Location, Project, SavedView, Shot, ShootingDay } from "./api";
 import { cover, placeLabel, shotTitle } from "./format";
 import { Framed } from "./Framed";
-import { cx, Highlight, Icon, IconButton, Kbd, Modal, Overlay } from "./ui";
+import { cx, Highlight, Icon, IconButton, Kbd, Modal, Overlay } from "@fielder/ui";
 import { keysLabel, SCOPES, shortcutsOf, type ScopeId } from "./shortcuts";
 
 export interface Command { id: string; group: string; icon: string; title: string; sub?: string; shot?: Shot; keys?: string; run: () => void }

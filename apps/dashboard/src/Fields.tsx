@@ -4,7 +4,7 @@ import { deleteField, importFields, putField, putProjectFields, type FieldDefini
 import { binned } from "./apps/trashOps";
 import { ExtraEditor } from "./ExtraEditor";
 import { bind, useKeys } from "./keys";
-import { Banner, Button, cx, Empty, EmptyNote, Icon, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "./ui";
+import { Banner, Button, cx, Empty, EmptyNote, Icon, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@fielder/ui";
 
 /** The active project's fields: definitions belong to one project (issue #44). */
 interface Props { project: Project; fields: FieldDefinition[]; onChange: (f: FieldDefinition[]) => void; selectedId: string | null; onSelect: (id: string | null) => void }

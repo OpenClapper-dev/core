@@ -7,7 +7,7 @@ import type { Shot } from "./api";
 import { cover, positionOf, shotTitle } from "./format";
 import { Framed, FramedThumb, type MaskMode } from "./Framed";
 import { shotSub } from "./ShotCard";
-import { Button, cx, SeqBadge, StateMarker } from "./ui";
+import { Button, cx, SeqBadge, StateMarker } from "@fielder/ui";
 
 interface Props {
   shots: Shot[];

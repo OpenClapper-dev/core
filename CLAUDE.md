@@ -20,10 +20,11 @@ The owner talks to you in English.
 | `apps/worker/src` | API routes (`shots.ts`, `projects.ts`, `fields.ts`, `days.ts`, …), `authn/` (sign-in, sessions, the provider seam), `tenancy.ts` (workspace access checks) |
 | `apps/admin` | Admin plane: its own Worker (`src/index.ts`) and board (`ui/`) behind its own Cloudflare Access app; user management across the instance |
 | `apps/worker/migrations` | D1 schema, numbered, additive |
-| `apps/dashboard/src` | `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, desktop icons, route bridge, key dispatch), `apps/` (one app per page + `registry.ts`, Files), `data.ts` (shared data store), `project.ts`, one file per page (`ShotsPage`, `ShotView` + `Inspector`, `Timeline`, `Plan`, library pages), `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `ui/` (component library: design-system components by group, `ui/design/` tokens + component CSS), `styles.css` (layouts) |
+| `apps/dashboard/src` | `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, desktop icons, route bridge, key dispatch), `apps/` (one app per page + `registry.ts`, Files), `data.ts` (shared data store), `project.ts`, one file per page (`ShotsPage`, `ShotView` + `Inspector`, `Timeline`, `Plan`, library pages), `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `styles.css` (layouts) |
 | `apps/mobile` | `App.tsx` (tabs, gates, pushed-screen stack), `src/screens/` (Viewfinder + Tag, Review, Shots + ShotDetails, Day + StepThrough, Setup hub + sub-screens, Uploads, Gates), `src/ui/` (component library: `theme.tsx`, primitives by design-system group, `chrome.tsx` header/rows/bars, `dialogs.tsx` confirm + toast), `src/components/` (`TagEditor.tsx`, sheets, viewfinder parts), `uploads.ts` (queue), `sync.ts`, `rigs.ts`, `storage.ts` (kv), `api.ts` |
 | `packages/vocab` | Shared vocabularies, filters, extra-field definitions, daylight math: anything both the Worker and a client must agree on |
 | `packages/fov-math` | Camera/lens/FOV/overlay/reframe math |
+| `packages/ui` | The web design system (`@fielder/ui`): components, tokens and component CSS, theme switch; used by the dashboard and the admin board |
 | `packages/service-kit` | What both Workers share: `http.ts` router + `assert*` helpers, Access verification, password hashing |
 
 ## Core model in one paragraph
@@ -64,7 +65,7 @@ When the owner hands you an issue (a number or a link), that means: read it, cha
 ## Verify before you say "done"
 
 ```sh
-for p in packages/vocab packages/fov-math packages/service-kit apps/worker apps/admin apps/admin/ui apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
+for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/admin apps/admin/ui apps/dashboard apps/mobile; do (cd $p && npx tsc -p .); done
 pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/dashboard test && (cd apps/mobile && node --test src/*.test.ts)
 (cd apps/dashboard && npx vite build) && (cd apps/admin && npx vite build)
 (cd apps/mobile && npx expo export --platform android --output-dir /tmp/fielder-export)

@@ -8,7 +8,7 @@ import { cover, positionOf, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateDays } from "./Inspector";
 import { bind, useKeys } from "./keys";
-import { Banner, Button, Checkbox, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, Select, Spinner, toast, type SaveState } from "./ui";
+import { Banner, Button, Checkbox, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, Kbd, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, Select, Spinner, toast, type SaveState } from "@fielder/ui";
 import { fetchForecast, weatherText, type HourForecast } from "./weather";
 
 interface Props {

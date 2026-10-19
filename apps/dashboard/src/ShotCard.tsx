@@ -4,7 +4,7 @@ import { label, lightLabel } from "@fielder/vocab";
 import type { Shot } from "./api";
 import { cover, placeLabel, rigLabel, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
-import { cx, ProjectTag, SeqBadge, StateMarker } from "./ui";
+import { cx, ProjectTag, SeqBadge, StateMarker } from "@fielder/ui";
 
 /** "Place · INT · Dusk / Night", falling back to the rig for untagged shots. */
 export const shotSub = (s: Shot) => [placeLabel(s) || rigLabel(cover(s)), label(s.int_ext).toUpperCase(), lightLabel(s.light, s.artificial)].filter(Boolean).join(" · ");

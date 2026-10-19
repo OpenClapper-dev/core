@@ -8,7 +8,7 @@ import { frameModeLabel, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateTimelines } from "./Inspector";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
-import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, Seg, Select, SeqBadge, Spinner, StateMarker, toast, type SaveState } from "./ui";
+import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, Seg, Select, SeqBadge, Spinner, StateMarker, toast, type SaveState } from "@fielder/ui";
 import type { EditKind } from "./ClipEditing";
 import { useSettings } from "./settings";
 import type { CutPosition } from "./router";

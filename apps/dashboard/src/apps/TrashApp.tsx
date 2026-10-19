@@ -4,7 +4,7 @@ import * as data from "../data";
 import { folderPath, matches } from "../fileTree";
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
-import { Button, Checkbox, cx, Empty, Icon, Loading, SearchInput, Toolbar, ToolbarSpacer } from "../ui";
+import { Button, Checkbox, cx, Empty, Icon, Loading, SearchInput, Toolbar, ToolbarSpacer } from "@fielder/ui";
 import type { AppProps } from "./registry";
 import { emptyBin, purge, restore } from "./trashOps";
 

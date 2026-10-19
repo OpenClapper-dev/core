@@ -5,7 +5,7 @@ import { existingIdOf, patchShot, putLocation, type Location, type Project, type
 import { placeLabel, shotTitle } from "./format";
 import type { MaskMode } from "./Framed";
 import { ScrubCover, SeqBadges } from "./ShotCard";
-import { Combobox, cx, EmptyNote, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, StateMarker, toast, Toolbar, ToolbarTitle } from "./ui";
+import { Combobox, cx, EmptyNote, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, StateMarker, toast, Toolbar, ToolbarTitle } from "@fielder/ui";
 
 /**
  * Metadata (issue #42): sort the project's shots into the values of one single-value field

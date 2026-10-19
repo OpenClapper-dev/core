@@ -1,4 +1,5 @@
-/* The admin board (App.tsx): layouts only, on the dashboard's design tokens (docs/design.md). */
+/* The admin board (App.tsx): layouts only, on the shared design tokens (@fielder/ui, docs/design.md). */
+*, *::before, *::after { box-sizing: border-box; }
 html, body, #app { margin: 0; min-height: 100%; }
 html { background: var(--bg); color: var(--text); font: var(--weight-regular) var(--text-body)/var(--lh-body) var(--font-sans); -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: var(--focus-width) solid var(--focus); outline-offset: var(--focus-offset); }
@@ -6,6 +7,7 @@ html { background: var(--bg); color: var(--text); font: var(--weight-regular) va
 .admin { max-width: 1200px; margin: 0 auto; padding: var(--space-5) var(--space-5) var(--space-8); display: flex; flex-direction: column; gap: var(--space-5); }
 .admin__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 .admin__brand { display: flex; align-items: center; gap: var(--space-2); font: var(--weight-heavy) 20px/1 var(--font-sans); }
+.admin__headend { display: flex; align-items: center; gap: var(--space-3); }
 
 .admin__tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
 .admin__tile { display: flex; flex-direction: column; gap: 4px; padding: var(--space-4); background: var(--surface); border: var(--bw) solid var(--border-subtle); border-radius: var(--radius-md); }

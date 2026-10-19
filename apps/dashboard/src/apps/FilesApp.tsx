@@ -7,7 +7,7 @@ import { childFolders, FILE_DRAG, folderPath, matches, moveTargets, placementOf,
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
 import { parseRoute } from "../router";
-import { Button, Checkbox, ContextMenu, cx, Empty, Highlight, Icon, IconButton, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "../ui";
+import { Button, Checkbox, ContextMenu, cx, Empty, Highlight, Icon, IconButton, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "@fielder/ui";
 import { addShortcut, binItems, canRename, desktopFolderId, fileTarget, folderTarget, moveItems, newFolder, renameEntry, renameFolder, type Item } from "./fileOps";
 import { openResource, useFileEntries, type FileEntry } from "./fileEntries";
 import { launch, type AppProps } from "./registry";

@@ -11,7 +11,7 @@ import { ShotsMap } from "./MapView";
 import { ModeSwitch } from "./ModeSwitch";
 import { ShotCard } from "./ShotCard";
 import { filterPills, ruleCount, runQuery, type Layout, type RefLists, type ShotsQuery, type Sort, type StateFilter } from "./shotsQuery";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, LinkButton, MenuItem, Popover, SearchInput, Seg, SeqBadge, StateMarker, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "./ui";
+import { Banner, Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, LinkButton, MenuItem, Popover, SearchInput, Seg, SeqBadge, StateMarker, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@fielder/ui";
 
 interface Props {
   shots: Shot[] | null;
