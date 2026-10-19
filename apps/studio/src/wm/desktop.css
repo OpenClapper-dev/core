@@ -111,8 +111,8 @@ body.wm-gesture .wm-window__content{pointer-events:none}
 .wm-window--away{display:none}
 .wm-task--view{position:relative;width:40px;justify-content:center;padding:0}
 .wm-task__badge{position:absolute;right:3px;bottom:3px;min-width:14px;height:14px;padding:0 3px;border-radius:7px;background:var(--accent);color:var(--on-accent);font:var(--weight-bold) 10px/14px var(--font-sans);text-align:center}
-/* Task view: a layer over the desktop area, above every window */
-.wm-taskview{position:fixed;left:0;right:0;top:0;bottom:var(--taskbar-h);z-index:100000;display:flex;flex-direction:column;gap:24px;padding:24px 32px;overflow:auto;background:color-mix(in srgb,var(--scrim) 82%,transparent);color:var(--taskview-text);outline:none}
+/* Task view: a layer over the desktop area, above every window. Liquid glass (#194): the desktop blurred behind a lighter tint. 60% of the near-black scrim keeps the white text above 4.5:1 even over a white desktop; the layer fades with opacity, never by animating the blur. */
+.wm-taskview{--taskview-blur:24px;--taskview-tint:60%;position:fixed;left:0;right:0;top:0;bottom:var(--taskbar-h);z-index:100000;display:flex;flex-direction:column;gap:24px;padding:24px 32px;overflow:auto;background:color-mix(in srgb,var(--scrim) var(--taskview-tint),transparent);backdrop-filter:blur(var(--taskview-blur)) saturate(1.5);color:var(--taskview-text);outline:none}
 .wm-taskview__strip{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;justify-content:center;padding-bottom:20px;border-bottom:var(--bw) solid color-mix(in srgb,var(--taskview-text) 18%,transparent)}
 .wm-taskview__tile{display:flex;flex-direction:column;gap:6px;padding:6px;border:var(--bw-strong) solid transparent;border-radius:var(--radius-md);background:transparent;color:inherit;font:inherit}
 .wm-taskview__tile.is-shown{background:color-mix(in srgb,var(--taskview-text) 10%,transparent)}
