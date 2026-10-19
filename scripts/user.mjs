@@ -7,8 +7,9 @@
 //
 // --bootstrap  give the bootstrap user (the owner of the pre-sign-in data, migration 0021) this email
 //              and password instead of creating a user: the first sign-in of an existing instance.
-// --remote     the deployed database (default: the local one of `wrangler dev`); needs deploy.env or the same
-//              environment as scripts/deploy-config.mjs, whose config it uses.
+// --remote     the deployed database (default: the local one of `wrangler dev`); needs deploy.env (here or in
+//              the deployment repository above this one) or the same environment as scripts/deploy-config.mjs,
+//              whose config it uses.
 // The password is read from FIELDER_PASSWORD, or asked for.
 import { spawnSync } from "node:child_process";
 import { webcrypto as crypto } from "node:crypto";

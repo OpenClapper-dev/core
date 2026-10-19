@@ -58,40 +58,31 @@ make dashboard      # beside it: the dashboard on :5173 against the same local W
 - In Fielder Dev, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 
 - `scripts/dev-all.sh` (`make all`) opens a tmux session `fielder`: Worker and dashboard stacked on the left, `make mobile` on the right (it waits for the Worker, so it only adds a tunnel), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
-- `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --go --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
+- `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --dev-client --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
 - Sign in once with `dev@localhost` / `fielder-local-dev`: `make init` (`scripts/dev-init.sh`) gives the local bootstrap user that login. On an older checkout run `FIELDER_PASSWORD=fielder-local-dev node scripts/user.mjs --bootstrap --email dev@localhost`.
 - The `local` scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders), so a production build on the same phone never sees them.
 - The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL with auth bypassed.
-- Production is reached only by a built APK (`make apk-local` / `make apk-cloud`, `API_URL` defaults to the deployed Worker).
+- Production is reached only by a production APK, built for a deployment ([self-hosting](self-hosting.md#the-phone)). The local loop needs no deployment settings: the quick tunnel takes no account.
 - If the tunnel fails with `Cannot read properties of undefined (reading 'body')`, an old ngrok session is still registered: wait 30 s or set `EXPO_TUNNEL_SUBDOMAIN`.
 - Expo changed a lot. Read the versioned docs at https://docs.expo.dev/versions/v57.0.0/ before using an Expo API (`apps/mobile/AGENTS.md`). Example: `expo-file-system` exposes `File`/`Directory`/`Paths` with sync `copySync`, `textSync`, `write`, and `File.downloadFileAsync`.
 
 ## Deploy and migrations
 
-Shortcuts (`make help` lists all): `make login` (wrangler, device code), `make deploy` (remote migrations, then the deploy below), `make apk-cloud` (EAS), `make apk-local` (`scripts/apk-local.sh`: the local build below, then copies `fielder-<commit>.apk` to the Windows Downloads folder; override with `DOWNLOADS=…` or `API_URL=…`).
+Not from this checkout: deploying and production APKs belong to a deployment, which runs the GitHub workflows (`deploy.yml`, `build-apk.yml`) or the `pnpm` deploy scripts with its `deploy.env` ([self-hosting](self-hosting.md)). The reference instance deploys from its private repository `bubulux/fielder-cloud`, which holds this one as a submodule. The tracked `wrangler.jsonc` are for local development only.
 
-Deploying needs this deployment's settings in `deploy.env` (gitignored; template `deploy.env.example`, [self-hosting](self-hosting.md)). The commands below write the deploy configs from it (`scripts/deploy-config.mjs`) and use those; the tracked `wrangler.jsonc` are for local development only.
-
-```sh
-pnpm -C apps/worker migrate:remote   # apply new migrations first
-pnpm -C apps/worker run deploy     # builds the dashboard, deploys Worker + assets
-pnpm -C apps/admin run deploy      # the admin plane (its own Worker + board); needs its Access AUD set first
-```
-
-- Wrangler needs a login (`npx wrangler login --device` works in WSL), or `CLOUDFLARE_API_TOKEN`. The OAuth token lacks `account:read`; `CLOUDFLARE_ACCOUNT_ID` from `deploy.env` fills it in.
-- GitHub Actions: `.github/workflows/deploy.yml` does the same (provision, migrate, deploy both Workers) from repository secrets and variables, or when called from another repository.
-- The user runs production deploys themselves. AI sessions prepare the change and the migration, then ask.
-- Migrations are additive: always a new numbered file.
+- The owner runs production deploys. AI sessions prepare the change and the migration, then ask.
+- Migrations are additive: always a new numbered file. Locally: `pnpm -C apps/worker migrate:local` (`make init` runs it).
 
 ## APK builds
 
-Cloud: `pnpm -C apps/mobile eas build --platform android --profile apk` (EAS free plan has a monthly build quota). The dev build in the cloud: `pnpm -C apps/mobile build:dev-client`.
+- **The development build** for the phone loop: `make dev-build` (above), or in the cloud `pnpm -C apps/mobile build:dev-client`.
+- **Production APKs** are built for a deployment with its server's address ([self-hosting](self-hosting.md#the-phone)).
 
-Local (same keystore, fetched from Expo): `make apk-local`, in a Docker container (`docker/android.Dockerfile`: JDK 17, Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1, Node 22.20.0, pnpm 11.13.1; nothing installed in WSL).
+`scripts/apk-local.sh` builds in a Docker container (`docker/android.Dockerfile`: JDK 17, Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1, Node 22.20.0, pnpm 11.13.1; nothing installed in WSL):
 - Once: Docker Desktop → Settings → Resources → WSL integration → enable this distro; `npx eas login` (the session in `~/.expo` is mounted into the container; `EXPO_TOKEN` works too).
-- `scripts/apk-local.sh` builds the image (cached after the first run), runs `eas build --local --profile apk` with the repo mounted and Gradle's cache in the `fielder-gradle` volume, writes `~/fielder-builds/fielder-<commit>.apk` and copies it to the Windows Downloads folder.
-- The app points at `APP_URL` from `deploy.env` unless `API_URL=…` is set. The first run downloads the SDK and Gradle dependencies (several GB); later builds take about 10 minutes.
+- It builds the image (cached after the first run), runs `eas build --local` with the repo mounted and Gradle's cache in the `fielder-gradle` volume, writes `~/fielder-builds/fielder-dev-client-<commit>.apk` (a production one `fielder-<commit>.apk`) and copies it to the Windows Downloads folder (`DOWNLOADS=…` overrides).
+- `PROFILE=apk` (a production APK, the keystore from Expo) needs `API_URL=…`. The first run downloads the SDK and Gradle dependencies (several GB); later builds take about 10 minutes.
 
 ## Debugging on the phone
 

@@ -31,7 +31,7 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
   - `D1_DATABASE_NAME`, `R2_BUCKET`, `APP_WORKER_NAME`, `ADMIN_WORKER_NAME`. The defaults are `fielder-db`, `fielder-shots`, `fielder-api` and `fielder-admin`.
   - Later, `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` (step 4).
 
-**From your machine**: copy `deploy.env.example` to `deploy.env` (gitignored) and fill it in.
+**From your machine**: copy `deploy.env.example` to `deploy.env` (gitignored) and fill it in. A deployment repository that holds this one as a submodule can keep (and commit) its `deploy.env` beside the submodule; the scripts look there too.
 
 ## 3. Deploy
 
@@ -51,6 +51,8 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
   pnpm -C apps/worker run deploy
   pnpm -C apps/admin run deploy
   ```
+
+  Wrangler needs `CLOUDFLARE_API_TOKEN` in the environment, or a login (`pnpm exec wrangler login --device`; its token lacks `account:read`, which `CLOUDFLARE_ACCOUNT_ID` from `deploy.env` fills in).
 
 The app is at `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`. A custom domain can be added to the Worker in the Cloudflare dashboard.
 
@@ -81,7 +83,7 @@ Releases are tagged. Bring your copy up to the new tag (merge or rebase), then r
 
 The Android app needs your server's address at build time: `EXPO_PUBLIC_API_URL=https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`.
 
-- **Locally, in Docker**: `API_URL=… make apk-local`. With `APP_URL` in `deploy.env`, plain `make apk-local` is enough.
+- **Locally, in Docker**: `API_URL=… PROFILE=apk bash scripts/apk-local.sh`.
 - **With EAS**: set the variable in your EAS project.
 
 Details in [development](development.md#apk-builds).

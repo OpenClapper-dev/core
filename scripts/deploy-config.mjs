@@ -5,8 +5,9 @@
 //
 //   node scripts/deploy-config.mjs [--provision]
 //
-// Settings come from the environment, else from a gitignored deploy.env at the repository root
-// (KEY=value lines; see docs/self-hosting.md):
+// Settings come from the environment, else from deploy.env (KEY=value lines; see docs/self-hosting.md):
+// at this repository's root (gitignored), else one directory up, where a deployment repository that
+// holds this one as a submodule keeps it.
 //   CLOUDFLARE_ACCOUNT_ID   required
 //   D1_DATABASE_ID          required, unless --provision finds or creates the database by name
 //   D1_DATABASE_NAME        default fielder-db
@@ -34,7 +35,8 @@ function readEnvFile(path) {
   }
   return out;
 }
-const env = { ...readEnvFile(join(root, "deploy.env")), ...Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== "")) };
+const envFile = [join(root, "deploy.env"), join(root, "..", "deploy.env")].find(existsSync);
+const env = { ...(envFile ? readEnvFile(envFile) : {}), ...Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== "")) };
 const setting = (k, fallback) => env[k] ?? fallback;
 const fail = (msg) => { console.error(`deploy-config: ${msg}`); process.exit(1); };
 
