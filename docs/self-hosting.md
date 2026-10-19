@@ -2,6 +2,8 @@
 
 Fielder runs entirely on your own Cloudflare account: one Worker serves the API and the Studio, a second one the admin plane, D1 holds the data, R2 the photos. Nothing calls home, and nothing is shared between instances. You pay Cloudflare for what you use (the free plan goes a long way for a crew, see [the free plan](#the-free-plan)).
 
+Running your own instance is covered by the [Elastic License 2.0](../LICENSE): self-hosting for yourself, your crew or your company is allowed; offering Fielder to third parties as a hosted service is not.
+
 ## What you need
 
 - A Cloudflare account. Zero Trust (free for up to 50 users) is used for the admin plane's sign-in.

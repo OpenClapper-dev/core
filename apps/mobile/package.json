@@ -1,6 +1,7 @@
 {
   "name": "@fielder/mobile",
   "version": "0.0.0",
+  "license": "Elastic-2.0",
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/atkinson-hyperlegible-next": "^0.4.1",
