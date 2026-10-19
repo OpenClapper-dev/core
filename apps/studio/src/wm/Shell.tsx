@@ -22,6 +22,7 @@ import { openHash, startRouteBridge } from "./routeBridge";
 import { Taskbar } from "./Taskbar";
 import { TaskView } from "./TaskView";
 import { SplitGrip } from "./SplitGrip";
+import { WindowGhosts } from "./WindowGhosts";
 import { Window } from "./Window";
 import * as wm from "./wm";
 
@@ -121,6 +122,15 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const pd = data.useProjectData(projectId);
   const [theme] = useTheme();
   const user = useUser();
+  // Windows animate their opening only once the desktop stands (motion.css): not the whole set a
+  // project restores on load or on a switch.
+  const [settled, setSettled] = useState(false);
+  useEffect(() => {
+    setSettled(false);
+    if (!ready) return;
+    let raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => setSettled(true)); });
+    return () => cancelAnimationFrame(raf);
+  }, [ready, projectId]);
 
   useEffect(() => {
     const el = area.current!;
@@ -188,7 +198,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   ];
 
   return (
-    <div class="wm-root" data-taskbar={settings.taskbarPosition}>
+    <div class={settled ? "wm-root is-settled" : "wm-root"} data-taskbar={settings.taskbarPosition}>
       <div ref={area} class="wm-area" style={{ "--wm-split": String(split) }}>
         <Desktop projectId={projectId} />
         {/* Every workspace's windows stay mounted (apps keep their state); the others are hidden. */}
@@ -204,6 +214,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
             </Window>
           );
         })}
+        <WindowGhosts activeWs={activeWs} />
         <SplitGrip />
         {preview && <div class={`wm-snap-preview wm-snap-preview--${preview}`} />}
       </div>
