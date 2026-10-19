@@ -59,3 +59,20 @@
   .wm-taskview__cardwrap { opacity: 0; translate: 0 8px; }
 }
 .wm-taskview.is-leaving { opacity: 0; pointer-events: none; transition-timing-function: var(--ease-in); }
+
+/*
+ * Menus and lists (#160): they fade in and slide 4–6 px from where they hang, and close at once
+ * (no exit, like a native desktop). The `translate` property only: ContextMenu and Combobox
+ * measure the box, and the centred launcher already uses `transform`.
+ */
+.f-menu.popover, .ctx__menu, .f-select__list, .f-combo__list, .wm-launcher, .wm-project__menu {
+  transition: opacity var(--dur) var(--ease), translate var(--dur) var(--ease);
+}
+@starting-style {
+  .f-menu.popover, .ctx__menu, .f-select__list, .f-combo__list { opacity: 0; translate: 0 -4px; }
+  /* From the taskbar: up from the bottom bar, down from a top bar, sideways from a side bar. */
+  .wm-launcher, .wm-project__menu { opacity: 0; translate: 0 6px; }
+  .wm-root[data-taskbar="top"] .wm-launcher, .wm-root[data-taskbar="top"] .wm-project__menu { translate: 0 -6px; }
+  .wm-root[data-taskbar="left"] .wm-launcher, .wm-root[data-taskbar="left"] .wm-project__menu { translate: -6px 0; }
+  .wm-root[data-taskbar="right"] .wm-launcher, .wm-root[data-taskbar="right"] .wm-project__menu { translate: 6px 0; }
+}

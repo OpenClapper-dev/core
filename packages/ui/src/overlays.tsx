@@ -78,8 +78,8 @@ export function ContextMenu({ x, y, label, onClose, children }: { x: number; y: 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    setPos({ left: Math.max(8, Math.min(x, window.innerWidth - r.width - 8)), top: Math.max(8, Math.min(y, window.innerHeight - r.height - 8)) });
+    // offsetWidth/Height: the untransformed size, whatever the enter animation is doing (motion.css).
+    setPos({ left: Math.max(8, Math.min(x, window.innerWidth - el.offsetWidth - 8)), top: Math.max(8, Math.min(y, window.innerHeight - el.offsetHeight - 8)) });
     el.querySelector("button")?.focus();
   }, [x, y]);
   const onKey = (e: KeyboardEvent) => {
