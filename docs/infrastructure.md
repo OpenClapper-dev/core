@@ -18,7 +18,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 
 - **App users** sign in with email and password ([accounts](features/accounts.md)): the dashboard keeps an HttpOnly session cookie, the phone a bearer token in its keystore. Accounts are made in the admin plane (or with `scripts/user.mjs`); there is no public sign-up.
 - **Operators** of the admin plane sign in through its Cloudflare Access application, never with an app account.
-- **Local development**: `AUTH_DEV_BYPASS="true"` (app) and `ADMIN_DEV_BYPASS="true"` (admin) in the gitignored `.dev.vars` stand for a signed-in user; they must never be set in a deployed config. Locally the bootstrap user signs in as `dev@localhost` / `fielder-local-dev` (`make init`).
+- **Local development**: the app signs in as in production, as `dev@localhost` / `fielder-local-dev` (the bootstrap user, `make init`). Only the admin plane has a bypass, `ADMIN_DEV_BYPASS="true"` in its gitignored `.dev.vars`, since no Access application sits in front of it on a laptop; it must never be set in a deployed config.
 
 ## An instance from before accounts
 

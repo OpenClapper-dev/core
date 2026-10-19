@@ -29,7 +29,7 @@ command_for() {
   case "$1" in
     worker) echo "pnpm dev:worker" ;;
     dashboard) echo "pnpm dev:dashboard" ;;
-    mobile) echo "echo 'Waiting for the Worker on :$port…'; until curl -fs -o /dev/null http://localhost:$port/health; do sleep 1; done; pnpm dev:mobile" ;;
+    mobile) echo "echo 'Waiting for the Worker on :$port…'; until curl -fs -o /dev/null http://localhost:$port/api/ping; do sleep 1; done; pnpm dev:mobile" ;;
   esac
 }
 

@@ -16,8 +16,6 @@ write_if_missing() {
 }
 
 echo "Local dev files:"
-# A request without a session is the bootstrap user (curl without signing in); dev only, never deployed.
-write_if_missing "apps/worker/.dev.vars" 'AUTH_DEV_BYPASS="true"'
 # The admin plane without Cloudflare Access in front: every request is admin@localhost. Dev only.
 write_if_missing "apps/admin/.dev.vars" 'ADMIN_DEV_BYPASS="true"'
 # Expo inlines EXPO_PUBLIC_* into the bundle. make mobile sets the tunnel's URL itself and a production
