@@ -7,7 +7,7 @@ import { childFolders, FILE_DRAG, folderPath, matches, moveTargets, placementOf,
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
 import { parseRoute } from "../router";
-import { Button, Checkbox, ContextMenu, cx, Empty, Icon, IconButton, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "../ui";
+import { Button, Checkbox, ContextMenu, cx, Empty, Highlight, Icon, IconButton, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "../ui";
 import { addShortcut, binItems, canRename, desktopFolderId, fileTarget, folderTarget, moveItems, newFolder, renameEntry, renameFolder, type Item } from "./fileOps";
 import { openResource, useFileEntries, type FileEntry } from "./fileEntries";
 import { launch, type AppProps } from "./registry";
@@ -58,6 +58,7 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
   useEffect(() => { if (folderGone) setPlace({ kind: "folder", id: null }); }, [folderGone]);
 
   const [q, setQ] = useState("");
+  const hq = q.trim().toLowerCase(); // what matches() looks for, so the mark and the filter agree
   const [deep, setDeep] = useState(false);
   const [sort, setSortState] = useState<Sort>(() => pref("files.sort", ["name", "date", "type"] as const, "name"));
   const [layout, setLayoutState] = useState<"list" | "grid">(() => pref("files.layout", ["list", "grid"] as const, "list"));
@@ -257,8 +258,8 @@ export function FilesApp({ win, focused, setTitle, replaceRoute }: AppProps) {
                   {e?.thumb ? <img src={e.thumb.image_url} alt="" loading="lazy" /> : <Icon name={isFolder ? folderIcon(r.folder) : FILE_TYPE_META[e!.type].icon} size={layout === "grid" ? 36 : 20} />}
                 </span>
                 <span class="files-row__main">
-                  <b title={name}>{name}</b>
-                  <small title={sub}>{sub}</small>
+                  <b title={name}><Highlight text={name} q={hq} /></b>
+                  <small title={sub}>{isFolder ? sub : <Highlight text={sub} q={hq} />}</small>
                 </span>
                 {layout === "list" && <span class="files-row__type">{isFolder ? "Folder" : FILE_TYPE_META[e!.type].label}{e?.archived ? " · archived" : ""}</span>}
                 {layout === "list" && <span class="files-row__date num">{e ? when(e.date) : ""}</span>}
