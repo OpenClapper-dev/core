@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "react", "oxc", "unicorn"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react/rules-of-hooks": "error",
+    // Off: ~130 dependency lists are deliberately partial (mount-only effects, stable callbacks); a warning nobody acts on is noise.
+    "react/exhaustive-deps": "off",
+    // Off: these are React Compiler rules; neither app uses the compiler, and refs read in render or setState in effects are deliberate here.
+    "react/immutability": "off",
+    "react/refs": "off",
+    "react/set-state-in-effect": "off",
+    "react/purity": "off",
+    "react/use-memo": "off",
+    // Off: it flags `for (… of [...map.values()])`, a deliberate snapshot before the loop mutates the collection.
+    "unicorn/no-useless-spread": "off",
+    // Off: false positive on a helper whose method is a parameter (body is undefined on GET).
+    "unicorn/no-invalid-fetch-options": "off"
+  },
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/.expo/**",
+    "**/.wrangler/**",
+    "**/android/**",
+    "**/worker-configuration.d.ts",
+    "references/**"
+  ]
+}

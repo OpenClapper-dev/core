@@ -88,7 +88,7 @@ function write(app, edit) {
   cfg.account_id = accountId;
   cfg.d1_databases = cfg.d1_databases.map((d) => ({ ...d, database_name: dbName, database_id: dbId }));
   cfg.r2_buckets = cfg.r2_buckets.map((b) => ({ ...b, bucket_name: bucket }));
-  cfg.vars = { ...(cfg.vars ?? {}), ...(env.PBKDF2_ITERATIONS ? { PBKDF2_ITERATIONS: env.PBKDF2_ITERATIONS } : {}) };
+  cfg.vars = { ...cfg.vars, ...(env.PBKDF2_ITERATIONS ? { PBKDF2_ITERATIONS: env.PBKDF2_ITERATIONS } : {}) };
   // The commit this deploy runs (BUILD in packages/service-kit), so a running Worker can say which one.
   cfg.define = { ...cfg.define, __OPENCLAPPER_COMMIT__: JSON.stringify(commit) };
   edit(cfg, dir);

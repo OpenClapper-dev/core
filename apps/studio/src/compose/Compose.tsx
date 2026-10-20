@@ -145,7 +145,7 @@ export function Compose(p: Props) {
       await patch(a.id, { position: to });
       const res = await patch(b.id, { position: from });
       p.onUpdated(res.shot);
-      if (doc?.id === a.id) setDoc({ ...doc, position: to }), setSaved((s) => (s ? { ...s, position: to } : s));
+      if (doc?.id === a.id) { setDoc({ ...doc, position: to }); setSaved((s) => (s ? { ...s, position: to } : s)); }
     } catch (e) { toast(`Reorder failed: ${(e as Error).message}`, "danger"); }
   }
 

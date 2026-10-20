@@ -38,14 +38,14 @@ export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: st
   const [error, setError] = useState<string | null>(null);
   const phone = usePhonePreview();
   const [devices, setDevices] = useState<DeviceRecord[]>([]);
-  const [dialog, setDialog] = useState<{ then?: (d: DeviceRecord) => void } | null>(null);
+  const [dialog, setDialog] = useState<{ after?: (d: DeviceRecord) => void } | null>(null);
   useEffect(() => { fetchLayouts().then(setList).catch((e: Error) => setError(e.message)); }, []);
   useEffect(() => { fetchDevices().then(setDevices).catch((e: Error) => toast(`Could not load the devices: ${e.message}`, "danger")); }, []);
   // A saved phone that sends fresh specs while connected (it measured, recalibrated) shows them at once.
   const live = devices.map((d) => (phone.specs[d.id] ? { ...d, specs: phone.specs[d.id] } : d));
   const deviceCtl: DeviceCtl = {
     devices: live,
-    add: (then) => setDialog({ then }),
+    add: (then) => setDialog({ after: then }),
     rename: async (d) => {
       const name = await promptDialog({ title: "Rename device", input: { label: "Name", value: d.name }, confirmLabel: "Rename" });
       if (!name) return;
@@ -97,7 +97,7 @@ export function ViewfinderLayoutsPage({ selectedId, onSelect }: { selectedId: st
               onDeleted={() => { setList((cur) => (cur ?? []).filter((x) => x.id !== current.id)); onSelect(null); }} />}
       </div>
       {dialog && <DeviceDialog phone={phone} devices={live} onClose={() => setDialog(null)}
-        onSaved={(d) => { setDevices((cur) => [...cur.filter((x) => x.id !== d.id), d].sort((a, b) => a.name.localeCompare(b.name))); dialog.then?.(d); setDialog(null); }} />}
+        onSaved={(d) => { setDevices((cur) => [...cur.filter((x) => x.id !== d.id), d].sort((a, b) => a.name.localeCompare(b.name))); dialog.after?.(d); setDialog(null); }} />}
     </>
   );
 }

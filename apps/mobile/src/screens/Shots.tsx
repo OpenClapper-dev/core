@@ -6,7 +6,7 @@ import { useApp } from "../appState";
 import { useOnline } from "../net";
 import { applyFilter, placeLabel, rigLabel, shortTime, shotTitle, STATE_FILTERS, type StateFilter } from "../shots";
 import { usePref } from "../storage";
-import { AppHeader, Banner, BORDER, Button, Chip, Empty, FIXED, IconButton, makeStyles, num, OfflineBanner, PhotoTag, RADIUS, Seg, SeqBadge, Skeleton, StateMarker, type, useLayoutSize, useRefreshControl } from "../ui";
+import { AppHeader, Banner, BORDER, Button, Chip, Empty, FIXED, IconButton, makeStyles, num, PhotoTag, RADIUS, Seg, SeqBadge, Skeleton, StateMarker, type, useLayoutSize, useRefreshControl } from "../ui";
 import { offlineProject } from "../offline";
 import { LeafletView, type MapHandle } from "../components/LeafletView";
 import { shotsScript, type MapPin } from "../components/mapHtml";

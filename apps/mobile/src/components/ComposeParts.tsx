@@ -7,7 +7,7 @@ import { imageHeaders, renderUri, type Composed, type Overlay, type Photo, type 
 import { isOfflineMode } from "../net";
 import { offlineRenderUri } from "../offline";
 import type { ViewSettings } from "../types";
-import { BORDER, FIXED, Icon, IconButton, ListRow, makeStyles, RADIUS, SectionLabel, type, useTheme } from "../ui";
+import { BORDER, FIXED, Icon, IconButton, ListRow, makeStyles, RADIUS, SectionLabel, type } from "../ui";
 import { FramedImage } from "./FramedImage";
 import { fitWidth, FrameModeSeg, frameOf, imageAspect, type FrameMode } from "./ShotFrame";
 import { MarkdownText } from "./Markdown";
@@ -81,7 +81,7 @@ export function ComposeViewer({ item, photo, settings, onClose }: { item: Compos
   const ref = overlay ? referencedFrame({ framings: photo.framings }, overlay.presentation) : null;
   const frame = overlay ? (ref ? { width: ref.width_fraction, height: ref.height_fraction, x: ref.x, y: ref.y } : frameOf(photo)) : null;
   const w = overlay
-    ? fitWidth({ ...photo, framings: [], root_framing_id: null, framing: frame ? { ...(photo.framing ?? {}), frame: { width_fraction: frame.width, height_fraction: frame.height } } : photo.framing }, mode, width, imgMaxH)
+    ? fitWidth({ ...photo, framings: [], root_framing_id: null, framing: frame ? { ...photo.framing, frame: { width_fraction: frame.width, height_fraction: frame.height } } : photo.framing }, mode, width, imgMaxH)
     : Math.max(40, Math.min(width, imgMaxH * (item as Sketch).aspect));
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>

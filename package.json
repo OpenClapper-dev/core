@@ -21,6 +21,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "oxlint": "^1.88.0",
     "typescript": "^7.0.2",
     "wrangler": "^4.127.1"
   }
