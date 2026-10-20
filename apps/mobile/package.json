@@ -41,7 +41,8 @@
     "web": "expo start --web",
     "typecheck": "tsc -p .",
     "start:lan": "expo start --go",
-    "prebuild": "expo prebuild --platform android --no-install"
+    "prebuild": "expo prebuild --platform android --no-install",
+    "test": "node --test src/*.test.ts"
   },
   "private": true
 }
