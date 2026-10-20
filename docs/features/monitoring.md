@@ -19,3 +19,14 @@ The app Worker's daily cron (`scheduled` in `apps/worker/src/index.ts`, 03:17 UT
 Days are UTC. Running the cron twice in a day rewrites the rows (`INSERT OR REPLACE`). The table is never purged: 365 rows a year per key. A failing snapshot is logged and never stops the other cron jobs.
 
 Tested in `apps/worker/test/routes/storage.test.ts` (the cron, the bucket total against a listing, the rewrite).
+
+## The storage report and the marks (#215)
+
+The admin Worker (`apps/admin/src/storage.ts`) serves:
+
+- `GET /api/storage?days=90` (1..365): `total` (the latest bucket row of all time: `bytes`, `objects`, `day`, so the board can say how old it is; `null` before the first cron run), `workspaces` (every workspace with its photos and bytes now, from the database, largest first), `days` (the window's snapshots grouped by day, each with `total_bytes`, `total_objects` and its workspace rows), `marks` and `crossed` (the marks the latest total is at or above).
+- `GET /api/settings` → `{ storage_marks }` and `PUT /api/settings` with `{ storage_marks: [{ bytes, label }] }`: the whole list, at most 10, `bytes` a positive integer, `label` up to 40 characters, stored sorted ascending in `admin_settings` under `storage_marks` with the operator's email. Validated strictly (an interactive edit). The change is audited (`settings.update`).
+
+A mark is a plain threshold the operator chooses ("5 GB", "where I start paying"); nothing in the code knows about plans or free tiers. A crossed mark shows as a banner on the board; push alerts are Cloudflare notifications' job.
+
+Tested in `apps/admin/test/storage.test.ts`.

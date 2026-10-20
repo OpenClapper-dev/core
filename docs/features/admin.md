@@ -31,8 +31,9 @@ The header shows the operator and the board's version with its commit.
   - **Block / Unblock**: blocking ends every session at once and refuses sign-in (the data stays). Unblocking also clears a sign-in lock.
   - **Delete**: only when the account's workspaces hold no projects; its devices, layouts and empty workspaces go with it. The bootstrap user is never deleted.
 - **Workspaces**: name, personal or shared, owner, members, projects, shots, photos, storage.
+- **Monitoring**: storage over time and the operator's marks, on its own tab ([monitoring](monitoring.md)).
 
-Every change is written to the Worker log as `{ "audit": "user.create" | "user.update" | "user.password" | "user.delete", "by": <operator>, … }` (Workers observability).
+Every change is written to the Worker log as `{ "audit": "user.create" | "user.update" | "user.password" | "user.delete" | "settings.update", "by": <operator>, … }` (Workers observability).
 
 ## API (`apps/admin/src/index.ts`)
 
@@ -46,6 +47,9 @@ Every change is written to the Worker log as `{ "audit": "user.create" | "user.u
 | POST | `/api/users/:id/password` | → `{ password }` |
 | DELETE | `/api/users/:id` | `409` while its workspaces hold projects, `400` for the bootstrap user |
 | GET | `/api/workspaces` | Every workspace with owner, counts and storage |
+| GET | `/api/storage?days=` | Storage over time with the operator's marks ([monitoring](monitoring.md)) |
+| GET | `/api/settings` | `{ storage_marks }` |
+| PUT | `/api/settings` | `{ storage_marks: [{ bytes, label }] }`, at most 10, strict |
 
 Without a valid Access JWT of the admin application every request is `401`. Until its AUD is set (`ADMIN_ACCESS_AUD`, [self-hosting](../self-hosting.md#4-the-admin-planes-sign-in)) that includes every request.
 
