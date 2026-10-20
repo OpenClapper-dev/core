@@ -21,22 +21,25 @@ export function Icon({ name, size = SIZE.icon, color }: { name: string; size?: n
   return <MaterialCommunityIcons name={name as ComponentProps<typeof MaterialCommunityIcons>["name"]} size={size} color={color ?? c.text} />;
 }
 
-/** Rectangles of the Fielder mark on a 72-unit grid (same geometry as the app icon). */
-const MARK_CORNERS = [
-  [0, 0, 20, 12], [0, 12, 12, 8], [52, 0, 20, 12], [60, 12, 12, 8],
-  [52, 60, 20, 12], [60, 52, 12, 8], [0, 60, 20, 12], [0, 52, 12, 8],
-];
-
-/** The Fielder mark: viewfinder corners in the text colour around the cinema frame in the accent. */
+/**
+ * The mark on a 72-unit grid (same geometry as the phone app icon): two diagonal slate stripes in
+ * the text colour, the phone glyph in the accent in the channel between them. A stripe is the band
+ * between the lines x+y=mid∓8: a long rectangle of the band's width rotated 45° around its centre
+ * (mid/2, mid/2), clipped by the container. The icon punches the lens out of the glyph; here a dot
+ * in the background colour stands in, since Views cannot punch holes.
+ */
 export function Mark({ size = 28 }: { size?: number }) {
   const { c } = useTheme();
   const k = size / 72;
-  const box = (x: number, y: number, w: number, h: number, color: string, key: number) =>
-    <View key={key} style={{ position: "absolute", left: x * k, top: y * k, width: w * k, height: h * k, backgroundColor: color }} />;
+  const bandW = 16 / Math.SQRT2;
+  const stripe = (mid: number, key: number) =>
+    <View key={key} style={{ position: "absolute", left: (mid / 2 - 60) * k, top: (mid / 2 - bandW / 2) * k, width: 120 * k, height: bandW * k, transform: [{ rotate: "-45deg" }], backgroundColor: c.text }} />;
   return (
-    <View style={{ width: size, height: size }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {MARK_CORNERS.map(([x, y, w, h], i) => box(x, y, w, h, c.text, i))}
-      {box(18, 26, 36, 20, c.accent, 99)}
+    <View style={{ width: size, height: size, overflow: "hidden" }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      {stripe(38, 0)}
+      {stripe(106, 1)}
+      <View style={{ position: "absolute", left: 29 * k, top: 23 * k, width: 14 * k, height: 26 * k, borderRadius: 3 * k, backgroundColor: c.accent }} />
+      <View style={{ position: "absolute", left: 33 * k, top: 26.5 * k, width: 6 * k, height: 6 * k, borderRadius: 3 * k, backgroundColor: c.bg }} />
     </View>
   );
 }
