@@ -17,7 +17,7 @@ The owner talks to you in English.
 
 | Path | What |
 | --- | --- |
-| `apps/worker/src` | API routes (`shots.ts`, `projects.ts`, `fields.ts`, `days.ts`, …), `authn/` (sign-in, sessions, the provider seam), `tenancy.ts` (workspace access checks) |
+| `apps/worker/src` | API routes (`shots.ts`, `projects.ts`, `fields.ts`, `days.ts`, …, registered in `routes.ts`), `authn/` (sign-in, sessions, the provider seam), `tenancy.ts` (workspace access checks) |
 | `apps/admin` | Admin plane: its own Worker (`src/index.ts`) and board (`ui/`) behind its own Cloudflare Access app; user management across the instance |
 | `apps/worker/migrations` | D1 schema, numbered, additive |
 | `apps/studio/src` | `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, desktop icons, route bridge, key dispatch), `apps/` (one app per page + `registry.ts`, Files), `data.ts` (shared data store), `project.ts`, one file per page (`ShotsPage`, `ShotView` + `Inspector`, `Timeline`, `Plan`, library pages), `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `styles.css` (layouts) |
@@ -66,7 +66,7 @@ When the owner hands you an issue (a number or a link), that means: read it, cha
 ## Verify before you say "done"
 
 ```sh
-make check   # lint, typecheck, unit tests, build dry runs: the same lane CI runs on every PR
+make check   # lint, typecheck, unit and route tests (docs/testing.md), build dry runs: the same lane CI runs on every PR
 ```
 
 What it runs, and how lint findings are handled: `docs/development.md` ("Checks").
