@@ -73,10 +73,10 @@ Epic [#156](https://github.com/OpenClapper-dev/core/issues/156). Web only (the p
 
 **Head contract** (both web `index.html`, kept in step by hand because it must run before the first paint, which a module cannot): the inline theme script, `<meta name="theme-color">` (its target), `color-scheme`, and the font and MDI `<link>` tags.
 
-**App icon and mark** (Claude Design, "Frame in a frame", extended into a family in #170; sources in the gitignored `references/Fielder app icon design/`). One family, three surfaces, the same four viewfinder corners around a different glyph:
-- **Phone**: a solid cinema frame (the original mark).
-- **Studio**: a window with its title bar.
-- **Admin**: a padlock.
+**App icon and mark** (the family from #170, redesigned with the OpenClapper slate motif in 2026-10; sources and geometry in the gitignored `references/OpenClapper icon design/`, `icons.json` there holds the exact paths). One family, three surfaces: two diagonal slate stripes (ink) with a different glyph in the channel between them (accent):
+- **Phone**: a portrait phone with a lens cut-out.
+- **Studio**: three staggered tracks (timeline / schedule).
+- **Admin**: a keyhole.
 
 Each exists in two colourways, white on the background: **production** cobalt `#0040D8`, **development** signal green `#2E7D00` (5.2:1 against white; clear of approve green, recording red and warn amber), so a dev build or dev server is never mistaken for the real one.
 
@@ -86,7 +86,7 @@ Each exists in two colourways, white on the background: **production** cobalt `#
 | Admin | `apps/admin/ui/public/icons/{prod,dev}/`, the same files | the same switch in `apps/admin/vite.config.ts` |
 | Phone | `apps/mobile/assets/icons/{prod,dev}/`: `app-icon-1024.png`, `android-adaptive-foreground-1024.png`, `android-adaptive-monochrome-1024.png` | `app.json` names the prod set and background; `APP_VARIANT=development` (`app.config.ts`) switches to the dev set and green (APK and dev builds; Expo Go shows its own icon) |
 
-Inside the apps the mark is `Mark`: web `core.tsx` in `@fielder/ui` (an inline SVG; `surface="studio"`, the default, or `"admin"`), phone `src/ui/core.tsx` (the frame, drawn with Views). Corners in the text colour, the glyph in the accent, so it works in Sun and Set; the in-app mark has no dev colourway (the accent stays cobalt).
+Inside the apps the mark is `Mark`: web `core.tsx` in `@fielder/ui` (an inline SVG; `surface="studio"`, the default, or `"admin"`), phone `src/ui/core.tsx` (rotated Views, clipped; the lens is a background-colour dot since Views cannot punch holes). Stripes in the text colour, the glyph in the accent, so it works in Sun and Set; the in-app mark has no dev colourway (the accent stays cobalt).
 
 ## Web component library
 

@@ -9,20 +9,20 @@ export function Icon({ name, label: aria, size, class: extra }: { name: string; 
   return <i class={extra ? `mdi mdi-${name} ${extra}` : `mdi mdi-${name}`} style={size ? { fontSize: `${size}px` } : undefined} role={aria ? "img" : undefined} aria-label={aria} aria-hidden={aria ? undefined : true} />;
 }
 
-/** What sits inside the viewfinder corners, per surface (the icon family, #170; the phone's frame is drawn in the phone's ui/core.tsx). */
+/** What sits in the channel between the slate stripes, per surface (the icon family, #170; the phone's glyph is drawn in the phone's ui/core.tsx). */
 const MARK_GLYPH = {
-  studio: "M14 16H58V24H14Z M14 28H58V56H14Z", // a window with its title bar
-  admin: "M20 34H52V56H20Z M24 34V18H48V34H41V25H31V34Z", // a padlock
+  studio: "M24 26H44V31H24Z M30 33.5H50V38.5H30Z M22 41H38V46H22Z", // three staggered tracks
+  admin: "M36 24.98A6.3 6.3 0 0 1 39.6 36.41L42.3 47.02H29.7L32.4 36.41A6.3 6.3 0 0 1 36 24.98Z", // a keyhole
 };
 
 /**
- * The Fielder mark (same geometry as that surface's app icon): viewfinder corners in the text colour
- * around the surface's glyph in the accent, so it holds up in both themes.
+ * The mark (same geometry as that surface's app icon): two diagonal slate stripes in the text colour
+ * with the surface's glyph in the accent between them, so it holds up in both themes.
  */
 export function Mark({ size = 22, surface = "studio" }: { size?: number; surface?: keyof typeof MARK_GLYPH }) {
   return (
     <svg class="f-mark" viewBox="0 0 72 72" width={size} height={size} aria-hidden="true">
-      <path fill="currentColor" d="M0 0H20V12H12V20H0Z M72 0V20H60V12H52V0Z M72 72H52V60H60V52H72Z M0 72V52H12V60H20V72Z" />
+      <path fill="currentColor" d="M0 30L30 0H46L0 46Z M72 42L42 72H26L72 26Z" />
       <path fill="var(--accent)" d={MARK_GLYPH[surface]} />
     </svg>
   );
