@@ -78,7 +78,7 @@ make studio      # beside it: the Studio on :5173 against the same local Worker
 
 ## Deploy and migrations
 
-Not from this checkout: deploying and production APKs belong to a deployment, which runs the GitHub workflows (`deploy.yml`, `build-apk.yml`) or the `pnpm` deploy scripts with its `deploy.env` ([self-hosting](self-hosting.md)). The reference instance deploys from its private repository `bubulux/fielder-cloud`, which holds this one as a submodule. Versions and releases: [releasing](releasing.md). The tracked `wrangler.jsonc` are for local development only.
+Not from this checkout: deploying and production APKs belong to a deployment, which runs the GitHub workflows (`deploy.yml`, `build-apk.yml`) or the `pnpm` deploy scripts with its `deploy.env` ([self-hosting](self-hosting.md)). The reference instance deploys from its private repository `OpenClapper-dev/deploy`, which holds this one as a submodule. Versions and releases: [releasing](releasing.md). The tracked `wrangler.jsonc` are for local development only.
 
 - The owner runs production deploys. AI sessions prepare the change and the migration, then ask.
 - Migrations are additive: always a new numbered file. Locally: `pnpm -C apps/worker migrate:local` (`make init` runs it).

@@ -1,6 +1,6 @@
 # Accounts and workspaces
 
-Epic [#107](https://github.com/bubulux/fielder/issues/107). Fielder has users, and every project belongs to a **workspace**. One instance (one Worker with its D1 and R2) is a closed world: users, workspaces and data never reach another instance.
+Epic [#107](https://github.com/OpenClapper-dev/core/issues/107). Fielder has users, and every project belongs to a **workspace**. One instance (one Worker with its D1 and R2) is a closed world: users, workspaces and data never reach another instance.
 
 ## Accounts
 

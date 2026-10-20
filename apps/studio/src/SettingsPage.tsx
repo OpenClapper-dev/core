@@ -79,7 +79,7 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
   );
 }
 
-const REPO = "https://github.com/bubulux/fielder";
+const REPO = "https://github.com/OpenClapper-dev/core";
 
 /** Which version this Studio is and which the server runs: they differ while a deploy is new and this tab still has the old bundle. */
 function About() {

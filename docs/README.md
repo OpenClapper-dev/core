@@ -43,7 +43,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 ## History
 
 - Before 2026-09-27: prototype with one shot = one photo, districts and a hard-coded U-Bahn list.
-- 2026-09-27: rework from [GitHub issue #1](https://github.com/bubulux/fielder/issues/1). Schema reset to `0001_baseline.sql` (prototype data dropped), then all features above. The implementation plan is in the git history of branch `rework/phase-1-projects-photos`.
+- 2026-09-27: rework from [GitHub issue #1](https://github.com/OpenClapper-dev/core/issues/1). Schema reset to `0001_baseline.sql` (prototype data dropped), then all features above. The implementation plan is in the git history of branch `rework/phase-1-projects-photos`.
 - 2026-09-28: redesign on a design system from Claude Design ([design.md](design.md)), then a ground-up rework of the Studio and the phone screens from Claude Design ([Studio](features/desktop.md), [phone app](features/phone-app.md)); features unchanged.
 - 2026-10-16: the Studio became a desktop scoped to one project (epic #72): apps in windows, a taskbar, folders and desktop shortcuts on the server ([desktop](features/desktop.md), [files](features/files.md)).
 - 2026-10-16: desktop v2 (epic #90): a recycle bin for every delete (30 days), the Desktop folder with real icons on a grid and rubber-band selection, workspaces with a task view, a split grip for side-by-side windows, taskbar position, alignment and server-side pins.

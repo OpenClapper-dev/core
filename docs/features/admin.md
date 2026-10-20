@@ -1,6 +1,6 @@
 # Admin plane
 
-Issue [#116](https://github.com/bubulux/fielder/issues/116), epic [#107](https://github.com/bubulux/fielder/issues/107). User management for an instance, on its own hostname. Its operators are **not** app users: they sign in through a separate Cloudflare Access application, which brings whatever its policy asks (email PIN, SSO, 2FA). Nothing in the app can reach it.
+Issue [#116](https://github.com/OpenClapper-dev/core/issues/116), epic [#107](https://github.com/OpenClapper-dev/core/issues/107). User management for an instance, on its own hostname. Its operators are **not** app users: they sign in through a separate Cloudflare Access application, which brings whatever its policy asks (email PIN, SSO, 2FA). Nothing in the app can reach it.
 
 ## Pieces
 

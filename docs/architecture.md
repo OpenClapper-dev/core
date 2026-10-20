@@ -32,7 +32,7 @@ The phone uses the **deployed** Worker, even in the dev loop. The Studio dev ser
 
 - **Project**: every shot belongs to one. The active project is chosen once per client and remembered. See [projects](features/projects.md).
 - **Shot vs photo**: a shot carries the metadata (name, tags, review state, extra fields); it owns 1..n photos. A sequence is one shot with many photos. Rig, lens, framing and GPS are per photo. The first photo is the **cover** (`cover(shot)` in both clients).
-- **Location, view, field definition**: belong to one project (a hard scope, [issue #44](https://github.com/bubulux/fielder/issues/44)); rigs are shared by all projects of a workspace; devices and viewfinder layouts belong to a user (tenancy, [epic #107](https://github.com/bubulux/fielder/issues/107), [data model](data-model.md#tables)).
+- **Location, view, field definition**: belong to one project (a hard scope, [issue #44](https://github.com/OpenClapper-dev/core/issues/44)); rigs are shared by all projects of a workspace; devices and viewfinder layouts belong to a user (tenancy, [epic #107](https://github.com/OpenClapper-dev/core/issues/107), [data model](data-model.md#tables)).
 - **Recycle bin**: deleting a shot, timeline, day, view, location, field or folder only marks it (`deleted_at`); every list leaves it out, and it can be restored for 30 days ([files](features/files.md#recycle-bin-epic-90), `apps/worker/src/trash.ts`).
 - **Client-owned UUIDs**: projects, locations, rigs, views, days and shots get their id on the client. PUT is an upsert, which allows offline creation. Name clashes on projects/locations answer `409` + `existing_id` so the client adopts the existing row (`apps/mobile/src/namedSync.ts`).
 

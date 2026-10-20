@@ -1,6 +1,6 @@
 # Framing (re-framing and the rig explorer)
 
-Studio shot view → stage **Framing** (`R`; `apps/studio/src/RigExplorer.tsx`; was "Rigs", [issue #29](https://github.com/bubulux/fielder/issues/29)). The phone usually captures more than the rig frame, so a photo can be **re-framed**: another rig and lens (the size) at another place on the photo (the position). The inspector stays visible.
+Studio shot view → stage **Framing** (`R`; `apps/studio/src/RigExplorer.tsx`; was "Rigs", [issue #29](https://github.com/OpenClapper-dev/core/issues/29)). The phone usually captures more than the rig frame, so a photo can be **re-framed**: another rig and lens (the size) at another place on the photo (the position). The inspector stays visible.
 
 ## Framings
 
