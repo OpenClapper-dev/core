@@ -17,6 +17,9 @@ on:
         required: true
       CLOUDFLARE_ACCOUNT_ID:
         required: true
+      # Optional: a read-only analytics token for the admin board's Cloudflare section (docs/features/monitoring.md).
+      CF_ANALYTICS_TOKEN:
+        required: false
 
 concurrency:
   group: openclapper-deploy
@@ -45,6 +48,7 @@ jobs:
       ADMIN_ACCESS_AUD: ${{ vars.ADMIN_ACCESS_AUD }}
       PBKDF2_ITERATIONS: ${{ vars.PBKDF2_ITERATIONS }}
       AUTH_PROVIDER: ${{ vars.AUTH_PROVIDER }}
+      CF_ANALYTICS_TOKEN: ${{ secrets.CF_ANALYTICS_TOKEN }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -80,6 +84,12 @@ jobs:
       - name: Deploy the admin plane
         working-directory: ${{ inputs.path || '.' }}/apps/admin
         run: pnpm exec vite build && pnpm exec wrangler deploy --config wrangler.deploy.jsonc
+
+      # Only with the secret set: the Cloudflare section of the admin board (monitoring). Re-run Deploy to rotate it.
+      - name: Cloudflare analytics token for the admin board
+        if: env.CF_ANALYTICS_TOKEN != ''
+        working-directory: ${{ inputs.path || '.' }}/apps/admin
+        run: printf '%s' "$CF_ANALYTICS_TOKEN" | pnpm exec wrangler secret put CF_ANALYTICS_TOKEN --config wrangler.deploy.jsonc
 
       - name: Admin plane locked
         if: env.ACCESS_TEAM_DOMAIN == '' || env.ADMIN_ACCESS_AUD == ''

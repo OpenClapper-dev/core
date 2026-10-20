@@ -5,7 +5,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 | Resource | Details |
 | --- | --- |
 | Worker `APP_WORKER_NAME` (default `openclapper-api`) | API and Studio on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA. A daily cron empties the recycle bin and old sessions and snapshots storage ([monitoring](features/monitoring.md)). Observability enabled. |
-| Worker `ADMIN_WORKER_NAME` (default `openclapper-admin`) | The admin plane (`apps/admin`), its own hostname, the same D1 and R2, behind its own Cloudflare Access application ([admin](features/admin.md)). Without `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` it refuses every request. |
+| Worker `ADMIN_WORKER_NAME` (default `openclapper-admin`) | The admin plane (`apps/admin`), its own hostname, the same D1 and R2, behind its own Cloudflare Access application ([admin](features/admin.md)). Without `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` it refuses every request. A daily cron keeps Cloudflare analytics for the board when `CF_ANALYTICS_TOKEN` is set ([monitoring](features/monitoring.md)). |
 | D1 `D1_DATABASE_NAME` (default `openclapper-db`) | Binding `DB`, migrations in `apps/worker/migrations/` (only the app Worker's config applies them) |
 | R2 `R2_BUCKET` (default `openclapper-media`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with the workspace in their custom metadata |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
@@ -31,6 +31,6 @@ The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107)
 ## Secrets and rotation
 
 - To cut a user off: block the account in the admin plane (every session ends at once) or reset its password.
-- The deploy API token (`CLOUDFLARE_API_TOKEN`, [self-hosting](self-hosting.md#1-a-cloudflare-api-token)) is the only secret; Access AUDs, team domains and resource ids are not secret (they show in login redirects and URLs).
+- The deploy API token (`CLOUDFLARE_API_TOKEN`, [self-hosting](self-hosting.md#1-a-cloudflare-api-token)) and, optionally, the read-only analytics token for the admin board (`CF_ANALYTICS_TOKEN`, a Worker secret on the admin plane, [monitoring](features/monitoring.md)) are the secrets; Access AUDs, team domains and resource ids are not secret (they show in login redirects and URLs).
 - `.secrets/` (gitignored, never commit) is the place for local copies of such values.
 - Wrangler's OAuth login lacks `account:read`; `CLOUDFLARE_ACCOUNT_ID` (from `deploy.env`, read by `scripts/deploy-config.mjs`) fills it in.
