@@ -44,6 +44,7 @@ A **shot** holds the metadata (name, location, INT/EXT, light phases + artificia
 - **Match the surrounding code**: terse doc comments on exported functions explaining *why*; plain CSS on the design tokens, never hard-coded colours (`docs/design.md`; both themes, Sun and Set, must stay high contrast); mobile UI from `src/ui` (primitives, `makeStyles`/`useTheme`). No new dependencies without a reason (the sun math and combobox are hand-written on purpose).
 - **The Android signing key** lives in `.secrets/android/` (gitignored) and the deployment repository's secrets, never in git; a new key cannot update installed apps. Builds use no Expo account (`expo prebuild` + Gradle, `scripts/apk-local.sh`).
 - **One product version** (root `package.json`, SemVer 0.x; workspace packages stay `0.0.0`). Releases: `scripts/release.sh X.Y.Z`, only when the owner asks ([releasing](docs/releasing.md)).
+- **CI is a gate**: never pass `--admin` to `gh pr merge`; a red check is fixed, not bypassed.
 - **Deploys to production are done by the owner**, from the private deployment repository `OpenClapper-dev/deploy` (its Deploy and Build APK workflows; its `deploy.env` holds the instance's settings, see `docs/self-hosting.md`). This repository is for development: the Makefile has no deploy targets. The tracked `wrangler.jsonc` files are local-dev only: never put an account, database or Access id back into them. You prepare, check and commit. You may apply additive remote migrations when asked. Commit only when asked or when working through an agreed plan; work on a branch.
 
 ## Working from a GitHub issue
@@ -65,10 +66,9 @@ When the owner hands you an issue (a number or a link), that means: read it, cha
 ## Verify before you say "done"
 
 ```sh
-for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/admin apps/admin/ui apps/studio apps/mobile; do (cd $p && npx tsc -p .); done
-pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/studio test && (cd apps/mobile && node --test src/*.test.ts)
-(cd apps/studio && npx vite build) && (cd apps/admin && npx vite build)
-(cd apps/mobile && npx expo export --platform android --output-dir /tmp/openclapper-export)
+make check   # lint, typecheck, unit tests, build dry runs: the same lane CI runs on every PR
 ```
+
+What it runs, and how lint findings are handled: `docs/development.md` ("Checks").
 
 For the API, run the local worker (`pnpm dev:worker`) and exercise it with `curl`, signed in as `dev@localhost` / `openclapper-local-dev` (the snippet is in `docs/development.md`). For the Studio, the Playwright MCP (headless Chrome, configured per machine) can click through `localhost:5173` with `pnpm dev` running. Say what was and was not clicked through, and ask the owner to test on the phone. For phone bugs, ask for the debug log (Setup → Debug log → Share). More in `docs/development.md`.
