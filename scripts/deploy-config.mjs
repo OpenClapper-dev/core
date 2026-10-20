@@ -20,6 +20,8 @@
 //   ADMIN_ACCESS_AUD        the admin Access application's AUD; without it the admin plane refuses every request
 //   PBKDF2_ITERATIONS       optional, see docs/known-issues.md
 //   AUTH_PROVIDER           optional: a module to use instead of the first-party sign-in (the auth seam)
+//   CF_ANALYTICS_TOKEN      optional secret, set with `wrangler secret put` after the deploy (the workflow does); the
+//                           admin config only gets CLOUDFLARE_ACCOUNT_ID, APP_WORKER_NAME and R2_BUCKET as vars for it
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, isAbsolute, join, relative } from "node:path";
@@ -115,6 +117,10 @@ write("admin", (cfg) => {
   domain(cfg, "ADMIN_DOMAIN");
   cfg.vars.ACCESS_TEAM_DOMAIN = setting("ACCESS_TEAM_DOMAIN", "");
   cfg.vars.ACCESS_AUD = setting("ADMIN_ACCESS_AUD", "");
+  // For the Cloudflare overlay (apps/admin/src/cloudflare.ts): which account, script and bucket are this instance's.
+  cfg.vars.CLOUDFLARE_ACCOUNT_ID = accountId;
+  cfg.vars.APP_WORKER_NAME = setting("APP_WORKER_NAME", "openclapper-api");
+  cfg.vars.R2_BUCKET = bucket;
   if (!cfg.vars.ACCESS_AUD || !cfg.vars.ACCESS_TEAM_DOMAIN) console.log("deploy-config: ACCESS_TEAM_DOMAIN or ADMIN_ACCESS_AUD missing: the admin plane will refuse every request (docs/self-hosting.md)");
 });
 if (process.env.GITHUB_OUTPUT) writeFileSync(process.env.GITHUB_OUTPUT, `d1_database_id=${dbId}\n`, { flag: "a" });

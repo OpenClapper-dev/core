@@ -8,6 +8,7 @@ import { HttpError, json } from "@openclapper/service-kit";
 import type { Identity } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
 import { isPublic, publicRouter, router } from "./routes.ts";
+import { snapshotStorage } from "./storage-stats.ts";
 import { loadTenant, type Tenant } from "./tenancy.ts";
 import { purgeExpired } from "./trash.ts";
 
@@ -52,9 +53,16 @@ export default {
       return json({ error: "internal error" }, 500);
     }
   },
-  /** Daily (wrangler.jsonc triggers): empty what has been in the recycle bin for 30 days, drop expired sessions. */
+  /**
+   * Daily (wrangler.jsonc triggers): empty what has been in the recycle bin for 30 days, drop expired
+   * sessions, snapshot storage for the admin board. Each job on its own: one failing never stops the others.
+   */
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     ctx.waitUntil(purgeExpired(env).then((n) => console.log(`recycle bin: purged ${n} item(s)`)));
     ctx.waitUntil(purgeExpiredSessions(env).then((n) => console.log(`sessions: purged ${n} expired`)));
+    ctx.waitUntil(snapshotStorage(env).then(
+      (s) => console.log(`storage: ${s.day} ${s.bytes} bytes in ${s.objects} objects, ${s.workspaces} workspace(s)`),
+      (err) => console.error("storage snapshot failed", err),
+    ));
   },
 } satisfies ExportedHandler<Env>;

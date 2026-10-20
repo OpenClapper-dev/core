@@ -5,8 +5,10 @@
  * so this is where accounts are made. Same D1 as the app, whose migrations it never runs.
  */
 import {
-  AccessError, assertEnum, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
+  AccessError, assertEnum, assertNumber, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
 } from "@openclapper/service-kit";
+import { configured, MAX_DAYS, overlay, snapshotCloudflare } from "./cloudflare.ts";
+import { parseMarks, readMarks, storageReport, writeMarks } from "./storage.ts";
 
 export interface Env {
   DB: D1Database;
@@ -16,6 +18,12 @@ export interface Env {
   PBKDF2_ITERATIONS?: string;
   /** Local development only (gitignored `.dev.vars`): no Access in front, every request is `admin@localhost`. */
   ADMIN_DEV_BYPASS?: string;
+  /** The Cloudflare overlay (cloudflare.ts): off unless both the account and the read-only token are set. */
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CF_ANALYTICS_TOKEN?: string;
+  /** Which script and bucket are this instance's, to filter and mark them in the overlay. */
+  APP_WORKER_NAME?: string;
+  R2_BUCKET?: string;
 }
 
 interface Ctx {
@@ -175,6 +183,34 @@ router.on("GET", "/api/workspaces", async ({ env }) => {
   return json({ workspaces: results });
 });
 
+
+/** Storage over time with the operator's marks ([monitoring](../../../docs/features/monitoring.md)); `days` 1..365, default 90. */
+router.on("GET", "/api/storage", async ({ env, url }) => {
+  const raw = url.searchParams.get("days");
+  const days = raw === null ? 90 : assertNumber(Number(raw), "days", { min: 1, max: 365 });
+  return json(await storageReport(env.DB, days));
+});
+
+router.on("GET", "/api/settings", async ({ env }) => json({ storage_marks: await readMarks(env.DB) }));
+
+/** JSON { storage_marks: [{ bytes, label }] }: the whole list, at most MAX_MARKS, validated strictly. */
+router.on("PUT", "/api/settings", async (ctx) => {
+  const { env, request } = ctx;
+  const b = await readJson<Record<string, unknown>>(request);
+  if (b.storage_marks === undefined) throw new HttpError(400, "nothing to update");
+  const marks = parseMarks(b.storage_marks);
+  await writeMarks(env.DB, marks, ctx.admin);
+  audit(ctx, "settings.update", { storage_marks: marks });
+  return json({ storage_marks: marks });
+});
+/** The Cloudflare overlay for the last `days` (1..31, default 30); `{ configured: false }` without a token, so the board can say how to enable it. */
+router.on("GET", "/api/cloudflare", async ({ env, url }) => {
+  if (!configured(env)) return json({ configured: false });
+  const raw = url.searchParams.get("days");
+  const days = raw === null ? 30 : assertNumber(Number(raw), "days", { min: 1, max: MAX_DAYS });
+  return json(await overlay(env, days));
+});
+
 /** The operator: verified Access JWT of the admin application (its own AUD), or the local bypass. */
 async function operator(request: Request, env: Env): Promise<string> {
   if (env.ADMIN_DEV_BYPASS === "true") return "admin@localhost";
@@ -195,5 +231,10 @@ export default {
       console.error("unhandled", err);
       return json({ error: "internal error" }, 500);
     }
+  },
+  /** Daily (wrangler.jsonc triggers): keep yesterday's Cloudflare numbers beyond the API's 31-day window. Runs even while the plane refuses fetches. */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!configured(env)) { console.log("cloudflare snapshot: not configured"); return; }
+    ctx.waitUntil(snapshotCloudflare(env).then((n) => console.log(`cloudflare snapshot: ${n} value(s)`), (err) => console.error("cloudflare snapshot failed", err)));
   },
 } satisfies ExportedHandler<Env>;

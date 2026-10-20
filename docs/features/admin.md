@@ -7,7 +7,7 @@ Issue [#116](https://github.com/OpenClapper-dev/core/issues/116), epic [#107](ht
 - `apps/admin/src/index.ts`: the admin Worker (`openclapper-admin`).
   - It verifies the Access JWT of its own application on every request (`verifyAccessJwt` with its own `ACCESS_AUD`) and then reads across all workspaces.
   - Same D1 and R2 bindings as the app. It never runs migrations; those belong to `apps/worker`.
-- `apps/admin/ui/`: the board, a Preact page on the shared web design system (`@openclapper/ui`, `packages/ui`; theme button in the header), built into `apps/admin/dist` and served by the admin Worker.
+- `apps/admin/ui/`: the board (`App.tsx` shell with two tabs, `Accounts.tsx`, `Workspaces.tsx`, `Monitoring.tsx`, hand-written SVG `charts.tsx`), a Preact page on the shared web design system (`@openclapper/ui`, `packages/ui`; theme button in the header), built into `apps/admin/dist` and served by the admin Worker.
   - **Installable (PWA)**, like the Studio: `ui/public/icons/<set>/manifest.webmanifest` ("OpenClapper admin", standalone, start `/`; the `prod` set in builds, the green `dev` set on the dev server), the padlock icons next to it, linked from `ui/index.html` with `crossorigin="use-credentials"` so the manifest request carries the admin Access cookie. No service worker. Chrome or Edge: the install button in the address bar; the installed app opens in its own window with its own taskbar icon, separate from the Studio's.
 - `packages/service-kit`: what both Workers share.
   - The router, request checks and JSON errors.
@@ -31,8 +31,9 @@ The header shows the operator and the board's version with its commit.
   - **Block / Unblock**: blocking ends every session at once and refuses sign-in (the data stays). Unblocking also clears a sign-in lock.
   - **Delete**: only when the account's workspaces hold no projects; its devices, layouts and empty workspaces go with it. The bootstrap user is never deleted.
 - **Workspaces**: name, personal or shared, owner, members, projects, shots, photos, storage.
+- **Monitoring** (the second tab, `#monitoring`): storage over time, every workspace's share, the operator's marks; a banner on both tabs once the bucket is past a mark ([monitoring](monitoring.md)).
 
-Every change is written to the Worker log as `{ "audit": "user.create" | "user.update" | "user.password" | "user.delete", "by": <operator>, … }` (Workers observability).
+Every change is written to the Worker log as `{ "audit": "user.create" | "user.update" | "user.password" | "user.delete" | "settings.update", "by": <operator>, … }` (Workers observability).
 
 ## API (`apps/admin/src/index.ts`)
 
@@ -46,6 +47,10 @@ Every change is written to the Worker log as `{ "audit": "user.create" | "user.u
 | POST | `/api/users/:id/password` | → `{ password }` |
 | DELETE | `/api/users/:id` | `409` while its workspaces hold projects, `400` for the bootstrap user |
 | GET | `/api/workspaces` | Every workspace with owner, counts and storage |
+| GET | `/api/storage?days=` | Storage over time with the operator's marks ([monitoring](monitoring.md)) |
+| GET | `/api/cloudflare?days=` | The account-wide numbers from Cloudflare analytics, or `{ configured: false }` ([monitoring](monitoring.md)) |
+| GET | `/api/settings` | `{ storage_marks }` |
+| PUT | `/api/settings` | `{ storage_marks: [{ bytes, label }] }`, at most 10, strict |
 
 Without a valid Access JWT of the admin application every request is `401`. Until its AUD is set (`ADMIN_ACCESS_AUD`, [self-hosting](../self-hosting.md#4-the-admin-planes-sign-in)) that includes every request.
 

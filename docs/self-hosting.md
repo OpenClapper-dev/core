@@ -40,6 +40,7 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
   - `D1_DATABASE_NAME`, `R2_BUCKET`, `APP_WORKER_NAME`, `ADMIN_WORKER_NAME`. The defaults are `openclapper-db`, `openclapper-media`, `openclapper-api` and `openclapper-admin`.
   - `APP_DOMAIN`, `ADMIN_DOMAIN`: custom domains for the two Workers, e.g. `app.example.com` and `admin.example.com`. The zone must be in the same Cloudflare account; the deploy attaches them, and the workers.dev addresses keep working beside them.
   - Later, `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` (step 4).
+- Optional secret `CF_ANALYTICS_TOKEN` (step 6).
 
 **From your machine**: copy `deploy.env.example` to `deploy.env` (gitignored) and fill it in. A deployment repository that holds this one as a submodule can keep (and commit) its `deploy.env` beside the submodule; the scripts look there too.
 
@@ -84,6 +85,15 @@ node scripts/user.mjs --email you@example.com --name "You" --remote
 ```
 
 Sign in to the Studio with it. There is no public sign-up; every account is made this way.
+
+## 6. Monitoring (optional)
+
+The admin plane's Monitoring tab works without any setup ([monitoring](features/monitoring.md)). Its Cloudflare section, with the account-wide numbers (R2 storage across every bucket, Worker requests and CPU, D1 rows), needs a second API token:
+
+1. My Profile → API Tokens → Create Token → Custom token, with the single permission **Account · Account Analytics · Read** on your account.
+2. Set it as the repository secret `CF_ANALYTICS_TOKEN` (or in `deploy.env`) and run Deploy again. A deployment repository that calls the Deploy workflow passes it on (`secrets: inherit`, or the one name).
+
+The token is read-only; to rotate it, make a new one and run Deploy again.
 
 ## Updating
 
