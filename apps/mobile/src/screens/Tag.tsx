@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Keyboard, KeyboardAvoidingView, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { pruneExtra, type FieldDef } from "@fielder/vocab";
+import { pruneExtra, type FieldDef } from "@openclapper/vocab";
 import { hhmm } from "../shots";
 import { store } from "../storage";
 import type { CaptureDraft, LocationEntry, ProjectEntry, ShotTags, SpotEntry, ViewSettings } from "../types";

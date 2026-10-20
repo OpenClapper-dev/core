@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { CAMERAS, computeFraming, CUSTOM_CAMERA_ID, describeRig, findFormat, SPEEDBOOSTER_PRESETS } from "@fielder/fov-math";
+import { CAMERAS, computeFraming, CUSTOM_CAMERA_ID, describeRig, findFormat, SPEEDBOOSTER_PRESETS } from "@openclapper/fov-math";
 import { useApp } from "../appState";
 import { deleteRig, getRigs, pickRig, saveRig, useRigs } from "../rigs";
 import type { Preset } from "../types";

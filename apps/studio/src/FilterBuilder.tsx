@@ -1,7 +1,7 @@
 import { useRef, useState } from "preact/hooks";
-import { FILTER_FIELDS, filterField, isGroup, OP_LABELS, OPS_BY_KIND, type FilterGroup, type FilterOp, type FilterRule } from "@fielder/vocab";
+import { FILTER_FIELDS, filterField, isGroup, OP_LABELS, OPS_BY_KIND, type FilterGroup, type FilterOp, type FilterRule } from "@openclapper/vocab";
 import { fieldOptions, type RefLists } from "./shotsQuery";
-import { Button, Checkbox, Combobox, cx, ErrorLine, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, useOutsideClick } from "@fielder/ui";
+import { Button, Checkbox, Combobox, cx, ErrorLine, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, useOutsideClick } from "@openclapper/ui";
 
 const needsValue = (op: FilterOp) => op !== "empty" && op !== "not_empty";
 const isList = (op: FilterOp) => op === "in" || op === "not_in";

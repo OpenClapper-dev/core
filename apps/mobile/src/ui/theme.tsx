@@ -2,7 +2,7 @@ import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { StyleSheet, useColorScheme, type TextStyle } from "react-native";
 
 /**
- * Design tokens for the phone, from the Fielder design system (fielder-tokens.rn.json, see docs/design.md).
+ * Design tokens for the phone, from the OpenClapper design system (openclapper-tokens.rn.json, see docs/design.md).
  * Sun = light, for harsh daylight; Set = dark, for dark sets. Every text/background pair here meets the
  * contrast rules (text ≥ 7:1, dim ≥ 4.5:1, control borders ≥ 3:1): re-check a pair when changing a value.
  */

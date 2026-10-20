@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { hashPassword, NO_PASSWORD, passwordProblem, targetIterations, verifyPassword } from "@fielder/service-kit";
+import { hashPassword, NO_PASSWORD, passwordProblem, targetIterations, verifyPassword } from "@openclapper/service-kit";
 import { requestToken, sessionCookie, sha256Hex } from "../src/authn/sessions.ts";
 
 const FAST = 10_000;
@@ -48,16 +48,16 @@ test("password rules", () => {
 });
 
 test("the token comes from the bearer header first, then the cookie", () => {
-  const both = new Request("https://x/", { headers: { Authorization: "Bearer abc", Cookie: "a=1; fielder_session=def; b=2" } });
+  const both = new Request("https://x/", { headers: { Authorization: "Bearer abc", Cookie: "a=1; openclapper_session=def; b=2" } });
   assert.equal(requestToken(both), "abc");
-  assert.equal(requestToken(new Request("https://x/", { headers: { Cookie: "a=1; fielder_session=def" } })), "def");
+  assert.equal(requestToken(new Request("https://x/", { headers: { Cookie: "a=1; openclapper_session=def" } })), "def");
   assert.equal(requestToken(new Request("https://x/", { headers: { Authorization: "Basic xyz" } })), null);
   assert.equal(requestToken(new Request("https://x/")), null);
 });
 
 test("the session cookie is out of reach of scripts and cross-site requests", () => {
   const c = sessionCookie("tok");
-  for (const part of ["fielder_session=tok", "HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) assert.ok(c.includes(part), part);
+  for (const part of ["openclapper_session=tok", "HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) assert.ok(c.includes(part), part);
 });
 
 test("tokens are stored as their SHA-256", async () => {

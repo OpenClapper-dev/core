@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { kv as Storage } from "./kv";
 import { DEFAULT_SETTINGS } from "./defaults";
 import type { ZoomRange } from "./zoom";
-import type { FieldDef, FieldDefinition } from "@fielder/vocab";
+import type { FieldDef, FieldDefinition } from "@openclapper/vocab";
 import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord, LayoutEntry, PendingLayout } from "./types";
 
 export { DEFAULT_SETTINGS };

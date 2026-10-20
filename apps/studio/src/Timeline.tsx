@@ -8,7 +8,7 @@ import { bind, useKeys } from "./keys";
 import type { CutPosition } from "./router";
 import { useSettings } from "./settings";
 import { ClipMenu, ClipPanel, clock, CutDecision, CutPreview, DRAWER_RESIZE, duplicateUnit, fillSpot, insertAfterUnit, insertShot, moveUnitTo, normalizeGroups, restorePhotos, setGroup, stepUnit, ungroup, withoutClip, duplicateTimeline, LockSelect, TimelineRail, newPlaceholder, resolveClips, setShotState, shotDrag, shotUsage, DECISIONS, Strip, useCut, useCutUrl, useTimelineStore, type Cut, type ResolvedClip } from "./TimelineParts";
-import { Banner, Button, ContextMenu, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, SaveStatus, Seg, Select, StateMarker, toast, useCtxMenu, type SaveState } from "@fielder/ui";
+import { Banner, Button, ContextMenu, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, SaveStatus, Seg, Select, StateMarker, toast, useCtxMenu, type SaveState } from "@openclapper/ui";
 
 /**
  * Timeline (issues #12, #31, #48): rough cuts of a project out of its photos, with the project's shots

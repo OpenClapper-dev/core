@@ -29,14 +29,14 @@ version=$(node -p 'require("./package.json").version')
 run=(-e GIT_COMMIT="$commit" -e EXPO_NO_GIT_STATUS=1 -e CI=1)
 case "$variant" in
   dev)
-    task=assembleDebug; out_dir=debug; name="fielder-dev-$commit.apk"
+    task=assembleDebug; out_dir=debug; name="openclapper-dev-$commit.apk"
     # The development build takes its server from Metro, so the inlined one is never used.
     run+=(-e APP_VARIANT=development -e EXPO_PUBLIC_API_URL="${API_URL:-http://localhost:8787}")
     ;;
   release)
-    task=assembleRelease; out_dir=release; name="fielder-$version-$commit.apk"
+    task=assembleRelease; out_dir=release; name="openclapper-$version-$commit.apk"
     if [ -f .secrets/android.env ]; then set -a; . .secrets/android.env; set +a; fi
-    keystore="${ANDROID_KEYSTORE:-$PWD/.secrets/android/fielder-release.jks}"
+    keystore="${ANDROID_KEYSTORE:-$PWD/.secrets/android/openclapper-release.jks}"
     [ -n "${API_URL:-}" ] || { echo "Set API_URL to the server this APK talks to: API_URL=https://… make apk-local" >&2; exit 1; }
     [ -f "$keystore" ] || { echo "No signing key at $keystore: run scripts/keystore.sh once (docs/self-hosting.md#the-phone)" >&2; exit 1; }
     for v in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
@@ -47,14 +47,14 @@ case "$variant" in
     ;;
   *) echo "VARIANT must be dev or release" >&2; exit 1 ;;
 esac
-out=~/fielder-builds
+out=~/openclapper-builds
 mkdir -p "$out"
 
 # Rebuilds only when the Dockerfile changed (layer cache). Gradle's cache lives in a volume.
-docker build -t fielder-android -f docker/android.Dockerfile docker
+docker build -t openclapper-android -f docker/android.Dockerfile docker
 docker run --rm \
-  -v "$PWD":/work -v "$out":/out -v fielder-gradle:/root/.gradle "${run[@]}" \
-  -w /work/apps/mobile fielder-android \
+  -v "$PWD":/work -v "$out":/out -v openclapper-gradle:/root/.gradle "${run[@]}" \
+  -w /work/apps/mobile openclapper-android \
   bash -ec "# The build runs as root in place: Gradle also writes into node_modules/*/android/build.
             # Hand everything back to the host user and drop the generated android/, even on failure.
             trap 'rm -rf /work/apps/mobile/android; find /work -xdev -uid 0 -exec chown -h $(id -u):$(id -g) {} +' EXIT

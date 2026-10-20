@@ -1,7 +1,7 @@
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Image, type ImageSource } from "expo-image";
 import type { ViewSettings } from "../types";
-import { clampCentre } from "@fielder/vocab";
+import { clampCentre } from "@openclapper/vocab";
 import { FIXED, Seg } from "../ui";
 import { Overlay } from "./Overlay";
 

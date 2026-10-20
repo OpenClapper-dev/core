@@ -1,4 +1,4 @@
-/* Web type scale (px). Phone scale lives in fielder-tokens.rn.json (dp, larger). */
+/* Web type scale (px). Phone scale lives in openclapper-tokens.rn.json (dp, larger). */
 :root {
   --font-sans: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;

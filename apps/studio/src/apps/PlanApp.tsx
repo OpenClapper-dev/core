@@ -5,7 +5,7 @@ import { useMask } from "../frameMode";
 import { PlanPage } from "../Plan";
 import { useProjectId } from "../project";
 import { parseRoute } from "../router";
-import { confirmDialog, type SaveState } from "@fielder/ui";
+import { confirmDialog, type SaveState } from "@openclapper/ui";
 import type { AppProps } from "./registry";
 import { useAppGuard } from "./useAppGuard";
 

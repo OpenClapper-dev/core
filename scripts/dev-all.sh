@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# make all / all-down / all-restart: the whole local stack in one tmux session "fielder":
+# make all / all-down / all-restart: the whole local stack in one tmux session "openclapper":
 #   left, top to bottom: the Worker (:8787), the Studio (:5173), the admin board (:5174, its Worker :8788)
 #   right: make mobile (tunnel + Metro)
 #   bottom, full width: the control pane (which servers are up; r restarts them, q stops everything).
@@ -13,7 +13,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-session="${SESSION:-fielder}"
+session="${SESSION:-openclapper}"
 port="${PORT:-8787}"
 # Worker, Studio, admin board + its Worker, Metro.
 ports=("$port" 5173 5174 8788 8081)

@@ -1,11 +1,11 @@
-import type { VfLenses, ViewfinderLayout } from "@fielder/vocab";
+import type { VfLenses, ViewfinderLayout } from "@openclapper/vocab";
 import type { LayoutPatch } from "./layoutPatch";
-import type { Extra } from "@fielder/vocab";
+import type { Extra } from "@openclapper/vocab";
 
 export interface Preset {
   id: string;
   name: string;
-  /** Camera body + recording format from @fielder/fov-math CAMERAS, or null for a custom sensor. */
+  /** Camera body + recording format from @openclapper/fov-math CAMERAS, or null for a custom sensor. */
   cameraId: string | null;
   formatId: string | null;
   /** Resolved active sensor area; source of truth for the math. */
@@ -84,7 +84,7 @@ export interface ViewSettings extends Settings {
   phoneLenses: VfLenses;
 }
 
-/** Scouting tags entered in the review form after capture. Values are @fielder/vocab ids; null / [] / false = not specified. */
+/** Scouting tags entered in the review form after capture. Values are @openclapper/vocab ids; null / [] / false = not specified. */
 export interface ShotTags {
   name: string | null;
   /** Daylight phases the shot works in (subset of LIGHT). */

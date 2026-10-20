@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import * as Location from "expo-location";
 import { ScrollView, Text, useWindowDimensions, View } from "react-native";
-import { extraSummary, label, lightLabel, MOVEMENTS, SHOT_SIZE_ABBR, STATE_ICONS, type FieldDef } from "@fielder/vocab";
+import { extraSummary, label, lightLabel, MOVEMENTS, SHOT_SIZE_ABBR, STATE_ICONS, type FieldDef } from "@openclapper/vocab";
 import { cover, positionOf, type Composed, type Photo, type Shot } from "../api";
 import { isWaiting, setPosition } from "../localShots";
 import { useApp } from "../appState";

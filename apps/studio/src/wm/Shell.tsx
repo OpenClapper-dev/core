@@ -11,7 +11,7 @@ import { ProjectGate } from "../Projects";
 import { routeHash } from "../router";
 import { SignInPage } from "../SignIn";
 import { useSettings } from "../settings";
-import { Button, ConfirmHost, Empty, Loading, Presence, setTheme, toast, ToastHost, useTheme } from "@fielder/ui";
+import { Button, ConfirmHost, Empty, Loading, Presence, setTheme, toast, ToastHost, useTheme } from "@openclapper/ui";
 import { boot, signOut, useUser } from "../user";
 import { requestClose } from "./closeGuards";
 import { Desktop } from "./Desktop";

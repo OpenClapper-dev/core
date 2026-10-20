@@ -1,4 +1,4 @@
-# Deploys Fielder to a Cloudflare account: migrates D1, then the app Worker (API + Studio) and,
+# Deploys OpenClapper to a Cloudflare account: migrates D1, then the app Worker (API + Studio) and,
 # once its Access application exists, the admin plane. Self-hosters run it on their copy of this
 # repository (Actions → Deploy → Run workflow); another repository can call it with this one as a
 # submodule (`path`). Settings are repository secrets and variables: docs/self-hosting.md.
@@ -19,7 +19,7 @@ on:
         required: true
 
 concurrency:
-  group: fielder-deploy
+  group: openclapper-deploy
   cancel-in-progress: false
 
 permissions:
@@ -72,7 +72,7 @@ jobs:
 
       - name: Deploy the app (API + Studio)
         run: |
-          pnpm --filter @fielder/studio build
+          pnpm --filter @openclapper/studio build
           cd apps/worker && pnpm exec wrangler deploy --config wrangler.deploy.jsonc
 
       # Deployed from the first run: without its Access application's AUD it refuses every request, and

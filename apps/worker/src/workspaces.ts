@@ -1,4 +1,4 @@
-import { assertEnum, assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
+import { assertEnum, assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 import { assertRank, RANK, ROLES, type Role } from "./tenancy.ts";
 

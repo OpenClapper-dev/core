@@ -1,7 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { CAMERA_SUPPORTS, extraSummary, label, LIGHT, MOVEMENTS, PHASE_ICONS, selectOptions, SHOT_SIZE_ABBR, SHOT_SIZES, WEATHER, type Extra, type ExtraValue, type FieldDef } from "@fielder/vocab";
+import { CAMERA_SUPPORTS, extraSummary, label, LIGHT, MOVEMENTS, PHASE_ICONS, selectOptions, SHOT_SIZE_ABBR, SHOT_SIZES, WEATHER, type Extra, type ExtraValue, type FieldDef } from "@openclapper/vocab";
 import type { LocationEntry, ShotTags, SpotEntry } from "../types";
 import { BORDER, Button, Chip, ChipRow, ErrorText, FieldRow, Hint, Icon, Input, makeStyles, SectionHeading, Seg, Sheet, SheetSearch, Switch, type, useTheme } from "../ui";
 import { OptionSheet, rankMatches } from "./OptionSheet";

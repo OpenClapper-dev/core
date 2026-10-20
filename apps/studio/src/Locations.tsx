@@ -5,7 +5,7 @@ import { ApiError, deleteLocation, deleteSpot, existingIdOf, putLocation, putSpo
 import { binned } from "./apps/trashOps";
 import { ownPositionOf, shotTitle } from "./format";
 import { bind, useKeys } from "./keys";
-import { Button, confirmDialog, cx, EmptyNote, ErrorLine, IconButton, Input, Kbd, ListRow, Modal, Panel, PanelBody, PanelHead, promptDialog, SearchInput, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@fielder/ui";
+import { Button, confirmDialog, cx, EmptyNote, ErrorLine, IconButton, Input, Kbd, ListRow, Modal, Panel, PanelBody, PanelHead, promptDialog, SearchInput, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 
 interface Props {
   locations: Location[];

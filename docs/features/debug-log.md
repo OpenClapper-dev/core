@@ -13,7 +13,7 @@ Only while it is on (off by default, `settings.loggingEnabled`, turned on at lau
 
 No photos and no tokens. Photo metadata ids appear.
 
-The newest 3000 entries are kept in `Documents/fielder-log.jsonl`, written at most every 1.5 s, so they survive a crash or restart.
+The newest 3000 entries are kept in `Documents/openclapper-log.jsonl`, written at most every 1.5 s, so they survive a crash or restart.
 
 ## Shared text
 

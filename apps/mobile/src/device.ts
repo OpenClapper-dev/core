@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import * as Crypto from "expo-crypto";
-import type { DeviceSize, DeviceSpecs } from "@fielder/vocab";
+import type { DeviceSize, DeviceSpecs } from "@openclapper/vocab";
 import { kv } from "./kv";
 import type { Settings } from "./types";
 import { zoomStops, type ZoomRange } from "./zoom";

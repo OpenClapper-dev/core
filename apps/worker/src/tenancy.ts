@@ -1,4 +1,4 @@
-import { HttpError } from "@fielder/service-kit";
+import { HttpError } from "@openclapper/service-kit";
 
 /**
  * Tenancy (epic #107): who owns what. Every project and rig belongs to a workspace, every device and

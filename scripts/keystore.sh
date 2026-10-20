@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Makes the Android release signing key, once per deployment: .secrets/android/fielder-release.jks
+# Makes the Android release signing key, once per deployment: .secrets/android/openclapper-release.jks
 # and .secrets/android.env (its passwords), both gitignored. Android only installs an update over the
 # app when it is signed with the same key: keep a backup of both files, losing them means everyone
 # uninstalls the app (and loses what is queued on the phone) to install the next one.
@@ -9,23 +9,23 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 dir=.secrets/android
-jks=$dir/fielder-release.jks
+jks=$dir/openclapper-release.jks
 envfile=.secrets/android.env
 [ ! -e "$jks" ] || { echo "$jks exists already; a new key would not update installed apps. Remove it yourself if you really mean to." >&2; exit 1; }
 mkdir -p "$dir"
 chmod 700 .secrets "$dir"
 
 pass=$(head -c 24 /dev/urandom | base64 | tr -d '/+=')
-alias=fielder
-dname="CN=Fielder, O=Fielder"
+alias=openclapper
+dname="CN=OpenClapper, O=OpenClapper"
 args=(-genkeypair -keystore "$jks" -storetype PKCS12 -alias "$alias" -keyalg RSA -keysize 4096 -validity 10000 -storepass "$pass" -keypass "$pass" -dname "$dname")
 if command -v keytool > /dev/null; then
   keytool "${args[@]}" > /dev/null
 else
   command -v docker > /dev/null || { echo "Needs keytool (a JDK) or Docker" >&2; exit 1; }
-  docker build -q -t fielder-android -f docker/android.Dockerfile docker > /dev/null
-  docker run --rm -v "$PWD":/work -w /work fielder-android keytool "${args[@]}" > /dev/null
-  docker run --rm -v "$PWD":/work -w /work fielder-android chown "$(id -u):$(id -g)" "$jks"
+  docker build -q -t openclapper-android -f docker/android.Dockerfile docker > /dev/null
+  docker run --rm -v "$PWD":/work -w /work openclapper-android keytool "${args[@]}" > /dev/null
+  docker run --rm -v "$PWD":/work -w /work openclapper-android chown "$(id -u):$(id -g)" "$jks"
 fi
 chmod 600 "$jks"
 # PKCS12 keeps one password for the store and the key.

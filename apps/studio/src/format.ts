@@ -1,5 +1,5 @@
-import type { RigLens } from "@fielder/fov-math";
-import { cameraLabel, extraLabel, label, lightLabel, rootFrame, withCentre, type FilterableShot } from "@fielder/vocab";
+import type { RigLens } from "@openclapper/fov-math";
+import { cameraLabel, extraLabel, label, lightLabel, rootFrame, withCentre, type FilterableShot } from "@openclapper/vocab";
 import type { Photo, Shot } from "./api";
 
 /** The photo that stands for the shot in lists, maps and filters: the first one. */
@@ -97,7 +97,7 @@ export interface FrameLayout {
 /**
  * Same layout rules as the phone: shrink the photo when the rig saw more, crop to the frame in fit
  * mode, and place the frame at its centre (re-framed frames are off-centre; the centre is clamped
- * so the frame stays on the photo, see @fielder/vocab framing.ts).
+ * so the frame stays on the photo, see @openclapper/vocab framing.ts).
  */
 export function frameLayout(frame: FrameGeometry, mode: FrameMode, photoAspect: number): FrameLayout {
   const f = withCentre(frame);

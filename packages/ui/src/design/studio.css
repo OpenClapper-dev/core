@@ -1,4 +1,4 @@
-/* Fielder DS — Studio additions (rework, from the Claude Design export ds-ext/dashboard.css). Tokens only; both themes via [data-theme]. */
+/* OpenClapper DS — Studio additions (rework, from the Claude Design export ds-ext/dashboard.css). Tokens only; both themes via [data-theme]. */
 
 /* ---------- Page body (inside a desktop window: wm/desktop.css) ---------- */
 .f-app__body{flex:1;display:flex;min-height:0;min-width:0}

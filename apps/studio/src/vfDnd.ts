@@ -1,4 +1,4 @@
-import { MAX_VF_ITEMS, type VfControl, type VfItem, type VfOrientation } from "@fielder/vocab";
+import { MAX_VF_ITEMS, type VfControl, type VfItem, type VfOrientation } from "@openclapper/vocab";
 
 /**
  * Drag and drop in the layout editor (issue #68), the same in the bars panel and on the preview.
@@ -10,7 +10,7 @@ export type VfDrag = { kind: "item"; control: VfControl } | { kind: "new"; item:
 /** Where it would land: before `index` in a bar's items, or before bar `index` in the orientation. */
 export type VfDrop = { kind: "item"; barId: string; index: number } | { kind: "bar"; index: number };
 
-export const VF_DRAG_TYPE = "application/x-fielder-vf";
+export const VF_DRAG_TYPE = "application/x-openclapper-vf";
 
 /** Apply a drop; returns the orientation unchanged when the drop makes no sense (full bar, dropping a bar into itself…). */
 export function applyDrop(o: VfOrientation, drag: VfDrag, drop: VfDrop): VfOrientation {

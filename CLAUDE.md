@@ -1,4 +1,4 @@
-# Fielder — agent guide
+# OpenClapper — agent guide
 
 Single-user tool for film location scouting and shoot planning:
 - an Android phone app (Expo, a development build "OpenClapper Dev" or an APK; not Expo Go since vision-camera) is a viewfinder that shows a cinema rig's frame and captures reference photos
@@ -24,7 +24,7 @@ The owner talks to you in English.
 | `apps/mobile` | `App.tsx` (tabs, gates, pushed-screen stack), `src/screens/` (Viewfinder + Tag, Review, Shots + ShotDetails, Day + StepThrough, Setup hub + sub-screens, Uploads, Gates), `src/ui/` (component library: `theme.tsx`, primitives by design-system group, `chrome.tsx` header/rows/bars, `dialogs.tsx` confirm + toast), `src/components/` (`TagEditor.tsx`, sheets, viewfinder parts), `uploads.ts` (queue), `sync.ts`, `rigs.ts`, `storage.ts` (kv), `api.ts` |
 | `packages/vocab` | Shared vocabularies, filters, extra-field definitions, daylight math: anything both the Worker and a client must agree on |
 | `packages/fov-math` | Camera/lens/FOV/overlay/reframe math |
-| `packages/ui` | The web design system (`@fielder/ui`): components, tokens and component CSS, theme switch; used by the Studio and the admin board |
+| `packages/ui` | The web design system (`@openclapper/ui`): components, tokens and component CSS, theme switch; used by the Studio and the admin board |
 | `packages/service-kit` | What both Workers share: `http.ts` router + `assert*` helpers, Access verification, password hashing |
 
 ## Core model in one paragraph
@@ -68,7 +68,7 @@ When the owner hands you an issue (a number or a link), that means: read it, cha
 for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/admin apps/admin/ui apps/studio apps/mobile; do (cd $p && npx tsc -p .); done
 pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/studio test && (cd apps/mobile && node --test src/*.test.ts)
 (cd apps/studio && npx vite build) && (cd apps/admin && npx vite build)
-(cd apps/mobile && npx expo export --platform android --output-dir /tmp/fielder-export)
+(cd apps/mobile && npx expo export --platform android --output-dir /tmp/openclapper-export)
 ```
 
-For the API, run the local worker (`pnpm dev:worker`) and exercise it with `curl`, signed in as `dev@localhost` / `fielder-local-dev` (the snippet is in `docs/development.md`). For the Studio, the Playwright MCP (headless Chrome, configured per machine) can click through `localhost:5173` with `pnpm dev` running. Say what was and was not clicked through, and ask the owner to test on the phone. For phone bugs, ask for the debug log (Setup → Debug log → Share). More in `docs/development.md`.
+For the API, run the local worker (`pnpm dev:worker`) and exercise it with `curl`, signed in as `dev@localhost` / `openclapper-local-dev` (the snippet is in `docs/development.md`). For the Studio, the Playwright MCP (headless Chrome, configured per machine) can click through `localhost:5173` with `pnpm dev` running. Say what was and was not clicked through, and ask the owner to test on the phone. For phone bugs, ask for the debug log (Setup → Debug log → Share). More in `docs/development.md`.

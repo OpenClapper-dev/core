@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { lookFilter, NEUTRAL_LOOK, SKETCH_ASPECTS, withCentre, type Drawing, type Look, type Presentation, type Shape } from "@fielder/vocab";
+import { lookFilter, NEUTRAL_LOOK, SKETCH_ASPECTS, withCentre, type Drawing, type Look, type Presentation, type Shape } from "@openclapper/vocab";
 import { deleteClipSketch, deleteOverlay, fetchOverlay, fetchSketch, putClipOverlay, putClipSketch, type Photo, type Preset, type Timeline, type TimelineClip } from "./api";
 import { DrawSurface } from "./compose/DrawSurface";
 import { DrawToolbar, drawingKeys, LookSection, ShapeSection, useDrawingEditor } from "./compose/editor";
@@ -12,7 +12,7 @@ import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSel
 import { bind, NUDGE, useKeys } from "./keys";
 import { AS_SHOT, choiceLabel, DragFrame, frameForChoice, lensesFor, Pickers, type RigChoice } from "./RigExplorer";
 import { DRAWER_RESIZE, ownReframe, STAGE_H, type Cut, type ResolvedClip } from "./TimelineParts";
-import { Button, confirmDialog, Empty, Icon, Input, Panel, PanelBody, PanelHead, SaveStatus, Seg, Spinner, toast, type SaveState } from "@fielder/ui";
+import { Button, confirmDialog, Empty, Icon, Input, Panel, PanelBody, PanelHead, SaveStatus, Seg, Spinner, toast, type SaveState } from "@openclapper/ui";
 
 /**
  * Inline clip editing on the timeline stage (issue #31), like a video editor's inspector: the

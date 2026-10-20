@@ -10,7 +10,7 @@ export type Level = "debug" | "info" | "warn" | "error";
 interface Entry { t: string; level: Level; event: string; data?: unknown }
 
 const MAX_ENTRIES = 3000;
-const file = new File(Paths.document, "fielder-log.jsonl");
+const file = new File(Paths.document, "openclapper-log.jsonl");
 let enabled = false;
 let entries: Entry[] | null = null;
 let flushTimer: ReturnType<typeof setTimeout> | null = null;

@@ -1,10 +1,10 @@
 /**
- * Fielder API Worker.
+ * OpenClapper API Worker.
  * Every request except signing in needs a user: a session from the auth provider
- * (`@fielder/auth-provider`, first-party.ts by default).
+ * (`@openclapper/auth-provider`, first-party.ts by default).
  */
-import { provider } from "@fielder/auth-provider";
-import { BUILD, HttpError, json, Router } from "@fielder/service-kit";
+import { provider } from "@openclapper/auth-provider";
+import { BUILD, HttpError, json, Router } from "@openclapper/service-kit";
 import type { Identity, PublicCtx } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
 import { registerComposeRoutes } from "./compose.ts";

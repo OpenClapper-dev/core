@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { FILE_TYPE_META, TRASH_RETENTION_DAYS, trashDaysLeft, type TrashEntry } from "@fielder/vocab";
+import { FILE_TYPE_META, TRASH_RETENTION_DAYS, trashDaysLeft, type TrashEntry } from "@openclapper/vocab";
 import * as data from "../data";
 import { folderPath, matches } from "../fileTree";
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
-import { Button, Checkbox, cx, Empty, Icon, Img, Loading, SearchInput, Toolbar, ToolbarSpacer } from "@fielder/ui";
+import { Button, Checkbox, cx, Empty, Icon, Img, Loading, SearchInput, Toolbar, ToolbarSpacer } from "@openclapper/ui";
 import type { AppProps } from "./registry";
 import { emptyBin, purge, restore } from "./trashOps";
 

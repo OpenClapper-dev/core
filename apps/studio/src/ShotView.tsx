@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { label, type FieldDef } from "@fielder/vocab";
+import { label, type FieldDef } from "@openclapper/vocab";
 import { deleteShot, patchShot, type Location, type Spot, type Preset, type Project, type Shot, type ShotState } from "./api";
 import { binned, confirmShotBin } from "./apps/trashOps";
 import { FRAME_MODES, positionOf, rigLabel, shotTitle, when } from "./format";
@@ -11,7 +11,7 @@ import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
 import { initialRigs, RigsStage, type RigsState } from "./RigExplorer";
 import type { Stage } from "./router";
-import { Button, cx, Icon, IconButton, Img, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "@fielder/ui";
+import { Button, cx, Icon, IconButton, Img, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "@openclapper/ui";
 
 export interface ShotContext { line: string; onBack: () => void; backLabel: string }
 

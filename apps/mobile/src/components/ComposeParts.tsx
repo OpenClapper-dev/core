@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Modal, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Image, type ImageSource } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { referencedFrame, sketchKindLabel } from "@fielder/vocab";
+import { referencedFrame, sketchKindLabel } from "@openclapper/vocab";
 import { imageHeaders, renderUri, type Composed, type Overlay, type Photo, type Shot, type Sketch } from "../api";
 import { isOfflineMode } from "../net";
 import { offlineRenderUri } from "../offline";

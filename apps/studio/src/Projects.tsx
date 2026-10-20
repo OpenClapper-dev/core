@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { deleteProject, existingIdOf, putProject, type FieldDefinition, type Project } from "./api";
-import { Button, confirmDialog, Empty, Field, Input, ListRow, Mark, MenuItem, Panel, PanelBody, PanelHead, ProjectTag, promptDialog, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@fielder/ui";
+import { Button, confirmDialog, Empty, Field, Input, ListRow, Mark, MenuItem, Panel, PanelBody, PanelHead, ProjectTag, promptDialog, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@openclapper/ui";
 import { useUser } from "./user";
 
 const sortByName = (list: Project[]) => [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));

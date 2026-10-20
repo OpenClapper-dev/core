@@ -1,4 +1,4 @@
-# Fielder docs
+# OpenClapper docs
 
 Reference documentation for the whole app. Start with [architecture](architecture.md), then read the feature page for whatever you are changing.
 

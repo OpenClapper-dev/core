@@ -20,10 +20,10 @@ importers:
 
   apps/admin:
     dependencies:
-      '@fielder/service-kit':
+      '@openclapper/service-kit':
         specifier: workspace:*
         version: link:../../packages/service-kit
-      '@fielder/ui':
+      '@openclapper/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       preact:
@@ -45,10 +45,10 @@ importers:
       '@expo/vector-icons':
         specifier: ^15.1.1
         version: 15.1.1(expo-font@57.0.4(expo@57.0.18)(react-native@0.86.3(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
-      '@fielder/fov-math':
+      '@openclapper/fov-math':
         specifier: workspace:*
         version: link:../../packages/fov-math
-      '@fielder/vocab':
+      '@openclapper/vocab':
         specifier: workspace:*
         version: link:../../packages/vocab
       expo:
@@ -127,13 +127,13 @@ importers:
 
   apps/studio:
     dependencies:
-      '@fielder/fov-math':
+      '@openclapper/fov-math':
         specifier: workspace:*
         version: link:../../packages/fov-math
-      '@fielder/ui':
+      '@openclapper/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@fielder/vocab':
+      '@openclapper/vocab':
         specifier: workspace:*
         version: link:../../packages/vocab
       leaflet:
@@ -155,10 +155,10 @@ importers:
 
   apps/worker:
     dependencies:
-      '@fielder/service-kit':
+      '@openclapper/service-kit':
         specifier: workspace:*
         version: link:../../packages/service-kit
-      '@fielder/vocab':
+      '@openclapper/vocab':
         specifier: workspace:*
         version: link:../../packages/vocab
 
@@ -168,7 +168,7 @@ importers:
 
   packages/ui:
     dependencies:
-      '@fielder/vocab':
+      '@openclapper/vocab':
         specifier: workspace:*
         version: link:../vocab
     devDependencies:

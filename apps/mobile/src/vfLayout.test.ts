@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_VIEWFINDER_LAYOUT } from "@fielder/vocab";
+import { DEFAULT_VIEWFINDER_LAYOUT } from "@openclapper/vocab";
 import { edgeExtent, resolveLayout } from "./vfLayout.ts";
 
 test("the default layout keeps the old chrome sizes", () => {

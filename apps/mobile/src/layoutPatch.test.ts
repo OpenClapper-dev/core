@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_VF_LOOK, DEFAULT_VIEWFINDER_LAYOUT, layoutLook, layoutOptions, type ViewfinderLayout } from "@fielder/vocab";
+import { DEFAULT_VF_LOOK, DEFAULT_VIEWFINDER_LAYOUT, layoutLook, layoutOptions, type ViewfinderLayout } from "@openclapper/vocab";
 import { applyPatch, mergePatch } from "./layoutPatch.ts";
 
 const server: ViewfinderLayout = {

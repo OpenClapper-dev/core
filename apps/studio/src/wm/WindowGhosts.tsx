@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { cx, Icon, reducedMotion } from "@fielder/ui";
+import { cx, Icon, reducedMotion } from "@openclapper/ui";
 import { appDef } from "../apps/registry";
 import * as wm from "./wm";
 import type { Win } from "./wm";

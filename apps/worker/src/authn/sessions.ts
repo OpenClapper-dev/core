@@ -8,7 +8,7 @@
 /** `dashboard` = the Studio: the value `sessions.client` has held since migration 0021 (kept, not migrated). */
 export type SessionClient = "dashboard" | "mobile";
 
-export const COOKIE = "fielder_session";
+export const COOKIE = "openclapper_session";
 const DAY_MS = 86_400_000;
 /** Sliding: a session in use is extended, at most once a day. */
 const LIFETIME_MS: Record<SessionClient, number> = { dashboard: 30 * DAY_MS, mobile: 180 * DAY_MS };

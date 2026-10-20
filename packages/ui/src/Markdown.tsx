@@ -4,7 +4,7 @@
  */
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { parseMarkdown, type Block, type Inline } from "@fielder/vocab";
+import { parseMarkdown, type Block, type Inline } from "@openclapper/vocab";
 import { IconButton } from "./actions";
 import { cx } from "./core";
 import { Seg } from "./navigation";

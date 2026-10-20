@@ -1,5 +1,5 @@
-import { validateDeviceSpecs, type DeviceSpecs } from "@fielder/vocab";
-import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
+import { validateDeviceSpecs, type DeviceSpecs } from "@openclapper/vocab";
+import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 
 interface DeviceRow { id: string; user_id: string; name: string; specs: string; created_at: string; updated_at: string | null }

@@ -1,6 +1,6 @@
 import pkg from "../../../package.json" with { type: "json" };
 
-declare const __FIELDER_COMMIT__: string | undefined;
+declare const __OPENCLAPPER_COMMIT__: string | undefined;
 
 /**
  * What is running: the product version (the root package.json, one for every part, docs/releasing.md)
@@ -9,5 +9,5 @@ declare const __FIELDER_COMMIT__: string | undefined;
  */
 export const BUILD = {
   version: pkg.version,
-  commit: typeof __FIELDER_COMMIT__ === "string" ? __FIELDER_COMMIT__ : "dev",
+  commit: typeof __OPENCLAPPER_COMMIT__ === "string" ? __OPENCLAPPER_COMMIT__ : "dev",
 };

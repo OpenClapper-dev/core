@@ -2,12 +2,12 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   // Local development. A deployment gets its own copy, wrangler.deploy.jsonc, with its account
   // and database (scripts/deploy-config.mjs, docs/self-hosting.md).
-  "name": "fielder-api",
+  "name": "openclapper-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-04",
   "observability": { "enabled": true },
   // The auth seam (src/authn/provider.ts): another build points this at its own provider module.
-  "alias": { "@fielder/auth-provider": "./src/authn/first-party.ts" },
+  "alias": { "@openclapper/auth-provider": "./src/authn/first-party.ts" },
   // Daily at 03:17 UTC: purge what has been in the recycle bin for 30 days (trash.ts).
   "triggers": { "crons": ["17 3 * * *"] },
   // The Studio (apps/studio) served as static assets from the same hostname, so the
@@ -18,7 +18,7 @@
     "run_worker_first": ["/api/*", "/health"]
   },
   "r2_buckets": [
-    { "binding": "SHOTS_BUCKET", "bucket_name": "fielder-shots" }
+    { "binding": "SHOTS_BUCKET", "bucket_name": "openclapper-media" }
   ],
   // Live layout preview (issue #50): one room per user relays the edited layout to the phone.
   "durable_objects": {
@@ -30,7 +30,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "fielder-db",
+      "database_name": "openclapper-db",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }

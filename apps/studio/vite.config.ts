@@ -6,12 +6,12 @@ import { version } from "../../package.json";
 
 // The product version (root package.json, docs/releasing.md) and the commit this bundle is built from.
 const commit = (() => { try { return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); } catch { return "dev"; } })();
-const build = { __FIELDER_VERSION__: JSON.stringify(version), __FIELDER_COMMIT__: JSON.stringify(commit) };
+const build = { __OPENCLAPPER_VERSION__: JSON.stringify(version), __OPENCLAPPER_COMMIT__: JSON.stringify(commit) };
 
-// @fielder/ui lives outside this root, where Vite watches single files; a git branch switch replaces
+// @openclapper/ui lives outside this root, where Vite watches single files; a git branch switch replaces
 // them and those watches are lost until a restart. Watching the folder survives that.
 const uiSrc = fileURLToPath(new URL("../../packages/ui/src", import.meta.url));
-const watchUi = { name: "fielder-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
+const watchUi = { name: "openclapper-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
 
 export default defineConfig(({ command }) => {
   // Which icon set index.html links (public/icons/<set>/): green on the dev server, the real one in builds.

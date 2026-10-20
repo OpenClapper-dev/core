@@ -4,7 +4,7 @@ import {
   phoneViewFromEquivalent,
   rotateFov,
   type FramingResult,
-} from "@fielder/fov-math";
+} from "@openclapper/fov-math";
 import { PHONE } from "./phone.ts";
 import type { Preset, Settings } from "./types.ts";
 

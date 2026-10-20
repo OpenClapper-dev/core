@@ -1,6 +1,6 @@
 /** Data display from the design system (data.css): list rows, menu items, review state and sequence markers. */
 import type { ComponentChildren, JSX } from "preact";
-import { STATE_ICONS, label, type ShotState } from "@fielder/vocab";
+import { STATE_ICONS, label, type ShotState } from "@openclapper/vocab";
 import { cx, Icon } from "./core";
 
 /** Review state: colour + icon + label (icon-only on thumbnails, then it carries a title). */

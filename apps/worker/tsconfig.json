@@ -15,7 +15,7 @@
     "isolatedModules": true,
     "allowImportingTsExtensions": true,
     "paths": {
-      "@fielder/auth-provider": [
+      "@openclapper/auth-provider": [
         "./src/authn/first-party.ts"
       ]
     },

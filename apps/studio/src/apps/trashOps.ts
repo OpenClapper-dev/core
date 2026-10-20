@@ -1,7 +1,7 @@
 import { emptyTrash, purgeTrash, restoreTrash, type TrashType } from "../api";
 import * as data from "../data";
 import { invalidateDays, invalidateTimelines, projectDays, projectTimelines } from "../Inspector";
-import { confirmDialog, toast } from "@fielder/ui";
+import { confirmDialog, toast } from "@openclapper/ui";
 
 /**
  * The recycle bin from the Studio's side (epic #90): every delete moves to the bin and says so

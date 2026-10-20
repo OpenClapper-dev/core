@@ -1,4 +1,4 @@
-import { emptyFilter, evaluateFilter, filterField, isGroup, label, OP_LABELS, type FilterField, type FilterGroup, type FilterRule } from "@fielder/vocab";
+import { emptyFilter, evaluateFilter, filterField, isGroup, label, OP_LABELS, type FilterField, type FilterGroup, type FilterRule } from "@openclapper/vocab";
 import type { Location, Preset, Project, Shot, ShotState, Spot } from "./api";
 import { cover, filterable, placeLabel, rigLabel, shotTitle } from "./format";
 

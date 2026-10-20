@@ -15,7 +15,7 @@ if envs=$(grep -ls "^[[:space:]]*EXPO_PUBLIC_" "$root"/apps/mobile/.env* 2>/dev/
   exit 1
 fi
 port="${PORT:-8787}"
-log="$(mktemp -t fielder-worker.XXXXXX.log)"
+log="$(mktemp -t openclapper-worker.XXXXXX.log)"
 
 # A Worker already running (make dev / make worker) is reused: only the tunnel starts. A second
 # Worker on another port would share the same local D1 files, and the Studio proxies to :$port.

@@ -1,5 +1,5 @@
 {
-  "name": "@fielder/ui",
+  "name": "@openclapper/ui",
   "private": true,
   "version": "0.0.0",
   "license": "Apache-2.0",
@@ -9,7 +9,7 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@fielder/vocab": "workspace:*"
+    "@openclapper/vocab": "workspace:*"
   },
   "peerDependencies": {
     "preact": "^10.27.0"

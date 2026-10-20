@@ -1,7 +1,7 @@
-import { referencedFrame, type Presentation } from "@fielder/vocab";
+import { referencedFrame, type Presentation } from "@openclapper/vocab";
 import type { Photo } from "./api";
 import { capturedFrameOf, frameOf, rigLabel, type FrameGeometry } from "./format";
-import { Select } from "@fielder/ui";
+import { Select } from "@openclapper/ui";
 
 /**
  * The frame an overlay or timeline clip is shown with: the framing it references (it follows

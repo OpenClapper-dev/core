@@ -5,7 +5,7 @@
  */
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { moveShape, simplifyPoints, type MaskStroke, type Point, type Shape, type Stencil } from "@fielder/vocab";
+import { moveShape, simplifyPoints, type MaskStroke, type Point, type Shape, type Stencil } from "@openclapper/vocab";
 import { DrawingSvg, stencilHandles } from "./Canvas";
 import { shapeAt, sizePx, toFrac, toPx, type CanvasRect } from "./geometry";
 import { shortcut } from "../shortcuts";

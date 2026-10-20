@@ -3,7 +3,7 @@
  * centred on (12, 12). The same path data draws them in the SVG editor and on the render canvas
  * (Path2D), so there is no icon font involved and the render matches the screen.
  */
-import type { Stencil } from "@fielder/vocab";
+import type { Stencil } from "@openclapper/vocab";
 
 export const STENCIL_PATHS: Record<Stencil, string> = {
   // A camera seen from above: body with the lens pointing right.

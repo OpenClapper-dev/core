@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import type { VfOrientation } from "@fielder/vocab";
+import type { VfOrientation } from "@openclapper/vocab";
 import { applyDrop, insertIndex } from "./vfDnd.ts";
 
 const o: VfOrientation = {

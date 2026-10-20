@@ -1,5 +1,5 @@
-import { validateViewfinderLayout, type ViewfinderLayout } from "@fielder/vocab";
-import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
+import { validateViewfinderLayout, type ViewfinderLayout } from "@openclapper/vocab";
+import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 
 interface LayoutRow { id: string; user_id: string; name: string; layout: string; device_id: string | null; created_at: string; updated_at: string | null }

@@ -1,5 +1,5 @@
 import type { ComponentType } from "preact";
-import type { AppIdV } from "@fielder/vocab";
+import type { AppIdV } from "@openclapper/vocab";
 import type { Route } from "../router";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";

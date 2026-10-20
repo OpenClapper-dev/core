@@ -1,8 +1,8 @@
 import type { ComponentChildren, JSX } from "preact";
-import { withCentre } from "@fielder/vocab";
+import { withCentre } from "@openclapper/vocab";
 import type { Photo } from "./api";
 import { frameLayout, frameOf, imageAspect, type FrameGeometry, type FrameMode, type PctRect } from "./format";
-import { cx, Img } from "@fielder/ui";
+import { cx, Img } from "@openclapper/ui";
 
 export type MaskMode = FrameMode;
 
@@ -91,7 +91,7 @@ export async function downloadCrop(photo: Photo): Promise<void> {
   if (!blob) return;
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `fielder-${photo.timestamp.replace(/[:.]/g, "-")}-framed.jpg`;
+  a.download = `openclapper-${photo.timestamp.replace(/[:.]/g, "-")}-framed.jpg`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
 }

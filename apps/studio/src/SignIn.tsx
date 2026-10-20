@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { ApiError } from "./api";
-import { Button, ErrorLine, Field, Input, Mark, PasswordInput } from "@fielder/ui";
+import { Button, ErrorLine, Field, Input, Mark, PasswordInput } from "@openclapper/ui";
 import { signIn } from "./user";
 
 const REGISTER = "#/register";

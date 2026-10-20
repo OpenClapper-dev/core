@@ -4,7 +4,7 @@
   // Cloudflare Access application. Its operators are not app users. Same D1 and R2 as the app.
   // Local development; a deployment gets wrangler.deploy.jsonc with its own settings
   // (scripts/deploy-config.mjs, docs/self-hosting.md).
-  "name": "fielder-admin",
+  "name": "openclapper-admin",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-04",
   "observability": { "enabled": true },
@@ -20,10 +20,10 @@
     "ACCESS_AUD": ""
   },
   "r2_buckets": [
-    { "binding": "SHOTS_BUCKET", "bucket_name": "fielder-shots" }
+    { "binding": "SHOTS_BUCKET", "bucket_name": "openclapper-media" }
   ],
   // The app's database. Migrations belong to apps/worker; the admin plane never runs them.
   "d1_databases": [
-    { "binding": "DB", "database_name": "fielder-db", "database_id": "00000000-0000-0000-0000-000000000000" }
+    { "binding": "DB", "database_name": "openclapper-db", "database_id": "00000000-0000-0000-0000-000000000000" }
   ]
 }

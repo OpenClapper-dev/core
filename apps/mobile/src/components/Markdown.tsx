@@ -1,5 +1,5 @@
 import { Linking, Text, View } from "react-native";
-import { parseMarkdown, type Block, type Inline } from "@fielder/vocab";
+import { parseMarkdown, type Block, type Inline } from "@openclapper/vocab";
 import { FONT, makeStyles, type, useTheme } from "../ui";
 
 /** Native rendering of the Markdown subset used for descriptions (packages/vocab markdown.ts). */

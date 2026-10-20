@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
-import { pruneExtra } from "@fielder/vocab";
+import { pruneExtra } from "@openclapper/vocab";
 import type { Shot } from "../api";
 import { useApp } from "../appState";
 import { editShot, isWaiting } from "../localShots";

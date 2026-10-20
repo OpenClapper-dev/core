@@ -1,8 +1,8 @@
 import { useEffect, useState } from "preact/hooks";
-import { CAMERAS, CUSTOM_CAMERA_ID, findFormat } from "@fielder/fov-math";
+import { CAMERAS, CUSTOM_CAMERA_ID, findFormat } from "@openclapper/fov-math";
 import { deletePreset, putPreset, type Preset, type Shot } from "./api";
 import { bind, useKeys } from "./keys";
-import { Button, Combobox, confirmDialog, cx, ErrorLine, Field, IconButton, Input, Panel, PanelBody, PanelFoot, PanelHead, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@fielder/ui";
+import { Button, Combobox, confirmDialog, cx, ErrorLine, Field, IconButton, Input, Panel, PanelBody, PanelFoot, PanelHead, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 
 interface Props { presets: Preset[]; shots: Shot[]; onChange: (p: Preset[]) => void; selectedId: string | null; onSelect: (id: string | null) => void }
 

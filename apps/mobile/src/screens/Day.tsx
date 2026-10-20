@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, SectionList, Text, View } from "react-native";
-import { dayLight, lightLabel, localDay, PHASE_ICONS, shootableWindows, type DayLight, type Interval } from "@fielder/vocab";
+import { dayLight, lightLabel, localDay, PHASE_ICONS, shootableWindows, type DayLight, type Interval } from "@openclapper/vocab";
 import { api, cover, positionOf, type Shot, type ShootingDay } from "../api";
 import { useApp } from "../appState";
 import { useOnline } from "../net";

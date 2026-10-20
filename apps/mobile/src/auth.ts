@@ -13,7 +13,7 @@ export interface Session {
   userId: string;
 }
 
-const KEY = scopedKey("fielder.session");
+const KEY = scopedKey("openclapper.session");
 let cached: Session | null | undefined;
 const listeners = new Set<() => void>();
 
@@ -31,7 +31,7 @@ export function getSession(): Session | null {
   if (cached === undefined) {
     cached = read();
     // The Cloudflare Access token of earlier builds is worthless now; it would only linger in the keystore.
-    void SecureStore.deleteItemAsync(scopedKey("fielder.accessToken")).catch(() => {});
+    void SecureStore.deleteItemAsync(scopedKey("openclapper.accessToken")).catch(() => {});
   }
   return cached;
 }
