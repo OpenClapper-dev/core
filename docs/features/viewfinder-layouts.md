@@ -1,6 +1,6 @@
 # Viewfinder layouts
 
-[Issue #49](https://github.com/bubulux/fielder/issues/49). Which controls the phone's Shoot screen shows, in which bars, per orientation. Made in the Studio, picked on the phone.
+[Issue #49](https://github.com/OpenClapper-dev/core/issues/49). Which controls the phone's Shoot screen shows, in which bars, per orientation. Made in the Studio, picked on the phone.
 
 ## Model (`packages/vocab/src/viewfinder.ts`)
 

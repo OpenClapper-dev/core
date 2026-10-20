@@ -1,6 +1,6 @@
 # Projects
 
-Every shot belongs to exactly one project (a film, a commercial). Projects are a **hard scope** ([issue #44](https://github.com/bubulux/fielder/issues/44)): locations, saved views, extra-field definitions, shooting days and timelines belong to one project; only rigs are shared. There is no view across projects: entering a project is the first step in both clients.
+Every shot belongs to exactly one project (a film, a commercial). Projects are a **hard scope** ([issue #44](https://github.com/OpenClapper-dev/core/issues/44)): locations, saved views, extra-field definitions, shooting days and timelines belong to one project; only rigs are shared. There is no view across projects: entering a project is the first step in both clients.
 
 ## Behaviour
 

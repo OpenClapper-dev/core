@@ -1,6 +1,6 @@
 # Timeline
 
-Second half of [GitHub issue #12](https://github.com/bubulux/fielder/issues/12). A **timeline** is a rough cut of a project out of its scouted photos: clips in order, each with a hold time ("Vorstopp"), played back to see which shots carry a sequence. Studio only; the phone does not read timelines. The shot browser beside the cut makes it the place to review too (issue #31; issue #48 merged the former Review page into it).
+Second half of [GitHub issue #12](https://github.com/OpenClapper-dev/core/issues/12). A **timeline** is a rough cut of a project out of its scouted photos: clips in order, each with a hold time ("Vorstopp"), played back to see which shots carry a sequence. Studio only; the phone does not read timelines. The shot browser beside the cut makes it the place to review too (issue #31; issue #48 merged the former Review page into it).
 
 ## Model
 

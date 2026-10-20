@@ -1,6 +1,6 @@
 # New shot without the camera
 
-[Issue #27](https://github.com/bubulux/fielder/issues/27), left over from #12. Studio → Shots → **New shot** (`⇧N`, also in ⌘K) makes a shot that did not come from the phone (`apps/studio/src/NewShot.tsx`).
+[Issue #27](https://github.com/OpenClapper-dev/core/issues/27), left over from #12. Studio → Shots → **New shot** (`⇧N`, also in ⌘K) makes a shot that did not come from the phone (`apps/studio/src/NewShot.tsx`).
 
 - **Upload images**: drop images or choose files (up to 60). They are scaled to 2048 px on the long edge and sent as JPEG; transparent PNGs get a white background. Several images become **one shot with a sequence** in the shown order (reorder with ‹, remove with ✕), or **one shot each** (names get " 2", " 3", …).
 - **Draw a sketch**: the compose editor's tools on a blank canvas (16:9, 4:3, 1:1, 3:4). On create, the drawing is rendered to a 1600 px PNG that becomes the shot's photo, and the vector drawing is kept as the shot's first **sketch** ([compose](compose.md)), so it stays editable there.

@@ -1,6 +1,6 @@
 # Compose: descriptions, overlays and sketches
 
-From [GitHub issue #12](https://github.com/bubulux/fielder/issues/12) (first half; the timeline composer is the second). A shot can carry a written description, **overlays** (a drawing plus a look over one of its photos) and **sketches** (free canvases such as a floor plan). Everything is made in the Studio; the phone shows read-only renders. Nothing here depends on the review state: unreviewed shots compose like approved ones.
+From [GitHub issue #12](https://github.com/OpenClapper-dev/core/issues/12) (first half; the timeline composer is the second). A shot can carry a written description, **overlays** (a drawing plus a look over one of its photos) and **sketches** (free canvases such as a floor plan). Everything is made in the Studio; the phone shows read-only renders. Nothing here depends on the review state: unreviewed shots compose like approved ones.
 
 ## Model (`packages/vocab/src/compose.ts`, `markdown.ts`)
 
