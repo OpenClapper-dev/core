@@ -2,7 +2,7 @@
 
 Fielder runs entirely on your own Cloudflare account: one Worker serves the API and the Studio, a second one the admin plane, D1 holds the data, R2 the photos. Nothing calls home, and nothing is shared between instances. You pay Cloudflare for what you use (the free plan goes a long way for a crew, see [the free plan](#the-free-plan)).
 
-Running your own instance is covered by the [Elastic License 2.0](../LICENSE): self-hosting for yourself, your crew or your company is allowed; offering Fielder to third parties as a hosted service is not.
+Fielder is open source under the [Apache License 2.0](../LICENSE): you may run instances for yourself, your crew, your company or anyone else, and offer them as a service. Keep the licence and the [NOTICE](../NOTICE) with your copy. If you offer an instance to others, give it a name of your own: the licence does not cover the project's name.
 
 ## What you need
 

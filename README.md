@@ -22,4 +22,4 @@ Runs on Cloudflare (Workers, D1, R2; Access for the admin plane); the phone app 
 
 ## Licence
 
-Fielder is source-available under the [Elastic License 2.0](LICENSE) (SPDX `Elastic-2.0`). In plain words: you may use, copy, modify and self-host it, for yourself or your own crew and company. You may not offer it to others as a hosted or managed service, and you may not remove the licence and copyright notices. This is not an OSI-approved open-source licence. The LICENSE file is the binding text.
+Fielder is open source under the [Apache License 2.0](LICENSE) (SPDX `Apache-2.0`). You may use, copy, modify and distribute it, host it for others and build on it, commercially too, as long as you keep the licence and copyright notices ([NOTICE](NOTICE)). The licence grants no rights to the project's name or logo. Releases up to v0.2.0 were published under the Elastic License 2.0 and stay under it.

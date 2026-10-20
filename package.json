@@ -2,7 +2,7 @@
   "name": "fielder",
   "private": true,
   "version": "0.2.0",
-  "license": "Elastic-2.0",
+  "license": "Apache-2.0",
   "packageManager": "pnpm@11.13.1",
   "scripts": {
     "dev": "pnpm --parallel --filter @fielder/worker --filter @fielder/studio dev",
