@@ -14,11 +14,13 @@ Each step is a root script that runs these:
 pnpm lint           # oxlint, config in .oxlintrc.json
 pnpm typecheck      # scripts/typecheck.sh: tsc -p . in
                     #   packages/vocab packages/fov-math packages/service-kit packages/ui
-                    #   apps/worker apps/admin apps/admin/ui apps/studio apps/mobile
-pnpm test           # the unit suites:
+                    #   apps/worker apps/worker/test/routes apps/admin apps/admin/test apps/admin/ui apps/studio apps/mobile
+pnpm test           # unit and route tests (docs/testing.md):
                     #   pnpm -C packages/vocab test        fields, filters, daylight
                     #   pnpm -C packages/fov-math test     FOV, overlay, reframe
-                    #   pnpm -C apps/worker test           passwords, sessions, workspace roles
+                    #   pnpm -C apps/worker test           unit: passwords, sessions, roles; routes (workerd, D1, R2):
+                    #                                      tenancy on every route, uploads, recycle bin, images, sign-in
+                    #   pnpm -C apps/admin test            admin plane: Access JWT, local bypass, account actions
                     #   pnpm -C apps/studio test           shortcut registry: collisions, docs/shortcuts.md
                     #   pnpm -C apps/mobile test           calibration, EXIF, framing, lens, zoom, layouts
 pnpm build          # scripts/build-check.sh, dry runs only, nothing is deployed:
@@ -29,6 +31,8 @@ pnpm build          # scripts/build-check.sh, dry runs only, nothing is deployed
 ```
 
 The Workers' typechecks need `worker-configuration.d.ts` (gitignored): `pnpm -C apps/worker types` and `pnpm -C apps/admin types` generate them (`make init` does both; `pnpm typecheck` does it when they are missing). Regenerate them after changing a `wrangler.jsonc`.
+
+What each test suite covers, the route-test helpers and the rule for new routes: [testing](testing.md).
 
 **CI** runs the same lane on every pull request and every push to `main`: `.github/workflows/ci.yml`, one job per step (`lint`, `typecheck`, `test`, `build`), plus `expo-doctor` as an advisory step in `build` (it reports the Expo packages trailing the SDK's newest patches, a consequence of the 7-day cooldown). The four jobs are required checks on `main`: a red check is fixed, never bypassed (no `gh pr merge --admin`).
 
@@ -63,7 +67,7 @@ curl -H "Authorization: Bearer $T" localhost:8787/api/projects
 
 More accounts: `node scripts/user.mjs --email you@example.com` (password from `OPENCLAPPER_PASSWORD` or asked).
 
-Worker unit tests: `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
+Worker tests (unit and route tests, see [testing](testing.md)): `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
 
 Agents can click through the Studio with the Playwright MCP: headless Chrome against `localhost:5173` (`pnpm dev` running). It is set up per machine, not in the repo: `claude mcp add playwright -- npx -y @playwright/mcp@latest --headless --isolated`, then `npx playwright install --with-deps chrome`. Snapshots land in `.playwright-mcp/` (gitignored). The phone app cannot be driven this way.
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 import { hashPassword, NO_PASSWORD, passwordProblem, targetIterations, verifyPassword } from "@openclapper/service-kit";
-import { requestToken, sessionCookie, sha256Hex } from "../src/authn/sessions.ts";
+import { requestToken, sessionCookie, sha256Hex } from "../../src/authn/sessions.ts";
 
 const FAST = 10_000;
 

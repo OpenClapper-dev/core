@@ -10,6 +10,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [data-model.md](data-model.md) | D1 tables, the shot/photo split, JSON columns, migrations |
 | [api.md](api.md) | Every Worker endpoint, with request and response shapes |
 | [development.md](development.md) | Local dev loops, checks, deploy, migrations, APK builds |
+| [testing.md](testing.md) | What runs where (unit, Worker and admin route tests), the route-test helpers, the tenancy map rule |
 | [infrastructure.md](infrastructure.md) | Cloudflare resources, auth, secrets |
 | [releasing.md](releasing.md) | One product version (SemVer 0.x), cutting a release, what a deployment does after |
 | [self-hosting.md](self-hosting.md) | Running your own instance: API token, settings, the deploy workflow, the admin plane's Access app, updates, the phone |

@@ -56,11 +56,16 @@ export function assertIsoTimestamp(v: unknown, field: string): string {
 export type Handler<Ctx> = (ctx: Ctx, params: Record<string, string>) => Promise<Response>;
 
 export class Router<Ctx> {
-  private routes: { method: string; parts: string[]; handler: Handler<Ctx> }[] = [];
+  private routes: { method: string; pattern: string; parts: string[]; handler: Handler<Ctx> }[] = [];
 
   on(method: string, pattern: string, handler: Handler<Ctx>): this {
-    this.routes.push({ method, parts: pattern.split("/").filter(Boolean), handler });
+    this.routes.push({ method, pattern, parts: pattern.split("/").filter(Boolean), handler });
     return this;
+  }
+
+  /** The registered routes, read-only: the Worker's route tests enumerate them so a new route cannot go untested. */
+  list(): { method: string; pattern: string }[] {
+    return this.routes.map(({ method, pattern }) => ({ method, pattern }));
   }
 
   async handle(method: string, pathname: string, ctx: Ctx): Promise<Response> {

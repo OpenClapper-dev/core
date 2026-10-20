@@ -1,0 +1,8 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "types": ["../../worker-configuration.d.ts", "@cloudflare/vitest-plugin/types"],
+    "paths": { "@openclapper/auth-provider": ["../../src/authn/first-party.ts"] }
+  },
+  "include": ["./**/*.ts", "../../worker-configuration.d.ts"]
+}

@@ -82,6 +82,8 @@ export async function verifyAccessJwt(
   request: Request,
   env: { ACCESS_TEAM_DOMAIN: string; ACCESS_AUD: string },
 ): Promise<AccessIdentity> {
+  // Unset, the JWKS URL would be "https:///…": a 500 per request instead of a refusal.
+  if (!env.ACCESS_TEAM_DOMAIN || !env.ACCESS_AUD) throw new AccessError("Access is not configured");
   const jwt = request.headers.get("Cf-Access-Jwt-Assertion");
   if (!jwt) throw new AccessError("missing Access JWT");
 
