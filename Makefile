@@ -31,10 +31,10 @@ studio: ## Studio only -> http://localhost:5173 (needs `make worker` for /api)
 admin: ## Admin board -> http://localhost:5174 with its Worker on :8788 (local D1, no Access: admin@localhost)
 	pnpm dev:admin
 
-mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (Fielder Dev); LOCAL data
+mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (OpenClapper Dev); LOCAL data
 	pnpm dev:mobile
 
-dev-build: ## Development build (Fielder Dev) in Docker, to the Windows Downloads folder; rebuild after native changes
+dev-build: ## Development build (OpenClapper Dev) in Docker, to the Windows Downloads folder; rebuild after native changes
 	VARIANT=dev bash scripts/apk-local.sh
 
 apk-local: ## Production APK in Docker for one server: API_URL=https://… make apk-local (key: scripts/keystore.sh)

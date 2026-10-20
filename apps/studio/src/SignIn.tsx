@@ -8,7 +8,7 @@ const REGISTER = "#/register";
 /** What a failed sign-in tells the user: the server's words for a lock or a block, ours for the rest. */
 function problem(e: unknown): string {
   if (e instanceof ApiError) return e.status === 401 ? "Wrong email or password." : e.message;
-  return "Could not reach Fielder. Check the connection and try again.";
+  return "Could not reach OpenClapper. Check the connection and try again.";
 }
 
 /**
@@ -44,10 +44,10 @@ export function SignInPage() {
     return (
       <div class="gate">
         <div class="gate__card">
-          <span class="gate__brand"><Mark size={26} />Fielder</span>
+          <span class="gate__brand"><Mark size={26} />OpenClapper</span>
           <h1>Create an account</h1>
           <p>We are still in alpha, you cannot currently sign up.</p>
-          <p class="meta">Accounts are made by an administrator of this Fielder. Ask them for one, or run your own: Fielder is free to host yourself.</p>
+          <p class="meta">Accounts are made by an administrator of this instance. Ask them for one, or run your own: OpenClapper is free to host yourself.</p>
           <a href="#/">Back to sign in</a>
         </div>
       </div>
@@ -56,7 +56,7 @@ export function SignInPage() {
   return (
     <div class="gate">
       <form class="gate__card" onSubmit={submit}>
-        <span class="gate__brand"><Mark size={26} />Fielder</span>
+        <span class="gate__brand"><Mark size={26} />OpenClapper</span>
         <h1>Sign in</h1>
         <Field label="Email">
           <Input type="email" autocomplete="username" required value={email} disabled={busy} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} />

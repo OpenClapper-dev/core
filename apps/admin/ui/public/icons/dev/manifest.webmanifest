@@ -1,6 +1,6 @@
 {
   "id": "/",
-  "name": "Fielder admin (dev)",
+  "name": "OpenClapper admin (dev)",
   "short_name": "Admin dev",
   "description": "Accounts and instance administration",
   "start_url": "/",

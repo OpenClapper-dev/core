@@ -24,7 +24,7 @@ export function ProjectGate({ projects, onChange, onActivate }: { projects: Proj
   return (
     <div class="gate">
       <div class="gate__card">
-        <span class="gate__brand"><Mark size={26} />Fielder</span>
+        <span class="gate__brand"><Mark size={26} />OpenClapper</span>
         <h1>Which project are you working on?</h1>
         <p class="meta">Everything you see and every shot you edit belongs to the active project. Each project has its own desktop. Switch any time from the taskbar; the choice is remembered.</p>
         <div class="f-menu gate__list">

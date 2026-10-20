@@ -417,7 +417,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   if (!camPerm.hasPermission) {
     return (
       <View style={[s.root, s.center, { backgroundColor: c.bg }]}>
-        <Empty icon="camera-off" title="Camera access needed" body="Fielder uses the camera as a viewfinder for your rig's frame.">
+        <Empty icon="camera-off" title="Camera access needed" body="OpenClapper uses the camera as a viewfinder for your rig's frame.">
           <Button label="Grant camera access" icon="camera-iris" onPress={() => { if (camPerm.canRequestPermission) void camPerm.requestPermission(); else void Linking.openSettings(); }} />
         </Empty>
       </View>

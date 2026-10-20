@@ -47,5 +47,5 @@ echo "Local Worker: $url  (Studio: make studio → http://localhost:5173)"
 
 # --clear: EXPO_PUBLIC_* values are inlined, and the URL is new on every run.
 cd "$root/apps/mobile"
-# For the development build "Fielder Dev" (make dev-build); APP_VARIANT picks its name and package id.
+# For the development build "OpenClapper Dev" (make dev-build); APP_VARIANT picks its name and package id.
 EXPO_PUBLIC_API_URL="$url" EXPO_PUBLIC_STORAGE_SCOPE=local APP_VARIANT=development pnpm exec expo start --dev-client --tunnel --clear

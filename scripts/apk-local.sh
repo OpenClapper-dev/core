@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the Android app locally in a Docker container (expo prebuild + Gradle; no Expo account), then
 # copies the APK to the Windows Downloads folder. WSL + Docker Desktop (WSL integration on).
-#   VARIANT=dev      (make dev-build) the development build "Fielder Dev": debug-signed, no bundle
+#   VARIANT=dev      (make dev-build) the development build "OpenClapper Dev": debug-signed, no bundle
 #                    inside; it loads the JavaScript, and with it the server's address, from Metro
 #                    (make mobile).
 #   VARIANT=release  (make apk-local) a production APK for one server: API_URL=https://… and the
