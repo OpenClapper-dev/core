@@ -1,7 +1,7 @@
 # The local development stack: thin wrappers around the pnpm scripts in package.json, which stay the
 # source of truth. Everything runs in the foreground; stop a server with Ctrl-C. Deploying is not
 # here: it runs from a deployment repository (docs/self-hosting.md).
-.PHONY: help init all all-down all-restart dev worker studio admin mobile dev-build apk-local
+.PHONY: help init check all all-down all-restart dev worker studio admin mobile dev-build apk-local
 
 help: ## Show this list
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -9,6 +9,9 @@ help: ## Show this list
 
 init: ## Write the gitignored dev files and apply D1 migrations (once per checkout)
 	pnpm dev:init
+
+check: ## The CI lane: lint, typecheck, unit tests, build dry runs (Vite, both Workers, Expo export)
+	pnpm check
 
 all: ## Everything local in one tmux session: Worker, Studio, admin board, mobile (tunnel + Metro) and a control strip (r restart, q quit)
 	bash scripts/dev-all.sh up

@@ -5,18 +5,34 @@ Node 22 and pnpm 11 (via nvm). `pnpm install` enforces a 7-day dependency cooldo
 ## Checks (run before every commit)
 
 ```sh
-for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/admin apps/admin/ui apps/studio apps/mobile; do (cd $p && npx tsc -p .); done
-pnpm -C packages/vocab test        # fields, filters, daylight
-pnpm -C packages/fov-math test     # FOV, overlay, reframe
-pnpm -C apps/worker test           # passwords, sessions, workspace roles
-(cd apps/mobile && node --test src/*.test.ts)
-pnpm -C apps/studio test         # shortcut registry: collisions, docs/shortcuts.md
-(cd apps/studio && npx vite build)
-(cd apps/admin && npx vite build)
-(cd apps/mobile && npx expo export --platform android --output-dir /tmp/openclapper-export)   # proves Metro can bundle
+make check          # = pnpm check: lint, typecheck, test, build, in that order
 ```
 
-The Workers' typechecks need `worker-configuration.d.ts` (gitignored): `pnpm -C apps/worker types` and `pnpm -C apps/admin types` generate them (`make init` does both).
+Each step is a root script that runs these:
+
+```sh
+pnpm lint           # oxlint, config in .oxlintrc.json
+pnpm typecheck      # scripts/typecheck.sh: tsc -p . in
+                    #   packages/vocab packages/fov-math packages/service-kit packages/ui
+                    #   apps/worker apps/admin apps/admin/ui apps/studio apps/mobile
+pnpm test           # the unit suites:
+                    #   pnpm -C packages/vocab test        fields, filters, daylight
+                    #   pnpm -C packages/fov-math test     FOV, overlay, reframe
+                    #   pnpm -C apps/worker test           passwords, sessions, workspace roles
+                    #   pnpm -C apps/studio test           shortcut registry: collisions, docs/shortcuts.md
+                    #   pnpm -C apps/mobile test           calibration, EXIF, framing, lens, zoom, layouts
+pnpm build          # scripts/build-check.sh, dry runs only, nothing is deployed:
+                    #   vite build in apps/studio and apps/admin
+                    #   wrangler deploy --dry-run in apps/worker and apps/admin (tracked local wrangler.jsonc,
+                    #     after the Vite builds: both serve them as assets)
+                    #   expo export --platform android in apps/mobile: proves Metro can bundle
+```
+
+The Workers' typechecks need `worker-configuration.d.ts` (gitignored): `pnpm -C apps/worker types` and `pnpm -C apps/admin types` generate them (`make init` does both; `pnpm typecheck` does it when they are missing). Regenerate them after changing a `wrangler.jsonc`.
+
+**CI** runs the same lane on every pull request and every push to `main`: `.github/workflows/ci.yml`, one job per step (`lint`, `typecheck`, `test`, `build`), plus `expo-doctor` as an advisory step in `build` (it reports the Expo packages trailing the SDK's newest patches, a consequence of the 7-day cooldown). The four jobs are required checks on `main`: a red check is fixed, never bypassed (no `gh pr merge --admin`).
+
+**Lint findings** are fixed in the code when the fix is obvious and keeps the behaviour. A rule that only produces false positives or fights a deliberate pattern is switched off in `.oxlintrc.json` with a one-line comment saying why; no inline disables. A finding that looks like a real bug is a bug: fix it on its own, not as a lint cleanup.
 
 The admin plane locally: part of `make all`, or alone with `make admin` (`pnpm -C apps/admin dev`: Worker on :8788 on the app's local D1, board on :5174, no Access: see [admin](features/admin.md#local)).
 

@@ -1,0 +1,85 @@
+# The PR lane: static analysis, typechecks, unit tests and build dry runs on every pull request and on
+# every push to main. Nothing is deployed (that stays in the deployment repository). `make check` runs
+# the same lane locally (docs/development.md#checks). The job ids are the required status checks of
+# the ruleset on main: rename one only together with the ruleset.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  EXPO_NO_TELEMETRY: "1"
+  EXPO_NO_GIT_STATUS: "1"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Worker runtime types
+        run: pnpm -C apps/worker types && pnpm -C apps/admin types
+      - run: pnpm typecheck
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Worker runtime types
+        run: pnpm -C apps/worker types && pnpm -C apps/admin types
+      # Vite builds, both Worker dry runs (after the Vite outputs: assets.directory), Expo export.
+      - run: pnpm build
+      # Advisory: with the 7-day release cooldown the Expo packages trail the SDK's newest patches, which
+      # expo-doctor reports as a failed check. Pinned; bump it like a dependency.
+      - name: expo-doctor (advisory)
+        continue-on-error: true
+        working-directory: apps/mobile
+        run: npx -y expo-doctor@1.21.4

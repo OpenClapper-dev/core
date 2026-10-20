@@ -12,10 +12,16 @@
     "dev:studio": "pnpm -C apps/studio dev",
     "dev:mobile": "bash scripts/mobile.sh",
     "wrangler": "wrangler",
-    "dev:admin": "pnpm -C apps/admin dev"
+    "dev:admin": "pnpm -C apps/admin dev",
+    "lint": "oxlint",
+    "typecheck": "bash scripts/typecheck.sh",
+    "test": "pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/studio test && pnpm -C apps/mobile test",
+    "build": "bash scripts/build-check.sh",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
+    "oxlint": "^1.88.0",
     "typescript": "^7.0.2",
     "wrangler": "^4.127.1"
   }

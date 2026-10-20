@@ -128,7 +128,7 @@ let onUnauthorized = () => {};
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { accept: "application/json", ...(init.headers ?? {}) }, credentials: "same-origin" });
+  const res = await fetch(path, { ...init, headers: { accept: "application/json", ...init.headers }, credentials: "same-origin" });
   if (res.redirected) {
     // A login page in front of the app (an access proxy put on its hostname) answered: reload to go through it.
     location.reload();

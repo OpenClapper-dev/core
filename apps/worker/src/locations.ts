@@ -1,4 +1,4 @@
-import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
+import { assertNumber, assertString, assertUuid, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertProjectRef, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";
