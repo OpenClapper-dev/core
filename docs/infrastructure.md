@@ -4,7 +4,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 
 | Resource | Details |
 | --- | --- |
-| Worker `APP_WORKER_NAME` (default `openclapper-api`) | API and Studio on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA. A daily cron empties the recycle bin and old sessions. Observability enabled. |
+| Worker `APP_WORKER_NAME` (default `openclapper-api`) | API and Studio on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA. A daily cron empties the recycle bin and old sessions and snapshots storage ([monitoring](features/monitoring.md)). Observability enabled. |
 | Worker `ADMIN_WORKER_NAME` (default `openclapper-admin`) | The admin plane (`apps/admin`), its own hostname, the same D1 and R2, behind its own Cloudflare Access application ([admin](features/admin.md)). Without `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` it refuses every request. |
 | D1 `D1_DATABASE_NAME` (default `openclapper-db`) | Binding `DB`, migrations in `apps/worker/migrations/` (only the app Worker's config applies them) |
 | R2 `R2_BUCKET` (default `openclapper-media`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with the workspace in their custom metadata |

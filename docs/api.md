@@ -141,7 +141,7 @@ Binning keeps a file's placement and shortcuts (they come back with it); purging
 
 ## Recycle bin (`trash.ts`, epic #90)
 
-Every DELETE of a shot, timeline, day, view, location, field or folder only marks the row (`deleted_at`); every list and lookup leaves binned rows out. A folder takes its subtree along (`deleted_with` = that folder). Rows are purged for good when the bin is emptied, one at a time, or by the daily cron (`scheduled` in `index.ts`, 03:17 UTC) once they are `TRASH_RETENTION_DAYS` (30) old.
+Every DELETE of a shot, timeline, day, view, location, field or folder only marks the row (`deleted_at`); every list and lookup leaves binned rows out. A folder takes its subtree along (`deleted_with` = that folder). Rows are purged for good when the bin is emptied, one at a time, or by the daily cron (`scheduled` in `index.ts`, 03:17 UTC) once they are `TRASH_RETENTION_DAYS` (30) old. The same cron snapshots storage for the admin board ([monitoring](features/monitoring.md)).
 
 | Method | Path | Notes |
 | --- | --- | --- |

@@ -6,6 +6,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Imag
 
 | File | What |
 | --- | --- |
+| `0023_monitoring.sql` | `storage_daily` (a day's storage per workspace and the bucket total, written by the cron) and `admin_settings` (the admin plane's settings as JSON). Additive (epic #67, issue #214; see [monitoring](features/monitoring.md)) |
 | `0001_baseline.sql` | Schema reset of 2026-09-27: projects, presets, locations, shots, photos, views |
 | `0002_photo_position_corrected.sql` | `photos.position_corrected` |
 | `0003_field_definitions.sql` | `field_definitions`, `project_fields` |
@@ -80,6 +81,10 @@ Every project and rig belongs to a workspace, every device and viewfinder layout
 `shooting_days(id, project_id → CASCADE, date YYYY-MM-DD, title, notes, …)` and `day_shots(day_id, shot_id, position, planned_time HH:MM, notes)`.
 
 `timelines(id, project_id → projects CASCADE, name, notes, lock_mode, groups JSON, created_at, updated_at)` and `timeline_clips(id, timeline_id → CASCADE, position, photo_id → photos CASCADE, overlay_id → overlays SET NULL, presentation JSON, duration_ms 100..3600000, notes, title, group_id)`. `groups` holds the sequence blocks' settings (`[{ id, mode each|total, total_ms, split even|edges, edge_weight }]`); `group_id` (no FK, checked on PUT) puts a photo clip in one. A block's clips are adjacent and of one shot; a `total` block's `duration_ms` are the computed split. A clip is either a photo clip (`photo_id` + `presentation`) or a placeholder (`title` only, no photo/overlay/presentation; a CHECK enforces the two shapes); a placeholder with `sketch_id → sketches SET NULL` is a sketch clip (deleting the sketch turns it back into a placeholder). See [timeline](features/timeline.md).
+
+## Monitoring
+
+`storage_daily(day YYYY-MM-DD UTC, workspace_id, bytes, objects, unsized)`, primary key (day, workspace): the app Worker's daily cron writes one row per workspace with photos (from `photos.size_bytes`; `objects` = its photos, `unsized` = photos without a recorded size) and one row with `workspace_id = ''` for the bound bucket's total from an R2 listing. No foreign key: the history outlives a deleted workspace. `admin_settings(key, value JSON, updated_at, updated_by)`: the admin plane's own settings, written by the admin Worker (the operator's storage marks). See [monitoring](features/monitoring.md).
 
 ## JSON shapes on photos
 
