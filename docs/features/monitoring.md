@@ -30,3 +30,15 @@ The admin Worker (`apps/admin/src/storage.ts`) serves:
 A mark is a plain threshold the operator chooses ("5 GB", "where I start paying"); nothing in the code knows about plans or free tiers. A crossed mark shows as a banner on the board; push alerts are Cloudflare notifications' job.
 
 Tested in `apps/admin/test/storage.test.ts`.
+
+## The Monitoring tab (#216)
+
+`apps/admin/ui/src/Monitoring.tsx`, reached with the **Board · Monitoring** switch in the header (`#monitoring`). The board's pages are split: `App.tsx` (shell, tabs, the banner), `Accounts.tsx`, `Workspaces.tsx`, `Monitoring.tsx`, `charts.tsx`, `shared.tsx` (tile, section, formats).
+
+- **Tiles**: the bucket total with its snapshot day (UTC), the photos' bytes from the database, the difference (renders, orphans, photos without a size), unsized photos.
+- **Storage**: the bucket total over 30 days, 90 days or a year as a line, the operator's marks as dashed lines with their label, a crosshair and a tooltip on hover. Before the first snapshot the chart says so.
+- **Workspaces**: photos, bytes, share of the photos' bytes and a sparkline of the window, largest first.
+- **Marks**: a size with a unit (MB, GB) and a label per row, at most 10; Save sends the whole list. The empty state explains what marks do.
+- **Banner** on both tabs while the latest bucket total is past a mark, naming the highest crossed one (`role="alert"`); on the Board it links to Monitoring.
+
+The charts (`charts.tsx`) are hand-written SVG with no dependency, one hue (the accent) only: the design system has no categorical palette, so a comparison across workspaces is a table with sparklines, never stacked colours. Marks are drawn on the warning ink and always carry their text. Text is sized by the container's width, not by viewBox scaling. Both themes (Sun, Set) were checked with screenshots.
