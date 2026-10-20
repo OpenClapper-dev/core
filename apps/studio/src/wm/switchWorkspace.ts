@@ -1,4 +1,4 @@
-import { withViewTransition } from "@fielder/ui";
+import { withViewTransition } from "@openclapper/ui";
 import * as wm from "./wm";
 
 /**

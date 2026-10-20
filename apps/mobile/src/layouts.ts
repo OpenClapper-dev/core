@@ -1,4 +1,4 @@
-import { DEFAULT_VIEWFINDER_LAYOUT, layoutLook, layoutOptions, type ViewfinderLayout } from "@fielder/vocab";
+import { DEFAULT_VIEWFINDER_LAYOUT, layoutLook, layoutOptions, type ViewfinderLayout } from "@openclapper/vocab";
 import * as Crypto from "expo-crypto";
 import { api, ApiError } from "./api";
 import { log } from "./log";

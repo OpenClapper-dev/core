@@ -1,13 +1,13 @@
 import { Fragment } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { FILE_RESOURCE_TYPES, FILE_TYPE_META, type FileResourceType } from "@fielder/vocab";
+import { FILE_RESOURCE_TYPES, FILE_TYPE_META, type FileResourceType } from "@openclapper/vocab";
 import type { Folder } from "../api";
 import * as data from "../data";
 import { childFolders, FILE_DRAG, folderPath, matches, moveTargets, placementOf, readDrag, subtree, type FileDrag } from "../fileTree";
 import { bind, useKeys } from "../keys";
 import { useProjectId } from "../project";
 import { parseRoute } from "../router";
-import { Button, Checkbox, ContextMenu, cx, Empty, Highlight, Icon, IconButton, Img, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "@fielder/ui";
+import { Button, Checkbox, ContextMenu, cx, Empty, Highlight, Icon, IconButton, Img, MenuItem, Modal, Panel, PanelBody, SearchInput, Seg, Select, Toolbar, ToolbarSpacer, useCtxMenu } from "@openclapper/ui";
 import { addShortcut, binItems, canRename, desktopFolderId, fileTarget, folderTarget, moveItems, newFolder, renameEntry, renameFolder, type Item } from "./fileOps";
 import { openResource, useFileEntries, type FileEntry } from "./fileEntries";
 import { launch, type AppProps } from "./registry";

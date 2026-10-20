@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { cameraLabel, extraSummary, label, lightLabel, SHOT_STATES, type ShotState } from "@fielder/vocab";
+import { cameraLabel, extraSummary, label, lightLabel, SHOT_STATES, type ShotState } from "@openclapper/vocab";
 import { api, cover, type Photo, type Shot } from "./api";
 import { queuedShots, withEdits } from "./localShots";
 import { isOfflineMode } from "./net";

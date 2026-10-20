@@ -67,11 +67,11 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return withReleaseSigning({
     ...app,
     name: "OpenClapper Dev",
-    scheme: "fielder-dev",
+    scheme: "openclapper-dev",
     icon: "./assets/icons/dev/app-icon-1024.png",
     android: {
       ...app.android,
-      package: "app.fielder.scout.dev",
+      package: "org.openclapper.dev",
       adaptiveIcon: {
         backgroundColor: "#2E7D00",
         foregroundImage: "./assets/icons/dev/android-adaptive-foreground-1024.png",

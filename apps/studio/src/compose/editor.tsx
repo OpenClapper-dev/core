@@ -4,8 +4,8 @@
  * Shape and Look panel sections. The caller owns the shapes (they live in its document).
  */
 import { useRef, useState } from "preact/hooks";
-import { COMPOSE_PALETTE, moveShape, NEUTRAL_LOOK, STENCIL_GROUPS, STENCIL_LABELS, type Look, type Shape, type Stencil } from "@fielder/vocab";
-import { Button, Chip, cx, Icon, IconButton, Input, Kbd, Popover, SearchInput, Seg, Switch } from "@fielder/ui";
+import { COMPOSE_PALETTE, moveShape, NEUTRAL_LOOK, STENCIL_GROUPS, STENCIL_LABELS, type Look, type Shape, type Stencil } from "@openclapper/vocab";
+import { Button, Chip, cx, Icon, IconButton, Input, Kbd, Popover, SearchInput, Seg, Switch } from "@openclapper/ui";
 import { STENCIL_BOX, STENCIL_PATHS, STENCIL_STROKE } from "./stencils";
 import { defaultStyle, shapeId, TOOLS, WIDTHS, type Style, type TextEdit, type Tool } from "./DrawSurface";
 import { bind } from "../keys";

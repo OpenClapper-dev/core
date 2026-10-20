@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "OpenClapper",
-    "slug": "fielder",
+    "slug": "openclapper",
     "orientation": "default",
     "icon": "./assets/icons/prod/app-icon-1024.png",
     "userInterfaceStyle": "automatic",
@@ -12,7 +12,7 @@
         "monochromeImage": "./assets/icons/prod/android-adaptive-monochrome-1024.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "app.fielder.scout",
+      "package": "org.openclapper",
       "permissions": [
         "CAMERA",
         "ACCESS_FINE_LOCATION",
@@ -23,7 +23,7 @@
         "android.permission.ACCESS_FINE_LOCATION"
       ]
     },
-    "scheme": "fielder",
+    "scheme": "openclapper",
     "plugins": [
       [
         "expo-location",

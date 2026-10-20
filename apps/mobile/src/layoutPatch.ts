@@ -1,4 +1,4 @@
-import { layoutLook, layoutOptions, type ViewfinderLayout, type VfLook, type VfOptions } from "@fielder/vocab";
+import { layoutLook, layoutOptions, type ViewfinderLayout, type VfLook, type VfOptions } from "@openclapper/vocab";
 
 /**
  * What the phone changes on a layout (issue #198): look and options only, the bars are the Studio's.

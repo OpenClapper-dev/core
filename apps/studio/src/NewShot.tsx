@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { COMPOSE_PALETTE, SKETCH_ASPECTS, type Shape } from "@fielder/vocab";
+import { COMPOSE_PALETTE, SKETCH_ASPECTS, type Shape } from "@openclapper/vocab";
 import { createShot, existingIdOf, putLocation, putSketch, type Location, type NewShotPhoto, type Shot, type ShotState } from "./api";
 import { defaultStyle, DrawSurface, TOOLS, WIDTHS, type Style, type TextEdit, type Tool } from "./compose/DrawSurface";
 import { renderSketch } from "./compose/render";
 import { bind, useKeys } from "./keys";
 import { getSettings } from "./settings";
-import { Button, Chip, Combobox, cx, Field, Icon, IconButton, Input, MarkdownField, Modal, Seg, toast } from "@fielder/ui";
+import { Button, Chip, Combobox, cx, Field, Icon, IconButton, Input, MarkdownField, Modal, Seg, toast } from "@openclapper/ui";
 
 /**
  * New shot without the camera (issue #27): upload images (one shot as a sequence, or one shot per

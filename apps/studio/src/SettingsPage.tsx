@@ -7,7 +7,7 @@ import type { MaskMode } from "./Framed";
 import { DEFAULT_SETTINGS, updateSettings, useSettings } from "./settings";
 import { ShortcutList } from "./CommandPalette";
 import type { SettingsTab } from "./router";
-import { Icon, LinkButton, Seg, type ThemeChoice, Toolbar, ToolbarTitle } from "@fielder/ui";
+import { Icon, LinkButton, Seg, type ThemeChoice, Toolbar, ToolbarTitle } from "@openclapper/ui";
 
 interface Props { tab: SettingsTab; onTab: (t: SettingsTab) => void; theme: ThemeChoice; onTheme: (t: ThemeChoice) => void; mask: MaskMode; onMask: (m: MaskMode) => void }
 
@@ -86,7 +86,7 @@ function About() {
   const [server, setServer] = useState<ServerBuild | null | undefined>(undefined);
   useEffect(() => { fetchServerBuild().then(setServer, () => setServer(null)); }, []);
   const label = (b: ServerBuild) => `${b.version} (${b.commit})`;
-  const studio = { version: __FIELDER_VERSION__, commit: __FIELDER_COMMIT__ };
+  const studio = { version: __OPENCLAPPER_VERSION__, commit: __OPENCLAPPER_COMMIT__ };
   // "dev" is a local Worker, which has no commit to compare.
   const stale = server && (server.version !== studio.version || (server.commit !== "dev" && server.commit !== studio.commit));
   return (

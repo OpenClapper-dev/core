@@ -8,7 +8,7 @@ import { parseRoute, type Stage } from "../router";
 import { shotTitle } from "../format";
 import { ShotView } from "../ShotView";
 import { emptyQuery, runQuery } from "../shotsQuery";
-import { Button, Empty } from "@fielder/ui";
+import { Button, Empty } from "@openclapper/ui";
 import * as wm from "../wm/wm";
 import type { AppProps } from "./registry";
 

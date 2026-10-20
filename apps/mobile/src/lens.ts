@@ -1,4 +1,4 @@
-import { LENS_PRESETS_MM } from "@fielder/fov-math";
+import { LENS_PRESETS_MM } from "@openclapper/fov-math";
 import type { LensRange } from "./types.ts";
 
 /** Built-in focal lengths inside the range, plus the range endpoints so a 24-70 still reaches 70. */

@@ -1,6 +1,6 @@
 import type { ComponentChildren } from "preact";
 import { useRef } from "preact/hooks";
-import { ContextMenu, cx, Icon, IconButton, MenuItem, useCtxMenu } from "@fielder/ui";
+import { ContextMenu, cx, Icon, IconButton, MenuItem, useCtxMenu } from "@openclapper/ui";
 import { requestClose } from "./closeGuards";
 import { WindowIdContext } from "./keyboard";
 import { startSplitDrag } from "./SplitGrip";

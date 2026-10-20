@@ -1,4 +1,4 @@
-import type { VfLenses } from "@fielder/vocab";
+import type { VfLenses } from "@openclapper/vocab";
 
 /**
  * The phone's lenses as magnifications (issue #26). Android exposes the back cameras as one logical

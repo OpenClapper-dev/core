@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "preact/hooks";
 import { APPS, launch, type AppId } from "../apps/registry";
-import { ContextMenu, Icon, MenuItem, useCtxMenu, useOutsideClick } from "@fielder/ui";
+import { ContextMenu, Icon, MenuItem, useCtxMenu, useOutsideClick } from "@openclapper/ui";
 import { pinnedApp, togglePinApp } from "../apps/fileOps";
 import * as data from "../data";
 import { useProjectId } from "../project";

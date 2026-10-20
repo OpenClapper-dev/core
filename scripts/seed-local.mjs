@@ -13,7 +13,7 @@ const COUNT = Number(process.argv[2] ?? 40);
 
 /** A stable UUID (version 5 layout) for a name. */
 function uuid(name) {
-  const h = createHash("sha1").update(`fielder-seed:${name}`).digest("hex");
+  const h = createHash("sha1").update(`openclapper-seed:${name}`).digest("hex");
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${((parseInt(h[16], 16) & 3) | 8).toString(16)}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 // Small seeded PRNG so every run makes the same tags.
@@ -79,7 +79,7 @@ for (let n = 0; n < COUNT; n++) {
   };
   const form = new FormData();
   form.set("metadata", JSON.stringify(meta));
-  for (const [k, ph] of meta.photos.entries()) form.set(`photo.${ph.id}`, await image(`fielder-${n}-${k}`), "photo.jpg");
+  for (const [k, ph] of meta.photos.entries()) form.set(`photo.${ph.id}`, await image(`openclapper-${n}-${k}`), "photo.jpg");
   const res = await fetch(`${API}/api/shots`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`upload ${n}: ${res.status} ${await res.text()}`);
   if (res.status === 201) {

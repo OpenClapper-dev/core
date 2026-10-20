@@ -5,7 +5,7 @@
 import { Fragment } from "preact";
 import type { ComponentChildren, JSX, Ref } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { LIGHT, PHASE_ICONS, label } from "@fielder/vocab";
+import { LIGHT, PHASE_ICONS, label } from "@openclapper/vocab";
 import { IconButton } from "./actions";
 import { cx, Icon, Kbd } from "./core";
 import { ErrorLine } from "./feedback";

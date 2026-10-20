@@ -19,7 +19,7 @@ export function LeafletView({ script, onMessage, fitLabel = "Show all", offlineA
   const { c, name } = useTheme();
   const online = useOnline();
   const ref = useRef<{ injectJavaScript: (js: string) => void } | null>(null);
-  const source = useMemo(() => ({ html: mapPage({ dark: name === "set", bg: c.bg, script }), baseUrl: "https://fielder.local/" }), [name, c.bg, script]);
+  const source = useMemo(() => ({ html: mapPage({ dark: name === "set", bg: c.bg, script }), baseUrl: "https://openclapper.local/" }), [name, c.bg, script]);
   const run = (js: string) => ref.current?.injectJavaScript(`${js};true;`);
   if (handle) handle.current = { run };
   if (!online) {

@@ -10,7 +10,7 @@
 // --remote     the deployed database (default: the local one of `wrangler dev`); needs deploy.env (here or in
 //              the deployment repository above this one) or the same environment as scripts/deploy-config.mjs,
 //              whose config it uses.
-// The password is read from FIELDER_PASSWORD, or asked for.
+// The password is read from OPENCLAPPER_PASSWORD, or asked for.
 import { spawnSync } from "node:child_process";
 import { webcrypto as crypto } from "node:crypto";
 import { dirname, join } from "node:path";
@@ -44,7 +44,7 @@ function ask(question) {
   return new Promise((resolve) => rl.question(question, (a) => { rl.close(); process.stdout.write("\n"); resolve(a); }));
 }
 
-const password = process.env.FIELDER_PASSWORD ?? (await ask("Password (at least 10 characters): "));
+const password = process.env.OPENCLAPPER_PASSWORD ?? (await ask("Password (at least 10 characters): "));
 if (password.length < 10 || password.length > 200) {
   console.error("the password must be 10 to 200 characters");
   process.exit(2);

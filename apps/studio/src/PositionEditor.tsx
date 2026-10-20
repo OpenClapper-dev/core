@@ -4,7 +4,7 @@ import "leaflet/dist/leaflet.css";
 import { patchPhotoPosition, type Photo, type Shot } from "./api";
 import { positionOf } from "./format";
 import { bind, useKeys } from "./keys";
-import { Button, Checkbox, Icon, Spinner, ToolbarSpacer } from "@fielder/ui";
+import { Button, Checkbox, Icon, Spinner, ToolbarSpacer } from "@openclapper/ui";
 
 interface Props { shot: Shot; photo: Photo; onSaved: (s: Shot) => void; onCancel: () => void; onError: (msg: string) => void }
 

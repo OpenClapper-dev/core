@@ -3,7 +3,7 @@
  * and the drawing on top, so the phone can frame it exactly like the photo. A sketch render is the
  * canvas on white. Both draw the same shapes as the SVG (Canvas.tsx), on a 2D context.
  */
-import { lookFilter, type Drawing, type Look, type Shape } from "@fielder/vocab";
+import { lookFilter, type Drawing, type Look, type Shape } from "@openclapper/vocab";
 import type { Photo } from "../api";
 import { arrowPoints } from "./Canvas";
 import { arrowHead, sizePx, strokePx, toPx, type CanvasRect } from "./geometry";

@@ -4,7 +4,7 @@
  */
 import type { ComponentChildren } from "preact";
 import { useId } from "preact/hooks";
-import type { MaskStroke, Shape } from "@fielder/vocab";
+import type { MaskStroke, Shape } from "@openclapper/vocab";
 import { arrowHead, boundsPx, sizePx, strokePx, toPx, type CanvasRect } from "./geometry";
 import { STENCIL_BOX, STENCIL_PATHS, STENCIL_STROKE } from "./stencils";
 

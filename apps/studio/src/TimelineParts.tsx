@@ -1,6 +1,6 @@
 import type { ComponentChildren, JSX, RefObject } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { CLIP_MAX_MS, EDGE_WEIGHT, GROUP_MAX_MS, PRESENTATION_MODES, splitDuration, type GroupMode, type Presentation } from "@fielder/vocab";
+import { CLIP_MAX_MS, EDGE_WEIGHT, GROUP_MAX_MS, PRESENTATION_MODES, splitDuration, type GroupMode, type Presentation } from "@openclapper/vocab";
 import { type ClipGroup, copyOverlay, copySketch, deleteTimeline, patchShot, patchShots, putTimeline, type Overlay, type Photo, type Shot, type ShotState, type Sketch, type Timeline, type TimelineClip } from "./api";
 import { binned } from "./apps/trashOps";
 import * as data from "./data";
@@ -8,7 +8,7 @@ import { frameModeLabel, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateTimelines } from "./Inspector";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
-import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, type SaveState, Seg, Select, SeqBadge, Spinner, StateMarker, toast, withViewTransition } from "@fielder/ui";
+import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, type SaveState, Seg, Select, SeqBadge, Spinner, StateMarker, toast, withViewTransition } from "@openclapper/ui";
 import type { EditKind } from "./ClipEditing";
 import { useSettings } from "./settings";
 import type { CutPosition } from "./router";
@@ -564,8 +564,8 @@ export function CutPreview({ cut, clips, total, lock, stage, editing, children }
 
 // ---------- The strip: proportional blocks, drag to reorder, drop shots in (issue #31) ----------
 
-const SHOT_TYPE = "application/x-fielder-shot";
-const CLIP_TYPE = "application/x-fielder-clip";
+const SHOT_TYPE = "application/x-openclapper-shot";
+const CLIP_TYPE = "application/x-openclapper-clip";
 /** Mark a shot card as a drag source for the strip. */
 export function shotDrag(shotId: string) {
   return { draggable: true, onDragStart: (e: DragEvent) => { e.dataTransfer?.setData(SHOT_TYPE, shotId); if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy"; } };

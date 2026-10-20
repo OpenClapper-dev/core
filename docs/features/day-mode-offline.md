@@ -21,7 +21,7 @@ The **Day** tab (`apps/mobile/src/screens/Day.tsx`, step-through in `StepThrough
    - Portrait: the photo on top, the info below, and Prev | Next as a 120 dp bar at the bottom (1 : 1.4).
    - **Details** (ⓘ sheet): planned time and window, location, tags, rig, extra fields, the planned shot's notes, the shot's description and a row per overlay and sketch (tap = full-screen viewer, [compose](compose.md)), the frame mode, Show on map (online only), Leave step-through. Android back also leaves.
 
-Light is computed on the phone (`@fielder/vocab` `dayLight`), so it works offline.
+Light is computed on the phone (`@openclapper/vocab` `dayLight`), so it works offline.
 
 ## Offline
 

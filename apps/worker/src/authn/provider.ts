@@ -1,10 +1,10 @@
 /**
- * The auth seam (epic #107). index.ts imports the provider as `@fielder/auth-provider`, which
+ * The auth seam (epic #107). index.ts imports the provider as `@openclapper/auth-provider`, which
  * wrangler's `alias` (and tsconfig `paths`) map to `first-party.ts`. Another build swaps that one
  * line of config for its own module, e.g. one that wraps the first-party provider and checks a
  * subscription in `allow`. Workers are bundled at build time, so this is the whole plugin system.
  */
-import type { Router } from "@fielder/service-kit";
+import type { Router } from "@openclapper/service-kit";
 import type { Env } from "../index.ts";
 
 export interface Identity {

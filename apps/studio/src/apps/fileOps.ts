@@ -1,9 +1,9 @@
-import type { AppIdV, FileResourceType } from "@fielder/vocab";
+import type { AppIdV, FileResourceType } from "@openclapper/vocab";
 import { ApiError, deleteDay, deleteDesktopItem, deleteField, deleteFolder, deleteLocation, deleteShot, deleteTimeline, deleteView, existingIdOf, patchShot, placeItem, putDesktopItem, putFolder, putLocation, putView, type DesktopItem, type Folder } from "../api";
 import * as data from "../data";
 import { placementOf, subtree } from "../fileTree";
 import { invalidateDays, invalidateTimelines } from "../Inspector";
-import { promptDialog, toast } from "@fielder/ui";
+import { promptDialog, toast } from "@openclapper/ui";
 import type { FileEntry } from "./fileEntries";
 import { binned, confirmShotBin, type Binned } from "./trashOps";
 

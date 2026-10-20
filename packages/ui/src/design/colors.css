@@ -1,4 +1,4 @@
-/* Fielder colour tokens. Generated from one source (see guidelines/contrast.md for every ratio).
+/* OpenClapper colour tokens. Generated from one source (see guidelines/contrast.md for every ratio).
    Sun is the :root default; tokens/theme.js sets [data-theme] on <html> from the OS setting (Auto) or a stored override. Sun = light, Set = dark. */
 :root {
   --bg: #F7F7F5;

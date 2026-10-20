@@ -3,7 +3,7 @@
  * and screen pixels, plus hit testing. The SVG editor, the read-only canvas and the flattened
  * render all go through `CanvasRect`, so a stroke lands on the same pixel everywhere.
  */
-import { shapeBounds, type Point, type Shape } from "@fielder/vocab";
+import { shapeBounds, type Point, type Shape } from "@openclapper/vocab";
 
 /** Where the canvas (photo or sketch box) sits inside the drawing surface, in px. */
 export interface CanvasRect { x: number; y: number; w: number; h: number }

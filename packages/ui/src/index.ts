@@ -1,5 +1,5 @@
 /**
- * The web component library (`@fielder/ui`), shared by the Studio and the admin board: every page
+ * The web component library (`@openclapper/ui`), shared by the Studio and the admin board: every page
  * imports its building blocks from here, so the design system is applied in one place. Files follow
  * the design system's groups; the CSS they render lives in ./design (tokens + component classes, see
  * docs/design.md) and comes along with any import from this package. Client-only CSS (the desktop

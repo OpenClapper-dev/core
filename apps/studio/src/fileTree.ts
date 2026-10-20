@@ -1,8 +1,8 @@
-import type { FileResourceType } from "@fielder/vocab";
+import type { FileResourceType } from "@openclapper/vocab";
 import type { DesktopItem, Folder, FolderItem } from "./api";
 
 /** The drag payload between Files, its folder tree and the desktop: one or more files and folders. */
-export const FILE_DRAG = "application/x-fielder-file";
+export const FILE_DRAG = "application/x-openclapper-file";
 export type FileDrag = { kind: "file"; type: FileResourceType; id: string } | { kind: "folder"; id: string };
 
 /** What a drop carries (an older single-item payload reads as a list of one); null when it is not ours. */

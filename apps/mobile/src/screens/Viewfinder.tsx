@@ -11,7 +11,7 @@ import { api } from "../api";
 import { useApp } from "../appState";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { isConfigured } from "../config";
-import { VF_HUMAN_STEPS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem } from "@fielder/vocab";
+import { VF_HUMAN_STEPS, VF_SHORT_LABELS, type VfBar, type VfControl, type VfItem } from "@openclapper/vocab";
 import { calibrationFromExif } from "../calibration";
 import { notifyDeviceChange, recordViewport } from "../device";
 import { readExif, uprightSize } from "../exif";

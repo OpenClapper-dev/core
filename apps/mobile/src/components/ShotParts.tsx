@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { label } from "@fielder/vocab";
+import { label } from "@openclapper/vocab";
 import { api, positionOf, type Photo, type Shot } from "../api";
 import { editShot, isWaiting } from "../localShots";
 import { isOfflineMode, isOnline } from "../net";

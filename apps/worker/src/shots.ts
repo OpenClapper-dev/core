@@ -1,10 +1,10 @@
-import { CAMERA_SUPPORTS, INT_EXT, isOneOf, LIGHT, PHOTO_SOURCES, MAX_DESCRIPTION, MOVEMENTS, fitExtra, patchExtra, pruneExtra, SHOT_SIZES, SHOT_STATES, validateExtra, validateValues, WEATHER, type Extra, type FieldDef } from "@fielder/vocab";
+import { CAMERA_SUPPORTS, INT_EXT, isOneOf, LIGHT, PHOTO_SOURCES, MAX_DESCRIPTION, MOVEMENTS, fitExtra, patchExtra, pruneExtra, SHOT_SIZES, SHOT_STATES, validateExtra, validateValues, WEATHER, type Extra, type FieldDef } from "@openclapper/vocab";
 import { clipOverlaysLeaving, composeFor, deleteClipCompose, type OverlayApi, type SketchApi } from "./compose.ts";
 import { framingsFor, type FramingApi } from "./framings.ts";
 import { projectFieldDefs } from "./fields.ts";
 import { locationInProject } from "./locations.ts";
 import { spotUnder } from "./spots.ts";
-import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
+import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import { fileRefCleanup } from "./files.ts";
 import { binResource } from "./trash.ts";
 import type { Ctx } from "./index.ts";

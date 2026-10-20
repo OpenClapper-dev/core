@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import { validateDeviceSpecs, type DeviceSpecs, type ViewfinderLayout, type VfOrientationName } from "@fielder/vocab";
+import { validateDeviceSpecs, type DeviceSpecs, type ViewfinderLayout, type VfOrientationName } from "@openclapper/vocab";
 
 /**
  * The Studio's end of the live layout preview (issue #50, worker/src/preview.ts). Connected while

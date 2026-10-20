@@ -1,7 +1,7 @@
 /** Data display from the design system: review state, sequence badge, photo tag, list row. */
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
-import { label as vocabLabel, STATE_ICONS, type ShotState } from "@fielder/vocab";
+import { label as vocabLabel, STATE_ICONS, type ShotState } from "@openclapper/vocab";
 import { Icon } from "./core";
 import { FIXED, useTheme } from "./theme";
 import { useStyles } from "./styles";

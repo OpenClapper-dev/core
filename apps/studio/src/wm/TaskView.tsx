@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { appDef } from "../apps/registry";
-import { cx, Icon, IconButton } from "@fielder/ui";
+import { cx, Icon, IconButton } from "@openclapper/ui";
 import { requestClose } from "./closeGuards";
 import { goToWorkspace } from "./switchWorkspace";
 import * as wm from "./wm";
@@ -9,7 +9,7 @@ import { contentOf, contentSize, snapshot } from "./windowPreview";
 
 const TILE_W = 196;
 const onKeyStub = (_e: KeyboardEvent) => {};
-const WIN_DRAG = "application/x-fielder-window";
+const WIN_DRAG = "application/x-openclapper-window";
 
 /** Where a window sits on its workspace, in desktop pixels (what the miniature draws). */
 function frameOf(w: Win, view: { w: number; h: number }, split: number): Rect | null {

@@ -1,5 +1,5 @@
 {
-  "name": "@fielder/studio",
+  "name": "@openclapper/studio",
   "private": true,
   "version": "0.0.0",
   "license": "Apache-2.0",
@@ -11,9 +11,9 @@
     "test": "node --test src/*.test.ts src/wm/*.test.ts"
   },
   "dependencies": {
-    "@fielder/fov-math": "workspace:*",
-    "@fielder/ui": "workspace:*",
-    "@fielder/vocab": "workspace:*",
+    "@openclapper/fov-math": "workspace:*",
+    "@openclapper/ui": "workspace:*",
+    "@openclapper/vocab": "workspace:*",
     "leaflet": "^1.9.4",
     "preact": "^10.27.0"
   },

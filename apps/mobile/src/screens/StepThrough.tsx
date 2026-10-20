@@ -3,7 +3,7 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { useKeepAwake } from "expo-keep-awake";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { lightLabel, shootableWindows } from "@fielder/vocab";
+import { lightLabel, shootableWindows } from "@openclapper/vocab";
 import type { Composed, Shot, ShootingDay } from "../api";
 import { useApp } from "../appState";
 import { useOnline } from "../net";

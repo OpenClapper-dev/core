@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { cameraLabel, label, lightLabel, SHOT_STATES, STATE_ICONS, type FieldDef } from "@fielder/vocab";
+import { cameraLabel, label, lightLabel, SHOT_STATES, STATE_ICONS, type FieldDef } from "@openclapper/vocab";
 import { deleteShot, type Location, type SavedView, type Shot } from "./api";
 import { binned, confirmShotBin } from "./apps/trashOps";
 import { BulkEditPanel, MoveDialog, type BulkDraft } from "./BulkEdit";
@@ -11,7 +11,7 @@ import { ShotsMap } from "./MapView";
 import { ModeSwitch } from "./ModeSwitch";
 import { ShotCard } from "./ShotCard";
 import { filterPills, ruleCount, runQuery, type Layout, type RefLists, type ShotsQuery, type Sort, type StateFilter } from "./shotsQuery";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, LinkButton, MenuItem, Popover, SearchInput, Seg, SeqBadge, StateMarker, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@fielder/ui";
+import { Banner, Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, LinkButton, MenuItem, Popover, SearchInput, Seg, SeqBadge, StateMarker, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 
 interface Props {
   shots: Shot[] | null;

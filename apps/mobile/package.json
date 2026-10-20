@@ -1,13 +1,13 @@
 {
-  "name": "@fielder/mobile",
+  "name": "@openclapper/mobile",
   "version": "0.0.0",
   "license": "Apache-2.0",
   "main": "index.ts",
   "dependencies": {
     "@expo-google-fonts/atkinson-hyperlegible-next": "^0.4.1",
     "@expo/vector-icons": "^15.1.1",
-    "@fielder/fov-math": "workspace:*",
-    "@fielder/vocab": "workspace:*",
+    "@openclapper/fov-math": "workspace:*",
+    "@openclapper/vocab": "workspace:*",
     "expo": "~57.0.0",
     "expo-constants": "~57.0.16",
     "expo-crypto": "~57.0.0",

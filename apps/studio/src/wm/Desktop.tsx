@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { FILE_RESOURCE_TYPES, FILE_TYPE_META } from "@fielder/vocab";
+import { FILE_RESOURCE_TYPES, FILE_TYPE_META } from "@openclapper/vocab";
 import type { DesktopItem } from "../api";
 import { addRows, addShortcut, binItems, pinItems, canRename, desktopFolderId, fileTarget, folderTarget, moveItems, moveShortcuts, newFolder, removeShortcuts, renameEntry, renameFolder, renameShortcut, setDesktopPlacer, type Item } from "../apps/fileOps";
 import { emptyBin } from "../apps/trashOps";
@@ -9,7 +9,7 @@ import { APPS, launch, type AppId } from "../apps/registry";
 import * as data from "../data";
 import { cellAt, cellKey, cellSpot, FILE_DRAG, matches, nearestFreeCell, placementOf, readDrag, type Cell, type FileDrag, type Grid } from "../fileTree";
 import { bind, useKeys } from "../keys";
-import { Button, ContextMenu, cx, Icon, Img, MenuItem, Modal, SearchInput, setTheme, toast, useCtxMenu, useTheme } from "@fielder/ui";
+import { Button, ContextMenu, cx, Icon, Img, MenuItem, Modal, SearchInput, setTheme, toast, useCtxMenu, useTheme } from "@openclapper/ui";
 import { useOverlay } from "./overlays";
 import * as wm from "./wm";
 

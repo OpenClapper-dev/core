@@ -1,12 +1,12 @@
 /**
- * Fielder admin plane (epic #107, issue #116). Its own hostname behind its own Cloudflare Access
+ * OpenClapper admin plane (epic #107, issue #116). Its own hostname behind its own Cloudflare Access
  * application: operators sign in there (with whatever the Access policy asks, 2FA included) and are
  * not app users. It reads across all workspaces and manages accounts; there is no sign-up in the app,
  * so this is where accounts are made. Same D1 as the app, whose migrations it never runs.
  */
 import {
   AccessError, assertEnum, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
-} from "@fielder/service-kit";
+} from "@openclapper/service-kit";
 
 export interface Env {
   DB: D1Database;

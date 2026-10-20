@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { FlatList, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
-import { label, STATE_ICONS } from "@fielder/vocab";
+import { label, STATE_ICONS } from "@openclapper/vocab";
 import { cover, positionOf, type Shot } from "../api";
 import { useApp } from "../appState";
 import { useOnline } from "../net";

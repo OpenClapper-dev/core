@@ -1,11 +1,11 @@
 {
-  "name": "fielder",
+  "name": "openclapper",
   "private": true,
   "version": "0.5.0",
   "license": "Apache-2.0",
   "packageManager": "pnpm@11.13.1",
   "scripts": {
-    "dev": "pnpm --parallel --filter @fielder/worker --filter @fielder/studio dev",
+    "dev": "pnpm --parallel --filter @openclapper/worker --filter @openclapper/studio dev",
     "dev:init": "bash scripts/dev-init.sh",
     "dev:worker": "pnpm -C apps/worker dev",
     "dev:seed": "node scripts/seed-local.mjs",

@@ -1,6 +1,6 @@
 # Data model
 
-D1 (SQLite) database `fielder-db`, schema in `apps/worker/migrations/`. Images live in R2 bucket `fielder-shots` under `photos/<photoId>.<ext>`.
+D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Images live in R2 bucket `openclapper-media` under `photos/<photoId>.<ext>`.
 
 ## Migrations
 
@@ -35,7 +35,7 @@ Add a new numbered file for every change; never edit one that was applied to pro
 
 **Tenancy** (epic #107). `users(id, email UNIQUE NOCASE, name, password_hash, status active|blocked, failed_logins, locked_until, created_at, updated_at)`: `password_hash` is `pbkdf2-sha256$<iterations>$<salt>$<hash>`, or `!`, which never verifies (sign-in disabled). `sessions(id, user_id → users CASCADE, client dashboard|mobile, expires_at, last_used_at, created_at)`: the id is the SHA-256 (hex) of the opaque token; the token itself is never stored; `dashboard` is the Studio (the value predates the rename and is kept, not migrated). `workspaces(id, name, owner_user_id → users, kind personal|shared, created_at, updated_at)` and `workspace_members(workspace_id → CASCADE, user_id → CASCADE, role owner|admin|editor|viewer)`, primary key (workspace, user). Access is decided by `workspace_members` alone; `owner_user_id` is bookkeeping and nullable, so organisations can own workspaces later (an added `owner_org_id`). `kind`: each user's own workspace is `personal` (where their new projects and rigs go by default); the ones they create to share are `shared`.
 
-Every project and rig belongs to a workspace, every device and viewfinder layout to a user. Migration 0021 gave all existing rows to a bootstrap user `00000000-0000-4000-8000-000000000001` (email `owner@fielder.invalid`, sign-in disabled) and its workspace `00000000-0000-4000-8000-000000000002` (`tenancy.ts`). New projects and rigs go to the workspace the client names, by default the caller's own; new devices and layouts to the caller. Devices are keyed by the phone's own id, so a phone signed in to another account takes its row over (and that account's layouts drop their `device_id`).
+Every project and rig belongs to a workspace, every device and viewfinder layout to a user. Migration 0021 gave all existing rows to a bootstrap user `00000000-0000-4000-8000-000000000001` (email `owner@openclapper.invalid`, sign-in disabled) and its workspace `00000000-0000-4000-8000-000000000002` (`tenancy.ts`). New projects and rigs go to the workspace the client names, by default the caller's own; new devices and layouts to the caller. Devices are keyed by the phone's own id, so a phone signed in to another account takes its row over (and that account's layouts drop their `device_id`).
 
 `projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, notes, created_at, updated_at)`
 

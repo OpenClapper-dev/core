@@ -1,5 +1,5 @@
-import { groupLayoutProblem, PRESENTATION_MODES, splitDuration, validateGroup, validatePresentation, type ClipGroup, type Presentation } from "@fielder/vocab";
-import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@fielder/service-kit";
+import { groupLayoutProblem, PRESENTATION_MODES, splitDuration, validateGroup, validatePresentation, type ClipGroup, type Presentation } from "@openclapper/vocab";
+import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertProjectRef, inWorkspaces } from "./tenancy.ts";
 import { binResource } from "./trash.ts";

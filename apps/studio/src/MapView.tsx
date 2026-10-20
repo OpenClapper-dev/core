@@ -2,12 +2,12 @@ import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { label, STATE_ICONS } from "@fielder/vocab";
+import { label, STATE_ICONS } from "@openclapper/vocab";
 import type { Shot } from "./api";
 import { cover, positionOf, shotTitle } from "./format";
 import { Framed, FramedThumb, type MaskMode } from "./Framed";
 import { shotSub } from "./ShotCard";
-import { Button, cx, SeqBadge, StateMarker } from "@fielder/ui";
+import { Button, cx, SeqBadge, StateMarker } from "@openclapper/ui";
 
 interface Props {
   shots: Shot[];

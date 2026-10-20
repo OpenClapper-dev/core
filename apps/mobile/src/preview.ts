@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState } from "react-native";
-import { validateViewfinderLayout, type ViewfinderLayout } from "@fielder/vocab";
+import { validateViewfinderLayout, type ViewfinderLayout } from "@openclapper/vocab";
 import { getToken, isSignedIn, onAuthChange } from "./auth";
 import { API_URL } from "./config";
 import { deviceId, deviceModel, deviceSpecs, onDeviceChange } from "./device";

@@ -3,7 +3,7 @@ import { getSession, getToken, setSession } from "./auth";
 import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
-import type { DeviceSpecs, Extra, FieldDefinition, Framing, Presentation } from "@fielder/vocab";
+import type { DeviceSpecs, Extra, FieldDefinition, Framing, Presentation } from "@openclapper/vocab";
 import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
 export class ApiError extends Error {

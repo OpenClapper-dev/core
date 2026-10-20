@@ -1,4 +1,4 @@
-import { DEFAULT_VIEWFINDER_LAYOUT, validateViewfinderLayout, type VfBar, type VfOrientation, type ViewfinderLayout } from "@fielder/vocab";
+import { DEFAULT_VIEWFINDER_LAYOUT, validateViewfinderLayout, type VfBar, type VfOrientation, type ViewfinderLayout } from "@openclapper/vocab";
 
 /**
  * Sizes of the viewfinder's bars (issue #49), so the preview can be fitted between them before they

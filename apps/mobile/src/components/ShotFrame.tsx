@@ -1,5 +1,5 @@
 import type { StyleProp, ViewStyle } from "react-native";
-import { rootFrame } from "@fielder/vocab";
+import { rootFrame } from "@openclapper/vocab";
 import { imageHeaders, imageUri, type Photo } from "../api";
 import { isOfflineMode } from "../net";
 import { offlinePhotoUri } from "../offline";

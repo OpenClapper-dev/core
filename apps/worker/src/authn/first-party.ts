@@ -1,5 +1,5 @@
-import { HttpError, json, readJson, type Router } from "@fielder/service-kit";
-import { burnVerification, hashPassword, passwordProblem, targetIterations, verifyPassword } from "@fielder/service-kit";
+import { HttpError, json, readJson, type Router } from "@openclapper/service-kit";
+import { burnVerification, hashPassword, passwordProblem, targetIterations, verifyPassword } from "@openclapper/service-kit";
 import type { AuthProvider, PublicCtx } from "./provider.ts";
 import { CLEAR_COOKIE, createSession, deleteSession, requestToken, resolveSession, sessionCookie, sha256Hex, type SessionClient } from "./sessions.ts";
 

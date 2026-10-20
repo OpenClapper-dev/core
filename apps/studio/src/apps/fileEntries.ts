@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { FILE_TYPE_META, type FileResourceType } from "@fielder/vocab";
+import { FILE_TYPE_META, type FileResourceType } from "@openclapper/vocab";
 import type { DesktopItem, Photo, ShootingDay, Timeline } from "../api";
 import * as data from "../data";
 import { cover, shotTitle } from "../format";

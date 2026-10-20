@@ -1,4 +1,4 @@
-import type { ShotState } from "@fielder/vocab";
+import type { ShotState } from "@openclapper/vocab";
 import { api, ApiError, type Photo, type Shot } from "./api";
 import { log } from "./log";
 import { isOfflineMode } from "./net";

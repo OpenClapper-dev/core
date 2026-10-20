@@ -7,7 +7,7 @@ import { FILE_DRAG, readDrag } from "../fileTree";
 import { useSettings } from "../settings";
 import { switchProject } from "../project";
 import { appDef, launch, type AppId } from "../apps/registry";
-import { ContextMenu, cx, Icon, IconButton, Img, Mark, MenuItem, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, useCtxMenu, useOutsideClick, useTheme } from "@fielder/ui";
+import { ContextMenu, cx, Icon, IconButton, Img, Mark, MenuItem, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, useCtxMenu, useOutsideClick, useTheme } from "@openclapper/ui";
 import { signOut, useUser } from "../user";
 import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
@@ -26,7 +26,7 @@ function useClock(): string {
 }
 
 /** Pins dragged to a new place on the taskbar carry their row id. */
-const PIN_DRAG = "application/x-fielder-pin";
+const PIN_DRAG = "application/x-openclapper-pin";
 /** Apps a project's taskbar starts with (unless this browser had pins of its own before). */
 const SEED: AppId[] = ["gallery", "timeline", "plan", "files"];
 

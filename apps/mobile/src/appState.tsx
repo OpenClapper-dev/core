@@ -2,7 +2,7 @@ import { createContext, useContext } from "react";
 import type { Shot, ShootingDay } from "./api";
 import type { ShotsData } from "./shots";
 import type { LivePreview } from "./preview";
-import type { ViewfinderLayout } from "@fielder/vocab";
+import type { ViewfinderLayout } from "@openclapper/vocab";
 import type { LayoutPatch } from "./layoutPatch";
 import type { LayoutEntry, LocationEntry, ProjectEntry, Settings, SpotEntry, ViewSettings } from "./types";
 

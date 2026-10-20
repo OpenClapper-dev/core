@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { useMask } from "../frameMode";
 import { parseRoute, type SettingsTab } from "../router";
 import { SettingsPage } from "../SettingsPage";
-import { useTheme } from "@fielder/ui";
+import { useTheme } from "@openclapper/ui";
 import type { AppProps } from "./registry";
 
 /** The tab a launch asked for (#/settings/shortcuts), else the one the window last showed. */

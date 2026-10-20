@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { extraFilterFields, type FieldDef } from "@fielder/vocab";
+import { extraFilterFields, type FieldDef } from "@openclapper/vocab";
 import { fetchAllShots, fetchFields, fetchFiles, fetchTrash, type FilesPayload, type TrashEntry, type TrashType, fetchLocations, fetchPresets, fetchProjects, fetchSpots, fetchViews, onProjectCreated, type FieldDefinition, type Location, type Preset, type Project, type SavedView, type Shot, type Spot } from "./api";
 import { getProjectId, onProjectChange } from "./project";
-import { toast } from "@fielder/ui";
+import { toast } from "@openclapper/ui";
 
 /**
  * The Studio's data cache (epic #72), moved out of App.tsx into a module store (settings.ts

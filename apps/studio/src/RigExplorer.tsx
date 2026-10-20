@@ -1,13 +1,13 @@
 import { useMemo, useRef } from "preact/hooks";
-import { computeFraming, LENS_PRESETS_MM, reframe, type RigLens } from "@fielder/fov-math";
-import { canMove, clampCentre, resize, withCentre, type Framing } from "@fielder/vocab";
+import { computeFraming, LENS_PRESETS_MM, reframe, type RigLens } from "@openclapper/fov-math";
+import { canMove, clampCentre, resize, withCentre, type Framing } from "@openclapper/vocab";
 import { deleteFraming, putFraming, setRootFraming, type Photo, type Preset, type Shot } from "./api";
 import { capturedFrameOf, frameLayout, imageAspect, sourceRigOf, type FrameGeometry } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { FromTimelines } from "./FromTimelines";
 import { bind, NUDGE, useKeys } from "./keys";
 import { initialStack, StackBar, StackCanvas, StackLayers, type StackState } from "./StackedFrames";
-import { Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, promptDialog, Seg, Select, toast, ToolbarSpacer } from "@fielder/ui";
+import { Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, promptDialog, Seg, Select, toast, ToolbarSpacer } from "@openclapper/ui";
 
 /**
  * Shot view stage "Framing" (was Rigs; issue #29). Re-frame a photo for another rig and lens and

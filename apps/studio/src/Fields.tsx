@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { FIELD_PROMPT, validateFieldDef, type Extra, type FieldDef } from "@fielder/vocab";
+import { FIELD_PROMPT, validateFieldDef, type Extra, type FieldDef } from "@openclapper/vocab";
 import { deleteField, importFields, putField, putProjectFields, type FieldDefinition, type Project } from "./api";
 import { binned } from "./apps/trashOps";
 import { ExtraEditor } from "./ExtraEditor";
 import { bind, useKeys } from "./keys";
-import { Banner, Button, cx, Empty, EmptyNote, Icon, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@fielder/ui";
+import { Banner, Button, cx, Empty, EmptyNote, Icon, ListRow, MenuItem, Panel, PanelBody, PanelHead, Popover, ReorderButtons, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@openclapper/ui";
 
 /** The active project's fields: definitions belong to one project (issue #44). */
 interface Props { project: Project; fields: FieldDefinition[]; onChange: (f: FieldDefinition[]) => void; selectedId: string | null; onSelect: (id: string | null) => void }

@@ -1,8 +1,8 @@
 import { render } from "preact";
-// Design system: tokens, component classes and components come with @fielder/ui; then the
+// Design system: tokens, component classes and components come with @openclapper/ui; then the
 // client's own CSS (photo framing, the desktop shell) and styles.css with the page layouts.
-import "@fielder/ui";
-import "./fielder.css";
+import "@openclapper/ui";
+import "./openclapper.css";
 import "./wm/desktop.css";
 import "./styles.css";
 import { Shell } from "./wm/Shell";

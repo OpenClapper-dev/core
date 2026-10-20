@@ -1,12 +1,12 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useState } from "preact/hooks";
-import { CAMERA_SUPPORTS, extraSummary, INT_EXT, label, LIGHT, lightLabel, MOVEMENTS, patchExtra, PHASE_ICONS, SHOT_SIZE_ABBR, SHOT_SIZES, SHOT_STATES, WEATHER, type Extra, type ExtraValue, type FieldDef } from "@fielder/vocab";
+import { CAMERA_SUPPORTS, extraSummary, INT_EXT, label, LIGHT, lightLabel, MOVEMENTS, patchExtra, PHASE_ICONS, SHOT_SIZE_ABBR, SHOT_SIZES, SHOT_STATES, WEATHER, type Extra, type ExtraValue, type FieldDef } from "@openclapper/vocab";
 import { createProjectNamed, existingIdOf, patchShot, patchShots, putLocation, type BulkSet, type Location, type Project, type Shot } from "./api";
 import { ExtraEditor } from "./ExtraEditor";
 import { cover, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateDays, projectDays } from "./Inspector";
-import { Button, Chip, Combobox, cx, Icon, IconButton, Input, LinkButton, Modal, Panel, PanelBody, PanelFoot, PanelHead, Seg, Switch, toast } from "@fielder/ui";
+import { Button, Chip, Combobox, cx, Icon, IconButton, Input, LinkButton, Modal, Panel, PanelBody, PanelFoot, PanelHead, Seg, Switch, toast } from "@openclapper/ui";
 
 /** Edited fields of a bulk edit by column id ("location_id", "light", "extra.<key>"); a missing id keeps every shot's value. */
 export type BulkDraft = Record<string, unknown>;

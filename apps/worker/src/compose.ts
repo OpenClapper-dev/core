@@ -1,5 +1,5 @@
-import { MAX_COMPOSE_NAME, MAX_DESCRIPTION, MAX_SKETCH_KIND, validateDrawing, validatePresentation } from "@fielder/vocab";
-import { assertNumber, assertString, assertUuid, HttpError, json, type Router } from "@fielder/service-kit";
+import { MAX_COMPOSE_NAME, MAX_DESCRIPTION, MAX_SKETCH_KIND, validateDrawing, validatePresentation } from "@openclapper/vocab";
+import { assertNumber, assertString, assertUuid, HttpError, json, type Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 import { loadShot } from "./shots.ts";
 import { accessIfExists, assertAccess, type Access } from "./tenancy.ts";
