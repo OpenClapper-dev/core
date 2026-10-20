@@ -39,6 +39,8 @@ jobs:
       R2_BUCKET: ${{ vars.R2_BUCKET }}
       APP_WORKER_NAME: ${{ vars.APP_WORKER_NAME }}
       ADMIN_WORKER_NAME: ${{ vars.ADMIN_WORKER_NAME }}
+      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+      ADMIN_DOMAIN: ${{ vars.ADMIN_DOMAIN }}
       ACCESS_TEAM_DOMAIN: ${{ vars.ACCESS_TEAM_DOMAIN }}
       ADMIN_ACCESS_AUD: ${{ vars.ADMIN_ACCESS_AUD }}
       PBKDF2_ITERATIONS: ${{ vars.PBKDF2_ITERATIONS }}

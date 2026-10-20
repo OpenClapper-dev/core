@@ -14,6 +14,8 @@
 //   R2_BUCKET               default fielder-shots (--provision creates it when missing)
 //   APP_WORKER_NAME         default fielder-api
 //   ADMIN_WORKER_NAME       default fielder-admin
+//   APP_DOMAIN              optional: a custom domain for the app Worker (a zone in the same account)
+//   ADMIN_DOMAIN            optional: a custom domain for the admin plane
 //   ACCESS_TEAM_DOMAIN      your Zero Trust team domain (the admin plane needs it)
 //   ADMIN_ACCESS_AUD        the admin Access application's AUD; without it the admin plane refuses every request
 //   PBKDF2_ITERATIONS       optional, see docs/known-issues.md
@@ -95,8 +97,13 @@ function write(app, edit) {
   console.log(`deploy-config: wrote ${relative(root, out)} (${cfg.name})`);
 }
 
+// A custom domain's zone must be in the same Cloudflare account; wrangler attaches it on deploy,
+// and the workers.dev URL keeps working beside it.
+const domain = (cfg, name) => { if (env[name]) cfg.routes = [{ pattern: env[name], custom_domain: true }]; };
+
 write("worker", (cfg, dir) => {
   cfg.name = setting("APP_WORKER_NAME", "fielder-api");
+  domain(cfg, "APP_DOMAIN");
   if (env.AUTH_PROVIDER) {
     const abs = isAbsolute(env.AUTH_PROVIDER) ? env.AUTH_PROVIDER : join(root, env.AUTH_PROVIDER);
     if (!existsSync(abs)) fail(`AUTH_PROVIDER ${env.AUTH_PROVIDER} does not exist`);
@@ -105,6 +112,7 @@ write("worker", (cfg, dir) => {
 });
 write("admin", (cfg) => {
   cfg.name = setting("ADMIN_WORKER_NAME", "fielder-admin");
+  domain(cfg, "ADMIN_DOMAIN");
   cfg.vars.ACCESS_TEAM_DOMAIN = setting("ACCESS_TEAM_DOMAIN", "");
   cfg.vars.ACCESS_AUD = setting("ADMIN_ACCESS_AUD", "");
   if (!cfg.vars.ACCESS_AUD || !cfg.vars.ACCESS_TEAM_DOMAIN) console.log("deploy-config: ACCESS_TEAM_DOMAIN or ADMIN_ACCESS_AUD missing: the admin plane will refuse every request (docs/self-hosting.md)");
