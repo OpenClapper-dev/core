@@ -27,3 +27,16 @@ export const createUser = (email: string, name: string | null) => send<{ user: {
 export const patchUser = (id: string, patch: { email?: string; name?: string | null; status?: "active" | "blocked" }) => send<unknown>("PATCH", `/api/users/${id}`, patch);
 export const resetPassword = (id: string) => send<{ password: string }>("POST", `/api/users/${id}/password`).then((r) => r.password);
 export const deleteUser = (id: string) => send<unknown>("DELETE", `/api/users/${id}`);
+
+// ---------- Storage monitoring (epic #67) ----------
+export interface Mark { bytes: number; label: string }
+export interface StorageDay { day: string; total_bytes: number; total_objects: number; workspaces: { workspace_id: string; bytes: number; objects: number; unsized: number }[] }
+export interface StorageReport {
+  total: { bytes: number; objects: number; day: string } | null;
+  workspaces: { id: string; name: string; kind: "personal" | "shared"; owner_email: string | null; photos: number; bytes: number; unsized: number }[];
+  days: StorageDay[];
+  marks: Mark[];
+  crossed: Mark[];
+}
+export const fetchStorage = (days: number) => request<StorageReport>(`/api/storage?days=${days}`);
+export const putMarks = (marks: Mark[]) => send<{ storage_marks: Mark[] }>("PUT", "/api/settings", { storage_marks: marks }).then((r) => r.storage_marks);
