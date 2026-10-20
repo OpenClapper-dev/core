@@ -31,6 +31,7 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
 - Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
 - Variables, all optional (the names are those of [`deploy.env.example`](../deploy.env.example)):
   - `D1_DATABASE_NAME`, `R2_BUCKET`, `APP_WORKER_NAME`, `ADMIN_WORKER_NAME`. The defaults are `fielder-db`, `fielder-shots`, `fielder-api` and `fielder-admin`.
+  - `APP_DOMAIN`, `ADMIN_DOMAIN`: custom domains for the two Workers, e.g. `app.example.com` and `admin.example.com`. The zone must be in the same Cloudflare account; the deploy attaches them, and the workers.dev addresses keep working beside them.
   - Later, `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` (step 4).
 
 **From your machine**: copy `deploy.env.example` to `deploy.env` (gitignored) and fill it in. A deployment repository that holds this one as a submodule can keep (and commit) its `deploy.env` beside the submodule; the scripts look there too.
@@ -56,7 +57,7 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
 
   Wrangler needs `CLOUDFLARE_API_TOKEN` in the environment, or a login (`pnpm exec wrangler login --device`; its token lacks `account:read`, which `CLOUDFLARE_ACCOUNT_ID` from `deploy.env` fills in).
 
-The app is at `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`. A custom domain can be added to the Worker in the Cloudflare dashboard.
+The app is at `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`, and on `APP_DOMAIN` if you set it.
 
 ## 4. The admin plane's sign-in
 
@@ -88,7 +89,7 @@ The Android app is built for one server: its address goes into the APK. Every bu
 Once:
 1. Make the signing key in a checkout: `bash scripts/keystore.sh <owner>/<repo>` (needs a JDK's `keytool`, or Docker). It writes `.secrets/android/fielder-release.jks` and `.secrets/android.env` (gitignored) and prints the commands that set the four repository secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`.
 2. **Back up both files** (a password manager or an encrypted drive). Lose them and nobody can update the app without uninstalling it, which deletes whatever is still queued on the phones.
-3. Add the repository variable `APP_URL`: your app's address, `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`.
+3. Add the repository variable `APP_URL`: your app's address, `https://<APP_DOMAIN>` or `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`.
 
 Then Actions → **Build APK** → Run workflow. The build runs on GitHub's runner. It compiles only for `arm64-v8a`, which every current Android phone runs; for older 32-bit phones set the variable `ANDROID_ABIS=arm64-v8a,armeabi-v7a` (each architecture adds build time, disk and APK size). The job first deletes preinstalled tools it does not use, since a standard runner has only about 14 GB free. The APK is the run's artifact and is **deleted after 3 days** (`retention-days`: GitHub removes it, nothing to clean up). Download it, open it on the phone and allow installs from that source. A private repository on GitHub's Free plan has 500 MB of artifact storage; one APK is about 50 MB.
 
