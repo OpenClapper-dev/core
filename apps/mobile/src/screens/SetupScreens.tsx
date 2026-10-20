@@ -203,7 +203,7 @@ export function Account() {
         ) : (
           <>
             <Text style={s.value}>Not signed in</Text>
-            <Hint>With your Fielder account, the same as in the Studio. Until then, shots stay on the phone.</Hint>
+            <Hint>With your OpenClapper account, the same as in the Studio. Until then, shots stay on the phone.</Hint>
             <Button icon="login" label="Sign in" onPress={app.signIn} />
           </>
         )}
@@ -266,7 +266,7 @@ export function DebugLog() {
       pending: pending.map((p) => ({ shot: p.metadata.id, photos: p.metadata.photos.length, attempts: p.attempts, stuck: !!p.stuck, lastError: p.lastError })),
       settings: st,
     });
-    await Share.share({ message: text, title: "Fielder debug log" });
+    await Share.share({ message: text, title: "OpenClapper debug log" });
   };
   const clear = async () => {
     const r = await confirm({ title: "Clear the debug log?", body: `Deletes all ${entries} entries. Share it first if you still need it.`, confirmLabel: "Clear", danger: true, icon: "eraser", altLabel: "Share first" });

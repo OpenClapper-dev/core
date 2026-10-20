@@ -34,7 +34,7 @@ export function AccountSettings() {
   const me = user.me.user;
 
   const newWorkspace = async () => {
-    const name = await promptDialog({ title: "New workspace", body: "A workspace you share: invite people on this Fielder into it and give its projects to them.", input: { label: "Name", placeholder: "e.g. Nachtbus crew" }, confirmLabel: "Create" });
+    const name = await promptDialog({ title: "New workspace", body: "A workspace you share: invite people on this instance into it and give its projects to them.", input: { label: "Name", placeholder: "e.g. Nachtbus crew" }, confirmLabel: "Create" });
     if (!name) return;
     try { await putWorkspace(crypto.randomUUID(), name); await load(); void boot(); } catch (e) { toast((e as Error).message, "danger"); }
   };
@@ -44,7 +44,7 @@ export function AccountSettings() {
       <section class="settings__sec">
         <h2><Icon name="account-circle-outline" />Account</h2>
         <div class="settings__row">
-          <div><strong>{me.name ?? me.email}</strong><span class="meta">{me.name ? `${me.email} · ` : ""}Signed in on this browser. Accounts are made by an administrator of this Fielder.</span></div>
+          <div><strong>{me.name ?? me.email}</strong><span class="meta">{me.name ? `${me.email} · ` : ""}Signed in on this browser. Accounts are made by an administrator of this instance.</span></div>
           <div><Button kind="secondary" icon="logout" onClick={() => void signOut()}>Sign out</Button></div>
         </div>
         <div class="settings__row">
@@ -163,7 +163,7 @@ function WorkspaceRow({ ws, meId, onChanged }: { ws: Workspace; meId: string; on
         </div>
         {admin && (
           <form class="settings__invite" onSubmit={(e) => { e.preventDefault(); if (email.trim()) void add(); }}>
-            <Input sm type="email" placeholder="Email of an account on this Fielder" value={email} disabled={busy} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} boxStyle={{ flex: "1 1 220px" }} />
+            <Input sm type="email" placeholder="Email of an account on this instance" value={email} disabled={busy} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} boxStyle={{ flex: "1 1 220px" }} />
             <Select label="Role for the new member" value={role} width="230px" options={ROLE_OPTIONS.filter((o) => canManage(ws.role, null, o.value as WorkspaceRole))} onChange={(v) => setRole(v as Exclude<WorkspaceRole, "owner">)} />
             <Button type="submit" size="sm" icon="account-plus-outline" disabled={busy || !email.trim()}>Add</Button>
           </form>

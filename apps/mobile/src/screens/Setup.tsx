@@ -62,7 +62,7 @@ export function Setup() {
           <ListRow icon="account-outline" title="Account" meta={email ?? (isConfigured ? "Not signed in" : "This build has no server")} onPress={() => app.push({ name: "account" })} />
           <ListRow icon="bug-outline" title="Debug log" meta={isLogging() ? `Recording · ${logCount()} entries` : `Off · ${logCount()} entries`} onPress={() => app.push({ name: "debugLog" })} />
         </View>
-        <Text style={s.footer}>Fielder {APP_VERSION} · API: {isConfigured ? API_URL.replace(/^https?:\/\//, "") : "not configured"}</Text>
+        <Text style={s.footer}>OpenClapper {APP_VERSION} · API: {isConfigured ? API_URL.replace(/^https?:\/\//, "") : "not configured"}</Text>
       </ScrollView>
     </View>
   );

@@ -36,7 +36,7 @@ export function DeviceDialog({ phone, devices, onSaved, onClose }: { phone: Phon
       <div class="f-modal__body device-dialog">
         {!phone.connected ? <EmptyNote title="Not connected to the server">The Studio reconnects by itself; try again in a moment.</EmptyNote>
           : !candidates.length ? (
-            <EmptyNote title="Open Fielder on the phone">Signed in and in the foreground, the phone connects here by itself. Then open the Shoot tab.</EmptyNote>
+            <EmptyNote title="Open the app on the phone">Signed in and in the foreground, the phone connects here by itself. Then open the Shoot tab.</EmptyNote>
           ) : (
             <>
               {candidates.length > 1 && (

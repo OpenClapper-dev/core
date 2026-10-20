@@ -1,7 +1,7 @@
 # Fielder — agent guide
 
 Single-user tool for film location scouting and shoot planning:
-- an Android phone app (Expo, a development build "Fielder Dev" or an APK; not Expo Go since vision-camera) is a viewfinder that shows a cinema rig's frame and captures reference photos
+- an Android phone app (Expo, a development build "OpenClapper Dev" or an APK; not Expo Go since vision-camera) is a viewfinder that shows a cinema rig's frame and captures reference photos
 - a Cloudflare Worker (D1 + R2) stores them
 - a Preact web client, the Studio, reviews, organises and plans shooting days
 

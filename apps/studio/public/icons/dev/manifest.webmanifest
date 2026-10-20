@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Fielder (dev)",
-  "short_name": "Fielder dev",
+  "name": "OpenClapper (dev)",
+  "short_name": "OpenClapper dev",
   "description": "Location scouting and shoot planning",
   "start_url": "/",
   "scope": "/",

@@ -51,7 +51,7 @@ const withReleaseSigning = (config: ExpoConfig): ExpoConfig =>
 /**
  * app.json holds the config; this adds the version (the product's), the commit it was built from
  * (GIT_COMMIT, set by the build scripts) and release signing. APP_VARIANT=development (make dev-build,
- * make mobile) renames the development build: its own package id lets "Fielder Dev" sit next to the
+ * make mobile) renames the development build: its own package id lets "OpenClapper Dev" sit next to the
  * production app instead of replacing it, with its own storage, and its green icon set
  * (assets/icons/dev, #170) tells the two apart in the drawer.
  */
@@ -66,7 +66,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   if (process.env.APP_VARIANT !== "development") return withReleaseSigning(app);
   return withReleaseSigning({
     ...app,
-    name: "Fielder Dev",
+    name: "OpenClapper Dev",
     scheme: "fielder-dev",
     icon: "./assets/icons/dev/app-icon-1024.png",
     android: {

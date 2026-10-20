@@ -56,7 +56,7 @@ export function Shell() {
   return (
     <div class="wm-root wm-root--bare">
       {user.status === "signed-out" ? <SignInPage />
-        : user.status === "error" ? <Empty icon="cloud-alert" title="Could not reach Fielder" actions={<Button onClick={() => void boot()}>Try again</Button>}>{user.message}</Empty>
+        : user.status === "error" ? <Empty icon="cloud-alert" title="Could not reach OpenClapper" actions={<Button onClick={() => void boot()}>Try again</Button>}>{user.message}</Empty>
         : <Loading />}
       <ToastHost />
     </div>

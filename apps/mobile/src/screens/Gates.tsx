@@ -11,9 +11,9 @@ export function SignInGate({ onSignIn, onSkip }: { onSignIn: () => void; onSkip:
   return (
     <View style={s.root}>
       <ScrollView contentContainerStyle={s.gateBody}>
-        <View style={s.brandRow}><Mark size={32} /><Text style={s.brand}>Fielder</Text></View>
+        <View style={s.brandRow}><Mark size={32} /><Text style={s.brand}>OpenClapper</Text></View>
         <Text style={s.gateTitle}>Sign in</Text>
-        <Text style={s.gateText}>With your Fielder account, the same as in the Studio. You stay signed in while you use the app.</Text>
+        <Text style={s.gateText}>With your OpenClapper account, the same as in the Studio. You stay signed in while you use the app.</Text>
       </ScrollView>
       <ActionBar edge style={{ flexDirection: "column" }}>
         <Button icon="login" label="Sign in" onPress={onSignIn} />
@@ -71,7 +71,7 @@ export function ProjectGate({ projects, onPick }: { projects: ProjectEntry[]; on
     <View style={s.root}>
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={s.gateBody}>
-          <View style={s.brandRow}><Mark size={32} /><Text style={s.brand}>Fielder</Text></View>
+          <View style={s.brandRow}><Mark size={32} /><Text style={s.brand}>OpenClapper</Text></View>
           <Text style={s.gateTitle}>Pick a project</Text>
           <Text style={s.gateText}>Every shot goes into the active project. You can switch at any time from the header.</Text>
         </View>

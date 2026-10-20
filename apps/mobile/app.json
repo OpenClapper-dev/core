@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Fielder",
+    "name": "OpenClapper",
     "slug": "fielder",
     "orientation": "default",
     "icon": "./assets/icons/prod/app-icon-1024.png",
@@ -28,7 +28,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Fielder tags each captured framing with its GPS position."
+          "locationWhenInUsePermission": "OpenClapper tags each captured framing with its GPS position."
         }
       ],
       "expo-font"

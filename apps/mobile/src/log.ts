@@ -63,7 +63,7 @@ export function clearLog() {
 /** Plain-text dump, oldest first, with a header describing the device and app state. */
 export function logText(header: Record<string, unknown>): string {
   const lines = load().map((e) => `${e.t} ${e.level.toUpperCase().padEnd(5)} ${e.event}${e.data === undefined ? "" : ` ${safeJson(e.data)}`}`);
-  return [`# Fielder debug log (${lines.length} entries)`, ...Object.entries(header).map(([k, v]) => `# ${k}: ${typeof v === "string" ? v : safeJson(v)}`), "", ...lines].join("\n");
+  return [`# OpenClapper debug log (${lines.length} entries)`, ...Object.entries(header).map(([k, v]) => `# ${k}: ${typeof v === "string" ? v : safeJson(v)}`), "", ...lines].join("\n");
 }
 
 function safeJson(v: unknown): string {

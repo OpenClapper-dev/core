@@ -222,7 +222,7 @@ export function CorrectPosition({ shotId, photoId }: { shotId: string; photoId: 
     setLocating(true);
     try {
       const perm = await Location.requestForegroundPermissionsAsync();
-      if (!perm.granted) { void notice("No location permission", "Allow location for Fielder to use where you are now."); return; }
+      if (!perm.granted) { void notice("No location permission", "Allow location for OpenClapper to use where you are now."); return; }
       const timeout = new Promise<null>((res) => setTimeout(() => res(null), 8000));
       const p = await Promise.race([Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }).catch(() => null), timeout])
         ?? await Location.getLastKnownPositionAsync();
