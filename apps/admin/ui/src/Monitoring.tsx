@@ -3,15 +3,15 @@
  * workspace's share, and the operator's marks. Days are UTC; the bucket total is the bound bucket only.
  */
 import { useState } from "preact/hooks";
-import { Button, EmptyNote, IconButton, Input, Seg, Select, toast } from "@openclapper/ui";
-import { putMarks, type Mark, type StorageReport } from "./api";
+import { Banner, Button, EmptyNote, IconButton, Input, Seg, Select, toast } from "@openclapper/ui";
+import { putMarks, type CfOverlay, type Mark, type StorageReport } from "./api";
 import { LineChart, Sparkline, type Point } from "./charts";
 import { bytes, day, num, Section, Tile } from "./shared";
 
 export type Range = 30 | 90 | 365;
 export const RANGES: readonly { id: `${Range}`; label: string }[] = [{ id: "30", label: "30 d" }, { id: "90", label: "90 d" }, { id: "365", label: "1 y" }];
 
-export function Monitoring({ report, range, onRange, onSaved }: { report: StorageReport; range: Range; onRange: (r: Range) => void; onSaved: () => Promise<void> }) {
+export function Monitoring({ report, overlay, range, onRange, onSaved }: { report: StorageReport; overlay: CfOverlay | { configured: false } | null; range: Range; onRange: (r: Range) => void; onSaved: () => Promise<void> }) {
   const totals: Point[] = report.days.filter((d) => d.total_objects > 0 || d.total_bytes > 0).map((d) => ({ day: d.day, value: d.total_bytes }));
   const perWorkspace = (id: string): Point[] => report.days.flatMap((d) => d.workspaces.filter((w) => w.workspace_id === id).map((w) => ({ day: d.day, value: w.bytes })));
   const photosBytes = report.workspaces.reduce((s, w) => s + w.bytes, 0);
@@ -51,6 +51,7 @@ export function Monitoring({ report, range, onRange, onSaved }: { report: Storag
         </div>
       </Section>
       <Marks marks={report.marks} onSaved={onSaved} />
+      <Cloudflare overlay={overlay} marks={report.marks} />
     </>
   );
 }
@@ -90,6 +91,65 @@ function Marks({ marks, onSaved }: { marks: Mark[]; onSaved: () => Promise<void>
           </div>
         ))}
         {drafts.length < 10 && <Button size="sm" kind="ghost" icon="plus" onClick={() => setDrafts([...drafts, { amount: "", unit: "GB", label: "" }])}>Add a mark</Button>}
+      </div>
+    </Section>
+  );
+}
+
+/**
+ * The account-wide numbers from Cloudflare's analytics, only with a token (#217). The R2 total here is
+ * what storage is billed on (every bucket of the account); the marks apply to it too. Numbers, no limits.
+ */
+export function Cloudflare({ overlay, marks }: { overlay: CfOverlay | { configured: false } | null; marks: Mark[] }) {
+  if (!overlay) return null;
+  if (!overlay.configured) {
+    return (
+      <Section icon="cloud-outline" title="Cloudflare">
+        <div class="admin__pad">
+          <EmptyNote title="Not connected">
+            The account-wide numbers (R2 storage across every bucket, Worker requests and CPU, D1 rows) need a read-only API token with <strong>Account · Account Analytics · Read</strong>, set as <code>CF_ANALYTICS_TOKEN</code> in the deployment's settings (self-hosting docs, step 6). Without it the board shows its own numbers only.
+          </EmptyNote>
+        </div>
+      </Section>
+    );
+  }
+  const r2 = overlay.r2.data, w = overlay.worker.data, d1 = overlay.d1.data, ops = overlay.r2_ops.data;
+  // The stored history (before the API's window) and the live series, the live one winning on a shared day.
+  const stored = overlay.history.filter((h) => h.metric === "r2.bytes.total").map((h) => ({ day: h.day, value: h.value }));
+  const live = r2?.series ?? [];
+  const liveDays = new Set(live.map((s) => s.day));
+  const series: Point[] = [...stored.filter((s) => !liveDays.has(s.day)), ...live].sort((a, b) => a.day.localeCompare(b.day));
+  const fetched = new Date(overlay.fetched_at);
+  const errors = [overlay.r2, overlay.r2_ops, overlay.worker, overlay.d1].filter((x) => x.error);
+  return (
+    <Section icon="cloud-outline" title="Cloudflare" action={<span class="meta">{`last ${overlay.days} days · fetched ${fetched.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${overlay.cached ? " (cached)" : ""}`}</span>}>
+      {errors.length > 0 && <div class="admin__pad"><Banner kind="warn" title="Some datasets could not be read" meta={errors.map((e) => e.error).join(" · ")} /></div>}
+      <div class="admin__pad">
+        <div class="admin__tiles">
+          <Tile label="R2, all buckets" value={r2 ? bytes(r2.total_bytes) : "—"} sub={r2 ? `${num(r2.buckets.reduce((s, b) => s + b.objects, 0))} objects in ${r2.buckets.length} bucket${r2.buckets.length === 1 ? "" : "s"} · what storage is billed on` : overlay.r2.error ?? ""} />
+          <Tile label="R2 operations" value={ops ? `${num(ops.class_a)} A` : "—"} sub={ops ? `${num(ops.class_b)} class B · deletes are free` : overlay.r2_ops.error ?? ""} />
+          <Tile label="Worker requests" value={w ? num(w.requests) : "—"} sub={w ? `${num(w.errors)} errors · CPU p50 ${w.cpu_p50_us === null ? "—" : `${(w.cpu_p50_us / 1000).toFixed(1)} ms`}` : overlay.worker.error ?? ""} />
+          <Tile label="D1 rows" value={d1 ? num(d1.rows_read) : "—"} sub={d1 ? `read · ${num(d1.rows_written)} written` : overlay.d1.error ?? ""} />
+        </div>
+        <LineChart points={series} marks={marks} format={bytes} label="R2 storage, every bucket" />
+        <p class="meta">Cloudflare's storage metric is sampled, so it lags uploads and deletes. Days before the API's window come from the daily snapshot the admin Worker keeps.</p>
+        {r2 && (
+          <div class="admin__scroll">
+            <table class="admin-table">
+              <thead><tr><th>Bucket</th><th>Storage</th><th>Metadata</th><th>Objects</th></tr></thead>
+              <tbody>
+                {r2.buckets.map((b) => (
+                  <tr key={b.name}>
+                    <td><strong>{b.name}</strong>{b.app && <span class="meta"> this instance</span>}</td>
+                    <td class="num">{bytes(b.bytes)}</td>
+                    <td class="num">{bytes(b.metadata_bytes)}</td>
+                    <td class="num">{num(b.objects)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </Section>
   );

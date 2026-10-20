@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { Banner, Button, ConfirmHost, Empty, IconButton, Loading, Mark, Seg, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, ToastHost, useTheme } from "@openclapper/ui";
 import { Users } from "./Accounts";
-import { fetchOverview, fetchStorage, fetchUsers, fetchWorkspaces, whoami, type AdminUser, type AdminWorkspace, type Overview, type StorageReport } from "./api";
+import { fetchCloudflare, fetchOverview, fetchStorage, fetchUsers, fetchWorkspaces, whoami, type AdminUser, type AdminWorkspace, type CfOverlay, type Overview, type StorageReport } from "./api";
 import { Monitoring, type Range } from "./Monitoring";
 import { bytes, Tile } from "./shared";
 import { Workspaces } from "./Workspaces";
@@ -21,6 +21,7 @@ export function App() {
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [workspaces, setWorkspaces] = useState<AdminWorkspace[] | null>(null);
   const [storage, setStorage] = useState<StorageReport | null>(null);
+  const [overlay, setOverlay] = useState<CfOverlay | { configured: false } | null>(null);
   const [range, setRange] = useState<Range>(90);
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +30,8 @@ export function App() {
     .then(() => setError(null)).catch((e: Error) => setError(e.message));
   useEffect(() => { void load(); }, []);
   useEffect(() => { fetchStorage(range).then(setStorage).catch((e: Error) => toast(e.message, "danger")); }, [range]);
+  // The overlay answers at most 31 days; a failure there (a bad token, Cloudflare down) is shown in place, never as a board error.
+  useEffect(() => { fetchCloudflare(Math.min(range, 31)).then(setOverlay).catch((e: Error) => toast(`Cloudflare: ${e.message}`, "danger")); }, [range]);
   useEffect(() => {
     const sync = () => setTab(tabFromHash());
     addEventListener("hashchange", sync);
@@ -39,7 +42,10 @@ export function App() {
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
     try { await fn(); if (ok) toast(ok); await load(); } catch (e) { toast((e as Error).message, "danger"); }
   };
-  const crossed = storage?.crossed ?? [];
+  // The banner judges the larger of the two totals: the bucket's own snapshot, and the account-wide R2 total when the overlay is on (what is billed).
+  const account = overlay?.configured ? overlay.r2.data?.total_bytes ?? null : null;
+  const judged = storage?.total ? (account !== null && account > storage.total.bytes ? { bytes: account, what: "on the account" } : { bytes: storage.total.bytes, what: "in the bucket" }) : null;
+  const crossed = judged ? (storage?.marks ?? []).filter((m) => judged.bytes >= m.bytes) : [];
   const worst = crossed[crossed.length - 1];
 
   return (
@@ -52,8 +58,8 @@ export function App() {
           <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_CYCLE[theme])} />
         </span>
       </header>
-      {worst && storage?.total && (
-        <Banner kind="warn" icon="flag" role="alert" title={`Storage is past your mark "${worst.label}": ${bytes(storage.total.bytes)} in the bucket`}
+      {worst && judged && (
+        <Banner kind="warn" icon="flag" role="alert" title={`Storage is past your mark "${worst.label}": ${bytes(judged.bytes)} ${judged.what}`}
           meta={crossed.length > 1 ? `Also past: ${crossed.slice(0, -1).map((m) => m.label).join(", ")}` : undefined}
           action={tab === "board" ? <Button size="sm" kind="ghost" onClick={() => go("monitoring")}>Monitoring</Button> : undefined} />
       )}
@@ -69,7 +75,7 @@ export function App() {
       )}
       {tab === "board" && users && <Users users={users} act={act} />}
       {tab === "board" && workspaces && <Workspaces list={workspaces} />}
-      {tab === "monitoring" && storage && <Monitoring report={storage} range={range} onRange={setRange} onSaved={() => fetchStorage(range).then(setStorage)} />}
+      {tab === "monitoring" && storage && <Monitoring report={storage} overlay={overlay} range={range} onRange={setRange} onSaved={() => fetchStorage(range).then(setStorage)} />}
       <ConfirmHost />
       <ToastHost />
     </div>

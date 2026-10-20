@@ -8,6 +8,8 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-04",
   "observability": { "enabled": true },
+  // Daily: keep yesterday's Cloudflare analytics beyond the API's window (cloudflare.ts; only with a token).
+  "triggers": { "crons": ["47 3 * * *"] },
   "assets": {
     "directory": "./dist",
     "not_found_handling": "single-page-application",

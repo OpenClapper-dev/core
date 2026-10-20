@@ -48,6 +48,7 @@ Every change is written to the Worker log as `{ "audit": "user.create" | "user.u
 | DELETE | `/api/users/:id` | `409` while its workspaces hold projects, `400` for the bootstrap user |
 | GET | `/api/workspaces` | Every workspace with owner, counts and storage |
 | GET | `/api/storage?days=` | Storage over time with the operator's marks ([monitoring](monitoring.md)) |
+| GET | `/api/cloudflare?days=` | The account-wide numbers from Cloudflare analytics, or `{ configured: false }` ([monitoring](monitoring.md)) |
 | GET | `/api/settings` | `{ storage_marks }` |
 | PUT | `/api/settings` | `{ storage_marks: [{ bytes, label }] }`, at most 10, strict |
 

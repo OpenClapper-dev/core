@@ -7,6 +7,7 @@
 import {
   AccessError, assertEnum, assertNumber, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
 } from "@openclapper/service-kit";
+import { configured, MAX_DAYS, overlay, snapshotCloudflare } from "./cloudflare.ts";
 import { parseMarks, readMarks, storageReport, writeMarks } from "./storage.ts";
 
 export interface Env {
@@ -17,6 +18,12 @@ export interface Env {
   PBKDF2_ITERATIONS?: string;
   /** Local development only (gitignored `.dev.vars`): no Access in front, every request is `admin@localhost`. */
   ADMIN_DEV_BYPASS?: string;
+  /** The Cloudflare overlay (cloudflare.ts): off unless both the account and the read-only token are set. */
+  CLOUDFLARE_ACCOUNT_ID?: string;
+  CF_ANALYTICS_TOKEN?: string;
+  /** Which script and bucket are this instance's, to filter and mark them in the overlay. */
+  APP_WORKER_NAME?: string;
+  R2_BUCKET?: string;
 }
 
 interface Ctx {
@@ -196,6 +203,14 @@ router.on("PUT", "/api/settings", async (ctx) => {
   audit(ctx, "settings.update", { storage_marks: marks });
   return json({ storage_marks: marks });
 });
+/** The Cloudflare overlay for the last `days` (1..31, default 30); `{ configured: false }` without a token, so the board can say how to enable it. */
+router.on("GET", "/api/cloudflare", async ({ env, url }) => {
+  if (!configured(env)) return json({ configured: false });
+  const raw = url.searchParams.get("days");
+  const days = raw === null ? 30 : assertNumber(Number(raw), "days", { min: 1, max: MAX_DAYS });
+  return json(await overlay(env, days));
+});
+
 /** The operator: verified Access JWT of the admin application (its own AUD), or the local bypass. */
 async function operator(request: Request, env: Env): Promise<string> {
   if (env.ADMIN_DEV_BYPASS === "true") return "admin@localhost";
@@ -216,5 +231,10 @@ export default {
       console.error("unhandled", err);
       return json({ error: "internal error" }, 500);
     }
+  },
+  /** Daily (wrangler.jsonc triggers): keep yesterday's Cloudflare numbers beyond the API's 31-day window. Runs even while the plane refuses fetches. */
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    if (!configured(env)) { console.log("cloudflare snapshot: not configured"); return; }
+    ctx.waitUntil(snapshotCloudflare(env).then((n) => console.log(`cloudflare snapshot: ${n} value(s)`), (err) => console.error("cloudflare snapshot failed", err)));
   },
 } satisfies ExportedHandler<Env>;

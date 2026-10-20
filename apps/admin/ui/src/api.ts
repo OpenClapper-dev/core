@@ -40,3 +40,15 @@ export interface StorageReport {
 }
 export const fetchStorage = (days: number) => request<StorageReport>(`/api/storage?days=${days}`);
 export const putMarks = (marks: Mark[]) => send<{ storage_marks: Mark[] }>("PUT", "/api/settings", { storage_marks: marks }).then((r) => r.storage_marks);
+
+// ---------- The optional Cloudflare overlay (#217) ----------
+export interface Dataset<T> { data: T | null; error: string | null }
+export interface CfOverlay {
+  configured: true; fetched_at: string; cached: boolean; days: number;
+  r2: Dataset<{ buckets: { name: string; bytes: number; metadata_bytes: number; objects: number; app: boolean }[]; total_bytes: number; series: { day: string; value: number }[] }>;
+  r2_ops: Dataset<{ class_a: number; class_b: number; by_action: { action: string; requests: number }[] }>;
+  worker: Dataset<{ requests: number; errors: number; subrequests: number; cpu_p50_us: number | null; cpu_p99_us: number | null; series: { day: string; requests: number; errors: number }[] }>;
+  d1: Dataset<{ rows_read: number; rows_written: number; read_queries: number; write_queries: number; series: { day: string; rows_read: number; rows_written: number }[] }>;
+  history: { day: string; metric: string; value: number }[];
+}
+export const fetchCloudflare = (days: number) => request<CfOverlay | { configured: false }>(`/api/cloudflare?days=${days}`);

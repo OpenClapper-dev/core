@@ -84,7 +84,7 @@ Every project and rig belongs to a workspace, every device and viewfinder layout
 
 ## Monitoring
 
-`storage_daily(day YYYY-MM-DD UTC, workspace_id, bytes, objects, unsized)`, primary key (day, workspace): the app Worker's daily cron writes one row per workspace with photos (from `photos.size_bytes`; `objects` = its photos, `unsized` = photos without a recorded size) and one row with `workspace_id = ''` for the bound bucket's total from an R2 listing. No foreign key: the history outlives a deleted workspace. `admin_settings(key, value JSON, updated_at, updated_by)`: the admin plane's own settings, written by the admin Worker (the operator's storage marks). See [monitoring](features/monitoring.md).
+`storage_daily(day YYYY-MM-DD UTC, workspace_id, bytes, objects, unsized)`, primary key (day, workspace): the app Worker's daily cron writes one row per workspace with photos (from `photos.size_bytes`; `objects` = its photos, `unsized` = photos without a recorded size) and one row with `workspace_id = ''` for the bound bucket's total from an R2 listing. No foreign key: the history outlives a deleted workspace. `admin_settings(key, value JSON, updated_at, updated_by)`: the admin plane's own settings, written by the admin Worker (the operator's storage marks). `cf_usage_daily(day, metric, value, taken_at)`: the Cloudflare analytics the admin Worker's cron keeps beyond the API's window, key/value so a new metric needs no migration. `cf_usage_daily(day, metric, value, taken_at)`: the Cloudflare analytics the admin Worker's cron keeps beyond the API's window, key/value so a new metric needs no migration. See [monitoring](features/monitoring.md).
 
 ## JSON shapes on photos
 
