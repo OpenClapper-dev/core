@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { test } from "vitest";
 import { HttpError } from "@openclapper/service-kit";
-import { assertRank, RANK, type Access } from "../src/tenancy.ts";
+import { assertRank, RANK, type Access } from "../../src/tenancy.ts";
 
 const ranks = new Map([["ws-view", RANK.viewer], ["ws-edit", RANK.editor], ["ws-own", RANK.owner]]);
 const a: Access = { env: { DB: null as unknown as D1Database }, tenant: { userId: "u", ranks, wsList: JSON.stringify([...ranks.keys()]) } };
