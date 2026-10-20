@@ -5,8 +5,9 @@
  * so this is where accounts are made. Same D1 as the app, whose migrations it never runs.
  */
 import {
-  AccessError, assertEnum, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
+  AccessError, assertEnum, assertNumber, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
 } from "@openclapper/service-kit";
+import { parseMarks, readMarks, storageReport, writeMarks } from "./storage.ts";
 
 export interface Env {
   DB: D1Database;
@@ -175,6 +176,26 @@ router.on("GET", "/api/workspaces", async ({ env }) => {
   return json({ workspaces: results });
 });
 
+
+/** Storage over time with the operator's marks ([monitoring](../../../docs/features/monitoring.md)); `days` 1..365, default 90. */
+router.on("GET", "/api/storage", async ({ env, url }) => {
+  const raw = url.searchParams.get("days");
+  const days = raw === null ? 90 : assertNumber(Number(raw), "days", { min: 1, max: 365 });
+  return json(await storageReport(env.DB, days));
+});
+
+router.on("GET", "/api/settings", async ({ env }) => json({ storage_marks: await readMarks(env.DB) }));
+
+/** JSON { storage_marks: [{ bytes, label }] }: the whole list, at most MAX_MARKS, validated strictly. */
+router.on("PUT", "/api/settings", async (ctx) => {
+  const { env, request } = ctx;
+  const b = await readJson<Record<string, unknown>>(request);
+  if (b.storage_marks === undefined) throw new HttpError(400, "nothing to update");
+  const marks = parseMarks(b.storage_marks);
+  await writeMarks(env.DB, marks, ctx.admin);
+  audit(ctx, "settings.update", { storage_marks: marks });
+  return json({ storage_marks: marks });
+});
 /** The operator: verified Access JWT of the admin application (its own AUD), or the local bypass. */
 async function operator(request: Request, env: Env): Promise<string> {
   if (env.ADMIN_DEV_BYPASS === "true") return "admin@localhost";
