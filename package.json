@@ -15,7 +15,7 @@
     "dev:admin": "pnpm -C apps/admin dev",
     "lint": "oxlint",
     "typecheck": "bash scripts/typecheck.sh",
-    "test": "pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/studio test && pnpm -C apps/mobile test",
+    "test": "pnpm -C packages/vocab test && pnpm -C packages/fov-math test && pnpm -C apps/worker test && pnpm -C apps/admin test && pnpm -C apps/studio test && pnpm -C apps/mobile test",
     "build": "bash scripts/build-check.sh",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },

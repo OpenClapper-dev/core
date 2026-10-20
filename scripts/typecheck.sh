@@ -8,7 +8,7 @@ for w in apps/worker apps/admin; do
   [ -f "$w/worker-configuration.d.ts" ] || pnpm -C "$w" types >/dev/null
 done
 
-for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/worker/test/routes apps/admin apps/admin/ui apps/studio apps/mobile; do
+for p in packages/vocab packages/fov-math packages/service-kit packages/ui apps/worker apps/worker/test/routes apps/admin apps/admin/test apps/admin/ui apps/studio apps/mobile; do
   echo "tsc $p"
   (cd "$p" && npx tsc -p .)
 done
