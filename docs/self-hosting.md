@@ -22,6 +22,13 @@ Cloudflare dashboard → My Profile → API Tokens → Create Token → Custom t
 | Account · Account Settings | Read |
 | User · Memberships | Read |
 
+With `APP_DOMAIN` / `ADMIN_DOMAIN` (custom domains), the deploy also edits the domains' zone; add:
+
+| Permission | Access |
+| --- | --- |
+| Zone · Workers Routes | Edit |
+| Zone · DNS | Edit |
+
 Copy the token; it is shown once. Your **account id** is on the Workers & Pages overview.
 
 ## 2. Settings
