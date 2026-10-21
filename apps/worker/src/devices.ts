@@ -8,7 +8,8 @@ const toApi = (r: DeviceRow) => ({ ...r, specs: JSON.parse(r.specs) as DeviceSpe
 /**
  * Device specs (issue #68). Created by the Studio from a phone's readout, then kept current by the
  * phone itself (its calibration and measured sizes); the id is the phone's own, so both write the same row.
- * A device is its user's: lists and deletes see only your own.
+ * A device is its user's, keyed (user_id, id) since #224: every route sees only the caller's own rows,
+ * and two accounts that save the same phone each have their own.
  */
 export function registerDeviceRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/devices", async ({ env, tenant }) => {
@@ -17,33 +18,33 @@ export function registerDeviceRoutes(r: Router<Ctx>) {
   });
 
   /**
-   * JSON { name?, specs }. Upsert, specs checked strictly. `name` is required to create a device (the
-   * Studio names it); the phone's updates leave it out and keep the stored one.
-   * The id is the phone's, so a phone signed in to another account writes a row someone else has:
-   * the phone has one current user, so the row becomes theirs and the old owner's layouts let go of it.
+   * JSON { name?, specs }. Upsert of the caller's own row, specs checked strictly. `name` is required
+   * to create a device (the Studio names it); the phone's updates leave it out and keep the stored one.
+   * The same phone id under another account is that account's row and stays untouched.
    */
   r.on("PUT", "/api/devices/:id", async ({ env, request, tenant }, { id }) => {
     const did = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const err = validateDeviceSpecs(b.specs);
     if (err) throw new HttpError(400, err);
-    const stored = await env.DB.prepare("SELECT name, user_id FROM devices WHERE id = ?1").bind(did).first<{ name: string; user_id: string }>();
+    const stored = await env.DB.prepare("SELECT name FROM devices WHERE user_id = ?1 AND id = ?2").bind(tenant.userId, did).first<{ name: string }>();
     const name = b.name === undefined && stored ? stored.name : assertString(b.name, "name", 80);
-    await env.DB.batch([
-      env.DB.prepare(
-        `INSERT INTO devices (id, name, specs, updated_at, user_id) VALUES (?1, ?2, ?3, ?4, ?5)
-         ON CONFLICT(id) DO UPDATE SET name = ?2, specs = ?3, updated_at = ?4, user_id = ?5`,
-      ).bind(did, name, JSON.stringify(b.specs), new Date().toISOString(), tenant.userId),
-      env.DB.prepare("UPDATE viewfinder_layouts SET device_id = NULL WHERE device_id = ?1 AND user_id != ?2").bind(did, tenant.userId),
-    ]);
-    const row = await env.DB.prepare("SELECT * FROM devices WHERE id = ?1").bind(did).first<DeviceRow>();
-    return json({ device: toApi(row!) });
+    await env.DB.prepare(
+      `INSERT INTO devices (user_id, id, name, specs, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
+       ON CONFLICT(user_id, id) DO UPDATE SET name = ?3, specs = ?4, updated_at = ?5`,
+    ).bind(tenant.userId, did, name, JSON.stringify(b.specs), new Date().toISOString()).run();
+    const row = await env.DB.prepare("SELECT * FROM devices WHERE user_id = ?1 AND id = ?2").bind(tenant.userId, did).first<DeviceRow>();
+    return json({ device: toApi(row!) }, stored ? 200 : 201);
   });
 
-  // Layouts designed for it keep working; they just lose the reference (ON DELETE SET NULL).
+  // Layouts designed for it keep working; they just lose the reference, in the same batch (the
+  // composite foreign key of migration 0026 has no ON DELETE action: SET NULL would clear user_id too).
   r.on("DELETE", "/api/devices/:id", async ({ env, tenant }, { id }) => {
     const did = assertUuid(id, "id");
-    const res = await env.DB.prepare("DELETE FROM devices WHERE id = ?1 AND user_id = ?2").bind(did, tenant.userId).run();
+    const [, res] = await env.DB.batch([
+      env.DB.prepare("UPDATE viewfinder_layouts SET device_id = NULL WHERE user_id = ?1 AND device_id = ?2").bind(tenant.userId, did),
+      env.DB.prepare("DELETE FROM devices WHERE user_id = ?1 AND id = ?2").bind(tenant.userId, did),
+    ]);
     if (!res.meta.changes) throw new HttpError(404, "device not found");
     return json({ deleted: did });
   });

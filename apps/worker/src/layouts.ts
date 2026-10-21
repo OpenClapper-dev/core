@@ -31,7 +31,8 @@ export function registerLayoutRoutes(r: Router<Ctx>) {
     if (layout.length > 16 * 1024) throw new HttpError(413, "layout too large");
     const hasDevice = b.device_id !== undefined;
     const deviceId = b.device_id == null ? null : assertUuid(b.device_id, "device_id");
-    if (deviceId && !(await env.DB.prepare("SELECT 1 FROM devices WHERE id = ?1 AND user_id = ?2").bind(deviceId, tenant.userId).first())) throw new HttpError(400, "device_id: no such device");
+    // One of the caller's own devices (the foreign key of migration 0026 holds the same rule).
+    if (deviceId && !(await env.DB.prepare("SELECT 1 FROM devices WHERE user_id = ?1 AND id = ?2").bind(tenant.userId, deviceId).first())) throw new HttpError(400, "device_id: no such device");
     await env.DB.prepare(
       `INSERT INTO viewfinder_layouts (id, name, layout, device_id, updated_at, user_id) VALUES (?1, ?2, ?3, ?5, ?4, ?6)
        ON CONFLICT(id) DO UPDATE SET name = ?2, layout = ?3, updated_at = ?4${hasDevice ? ", device_id = ?5" : ""}`,

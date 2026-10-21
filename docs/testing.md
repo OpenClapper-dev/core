@@ -39,7 +39,9 @@ A test that shows a real bug stays: mark it `test.fails` (or `test.skip`) with a
 
 - `id`: the route reaches a resource by id (in the path, the query or the body). User B sends the request for user A's resource; it must answer 403/404 (or `refused`), show nothing of A's, and leave every row and R2 object unchanged. Then A sends it, which must pass (`ownerStatus`, default 200/201), proving the refusal came from the workspace check. `body(a, actor)` gets both worlds, so B's attempt can name B's own project or photo next to A's id: the realistic attack on an upsert.
 - `list`: B's response never contains any of A's ids or marks. List routes with a `?project_id=` filter are also asked for A's project.
-- `exempt`: not workspace-scoped; say why (a device id moves to whoever signs in on that phone; the preview socket picks the room by the caller's own id).
+- `exempt`: not workspace-scoped; say why (the preview socket picks the room by the caller's own id).
+
+A per-user upsert keyed by a client id (`PUT /api/devices/:id`: the id is the phone's) is an `id` case whose B attempt writes B's own row (`refused: [201]`); its `undo` deletes that row, and then nothing of A's may have changed.
 
 References to another workspace's rows inside a body (a new location in A's project, a framing with A's rig, …) are a separate table in the same file: refused with 400/403/404 and nothing changed. New routes that take such references add a line there.
 
