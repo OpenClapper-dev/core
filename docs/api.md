@@ -40,7 +40,7 @@ Who a request is (`index.ts` `identify`): a session (bearer header, else cookie;
 | PATCH | `/api/shots/:id` | Any of `name, light, artificial, weather, int_ext, shot_size, camera_support, movement, location_id, extra, description, position_from_location, state, project_id`. `extra` is validated against the project's fields. Moving to another project removes the shot from the old project's shooting days and timelines. |
 | PATCH | `/api/shots` | Bulk edit: `{ ids: uuid[] (≤ 500), set?: { any single-PATCH field except extra }, extra?: { key: value \| null } }`. Only the given fields change. `extra` is per key and merged into each shot's values (groups child by child, null clears, dependent selects that no longer fit are dropped), then the edited keys are checked against each shot's (new) project. Unknown ids → 404, any error → nothing written (one transaction). Moving removes the shots from the old project's shooting days. Returns `{ shots }`. |
 | DELETE | `/api/shots/:id` | Moves the shot to the [recycle bin](#recycle-bin-trashts-epic-90) (`{ deleted, binned: true }`); its timeline clips and day places go now. Purging deletes photos, overlays, sketches and their R2 objects |
-| GET | `/api/photos/:id/image` | Image from R2, immutable caching, supports conditional requests |
+| GET | `/api/photos/:id/image` | Image from R2, immutable caching, conditional requests: `If-None-Match` hit `304`, a failed `If-Match` `412` (#224) |
 | PATCH | `/api/photos/:id` | `{ lat, lon, all_in_shot? }` position correction (also sets a position on photos captured without one); sets `position_corrected` |
 
 `POST /api/shots` metadata:
@@ -54,6 +54,7 @@ Who a request is (`index.ts` `identify`): a session (bearer header, else cookie;
 ```
 
 - Idempotent. An existing shot keeps its tags (they may have been edited since); only photos not stored yet are added. That is how retries and chunked sequence uploads work (the phone sends 12 photos per request, the server allows 60). A photo id already stored in another shot is `409` before anything is written (the R2 key comes from the id).
+- Limits (#224), all checked before anything is written: a declared `content-length` above 60 × 3 MB + 1 MB is `413` before the body is read; each image at most 3 MB (`413`); the stored type comes from the file's magic bytes (JPEG `FF D8 FF`, PNG `89 50 4E 47 0D 0A 1A 0A`, WebP `RIFF….WEBP`), whatever the part's declared type, and anything else is `415`; a shot holds at most **200 photos** across its uploads (`413` with the count). The phone parks such a rejection as `stuck` and keeps the files ([capture](features/capture.md)).
 - `lat`/`lon` may be null or missing (captured without GPS); half a position is dropped. `position_corrected` marks a position set by hand on the phone before upload. `state` carries a review decision made on the phone before upload; anything invalid becomes `unreviewed`.
 - `photos[].source`: `camera` (default), `upload` or `drawn` (Studio-made, [new shot](features/new-shot.md)); for the last two `lens_mm` is optional and stored as 0.
 - Lenient on purpose: unknown `preset_id`/`location_id` become null, names over 120 characters are cut, `extra` is only pruned, not validated.
@@ -76,10 +77,10 @@ Shots embed both lists without the drawing; see [compose](features/compose.md) f
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/api/overlays/:id` | With `drawing` |
-| PUT | `/api/overlays/:id` | Upsert. JSON `{ photo_id, name, description?, drawing, presentation, position? }`, or `multipart/form-data` with `metadata` (that JSON) and `render` (jpeg/png/webp ≤ 6 MB, the flattened image). `drawing` is validated by `validateDrawing(v, true)` (a look is required), `presentation` by `validatePresentation`. An overlay cannot move to another photo (`409`). Returns `{ overlay, shot }`; `201` when new. |
+| PUT | `/api/overlays/:id` | Upsert. JSON `{ photo_id, name, description?, drawing, presentation, position? }`, or `multipart/form-data` with `metadata` (that JSON) and `render` (JPEG, PNG or WebP by its magic bytes, else `415`; ≤ 6 MB; a declared `content-length` above 6 MB + 1 MB + 64 KB is `413` before the body is read, #224). `drawing` is validated by `validateDrawing(v, true)` (a look is required), `presentation` by `validatePresentation`. An overlay cannot move to another photo (`409`). Returns `{ overlay, shot }`; `201` when new. |
 | PATCH | `/api/overlays/:id` | `{ name?, description?, position? }` → `{ overlay, shot }` |
 | DELETE | `/api/overlays/:id` | Removes the render too → `{ deleted, shot }` |
-| GET | `/api/overlays/:id/render` | The render; `render_url` on the overlay carries `?v=<updated_at>`, so it is cached as immutable |
+| GET | `/api/overlays/:id/render` | The render; `render_url` on the overlay carries `?v=<updated_at>`, so it is cached as immutable. Conditional requests as for photos (`304`, `412`) |
 | GET / PUT / PATCH / DELETE | `/api/sketches/:id` | Same, with `{ shot_id, name, kind?, description?, drawing (look null), aspect (0.25..4), position? }`; PATCH takes `kind` too |
 | GET | `/api/sketches/:id/render` | |
 | POST | `/api/overlays/:id/copy` · `/api/sketches/:id/copy` | `{ id, timeline_id, clip_id }`: copy (with the render) as a timeline clip's own overlay / sketch; used when a clip is duplicated. `201` |

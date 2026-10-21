@@ -52,8 +52,10 @@ export async function ok<T = Record<string, unknown>>(res: Response | Promise<Re
   return (text ? JSON.parse(text) : null) as T;
 }
 
-/** A few bytes with a JPEG header: the Worker checks type and size, never decodes. */
+/** A few bytes with a JPEG header: the Worker checks the magic bytes and the size, never decodes. */
 export const jpeg = (marker = "img") => new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), marker], "p.jpg", { type: "image/jpeg" });
+/** The PNG signature and a marker; `type` is what the client claims (the Worker goes by the bytes). */
+export const png = (marker = "png", type = "image/png") => new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), marker], "r.png", { type });
 
 export interface PhotoMeta { id: string; ordinal: number; timestamp: string; lens_mm: number; preset_id?: string | null; lat?: number; lon?: number }
 export const photoMeta = (ordinal: number, extra: Partial<PhotoMeta> = {}): PhotoMeta =>
@@ -98,7 +100,7 @@ export const timelineBody = (project: string, name: string, clip: string, photo:
 export function withRender(meta: unknown): FormData {
   const form = new FormData();
   form.set("metadata", JSON.stringify(meta));
-  form.set("render", new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "r.png", { type: "image/png" }));
+  form.set("render", png());
   return form;
 }
 
