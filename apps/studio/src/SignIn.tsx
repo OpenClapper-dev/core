@@ -5,7 +5,7 @@ import { signIn } from "./user";
 
 const REGISTER = "#/register";
 
-/** What a failed sign-in tells the user: the server's words for a lock or a block, ours for the rest. */
+/** What a failed sign-in tells the user: the server's words for a block, ours for the rest. */
 function problem(e: unknown): string {
   if (e instanceof ApiError) return e.status === 401 ? "Wrong email or password." : e.message;
   return "Could not reach OpenClapper. Check the connection and try again.";
