@@ -43,11 +43,12 @@ export async function readMarks(db: D1Database): Promise<Mark[]> {
   try { return parseMarks(JSON.parse(row.value)); } catch { return []; }
 }
 
-export async function writeMarks(db: D1Database, marks: Mark[], by: string): Promise<void> {
-  await db.prepare(
+/** The statement that stores the marks; the route batches it with its audit row. */
+export function marksStatement(db: D1Database, marks: Mark[], by: string): D1PreparedStatement {
+  return db.prepare(
     `INSERT INTO admin_settings (key, value, updated_at, updated_by) VALUES (?1, ?2, ?3, ?4)
      ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at, updated_by = excluded.updated_by`,
-  ).bind(MARKS_KEY, JSON.stringify(marks), new Date().toISOString(), by).run();
+  ).bind(MARKS_KEY, JSON.stringify(marks), new Date().toISOString(), by);
 }
 
 export const crossedMarks = (marks: Mark[], total: number | null) => (total === null ? [] : marks.filter((m) => total >= m.bytes));

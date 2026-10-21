@@ -1,7 +1,7 @@
 /** The admin Worker's API (apps/admin/src/index.ts); same origin, behind its own Cloudflare Access app. */
 
 export interface Overview { users: number; blocked: number; active_30d: number; workspaces: number; projects: number; shots: number; photos: number; bytes: number; unsized: number }
-export interface AdminUser { id: string; email: string; name: string | null; status: "active" | "blocked"; created_at: string; locked_until: string | null; no_password: boolean; sessions: number; last_seen: string | null; workspaces: number }
+export interface AdminUser { id: string; email: string; name: string | null; status: "active" | "blocked"; created_at: string; no_password: boolean; sessions: number; last_seen: string | null; workspaces: number }
 export interface AdminWorkspace { id: string; name: string; kind: "personal" | "shared"; created_at: string; owner_email: string | null; members: number; projects: number; shots: number; photos: number; bytes: number; unsized: number }
 
 export class ApiError extends Error {
@@ -27,6 +27,11 @@ export const createUser = (email: string, name: string | null) => send<{ user: {
 export const patchUser = (id: string, patch: { email?: string; name?: string | null; status?: "active" | "blocked" }) => send<unknown>("PATCH", `/api/users/${id}`, patch);
 export const resetPassword = (id: string) => send<{ password: string }>("POST", `/api/users/${id}/password`).then((r) => r.password);
 export const deleteUser = (id: string) => send<unknown>("DELETE", `/api/users/${id}`);
+
+// ---------- The audit trail (#224) ----------
+export interface AuditEntry { id: string; at: string; operator_email: string; action: string; target_user_id: string | null; target_email: string | null; detail: Record<string, unknown> }
+export const fetchAudit = (cursor: { before: string; before_id: string } | null) =>
+  request<{ entries: AuditEntry[]; next: { before: string; before_id: string } | null }>(`/api/audit${cursor ? `?before=${encodeURIComponent(cursor.before)}&before_id=${cursor.before_id}` : ""}`);
 
 // ---------- Storage monitoring (epic #67) ----------
 export interface Mark { bytes: number; label: string }
