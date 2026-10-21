@@ -40,7 +40,7 @@
 - **Preview on phone** (editor head, needs a connected phone and a valid layout) shows the layout being edited on the phone: Shoot comes to the front with those bars, in the orientation picked in the editor (it overrides the phone's orientation setting), and follows every edit and orientation switch within ~120 ms, also after switching to another layout. **Stop phone preview** ends it.
 - On the phone the buttons and the lens strip are inert (no capture, no toggles); a chip "Studio preview · buttons off · tap to leave" ends it from the phone. Closing the editor, or the phone going to the background, ends it too; a phone that comes back while the editor still previews gets the layout again.
 - Nothing is saved: the preview is a look at the draft, the phone's own layout choice is untouched.
-- Worker: `GET /api/preview/socket?role=phone|studio` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a Studio is connected.
+- Worker: `GET /api/preview/socket?role=phone|studio` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a Studio is connected. A message over 64 KiB is dropped unread (#224).
 - Test it against local data with `make mobile` + `make studio` ([development](../development.md)).
 
 ## Not done

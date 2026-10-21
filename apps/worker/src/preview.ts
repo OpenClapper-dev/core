@@ -19,6 +19,13 @@ type Role = "phone" | "studio";
 interface Preview { type: "preview"; layout: unknown; orientation: "portrait" | "landscape" }
 interface PhoneHello { id: string; model: string | null }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/**
+ * Larger messages are dropped unread (#224): a layout is far smaller (16 KiB when saved), and the
+ * room's storage takes at most 128 KiB per value, which a valid but bloated layout could exceed.
+ */
+export const MAX_MESSAGE_BYTES = 64 * 1024;
+const tooLarge = (raw: string | ArrayBuffer) =>
+  typeof raw === "string" ? raw.length > MAX_MESSAGE_BYTES || new TextEncoder().encode(raw).byteLength > MAX_MESSAGE_BYTES : raw.byteLength > MAX_MESSAGE_BYTES;
 
 export function registerPreviewRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/preview/socket", async ({ request, env, url, identity }) => {
@@ -43,6 +50,7 @@ export class PreviewRoom extends DurableObject<Env> {
   }
 
   async webSocketMessage(ws: WebSocket, raw: string | ArrayBuffer) {
+    if (tooLarge(raw)) return;
     let msg: { type?: unknown; layout?: unknown; orientation?: unknown; device?: { id?: unknown; model?: unknown }; id?: unknown; specs?: unknown };
     try { msg = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw)) as typeof msg; } catch { return; }
     if (this.ctx.getTags(ws)[0] === "studio") {
