@@ -42,7 +42,9 @@ The Workers' typechecks need `worker-configuration.d.ts` (gitignored): `pnpm -C 
 
 What each test suite covers, the route-test helpers and the rule for new routes: [testing](testing.md).
 
-**CI** runs the same lane on every pull request and every push to `main`: `.github/workflows/ci.yml`, one job per step (`lint`, `typecheck`, `test`, `build`), plus `expo-doctor` as an advisory step in `build` (it reports the Expo packages trailing the SDK's newest patches, a consequence of the 7-day cooldown). The four jobs are required checks on `main`: a red check is fixed, never bypassed (no `gh pr merge --admin`).
+**CI** runs the same lane on every pull request and every push to `main`: `.github/workflows/ci.yml`, one job per step (`lint`, `typecheck`, `test`, `build`), plus `expo-doctor` as an advisory step in `build` (it reports the Expo packages trailing the SDK's newest patches, a consequence of the 7-day cooldown). The four jobs are required checks on `main`: a red check is fixed, never bypassed (no `gh pr merge --admin`). A fifth job, `audit`, runs `pnpm audit --prod --audit-level high` as an advisory step: it is not a required check, stays green and shows findings as a warning; fix them with a dependency bump inside the cooldown.
+
+Third-party actions in `.github/workflows/` are pinned to a full commit SHA with the version as a trailing comment (`uses: actions/checkout@<sha> # v7.0.1`). To bump one, resolve the new tag's commit (`gh api repos/<owner>/<repo>/git/ref/tags/<tag>`, and for an annotated tag once more through `git/tags/<sha>`) and change the SHA and the comment together, in every workflow that uses it.
 
 **Lint findings** are fixed in the code when the fix is obvious and keeps the behaviour. A rule that only produces false positives or fights a deliberate pattern is switched off in `.oxlintrc.json` with a one-line comment saying why; no inline disables. A finding that looks like a real bug is a bug: fix it on its own, not as a lint cleanup.
 
