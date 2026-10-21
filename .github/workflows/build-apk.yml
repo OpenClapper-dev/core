@@ -5,6 +5,8 @@
 # repository can call it with this one as a submodule (`path`). Setup: docs/self-hosting.md#the-phone.
 # variant=dev builds the development client "OpenClapper Dev" instead (debug-signed, its own package
 # id, loads the JavaScript from Metro: make mobile), on the same runner setup.
+# The Android SDK, build-tools and NDK are the runner's; local builds (scripts/apk-local.sh) pin theirs in
+# docker/android.Dockerfile. When React Native needs another SDK platform or NDK, check both.
 name: Build APK
 
 on:
@@ -91,7 +93,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: ${{ inputs.path || '.' }}/.nvmrc
           cache: pnpm
           cache-dependency-path: ${{ inputs.path || '.' }}/pnpm-lock.yaml
 

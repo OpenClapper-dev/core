@@ -1,6 +1,14 @@
 # Development
 
-Node 22 and pnpm 11 (via nvm). `pnpm install` enforces a 7-day dependency cooldown (`pnpm-workspace.yaml`). The root `Makefile` wraps the root `package.json` scripts, which stay the source of truth: `make` lists the targets.
+Node and pnpm versions have one source each:
+- **Node**: the root `.nvmrc` (`nvm install`, `nvm use`). The CI, Deploy and Build APK workflows read it (`node-version-file`), and `scripts/apk-local.sh` passes it to the Android image. `engines.node` in the root `package.json` gives the accepted range; bump both together.
+- **pnpm**: `packageManager` in the root `package.json`. `pnpm/action-setup` reads it in the workflows, and the Android image runs it through corepack.
+
+pnpm 11 reads its settings only from `pnpm-workspace.yaml` (an `.npmrc` keeps just auth and registry settings, so the repository has none): the isolated linker (pnpm's default, stated explicitly), `engineStrict` (an install on a Node outside `engines.node` fails), the 7-day dependency cooldown (`minimumReleaseAge`) and the packages allowed to run install scripts. `.gitattributes` keeps text files LF in the repository, and `Makefile`, `*.sh`, `*.yml`, `*.yaml` and `*.mjs` LF in the checkout too.
+
+The root `Makefile` wraps the root `package.json` scripts, which stay the source of truth: `make` lists the targets.
+
+`references/` (design-system and icon exports from Claude Design, cited in `docs/design.md` and some feature pages) is gitignored and exists only on the owner's machine. A fresh checkout works without it: what the code needs from it is copied into the repository.
 
 ## Checks (run before every commit)
 
@@ -109,7 +117,7 @@ Not from this checkout: deploying and production APKs belong to a deployment, wh
 - **The development build** for the phone loop: `make dev-build`, or Build APK with `variant: dev` (above).
 - **Production APKs** are built for one server and signed with its deployment's key: the Build APK workflow, or locally `API_URL=https://… make apk-local` with the key from `scripts/keystore.sh` in `.secrets/` ([self-hosting](self-hosting.md#the-phone)).
 
-`scripts/apk-local.sh` builds in a Docker container (`docker/android.Dockerfile`: JDK 17, Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1, Node 22.20.0, pnpm 11.13.1; nothing installed in WSL):
+`scripts/apk-local.sh` builds in a Docker container (`docker/android.Dockerfile`: JDK 17, Android SDK 36, build-tools 36.0.0, NDK 27.1.12297006, cmake 3.22.1; nothing installed in WSL). Node comes from `.nvmrc` and pnpm from `packageManager` (via corepack): the script passes both as build arguments, so the image is rebuilt when either changes. The CI's Build APK uses the GitHub runner's preinstalled SDK instead; both files point at each other, so check the other when an SDK platform, build-tools or NDK version changes.
 - Once: Docker Desktop → Settings → Resources → WSL integration → enable this distro.
 - It builds the image (cached after the first run), then in the container with the repo mounted and Gradle's cache in the `openclapper-gradle` volume: `expo prebuild --platform android` (generates the gitignored `apps/mobile/android/` from the template in `node_modules/expo`, removed again afterwards) and Gradle. It writes `~/openclapper-builds/openclapper-dev-<commit>.apk` (a production one `openclapper-<version>-<commit>.apk`) and copies it to the Windows Downloads folder (`DOWNLOADS=…` overrides).
 - `VARIANT=release` (`make apk-local`) needs `API_URL=…` and the key: `.secrets/android/openclapper-release.jks` and its passwords in `.secrets/android.env` (`scripts/keystore.sh`). Release signing comes from a config plugin in `app.config.ts` that reads `ANDROID_KEYSTORE*` at Gradle time; a release that still carries the debug key fails the build. The first run downloads Gradle's dependencies (several GB); later builds take about 10 minutes.
