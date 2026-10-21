@@ -34,7 +34,7 @@ The Workers' typechecks need `worker-configuration.d.ts` (gitignored): `pnpm -C 
 
 What each test suite covers, the route-test helpers and the rule for new routes: [testing](testing.md).
 
-**CI** runs the same lane on every pull request and every push to `main`: `.github/workflows/ci.yml`, one job per step (`lint`, `typecheck`, `test`, `build`), plus `expo-doctor` as an advisory step in `build` (it reports the Expo packages trailing the SDK's newest patches, a consequence of the 7-day cooldown). The four jobs are required checks on `main`: a red check is fixed, never bypassed (no `gh pr merge --admin`).
+**CI** runs the same lane on every pull request and every push to `main`: `.github/workflows/ci.yml`, one job per step (`lint`, `typecheck`, `test`, `build`), plus `expo-doctor` as a step in `build`. It is still advisory: it fails while an Expo package trails the SDK's expected version, and with the 7-day cooldown the newest patches arrive a week late. Align with `npx expo install --check` in `apps/mobile`, setting the versions by hand where the expected one is younger than 7 days, then rebuild the dev build (`make dev-build`) and test on the phone. Once `npx -y expo-doctor@1.21.4` passes, the step's `continue-on-error` goes and it blocks (#223). The four jobs are required checks on `main`: a red check is fixed, never bypassed (no `gh pr merge --admin`).
 
 **Lint findings** are fixed in the code when the fix is obvious and keeps the behaviour. A rule that only produces false positives or fights a deliberate pattern is switched off in `.oxlintrc.json` with a one-line comment saying why; no inline disables. A finding that looks like a real bug is a bug: fix it on its own, not as a lint cleanup.
 

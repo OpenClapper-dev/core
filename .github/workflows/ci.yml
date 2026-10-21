@@ -77,8 +77,10 @@ jobs:
         run: pnpm -C apps/worker types && pnpm -C apps/admin types
       # Vite builds, both Worker dry runs (after the Vite outputs: assets.directory), Expo export.
       - run: pnpm build
-      # Advisory: with the 7-day release cooldown the Expo packages trail the SDK's newest patches, which
-      # expo-doctor reports as a failed check. Pinned; bump it like a dependency.
+      # Advisory until it passes: with the 7-day release cooldown the Expo packages trail the SDK's
+      # newest patches by a week, which expo-doctor reports as a failed check (on 2026-10-21: expo
+      # ~57.0.30 and expo-constants ~57.0.22). Once it passes, drop continue-on-error so it blocks
+      # (#223, docs/development.md#checks). Pinned; bump it like a dependency.
       - name: expo-doctor (advisory)
         continue-on-error: true
         working-directory: apps/mobile
