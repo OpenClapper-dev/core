@@ -79,7 +79,7 @@ Epic [#156](https://github.com/OpenClapper-dev/core/issues/156). Web only (the p
 - **Phone**: a portrait phone with a lens.
 - **Studio**: a window.
 - **Admin**: a shield.
-- **Org** (the GitHub organisation avatar): no glyph.
+- **Org** (the GitHub organisation avatar): no glyph. `docs/brand/org-avatar.svg` and `org-avatar-1024.png`, full bleed so the round crop keeps the mark.
 
 The mark is white on the background colour, which tells the environments apart, so a dev or staging build is never mistaken for the real one. The shape never changes, so the themed (monochrome) Android icon is the same for all three.
 
