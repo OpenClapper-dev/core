@@ -10,7 +10,7 @@ import worker, { type Env } from "../src/index.ts";
 
 const base: Env = { ...env, ACCESS_TEAM_DOMAIN: "", ACCESS_AUD: "", ADMIN_DEV_BYPASS: "true" };
 const on: Env = { ...base, CLOUDFLARE_ACCOUNT_ID: "acct", CF_ANALYTICS_TOKEN: "tok", APP_WORKER_NAME: "openclapper-api", R2_BUCKET: "openclapper-media" };
-const get = (e: Env, path: string) => worker.fetch(new Request(`http://admin.test${path}`), e);
+const get = (e: Env, path: string) => worker.fetch(new Request(`http://localhost:8788${path}`), e);
 
 const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
 const today = new Date().toISOString().slice(0, 10);

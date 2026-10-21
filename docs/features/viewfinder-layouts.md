@@ -32,6 +32,7 @@
 
 - A device is a phone read out over the preview socket: **Add device specs** (`DeviceSpecs.tsx`) asks the connected phone (`readout`) and shows what it sends: model, the Shoot screen per orientation (dp, measured whenever Shoot lays out, `device.ts` on the phone), the phone lenses (stops and zoom range) and the main lens's 35 mm equivalent. Turning the phone on Shoot fills in the other orientation live. Name it, save.
 - The record's id is the phone's own, so with every flush the phone keeps it current (calibration, sizes, lenses; `syncDevice`). The phone never creates the record. Setup → Phone calibration says the name it has in the Studio.
+- A device record is per account (#224): the same phone saved by two accounts is two records, each with its own name and layouts. A phone signed in to another account updates only that account's record, once its Studio has saved the phone (until then Setup shows no name).
 - The calibration stays editable only on the phone; the device record carries a copy.
 
 ## Live preview on the phone (#50)
@@ -40,7 +41,7 @@
 - **Preview on phone** (editor head, needs a connected phone and a valid layout) shows the layout being edited on the phone: Shoot comes to the front with those bars, in the orientation picked in the editor (it overrides the phone's orientation setting), and follows every edit and orientation switch within ~120 ms, also after switching to another layout. **Stop phone preview** ends it.
 - On the phone the buttons and the lens strip are inert (no capture, no toggles); a chip "Studio preview · buttons off · tap to leave" ends it from the phone. Closing the editor, or the phone going to the background, ends it too; a phone that comes back while the editor still previews gets the layout again.
 - Nothing is saved: the preview is a look at the draft, the phone's own layout choice is untouched.
-- Worker: `GET /api/preview/socket?role=phone|studio` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a Studio is connected.
+- Worker: `GET /api/preview/socket?role=phone|studio` (websocket) into the Durable Object `PreviewRoom` (`src/preview.ts`), one per signed-in user, hibernating between messages. It checks the layout with `validateViewfinderLayout` and keeps the current preview in its own storage only while a Studio is connected. A message over 64 KiB is dropped unread (#224).
 - Test it against local data with `make mobile` + `make studio` ([development](../development.md)).
 
 ## Not done

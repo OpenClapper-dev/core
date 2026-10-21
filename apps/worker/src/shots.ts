@@ -7,6 +7,7 @@ import { spotUnder } from "./spots.ts";
 import { assertEnum, assertIsoTimestamp, assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import { fileRefCleanup } from "./files.ts";
 import { binResource } from "./trash.ts";
+import { assertBodySize, imageExt, imageTypeOf, preconditionFailed, type ImageType } from "./images.ts";
 import type { Ctx } from "./index.ts";
 import { assertAccess, assertProjectRef, assertRank, inWorkspaces } from "./tenancy.ts";
 
@@ -63,14 +64,14 @@ interface PhotoRow {
 
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // "low-res reference" — generous ceiling
 const MAX_PHOTOS_PER_UPLOAD = 60;
+/** A shot (a sequence) holds at most this many photos across all its uploads (#224). */
+const MAX_PHOTOS_PER_SHOT = 200;
+/** The largest upload body: every image at the ceiling plus room for the metadata (checked before parsing, #224). */
+const MAX_UPLOAD_BYTES = MAX_PHOTOS_PER_UPLOAD * MAX_IMAGE_BYTES + 1024 * 1024;
 const MAX_JSON_BYTES = 16 * 1024;
 const MAX_BULK = 500;
-const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/webp", "image/png"]);
 
-function objectKey(photoId: string, contentType: string): string {
-  const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
-  return `photos/${photoId}.${ext}`;
-}
+const objectKey = (photoId: string, type: ImageType) => `photos/${photoId}.${imageExt(type)}`;
 
 const parseJson = <T>(s: string | null): T | null => (s ? (JSON.parse(s) as T) : null);
 
@@ -319,10 +320,12 @@ export function registerShotRoutes(r: Router<Ctx>) {
     if (!row) throw new HttpError(404, "photo not found");
     const obj = await env.SHOTS_BUCKET.get(row.r2_object_key, { onlyIf: request.headers });
     if (!obj) throw new HttpError(404, "image missing in storage");
+    if (!("body" in obj) && preconditionFailed(request, obj)) throw new HttpError(412, "precondition failed");
     const headers = new Headers();
     obj.writeHttpMetadata(headers);
     headers.set("etag", obj.httpEtag);
     headers.set("cache-control", "private, max-age=31536000, immutable");
+    headers.set("x-content-type-options", "nosniff");
     if (!("body" in obj) || !obj.body) return new Response(null, { status: 304, headers });
     return new Response(obj.body, { headers });
   });
@@ -343,6 +346,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     const { env, request } = ctx;
     const ct = request.headers.get("content-type") ?? "";
     if (!ct.startsWith("multipart/form-data")) throw new HttpError(415, "expected multipart/form-data");
+    assertBodySize(request, MAX_UPLOAD_BYTES);
     const form = await request.formData();
     const metaRaw = form.get("metadata");
     if (typeof metaRaw !== "string") throw new HttpError(400, "metadata field missing");
@@ -384,6 +388,10 @@ export function registerShotRoutes(r: Router<Ctx>) {
         .results.map((x) => x.id),
     );
     const fresh = photos.filter((p) => !stored.has(p.id));
+    if (fresh.length) {
+      const held = (await env.DB.prepare("SELECT count(*) AS n FROM photos WHERE shot_id = ?1").bind(id).first<{ n: number }>())?.n ?? 0;
+      if (held + fresh.length > MAX_PHOTOS_PER_SHOT) throw new HttpError(413, `a shot holds at most ${MAX_PHOTOS_PER_SHOT} photos (it has ${held}, this upload adds ${fresh.length})`);
+    }
     // The R2 key comes from the photo id and R2 is written before D1, so a taken id must be refused
     // before anything is stored, or it would overwrite another shot's image.
     if (fresh.length && await env.DB.prepare("SELECT 1 FROM photos WHERE id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(fresh.map((p) => p.id))).first()) {
@@ -395,18 +403,19 @@ export function registerShotRoutes(r: Router<Ctx>) {
       const known = new Set((await env.DB.prepare("SELECT id FROM presets WHERE workspace_id = ?2 AND id IN (SELECT value FROM json_each(?1))").bind(JSON.stringify(presetIds), ws).all<{ id: string }>()).results.map((x) => x.id));
       for (const p of fresh) if (p.preset_id && !known.has(p.preset_id)) p.preset_id = null;
     }
-    const files = fresh.map((p) => {
+    // The stored type comes from the file's own bytes (JPEG, PNG, WebP), never from what the client says.
+    const files = await Promise.all(fresh.map(async (p) => {
       const f = form.get(`photo.${p.id}`);
       if (!(f instanceof File)) throw new HttpError(400, `image file missing for photo ${p.id}`);
-      if (!ALLOWED_IMAGE_TYPES.has(f.type)) throw new HttpError(415, `unsupported image type ${f.type || "(none)"}`);
       if (f.size === 0 || f.size > MAX_IMAGE_BYTES) throw new HttpError(413, "image empty or too large");
-      return { photo: p, file: f, key: objectKey(p.id, f.type), size: f.size };
-    });
+      const type = await imageTypeOf(f, `photo ${p.id}`);
+      return { photo: p, file: f, type, key: objectKey(p.id, type), size: f.size };
+    }));
 
     const written: string[] = [];
     try {
-      for (const { photo, file, key } of files) {
-        await env.SHOTS_BUCKET.put(key, file.stream(), { httpMetadata: { contentType: file.type }, customMetadata: { shot_id: id, photo_id: photo.id, workspace_id: ws! } });
+      for (const { photo, file, type, key } of files) {
+        await env.SHOTS_BUCKET.put(key, file.stream(), { httpMetadata: { contentType: type }, customMetadata: { shot_id: id, photo_id: photo.id, workspace_id: ws! } });
         written.push(key);
       }
       // One batch = one transaction: the shot row and its photo rows land together or not at all.

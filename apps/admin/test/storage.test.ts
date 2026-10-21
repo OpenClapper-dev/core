@@ -11,7 +11,7 @@ const bypass: Env = { ...env, ACCESS_TEAM_DOMAIN: "", ACCESS_AUD: "", ADMIN_DEV_
 function call(method: string, path: string, body?: unknown): Promise<Response> {
   const headers = new Headers();
   if (body !== undefined) headers.set("content-type", "application/json");
-  return worker.fetch(new Request(`http://admin.test${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), bypass);
+  return worker.fetch(new Request(`http://localhost:8788${path}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) }), bypass);
 }
 async function json<T = Record<string, unknown>>(res: Promise<Response>, status: number): Promise<T> {
   const r = await res;

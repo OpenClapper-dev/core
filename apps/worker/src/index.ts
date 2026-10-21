@@ -34,10 +34,22 @@ export interface Ctx {
 /** A session, everywhere: local development signs in too (dev@localhost, `make init`), so it behaves like production. */
 const identify = (request: Request, env: Env): Promise<Identity | null> => provider.identify(request, env);
 
+/**
+ * CSRF guard on top of SameSite=Lax: a change sent by another site's page (the browser says so in
+ * Sec-Fetch-Site) is refused when it would ride on the Studio's cookie. A bearer token cannot be
+ * sent by a foreign page, so the phone's requests (which carry no such header anyway) pass.
+ */
+function crossSiteWithCookie(request: Request): boolean {
+  if (request.method === "GET" || request.method === "HEAD") return false;
+  if (request.headers.get("Authorization")?.startsWith("Bearer ")) return false;
+  return request.headers.get("Sec-Fetch-Site") === "cross-site";
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     try {
+      if (crossSiteWithCookie(request)) throw new HttpError(403, "cross-site request refused");
       if (isPublic(url.pathname)) return await publicRouter.handle(request.method, url.pathname, { request, env, url });
       const identity = await identify(request, env);
       if (!identity) return json({ error: "unauthorized" }, 401);

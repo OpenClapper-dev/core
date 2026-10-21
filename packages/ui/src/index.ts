@@ -5,6 +5,14 @@
  * docs/design.md) and comes along with any import from this package. Client-only CSS (the desktop
  * shell, photo framing, page layouts) stays in the client.
  */
+// The font and the icon font are bundled, not fetched from a CDN (issue #224): the clients load
+// nothing from another origin, so their CSP stays `font-src 'self'`. Weights as in typography.css.
+import "@fontsource/atkinson-hyperlegible-next/400.css";
+import "@fontsource/atkinson-hyperlegible-next/500.css";
+import "@fontsource/atkinson-hyperlegible-next/600.css";
+import "@fontsource/atkinson-hyperlegible-next/700.css";
+import "@fontsource/atkinson-hyperlegible-next/800.css";
+import "@mdi/font/css/materialdesignicons.min.css";
 import "./design/colors.css";
 import "./design/typography.css";
 import "./design/spacing.css";

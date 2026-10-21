@@ -6,16 +6,30 @@ export class HttpError extends Error {
   }
 }
 
+/**
+ * Every API answer: never cached (it is per user, and a shared cache must not keep it), never
+ * sniffed as anything but JSON, and no full URL in the Referer of requests it leads to.
+ */
+export const API_HEADERS: Readonly<Record<string, string>> = {
+  "cache-control": "no-store",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "same-origin",
+};
+
 export function json(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json; charset=utf-8", ...headers },
+    headers: { "content-type": "application/json; charset=utf-8", ...API_HEADERS, ...headers },
   });
 }
 
+/** `application/json` exactly, parameters (charset) allowed: `text/plain; application/json` is not JSON. */
+export function isJsonType(contentType: string | null): boolean {
+  return (contentType ?? "").split(";")[0].trim().toLowerCase() === "application/json";
+}
+
 export async function readJson<T>(request: Request): Promise<T> {
-  const ct = request.headers.get("content-type") ?? "";
-  if (!ct.includes("application/json")) throw new HttpError(415, "expected application/json");
+  if (!isJsonType(request.headers.get("content-type"))) throw new HttpError(415, "expected application/json");
   try {
     return (await request.json()) as T;
   } catch {
@@ -52,6 +66,15 @@ export function assertIsoTimestamp(v: unknown, field: string): string {
   return new Date(v).toISOString();
 }
 
+/** A path parameter; a malformed `%` sequence is the client's mistake (400), not a URIError (500). */
+function decodeSegment(seg: string): string {
+  try {
+    return decodeURIComponent(seg);
+  } catch {
+    throw new HttpError(400, "malformed path");
+  }
+}
+
 /** Minimal method+pattern router. Patterns use `:name` segments. */
 export type Handler<Ctx> = (ctx: Ctx, params: Record<string, string>) => Promise<Response>;
 
@@ -77,7 +100,7 @@ export class Router<Ctx> {
       const params: Record<string, string> = {};
       let ok = true;
       for (let i = 0; i < segs.length; i++) {
-        if (r.parts[i].startsWith(":")) params[r.parts[i].slice(1)] = decodeURIComponent(segs[i]);
+        if (r.parts[i].startsWith(":")) params[r.parts[i].slice(1)] = decodeSegment(segs[i]);
         else if (r.parts[i] !== segs[i]) { ok = false; break; }
       }
       if (!ok) continue;

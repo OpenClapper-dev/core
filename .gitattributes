@@ -1,0 +1,8 @@
+# Line endings: text files are normalised to LF in the repository. The ones below stay LF in the
+# working tree too, on every platform, since a CRLF breaks them (make, bash, YAML block scalars, node shebangs).
+* text=auto
+Makefile eol=lf
+*.sh eol=lf
+*.yml eol=lf
+*.yaml eol=lf
+*.mjs eol=lf

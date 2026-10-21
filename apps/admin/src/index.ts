@@ -7,8 +7,9 @@
 import {
   AccessError, assertEnum, assertNumber, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
 } from "@openclapper/service-kit";
+import { auditEntry, listAudit, type AuditAction } from "./audit.ts";
 import { configured, MAX_DAYS, overlay, snapshotCloudflare } from "./cloudflare.ts";
-import { parseMarks, readMarks, storageReport, writeMarks } from "./storage.ts";
+import { marksStatement, parseMarks, readMarks, storageReport } from "./storage.ts";
 
 export interface Env {
   DB: D1Database;
@@ -16,7 +17,10 @@ export interface Env {
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
   PBKDF2_ITERATIONS?: string;
-  /** Local development only (gitignored `.dev.vars`): no Access in front, every request is `admin@localhost`. */
+  /**
+   * Local development only (gitignored `.dev.vars`): no Access in front, every request is `admin@localhost`.
+   * Honoured only for requests to localhost / 127.0.0.1, so a var set by mistake on a deployment opens nothing.
+   */
   ADMIN_DEV_BYPASS?: string;
   /** The Cloudflare overlay (cloudflare.ts): off unless both the account and the read-only token are set. */
   CLOUDFLARE_ACCOUNT_ID?: string;
@@ -34,8 +38,16 @@ interface Ctx {
   admin: string;
 }
 
-/** Every change an operator makes goes to the Worker log (observability), with who made it. */
-const audit = (ctx: Ctx, action: string, target: Record<string, unknown>) => console.log(JSON.stringify({ audit: action, by: ctx.admin, ...target }));
+/**
+ * Every change an operator makes: a row in admin_audit (audit.ts) for the batch of the change, and a
+ * line in the Worker log (observability).
+ */
+function audit(ctx: Ctx, action: AuditAction, target: { userId?: string | null; email?: string | null }, detail: Record<string, unknown> = {}): D1PreparedStatement {
+  console.log(JSON.stringify({ audit: action, by: ctx.admin, user: target.userId ?? undefined, ...detail }));
+  return auditEntry(ctx.env.DB, ctx.admin, action, target, detail);
+}
+
+const userEmail = (env: Env, id: string) => env.DB.prepare("SELECT email FROM users WHERE id = ?1").bind(id).first<{ email: string }>().then((r) => r?.email ?? null);
 
 /** Readable once, typed once: 4 groups of 4 from letters and digits that are hard to confuse. */
 function tempPassword(): string {
@@ -67,7 +79,7 @@ router.on("GET", "/api/overview", async ({ env }) => {
 
 router.on("GET", "/api/users", async ({ env }) => {
   const { results } = await env.DB.prepare(
-    `SELECT u.id, u.email, u.name, u.status, u.created_at, u.locked_until, u.password_hash = '!' AS no_password,
+    `SELECT u.id, u.email, u.name, u.status, u.created_at, u.password_hash = '!' AS no_password,
        (SELECT count(*) FROM sessions s WHERE s.user_id = u.id AND s.expires_at > ?1) AS sessions,
        (SELECT max(s.last_used_at) FROM sessions s WHERE s.user_id = u.id) AS last_seen,
        (SELECT count(*) FROM workspace_members m WHERE m.user_id = u.id) AS workspaces
@@ -94,39 +106,41 @@ router.on("POST", "/api/users", async (ctx) => {
     env.DB.prepare("INSERT INTO users (id, email, name, password_hash) VALUES (?1, ?2, ?3, ?4)").bind(id, email, name, await hashPassword(password, targetIterations(env))),
     env.DB.prepare("INSERT INTO workspaces (id, name, owner_user_id, kind) VALUES (?1, 'Personal', ?2, 'personal')").bind(ws, id),
     env.DB.prepare("INSERT INTO workspace_members (workspace_id, user_id, role) VALUES (?1, ?2, 'owner')").bind(ws, id),
+    audit(ctx, "user.create", { userId: id, email }, { name }),
   ]);
-  audit(ctx, "user.create", { user: id, email });
   return json({ user: { id, email, name }, password }, 201);
 });
 
-/**
- * JSON { email?, name?, status? }. Blocking ends every session at once (and the next sign-in is
- * refused); unblocking also clears a sign-in lock.
- */
+/** JSON { email?, name?, status? }. Blocking ends every session at once (and the next sign-in is refused). */
 router.on("PATCH", "/api/users/:id", async (ctx, { id }) => {
   const { env, request } = ctx;
   const uid = assertUuid(id, "id");
   const b = await readJson<Record<string, unknown>>(request);
-  if (!(await env.DB.prepare("SELECT 1 FROM users WHERE id = ?1").bind(uid).first())) throw new HttpError(404, "user not found");
+  const was = await userEmail(env, uid);
+  if (was === null) throw new HttpError(404, "user not found");
   const stmts: D1PreparedStatement[] = [];
+  const changes: Record<string, unknown> = {};
   const now = new Date().toISOString();
   if (b.email !== undefined) {
     const email = assertString(b.email, "email", 320);
     if (!EMAIL.test(email)) throw new HttpError(400, "email is not an email address");
     if (await env.DB.prepare("SELECT 1 FROM users WHERE email = ?1 COLLATE NOCASE AND id != ?2").bind(email, uid).first()) throw new HttpError(409, "an account with this email exists");
     stmts.push(env.DB.prepare("UPDATE users SET email = ?2, updated_at = ?3 WHERE id = ?1").bind(uid, email, now));
+    changes.email = email;
   }
-  if (b.name !== undefined) stmts.push(env.DB.prepare("UPDATE users SET name = ?2, updated_at = ?3 WHERE id = ?1").bind(uid, b.name === null || b.name === "" ? null : assertString(b.name, "name", 80), now));
+  if (b.name !== undefined) {
+    const name = b.name === null || b.name === "" ? null : assertString(b.name, "name", 80);
+    stmts.push(env.DB.prepare("UPDATE users SET name = ?2, updated_at = ?3 WHERE id = ?1").bind(uid, name, now));
+    changes.name = name;
+  }
   if (b.status !== undefined) {
     const status = assertEnum(b.status, "status", ["active", "blocked"] as const);
-    stmts.push(status === "blocked"
-      ? env.DB.prepare("UPDATE users SET status = 'blocked', updated_at = ?2 WHERE id = ?1").bind(uid, now)
-      : env.DB.prepare("UPDATE users SET status = 'active', failed_logins = 0, locked_until = NULL, updated_at = ?2 WHERE id = ?1").bind(uid, now));
+    stmts.push(env.DB.prepare("UPDATE users SET status = ?2, updated_at = ?3 WHERE id = ?1").bind(uid, status, now));
     if (status === "blocked") stmts.push(env.DB.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(uid));
+    changes.status = status;
   }
   if (!stmts.length) throw new HttpError(400, "nothing to update");
-  await env.DB.batch(stmts);
-  audit(ctx, "user.update", { user: uid, ...b });
+  await env.DB.batch([...stmts, audit(ctx, "user.update", { userId: uid, email: was }, changes)]);
   return json({ user: await env.DB.prepare("SELECT id, email, name, status FROM users WHERE id = ?1").bind(uid).first() });
 });
 
@@ -134,14 +148,15 @@ router.on("PATCH", "/api/users/:id", async (ctx, { id }) => {
 router.on("POST", "/api/users/:id/password", async (ctx, { id }) => {
   const { env } = ctx;
   const uid = assertUuid(id, "id");
-  if (!(await env.DB.prepare("SELECT 1 FROM users WHERE id = ?1").bind(uid).first())) throw new HttpError(404, "user not found");
+  const email = await userEmail(env, uid);
+  if (email === null) throw new HttpError(404, "user not found");
   const password = tempPassword();
   await env.DB.batch([
-    env.DB.prepare("UPDATE users SET password_hash = ?2, failed_logins = 0, locked_until = NULL, updated_at = ?3 WHERE id = ?1")
+    env.DB.prepare("UPDATE users SET password_hash = ?2, updated_at = ?3 WHERE id = ?1")
       .bind(uid, await hashPassword(password, targetIterations(env)), new Date().toISOString()),
     env.DB.prepare("DELETE FROM sessions WHERE user_id = ?1").bind(uid),
+    audit(ctx, "user.password", { userId: uid, email }),
   ]);
-  audit(ctx, "user.password", { user: uid });
   return json({ password });
 });
 
@@ -153,7 +168,8 @@ router.on("DELETE", "/api/users/:id", async (ctx, { id }) => {
   const { env } = ctx;
   const uid = assertUuid(id, "id");
   if (uid === BOOTSTRAP_USER_ID) throw new HttpError(400, "the bootstrap user owns the data from before accounts and stays");
-  if (!(await env.DB.prepare("SELECT 1 FROM users WHERE id = ?1").bind(uid).first())) throw new HttpError(404, "user not found");
+  const email = await userEmail(env, uid);
+  if (email === null) throw new HttpError(404, "user not found");
   const owned = await env.DB.prepare(
     "SELECT count(*) AS n FROM projects WHERE workspace_id IN (SELECT id FROM workspaces WHERE owner_user_id = ?1)",
   ).bind(uid).first<{ n: number }>();
@@ -163,8 +179,8 @@ router.on("DELETE", "/api/users/:id", async (ctx, { id }) => {
     env.DB.prepare("DELETE FROM devices WHERE user_id = ?1").bind(uid),
     env.DB.prepare("DELETE FROM workspaces WHERE owner_user_id = ?1").bind(uid),
     env.DB.prepare("DELETE FROM users WHERE id = ?1").bind(uid),
+    audit(ctx, "user.delete", { userId: uid, email }),
   ]);
-  audit(ctx, "user.delete", { user: uid });
   return json({ deleted: uid });
 });
 
@@ -199,10 +215,12 @@ router.on("PUT", "/api/settings", async (ctx) => {
   const b = await readJson<Record<string, unknown>>(request);
   if (b.storage_marks === undefined) throw new HttpError(400, "nothing to update");
   const marks = parseMarks(b.storage_marks);
-  await writeMarks(env.DB, marks, ctx.admin);
-  audit(ctx, "settings.update", { storage_marks: marks });
+  await env.DB.batch([marksStatement(env.DB, marks, ctx.admin), audit(ctx, "settings.update", {}, { storage_marks: marks })]);
   return json({ storage_marks: marks });
 });
+/** The audit trail, newest first: `?limit=` (1..200, default 50), `before` + `before_id` from the previous page's `next`. */
+router.on("GET", "/api/audit", async ({ env, url }) => json(await listAudit(env.DB, url.searchParams)));
+
 /** The Cloudflare overlay for the last `days` (1..31, default 30); `{ configured: false }` without a token, so the board can say how to enable it. */
 router.on("GET", "/api/cloudflare", async ({ env, url }) => {
   if (!configured(env)) return json({ configured: false });
@@ -211,9 +229,14 @@ router.on("GET", "/api/cloudflare", async ({ env, url }) => {
   return json(await overlay(env, days));
 });
 
-/** The operator: verified Access JWT of the admin application (its own AUD), or the local bypass. */
-async function operator(request: Request, env: Env): Promise<string> {
-  if (env.ADMIN_DEV_BYPASS === "true") return "admin@localhost";
+const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+
+/** The operator: verified Access JWT of the admin application (its own AUD), or the local bypass on a local hostname. */
+async function operator(request: Request, url: URL, env: Env): Promise<string> {
+  if (env.ADMIN_DEV_BYPASS === "true") {
+    if (LOCAL_HOSTS.has(url.hostname)) return "admin@localhost";
+    console.warn(`admin: ADMIN_DEV_BYPASS ignored for host ${url.hostname}`);
+  }
   const who = await verifyAccessJwt(request, env);
   if (who.kind !== "user") throw new AccessError("sign in as a person, not a service token");
   return who.email;
@@ -223,10 +246,14 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     try {
-      const admin = await operator(request, env);
+      const admin = await operator(request, url, env);
       return await router.handle(request.method, url.pathname, { env, request, url, admin });
     } catch (err) {
-      if (err instanceof AccessError) return json({ error: "unauthorized", reason: err.message }, 401);
+      // The reason goes to the log only: it would tell a prober which check to work on.
+      if (err instanceof AccessError) {
+        console.warn(`admin: refused (${err.message})`);
+        return json({ error: "unauthorized" }, 401);
+      }
       if (err instanceof HttpError) return json({ error: err.message }, err.status);
       console.error("unhandled", err);
       return json({ error: "internal error" }, 500);

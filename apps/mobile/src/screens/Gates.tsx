@@ -24,7 +24,7 @@ export function SignInGate({ onSignIn, onSkip }: { onSignIn: () => void; onSkip:
   );
 }
 
-/** What a failed sign-in tells the user: ours for a wrong password or no network, the server's for the rest (locked, blocked). */
+/** What a failed sign-in tells the user: ours for a wrong password or no network, the server's for the rest (blocked). */
 function problem(e: unknown): string {
   if (e instanceof ApiError) return e.status === 401 ? "Wrong email or password." : e.message;
   return "Couldn't reach the server. Check the connection; shots you take meanwhile stay on the phone.";

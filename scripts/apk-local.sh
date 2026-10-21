@@ -50,8 +50,12 @@ esac
 out=~/openclapper-builds
 mkdir -p "$out"
 
-# Rebuilds only when the Dockerfile changed (layer cache). Gradle's cache lives in a volume.
-docker build -t openclapper-android -f docker/android.Dockerfile docker
+# Rebuilds only when the Dockerfile, .nvmrc or packageManager changed (layer cache). Gradle's cache
+# lives in a volume.
+docker build -t openclapper-android -f docker/android.Dockerfile \
+  --build-arg NODE_VERSION="$(cat .nvmrc)" \
+  --build-arg PACKAGE_MANAGER="$(node -p 'require("./package.json").packageManager')" \
+  docker
 docker run --rm \
   -v "$PWD":/work -v "$out":/out -v openclapper-gradle:/root/.gradle "${run[@]}" \
   -w /work/apps/mobile openclapper-android \

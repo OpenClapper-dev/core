@@ -1,5 +1,6 @@
 import { MAX_COMPOSE_NAME, MAX_DESCRIPTION, MAX_SKETCH_KIND, validateDrawing, validatePresentation } from "@openclapper/vocab";
-import { assertNumber, assertString, assertUuid, HttpError, json, type Router } from "@openclapper/service-kit";
+import { assertNumber, assertString, assertUuid, HttpError, isJsonType, json, readJson, type Router } from "@openclapper/service-kit";
+import { assertBodySize, imageExt, imageTypeOf, preconditionFailed, type ImageType } from "./images.ts";
 import type { Ctx } from "./index.ts";
 import { loadShot } from "./shots.ts";
 import { accessIfExists, assertAccess, type Access } from "./tenancy.ts";
@@ -20,8 +21,8 @@ interface SketchRow { id: string; shot_id: string | null; timeline_id: string | 
 
 const MAX_RENDER_BYTES = 6 * 1024 * 1024;
 const MAX_DRAWING_BYTES = 1024 * 1024;
-const RENDER_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const ext = (type: string) => (type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg");
+/** The largest save body: a render at the ceiling, a drawing at its limit, room for the rest (checked before parsing, #224). */
+const MAX_SAVE_BYTES = MAX_RENDER_BYTES + MAX_DRAWING_BYTES + 64 * 1024;
 
 /** The render URL changes with every save, so the image route can cache for a year. */
 const renderUrl = (kind: "overlays" | "sketches", r: { id: string; render_key: string | null; updated_at: string | null; created_at: string }) =>
@@ -120,11 +121,7 @@ export async function composeCounts(env: Ctx["env"], shotId: string): Promise<{ 
 /** A PUT body: JSON alone, or multipart with `metadata` (JSON) and an optional `render` image. */
 async function readSave(request: Request): Promise<{ m: Record<string, unknown>; render: File | null }> {
   const ct = request.headers.get("content-type") ?? "";
-  if (ct.includes("application/json")) {
-    let m: Record<string, unknown>;
-    try { m = (await request.json()) as Record<string, unknown>; } catch { throw new HttpError(400, "invalid JSON body"); }
-    return { m, render: null };
-  }
+  if (isJsonType(ct)) return { m: await readJson<Record<string, unknown>>(request), render: null };
   if (!ct.startsWith("multipart/form-data")) throw new HttpError(415, "expected multipart/form-data or application/json");
   const form = await request.formData();
   const raw = form.get("metadata");
@@ -134,7 +131,6 @@ async function readSave(request: Request): Promise<{ m: Record<string, unknown>;
   const render = form.get("render");
   if (render !== null && !(render instanceof File)) throw new HttpError(400, "render must be a file");
   if (render) {
-    if (!RENDER_TYPES.has(render.type)) throw new HttpError(415, `unsupported render type ${render.type || "(none)"}`);
     if (render.size === 0 || render.size > MAX_RENDER_BYTES) throw new HttpError(413, "render empty or too large");
   }
   return { m, render };
@@ -172,10 +168,22 @@ const sameOwner = (a: { timeline_id: string | null; clip_id: string | null }, b:
 
 const optPosition = (v: unknown) => (v === undefined || v === null ? null : assertNumber(v, "position", { min: 0, max: 10_000 }));
 
+type Render = { file: File; type: ImageType };
+
+/**
+ * A save body with the upload checks (#224): its size before anything is parsed, and the render's
+ * type from its own bytes (JPEG, PNG, WebP; 415 otherwise), never from what the client declares.
+ */
+async function readBody(request: Request): Promise<{ m: Record<string, unknown>; render: Render | null }> {
+  assertBodySize(request, MAX_SAVE_BYTES);
+  const { m, render } = await readSave(request);
+  return { m, render: render ? { file: render, type: await imageTypeOf(render, "render") } : null };
+}
+
 /** Write the render to R2 (keyed by id and type), then run the row statements; the object is removed again if the rows fail. */
-async function saveWithRender(env: Ctx["env"], kind: "overlays" | "sketches", id: string, render: File | null, oldKey: string | null, rows: (key: string | null) => D1PreparedStatement[]) {
-  const key = render ? `renders/${kind}/${id}.${ext(render.type)}` : oldKey;
-  if (render) await env.SHOTS_BUCKET.put(key!, render.stream(), { httpMetadata: { contentType: render.type }, customMetadata: { kind, id } });
+async function saveWithRender(env: Ctx["env"], kind: "overlays" | "sketches", id: string, render: Render | null, oldKey: string | null, rows: (key: string | null) => D1PreparedStatement[]) {
+  const key = render ? `renders/${kind}/${id}.${imageExt(render.type)}` : oldKey;
+  if (render) await env.SHOTS_BUCKET.put(key!, render.file.stream(), { httpMetadata: { contentType: render.type }, customMetadata: { kind, id } });
   try { await env.DB.batch(rows(key)); } catch (err) {
     if (render && key !== oldKey) await env.SHOTS_BUCKET.delete(key!).catch(() => {});
     throw err;
@@ -197,10 +205,12 @@ async function serveRender(env: Ctx["env"], request: Request, key: string | null
   if (!key) throw new HttpError(404, "no render yet");
   const obj = await env.SHOTS_BUCKET.get(key, { onlyIf: request.headers });
   if (!obj) throw new HttpError(404, "render missing in storage");
+  if (!("body" in obj) && preconditionFailed(request, obj)) throw new HttpError(412, "precondition failed");
   const headers = new Headers();
   obj.writeHttpMetadata(headers);
   headers.set("etag", obj.httpEtag);
   headers.set("cache-control", "private, max-age=31536000, immutable");
+  headers.set("x-content-type-options", "nosniff");
   if (!("body" in obj) || !obj.body) return new Response(null, { status: 304, headers });
   return new Response(obj.body, { headers });
 }
@@ -229,7 +239,7 @@ export function registerComposeRoutes(r: Router<Ctx>) {
   r.on("PUT", "/api/overlays/:id", async (ctx, { id }) => {
     const { env, request } = ctx;
     const oid = assertUuid(id, "id");
-    const { m, render } = await readSave(request);
+    const { m, render } = await readBody(request);
     const photoId = assertUuid(m.photo_id, "photo_id");
     const name = assertString(m.name, "name", MAX_COMPOSE_NAME);
     const description = optText(m.description, "description", MAX_DESCRIPTION);
@@ -261,7 +271,7 @@ export function registerComposeRoutes(r: Router<Ctx>) {
     const { env, request } = ctx;
     const oid = assertUuid(id, "id");
     await assertAccess(ctx, "overlay", oid, "editor");
-    const { m } = await readSave(request);
+    const { m } = await readBody(request);
     const sets: string[] = [];
     const args: unknown[] = [];
     if (m.name !== undefined) { args.push(assertString(m.name, "name", MAX_COMPOSE_NAME)); sets.push(`name = ?${args.length}`); }
@@ -295,7 +305,7 @@ export function registerComposeRoutes(r: Router<Ctx>) {
     const { env, request } = ctx;
     const from = assertUuid(id, "id");
     await assertAccess(ctx, "overlay", from, "viewer");
-    const { m } = await readSave(request);
+    const { m } = await readBody(request);
     const to = assertUuid(m.id, "id");
     const src = await env.DB.prepare("SELECT o.*, s.project_id FROM overlays o JOIN photos ph ON ph.id = o.photo_id JOIN shots s ON s.id = ph.shot_id WHERE o.id = ?1").bind(from).first<Record<string, unknown> & { photo_id: string; render_key: string | null; project_id: string }>();
     if (!src) throw new HttpError(404, "overlay not found");
@@ -338,7 +348,7 @@ export function registerComposeRoutes(r: Router<Ctx>) {
   r.on("PUT", "/api/sketches/:id", async (ctx, { id }) => {
     const { env, request } = ctx;
     const sid = assertUuid(id, "id");
-    const { m, render } = await readSave(request);
+    const { m, render } = await readBody(request);
     await accessIfExists(ctx, "sketch", sid, "editor");
     const owner = await clipOwner(ctx, m, null);
     const shotId = owner ? null : assertUuid(m.shot_id, "shot_id");
@@ -366,7 +376,7 @@ export function registerComposeRoutes(r: Router<Ctx>) {
     const { env, request } = ctx;
     const sid = assertUuid(id, "id");
     await assertAccess(ctx, "sketch", sid, "editor");
-    const { m } = await readSave(request);
+    const { m } = await readBody(request);
     const sets: string[] = [];
     const args: unknown[] = [];
     if (m.name !== undefined) { args.push(assertString(m.name, "name", MAX_COMPOSE_NAME)); sets.push(`name = ?${args.length}`); }
@@ -398,7 +408,7 @@ export function registerComposeRoutes(r: Router<Ctx>) {
     const { env, request } = ctx;
     const from = assertUuid(id, "id");
     const fromWs = await assertAccess(ctx, "sketch", from, "viewer");
-    const { m } = await readSave(request);
+    const { m } = await readBody(request);
     const to = assertUuid(m.id, "id");
     const src = await env.DB.prepare("SELECT * FROM sketches WHERE id = ?1").bind(from).first<Record<string, unknown> & { render_key: string | null }>();
     if (!src) throw new HttpError(404, "sketch not found");

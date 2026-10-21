@@ -11,7 +11,7 @@
     <link rel="icon" href="/icons/%VITE_ICON_SET%/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/icons/%VITE_ICON_SET%/icon-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/icons/%VITE_ICON_SET%/icon-192.png" />
-    <!-- Behind Cloudflare Access: the manifest must be fetched with the session cookie. -->
+    <!-- The whole admin hostname is behind its Cloudflare Access app: the manifest needs the Access cookie (CF_Authorization). -->
     <link rel="manifest" href="/icons/%VITE_ICON_SET%/manifest.webmanifest" crossorigin="use-credentials" />
     <script>
       // Theme before first paint, like the Studio: localStorage["theme"] = "sun" | "set", else the OS.
@@ -22,10 +22,7 @@
         document.documentElement.setAttribute("data-theme", o === "sun" || o === "set" ? o : mq && mq.matches ? "set" : "sun");
       })();
     </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;600;700;800&display=swap" />
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css" />
+    <!-- The font and the icons come with @openclapper/ui (bundled); nothing loads from another origin (CSP: public/_headers). -->
   </head>
   <body>
     <div id="app"></div>
