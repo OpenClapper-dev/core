@@ -25,6 +25,7 @@ pnpm test           # unit and route tests (docs/testing.md):
                     #   pnpm -C apps/mobile test           calibration, EXIF, framing, lens, zoom, layouts
 pnpm build          # scripts/build-check.sh, dry runs only, nothing is deployed:
                     #   vite build in apps/studio and apps/admin
+                    #   scripts/csp-hash.mjs --check: each _headers CSP still allows its index.html inline script
                     #   wrangler deploy --dry-run in apps/worker and apps/admin (tracked local wrangler.jsonc,
                     #     after the Vite builds: both serve them as assets)
                     #   expo export --platform android in apps/mobile: proves Metro can bundle
