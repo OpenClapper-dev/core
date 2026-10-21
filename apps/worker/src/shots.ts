@@ -323,6 +323,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
     obj.writeHttpMetadata(headers);
     headers.set("etag", obj.httpEtag);
     headers.set("cache-control", "private, max-age=31536000, immutable");
+    headers.set("x-content-type-options", "nosniff");
     if (!("body" in obj) || !obj.body) return new Response(null, { status: 304, headers });
     return new Response(obj.body, { headers });
   });

@@ -4,14 +4,14 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 
 | Resource | Details |
 | --- | --- |
-| Worker `APP_WORKER_NAME` (default `openclapper-api`) | API and Studio on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA. A daily cron empties the recycle bin and old sessions and snapshots storage ([monitoring](features/monitoring.md)). Observability enabled. |
+| Worker `APP_WORKER_NAME` (default `openclapper-api`) | API and Studio on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA, served with the CSP and security headers of `apps/studio/public/_headers`. `preview_urls: false` (both Workers): a preview URL would run an unreviewed version with the production bindings. A daily cron empties the recycle bin and old sessions and snapshots storage ([monitoring](features/monitoring.md)). Observability enabled. |
 | Worker `ADMIN_WORKER_NAME` (default `openclapper-admin`) | The admin plane (`apps/admin`), its own hostname, the same D1 and R2, behind its own Cloudflare Access application ([admin](features/admin.md)). Without `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` it refuses every request. A daily cron keeps Cloudflare analytics for the board when `CF_ANALYTICS_TOKEN` is set ([monitoring](features/monitoring.md)). |
 | D1 `D1_DATABASE_NAME` (default `openclapper-db`) | Binding `DB`, migrations in `apps/worker/migrations/` (only the app Worker's config applies them) |
 | R2 `R2_BUCKET` (default `openclapper-media`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with the workspace in their custom metadata |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
 | Cloudflare Access | The admin plane's sign-in. |
 | Android signing key | Per deployment, made once with `scripts/keystore.sh`; in the deployment repository's secrets and a backup, never in git. Builds need no other service; the only build-time setting is `EXPO_PUBLIC_API_URL` ([self-hosting](self-hosting.md#the-phone)) |
-| Open-Meteo | Weather forecast, called from the Studio browser directly (free, no key) |
+| Open-Meteo | Weather forecast, called from the Studio browser directly (free, no key); the only origin besides the tiles in the Studio's CSP `connect-src` |
 | OpenStreetMap tiles | Maps in the Studio (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
 
 ## Auth

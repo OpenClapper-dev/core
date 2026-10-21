@@ -6,6 +6,9 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-04",
   "observability": { "enabled": true },
+  // No preview URLs: they would serve unreviewed versions with the production bindings (issue #224).
+  // workers.dev stays on: it is the hostname of an instance without a custom domain.
+  "preview_urls": false,
   // The auth seam (src/authn/provider.ts): another build points this at its own provider module.
   "alias": { "@openclapper/auth-provider": "./src/authn/first-party.ts" },
   // Daily at 03:17 UTC: purge what has been in the recycle bin for 30 days (trash.ts).

@@ -1,0 +1,9 @@
+# Response headers of the admin board's static assets (Workers static assets, issue #224). API answers
+# set their own (packages/service-kit json()). The script hash is the theme script in ui/index.html:
+# after editing it, `node scripts/csp-hash.mjs` prints the new one (`pnpm build` fails until it matches).
+# The board calls only its own API; the Cloudflare overlay is fetched by the admin Worker, not the page.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-gCQB4rNZReW2nsLfbXjaLxB9T/ozF5IKtQs6QOq6RL0='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=()
