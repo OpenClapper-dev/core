@@ -1,9 +1,12 @@
 /** Base pieces every other component uses: layout measuring, MDI icons, the mark, labels and hints. */
 import { useState, type ComponentProps, type ReactNode } from "react";
-import { Text, View, type LayoutChangeEvent } from "react-native";
+import { Image, Text, type LayoutChangeEvent } from "react-native";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { SIZE, useTheme } from "./theme";
 import { useStyles } from "./styles";
+
+/** Made with the app icons (#249): a white silhouette that Mark tints. */
+const MARK = require("../../assets/mark.png");
 
 /** Measured size of a view: `const [box, onLayout] = useLayoutSize()`; zero until the first layout. */
 export function useLayoutSize(): [{ width: number; height: number }, (e: LayoutChangeEvent) => void] {
@@ -22,26 +25,14 @@ export function Icon({ name, size = SIZE.icon, color }: { name: string; size?: n
 }
 
 /**
- * The mark on a 72-unit grid (same geometry as the phone app icon): two diagonal slate stripes in
- * the text colour, the phone glyph in the accent in the channel between them. A stripe is the band
- * between the lines x+y=mid∓8: a long rectangle of the band's width rotated 45° around its centre
- * (mid/2, mid/2), clipped by the container. The icon punches the lens out of the glyph; here a dot
- * in the background colour stands in, since Views cannot punch holes.
+ * The mark (same geometry as the phone app icon, #249): the slate corner with the phone glyph cut
+ * out, as a white silhouette (assets/mark.png, made with the icons) tinted with the text colour, so
+ * the background shows through the glyph in both themes. An image because Views cannot draw the
+ * slanted stripes or punch the glyph out.
  */
 export function Mark({ size = 28 }: { size?: number }) {
   const { c } = useTheme();
-  const k = size / 72;
-  const bandW = 16 / Math.SQRT2;
-  const stripe = (mid: number, key: number) =>
-    <View key={key} style={{ position: "absolute", left: (mid / 2 - 60) * k, top: (mid / 2 - bandW / 2) * k, width: 120 * k, height: bandW * k, transform: [{ rotate: "-45deg" }], backgroundColor: c.text }} />;
-  return (
-    <View style={{ width: size, height: size, overflow: "hidden" }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {stripe(38, 0)}
-      {stripe(106, 1)}
-      <View style={{ position: "absolute", left: 29 * k, top: 23 * k, width: 14 * k, height: 26 * k, borderRadius: 3 * k, backgroundColor: c.accent }} />
-      <View style={{ position: "absolute", left: 33 * k, top: 26.5 * k, width: 6 * k, height: 6 * k, borderRadius: 3 * k, backgroundColor: c.bg }} />
-    </View>
-  );
+  return <Image source={MARK} style={{ width: size, height: size, tintColor: c.text }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants" />;
 }
 
 /** Uppercase section label (13 dp caps). */

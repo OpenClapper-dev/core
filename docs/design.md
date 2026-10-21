@@ -75,20 +75,29 @@ Epic [#156](https://github.com/OpenClapper-dev/core/issues/156). Web only (the p
 
 **Font and icons on the web** are bundled, not loaded from a CDN (#224): `@openclapper/ui` imports Atkinson Hyperlegible Next from `@fontsource/atkinson-hyperlegible-next` (weights 400 to 800, latin and latin-ext; SIL OFL 1.1, its licence ships in the package) and the icon font from `@mdi/font` (7.4.47, Apache 2.0), so Vite emits the font files with the build and the CSP needs `font-src 'self'` only.
 
-**App icon and mark** (the family from #170, redesigned with the OpenClapper slate motif in 2026-10; sources and geometry in the gitignored `references/OpenClapper icon design/`, `icons.json` there holds the exact paths). One family, three surfaces: two diagonal slate stripes (ink) with a different glyph in the channel between them (accent):
-- **Phone**: a portrait phone with a lens cut-out.
-- **Studio**: three staggered tracks (timeline / schedule).
-- **Admin**: a keyhole.
+**App icon and mark** (#249, replacing the striped family of #170; the generator, its geometry and the review pages are in the gitignored `references/logo-redesign/`: `build-icons.mjs` writes every file below, `icons.json` holds the exact paths). One family: the **slate corner**, a clapperboard cropped to its hinge corner (the striped stick rising off the top-left, the hinge, the board running off the tile to the bottom-right), with a glyph per surface cut out of the board face:
+- **Phone**: a portrait phone with a lens.
+- **Studio**: a window.
+- **Admin**: a shield.
+- **Org** (the GitHub organisation avatar): no glyph. `docs/brand/org-avatar.svg` and `org-avatar-1024.png`, full bleed so the round crop keeps the mark.
 
-Each exists in two colourways, white on the background: **production** cobalt `#0040D8`, **development** signal green `#2E7D00` (5.2:1 against white; clear of approve green, recording red and warn amber), so a dev build or dev server is never mistaken for the real one.
+The mark is white on the background colour, which tells the environments apart, so a dev or staging build is never mistaken for the real one. The shape never changes, so the themed (monochrome) Android icon is the same for all three.
+
+| Environment | Background | White on it |
+| --- | --- | --- |
+| Production | `#1E3FBF` ultramarine | 8.3:1 |
+| Development | `#3B7A1A` moss | 5.3:1 |
+| Staging | `#B8471F` clay | 5.3:1 |
+
+Production is a deeper blue than the UI accent (`#0040D8`); development stays clear of approve green by hue and lightness. Staging has its asset sets but nothing selects them yet: that comes with the staging deployment.
 
 | Surface | Files | Which set |
 | --- | --- | --- |
-| Studio | `apps/studio/public/icons/{prod,dev}/`: `favicon.svg` (pixel-snapped 16-unit), `icon-192/512.png`, `icon-maskable-512.png`, `manifest.webmanifest` | `index.html` links `/icons/%VITE_ICON_SET%/…`; `vite.config.ts` sets `dev` for the dev server, `prod` for builds |
-| Admin | `apps/admin/ui/public/icons/{prod,dev}/`, the same files | the same switch in `apps/admin/vite.config.ts` |
-| Phone | `apps/mobile/assets/icons/{prod,dev}/`: `app-icon-1024.png`, `android-adaptive-foreground-1024.png`, `android-adaptive-monochrome-1024.png` | `app.json` names the prod set and background; `APP_VARIANT=development` (`app.config.ts`) switches to the dev set and green (APK and dev builds; Expo Go shows its own icon) |
+| Studio | `apps/studio/public/icons/{prod,dev,staging}/`: `favicon.svg` (a separate 16-unit drawing on the pixel grid, three stripes instead of seven), `icon-192/512.png` (rounded tile, 22 % radius), `icon-maskable-512.png` (full bleed, the glyph inside the 80 % safe circle), `manifest.webmanifest` | `index.html` links `/icons/%VITE_ICON_SET%/…`; `vite.config.ts` sets `dev` for the dev server, `prod` for builds |
+| Admin | `apps/admin/ui/public/icons/{prod,dev,staging}/`, the same files | the same switch in `apps/admin/vite.config.ts` |
+| Phone | `apps/mobile/assets/icons/{prod,dev,staging}/`: `app-icon-1024.png` (opaque, full bleed), `android-adaptive-foreground-1024.png` and `android-adaptive-monochrome-1024.png` (white on transparent; the 72 box is the visible 72 dp of the 108 dp layer) | `app.json` names the prod set and background; `APP_VARIANT=development` (`app.config.ts`) switches to the dev set and moss (APK and dev builds) |
 
-Inside the apps the mark is `Mark`: web `core.tsx` in `@openclapper/ui` (an inline SVG; `surface="studio"`, the default, or `"admin"`), phone `src/ui/core.tsx` (rotated Views, clipped; the lens is a background-colour dot since Views cannot punch holes). Stripes in the text colour, the glyph in the accent, so it works in Sun and Set; the in-app mark has no dev colourway (the accent stays cobalt).
+Inside the apps the mark is `Mark`: web `core.tsx` in `@openclapper/ui` (an inline SVG, `surface="studio"`, the default, or `"admin"`), phone `src/ui/core.tsx` (`assets/mark.png`, a white silhouette made with the icons, tinted). Both draw the whole mark in the text colour with the glyph cut out, so the page shows through and it works in Sun and Set; the in-app mark has no environment colours.
 
 ## Web component library
 

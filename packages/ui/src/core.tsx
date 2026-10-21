@@ -9,21 +9,24 @@ export function Icon({ name, label: aria, size, class: extra }: { name: string; 
   return <i class={extra ? `mdi mdi-${name} ${extra}` : `mdi mdi-${name}`} style={size ? { fontSize: `${size}px` } : undefined} role={aria ? "img" : undefined} aria-label={aria} aria-hidden={aria ? undefined : true} />;
 }
 
-/** What sits in the channel between the slate stripes, per surface (the icon family, #170; the phone's glyph is drawn in the phone's ui/core.tsx). */
+/** The slate corner every mark shares: the board, the striped stick rising off its hinge, the hinge (#249). */
+const MARK_BASE = "M19 26H79A5 5 0 0 1 84 31V81A5 5 0 0 1 79 86H19A5 5 0 0 1 14 81V31A5 5 0 0 1 19 26Z M12.37 22.35L14.8 13.05L20.1 10.69L16.54 24.32L13.8 25.54Z M20.37 22.61L23.94 8.99L29.24 6.63L25.67 20.26Z M29.51 18.55L33.07 4.92L38.37 2.56L34.81 16.19Z M38.65 14.48L42.21 0.85L47.51 -1.51L43.94 12.12Z M47.78 10.41L51.35 -3.22L56.64 -5.57L53.08 8.05Z M56.92 6.35L60.48 -7.28L65.78 -9.64L62.21 3.99Z M66.05 2.28L69.62 -11.35L73.27 -12.98L74.19 -10.92L71.35 -0.08Z M15.6 29a2.4 2.4 0 1 0 4.8 0a2.4 2.4 0 1 0 -4.8 0Z";
+
+/** The glyph cut out of the board face, per surface (the phone's mark is a tinted image in the phone's ui/core.tsx). */
 const MARK_GLYPH = {
-  studio: "M24 26H44V31H24Z M30 33.5H50V38.5H30Z M22 41H38V46H22Z", // three staggered tracks
-  admin: "M36 24.98A6.3 6.3 0 0 1 39.6 36.41L42.3 47.02H29.7L32.4 36.41A6.3 6.3 0 0 1 36 24.98Z", // a keyhole
+  studio: "M30.2 37.02H55.8A3.2 3.2 0 0 1 59 40.22V58.78A3.2 3.2 0 0 1 55.8 61.98H30.2A3.2 3.2 0 0 1 27 58.78V40.22A3.2 3.2 0 0 1 30.2 37.02Z M30.2 43.42H55.8V58.78H30.2Z", // a window
+  admin: "M30.2 37.34Q43 31.9 55.8 37.34V49.5Q55.8 60.7 43 65.5Q30.2 60.7 30.2 49.5Z M38.52 49.5a4.48 4.48 0 1 0 8.96 0a4.48 4.48 0 1 0 -8.96 0Z", // a shield
 };
 
 /**
- * The mark (same geometry as that surface's app icon): two diagonal slate stripes in the text colour
- * with the surface's glyph in the accent between them, so it holds up in both themes.
+ * The mark (same geometry as that surface's app icon, on its 72-unit grid): the slate corner in the
+ * text colour with the surface's glyph cut out, so the page shows through and it holds up in both
+ * themes. Clipped to the icon tile's rounded corner, which the board and stick run into.
  */
 export function Mark({ size = 22, surface = "studio" }: { size?: number; surface?: keyof typeof MARK_GLYPH }) {
   return (
-    <svg class="f-mark" viewBox="0 0 72 72" width={size} height={size} aria-hidden="true">
-      <path fill="currentColor" d="M0 30L30 0H46L0 46Z M72 42L42 72H26L72 26Z" />
-      <path fill="var(--accent)" d={MARK_GLYPH[surface]} />
+    <svg class="f-mark" viewBox="0 0 72 72" width={size} height={size} style={{ clipPath: "inset(0 round 22%)" }} aria-hidden="true">
+      <path fill="currentColor" fill-rule="evenodd" d={`${MARK_BASE} ${MARK_GLYPH[surface]}`} />
     </svg>
   );
 }
