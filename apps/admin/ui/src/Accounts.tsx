@@ -53,7 +53,7 @@ export function Users({ users, act }: { users: AdminUser[]; act: Act }) {
             {users.map((u) => (
               <tr key={u.id}>
                 <td><strong>{u.name ?? u.email}</strong>{u.name && <span class="meta"> {u.email}</span>}{u.no_password && <> <ProjectTag>No password</ProjectTag></>}</td>
-                <td>{u.status === "blocked" ? <ProjectTag icon="block-helper">Blocked</ProjectTag> : u.locked_until && Date.parse(u.locked_until) > Date.now() ? <ProjectTag icon="lock-clock">Locked</ProjectTag> : "Active"}</td>
+                <td>{u.status === "blocked" ? <ProjectTag icon="block-helper">Blocked</ProjectTag> : "Active"}</td>
                 <td class="num">{u.sessions}</td>
                 <td>{day(u.last_seen)}</td>
                 <td class="num">{u.workspaces}</td>

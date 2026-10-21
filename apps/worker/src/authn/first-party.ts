@@ -9,23 +9,18 @@ interface UserRow {
   name: string | null;
   password_hash: string;
   status: "active" | "blocked";
-  failed_logins: number;
-  locked_until: string | null;
 }
 
 /** One answer for an unknown email and a wrong password, so sign-in does not reveal who has an account. */
 const BAD_CREDENTIALS = "wrong email or password";
-/** After this many failures in a row the account locks: 1 minute, doubling, at most an hour. */
-const FREE_ATTEMPTS = 5;
-
-function lockUntil(failures: number, now: number): string | null {
-  if (failures < FREE_ATTEMPTS) return null;
-  return new Date(now + Math.min(60, 2 ** (failures - FREE_ATTEMPTS)) * 60_000).toISOString();
-}
-
 /**
  * Email + password accounts in D1 (users created by an admin; there is no sign-up yet) and opaque
  * sessions (sessions.ts). The default provider of every build.
+ *
+ * No brute-force limit (#224): the account lockout was dropped, since anyone could use it to lock an
+ * account out and a 429 told a guesser the email exists. Rate limiting (per IP and email, a Cloudflare
+ * rule or the Workers rate-limit binding) belongs to the auth revamp due before the app opens up to
+ * users. `users.failed_logins` and `locked_until` stay in the schema, unused.
  */
 export const provider: AuthProvider = {
   async identify(request, env) {
@@ -46,28 +41,21 @@ export const provider: AuthProvider = {
       if (email.length > 320 || password.length > 200) throw new HttpError(401, BAD_CREDENTIALS);
       const target = targetIterations(env);
       const user = await env.DB.prepare(
-        "SELECT id, email, name, password_hash, status, failed_logins, locked_until FROM users WHERE email = ?1 COLLATE NOCASE",
+        "SELECT id, email, name, password_hash, status FROM users WHERE email = ?1 COLLATE NOCASE",
       ).bind(email).first<UserRow>();
+      // An unknown email costs the same PBKDF2 work as a wrong password, so timing does not tell them apart.
       if (!user) {
         await burnVerification(password, target);
         throw new HttpError(401, BAD_CREDENTIALS);
       }
-      const now = Date.now();
-      if (user.locked_until && Date.parse(user.locked_until) > now) throw new HttpError(429, "too many failed sign-ins, try again later");
-
       const { ok, needsRehash } = await verifyPassword(password, user.password_hash, target);
-      if (!ok) {
-        const failures = user.failed_logins + 1;
-        await env.DB.prepare("UPDATE users SET failed_logins = ?2, locked_until = ?3 WHERE id = ?1")
-          .bind(user.id, failures, lockUntil(failures, now)).run();
-        throw new HttpError(401, BAD_CREDENTIALS);
-      }
+      if (!ok) throw new HttpError(401, BAD_CREDENTIALS);
       // Only after the right password, so a blocked account is not revealed to a guesser.
       if (user.status !== "active") throw new HttpError(403, "this account is blocked");
 
-      const hash = needsRehash ? await hashPassword(password, target) : user.password_hash;
-      await env.DB.prepare("UPDATE users SET failed_logins = 0, locked_until = NULL, password_hash = ?2 WHERE id = ?1")
-        .bind(user.id, hash).run();
+      if (needsRehash) {
+        await env.DB.prepare("UPDATE users SET password_hash = ?2 WHERE id = ?1").bind(user.id, await hashPassword(password, target)).run();
+      }
       const session = await createSession(env, user.id, client);
       const body = {
         user: { id: user.id, email: user.email, name: user.name },
@@ -78,9 +66,9 @@ export const provider: AuthProvider = {
     });
 
     // Changing one's own password (issue #148). Under /api/auth/ because only this provider has
-    // passwords, so it resolves the session itself. A wrong current password counts towards the
-    // same lock as sign-in (a stolen session must not become a password oracle) and answers 403,
-    // not 401, which the clients read as "signed out". Every other session of the account ends.
+    // passwords, so it resolves the session itself. A wrong current password answers 403, not 401,
+    // which the clients read as "signed out". Every other session of the account ends. (A stolen
+    // session can guess the current password here as at sign-in: rate limiting, #224, is the revamp's.)
     r.on("POST", "/api/auth/password", async ({ request, env }) => {
       const token = requestToken(request);
       const me = token ? await resolveSession(env, token) : null;
@@ -93,20 +81,13 @@ export const provider: AuthProvider = {
       const password = b.password as string;
       if (password === current) throw new HttpError(400, "the new password is the same as the current one");
       const target = targetIterations(env);
-      const user = await env.DB.prepare("SELECT password_hash, failed_logins, locked_until FROM users WHERE id = ?1")
-        .bind(me.userId).first<Pick<UserRow, "password_hash" | "failed_logins" | "locked_until">>();
+      const user = await env.DB.prepare("SELECT password_hash FROM users WHERE id = ?1")
+        .bind(me.userId).first<Pick<UserRow, "password_hash">>();
       if (!user) throw new HttpError(401, "unauthorized");
-      const now = Date.now();
-      if (user.locked_until && Date.parse(user.locked_until) > now) throw new HttpError(429, "too many wrong passwords, try again later");
-      if (current.length > 200 || !(await verifyPassword(current, user.password_hash, target)).ok) {
-        const failures = user.failed_logins + 1;
-        await env.DB.prepare("UPDATE users SET failed_logins = ?2, locked_until = ?3 WHERE id = ?1")
-          .bind(me.userId, failures, lockUntil(failures, now)).run();
-        throw new HttpError(403, "the current password is wrong");
-      }
+      if (current.length > 200 || !(await verifyPassword(current, user.password_hash, target)).ok) throw new HttpError(403, "the current password is wrong");
       await env.DB.batch([
-        env.DB.prepare("UPDATE users SET password_hash = ?2, failed_logins = 0, locked_until = NULL, updated_at = ?3 WHERE id = ?1")
-          .bind(me.userId, await hashPassword(password, target), new Date(now).toISOString()),
+        env.DB.prepare("UPDATE users SET password_hash = ?2, updated_at = ?3 WHERE id = ?1")
+          .bind(me.userId, await hashPassword(password, target), new Date().toISOString()),
         env.DB.prepare("DELETE FROM sessions WHERE user_id = ?1 AND id != ?2").bind(me.userId, await sha256Hex(token)),
       ]);
       return new Response(null, { status: 204 });

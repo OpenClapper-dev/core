@@ -18,7 +18,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 
 - **App users** sign in with email and password ([accounts](features/accounts.md)): the Studio keeps an HttpOnly session cookie, the phone a bearer token in its keystore. Accounts are made in the admin plane (or with `scripts/user.mjs`); there is no public sign-up.
 - **Operators** of the admin plane sign in through its Cloudflare Access application, never with an app account.
-- **Local development**: the app signs in as in production, as `dev@localhost` / `openclapper-local-dev` (the bootstrap user, `make init`). Only the admin plane has a bypass, `ADMIN_DEV_BYPASS="true"` in its gitignored `.dev.vars`, since no Access application sits in front of it on a laptop; it must never be set in a deployed config.
+- **Local development**: the app signs in as in production, as `dev@localhost` / `openclapper-local-dev` (the bootstrap user, `make init`). Only the admin plane has a bypass, `ADMIN_DEV_BYPASS="true"` in its gitignored `.dev.vars`, since no Access application sits in front of it on a laptop; it works only for requests to `localhost` / `127.0.0.1` and must never be set in a deployed config.
 
 ## An instance from before accounts
 

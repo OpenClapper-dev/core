@@ -5,9 +5,9 @@ Issue [#116](https://github.com/OpenClapper-dev/core/issues/116), epic [#107](ht
 ## Pieces
 
 - `apps/admin/src/index.ts`: the admin Worker (`openclapper-admin`).
-  - It verifies the Access JWT of its own application on every request (`verifyAccessJwt` with its own `ACCESS_AUD`) and then reads across all workspaces.
+  - It verifies the Access JWT of its own application on every request (`verifyAccessJwt` with its own `ACCESS_AUD`) and then reads across all workspaces. A refusal answers only `{ "error": "unauthorized" }`; the reason (expired, audience, signature, …) goes to the Worker log. A JWT with an unknown key id refetches Access's keys at most once a minute.
   - Same D1 and R2 bindings as the app. It never runs migrations; those belong to `apps/worker`.
-- `apps/admin/ui/`: the board (`App.tsx` shell with two tabs, `Accounts.tsx`, `Workspaces.tsx`, `Monitoring.tsx`, hand-written SVG `charts.tsx`), a Preact page on the shared web design system (`@openclapper/ui`, `packages/ui`; theme button in the header), built into `apps/admin/dist` and served by the admin Worker.
+- `apps/admin/ui/`: the board (`App.tsx` shell with three tabs, `Accounts.tsx`, `Audit.tsx`, `Workspaces.tsx`, `Monitoring.tsx`, hand-written SVG `charts.tsx`), a Preact page on the shared web design system (`@openclapper/ui`, `packages/ui`; theme button in the header), built into `apps/admin/dist` and served by the admin Worker.
   - **Installable (PWA)**, like the Studio: `ui/public/icons/<set>/manifest.webmanifest` ("OpenClapper admin", standalone, start `/`; the `prod` set in builds, the green `dev` set on the dev server), the padlock icons next to it, linked from `ui/index.html` with `crossorigin="use-credentials"` so the manifest request carries the admin Access cookie. No service worker. Chrome or Edge: the install button in the address bar; the installed app opens in its own window with its own taskbar icon, separate from the Studio's.
 - `packages/service-kit`: what both Workers share.
   - The router, request checks and JSON errors.
@@ -24,16 +24,20 @@ The header shows the operator and the board's version with its commit.
   - workspaces and projects;
   - shots and photos;
   - storage (`photos.size_bytes`; photos from before migration 0021 have no recorded size and are counted apart).
-- **Accounts**: email, name, status (active, blocked, locked after failed sign-ins, no password), live sessions, last seen, workspaces, created.
+- **Accounts**: email, name, status (active, blocked, no password), live sessions, last seen, workspaces, created.
   - **New account** (email, name): the account and its personal workspace. A temporary password is shown once, in 4 groups of 4 easy-to-read characters, for the operator to pass on.
   - **Edit** (#148): email and name. The email is what the account signs in with from now on; its sessions stay. A taken email is refused (409) inside the dialog.
   - **Password**: a new temporary password, shown once. The old one stops working and every session ends.
-  - **Block / Unblock**: blocking ends every session at once and refuses sign-in (the data stays). Unblocking also clears a sign-in lock.
+  - **Block / Unblock**: blocking ends every session at once and refuses sign-in (the data stays).
   - **Delete**: only when the account's workspaces hold no projects; its devices, layouts and empty workspaces go with it. The bootstrap user is never deleted.
 - **Workspaces**: name, personal or shared, owner, members, projects, shots, photos, storage.
 - **Monitoring** (the second tab, `#monitoring`): storage over time, every workspace's share, the operator's marks; a banner on both tabs once the bucket is past a mark ([monitoring](monitoring.md)).
 
-Every change is written to the Worker log as `{ "audit": "user.create" | "user.update" | "user.password" | "user.delete" | "settings.update", "by": <operator>, … }` (Workers observability).
+- **Audit** (the third tab, `#audit`): every change made here, newest first, 50 at a time (Older entries): when, the operator, the action, the account, what changed. Read-only.
+
+## Audit trail (#224)
+
+Every change an operator makes (account created, changed, blocked or unblocked, password reset, deleted; the storage marks saved) writes a row to `admin_audit` (migration 0025, [data model](../data-model.md)) **in the same D1 batch** as the change itself, so neither exists without the other. A refused request writes nothing. The row holds the operator's email from the Access JWT, the account's id and its email at the time, and what changed as JSON (never a password). The same is still logged as `{ "audit": <action>, "by": <operator>, … }` (Workers observability), which keeps only days.
 
 ## API (`apps/admin/src/index.ts`)
 
@@ -49,6 +53,7 @@ Every change is written to the Worker log as `{ "audit": "user.create" | "user.u
 | GET | `/api/workspaces` | Every workspace with owner, counts and storage |
 | GET | `/api/storage?days=` | Storage over time with the operator's marks ([monitoring](monitoring.md)) |
 | GET | `/api/cloudflare?days=` | The account-wide numbers from Cloudflare analytics, or `{ configured: false }` ([monitoring](monitoring.md)) |
+| GET | `/api/audit?limit=&before=&before_id=` | The audit trail, newest first: `{ entries: [{ id, at, operator_email, action, target_user_id, target_email, detail }], next: { before, before_id } \| null }`. `limit` 1..200 (default 50); pass `next` back for the following page |
 | GET | `/api/settings` | `{ storage_marks }` |
 | PUT | `/api/settings` | `{ storage_marks: [{ bytes, label }] }`, at most 10, strict |
 
@@ -56,4 +61,4 @@ Without a valid Access JWT of the admin application every request is `401`. Unti
 
 ## Local
 
-`make all` (its own pane) or `make admin` (`pnpm -C apps/admin dev`) runs the admin Worker on :8788 (on the app's local D1, `--persist-to ../worker/.wrangler/state`) and the board on :5174. `ADMIN_DEV_BYPASS="true"` in `apps/admin/.dev.vars` (written by `make init`) stands for Access: every request is `admin@localhost`.
+`make all` (its own pane) or `make admin` (`pnpm -C apps/admin dev`) runs the admin Worker on :8788 (on the app's local D1, `--persist-to ../worker/.wrangler/state`) and the board on :5174. `ADMIN_DEV_BYPASS="true"` in `apps/admin/.dev.vars` (written by `make init`) stands for Access: every request is `admin@localhost`. It is honoured only for requests to `localhost` or `127.0.0.1` (#224): set by mistake on a deployment, it opens nothing and every request still needs the Access JWT.

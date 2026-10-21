@@ -1,19 +1,24 @@
 import { useEffect, useState } from "preact/hooks";
 import { Banner, Button, ConfirmHost, Empty, IconButton, Loading, Mark, Seg, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, ToastHost, useTheme } from "@openclapper/ui";
 import { Users } from "./Accounts";
+import { Audit } from "./Audit";
 import { fetchCloudflare, fetchOverview, fetchStorage, fetchUsers, fetchWorkspaces, whoami, type AdminUser, type AdminWorkspace, type CfOverlay, type Overview, type StorageReport } from "./api";
 import { Monitoring, type Range } from "./Monitoring";
 import { bytes, Tile } from "./shared";
 import { Workspaces } from "./Workspaces";
 
-type Tab = "board" | "monitoring";
-const TABS = [{ id: "board", label: "Board", icon: "view-dashboard-outline" }, { id: "monitoring", label: "Monitoring", icon: "chart-line" }] as const;
-const tabFromHash = (): Tab => (location.hash === "#monitoring" ? "monitoring" : "board");
+type Tab = "board" | "monitoring" | "audit";
+const TABS = [
+  { id: "board", label: "Board", icon: "view-dashboard-outline" },
+  { id: "monitoring", label: "Monitoring", icon: "chart-line" },
+  { id: "audit", label: "Audit", icon: "history" },
+] as const;
+const tabFromHash = (): Tab => (location.hash === "#monitoring" ? "monitoring" : location.hash === "#audit" ? "audit" : "board");
 
 /**
  * The admin board (issue #116): instance totals, every account (create, block, reset the password,
  * delete) and every workspace with its size; a Monitoring tab (epic #67) with storage over time and
- * the operator's marks. Operators sign in through Cloudflare Access.
+ * the operator's marks; an Audit tab (#224) with every change made here. Operators sign in through Cloudflare Access.
  */
 export function App() {
   const [me, setMe] = useState<string | null>(null);
@@ -75,6 +80,7 @@ export function App() {
       )}
       {tab === "board" && users && <Users users={users} act={act} />}
       {tab === "board" && workspaces && <Workspaces list={workspaces} />}
+      {tab === "audit" && <Audit />}
       {tab === "monitoring" && storage && <Monitoring report={storage} overlay={overlay} range={range} onRange={setRange} onSaved={() => fetchStorage(range).then(setStorage)} />}
       <ConfirmHost />
       <ToastHost />

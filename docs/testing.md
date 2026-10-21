@@ -9,7 +9,7 @@ What runs where, and how to add a test. All of it runs in `make check` (`pnpm te
 | `packages/vocab`, `packages/fov-math` | `node --test` | Node | Pure functions: fields, filters, daylight; FOV, overlay, reframe math |
 | `apps/worker` project `unit` (`test/unit/`) | Vitest | Node | Password hashing, session tokens, workspace roles |
 | `apps/worker` project `routes` (`test/routes/`) | Vitest + `@cloudflare/vitest-plugin` | workerd (Miniflare), local D1 + R2 | Requests through the Worker's own `fetch` and `scheduled`: tenancy on every route, uploads, name clashes, recycle bin, image proxy, sessions, response headers and the CSRF guard |
-| `apps/admin` (`test/`) | Vitest + `@cloudflare/vitest-plugin` | workerd, the app's schema | The admin plane: the Access JWT check, the local bypass, account actions |
+| `apps/admin` (`test/`) | Vitest + `@cloudflare/vitest-plugin` | workerd, the app's schema | The admin plane: the Access JWT check, the local bypass and its hostname guard, account actions, the audit trail |
 | `apps/studio` | `node --test` | Node | The shortcut registry |
 | `apps/mobile` | `node --test` | Node | Calibration, EXIF, framing, lens, zoom, layouts |
 | End-to-end | | | Not yet (#222) |
