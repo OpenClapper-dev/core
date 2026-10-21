@@ -10,6 +10,7 @@
  *   - `list`: B's response never contains any of A's ids or names.
  *   - `exempt`: not workspace-scoped, with the reason (and a test of its own where it matters).
  */
+import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
 import { publicRouter, router } from "../../src/routes.ts";
 import { api, buildWorld, deviceBody, FRAME, idsOf, layoutBody, newUser, ok, overlayBody, photoMeta, sketchBody, snapshot, uploadForm, uuid, type User, type World } from "./helpers.ts";
@@ -24,6 +25,11 @@ interface IdCase {
   refused?: number[];
   /** What A's own request answers (default 200/201): past the workspace check is all that matters. */
   ownerStatus?: number[];
+  /**
+   * A per-user upsert keyed by a client id (devices): B's request writes B's own row under the same id
+   * instead of being refused. `undo` removes that row; after it nothing of A's may have changed.
+   */
+  undo?: (a: World, b: User) => Promise<unknown>;
 }
 interface ListCase { kind: "list"; paths: (a: World) => string[] }
 interface Exempt { kind: "exempt"; why: string }
@@ -121,7 +127,11 @@ const ROUTES: Record<string, Case> = {
   "DELETE /api/viewfinder-layouts/:id": { kind: "id", path: (a) => `/api/viewfinder-layouts/${a.layout}` },
 
   "GET /api/devices": { kind: "list", paths: () => ["/api/devices"] },
-  "PUT /api/devices/:id": { kind: "exempt", why: "by design the id is the phone's: whoever signs in on it takes the row over (devices.ts); tested below" },
+  // The id is the phone's: B saving the same phone gets B's own row (#224), A's row and layouts stay as they were.
+  "PUT /api/devices/:id": {
+    kind: "id", path: (a) => `/api/devices/${a.device}`, body: (_a, actor) => deviceBody(`${actor.mark} device`), refused: [201],
+    undo: (a, b) => env.DB.prepare("DELETE FROM devices WHERE user_id = ?1 AND id = ?2").bind(b.id, a.device).run(),
+  },
   "DELETE /api/devices/:id": { kind: "id", path: (a) => `/api/devices/${a.device}` },
 
   "GET /api/preview/socket": { kind: "exempt", why: "no id: the room is picked by the caller's own user id (preview.ts)" },
@@ -178,6 +188,7 @@ describe("another workspace's resources", () => {
     const text = await res.text();
     expect(c.refused ?? [403, 404], `${res.status} ${text}`).toContain(res.status);
     expect(leaks(text, path), "the refusal shows A's data").toEqual([]);
+    await c.undo?.(w, b);
     expect(await snapshot(), "a refused request changed rows or R2 objects").toBe(before);
     const own = await api(a.token, method, path, c.body?.(w, w));
     const ownText = own.headers.get("content-type")?.includes("json") ? await own.text() : `(${(await own.arrayBuffer()).byteLength} bytes)`;
@@ -248,13 +259,28 @@ describe("another workspace's resources", () => {
     });
   });
 
-  test("a device id is the phone's: another account signing in on it takes the row over (by design)", async () => {
+  test("one phone under two accounts: a row each, no takeover (#224)", async () => {
     const w = await fresh();
-    const res = await ok<{ device: { user_id: string } }>(api(b.token, "PUT", `/api/devices/${w.device}`, deviceBody("B's phone now")));
-    expect(res.device.user_id).toBe(b.id);
-    // A no longer lists it, and A's layout designed for it lets go of it.
-    expect(await (await api(a.token, "GET", "/api/devices")).text()).not.toContain(w.device);
+    type Device = { id: string; user_id: string; name: string };
+    const mine = await ok<{ device: Device }>(api(b.token, "PUT", `/api/devices/${w.device}`, deviceBody("B's phone")), 201);
+    expect(mine.device).toMatchObject({ id: w.device, user_id: b.id, name: "B's phone" });
+    // The phone's own update (no name) touches only the caller's row and keeps its name.
+    await ok(api(b.token, "PUT", `/api/devices/${w.device}`, { specs: deviceBody("").specs }), 200);
+    const aDevices = await ok<{ devices: Device[] }>(api(a.token, "GET", "/api/devices"));
+    expect(aDevices.devices.find((d) => d.id === w.device)).toMatchObject({ user_id: a.id, name: `${w.mark} device` });
+    const bDevices = await ok<{ devices: Device[] }>(api(b.token, "GET", "/api/devices"));
+    expect(bDevices.devices.filter((d) => d.id === w.device)).toEqual([expect.objectContaining({ user_id: b.id, name: "B's phone" })]);
+    // A's layout keeps its device; B's layout can use B's row of the same phone.
     const layouts = await ok<{ layouts: { id: string; device_id: string | null }[] }>(api(a.token, "GET", "/api/viewfinder-layouts"));
-    expect(layouts.layouts.find((l) => l.id === w.layout)?.device_id).toBeNull();
+    expect(layouts.layouts.find((l) => l.id === w.layout)?.device_id).toBe(w.device);
+    const bLayout = await ok<{ layout: { device_id: string } }>(api(b.token, "PUT", `/api/viewfinder-layouts/${uuid()}`, { ...layoutBody("B on the phone"), device_id: w.device }));
+    expect(bLayout.layout.device_id).toBe(w.device);
+    // Deleting B's row leaves A's row and A's layout alone; A deleting its row clears only A's layout.
+    await ok(api(b.token, "DELETE", `/api/devices/${w.device}`));
+    expect((await ok<{ devices: Device[] }>(api(a.token, "GET", "/api/devices"))).devices.some((d) => d.id === w.device)).toBe(true);
+    await ok(api(a.token, "DELETE", `/api/devices/${w.device}`));
+    const after = await ok<{ layouts: { id: string; device_id: string | null }[] }>(api(a.token, "GET", "/api/viewfinder-layouts"));
+    expect(after.layouts.find((l) => l.id === w.layout)?.device_id).toBeNull();
+    await ok(api(a.token, "DELETE", `/api/devices/${w.device}`), 404);
   });
 });

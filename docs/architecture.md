@@ -40,7 +40,7 @@ The phone uses the **deployed** Worker, even in the dev loop. The Studio dev ser
 
 First-party sign-in (epic #107): email + password accounts in D1, opaque sessions (`src/authn/`), behind one seam, `@openclapper/auth-provider` (`src/authn/provider.ts`), which wrangler's `alias` maps to the first-party provider; another build (the hosted one) points it at its own module ([api](api.md#sign-in-authn-epic-107)). Cloudflare Access guards only the admin plane. Details in [infrastructure](infrastructure.md).
 
-- Studio: an HttpOnly session cookie.
+- Studio: an HttpOnly session cookie (`SameSite=Lax`; changes marked `Sec-Fetch-Site: cross-site` are refused on top, #224).
 - Phone: signs in with email and password (`client: "mobile"`), keeps the session token in `expo-secure-store` and sends it as `Authorization: Bearer`.
 - Local dev signs in like production: `dev@localhost` / `openclapper-local-dev`, the bootstrap user that owns the local data (`make init`).
 
