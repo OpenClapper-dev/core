@@ -4,6 +4,9 @@
   "version": "0.7.0",
   "license": "Apache-2.0",
   "packageManager": "pnpm@11.13.1",
+  "engines": {
+    "node": ">=22.23 <23"
+  },
   "scripts": {
     "dev": "pnpm --parallel --filter @openclapper/worker --filter @openclapper/studio dev",
     "dev:init": "bash scripts/dev-init.sh",

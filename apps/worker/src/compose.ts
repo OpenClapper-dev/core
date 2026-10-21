@@ -1,5 +1,5 @@
 import { MAX_COMPOSE_NAME, MAX_DESCRIPTION, MAX_SKETCH_KIND, validateDrawing, validatePresentation } from "@openclapper/vocab";
-import { assertNumber, assertString, assertUuid, HttpError, json, type Router } from "@openclapper/service-kit";
+import { assertNumber, assertString, assertUuid, HttpError, isJsonType, json, readJson, type Router } from "@openclapper/service-kit";
 import { assertBodySize, imageExt, imageTypeOf, preconditionFailed, type ImageType } from "./images.ts";
 import type { Ctx } from "./index.ts";
 import { loadShot } from "./shots.ts";
@@ -121,11 +121,7 @@ export async function composeCounts(env: Ctx["env"], shotId: string): Promise<{ 
 /** A PUT body: JSON alone, or multipart with `metadata` (JSON) and an optional `render` image. */
 async function readSave(request: Request): Promise<{ m: Record<string, unknown>; render: File | null }> {
   const ct = request.headers.get("content-type") ?? "";
-  if (ct.includes("application/json")) {
-    let m: Record<string, unknown>;
-    try { m = (await request.json()) as Record<string, unknown>; } catch { throw new HttpError(400, "invalid JSON body"); }
-    return { m, render: null };
-  }
+  if (isJsonType(ct)) return { m: await readJson<Record<string, unknown>>(request), render: null };
   if (!ct.startsWith("multipart/form-data")) throw new HttpError(415, "expected multipart/form-data or application/json");
   const form = await request.formData();
   const raw = form.get("metadata");
@@ -214,6 +210,7 @@ async function serveRender(env: Ctx["env"], request: Request, key: string | null
   obj.writeHttpMetadata(headers);
   headers.set("etag", obj.httpEtag);
   headers.set("cache-control", "private, max-age=31536000, immutable");
+  headers.set("x-content-type-options", "nosniff");
   if (!("body" in obj) || !obj.body) return new Response(null, { status: 304, headers });
   return new Response(obj.body, { headers });
 }

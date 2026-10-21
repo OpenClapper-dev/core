@@ -33,6 +33,12 @@ interface AccessClaims {
 // avoids a JWKS fetch per request; Access rotates keys rarely.
 let jwksCache: { fetchedAt: number; keys: Jwk[] } | null = null;
 const JWKS_TTL_MS = 60 * 60 * 1000;
+/**
+ * An unknown `kid` forces a refetch (Access rotated its keys), at most once a minute: otherwise every
+ * request with a made-up `kid` would make the Worker fetch the JWKS (#224).
+ */
+const FORCED_REFRESH_MS = 60 * 1000;
+let lastForcedAt = -Infinity;
 
 async function getJwks(teamDomain: string, forceRefresh = false): Promise<Jwk[]> {
   if (!forceRefresh && jwksCache && Date.now() - jwksCache.fetchedAt < JWKS_TTL_MS) {
@@ -100,9 +106,12 @@ export async function verifyAccessJwt(
   }
   if (header.alg !== "RS256" || !header.kid) throw new AccessError("unsupported JWT header");
 
-  // Find the signing key; refresh JWKS once if the kid is unknown (key rotation).
+  // Find the signing key; refresh JWKS if the kid is unknown (key rotation), at most once a minute.
   let key = (await getJwks(env.ACCESS_TEAM_DOMAIN)).find((k) => k.kid === header.kid);
-  if (!key) key = (await getJwks(env.ACCESS_TEAM_DOMAIN, true)).find((k) => k.kid === header.kid);
+  if (!key && Date.now() - lastForcedAt >= FORCED_REFRESH_MS) {
+    lastForcedAt = Date.now();
+    key = (await getJwks(env.ACCESS_TEAM_DOMAIN, true)).find((k) => k.kid === header.kid);
+  }
   if (!key) throw new AccessError("unknown signing key");
 
   if (!(await verifySignature(jwt, key))) throw new AccessError("bad signature");
