@@ -6,6 +6,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Imag
 
 | File | What |
 | --- | --- |
+| `0026_devices_per_user.sql` | `devices` keyed `(user_id, id)` instead of `id`; `viewfinder_layouts` rebuilt with `device_id` as a composite reference to `devices(user_id, id)` (the layout owner's device) and an index on `(user_id, device_id)`. Both tables rebuilt, every row copied with its owner; a `device_id` that was not one of the layout owner's devices is cleared (#224) |
 | `0023_monitoring.sql` | `storage_daily` (a day's storage per workspace and the bucket total, written by the cron) and `admin_settings` (the admin plane's settings as JSON). Additive (epic #67, issue #214; see [monitoring](features/monitoring.md)) |
 | `0001_baseline.sql` | Schema reset of 2026-09-27: projects, presets, locations, shots, photos, views |
 | `0002_photo_position_corrected.sql` | `photos.position_corrected` |
@@ -36,7 +37,7 @@ Add a new numbered file for every change; never edit one that was applied to pro
 
 **Tenancy** (epic #107). `users(id, email UNIQUE NOCASE, name, password_hash, status active|blocked, failed_logins, locked_until, created_at, updated_at)`: `password_hash` is `pbkdf2-sha256$<iterations>$<salt>$<hash>`, or `!`, which never verifies (sign-in disabled). `sessions(id, user_id → users CASCADE, client dashboard|mobile, expires_at, last_used_at, created_at)`: the id is the SHA-256 (hex) of the opaque token; the token itself is never stored; `dashboard` is the Studio (the value predates the rename and is kept, not migrated). `workspaces(id, name, owner_user_id → users, kind personal|shared, created_at, updated_at)` and `workspace_members(workspace_id → CASCADE, user_id → CASCADE, role owner|admin|editor|viewer)`, primary key (workspace, user). Access is decided by `workspace_members` alone; `owner_user_id` is bookkeeping and nullable, so organisations can own workspaces later (an added `owner_org_id`). `kind`: each user's own workspace is `personal` (where their new projects and rigs go by default); the ones they create to share are `shared`.
 
-Every project and rig belongs to a workspace, every device and viewfinder layout to a user. Migration 0021 gave all existing rows to a bootstrap user `00000000-0000-4000-8000-000000000001` (email `owner@openclapper.invalid`, sign-in disabled) and its workspace `00000000-0000-4000-8000-000000000002` (`tenancy.ts`). New projects and rigs go to the workspace the client names, by default the caller's own; new devices and layouts to the caller. Devices are keyed by the phone's own id, so a phone signed in to another account takes its row over (and that account's layouts drop their `device_id`).
+Every project and rig belongs to a workspace, every device and viewfinder layout to a user. Migration 0021 gave all existing rows to a bootstrap user `00000000-0000-4000-8000-000000000001` (email `owner@openclapper.invalid`, sign-in disabled) and its workspace `00000000-0000-4000-8000-000000000002` (`tenancy.ts`). New projects and rigs go to the workspace the client names, by default the caller's own; new devices and layouts to the caller. Devices are keyed by `(user_id, id)` (migration 0026, #224): the id is the phone's own, so a phone saved under two accounts has a row for each, and nobody can write another user's row.
 
 `projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, notes, created_at, updated_at)`
 
@@ -64,9 +65,9 @@ Every project and rig belongs to a workspace, every device and viewfinder layout
 
 `framings(id, photo_id → photos CASCADE, name, rig_id → presets SET NULL (null = as shot), lens_mm, frame JSON { width_fraction, height_fraction, x, y }, position, created_at, updated_at)` and `photos.root_framing_id → framings SET NULL` (null = as captured). The API embeds `framings` and `root_framing_id` in every photo. See [framing](features/rig-explorer.md).
 
-`viewfinder_layouts(id, user_id → users, name, layout JSON, device_id → devices SET NULL, created_at, updated_at)`: phone layouts made in the Studio; a user's own. The shipped default is in code. `device_id` is the device the layout is designed for.
+`viewfinder_layouts(id, user_id → users, name, layout JSON, device_id, created_at, updated_at)`, `(user_id, device_id) → devices(user_id, id)`: phone layouts made in the Studio; a user's own. The shipped default is in code. `device_id` is the device the layout is designed for, always one of the layout owner's own devices. The composite key has no ON DELETE action (SET NULL would clear `user_id` too): deleting a device clears `device_id` in the same batch (`devices.ts`).
 
-`devices(id, user_id → users, name, specs JSON, created_at, updated_at)`: phones read out in the Studio (issue #68), a user's own. The id is the phone's own (`device.v1` on the phone), so the phone keeps the row current. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
+`devices(user_id → users, id, name, specs JSON, created_at, updated_at)`, primary key `(user_id, id)`: phones read out in the Studio (issue #68), a user's own. The id is the phone's own (`device.v1` on the phone), so the phone keeps its user's row current; the same phone under another account is another row. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
 
 `views(id, project_id → projects CASCADE, name, filter JSON, …)`: a project's saved Studio filters (model in `packages/vocab/src/filter.ts`).
 

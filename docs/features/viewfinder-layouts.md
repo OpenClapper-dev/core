@@ -32,6 +32,7 @@
 
 - A device is a phone read out over the preview socket: **Add device specs** (`DeviceSpecs.tsx`) asks the connected phone (`readout`) and shows what it sends: model, the Shoot screen per orientation (dp, measured whenever Shoot lays out, `device.ts` on the phone), the phone lenses (stops and zoom range) and the main lens's 35 mm equivalent. Turning the phone on Shoot fills in the other orientation live. Name it, save.
 - The record's id is the phone's own, so with every flush the phone keeps it current (calibration, sizes, lenses; `syncDevice`). The phone never creates the record. Setup → Phone calibration says the name it has in the Studio.
+- A device record is per account (#224): the same phone saved by two accounts is two records, each with its own name and layouts. A phone signed in to another account updates only that account's record, once its Studio has saved the phone (until then Setup shows no name).
 - The calibration stays editable only on the phone; the device record carries a copy.
 
 ## Live preview on the phone (#50)
