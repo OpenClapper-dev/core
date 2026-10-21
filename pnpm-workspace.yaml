@@ -2,6 +2,12 @@ packages:
   - apps/*
   - packages/*
 
+# pnpm 11 reads its settings only from here (an .npmrc keeps just auth and registry settings).
+# isolated is pnpm's default symlinked node_modules, which Metro and the Workers resolve through.
+nodeLinker: isolated
+# Refuse to install on a Node outside the root package.json's engines (.node-version).
+engineStrict: true
+
 # Supply-chain guard: only install package versions published at least 7 days ago.
 # Escape hatch for urgent security fixes: temporarily set to 0, or list the package in
 # minimumReleaseAgeExclude. Never leave it at 0.
