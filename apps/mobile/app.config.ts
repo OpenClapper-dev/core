@@ -52,7 +52,7 @@ const withReleaseSigning = (config: ExpoConfig): ExpoConfig =>
  * app.json holds the config; this adds the version (the product's), the commit it was built from
  * (GIT_COMMIT, set by the build scripts) and release signing. APP_VARIANT=development (make dev-build,
  * make mobile) renames the development build: its own package id lets "OpenClapper Dev" sit next to the
- * production app instead of replacing it, with its own storage, and its green icon set
+ * production app instead of replacing it, with its own storage, and its moss-green icon set
  * (assets/icons/dev, #170) tells the two apart in the drawer.
  */
 export default ({ config }: ConfigContext): ExpoConfig => {
@@ -73,7 +73,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       ...app.android,
       package: "org.openclapper.dev",
       adaptiveIcon: {
-        backgroundColor: "#2E7D00",
+        backgroundColor: "#3B7A1A",
         foregroundImage: "./assets/icons/dev/android-adaptive-foreground-1024.png",
         monochromeImage: "./assets/icons/dev/android-adaptive-monochrome-1024.png",
       },
