@@ -2,6 +2,8 @@
 
 All routes live in `apps/worker/src/` and are registered in `index.ts`. Every request except the sign-in routes below needs a user (see [Sign-in](#sign-in-authn-epic-107)); without one the answer is `401`. Errors are JSON `{ "error": "…" }` with a 4xx/5xx status. Ids are UUIDs chosen by the client unless noted.
 
+Every JSON answer carries `cache-control: no-store`, `x-content-type-options: nosniff` and `referrer-policy: same-origin` (`json()` in `packages/service-kit`); the image and render proxies keep their own caching and add `nosniff`. A JSON body needs `content-type: application/json` exactly (parameters such as `charset` allowed), else `415`. A path parameter with a malformed `%` sequence is `400`. A change (anything but GET/HEAD) that rides on the Studio's cookie and that the browser marks `Sec-Fetch-Site: cross-site` is refused with `403`, the sign-in routes included; bearer requests (the phone) are not affected (#224).
+
 ## Sign-in (`authn/`, epic #107)
 
 | Method | Path | Notes |

@@ -17,10 +17,11 @@ describe.each([
   ["overlay render", () => `/api/overlays/${w.overlay}/render`, "image/png"],
   ["sketch render", () => `/api/sketches/${w.sketch}/render`, "image/png"],
 ])("%s", (_what, path, type) => {
-  test("is served with its type, an ETag and a year of private caching", async () => {
+  test("is served with its type (never sniffed), an ETag and a year of private caching", async () => {
     const res = await api(u.token, "GET", path());
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toBe(type);
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
     expect(res.headers.get("etag")).toMatch(/^"[^"]+"$/);
     expect(res.headers.get("cache-control")).toBe(IMMUTABLE);
     expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0);
