@@ -39,6 +39,20 @@ describe.each([
     await other.arrayBuffer();
   });
 
+  test("If-Match: its own ETag gets the image, another one 412 (#224); If-None-Match still wins with 304", async () => {
+    const etag = (await api(u.token, "GET", path()).then(async (r) => { await r.arrayBuffer(); return r; })).headers.get("etag")!;
+    const match = await api(u.token, "GET", path(), undefined, { "If-Match": etag });
+    expect(match.status).toBe(200);
+    await match.arrayBuffer();
+    const star = await api(u.token, "GET", path(), undefined, { "If-Match": "*" });
+    expect(star.status).toBe(200);
+    await star.arrayBuffer();
+    await ok(api(u.token, "GET", path(), undefined, { "If-Match": '"something-else"' }), 412);
+    const both = await api(u.token, "GET", path(), undefined, { "If-Match": etag, "If-None-Match": etag });
+    expect(both.status).toBe(304);
+    await both.arrayBuffer();
+  });
+
   test("needs a signed-in user", async () => {
     await ok(api(null, "GET", path()), 401);
   });
@@ -49,14 +63,6 @@ test("HEAD answers the headers without a body", async () => {
   expect(res.status).toBe(200);
   expect(res.headers.get("etag")).toBeTruthy();
   expect(await res.text()).toBe("");
-});
-
-// #224: a failed If-Match precondition should be 412; R2 returns the object without a body and the
-// route answers 304 like an If-None-Match hit. Turns red once fixed: then drop `.fails`.
-test.fails("If-Match with another ETag answers 412 (#224)", async () => {
-  const res = await api(u.token, "GET", `/api/photos/${w.photo}/image`, undefined, { "If-Match": '"something-else"' });
-  await res.arrayBuffer();
-  expect(res.status).toBe(412);
 });
 
 test("an image missing in storage is a 404, not an error", async () => {

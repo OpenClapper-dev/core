@@ -31,7 +31,7 @@ The helpers in `test/routes/helpers.ts`:
 - `snapshot()`: every row of every domain table and every R2 object, as one string; compare before and after a request that must change nothing.
 - `runCron()`: the daily `scheduled` handler, to completion. Time-based behaviour is tested by moving stored timestamps (`deleted_at`, `expires_at`) into the past, never by waiting.
 
-A test that shows a real bug stays: mark it `test.fails` (or `test.skip`) with a comment naming the bug or its issue, so it turns red once the bug is fixed. Example: the `If-Match` case in `images.test.ts` (#224).
+A test that shows a real bug stays: mark it `test.fails` (or `test.skip`) with a comment naming the bug or its issue, so it turns red once the bug is fixed. (The `If-Match` case in `images.test.ts` was one until #224 fixed it.)
 
 ## The tenancy map
 
