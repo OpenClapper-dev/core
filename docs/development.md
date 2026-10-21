@@ -6,7 +6,7 @@ Node and pnpm versions have one source each:
 
 pnpm 11 reads its settings only from `pnpm-workspace.yaml` (an `.npmrc` keeps just auth and registry settings, so the repository has none): the isolated linker (pnpm's default, stated explicitly), `engineStrict` (an install on a Node outside `engines.node` fails), the 7-day dependency cooldown (`minimumReleaseAge`) and the packages allowed to run install scripts. `.gitattributes` keeps text files LF in the repository, and `Makefile`, `*.sh`, `*.yml`, `*.yaml` and `*.mjs` LF in the checkout too.
 
-The root `Makefile` wraps the root `package.json` scripts, which stay the source of truth: `make` lists the targets.
+The root `Makefile` wraps the root `package.json` scripts, which stay the source of truth: `make` lists the targets. Everything runs directly in WSL; Docker is used only for the APK toolchain. A Docker-compose dev loop (planned in #14) is not built and stays on the list; until then `make all` (one tmux session) is the loop.
 
 `references/` (design-system and icon exports from Claude Design, cited in `docs/design.md` and some feature pages) is gitignored and exists only on the owner's machine. A fresh checkout works without it: what the code needs from it is copied into the repository.
 
