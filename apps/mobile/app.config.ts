@@ -49,11 +49,24 @@ const withReleaseSigning = (config: ExpoConfig): ExpoConfig =>
   }) as ExpoConfig;
 
 /**
+ * The builds besides production (app.json), by APP_VARIANT. Each has its own package id, so it sits next
+ * to the production app with its own storage instead of replacing it, and its own icon colour tells them
+ * apart in the drawer (assets/icons, #249):
+ * - development: the dev client "OpenClapper Dev" (make dev-build, make mobile), loads the JavaScript from Metro.
+ * - staging: "OpenClapper Staging" for a staging instance, built by the Build APK workflow and signed
+ *   with the deployment's key like production.
+ * - local: "OpenClapper Local" (make apk-local), the JavaScript inside and signed with the template's
+ *   debug key, so anyone can build it from a fresh clone without a secret; it updates no other build.
+ */
+const VARIANTS: Record<string, { name: string; slug: string; package: string; icons: string; background: string }> = {
+  development: { name: "OpenClapper Dev", slug: "dev", package: "org.openclapper.dev", icons: "dev", background: "#3B7A1A" },
+  staging: { name: "OpenClapper Staging", slug: "staging", package: "org.openclapper.staging", icons: "staging", background: "#B8471F" },
+  local: { name: "OpenClapper Local", slug: "local", package: "org.openclapper.local", icons: "dev", background: "#3B7A1A" },
+};
+
+/**
  * app.json holds the config; this adds the version (the product's), the commit it was built from
- * (GIT_COMMIT, set by the build scripts) and release signing. APP_VARIANT=development (make dev-build,
- * make mobile) renames the development build: its own package id lets "OpenClapper Dev" sit next to the
- * production app instead of replacing it, with its own storage, and its moss-green icon set
- * (assets/icons/dev, #170) tells the two apart in the drawer.
+ * (GIT_COMMIT, set by the build scripts), release signing and the variant (above).
  */
 export default ({ config }: ConfigContext): ExpoConfig => {
   const base = config as ExpoConfig;
@@ -63,19 +76,24 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     android: { ...base.android, versionCode: versionCode(version) },
     extra: { ...base.extra, commit: process.env.GIT_COMMIT ?? "" },
   };
-  if (process.env.APP_VARIANT !== "development") return withReleaseSigning(app);
+  const name = process.env.APP_VARIANT;
+  if (!name) return withReleaseSigning(app);
+  const v = VARIANTS[name];
+  // A typo must not silently build the production app.
+  if (!v) throw new Error(`APP_VARIANT=${name}: expected one of ${Object.keys(VARIANTS).join(", ")}, or unset for production`);
+  const icons = `./assets/icons/${v.icons}`;
   return withReleaseSigning({
     ...app,
-    name: "OpenClapper Dev",
-    scheme: "openclapper-dev",
-    icon: "./assets/icons/dev/app-icon-1024.png",
+    name: v.name,
+    scheme: `openclapper-${v.slug}`,
+    icon: `${icons}/app-icon-1024.png`,
     android: {
       ...app.android,
-      package: "org.openclapper.dev",
+      package: v.package,
       adaptiveIcon: {
-        backgroundColor: "#3B7A1A",
-        foregroundImage: "./assets/icons/dev/android-adaptive-foreground-1024.png",
-        monochromeImage: "./assets/icons/dev/android-adaptive-monochrome-1024.png",
+        backgroundColor: v.background,
+        foregroundImage: `${icons}/android-adaptive-foreground-1024.png`,
+        monochromeImage: `${icons}/android-adaptive-monochrome-1024.png`,
       },
     },
   });
