@@ -11,13 +11,15 @@ OpenClapper has **one version for the whole product**: the Worker and the Studio
   - `1.0.0` will mean "stable".
 - **Releases** are git tags `vX.Y.Z` on `main`, each with a GitHub release whose notes list the merged pull requests. While the major version is 0 they are marked as pre-releases.
 - **Where it shows**, always with the commit it was built from:
-  - `GET /api/ping` → `{ ok, version, commit }`; the admin Worker's `/api/whoami` too. The commit is a wrangler `define` written by `scripts/deploy-config.mjs`; locally it is `dev`.
+  - `GET /api/ping` → `{ ok, version, commit, instance }`; the admin Worker's `/api/whoami` too (`instance` names a second instance such as staging, [self-hosting](self-hosting.md#a-second-instance-staging)). The commit is a wrangler `define` written by `scripts/deploy-config.mjs`; locally it is `dev`.
   - Studio: Settings › General › About, next to the server's version. They differ while a tab still has the bundle from before a deploy.
   - Admin board: its header.
   - Phone: the Setup footer and the debug log.
 - **Android**: `versionName` is the version and `versionCode` is derived from it (`major·1 000 000 + minor·1 000 + patch`: 0.1.0 → 1000), so it grows with every release (`apps/mobile/app.config.ts`). Builds between releases carry the same code as the last release; Android installs a same-code update over it.
 
 ## Cutting a release
+
+Try it first where a deployment has a staging instance: deploy `main` there (its Deploy workflow with `ref: main`), click through, then release.
 
 From an up-to-date, clean `main`:
 

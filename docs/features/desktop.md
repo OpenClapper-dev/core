@@ -4,7 +4,7 @@ The Studio is a desktop scoped to one project (epic #72, 2026-10-16): files on i
 
 ## Startup and projects
 
-- `main.tsx` mounts `wm/Shell.tsx`. It asks who is signed in first (`user.ts`, `GET /api/me`) and shows the sign-in page until someone is ([accounts](accounts.md)). Then data loads (`data.ts`, every collection at once, as before). Without a valid project (`project.ts`, `localStorage["project"]`) the project gate (`ProjectGate` in `Projects.tsx`) is shown on the wallpaper, without a taskbar, with "New project".
+- `main.tsx` mounts `wm/Shell.tsx`. It asks who is signed in first (`user.ts`, `GET /api/me`) and shows the sign-in page until someone is ([accounts](accounts.md)). Then data loads (`data.ts`, every collection at once, as before). On an instance that is not production, `instance.ts` reads its label from `GET /api/ping` once per page load: it goes in front of the tab title, and a badge shows it on the sign-in card and in the taskbar ([self-hosting](../self-hosting.md#a-second-instance-staging)). Without a valid project (`project.ts`, `localStorage["project"]`) the project gate (`ProjectGate` in `Projects.tsx`) is shown on the wallpaper, without a taskbar, with "New project".
 - Then that project's desktop is restored as it was left, and a deep link in the URL opens or focuses its window on top.
 - **Switching project** (the taskbar switcher, ⌘K → project, Projects → Make active): every app with unsaved work may veto first (`beforeProjectSwitch`); then the current desktop is saved and the other project's comes back. Each project has its own windows (per browser) and its own icons and folders (on the server, [files](files.md)).
 

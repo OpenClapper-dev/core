@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { Banner, Button, ConfirmHost, Empty, IconButton, Loading, Mark, Seg, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, ToastHost, useTheme } from "@openclapper/ui";
+import { Banner, Button, ConfirmHost, Empty, IconButton, InstanceBadge, instanceTitle, Loading, Mark, Seg, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, ToastHost, useTheme } from "@openclapper/ui";
 import { Users } from "./Accounts";
 import { Audit } from "./Audit";
 import { fetchCloudflare, fetchOverview, fetchStorage, fetchUsers, fetchWorkspaces, whoami, type AdminUser, type AdminWorkspace, type CfOverlay, type Overview, type StorageReport } from "./api";
@@ -13,6 +13,8 @@ const TABS = [
   { id: "monitoring", label: "Monitoring", icon: "chart-line" },
   { id: "audit", label: "Audit", icon: "history" },
 ] as const;
+/** The tab title from index.html; whoami puts the instance in front of it ("staging · OpenClapper admin"). */
+const BASE_TITLE = document.title;
 const tabFromHash = (): Tab => (location.hash === "#monitoring" ? "monitoring" : location.hash === "#audit" ? "audit" : "board");
 
 /**
@@ -22,6 +24,7 @@ const tabFromHash = (): Tab => (location.hash === "#monitoring" ? "monitoring" :
  */
 export function App() {
   const [me, setMe] = useState<string | null>(null);
+  const [instance, setInstance] = useState("");
   const [overview, setOverview] = useState<Overview | null>(null);
   const [users, setUsers] = useState<AdminUser[] | null>(null);
   const [workspaces, setWorkspaces] = useState<AdminWorkspace[] | null>(null);
@@ -31,7 +34,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
-  const load = () => Promise.all([whoami().then(setMe), fetchOverview().then(setOverview), fetchUsers().then(setUsers), fetchWorkspaces().then(setWorkspaces), fetchStorage(range).then(setStorage)])
+  const load = () => Promise.all([whoami().then((w) => { setMe(w.email); setInstance(w.instance); document.title = instanceTitle(BASE_TITLE, w.instance); }), fetchOverview().then(setOverview), fetchUsers().then(setUsers), fetchWorkspaces().then(setWorkspaces), fetchStorage(range).then(setStorage)])
     .then(() => setError(null)).catch((e: Error) => setError(e.message));
   useEffect(() => { void load(); }, []);
   useEffect(() => { fetchStorage(range).then(setStorage).catch((e: Error) => toast(e.message, "danger")); }, [range]);
@@ -56,7 +59,7 @@ export function App() {
   return (
     <div class="admin">
       <header class="admin__head">
-        <span class="admin__brand"><Mark size={24} surface="admin" />OpenClapper admin</span>
+        <span class="admin__brand"><Mark size={24} surface="admin" />OpenClapper admin<InstanceBadge label={instance} /></span>
         <Seg options={TABS} value={tab} label="Page" onChange={go} />
         <span class="admin__headend">
           <span class="meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span class="num">{__OPENCLAPPER_VERSION__} ({__OPENCLAPPER_COMMIT__})</span></span>

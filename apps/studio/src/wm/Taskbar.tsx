@@ -7,7 +7,8 @@ import { FILE_DRAG, readDrag } from "../fileTree";
 import { useSettings } from "../settings";
 import { switchProject } from "../project";
 import { appDef, launch, type AppId } from "../apps/registry";
-import { ContextMenu, cx, Icon, IconButton, Img, Mark, MenuItem, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, useCtxMenu, useOutsideClick, useTheme } from "@openclapper/ui";
+import { ContextMenu, cx, Icon, IconButton, Img, InstanceBadge, Mark, MenuItem, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, useCtxMenu, useOutsideClick, useTheme } from "@openclapper/ui";
+import { useInstance } from "../instance";
 import { signOut, useUser } from "../user";
 import { requestClose } from "./closeGuards";
 import { Launcher } from "./Launcher";
@@ -54,6 +55,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
   const spaces = wm.useWorkspaces();
   const activeWs = wm.useActiveWs();
   const clock = useClock();
+  const instance = useInstance();
   const pins = files ? taskbarRows() : [];
   const pinnedApps = new Set(pins.filter((p) => p.kind === "app").map((p) => p.app_id));
   const running = windows.filter((w) => !pinnedApps.has(w.app as AppId)); // insertion order: z churn must not shuffle the tasks
@@ -157,6 +159,7 @@ export function Taskbar({ projectId, onPalette }: { projectId: string; onPalette
         </div>
       </div>
       <div class="wm-taskbar__tray">
+        <InstanceBadge label={instance} />
         <ProjectSwitch projectId={projectId} />
         <IconButton icon="magnify" label="Go to… (⌘K)" title="Go to… (⌘K)" onClick={onPalette} />
         <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_CYCLE[theme])} />

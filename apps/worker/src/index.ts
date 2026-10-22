@@ -19,6 +19,8 @@ export interface Env {
   PREVIEW: DurableObjectNamespace<import("./preview.ts").PreviewRoom>;
   /** PBKDF2 iterations for new password hashes (password.ts); default and maximum 100 000. */
   PBKDF2_ITERATIONS?: string;
+  /** Which instance this is when it is not production ("staging"): shown by the Studio so the two are never mixed up. */
+  INSTANCE_LABEL?: string;
 }
 
 export { PreviewRoom } from "./preview.ts";

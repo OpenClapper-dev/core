@@ -17,6 +17,8 @@ export interface Env {
   ACCESS_TEAM_DOMAIN: string;
   ACCESS_AUD: string;
   PBKDF2_ITERATIONS?: string;
+  /** Which instance this is when it is not production ("staging"): shown in the board's header. */
+  INSTANCE_LABEL?: string;
   /**
    * Local development only (gitignored `.dev.vars`): no Access in front, every request is `admin@localhost`.
    * Honoured only for requests to localhost / 127.0.0.1, so a var set by mistake on a deployment opens nothing.
@@ -59,7 +61,7 @@ function tempPassword(): string {
 
 const router = new Router<Ctx>();
 
-router.on("GET", "/api/whoami", async ({ admin }) => json({ email: admin, ...BUILD }));
+router.on("GET", "/api/whoami", async ({ admin, env }) => json({ email: admin, ...BUILD, instance: env.INSTANCE_LABEL ?? "" }));
 
 router.on("GET", "/api/overview", async ({ env }) => {
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();

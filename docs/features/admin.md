@@ -17,7 +17,7 @@ Issue [#116](https://github.com/OpenClapper-dev/core/issues/116), epic [#107](ht
 
 ## The board
 
-The header shows the operator and the board's version with its commit.
+The header shows the operator and the board's version with its commit. On an instance that is not production (`INSTANCE_LABEL`, e.g. `staging`) a badge after the brand names it, and the tab title starts with it ([self-hosting](../self-hosting.md#a-second-instance-staging)).
 
 - **Totals**:
   - accounts (active in 30 days, blocked);
@@ -43,7 +43,7 @@ Every change an operator makes (account created, changed, blocked or unblocked, 
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/whoami` | `{ email, version, commit }`: the operator and what runs |
+| GET | `/api/whoami` | `{ email, version, commit, instance }`: the operator, what runs, and on which instance (`instance` is the deployment's `INSTANCE_LABEL`, `""` for production) |
 | GET | `/api/overview` | `{ users, blocked, active_30d, workspaces, projects, shots, photos, bytes, unsized }` |
 | GET | `/api/users` | Every account with status, sessions, last seen, workspaces (never a password hash) |
 | POST | `/api/users` | `{ email, name? }` → `{ user, password }` (201); `409` for a taken email |
