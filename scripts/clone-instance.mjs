@@ -60,21 +60,124 @@ export function splitStatements(sql) {
   return out;
 }
 
+/** Splits at top-level commas: not inside '…', "…", `…`, […] or parentheses. */
+function splitTopLevel(text) {
+  const parts = [];
+  let depth = 0, cur = "", i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    const close = c === "'" ? "'" : c === '"' ? '"' : c === "`" ? "`" : c === "[" ? "]" : null;
+    if (close) {
+      let j = i + 1;
+      while (j < text.length && !(text[j] === close && !(close === "'" && text[j + 1] === "'"))) j += close === "'" && text[j] === "'" ? 2 : 1;
+      cur += text.slice(i, j + 1); i = j + 1; continue;
+    }
+    if (c === "(") depth++;
+    else if (c === ")") depth--;
+    if (c === "," && depth === 0) { parts.push(cur.trim()); cur = ""; } else cur += c;
+    i++;
+  }
+  if (cur.trim()) parts.push(cur.trim());
+  return parts;
+}
+const ident = (s) => s.trim().replace(/^["`[]|["`\]]$/g, "");
+
 /**
- * Makes a D1 export importable into an empty database. The export lists tables in the database's own
- * order, where a table that gained a reference later (ALTER TABLE … REFERENCES workspaces) comes before
- * the table it references, and SQLite refuses rows for a parent table that does not exist yet, deferred
- * or not. So: pragmas, every table, the rows, then indexes, triggers and views; foreign keys deferred to
- * the end of the import (as migrations 0005 and 0026 do). Refuses a dump that would recreate a
- * D1-internal table (`_cf_…`): those exist in every database.
+ * A table's shape from its CREATE TABLE: the columns, the primary key, and each reference with whether
+ * its column may be empty. Column constraints (`x TEXT NOT NULL REFERENCES t(id)`) and table ones
+ * (`FOREIGN KEY (x) REFERENCES t(id)`, `PRIMARY KEY (a, b)`) both count.
+ */
+export function tableShape(create) {
+  const m = create.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?("[^"]+"|\S+?)\s*\(([\s\S]*)\)\s*;?\s*$/i);
+  if (!m) return null;
+  const shape = { name: ident(m[1]), pk: [], refs: [], notNull: new Set() };
+  for (const def of splitTopLevel(m[2])) {
+    const fk = def.match(/^FOREIGN\s+KEY\s*\(([^)]*)\)\s*REFERENCES\s+("[^"]+"|[\w]+)/i);
+    if (fk) { for (const col of fk[1].split(",")) shape.refs.push({ column: ident(col), table: ident(fk[2]) }); continue; }
+    const pk = def.match(/^(?:CONSTRAINT\s+\S+\s+)?PRIMARY\s+KEY\s*\(([^)]*)\)/i);
+    if (pk) { shape.pk = pk[1].split(",").map((c) => ident(c.replace(/\s+(ASC|DESC)$/i, ""))); continue; }
+    if (/^(CONSTRAINT|UNIQUE|CHECK)\b/i.test(def)) continue;
+    const col = ident(def.match(/^("[^"]+"|`[^`]+`|\[[^\]]+\]|\S+)/)[1]);
+    if (/\bPRIMARY\s+KEY\b/i.test(def)) shape.pk = [col];
+    if (/\bNOT\s+NULL\b/i.test(def) || /\bPRIMARY\s+KEY\b/i.test(def)) shape.notNull.add(col);
+    const ref = def.match(/\bREFERENCES\s+("[^"]+"|[\w]+)/i);
+    if (ref) shape.refs.push({ column: col, table: ident(ref[1]) });
+  }
+  for (const r of shape.refs) r.required = shape.notNull.has(r.column);
+  return shape;
+}
+
+/**
+ * Makes a D1 export importable into an empty database, whatever transactions the import runs in.
+ * The export lists tables and rows in the database's own order, and a remote import does not keep one
+ * transaction for the whole file (deferred foreign keys passed locally and failed remotely), so every
+ * row must arrive after the rows it references:
+ * - pragmas, then every table, then the rows, then indexes, triggers and views;
+ * - the tables' rows ordered by their required references (NOT NULL), parents first;
+ * - an optional reference that would point forward (a cycle such as photos.root_framing_id ↔
+ *   framings.photo_id, or a self-reference such as folders.parent_id) is inserted empty and set by an
+ *   UPDATE once every row is in.
+ * Foreign keys stay deferred as a second safety. Refuses a dump that would recreate a D1-internal table
+ * (`_cf_…`), and a cycle of required references, which no order can satisfy.
  */
 export function prepareDump(sql) {
   const statements = splitStatements(sql);
   if (statements.some((st) => /^CREATE TABLE (IF NOT EXISTS )?"?_cf_/i.test(st))) throw new Error("the export contains a D1-internal _cf_ table; importing it would fail");
-  const rank = (st) => (/^PRAGMA\b/i.test(st) ? 0 : /^CREATE\s+(VIRTUAL\s+)?TABLE\b/i.test(st) ? 1 : /^CREATE\b/i.test(st) ? 3 : 2);
-  const ordered = statements.map((st, n) => ({ st, n, r: rank(st) })).sort((a, b) => a.r - b.r || a.n - b.n).map((x) => x.st);
-  if (!ordered.some((st) => /^PRAGMA\s+defer_foreign_keys\s*=\s*(TRUE|ON|1)\s*;?$/i.test(st))) ordered.unshift("PRAGMA defer_foreign_keys = TRUE;");
-  return `${ordered.map((st) => (st.endsWith(";") ? st : `${st};`)).join("\n")}\n`;
+  const pragmas = [], creates = [], rest = [], later = [];
+  const rows = new Map(); // table → its INSERTs, in export order
+  for (const st of statements) {
+    if (/^PRAGMA\b/i.test(st)) pragmas.push(st);
+    else if (/^CREATE\s+(VIRTUAL\s+)?TABLE\b/i.test(st)) creates.push(st);
+    else if (/^CREATE\b/i.test(st)) later.push(st);
+    else {
+      const ins = st.match(/^INSERT\s+INTO\s+("[^"]+"|\S+)/i);
+      const t = ins && ident(ins[1]);
+      if (t && t !== "sqlite_sequence") { if (!rows.has(t)) rows.set(t, []); rows.get(t).push(st); } else rest.push(st);
+    }
+  }
+  const shapes = new Map(creates.map(tableShape).filter(Boolean).map((sh) => [sh.name, sh]));
+
+  // Parents first: a table goes once every table it references is placed. In a cycle, the first table
+  // whose required references are placed goes, and its optional references to unplaced tables are set
+  // afterwards; so are optional self-references (folders.parent_id). A required cycle cannot be imported.
+  const order = [], placed = new Set(), lateCols = new Map();
+  const remaining = [...shapes.keys()];
+  const deps = (t, required) => (shapes.get(t).refs).filter((r) => (!required || r.required) && r.table !== t && shapes.has(r.table));
+  for (const sh of shapes.values()) {
+    if (sh.refs.some((r) => r.table === sh.name && r.required)) throw new Error(`${sh.name} references itself with a required column`);
+  }
+  while (remaining.length) {
+    let i = remaining.findIndex((t) => deps(t, false).every((r) => placed.has(r.table)));
+    if (i < 0) i = remaining.findIndex((t) => deps(t, true).every((r) => placed.has(r.table)));
+    if (i < 0) throw new Error(`required references form a cycle among ${remaining.join(", ")}`);
+    const t = remaining.splice(i, 1)[0];
+    lateCols.set(t, shapes.get(t).refs.filter((r) => !r.required && (r.table === t || (shapes.has(r.table) && !placed.has(r.table)))).map((r) => r.column));
+    placed.add(t);
+    order.push(t);
+  }
+
+  const inserts = [], updates = [];
+  for (const t of [...order, ...[...rows.keys()].filter((t) => !placed.has(t))]) {
+    const sh = shapes.get(t);
+    const late = lateCols.get(t) ?? [];
+    for (const st of rows.get(t) ?? []) {
+      if (!late.length) { inserts.push(st); continue; }
+      const m = st.match(/^(INSERT\s+INTO\s+\S+\s*)\(([^)]*)\)\s*VALUES\s*\(([\s\S]*)\)\s*;?$/i);
+      if (!m) throw new Error(`cannot read an INSERT into ${t} to postpone its references`);
+      const cols = splitTopLevel(m[2]).map(ident), vals = splitTopLevel(m[3]);
+      if (!sh.pk.length || sh.pk.some((k) => !cols.includes(k))) throw new Error(`${t} has no primary key in its INSERTs to set references afterwards`);
+      const set = [];
+      for (const c of late) {
+        const i = cols.indexOf(c);
+        if (i >= 0 && !/^NULL$/i.test(vals[i])) { set.push(`"${c}" = ${vals[i]}`); vals[i] = "NULL"; }
+      }
+      inserts.push(`${m[1]}(${m[2]}) VALUES(${vals.join(",")});`);
+      if (set.length) updates.push(`UPDATE "${t}" SET ${set.join(", ")} WHERE ${sh.pk.map((k) => `"${k}" = ${vals[cols.indexOf(k)]}`).join(" AND ")};`);
+    }
+  }
+  if (!pragmas.some((st) => /^PRAGMA\s+defer_foreign_keys\s*=\s*(TRUE|ON|1)\s*;?$/i.test(st))) pragmas.unshift("PRAGMA defer_foreign_keys = TRUE;");
+  const out = [...pragmas, ...creates, ...inserts, ...updates, ...rest, ...later];
+  return `${out.map((st) => (st.endsWith(";") ? st : `${st};`)).join("\n")}\n`;
 }
 
 /** The names the clone works on, checked before anything is touched; throws with every problem at once. */
