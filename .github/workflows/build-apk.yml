@@ -5,6 +5,8 @@
 # repository can call it with this one as a submodule (`path`). Setup: docs/self-hosting.md#the-phone.
 # variant=dev builds the development client "OpenClapper Dev" instead (debug-signed, its own package
 # id, loads the JavaScript from Metro: make mobile), on the same runner setup.
+# `environment` and `ref` work as in deploy.yml: the GitHub environment whose variables (APP_URL) and
+# secrets (the signing key) to use, and another version of this repository to build than the pinned one.
 # The Android SDK, build-tools and NDK are the runner's; local builds (scripts/apk-local.sh) pin theirs in
 # docker/android.Dockerfile. When React Native needs another SDK platform or NDK, check both.
 name: Build APK
@@ -17,6 +19,14 @@ on:
         type: choice
         options: [release, dev]
         default: release
+      environment:
+        description: A GitHub environment whose variables and secrets to use (empty = the repository's)
+        type: string
+        default: ""
+      ref:
+        description: A branch, tag or commit to build instead of the one this run starts from (empty = that one)
+        type: string
+        default: ""
   workflow_call:
     inputs:
       variant:
@@ -27,6 +37,14 @@ on:
         description: Where this repository is checked out in the calling one (a submodule)
         type: string
         default: "."
+      environment:
+        description: The calling repository's GitHub environment (production, staging…); empty = its repository settings
+        type: string
+        default: ""
+      ref:
+        description: Build this branch, tag or commit of this repository instead of the pinned submodule
+        type: string
+        default: ""
     secrets:
       # Only the release variant uses them.
       ANDROID_KEYSTORE_BASE64:
@@ -39,7 +57,7 @@ on:
         required: false
 
 concurrency:
-  group: openclapper-build-apk-${{ inputs.variant || 'release' }}
+  group: openclapper-build-apk-${{ inputs.environment || 'default' }}-${{ inputs.variant || 'release' }}
   cancel-in-progress: false
 
 permissions:
@@ -49,6 +67,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: ${{ inputs.environment }}
     defaults:
       run:
         working-directory: ${{ inputs.path || '.' }}
@@ -85,7 +104,27 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          submodules: true
+          # As in deploy.yml: with a ref, this repository in full (itself, or replacing the submodule).
+          ref: ${{ (inputs.path || '.') == '.' && inputs.ref || '' }}
+          fetch-depth: ${{ inputs.ref != '' && '0' || '1' }}
+          submodules: ${{ inputs.ref == '' }}
+
+      - name: Source of the submodule
+        if: inputs.ref != '' && (inputs.path || '.') != '.'
+        id: core
+        working-directory: .
+        run: |
+          url=$(git config -f .gitmodules --get "submodule.${{ inputs.path }}.url")
+          repo=$(printf '%s' "$url" | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')
+          echo "repository=$repo" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.ref != '' && (inputs.path || '.') != '.'
+        with:
+          repository: ${{ steps.core.outputs.repository }}
+          ref: ${{ inputs.ref }}
+          path: ${{ inputs.path }}
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
