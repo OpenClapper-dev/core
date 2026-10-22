@@ -11,6 +11,7 @@
 //   CLOUDFLARE_ACCOUNT_ID   required
 //   D1_DATABASE_ID          required, unless --provision finds or creates the database by name
 //   D1_DATABASE_NAME        default openclapper-db
+//   D1_LOCATION             optional location hint when --provision creates the database (weur, enam…)
 //   R2_BUCKET               default openclapper-media (--provision creates it when missing)
 //   APP_WORKER_NAME         default openclapper-api
 //   ADMIN_WORKER_NAME       default openclapper-admin
@@ -62,7 +63,7 @@ if (provision) {
     if (found) dbId = found.uuid;
     else {
       console.log(`deploy-config: creating D1 database ${dbName}`);
-      wrangler("d1", "create", dbName);
+      wrangler("d1", "create", dbName, ...(env.D1_LOCATION ? ["--location", env.D1_LOCATION] : []));
       dbId = JSON.parse(wrangler("d1", "list", "--json")).find((d) => d.name === dbName)?.uuid;
     }
   }

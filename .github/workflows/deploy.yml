@@ -67,6 +67,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       D1_DATABASE_NAME: ${{ vars.D1_DATABASE_NAME }}
       D1_DATABASE_ID: ${{ vars.D1_DATABASE_ID }}
+      D1_LOCATION: ${{ vars.D1_LOCATION }}
       R2_BUCKET: ${{ vars.R2_BUCKET }}
       APP_WORKER_NAME: ${{ vars.APP_WORKER_NAME }}
       ADMIN_WORKER_NAME: ${{ vars.ADMIN_WORKER_NAME }}
