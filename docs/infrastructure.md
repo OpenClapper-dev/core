@@ -10,7 +10,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 | R2 `R2_BUCKET` (default `openclapper-media`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with the workspace in their custom metadata |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
 | Cloudflare Access | The admin plane's sign-in. |
-| Android signing key | Per deployment, made once with `scripts/keystore.sh`; in the deployment repository's secrets and a backup, never in git. Builds need no other service; the only build-time setting is `EXPO_PUBLIC_API_URL` ([self-hosting](self-hosting.md#the-phone)) |
+| Android signing key | Per deployment, made once with `scripts/keystore.sh` (into a folder outside the checkout); in the deployment's GitHub secrets and a backup, never in git or a checkout. The staging app (`org.openclapper.staging`) uses the same key. Builds need no other service; the only build-time setting is `EXPO_PUBLIC_API_URL` ([self-hosting](self-hosting.md#the-phone)) |
 | Open-Meteo | Weather forecast, called from the Studio browser directly (free, no key); the only origin besides the tiles in the Studio's CSP `connect-src` |
 | OpenStreetMap tiles | Maps in the Studio (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
 
@@ -32,5 +32,4 @@ The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107)
 
 - To cut a user off: block the account in the admin plane (every session ends at once) or reset its password.
 - The deploy API token (`CLOUDFLARE_API_TOKEN`, [self-hosting](self-hosting.md#1-a-cloudflare-api-token)) and, optionally, the read-only analytics token for the admin board (`CF_ANALYTICS_TOKEN`, a Worker secret on the admin plane, [monitoring](features/monitoring.md)) are the secrets; Access AUDs, team domains and resource ids are not secret (they show in login redirects and URLs).
-- `.secrets/` (gitignored, never commit) is the place for local copies of such values.
 - Wrangler's OAuth login lacks `account:read`; an exported `CLOUDFLARE_ACCOUNT_ID` (read by `scripts/deploy-config.mjs`) fills it in.

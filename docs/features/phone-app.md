@@ -2,6 +2,10 @@
 
 Designed in Claude Design (2026-09-28). The IA is organised around what happens on a location: shoot, tag, review (History), find, run the day. The design exports are in the gitignored `references/mobile/`.
 
+## Builds
+
+One app, four installs side by side, each with its own package id, storage and icon colour (`APP_VARIANT`, `app.config.ts`): **OpenClapper** (production, blue), **OpenClapper Staging** (`org.openclapper.staging`, clay, for a staging instance; built by Build APK, same signing key), **OpenClapper Dev** (the dev client, moss, JavaScript from Metro) and **OpenClapper Local** (`org.openclapper.local`, moss, debug-signed, `make apk-local`). Each talks to the server built into it; the Setup footer names it ([development](../development.md#apk-builds), [self-hosting](../self-hosting.md#the-phone)).
+
 ## Shell (`apps/mobile/App.tsx`, `src/appState.tsx`)
 
 - **Five tabs**: Shoot · History (badge: unreviewed count) · Shots · Day · Setup. The tab bar is a right-hand column in landscape.

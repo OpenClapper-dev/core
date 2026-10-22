@@ -40,5 +40,5 @@ mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (OpenCla
 dev-build: ## Development build (OpenClapper Dev) in Docker, to the Windows Downloads folder; rebuild after native changes
 	VARIANT=dev bash scripts/apk-local.sh
 
-apk-local: ## Production APK in Docker for one server: API_URL=https://… make apk-local (key: scripts/keystore.sh)
-	VARIANT=release bash scripts/apk-local.sh
+apk-local: ## OpenClapper Local in Docker, a complete app for one server, no secrets: API_URL=https://… make apk-local
+	VARIANT=local bash scripts/apk-local.sh

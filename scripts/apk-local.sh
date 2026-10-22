@@ -4,11 +4,14 @@
 #   VARIANT=dev      (make dev-build) the development build "OpenClapper Dev": debug-signed, no bundle
 #                    inside; it loads the JavaScript, and with it the server's address, from Metro
 #                    (make mobile).
-#   VARIANT=release  (make apk-local) a production APK for one server: API_URL=https://… and the
-#                    signing key from scripts/keystore.sh (.secrets/android/, .secrets/android.env).
-# Overrides: API_URL, DOWNLOADS (target folder), ANDROID_KEYSTORE (another .jks), ANDROID_ABIS (CPU
-# architectures, comma-separated; default arm64-v8a, what phones run: each one more multiplies the
-# native build and the APK).
+#   VARIANT=local    (make apk-local) "OpenClapper Local": a complete app with the JavaScript inside,
+#                    for one server (API_URL=https://… or a LAN address), its own package id and the
+#                    green icon, signed with the template's debug key. Needs no secret, so it builds
+#                    from a fresh clone; it updates no other build and nothing else updates it.
+# Production and staging APKs are not built here: they belong to a deployment, signed with its key
+# by its Build APK workflow (docs/self-hosting.md#the-phone).
+# Overrides: API_URL, DOWNLOADS (target folder), ANDROID_ABIS (CPU architectures, comma-separated;
+# default arm64-v8a, what phones run: each one more multiplies the native build and the APK).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -33,19 +36,13 @@ case "$variant" in
     # The development build takes its server from Metro, so the inlined one is never used.
     run+=(-e APP_VARIANT=development -e EXPO_PUBLIC_API_URL="${API_URL:-http://localhost:8787}")
     ;;
-  release)
-    task=assembleRelease; out_dir=release; name="openclapper-$version-$commit.apk"
-    if [ -f .secrets/android.env ]; then set -a; . .secrets/android.env; set +a; fi
-    keystore="${ANDROID_KEYSTORE:-$PWD/.secrets/android/openclapper-release.jks}"
+  local)
+    # A release build without ANDROID_KEYSTORE signs with the debug key (app.config.ts withReleaseSigning).
+    task=assembleRelease; out_dir=release; name="openclapper-local-$version-$commit.apk"
     [ -n "${API_URL:-}" ] || { echo "Set API_URL to the server this APK talks to: API_URL=https://… make apk-local" >&2; exit 1; }
-    [ -f "$keystore" ] || { echo "No signing key at $keystore: run scripts/keystore.sh once (docs/self-hosting.md#the-phone)" >&2; exit 1; }
-    for v in ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-      [ -n "${!v:-}" ] || { echo "$v is not set (.secrets/android.env)" >&2; exit 1; }
-    done
-    run+=(-e EXPO_PUBLIC_API_URL="$API_URL" -v "$(realpath "$keystore")":/keystore.jks:ro -e ANDROID_KEYSTORE=/keystore.jks
-          -e ANDROID_KEYSTORE_PASSWORD -e ANDROID_KEY_ALIAS -e ANDROID_KEY_PASSWORD)
+    run+=(-e APP_VARIANT=local -e EXPO_PUBLIC_API_URL="$API_URL")
     ;;
-  *) echo "VARIANT must be dev or release" >&2; exit 1 ;;
+  *) echo "VARIANT must be dev or local" >&2; exit 1 ;;
 esac
 out=~/openclapper-builds
 mkdir -p "$out"
@@ -68,8 +65,6 @@ docker run --rm \
             cd android && chmod +x gradlew
             ./gradlew $task --no-daemon -PreactNativeArchitectures=${ANDROID_ABIS:-arm64-v8a}
             apk=app/build/outputs/apk/$out_dir/app-$out_dir.apk
-            # A release signed with the debug key would not update a real install.
-            if [ $variant = release ] && \$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \$apk | grep -q 'CN=Android Debug'; then echo 'release APK is debug-signed' >&2; exit 1; fi
             cp \$apk /out/$name
             chown $(id -u):$(id -g) /out/$name
             cd .."
