@@ -29,6 +29,9 @@
   --warn: #FFB000;
   --warn-hover: #E89F00;
   --on-warn: #0B0B0C;
+  /* A second instance (staging): its badge, in the clay of its icon set (#249). */
+  --instance: #B8471F;
+  --on-instance: #FFFFFF;
   --warn-ink: #7A4A00;
   --warn-tint: #FFF0C4;
   --archive: #DCDCD8;
@@ -92,6 +95,9 @@
   --warn: #FFB000;
   --warn-hover: #E89F00;
   --on-warn: #0B0B0C;
+  /* A second instance (staging): its badge, in the clay of its icon set (#249). */
+  --instance: #B8471F;
+  --on-instance: #FFFFFF;
   --warn-ink: #7A4A00;
   --warn-tint: #FFF0C4;
   --archive: #DCDCD8;
@@ -150,6 +156,9 @@
   --warn: #F2B33D;
   --warn-hover: #F5C160;
   --on-warn: #0B0B0C;
+  /* A second instance (staging): its badge, in the clay of its icon set (#249). */
+  --instance: #B8471F;
+  --on-instance: #FFFFFF;
   --warn-ink: #F2B33D;
   --warn-tint: #33270C;
   --archive: #3A3A40;

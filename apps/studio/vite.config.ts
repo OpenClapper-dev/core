@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import preact from "@preact/preset-vite";
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { version } from "../../package.json";
 
@@ -14,8 +15,11 @@ const uiSrc = fileURLToPath(new URL("../../packages/ui/src", import.meta.url));
 const watchUi = { name: "openclapper-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
 
 export default defineConfig(({ command }) => {
-  // Which icon set index.html links (public/icons/<set>/): green on the dev server, the real one in builds.
-  process.env.VITE_ICON_SET = command === "build" ? "prod" : "dev";
+  // Which icon set index.html links (public/icons/<set>/): green on the dev server; in builds the
+  // instance's own set when it has one (INSTANCE_LABEL=staging: clay), else the production one.
+  const instance = process.env.INSTANCE_LABEL ?? "";
+  const ownSet = /^[a-z0-9-]+$/.test(instance) && existsSync(fileURLToPath(new URL(`./public/icons/${instance}`, import.meta.url)));
+  process.env.VITE_ICON_SET = command !== "build" ? "dev" : ownSet ? instance : "prod";
   return {
     plugins: [preact(), watchUi],
     define: build,
