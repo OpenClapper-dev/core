@@ -60,6 +60,11 @@ describe("who gets in", () => {
     await json(call(bare, "GET", "/api/users", { jwt: await jwt({ email: "op@example.test", aud: [""], iss: "https://" }) }), 401);
   });
 
+  test("whoami names the instance: empty for production, the label for a second one (staging)", async () => {
+    expect(await json(call(bypass, "GET", "/api/whoami"), 200)).toMatchObject({ instance: "" });
+    expect(await json(call({ ...bypass, INSTANCE_LABEL: "staging" }, "GET", "/api/whoami"), 200)).toMatchObject({ instance: "staging" });
+  });
+
   test("the local bypass only with ADMIN_DEV_BYPASS=true", async () => {
     expect(await json(call(bypass, "GET", "/api/whoami"), 200)).toMatchObject({ email: "admin@localhost" });
     await json(call({ ...bypass, ADMIN_DEV_BYPASS: "1" }, "GET", "/api/whoami"), 401);

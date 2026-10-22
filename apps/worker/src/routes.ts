@@ -24,9 +24,9 @@ import { registerTrashRoutes } from "./trash.ts";
 import { registerViewRoutes } from "./views.ts";
 import { registerWorkspaceRoutes } from "./workspaces.ts";
 
-/** Routes that run without a user: the provider's /api/auth/* and a liveness probe that also says which version runs. */
+/** Routes that run without a user: the provider's /api/auth/* and a liveness probe that also says which version and instance run. */
 export const publicRouter = new Router<PublicCtx>();
-publicRouter.on("GET", "/api/ping", async () => json({ ok: true, ...BUILD }));
+publicRouter.on("GET", "/api/ping", async ({ env }) => json({ ok: true, ...BUILD, instance: env.INSTANCE_LABEL ?? "" }));
 provider.registerPublic(publicRouter);
 export const isPublic = (path: string) => path === "/api/ping" || path.startsWith("/api/auth/");
 

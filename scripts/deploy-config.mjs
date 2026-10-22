@@ -5,9 +5,9 @@
 //
 //   node scripts/deploy-config.mjs [--provision]
 //
-// Settings come from the environment, else from deploy.env (KEY=value lines; see docs/self-hosting.md):
-// at this repository's root (gitignored), else one directory up, where a deployment repository that
-// holds this one as a submodule keeps it.
+// Settings come from the environment only, never from a file: a deployment sets them as GitHub
+// variables and secrets (the Deploy workflow exports them), or exports the same names itself
+// (docs/self-hosting.md). An empty variable counts as unset.
 //   CLOUDFLARE_ACCOUNT_ID   required
 //   D1_DATABASE_ID          required, unless --provision finds or creates the database by name
 //   D1_DATABASE_NAME        default openclapper-db
@@ -20,6 +20,8 @@
 //   ADMIN_ACCESS_AUD        the admin Access application's AUD; without it the admin plane refuses every request
 //   PBKDF2_ITERATIONS       optional, see docs/known-issues.md
 //   AUTH_PROVIDER           optional: a module to use instead of the first-party sign-in (the auth seam)
+//   INSTANCE_LABEL          optional: a name such as "staging", shown by the Studio and the admin board so a
+//                           second instance is never mistaken for production; empty for production
 //   CF_ANALYTICS_TOKEN      optional secret, set with `wrangler secret put` after the deploy (the workflow does); the
 //                           admin config only gets CLOUDFLARE_ACCOUNT_ID, APP_WORKER_NAME and R2_BUCKET as vars for it
 import { execFileSync } from "node:child_process";
@@ -30,17 +32,8 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const provision = process.argv.includes("--provision");
 
-function readEnvFile(path) {
-  if (!existsSync(path)) return {};
-  const out = {};
-  for (const line of readFileSync(path, "utf8").split("\n")) {
-    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*?)\s*$/);
-    if (m) out[m[1]] = m[2].replace(/^(["'])(.*)\1$/, "$2");
-  }
-  return out;
-}
-const envFile = [join(root, "deploy.env"), join(root, "..", "deploy.env")].find(existsSync);
-const env = { ...(envFile ? readEnvFile(envFile) : {}), ...Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== "")) };
+// GitHub passes an unset variable as "", so empty means unset.
+const env = Object.fromEntries(Object.entries(process.env).filter(([, v]) => v !== ""));
 const setting = (k, fallback) => env[k] ?? fallback;
 const fail = (msg) => { console.error(`deploy-config: ${msg}`); process.exit(1); };
 
@@ -90,7 +83,7 @@ function write(app, edit) {
   cfg.account_id = accountId;
   cfg.d1_databases = cfg.d1_databases.map((d) => ({ ...d, database_name: dbName, database_id: dbId }));
   cfg.r2_buckets = cfg.r2_buckets.map((b) => ({ ...b, bucket_name: bucket }));
-  cfg.vars = { ...cfg.vars, ...(env.PBKDF2_ITERATIONS ? { PBKDF2_ITERATIONS: env.PBKDF2_ITERATIONS } : {}) };
+  cfg.vars = { ...cfg.vars, INSTANCE_LABEL: setting("INSTANCE_LABEL", ""), ...(env.PBKDF2_ITERATIONS ? { PBKDF2_ITERATIONS: env.PBKDF2_ITERATIONS } : {}) };
   // The commit this deploy runs (BUILD in packages/service-kit), so a running Worker can say which one.
   cfg.define = { ...cfg.define, __OPENCLAPPER_COMMIT__: JSON.stringify(commit) };
   edit(cfg, dir);

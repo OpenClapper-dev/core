@@ -158,7 +158,12 @@ export interface Me {
 export interface Workspace { id: string; name: string; role: WorkspaceRole; personal: boolean; member_count: number; project_count: number; created_at: string }
 export interface Member { user_id: string; email: string; name: string | null; role: WorkspaceRole; created_at: string }
 
-export interface ServerBuild { version: string; commit: string }
+export interface ServerBuild {
+  version: string;
+  commit: string;
+  /** "" on production, the instance's label otherwise ("staging"): instance.ts. */
+  instance?: string;
+}
 /** Which version the server runs (public, no session needed). */
 export const fetchServerBuild = () => get<ServerBuild & { ok: true }>("/api/ping");
 

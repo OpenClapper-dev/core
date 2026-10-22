@@ -1,6 +1,6 @@
 # Infrastructure
 
-Everything runs on one Cloudflare account per instance; nothing else is needed. The tracked `wrangler.jsonc` files are for local development and name no account, database or Access application: each deployment's settings come from `deploy.env` (gitignored) or the GitHub workflow's secrets and variables, and `scripts/deploy-config.mjs` writes the deploy configs from them ([self-hosting](self-hosting.md)). The reference instance's identifiers live in its `deploy.env` (from #119 in the private deployment repository), not here.
+Everything runs on one Cloudflare account per instance; nothing else is needed. The tracked `wrangler.jsonc` files are for local development and name no account, database or Access application: each deployment's settings are GitHub variables and secrets (per instance, a GitHub environment), the Deploy workflow exports them, and `scripts/deploy-config.mjs` writes the deploy configs from the environment alone, never from a file ([self-hosting](self-hosting.md)). The reference instances' identifiers live in the deployment repository's environments and notes, not here.
 
 | Resource | Details |
 | --- | --- |
@@ -33,4 +33,4 @@ The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107)
 - To cut a user off: block the account in the admin plane (every session ends at once) or reset its password.
 - The deploy API token (`CLOUDFLARE_API_TOKEN`, [self-hosting](self-hosting.md#1-a-cloudflare-api-token)) and, optionally, the read-only analytics token for the admin board (`CF_ANALYTICS_TOKEN`, a Worker secret on the admin plane, [monitoring](features/monitoring.md)) are the secrets; Access AUDs, team domains and resource ids are not secret (they show in login redirects and URLs).
 - `.secrets/` (gitignored, never commit) is the place for local copies of such values.
-- Wrangler's OAuth login lacks `account:read`; `CLOUDFLARE_ACCOUNT_ID` (from `deploy.env`, read by `scripts/deploy-config.mjs`) fills it in.
+- Wrangler's OAuth login lacks `account:read`; an exported `CLOUDFLARE_ACCOUNT_ID` (read by `scripts/deploy-config.mjs`) fills it in.

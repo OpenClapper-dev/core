@@ -33,16 +33,22 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
 
 ## 2. Settings
 
-**With GitHub Actions** (your copy of the repository → Settings → Secrets and variables → Actions):
+Every setting is a GitHub variable or secret: your copy of the repository → Settings → Secrets and variables → Actions. The deploy reads them from the environment of the run and from nowhere else (no settings file).
 
-- Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
-- Variables, all optional (the names are those of [`deploy.env.example`](../deploy.env.example)):
-  - `D1_DATABASE_NAME`, `R2_BUCKET`, `APP_WORKER_NAME`, `ADMIN_WORKER_NAME`. The defaults are `openclapper-db`, `openclapper-media`, `openclapper-api` and `openclapper-admin`.
-  - `APP_DOMAIN`, `ADMIN_DOMAIN`: custom domains for the two Workers, e.g. `app.example.com` and `admin.example.com`. The zone must be in the same Cloudflare account; the deploy attaches them, and the workers.dev addresses keep working beside them.
-  - Later, `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` (step 4).
-- Optional secret `CF_ANALYTICS_TOKEN` (step 6).
-
-**From your machine**: copy `deploy.env.example` to `deploy.env` (gitignored) and fill it in. A deployment repository that holds this one as a submodule can keep (and commit) its `deploy.env` beside the submodule; the scripts look there too.
+| Name | Kind | |
+| --- | --- | --- |
+| `CLOUDFLARE_API_TOKEN` | secret | Required: the token of step 1. |
+| `CLOUDFLARE_ACCOUNT_ID` | secret | Required: your account id. |
+| `D1_DATABASE_NAME`, `R2_BUCKET` | variable | Default `openclapper-db`, `openclapper-media`. |
+| `D1_DATABASE_ID` | variable | Optional: found by name otherwise (the first run creates the database). |
+| `APP_WORKER_NAME`, `ADMIN_WORKER_NAME` | variable | Default `openclapper-api`, `openclapper-admin`; they become `<name>.<your-subdomain>.workers.dev`. |
+| `APP_DOMAIN`, `ADMIN_DOMAIN` | variable | Optional custom domains, e.g. `app.example.com` and `admin.example.com`. The zone must be in the same Cloudflare account; the deploy attaches them, and the workers.dev addresses keep working beside them. Universal SSL covers the zone and its first-level subdomains, so `staging-admin.example.com` works and `staging.admin.example.com` does not. |
+| `APP_URL` | variable | The app's address, which the phone builds talk to: `https://<APP_DOMAIN>` or the workers.dev address ([the phone](#the-phone)). |
+| `ACCESS_TEAM_DOMAIN`, `ADMIN_ACCESS_AUD` | variable | Later, step 4. |
+| `INSTANCE_LABEL` | variable | Optional: a name such as `staging` for an instance that is not production ([a second instance](#a-second-instance-staging)). Empty for production. |
+| `PBKDF2_ITERATIONS` | variable | Optional, [the free plan](#the-free-plan). |
+| `AUTH_PROVIDER` | variable | Optional, [your own sign-in](#your-own-sign-in). |
+| `CF_ANALYTICS_TOKEN` | secret | Optional, step 6. |
 
 ## 3. Deploy
 
@@ -54,16 +60,14 @@ Copy the token; it is shown once. Your **account id** is on the Workers & Pages 
   5. deploys the admin plane (locked until step 4).
 
   The log names the D1 id it found or created; you can pin it as the `D1_DATABASE_ID` variable.
-- **Your machine** (`pnpm install` first):
+- **Your machine**: not part of this repository's setup. If you deploy without GitHub, export the same names as in the table yourself (`pnpm install` first), then run the steps of the workflow:
 
   ```sh
-  node scripts/deploy-config.mjs --provision   # once: creates D1 and R2; put the printed database id in deploy.env
+  node scripts/deploy-config.mjs --provision   # once: creates D1 and R2 when missing
   pnpm -C apps/worker migrate:remote
   pnpm -C apps/worker run deploy
   pnpm -C apps/admin run deploy
   ```
-
-  Wrangler needs `CLOUDFLARE_API_TOKEN` in the environment, or a login (`pnpm exec wrangler login --device`; its token lacks `account:read`, which `CLOUDFLARE_ACCOUNT_ID` from `deploy.env` fills in).
 
 The app is at `https://<APP_WORKER_NAME>.<your-subdomain>.workers.dev`, and on `APP_DOMAIN` if you set it.
 
@@ -78,7 +82,7 @@ The admin plane (`<ADMIN_WORKER_NAME>.<your-subdomain>.workers.dev`) is where ac
 
 ## 5. The first account
 
-Open the admin plane, add an account under Accounts → New account, and pass on the temporary password it shows once. Without the admin plane, from a machine with `deploy.env`:
+Open the admin plane, add an account under Accounts → New account, and pass on the temporary password it shows once. Without the admin plane, from a machine with the settings of step 2 exported:
 
 ```sh
 node scripts/user.mjs --email you@example.com --name "You" --remote
@@ -91,9 +95,18 @@ Sign in to the Studio with it. There is no public sign-up; every account is made
 The admin plane's Monitoring tab works without any setup ([monitoring](features/monitoring.md)). Its Cloudflare section, with the account-wide numbers (R2 storage across every bucket, Worker requests and CPU, D1 rows), needs a second API token:
 
 1. My Profile → API Tokens → Create Token → Custom token, with the single permission **Account · Account Analytics · Read** on your account.
-2. Set it as the repository secret `CF_ANALYTICS_TOKEN` (or in `deploy.env`) and run Deploy again. A deployment repository that calls the Deploy workflow passes it on (`secrets: inherit`, or the one name).
+2. Set it as the secret `CF_ANALYTICS_TOKEN` and run Deploy again. A deployment repository that calls the Deploy workflow passes it on (`secrets: inherit`, or the one name).
 
 The token is read-only; to rotate it, make a new one and run Deploy again.
+
+## A second instance (staging)
+
+A second instance (a staging copy to try a release on, say) is the same setup again with other names: its own Workers, D1 database, R2 bucket, domains and Access application, in the same Cloudflare account or another. Nothing is shared with the first one.
+
+- Make one **GitHub environment** per instance (Settings → Environments: `production`, `staging`) and give each the variables and secrets of step 2 under the same names; an environment's values win over the repository's, so shared ones (the API token, the signing key) can stay repository secrets. Environments in a private repository need a paid GitHub plan; in a public one they are free.
+- Give the second one `INSTANCE_LABEL=staging`: the Studio puts it in front of the tab title and shows it as a badge in the taskbar and on sign-in, the admin board in its header. Production has no label and shows nothing.
+- Run Deploy and Build APK with the `environment` input set. To try another version than the one the run starts from (a branch), set `ref`.
+- A deployment repository that holds this one as a submodule calls the workflows with `path`, `environment` and `ref` (`secrets: inherit`). The job names the environment itself, since GitHub does not hand environment secrets from a caller to a reusable workflow. With `ref`, the workflow's steps come from the ref in the caller's `uses:` line and the code from `ref`, checked out in full instead of the submodule: a staging caller tracks `@main` for both.
 
 ## Updating
 

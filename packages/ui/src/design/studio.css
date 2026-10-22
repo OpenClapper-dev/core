@@ -21,6 +21,7 @@
 .f-input--sm{height:32px}
 .f-input--sm input{font-size:var(--text-small)}
 .f-input--search{width:220px}
+.f-instance{display:inline-flex;align-items:center;height:20px;padding:0 6px;border-radius:var(--radius-xs);background:var(--instance);color:var(--on-instance);font:var(--weight-bold) 11px/1 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
 .f-input--search .f-kbd{margin-right:6px}
 textarea.f-textarea{width:100%;min-height:72px;resize:vertical;padding:8px 10px;border:var(--bw) solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:var(--weight-regular) var(--text-body)/var(--lh-body) var(--font-sans);box-sizing:border-box}
 textarea.f-textarea:focus{outline:var(--focus-width) solid var(--focus);outline-offset:var(--focus-offset);border-color:var(--accent)}

@@ -13,6 +13,5 @@ references/
 .playwright-mcp/
 .pnpm-store
 
-# Per-deployment settings and generated deploy configs (scripts/deploy-config.mjs, docs/self-hosting.md).
-deploy.env
+# Deploy configs, generated from the environment by scripts/deploy-config.mjs (docs/self-hosting.md).
 wrangler.deploy.jsonc

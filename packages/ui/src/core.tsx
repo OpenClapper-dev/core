@@ -33,6 +33,19 @@ export function Mark({ size = 22, surface = "studio" }: { size?: number; surface
 
 export const Kbd = ({ children }: { children: ComponentChildren }) => <span class="f-kbd">{children}</span>;
 
+/**
+ * Names a second instance ("staging", the server's INSTANCE_LABEL) wherever it could be taken for
+ * production: the Studio's taskbar and sign-in, the admin board's header. Production has no label and
+ * renders nothing, so production never shows a badge.
+ */
+export function InstanceBadge({ label }: { label: string | null | undefined }) {
+  if (!label) return null;
+  return <span class="f-instance" title={`The ${label} instance, not production`}>{label}</span>;
+}
+
+/** The tab title with the instance in front ("staging · OpenClapper"), so a tab strip tells them apart too. */
+export const instanceTitle = (base: string, label: string | null | undefined) => (label ? `${label} · ${base}` : base);
+
 /** Marks the first match of `q` (already lower-case) inside `text`, as one inline run so the word keeps its spacing. */
 export function Highlight({ text, q }: { text: string; q: string }) {
   const i = q ? text.toLowerCase().indexOf(q) : -1;

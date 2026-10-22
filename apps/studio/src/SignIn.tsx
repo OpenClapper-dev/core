@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { ApiError } from "./api";
-import { Button, ErrorLine, Field, Input, Mark, PasswordInput } from "@openclapper/ui";
+import { Button, ErrorLine, Field, InstanceBadge, Input, Mark, PasswordInput } from "@openclapper/ui";
+import { useInstance } from "./instance";
 import { signIn } from "./user";
 
 const REGISTER = "#/register";
@@ -16,6 +17,7 @@ function problem(e: unknown): string {
  * that there is no sign-up yet: accounts are made by an administrator during the alpha.
  */
 export function SignInPage() {
+  const instance = useInstance();
   const [register, setRegister] = useState(location.hash === REGISTER);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +46,7 @@ export function SignInPage() {
     return (
       <div class="gate">
         <div class="gate__card">
-          <span class="gate__brand"><Mark size={26} />OpenClapper</span>
+          <span class="gate__brand"><Mark size={26} />OpenClapper<InstanceBadge label={instance} /></span>
           <h1>Create an account</h1>
           <p>We are still in alpha, you cannot currently sign up.</p>
           <p class="meta">Accounts are made by an administrator of this instance. Ask them for one, or run your own: OpenClapper is free to host yourself.</p>
@@ -56,7 +58,7 @@ export function SignInPage() {
   return (
     <div class="gate">
       <form class="gate__card" onSubmit={submit}>
-        <span class="gate__brand"><Mark size={26} />OpenClapper</span>
+        <span class="gate__brand"><Mark size={26} />OpenClapper<InstanceBadge label={instance} /></span>
         <h1>Sign in</h1>
         <Field label="Email">
           <Input type="email" autocomplete="username" required value={email} disabled={busy} onInput={(e) => setEmail((e.target as HTMLInputElement).value)} />

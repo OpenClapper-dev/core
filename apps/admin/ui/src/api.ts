@@ -19,7 +19,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 const send = <T,>(method: string, path: string, body?: unknown) => request<T>(path, { method, body: body === undefined ? undefined : JSON.stringify(body) });
 
-export const whoami = () => request<{ email: string }>("/api/whoami").then((r) => r.email);
+/** The operator and which instance this board runs on ("" for production, "staging"…). */
+export const whoami = () => request<{ email: string; instance?: string }>("/api/whoami").then((r) => ({ email: r.email, instance: r.instance ?? "" }));
 export const fetchOverview = () => request<{ overview: Overview }>("/api/overview").then((r) => r.overview);
 export const fetchUsers = () => request<{ users: AdminUser[] }>("/api/users").then((r) => r.users);
 export const fetchWorkspaces = () => request<{ workspaces: AdminWorkspace[] }>("/api/workspaces").then((r) => r.workspaces);

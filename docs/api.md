@@ -12,7 +12,7 @@ Every JSON answer carries `cache-control: no-store`, `x-content-type-options: no
 | POST | `/api/auth/logout` | Public. Deletes the request's session if any and clears the cookie; always `204` |
 | POST | `/api/auth/password` | Session required (cookie or bearer; under `/api/auth/` because only the first-party provider has passwords). `{ current, password }` → `204`. The new password follows `passwordProblem` (400), must differ from the current one (400). A wrong current password is `403` (not 401, which the clients read as signed out). Every other session of the account ends (#148) |
 | GET | `/api/me` | `{ user: { id, email, name }, workspaces: [{ id, name, role, personal }] }`; the clients' signed-in probe |
-| GET | `/api/ping` | Public. `{ ok: true, version, commit }`: the product version and the deployed commit (`dev` locally, [releasing](releasing.md)); touches nothing |
+| GET | `/api/ping` | Public. `{ ok: true, version, commit, instance }`: the product version, the deployed commit (`dev` locally, [releasing](releasing.md)) and the instance (`INSTANCE_LABEL`, `""` for production; the Studio shows it as a badge, even on sign-in); touches nothing |
 | GET | `/api/workspaces` | The caller's: `[{ id, name, role, personal, member_count, project_count, created_at }]`, personal first |
 | PUT | `/api/workspaces/:id` | `{ name }`: a new shared workspace, the caller its owner (201), or a rename (admin) |
 | GET | `/api/workspaces/:id/members` | `[{ user_id, email, name, role, created_at }]`, any member |

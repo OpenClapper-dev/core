@@ -89,11 +89,11 @@ The mark is white on the background colour, which tells the environments apart, 
 | Development | `#3B7A1A` moss | 5.3:1 |
 | Staging | `#B8471F` clay | 5.3:1 |
 
-Production is a deeper blue than the UI accent (`#0040D8`); development stays clear of approve green by hue and lightness. Staging has its asset sets but nothing selects them yet: that comes with the staging deployment.
+Production is a deeper blue than the UI accent (`#0040D8`); development stays clear of approve green by hue and lightness. Staging's web sets are picked by builds with `INSTANCE_LABEL=staging` (the Vite configs: an instance whose label names an icon set gets that set, any other build the production one), and its badge (`InstanceBadge`, `--instance` / `--on-instance`) is the same clay; the phone set comes with the staging app variant.
 
 | Surface | Files | Which set |
 | --- | --- | --- |
-| Studio | `apps/studio/public/icons/{prod,dev,staging}/`: `favicon.svg` (a separate 16-unit drawing on the pixel grid, three stripes instead of seven), `icon-192/512.png` (rounded tile, 22 % radius), `icon-maskable-512.png` (full bleed, the glyph inside the 80 % safe circle), `manifest.webmanifest` | `index.html` links `/icons/%VITE_ICON_SET%/…`; `vite.config.ts` sets `dev` for the dev server, `prod` for builds |
+| Studio | `apps/studio/public/icons/{prod,dev,staging}/`: `favicon.svg` (a separate 16-unit drawing on the pixel grid, three stripes instead of seven), `icon-192/512.png` (rounded tile, 22 % radius), `icon-maskable-512.png` (full bleed, the glyph inside the 80 % safe circle), `manifest.webmanifest` | `index.html` links `/icons/%VITE_ICON_SET%/…`; `vite.config.ts` sets `dev` for the dev server, `prod` for builds, the instance's set for builds with `INSTANCE_LABEL` naming one (`staging`) |
 | Admin | `apps/admin/ui/public/icons/{prod,dev,staging}/`, the same files | the same switch in `apps/admin/vite.config.ts` |
 | Phone | `apps/mobile/assets/icons/{prod,dev,staging}/`: `app-icon-1024.png` (opaque, full bleed), `android-adaptive-foreground-1024.png` and `android-adaptive-monochrome-1024.png` (white on transparent; the 72 box is the visible 72 dp of the 108 dp layer) | `app.json` names the prod set and background; `APP_VARIANT=development` (`app.config.ts`) switches to the dev set and moss (APK and dev builds) |
 
