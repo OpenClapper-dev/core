@@ -1,7 +1,7 @@
 // The clone's safety checks and dump handling (scripts/clone-instance.mjs); the Cloudflare calls are not run here.
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { plan, prepareDump, splitStatements } from "./clone-instance.mjs";
+import { plan, prepareDump, splitStatements, tableShape } from "./clone-instance.mjs";
 
 const ok = {
   CLOUDFLARE_API_TOKEN: "t", CLOUDFLARE_ACCOUNT_ID: "a",
@@ -40,27 +40,64 @@ CREATE TRIGGER t AFTER INSERT ON a BEGIN UPDATE b SET id = 'z;'; DELETE FROM b; 
   ]);
 });
 
-test("the dump becomes pragmas, every table, the rows, then indexes, with foreign keys deferred once", () => {
+test("a table's shape: primary key, references and which may be empty", () => {
+  const sh = tableShape(`CREATE TABLE photos (
+  id TEXT PRIMARY KEY,
+  shot_id TEXT NOT NULL REFERENCES shots(id) ON DELETE CASCADE,
+  note TEXT DEFAULT 'a, b (c)'
+, root_framing_id TEXT REFERENCES framings(id) ON DELETE SET NULL)`);
+  assert.deepEqual(sh.pk, ["id"]);
+  assert.deepEqual(sh.refs, [{ column: "shot_id", table: "shots", required: true }, { column: "root_framing_id", table: "framings", required: false }]);
+  const pair = tableShape('CREATE TABLE "m" (a TEXT NOT NULL, b TEXT, PRIMARY KEY (a, b), FOREIGN KEY (b) REFERENCES "n"(id))');
+  assert.deepEqual([pair.name, pair.pk, pair.refs], ["m", ["a", "b"], [{ column: "b", table: "n", required: false }]]);
+});
+
+test("the dump becomes pragmas, tables, rows with parents first, then indexes", () => {
   // As D1 exports it: a table that gained a reference later comes before the table it references.
   const dump = `PRAGMA defer_foreign_keys=TRUE;
-CREATE TABLE shots (id TEXT
+CREATE TABLE shots (id TEXT PRIMARY KEY
 , workspace_id TEXT REFERENCES workspaces(id));
-INSERT INTO "shots" VALUES('s1','w1');
+INSERT INTO "shots" ("id","workspace_id") VALUES('s1','w1');
 CREATE TABLE workspaces (id TEXT PRIMARY KEY);
-INSERT INTO "workspaces" VALUES('w1');
+INSERT INTO "workspaces" ("id") VALUES('w1');
 DELETE FROM sqlite_sequence;
 CREATE INDEX shots_ws_idx ON shots (workspace_id);
 `;
   assert.equal(prepareDump(dump), `PRAGMA defer_foreign_keys=TRUE;
-CREATE TABLE shots (id TEXT
+CREATE TABLE shots (id TEXT PRIMARY KEY
 , workspace_id TEXT REFERENCES workspaces(id));
 CREATE TABLE workspaces (id TEXT PRIMARY KEY);
-INSERT INTO "shots" VALUES('s1','w1');
-INSERT INTO "workspaces" VALUES('w1');
+INSERT INTO "workspaces" ("id") VALUES('w1');
+INSERT INTO "shots" ("id","workspace_id") VALUES('s1','w1');
 DELETE FROM sqlite_sequence;
 CREATE INDEX shots_ws_idx ON shots (workspace_id);
 `);
   assert.match(prepareDump('CREATE TABLE "a" (id TEXT);\n'), /^PRAGMA defer_foreign_keys = TRUE;\nCREATE TABLE/);
+});
+
+test("a cycle and a self-reference: the optional side is inserted empty and set afterwards", () => {
+  const dump = `CREATE TABLE photos (id TEXT PRIMARY KEY, root_framing_id TEXT REFERENCES framings(id));
+CREATE TABLE framings (id TEXT PRIMARY KEY, photo_id TEXT NOT NULL REFERENCES photos(id));
+CREATE TABLE folders (id TEXT PRIMARY KEY, parent_id TEXT REFERENCES folders(id), name TEXT);
+INSERT INTO "framings" ("id","photo_id") VALUES('f1','p1');
+INSERT INTO "photos" ("id","root_framing_id") VALUES('p1','f1');
+INSERT INTO "folders" ("id","parent_id","name") VALUES('child','parent','it''s, here');
+INSERT INTO "folders" ("id","parent_id","name") VALUES('parent',NULL,'top');
+`;
+  const lines = prepareDump(dump).split("\n");
+  const at = (start) => lines.findIndex((l) => l.startsWith(start));
+  assert.ok(at('INSERT INTO "photos"') < at('INSERT INTO "framings"'));
+  assert.ok(lines.includes(`INSERT INTO "photos" ("id","root_framing_id") VALUES('p1',NULL);`));
+  assert.ok(lines.includes(`INSERT INTO "folders" ("id","parent_id","name") VALUES('child',NULL,'it''s, here');`));
+  assert.ok(lines.includes(`INSERT INTO "folders" ("id","parent_id","name") VALUES('parent',NULL,'top');`));
+  const updates = lines.filter((l) => l.startsWith("UPDATE"));
+  assert.deepEqual(updates.sort(), [`UPDATE "folders" SET "parent_id" = 'parent' WHERE "id" = 'child';`, `UPDATE "photos" SET "root_framing_id" = 'f1' WHERE "id" = 'p1';`]);
+  const lastInsert = Math.max(...lines.map((l, n) => (l.startsWith("INSERT") ? n : -1)));
+  assert.ok(Math.min(...updates.map((u) => lines.indexOf(u))) > lastInsert);
+});
+
+test("required references in a cycle cannot be imported", () => {
+  assert.throws(() => prepareDump("CREATE TABLE a (id TEXT PRIMARY KEY, b_id TEXT NOT NULL REFERENCES b(id));\nCREATE TABLE b (id TEXT PRIMARY KEY, a_id TEXT NOT NULL REFERENCES a(id));\n"), /required references form a cycle/);
 });
 
 test("a dump with a D1-internal table is refused, a migration named _cf_ is not", () => {
