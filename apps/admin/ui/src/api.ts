@@ -45,6 +45,9 @@ export interface StorageReport {
   crossed: Mark[];
 }
 export const fetchStorage = (days: number) => request<StorageReport>(`/api/storage?days=${days}`);
+/** One page of the object metadata check or repair (#255); call again with `cursor` until it is null. */
+export interface RepairPage { checked: number; repaired: number; unknown: number; examples: { key: string; reason: "missing" | "different" | "unknown" }[]; cursor: string | null }
+export const repairMetadata = (cursor: string | null, check: boolean) => send<RepairPage>("POST", "/api/storage/repair-metadata", { cursor, check });
 export const putMarks = (marks: Mark[]) => send<{ storage_marks: Mark[] }>("PUT", "/api/settings", { storage_marks: marks }).then((r) => r.storage_marks);
 
 // ---------- The optional Cloudflare overlay (#217) ----------

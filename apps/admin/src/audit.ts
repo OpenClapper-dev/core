@@ -5,7 +5,7 @@
  */
 import { assertNumber, assertUuid, HttpError } from "@openclapper/service-kit";
 
-export type AuditAction = "user.create" | "user.update" | "user.password" | "user.delete" | "settings.update";
+export type AuditAction = "user.create" | "user.update" | "user.password" | "user.delete" | "settings.update" | "storage.repair";
 
 export interface AuditEntry {
   id: string;

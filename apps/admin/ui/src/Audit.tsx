@@ -10,6 +10,7 @@ const ACTION: Record<string, { label: string; icon: string }> = {
   "user.password": { label: "Password reset", icon: "key-variant" },
   "user.delete": { label: "Account deleted", icon: "delete-outline" },
   "settings.update": { label: "Settings changed", icon: "cog-outline" },
+  "storage.repair": { label: "Object metadata repaired", icon: "tag-check-outline" },
 };
 
 const when = (iso: string) => new Date(iso).toLocaleString([], { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -21,6 +22,7 @@ function detail(e: AuditEntry): string {
     const marks = d.storage_marks as { bytes: number; label: string }[];
     return marks.length ? `Storage marks: ${marks.map((m) => `${m.label} (${bytes(m.bytes)})`).join(", ")}` : "Storage marks removed";
   }
+  if (e.action === "storage.repair") return `${String(d.repaired)} of ${String(d.checked)} objects rewritten${d.unknown ? `, ${String(d.unknown)} unknown left alone` : ""}`;
   const parts: string[] = [];
   if ("email" in d) parts.push(`email → ${String(d.email)}`);
   if ("name" in d) parts.push(d.name ? `name → ${String(d.name)}` : e.action === "user.create" ? "" : "name removed");

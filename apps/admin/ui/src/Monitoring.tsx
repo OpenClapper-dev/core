@@ -4,7 +4,7 @@
  */
 import { useState } from "preact/hooks";
 import { Banner, Button, EmptyNote, IconButton, Input, Seg, Select, toast } from "@openclapper/ui";
-import { putMarks, type CfOverlay, type Mark, type StorageReport } from "./api";
+import { putMarks, type CfOverlay, type Mark, type StorageReport, repairMetadata, type RepairPage } from "./api";
 import { LineChart, Sparkline, type Point } from "./charts";
 import { bytes, day, num, Section, Tile } from "./shared";
 
@@ -52,6 +52,7 @@ export function Monitoring({ report, overlay, range, onRange, onSaved }: { repor
       </Section>
       <Marks marks={report.marks} onSaved={onSaved} />
       <Cloudflare overlay={overlay} marks={report.marks} />
+      <ObjectMetadata />
     </>
   );
 }
@@ -149,6 +150,54 @@ export function Cloudflare({ overlay, marks }: { overlay: CfOverlay | { configur
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+    </Section>
+  );
+}
+
+/**
+ * The objects' custom metadata (#255): the app writes the owning workspace, shot and photo (renders: kind
+ * and id) on every object; a bucket copy can lose it. Check counts what is missing or different; Repair
+ * rewrites it from the database, page by page, keeping each object's body and type.
+ */
+function ObjectMetadata() {
+  const [busy, setBusy] = useState<"check" | "repair" | null>(null);
+  const [result, setResult] = useState<{ check: boolean; total: RepairPage } | null>(null);
+  const run = async (check: boolean) => {
+    setBusy(check ? "check" : "repair");
+    const total: RepairPage = { checked: 0, repaired: 0, unknown: 0, examples: [], cursor: null };
+    try {
+      let cursor: string | null = null;
+      do {
+        const p: RepairPage = await repairMetadata(cursor, check);
+        total.checked += p.checked; total.repaired += p.repaired; total.unknown += p.unknown;
+        total.examples.push(...p.examples.slice(0, Math.max(0, 10 - total.examples.length)));
+        cursor = p.cursor;
+        setResult({ check, total: { ...total } });
+      } while (cursor);
+      if (!check) toast(total.repaired ? `${num(total.repaired)} objects repaired` : "Every object already had its metadata");
+    } catch (e) {
+      toast((e as Error).message, "danger");
+    } finally {
+      setBusy(null);
+    }
+  };
+  const t = result?.total;
+  return (
+    <Section icon="tag-check-outline" title="Object metadata" action={<>
+      <Button size="sm" kind="ghost" icon="magnify" disabled={!!busy} onClick={() => void run(true)}>{busy === "check" ? "Checking…" : "Check"}</Button>
+      <Button size="sm" icon="wrench-outline" disabled={!!busy} onClick={() => void run(false)}>{busy === "repair" ? "Repairing…" : "Repair"}</Button>
+    </>}>
+      <div class="admin__pad">
+        <p class="meta">Every object in the bucket carries its owner (workspace, shot, photo; renders their kind and id). A bucket copy can lose it. Check counts the objects whose metadata is missing or different; Repair writes it again from the database, keeping each object as it is. Objects the app does not know are left alone.</p>
+        {t && (
+          <p>
+            {num(t.checked)} objects {busy ? "so far" : "checked"}: {t.repaired ? <strong>{num(t.repaired)} {result!.check ? "to repair" : "repaired"}</strong> : "all in order"}{t.unknown ? `, ${num(t.unknown)} unknown` : ""}.
+          </p>
+        )}
+        {t && t.examples.length > 0 && (
+          <ul class="meta">{t.examples.map((e) => <li key={e.key}><code>{e.key}</code> · {e.reason}</li>)}</ul>
         )}
       </div>
     </Section>

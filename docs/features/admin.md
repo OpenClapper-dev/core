@@ -56,6 +56,7 @@ Every change an operator makes (account created, changed, blocked or unblocked, 
 | GET | `/api/audit?limit=&before=&before_id=` | The audit trail, newest first: `{ entries: [{ id, at, operator_email, action, target_user_id, target_email, detail }], next: { before, before_id } \| null }`. `limit` 1..200 (default 50); pass `next` back for the following page |
 | GET | `/api/settings` | `{ storage_marks }` |
 | PUT | `/api/settings` | `{ storage_marks: [{ bytes, label }] }`, at most 10, strict |
+| POST | `/api/storage/repair-metadata` | `{ cursor?, check? }` → `{ checked, repaired, unknown, examples, cursor }`: one page (100 objects) of the R2 objects' custom metadata checked or rewritten from D1 ([monitoring](monitoring.md)); called again with `cursor` until null. A page that rewrote objects is audited as `storage.repair` |
 
 Without a valid Access JWT of the admin application every request is `401`. Until its AUD is set (`ADMIN_ACCESS_AUD`, [self-hosting](../self-hosting.md#4-the-admin-planes-sign-in)) that includes every request.
 

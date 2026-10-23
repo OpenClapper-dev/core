@@ -9,6 +9,7 @@ import {
 } from "@openclapper/service-kit";
 import { auditEntry, listAudit, type AuditAction } from "./audit.ts";
 import { configured, MAX_DAYS, overlay, snapshotCloudflare } from "./cloudflare.ts";
+import { repairPage } from "./objects.ts";
 import { marksStatement, parseMarks, readMarks, storageReport } from "./storage.ts";
 
 export interface Env {
@@ -220,6 +221,23 @@ router.on("PUT", "/api/settings", async (ctx) => {
   await env.DB.batch([marksStatement(env.DB, marks, ctx.admin), audit(ctx, "settings.update", {}, { storage_marks: marks })]);
   return json({ storage_marks: marks });
 });
+/**
+ * The R2 objects' custom metadata (#255), one page per call: JSON { cursor?: string | null, check?: boolean }
+ * → { checked, repaired, unknown, examples, cursor }; the board calls again with the returned cursor until
+ * it is null. `check` only counts. A page that rewrote objects is one audit row.
+ */
+router.on("POST", "/api/storage/repair-metadata", async (ctx) => {
+  const { env, request } = ctx;
+  const b = await readJson<Record<string, unknown>>(request);
+  for (const k of Object.keys(b)) if (k !== "cursor" && k !== "check") throw new HttpError(400, `unknown field ${k}`);
+  const cursor = b.cursor === undefined || b.cursor === null ? null : assertString(b.cursor, "cursor", 1024);
+  if (b.check !== undefined && typeof b.check !== "boolean") throw new HttpError(400, "check must be true or false");
+  const check = b.check === true;
+  const page = await repairPage(env.DB, env.SHOTS_BUCKET, cursor, check);
+  if (!check && page.repaired) await audit(ctx, "storage.repair", {}, { checked: page.checked, repaired: page.repaired, unknown: page.unknown }).run();
+  return json(page);
+});
+
 /** The audit trail, newest first: `?limit=` (1..200, default 50), `before` + `before_id` from the previous page's `next`. */
 router.on("GET", "/api/audit", async ({ env, url }) => json(await listAudit(env.DB, url.searchParams)));
 
