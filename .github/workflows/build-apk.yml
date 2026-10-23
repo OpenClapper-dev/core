@@ -169,19 +169,61 @@ jobs:
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks"
             task=assembleRelease out=release name="openclapper-$version-$GIT_COMMIT.apk"
-            # The staging app: its own name, package id and icon (app.config.ts), the same key.
-            if [ "$VARIANT" = staging ]; then export APP_VARIANT=staging name="openclapper-staging-$version-$GIT_COMMIT.apk"; fi
+            # The staging app: its own name, package id and icon (app.config.ts). Its version code is the
+            # commit count, so every build of main is a new version for Play (deploy#10): it needs the full
+            # history, which a run with `ref` checks out; a shallow checkout would count 1.
+            if [ "$VARIANT" = staging ]; then
+              export APP_VARIANT=staging name="openclapper-staging-$version-$GIT_COMMIT.apk"
+              export GIT_COMMIT_COUNT=$(git rev-list --count HEAD)
+              [ "$GIT_COMMIT_COUNT" -gt 1 ] || { echo "::error::A staging build needs the full history for its version code: run it with \`ref\` (a branch or main)"; exit 1; }
+              echo "Version code: $GIT_COMMIT_COUNT (commit count)"
+            fi
+            # The App Bundle for Play next to the APK for sideloading, from the same build and key.
+            task="$task bundleRelease"
           fi
           pnpm exec expo prebuild --platform android --no-install
           (cd android && ./gradlew $task --no-daemon -PreactNativeArchitectures="$ANDROID_ABIS")
           mv "android/app/build/outputs/apk/$out/app-$out.apk" "$RUNNER_TEMP/$name"
           if [ "$VARIANT" != dev ]; then
+            aab="${name%.apk}.aab"
+            mv android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/$aab"
             # Never hand out a release signed with the debug key (it would not update a real install).
             signer=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
             if "$signer" verify --print-certs "$RUNNER_TEMP/$name" | grep -q "CN=Android Debug"; then echo "::error::The APK is debug-signed"; exit 1; fi
+            if jarsigner -verify -verbose -certs "$RUNNER_TEMP/$aab" | grep -q "CN=Android Debug"; then echo "::error::The App Bundle is debug-signed"; exit 1; fi
             rm "$RUNNER_TEMP/release.jks"
+            echo "AAB_NAME=$aab" >> "$GITHUB_ENV"
           fi
           echo "APK_NAME=$name" >> "$GITHUB_ENV"
+
+      # What Google Play requires of an upload (docs/self-hosting.md, Play Store). The target API level
+      # is a hard gate: Play rejects new apps and updates below API 36 since 31 August 2026. The 16 KB
+      # page size (native libraries' LOAD segments aligned to 16 KB) is reported for now.
+      - name: Play requirements
+        if: env.AAB_NAME != ''
+        working-directory: .
+        run: |
+          apk="$RUNNER_TEMP/$APK_NAME"
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          target=$("$tools/aapt2" dump badging "$apk" | sed -n "s/^targetSdkVersion:'\([0-9]*\)'.*/\1/p")
+          code=$("$tools/aapt2" dump badging "$apk" | sed -n "s/^package: .*versionCode='\([0-9]*\)'.*/\1/p")
+          echo "Target API level $target, version code $code" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "${target:-0}" -ge 36 ] || { echo "::error::Google Play needs target API level 36 or higher; this build targets ${target:-?}"; exit 1; }
+          readelf=$(find "$ANDROID_HOME/ndk" -name llvm-readelf -path '*prebuilt*' 2>/dev/null | sort -V | tail -1)
+          [ -n "$readelf" ] || { echo "::warning::No llvm-readelf in the NDK: 16 KB page size not checked"; exit 0; }
+          libs=$(mktemp -d) && unzip -q -o "$apk" 'lib/*' -d "$libs" || true
+          bad=""
+          for so in $(find "$libs" -name '*.so'); do
+            for a in $("$readelf" -lW "$so" | awk '$1 == "LOAD" { print $NF }'); do
+              [ $((a)) -ge 16384 ] || { bad="$bad $(basename "$so")"; break; }
+            done
+          done
+          if [ -n "$bad" ]; then
+            echo "::warning::Native libraries not aligned to 16 KB:$bad"
+            echo "Not aligned to 16 KB:$bad" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Every native library is aligned to 16 KB." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Disk
         if: always()
@@ -192,5 +234,14 @@ jobs:
         with:
           name: ${{ env.APK_NAME }}
           path: ${{ runner.temp }}/${{ env.APK_NAME }}
+          retention-days: 3
+          compression-level: 0
+
+      # The App Bundle (release and staging): what goes to Google Play (scripts/play-upload.mjs, deploy#11).
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: env.AAB_NAME != ''
+        with:
+          name: ${{ env.AAB_NAME }}
+          path: ${{ runner.temp }}/${{ env.AAB_NAME }}
           retention-days: 3
           compression-level: 0

@@ -12,6 +12,16 @@ function versionCode(v: string): number {
 }
 
 /**
+ * The staging app is built from main between releases, and Play takes each version code once, so it
+ * counts commits instead (GIT_COMMIT_COUNT, set by the Build APK workflow from a full checkout). Without
+ * the count (a local config run) it falls back to the release scheme.
+ */
+function stagingVersionCode(): number {
+  const count = Number.parseInt(process.env.GIT_COMMIT_COUNT ?? "", 10);
+  return count > 1 ? count : versionCode(version);
+}
+
+/**
  * The prebuild template signs release builds with the debug key. With ANDROID_KEYSTORE (an absolute
  * path), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD in Gradle's
  * environment, release builds sign with that key instead (scripts/keystore.sh makes one). Read by
@@ -89,6 +99,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     icon: `${icons}/app-icon-1024.png`,
     android: {
       ...app.android,
+      ...(name === "staging" ? { versionCode: stagingVersionCode() } : {}),
       package: v.package,
       adaptiveIcon: {
         backgroundColor: v.background,

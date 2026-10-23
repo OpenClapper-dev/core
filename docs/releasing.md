@@ -15,7 +15,8 @@ OpenClapper has **one version for the whole product**: the Worker and the Studio
   - Studio: Settings › General › About, next to the server's version. They differ while a tab still has the bundle from before a deploy.
   - Admin board: its header.
   - Phone: the Setup footer and the debug log.
-- **Android**: `versionName` is the version and `versionCode` is derived from it (`major·1 000 000 + minor·1 000 + patch`: 0.1.0 → 1000), so it grows with every release (`apps/mobile/app.config.ts`). Builds between releases carry the same code as the last release; Android installs a same-code update over it.
+- **Android**: `versionName` is the version and `versionCode` is derived from it (`major·1 000 000 + minor·1 000 + patch`: 0.1.0 → 1000), so it grows with every release (`apps/mobile/app.config.ts`). Builds between releases carry the same code as the last release; Android installs a same-code update over it. Google Play takes each code once, so production goes to Play once per release.
+- **The staging app** (`APP_VARIANT=staging`) counts commits instead (`git rev-list --count HEAD`, Build APK sets it from a full checkout), so every build of `main` is a new version for Play. A branch build has a higher count than `main`: sideloaded, it blocks Play's next update of the staging app (Android refuses a lower code) until it is uninstalled. The same holds once for a staging app sideloaded before Play: its release-based code (`10000` for 0.10.0) is higher than the count.
 
 ## Cutting a release
 
