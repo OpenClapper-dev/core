@@ -67,6 +67,21 @@ export interface LightState {
   intensity?: number;
   cct?: { kelvin: number; gm: number };
   hsi?: { h: number; s: number; i: number };
+  /** The fixture's own dimming curve (NEEWER: part of every white-light command). */
+  curve?: Curve;
+}
+
+/**
+ * What the phone assumes until it has set a value itself: the lights report nothing back yet.
+ * Half intensity, the middle of the white range (to 100 K), linear curve.
+ */
+export function startState(k: FixtureKind): LightState {
+  const cct = k.caps.cct;
+  return {
+    intensity: 0.5,
+    ...(cct ? { cct: { kelvin: Math.round((cct.min + cct.max) / 200) * 100, gm: 0 } } : {}),
+    ...(k.caps.curves ? { curve: "linear" as const } : {}),
+  };
 }
 
 export const FIXTURE_LABEL_MAX = 60;
