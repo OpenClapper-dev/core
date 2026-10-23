@@ -9,7 +9,7 @@
 #                    green icon, signed with the template's debug key. Needs no secret, so it builds
 #                    from a fresh clone; it updates no other build and nothing else updates it.
 # Production and staging APKs are not built here: they belong to a deployment, signed with its key
-# by its Build APK workflow (docs/self-hosting.md#the-phone).
+# by its Build phone app workflow (docs/self-hosting.md#the-phone).
 # Overrides: API_URL, DOWNLOADS (target folder), ANDROID_ABIS (CPU architectures, comma-separated;
 # default arm64-v8a, what phones run: each one more multiplies the native build and the APK).
 set -euo pipefail

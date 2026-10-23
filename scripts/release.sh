@@ -37,5 +37,5 @@ gh release create "v$next" --title "v$next" --generate-notes --verify-tag "${pre
 
 cat <<EOF
 Released v$next ($current before).
-A deployment follows with: scripts/bump.sh v$next, commit and push, run Deploy, then Build APK.
+A deployment follows with: scripts/bump.sh v$next, commit and push, run Deploy server, then Build phone app.
 EOF

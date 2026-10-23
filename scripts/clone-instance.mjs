@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Replaces one instance with a 1:1 copy of another (staging ← production): the R2 bucket first, then
 // the D1 database, so a finished run is consistent. Whatever the target held is gone afterwards; the
-// source is only read. Run by the Clone workflow (.github/workflows/clone.yml) in the target's GitHub
+// source is only read. Run by the Clone instance workflow (.github/workflows/clone-instance.yml) in the target's GitHub
 // environment; like every script here it reads the environment only (docs/self-hosting.md).
 //
 //   node scripts/clone-instance.mjs
