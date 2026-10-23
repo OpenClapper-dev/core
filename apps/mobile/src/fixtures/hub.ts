@@ -4,8 +4,10 @@ import { connect } from "../ble/link";
 import { log } from "../log";
 import { Hub, type FixtureStatus, type Holder } from "./hubCore";
 import { getFixtures } from "./library";
-import { driverFor } from "./registry";
+import { driverFor, setDriverLog } from "./registry";
 import type { Command } from "./types";
+
+setDriverLog(log);
 
 /** The app's one hub (fixtures/hubCore.ts) on the real Bluetooth stack and clock. */
 export const hub = new Hub({

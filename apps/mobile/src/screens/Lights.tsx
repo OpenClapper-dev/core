@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Text } from "react-native";
+import { Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, type FixtureKind } from "@openclapper/vocab";
+import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, type FixtureKind, type LightState } from "@openclapper/vocab";
 import { useApp } from "../appState";
 import { adapterState, scan, type Seen } from "../ble/link";
 import { askBluetooth } from "../ble/permissions";
-import { linkLabel, useFixtureLease, useFixtureStatus } from "../fixtures/hub";
+import { linkLabel, sendToFixture, useFixtureLease, useFixtureStatus } from "../fixtures/hub";
 import { deleteFixture, getFixtures, saveFixture, syncFixtures, useFixtures } from "../fixtures/library";
 import { ALL_KINDS, suggestKinds } from "../fixtures/registry";
-import type { Fixture } from "../fixtures/types";
+import type { Command, Fixture } from "../fixtures/types";
 import { log } from "../log";
-import { Banner, Block, Button, confirm, Empty, ErrorText, FieldRow, Hint, Input, ListRow, makeStyles, num, PushScreen, SectionLabel, SideBySide, toast, type } from "../ui";
+import { Banner, Block, Button, confirm, Empty, ErrorText, FieldRow, Hint, Input, ListRow, makeStyles, num, PushScreen, SectionLabel, Seg, SideBySide, Slider, toast, type } from "../ui";
 import { OptionSheet } from "../components/OptionSheet";
 
 const kindIcon = (k: FixtureKind | undefined) => (k && !k.caps.power ? "battery-high" : "lightbulb-outline");
@@ -183,23 +183,74 @@ export function FixtureEditor({ fixtureId }: { fixtureId: string | null }) {
   );
 }
 
-/** One fixture: its connection, and (from #209 on) its controls. */
+const CURVE_OPTIONS = [
+  { id: "linear", label: "Linear" },
+  { id: "exp", label: "Expo" },
+  { id: "log", label: "Log" },
+  { id: "s", label: "S" },
+] as const;
+
+/** Send and forget: the hub coalesces, and a refused write is in the debug log. */
+const fire = (id: string, cmd: Command) => { void sendToFixture(id, cmd).catch((e) => log("debug", "fixture send dropped", { fixture: id, error: e })); };
+
+/**
+ * One fixture: its connection, held open while shown, and the controls its kind has. The lights
+ * report nothing back yet, so the controls start from what this phone last set (or the shared
+ * start values) and send only what is touched.
+ */
 export function FixtureControl({ fixtureId }: { fixtureId: string }) {
   const app = useApp();
   const fixtures = useFixtures();
   const f = fixtures.find((x) => x.id === fixtureId);
   useFixtureLease(f ? [f.id] : []);
   const status = useFixtureStatus(fixtureId);
+  const kind = f ? fixtureKind(f.kindId) : undefined;
+  const [v, setV] = useState<LightState>(() => ({ ...(kind ? startState(kind) : {}), ...status.state }));
   if (!f) return <PushScreen title="Light"><Empty icon="lightbulb-off-outline" title="This light is gone" body="It was deleted, here or on another phone." /></PushScreen>;
-  const kind = fixtureKind(f.kindId);
+  const ready = status.link === "ready";
+  const caps = kind?.caps;
+  const send = (patch: LightState, cmd: Command) => { setV((cur) => ({ ...cur, ...patch })); fire(f.id, cmd); };
+  const cct = v.cct ?? { kelvin: 5600, gm: 0 };
+  const controllable = !!caps && (caps.power || caps.intensity || !!caps.cct);
   return (
     <PushScreen title={f.label} sub={kindName(f.kindId)}
       footer={<Button style={{ flex: 1 }} kind="secondary" icon="pencil-outline" label="Edit" onPress={() => app.push({ name: "fixtureEditor", fixtureId: f.id })} />}>
       <Block>
-        <Banner kind={status.link === "ready" ? "ok" : status.link === "failed" ? "warn" : "info"} icon="bluetooth" title={linkLabel(status)} meta={f.address} />
-        {kind && <Hint>{capsLine(kind)}</Hint>}
+        <Banner kind={ready ? "ok" : status.link === "failed" ? "warn" : "info"} icon="bluetooth" title={linkLabel(status)} meta={f.address} />
         {status.link === "failed" && <Hint>The controls for this model are not built yet; pairing and syncing already work.</Hint>}
       </Block>
+      {caps && controllable && status.link !== "failed" && (
+        <Block style={{ gap: 16 }}>
+          {caps.power && (
+            <View style={{ gap: 6 }}>
+              <SectionLabel>Power</SectionLabel>
+              <Seg size="lg" block accessibilityLabel="Power" disabled={!ready} value={v.power === undefined ? null : v.power ? "on" : "off"}
+                onChange={(x) => send({ power: x === "on" }, { op: "power", on: x === "on" })} options={[{ id: "off", label: "Off" }, { id: "on", label: "On" }]} />
+            </View>
+          )}
+          {caps.intensity && (
+            <Slider label="Intensity" value={Math.round((v.intensity ?? 0.5) * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready}
+              onChange={(x) => send({ intensity: x / 100 }, { op: "intensity", value: x / 100 })} />
+          )}
+          {caps.cct && (
+            <Slider label="White" value={cct.kelvin} min={caps.cct.min} max={caps.cct.max} step={100} format={(x) => `${x} K`} disabled={!ready}
+              onChange={(x) => send({ cct: { ...cct, kelvin: x } }, { op: "cct", kelvin: x, gm: cct.gm })} />
+          )}
+          {caps.cct?.gm && (
+            <Slider label="Green / magenta" value={cct.gm} min={caps.cct.gm.min} max={caps.cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} disabled={!ready}
+              onChange={(x) => send({ cct: { ...cct, gm: x } }, { op: "cct", kelvin: cct.kelvin, gm: x })} />
+          )}
+          {caps.curves && (
+            <View style={{ gap: 6 }}>
+              <SectionLabel>Dimming curve</SectionLabel>
+              <Seg size="lg" block accessibilityLabel="Dimming curve" disabled={!ready} value={v.curve ?? null}
+                onChange={(x) => send({ curve: x }, { op: "curve", curve: x })} options={CURVE_OPTIONS} />
+            </View>
+          )}
+          <Hint>The light does not report its settings yet: the controls show what this phone last set.</Hint>
+        </Block>
+      )}
+      {kind && <Block><Hint>{capsLine(kind)}</Hint></Block>}
     </PushScreen>
   );
 }

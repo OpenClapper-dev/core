@@ -46,9 +46,10 @@ const LIGHT = { power: true, intensity: true, hsi: false, curves: true, telemetr
  * on the phone. Ids are stored with each fixture, so they never change.
  */
 export const FIXTURE_KINDS: readonly FixtureKind[] = [
-  // Bi-colour COB lights of NEEWER's "Infinity" app; green/magenta unknown until the snoop log (#207).
+  // Bi-colour COB lights of NEEWER's "Infinity" app (#209).
   { id: "neewer-fs230b", brand: "NEEWER", model: "FS230B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: null } } },
-  { id: "neewer-fs300b", brand: "NEEWER", model: "FS300B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: null } } },
+  // Green/magenta in the frame's own steps (−50..+50, sent as +50); the FS230B's app has no control for it.
+  { id: "neewer-fs300b", brand: "NEEWER", model: "FS300B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: { min: -50, max: 50 } } } },
   // V-mount battery in the same app: telemetry only.
   {
     id: "neewer-ps099s", brand: "NEEWER", model: "PS099S", transport: "gatt", driver: "neewer-battery",
@@ -67,6 +68,21 @@ export interface LightState {
   intensity?: number;
   cct?: { kelvin: number; gm: number };
   hsi?: { h: number; s: number; i: number };
+  /** The fixture's own dimming curve (NEEWER: part of every white-light command). */
+  curve?: Curve;
+}
+
+/**
+ * What the phone assumes until it has set a value itself: the lights report nothing back yet.
+ * Half intensity, the middle of the white range (to 100 K), linear curve.
+ */
+export function startState(k: FixtureKind): LightState {
+  const cct = k.caps.cct;
+  return {
+    intensity: 0.5,
+    ...(cct ? { cct: { kelvin: Math.round((cct.min + cct.max) / 200) * 100, gm: 0 } } : {}),
+    ...(k.caps.curves ? { curve: "linear" as const } : {}),
+  };
 }
 
 export const FIXTURE_LABEL_MAX = 60;

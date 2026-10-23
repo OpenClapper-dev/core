@@ -1,9 +1,9 @@
 /** Form controls from the design system: chips, input, switch, toggle row, checkbox. */
-import { useState, type ReactNode } from "react";
-import { Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
+import { useMemo, useRef, useState, type ReactNode } from "react";
+import { PanResponder, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
 import { IconButton } from "./actions";
 import { Icon } from "./core";
-import { SIZE, useTheme } from "./theme";
+import { makeStyles, num, SIZE, type, useTheme } from "./theme";
 import { useStyles } from "./styles";
 
 export function Row({ label, children }: { label: string; children?: ReactNode }) {
@@ -110,3 +110,72 @@ export function ChipCell({ children }: { children: ReactNode }) {
   const s = useStyles();
   return <View style={s.chipCell}>{children}</View>;
 }
+
+/**
+ * A value on a track: drag anywhere on it, or step with − and + for an exact value (on set, in
+ * gloves). Hand-written on PanResponder like components/gestures.ts. `onChange` fires on every
+ * step while dragging; callers that send it somewhere coalesce (fixtures/queue.ts).
+ */
+export function Slider({ label, value, min, max, step = 1, format = String, onChange, disabled }: { label: string; value: number; min: number; max: number; step?: number; format?: (v: number) => string; onChange: (v: number) => void; disabled?: boolean }) {
+  const s = useSliderStyles();
+  const [width, setWidth] = useState(0);
+  const r = useRef({ min, max, step, width, onChange, disabled, x0: 0, last: value });
+  r.current = { ...r.current, min, max, step, width, onChange, disabled, last: value };
+  const snap = (v: number) => {
+    const { min: lo, max: hi, step: st } = r.current;
+    return Math.min(hi, Math.max(lo, Math.round((v - lo) / st) * st + lo));
+  };
+  const emit = (v: number) => {
+    const next = snap(v);
+    if (next === r.current.last) return;
+    r.current.last = next;
+    r.current.onChange(next);
+  };
+  const at = (x: number) => { const { min: lo, max: hi, width: w } = r.current; return w > 0 ? lo + (x / w) * (hi - lo) : lo; };
+  const pan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => !r.current.disabled,
+    onMoveShouldSetPanResponder: () => !r.current.disabled,
+    // A slider inside a scroll view keeps the drag once it has it.
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: (e) => { r.current.x0 = e.nativeEvent.locationX; emit(at(r.current.x0)); },
+    onPanResponderMove: (_, g) => emit(at(r.current.x0 + g.dx)),
+  }).panHandlers, []);
+  const frac = max > min ? (Math.min(max, Math.max(min, value)) - min) / (max - min) : 0;
+  const nudge = (dir: 1 | -1) => emit(value + dir * step);
+  return (
+    <View style={s.wrap}>
+      <View style={s.head}>
+        <Text style={[s.label, disabled && s.dim]}>{label}</Text>
+        <Text style={[s.value, disabled && s.dim]}>{format(value)}</Text>
+      </View>
+      <View style={s.row}>
+        <IconButton icon="minus" label={`Less ${label.toLowerCase()}`} onPress={() => nudge(-1)} disabled={disabled || value <= min} />
+        <View style={s.track} onLayout={(e) => setWidth(e.nativeEvent.layout.width)} {...pan}
+          accessible accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{ min, max, now: value, text: format(value) }}
+          accessibilityActions={[{ name: "increment" }, { name: "decrement" }]} onAccessibilityAction={(e) => nudge(e.nativeEvent.actionName === "increment" ? 1 : -1)}>
+          <View pointerEvents="none" style={[s.rail, disabled && s.railOff]} />
+          <View pointerEvents="none" style={[s.fill, { width: frac * width }, disabled && s.fillOff]} />
+          <View pointerEvents="none" style={[s.thumb, { left: frac * width - THUMB / 2 }, disabled && s.thumbOff]} />
+        </View>
+        <IconButton icon="plus" label={`More ${label.toLowerCase()}`} onPress={() => nudge(1)} disabled={disabled || value >= max} />
+      </View>
+    </View>
+  );
+}
+
+const THUMB = 26;
+const useSliderStyles = makeStyles((c) => ({
+  wrap: { gap: 4 },
+  head: { flexDirection: "row", justifyContent: "space-between" },
+  label: { ...type("body", "semibold"), color: c.text },
+  value: { ...type("body", "semibold"), color: c.text, ...num },
+  dim: { color: c.textDisabled },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  track: { flex: 1, height: SIZE.touchMin, justifyContent: "center" },
+  rail: { position: "absolute", left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: c.surfaceSunken, borderWidth: 1, borderColor: c.border },
+  railOff: { borderColor: c.borderSubtle },
+  fill: { position: "absolute", left: 0, height: 6, borderRadius: 3, backgroundColor: c.accent },
+  fillOff: { backgroundColor: c.textDisabled },
+  thumb: { position: "absolute", width: THUMB, height: THUMB, borderRadius: THUMB / 2, backgroundColor: c.surface, borderWidth: 3, borderColor: c.accent },
+  thumbOff: { borderColor: c.textDisabled },
+}));
