@@ -188,13 +188,13 @@ jobs:
             export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks"
             task=assembleRelease out=release name="openclapper-$version-$GIT_COMMIT.apk"
             # The staging app: its own name, package id and icon (app.config.ts). Its version code is the
-            # commit count, so every build of main is a new version for Play (deploy#10): it needs the full
-            # history, which a run with `ref` checks out; a shallow checkout would count 1.
+            # build time, minutes since 2020-01-01 UTC: every build is higher than the one before, whatever
+            # ref it comes from, so Play installs an older tag as an ordinary update (a rollback keeps the
+            # phone's data). Builds in the same minute share a code; Play then keeps the first.
             if [ "$VARIANT" = staging ]; then
               export APP_VARIANT=staging name="openclapper-staging-$version-$GIT_COMMIT.apk"
-              export GIT_COMMIT_COUNT=$(git rev-list --count HEAD)
-              [ "$GIT_COMMIT_COUNT" -gt 1 ] || { echo "::error::A staging build needs the full history for its version code: run it with \`ref\` (a branch or main)"; exit 1; }
-              echo "Version code: $GIT_COMMIT_COUNT (commit count)"
+              export STAGING_VERSION_CODE=$(( ($(date -u +%s) - $(date -u -d 2020-01-01 +%s)) / 60 ))
+              echo "Version code: $STAGING_VERSION_CODE (minutes since 2020-01-01 UTC)"
             fi
             # The App Bundle for Play next to the APK for sideloading, from the same build and key.
             task="$task bundleRelease"
