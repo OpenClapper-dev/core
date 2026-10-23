@@ -31,5 +31,5 @@ The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107)
 ## Secrets and rotation
 
 - To cut a user off: block the account in the admin plane (every session ends at once) or reset its password.
-- The deploy API token (`CLOUDFLARE_API_TOKEN`, [self-hosting](self-hosting.md#1-a-cloudflare-api-token)) and, optionally, the read-only analytics token for the admin board (`CF_ANALYTICS_TOKEN`, a Worker secret on the admin plane, [monitoring](features/monitoring.md)) are the secrets; Access AUDs, team domains and resource ids are not secret (they show in login redirects and URLs).
+- The deploy API token (`CLOUDFLARE_API_TOKEN`, [self-hosting](self-hosting.md#1-a-cloudflare-api-token)) the optional read-only analytics token for the admin board (`CF_ANALYTICS_TOKEN`, a Worker secret on the admin plane, [monitoring](features/monitoring.md)) and, for Play uploads, the service account's JSON key (`PLAY_SERVICE_ACCOUNT_JSON`; rotate by adding a new key to the service account in Google Cloud, replacing the secret, then deleting the old key) are the secrets; Access AUDs, team domains and resource ids are not secret (they show in login redirects and URLs).
 - Wrangler's OAuth login lacks `account:read`; an exported `CLOUDFLARE_ACCOUNT_ID` (read by `scripts/deploy-config.mjs`) fills it in.
