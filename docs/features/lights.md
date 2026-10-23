@@ -33,12 +33,12 @@ First fixtures:
 
 ## NEEWER lights (`drivers/neewerInfinity.ts`, `codecs/neewer.ts`, #209)
 
-Decoded from an HCI snoop of the NEEWER app driving an FS230B (#207); every captured frame was rebuilt byte for byte.
+Decoded from an HCI snoop of the NEEWER app driving an FS230B (#207); every captured frame was rebuilt byte for byte. Tested on an FS230B and an FS300B on 2026-10-23: every control, a fast drag and reconnecting.
 
 - **Connection**: service `69400001-b5a3-f393-e0a9-e50e24dcca99`; commands are written without response to `…0002`, replies come as notifications on `…0003`. On connect the driver turns notifications on and replays the app's hello and its five queries.
 - **Frame**: `78 <tag> <len> <MAC> <payload> <checksum>`; `len` counts the MAC and the payload, the checksum is the sum of every byte before it, the MAC is the light's own address.
 - **Power**: tag `8d`, `81 01` on, `81 02` off. A light gets 150 ms after power-on before the next white frame.
-- **Intensity, white and curve share one frame** (tag `90`, `87 <intensity 0–100> <kelvin/100> <green/magenta + 50> <curve> 00`). There is no intensity-only command, so the driver keeps each light's last values and always sends all three. Curve bytes: `1` exponential, `2` logarithmic, `3` S, `4` linear. The FS230B's app has no green/magenta control and always sends neutral (`50`); the FS300B gets a green/magenta slider on the same byte, −50..+50 (sent as +50), which follows the published NEEWER protocol and was not captured.
+- **Intensity, white and curve share one frame** (tag `90`, `87 <intensity 0–100> <kelvin/100> <green/magenta + 50> <curve> 00`). There is no intensity-only command, so the driver keeps each light's last values and always sends all three. Curve bytes: `1` exponential, `2` logarithmic, `3` S, `4` linear. The FS230B's app has no green/magenta control and always sends neutral (`50`); the FS300B gets a green/magenta slider on the same byte, −50..+50 (sent as +50), which follows the published NEEWER protocol (not captured, confirmed on the light).
 - **Pace**: one write per 100 ms on a connection, as the app does while a slider moves; the queue coalesces faster input.
 - The lights report their model in an info reply (an FS230B says "FS150B": same firmware), which goes to the debug log. They do not report their settings, so nothing is read back.
 
