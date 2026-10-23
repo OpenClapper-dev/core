@@ -21,6 +21,11 @@ on:
         type: choice
         options: [release, staging, dev]
         default: release
+      track:
+        description: Upload the bundle to this Google Play track (release and staging; needs PLAY_SERVICE_ACCOUNT_JSON)
+        type: choice
+        options: [none, internal]
+        default: none
       environment:
         description: A GitHub environment whose variables and secrets to use (empty = the repository's)
         type: string
@@ -35,6 +40,10 @@ on:
         description: release, staging or dev
         type: string
         default: release
+      track:
+        description: Upload the bundle to this Google Play track (none, internal); release and staging only
+        type: string
+        default: none
       path:
         description: Where this repository is checked out in the calling one (a submodule)
         type: string
@@ -56,6 +65,9 @@ on:
       ANDROID_KEY_ALIAS:
         required: false
       ANDROID_KEY_PASSWORD:
+        required: false
+      # Only with a track: the Google Play service account's JSON key (docs/self-hosting.md, Play Store).
+      PLAY_SERVICE_ACCOUNT_JSON:
         required: false
 
 concurrency:
@@ -80,6 +92,8 @@ jobs:
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
       ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      TRACK: ${{ inputs.track || 'none' }}
       EXPO_NO_GIT_STATUS: "1"
       # Phones are arm64; every other ABI multiplies the native build (and the APK). Variable to override.
       ANDROID_ABIS: ${{ vars.ANDROID_ABIS || 'arm64-v8a' }}
@@ -88,6 +102,10 @@ jobs:
         working-directory: .
         run: |
           case "$VARIANT" in release|staging|dev) ;; *) echo "::error::variant must be release, staging or dev"; exit 1 ;; esac
+          case "$TRACK" in none) ;; internal)
+            [ "$VARIANT" != dev ] || { echo "::error::The dev client does not go to Google Play"; exit 1; }
+            [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ] || { echo "::error::Set the PLAY_SERVICE_ACCOUNT_JSON secret to upload to Google Play (docs/self-hosting.md)"; exit 1; } ;;
+            *) echo "::error::track must be none or internal"; exit 1 ;; esac
           [ "$VARIANT" != dev ] || exit 0 # the development client needs neither a server nor the key
           [ -n "$EXPO_PUBLIC_API_URL" ] || { echo "::error::Set the APP_URL variable to your server, e.g. https://openclapper-api.<subdomain>.workers.dev"; exit 1; }
           for v in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
@@ -224,6 +242,16 @@ jobs:
           else
             echo "Every native library is aligned to 16 KB." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+
+      # Google Play's own API, no third party (scripts/play-upload.mjs). The package comes from the built
+      # APK, so it always matches the variant. A version code Play already has is a notice, not a failure.
+      - name: Upload to Google Play
+        if: env.AAB_NAME != '' && env.TRACK != 'none'
+        run: |
+          tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          package=$("$tools/aapt2" dump badging "$RUNNER_TEMP/$APK_NAME" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
+          node scripts/play-upload.mjs --bundle "$RUNNER_TEMP/$AAB_NAME" --package "$package" --track "$TRACK" \
+            --notes "OpenClapper $(node -p 'require("./package.json").version') ($(git rev-parse --short HEAD))" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Disk
         if: always()
