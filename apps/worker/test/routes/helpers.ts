@@ -85,6 +85,7 @@ export interface World {
   project: string; preset: string; location: string; spot: string; field: string; view: string; binnedView: string;
   shot: string; photo: string; day: string; framing: string; timeline: string; clip: string;
   overlay: string; sketch: string; folder: string; desktop: string; device: string; layout: string;
+  meshNetwork: string; fixture: string;
 }
 
 const DEVICE_SPECS = { v: 1, model: "Test phone", viewport: { portrait: { width: 400, height: 800 }, landscape: null }, zoom: null, stops: [1], mainEquivalentMm: 24, calibration: "auto" };
@@ -93,6 +94,8 @@ export const deviceBody = (name: string) => ({ name, specs: DEVICE_SPECS });
 export const layoutBody = (name: string) => ({ name, layout: DEFAULT_VIEWFINDER_LAYOUT });
 export const overlayBody = (photo: string, name: string) => ({ photo_id: photo, name, drawing: emptyDrawing(true), presentation: { mode: "fit" } });
 export const sketchBody = (shot: string, name: string) => ({ shot_id: shot, name, drawing: emptyDrawing(false), aspect: 1.5 });
+/** An Aputure MC (a mesh kind); `extra` adds its network, unicast, workspace. */
+export const fixtureBody = (label: string, extra: Record<string, unknown> = {}) => ({ label, kind_id: "aputure-mc", address: "A4:C1:38:0B:2F:9E", ...extra });
 export const timelineBody = (project: string, name: string, clip: string, photo: string) =>
   ({ project_id: project, name, clips: [{ id: clip, photo_id: photo, presentation: { mode: "fit", frame: FRAME }, duration_ms: 2000 }] });
 
@@ -113,7 +116,7 @@ export async function buildWorld(user: User): Promise<World> {
   const w = {
     user, mark, workspace: id(), project: id(), preset: id(), location: id(), spot: id(), field: id(), view: id(), binnedView: id(),
     shot: id(), photo: id(), day: id(), framing: id(), timeline: id(), clip: id(), overlay: id(), sketch: id(), folder: id(),
-    desktop: id(), device: id(), layout: id(),
+    desktop: id(), device: id(), layout: id(), meshNetwork: id(), fixture: id(),
   } as World;
   memberUser ??= await newUser({ signIn: false });
   w.member = memberUser.id;
@@ -139,6 +142,8 @@ export async function buildWorld(user: User): Promise<World> {
   await ok(api(t, "PUT", `/api/desktop/${w.desktop}`, { project_id: w.project, kind: "app", app_id: "gallery", label: `${mark} app`, x: 10, y: 10 }));
   await ok(api(t, "PUT", `/api/devices/${w.device}`, deviceBody(`${mark} device`)));
   await ok(api(t, "PUT", `/api/viewfinder-layouts/${w.layout}`, { ...layoutBody(`${mark} layout`), device_id: w.device }));
+  await ok(api(t, "PUT", `/api/mesh-networks/${w.meshNetwork}`, { name: `${mark} mesh`, workspace_id: w.workspace }));
+  await ok(api(t, "PUT", `/api/fixtures/${w.fixture}`, fixtureBody(`${mark} light`, { mesh_network_id: w.meshNetwork, mesh_unicast: 2, workspace_id: w.workspace })));
   return w;
 }
 

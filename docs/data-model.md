@@ -6,6 +6,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Imag
 
 | File | What |
 | --- | --- |
+| `0027_fixtures.sql` | `mesh_networks` and `fixtures`: the lights a workspace controls from the phone and the Bluetooth Mesh networks the phone provisions. Additive (epic #206, issue #208; see [lights](features/lights.md)) |
 | `0026_devices_per_user.sql` | `devices` keyed `(user_id, id)` instead of `id`; `viewfinder_layouts` rebuilt with `device_id` as a composite reference to `devices(user_id, id)` (the layout owner's device) and an index on `(user_id, device_id)`. Both tables rebuilt, every row copied with its owner; a `device_id` that was not one of the layout owner's devices is cleared (#224) |
 | `0025_admin_audit.sql` | `admin_audit`: every change an operator makes in the admin plane, written in the same batch as the change. Additive (#224; see [admin](features/admin.md#audit-trail-224)) |
 | `0023_monitoring.sql` | `storage_daily` (a day's storage per workspace and the bucket total, written by the cron) and `admin_settings` (the admin plane's settings as JSON). Additive (epic #67, issue #214; see [monitoring](features/monitoring.md)) |
@@ -67,6 +68,10 @@ Every project and rig belongs to a workspace, every device and viewfinder layout
 `framings(id, photo_id → photos CASCADE, name, rig_id → presets SET NULL (null = as shot), lens_mm, frame JSON { width_fraction, height_fraction, x, y }, position, created_at, updated_at)` and `photos.root_framing_id → framings SET NULL` (null = as captured). The API embeds `framings` and `root_framing_id` in every photo. See [framing](features/rig-explorer.md).
 
 `viewfinder_layouts(id, user_id → users, name, layout JSON, device_id, created_at, updated_at)`, `(user_id, device_id) → devices(user_id, id)`: phone layouts made in the Studio; a user's own. The shipped default is in code. `device_id` is the device the layout is designed for, always one of the layout owner's own devices. The composite key has no ON DELETE action (SET NULL would clear `user_id` too): deleting a device clears `device_id` in the same batch (`devices.ts`).
+
+`fixtures(id, workspace_id → workspaces, label, kind_id, address, mesh_network_id → mesh_networks SET NULL, mesh_unicast, mesh_elements, created_at, updated_at)`: lights (and the battery) paired on a phone ([lights](features/lights.md)). `kind_id` is one of `FIXTURE_KINDS` in `packages/vocab/src/lighting.ts`; `address` the Bluetooth address as Android reports it. The mesh columns are set only for a provisioned mesh fixture (Aputure), unique per network.
+
+`mesh_networks(id, workspace_id → workspaces, name, iv_index, next_unicast, created_at, updated_at)`: Bluetooth Mesh networks the phone created as provisioner. The keys (NetKey, AppKey, device keys) are never stored here; they stay in the phone's secure store.
 
 `devices(user_id → users, id, name, specs JSON, created_at, updated_at)`, primary key `(user_id, id)`: phones read out in the Studio (issue #68), a user's own. The id is the phone's own (`device.v1` on the phone), so the phone keeps its user's row current; the same phone under another account is another row. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
 

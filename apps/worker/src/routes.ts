@@ -10,6 +10,7 @@ import { registerDayRoutes } from "./days.ts";
 import { registerDeviceRoutes } from "./devices.ts";
 import { registerFieldRoutes } from "./fields.ts";
 import { registerFileRoutes } from "./files.ts";
+import { registerFixtureRoutes } from "./fixtures.ts";
 import { registerFramingRoutes } from "./framings.ts";
 import type { Ctx } from "./index.ts";
 import { registerLayoutRoutes } from "./layouts.ts";
@@ -59,6 +60,7 @@ router.on("GET", "/api/me", async ({ env, identity }) => {
   return json({ user, workspaces: results.map((w) => ({ ...w, personal: w.personal === 1 })) });
 });
 registerPresetRoutes(router);
+registerFixtureRoutes(router);
 registerProjectRoutes(router);
 registerFieldRoutes(router);
 registerDayRoutes(router);
