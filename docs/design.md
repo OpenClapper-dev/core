@@ -130,7 +130,7 @@ Domain pieces that draw photos (`Framed`, `FramedThumb`, `ShotCard`) stay next t
 | `theme.tsx` | Palettes, `FIXED`, `FONT`, `type(step, weight)`, `num`, `SPACE`, `RADIUS`, `SIZE` (incl. `header` 64, `actionColumn` 148), `BORDER` (`control` 2, `badge` 1.5), `ThemeProvider`, `useTheme`, `makeStyles` |
 | `core.tsx` | `useLayoutSize`, `Icon`, `Mark`, `SectionLabel`, `SectionHeading` (padded, between full-width rows), `Hint` |
 | `actions.tsx` | `Button`, `IconButton`, `SideBySide` (two controls 8 dp apart) |
-| `forms.tsx` | `Chip`, `ChipRow`, `ChipGrid`/`ChipCell`, `Input`, `PasswordInput` (an eye button beside it shows the password), `Switch`, `Toggle`, `Checkbox`, `Row` |
+| `forms.tsx` | `Chip`, `ChipRow`, `ChipGrid`/`ChipCell`, `Input`, `PasswordInput` (an eye button beside it shows the password), `Switch`, `Toggle`, `Checkbox`, `Row`, `Slider` (drag on a 48 dp track, or − and + for exact steps; lights) |
 | `navigation.tsx` | `Seg` |
 | `data.tsx` | `StateMarker`, `SeqBadge`, `PhotoTag`, `ListRow` |
 | `feedback.tsx` | `Banner`, `Empty`, `Skeleton`, `ErrorText`, `useRefreshControl` |
