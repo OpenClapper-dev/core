@@ -22,6 +22,9 @@ export type Route =
   | { name: "step"; day: ShootingDay; shots: Shot[]; index: number }
   | { name: "rigs" }
   | { name: "rigEditor"; rigId: string | null }
+  | { name: "fixtures" }
+  | { name: "fixtureEditor"; fixtureId: string | null }
+  | { name: "fixture"; fixtureId: string }
   | { name: "viewfinderSettings" }
   | { name: "captureSettings" }
   | { name: "calibration" }

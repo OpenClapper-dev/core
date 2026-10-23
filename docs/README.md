@@ -40,6 +40,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/files.md](features/files.md) | Files on the desktop: folders, the Desktop folder, the Files app, desktop icons and selection, the recycle bin |
 | [features/desktop.md](features/desktop.md) | The Studio desktop: startup and projects, windows and the side-by-side split, workspaces and task view, taskbar and pins, launcher, the apps, URL and keys, the Gallery (grid/list/map, filters, views) |
 | [shortcuts.md](shortcuts.md) | Every Studio keyboard shortcut, generated from `apps/studio/src/shortcuts.ts` |
+| [features/lights.md](features/lights.md) | Lights: pairing NEEWER and Aputure fixtures and the NEEWER battery over Bluetooth, the connection manager, the synced list (epic #206) |
 | [features/debug-log.md](features/debug-log.md) | The phone's background debug log |
 
 ## History

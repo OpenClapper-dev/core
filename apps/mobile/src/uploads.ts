@@ -3,6 +3,7 @@ import { dataDir } from "./kv";
 import { api, ApiError, type Shot } from "./api";
 import { signedInUserId } from "./auth";
 import { syncDevice } from "./device";
+import { syncFixtures } from "./fixtures/library";
 import { refreshLayouts } from "./layouts";
 import { flushEdits, remapEdits } from "./localShots";
 import { log } from "./log";
@@ -155,6 +156,7 @@ export function flush(opts: { includeStuck?: boolean } = {}): Promise<FlushResul
     // Layouts: the phone's own edits go out first, then the list comes back with any still unsent on top.
     await refreshLayouts(); // offline: keeps the cached layouts
     try { await syncDevice(store.loadSettings(), store.loadZoomRange(), api); } catch (e) { log("warn", "device sync failed", e); }
+    await syncFixtures(); // lights (#208); quiet when unreachable
     const locations = await syncLocations(store.loadLocations());
     if (locations) {
       store.saveLocations(mergeServerList(locations.items, store.loadLocations(), locations.remap));
