@@ -61,6 +61,8 @@ const WORKSPACE_OF = {
   framing: `SELECT p.workspace_id AS ws FROM framings f JOIN photos ph ON ph.id = f.photo_id JOIN shots s ON s.id = ph.shot_id
     JOIN projects p ON p.id = s.project_id WHERE f.id = ?1`,
   preset: "SELECT workspace_id AS ws FROM presets WHERE id = ?1",
+  fixture: "SELECT workspace_id AS ws FROM fixtures WHERE id = ?1",
+  mesh_network: "SELECT workspace_id AS ws FROM mesh_networks WHERE id = ?1",
 } as const;
 export type Owned = keyof typeof WORKSPACE_OF;
 

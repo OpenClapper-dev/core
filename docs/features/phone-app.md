@@ -12,7 +12,7 @@ One app, four installs side by side, each with its own package id, storage and i
 - **Gates**, full screen, before the tabs (`screens/Gates.tsx`):
   - **Sign in**: on launch without a session, and whenever a request finds it gone. "Sign in" opens the email and password form ([accounts](accounts.md)); the eye button beside the password shows it; a wrong password, a blocked account or a web page instead of the server (a Wi-Fi login) each say so. "Continue without signing in" keeps shots on the phone.
   - **Pick a project**: when none is active, or the active one no longer exists. "New project" works offline.
-- **Pushed screens** replace the tab (the tab bar is hidden, the tab stays mounted underneath). The stack is `Route` in `appState.tsx`: Uploads, Offline, Shot details, Correct position, the focused map, Step-through, Rigs & lenses, the Rig editor and the Setup sub-screens. Android back pops one; on a tab it returns to Shoot first. There is no navigation library.
+- **Pushed screens** replace the tab (the tab bar is hidden, the tab stays mounted underneath). The stack is `Route` in `appState.tsx`: Uploads, Offline, Shot details, Correct position, the focused map, Step-through, Rigs & lenses, the Rig editor, Lights (list, add/edit, one light) and the Setup sub-screens. Android back pops one; on a tab it returns to Shoot first. There is no navigation library.
 - **Sheet vs screen**: a sheet for a single choice that returns you where you were (project, rig pick, lens, tag fields). A full screen for anything with its own photo or map.
 - **AppHeader** (`ui/chrome.tsx`), 64 dp, on every screen except Shoot:
   - Without a title: the **project pill** (tap opens the Project sheet; an amber "Pick a project" when none) and the **sync icon** (tap opens Uploads).
@@ -30,7 +30,7 @@ One app, four installs side by side, each with its own package id, storage and i
 | History | `screens/History.tsx`, `components/ShotParts.tsx`, `EditTagsSheet.tsx` | The project's shots one at a time, or only the unreviewed ones ([review](review-and-tagging.md#history-on-the-phone)) |
 | Shots | `screens/Shots.tsx`, `screens/ShotDetails.tsx`, `components/LeafletView.tsx`, `mapHtml.ts` | Gallery and Map merged: one filter (All · states · Queued), Grid ⇄ Map; Shot details; [Correct position](positions.md) |
 | Day | `screens/Day.tsx`, `screens/StepThrough.tsx` | [Day mode and offline days](day-mode-offline.md) |
-| Setup | `screens/Setup.tsx`, `screens/SetupScreens.tsx`, `screens/Rigs.tsx`, `screens/Uploads.tsx` | Hub, see below |
+| Setup | `screens/Setup.tsx`, `screens/SetupScreens.tsx`, `screens/Rigs.tsx`, `screens/Lights.tsx`, `screens/Uploads.tsx` | Hub, see below |
 
 ## Setup hub
 
@@ -40,6 +40,7 @@ One app, four installs side by side, each with its own package id, storage and i
 - Rows, each with its current value; every row opens a screen, and settings save on change:
   - **Project**: opens the Project sheet.
   - **Rigs & lenses**: the rig list; tap a rig to edit it, "New rig" is pinned.
+  - **Lights**: paired lights and batteries; tap one to open it, "Add light" scans and pairs ([lights](lights.md)).
   - **Viewfinder**: the **Layout** ([viewfinder layouts](viewfinder-layouts.md)) and its look and control options, which belong to the layout (issue #68): a change here edits the layout (saved on the phone, sent with the next flush; the Studio sees it). With the built-in **Default** they are greyed out, with **Make a copy** ("My layout", selected at once). A pinned preview (the latest shot, or black, with the current frame, blackout, human frame and HUD chips) above:
     - **Phone lenses**: All · Pick · Fixed ([capture](capture.md#camera-react-native-vision-camera-issue-26))
     - one switch per HUD chip (Project, Rig and lens, FOV, GPS accuracy, Warnings)

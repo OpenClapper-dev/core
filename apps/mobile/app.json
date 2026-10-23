@@ -31,7 +31,15 @@
           "locationWhenInUsePermission": "OpenClapper tags each captured framing with its GPS position."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "@sfourdrinier/react-native-ble-plx",
+        {
+          "isBackgroundEnabled": false,
+          "neverForLocation": true,
+          "modes": []
+        }
+      ]
     ]
   }
 }

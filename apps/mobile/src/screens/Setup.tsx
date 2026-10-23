@@ -5,6 +5,7 @@ import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { API_URL, isConfigured } from "../config";
 import { isLogging, logCount } from "../log";
 import { offlineProject } from "../offline";
+import { useFixtures } from "../fixtures/library";
 import { useRigs } from "../rigs";
 import { useSync } from "../sync";
 import { AppHeader, Banner, Button, ListRow, makeStyles, num, SectionLabel, Seg, SyncCard, type } from "../ui";
@@ -31,6 +32,7 @@ export function Setup() {
   const { settings: st } = app;
   const sync = useSync();
   const { rigs, active } = useRigs();
+  const fixtures = useFixtures();
   const [email, setEmail] = useState(() => (isSignedIn() ? signedInEmail() : null));
   useEffect(() => onAuthChange(() => setEmail(isSignedIn() ? signedInEmail() : null)), []);
   const signedIn = !!email;
@@ -55,6 +57,7 @@ export function Setup() {
           {!signedIn && isConfigured && <ListRow icon="cloud-upload-outline" title="Uploads" meta={sync.pending ? `${sync.pending} on the phone` : "Nothing waiting"} onPress={() => app.push({ name: "uploads" })} />}
           <ListRow icon="folder-outline" title="Project" meta={app.project?.name ?? "None picked"} onPress={app.openProjectSheet} />
           <ListRow icon="camera-control" title="Rigs & lenses" meta={rigs.length ? `${rigs.length} rig${rigs.length === 1 ? "" : "s"} · using ${active?.name ?? "none"}` : "No rig yet"} onPress={() => app.push({ name: "rigs" })} />
+          <ListRow icon="lightbulb-group-outline" title="Lights" meta={fixtures.length ? `${fixtures.length} paired` : "None paired"} onPress={() => app.push({ name: "fixtures" })} />
           <ListRow icon="crop-free" title="Viewfinder" meta={`Frame ${colourName(st.borderColor).toLowerCase()} ${st.borderWidthPx} px · blackout ${st.blackoutEnabled ? "on" : "off"} · ${chipCount(st)} HUD chips`} onPress={() => app.push({ name: "viewfinderSettings" })} />
           <ListRow icon="camera-outline" title="Capture" meta={`GPS ${st.gpsMode} · direct upload ${st.directUpload ? "on" : "off"} · rig ${st.rigOrientation}`} onPress={() => app.push({ name: "captureSettings" })} />
           <ListRow icon="cloud-off-outline" title="Offline" meta={[st.offlineMode ? "Offline mode on" : "Offline mode off", offlineProject(app.project?.id ?? null) ? "project on the phone" : null].filter(Boolean).join(" · ")} onPress={() => app.push({ name: "offline" })} />

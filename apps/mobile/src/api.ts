@@ -4,6 +4,7 @@ import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
 import type { DeviceSpecs, Extra, FieldDefinition, Framing, Presentation } from "@openclapper/vocab";
+import type { Fixture } from "./fixtures/types";
 import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
 export class ApiError extends Error {
@@ -109,6 +110,18 @@ function fromServer(s: ServerPreset): Preset {
     lensMaxMm: s.lens_max_mm ?? null,
     createdAt: s.created_at,
     synced: true,
+  };
+}
+
+interface ServerFixture {
+  id: string; label: string; kind_id: string; address: string;
+  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; created_at: string;
+}
+
+function fixtureFromServer(s: ServerFixture): Fixture {
+  return {
+    id: s.id, label: s.label, kindId: s.kind_id, address: s.address, createdAt: s.created_at, synced: true,
+    mesh: s.mesh_network_id && s.mesh_unicast != null ? { networkId: s.mesh_network_id, unicast: s.mesh_unicast, elements: s.mesh_elements ?? 1 } : null,
   };
 }
 
@@ -307,6 +320,19 @@ export const api = {
         lens_max_mm: p.lensMaxMm,
       }),
     }),
+
+  /** Lights (#208): fixtures of every workspace the user is in; a new one goes to the user's own. */
+  listFixtures: () => call<{ fixtures: ServerFixture[] }>("/api/fixtures").then((r) => r.fixtures.map(fixtureFromServer)),
+  putFixture: (f: Fixture) =>
+    call<{ fixture: ServerFixture }>(`/api/fixtures/${f.id}`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        label: f.label, kind_id: f.kindId, address: f.address,
+        mesh_network_id: f.mesh?.networkId ?? null, mesh_unicast: f.mesh?.unicast ?? null, mesh_elements: f.mesh?.elements ?? null,
+      }),
+    }),
+  deleteFixture: (id: string) => call<{ deleted: string }>(`/api/fixtures/${id}`, { method: "DELETE" }),
 
   deletePreset: (id: string) => call<{ deleted: string }>(`/api/presets/${id}`, { method: "DELETE" }),
 

@@ -3,6 +3,7 @@ import { kv as Storage } from "./kv";
 import { DEFAULT_SETTINGS } from "./defaults";
 import type { ZoomRange } from "./zoom";
 import type { FieldDef, FieldDefinition } from "@openclapper/vocab";
+import type { Fixture } from "./fixtures/types";
 import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord, LayoutEntry, PendingLayout } from "./types";
 
 export { DEFAULT_SETTINGS };
@@ -29,6 +30,8 @@ const KEYS = {
   lastTags: "lastTags.v1",
   pendingEdits: "pendingEdits.v1",
   uploadHistory: "uploadHistory.v1",
+  // Lights (#208); the mesh keys are not here but in the secure store.
+  fixtures: "fixtures.v1",
 } as const;
 
 /** How long uploaded shots stay listed on the Uploads screen. */
@@ -80,6 +83,9 @@ export const store = {
   loadPresets: (): Preset[] =>
     readArray<Preset>(KEYS.presets).map((p) => ({ ...p, cameraId: p.cameraId ?? null, formatId: p.formatId ?? null, lensMinMm: p.lensMinMm ?? null, lensMaxMm: p.lensMaxMm ?? null })),
   savePresets: (p: Preset[]) => write(KEYS.presets, p),
+
+  loadFixtures: (): Fixture[] => readArray<Fixture>(KEYS.fixtures),
+  saveFixtures: (f: Fixture[]) => write(KEYS.fixtures, f),
 
   loadActivePresetId: (): string | null => Storage.getItemSync(KEYS.activePresetId),
   saveActivePresetId: (id: string | null) =>

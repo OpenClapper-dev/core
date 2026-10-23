@@ -13,7 +13,7 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
 import { publicRouter, router } from "../../src/routes.ts";
-import { api, buildWorld, deviceBody, FRAME, idsOf, layoutBody, newUser, ok, overlayBody, photoMeta, sketchBody, snapshot, uploadForm, uuid, type User, type World } from "./helpers.ts";
+import { api, buildWorld, deviceBody, fixtureBody, FRAME, idsOf, layoutBody, newUser, ok, overlayBody, photoMeta, sketchBody, snapshot, uploadForm, uuid, type User, type World } from "./helpers.ts";
 
 interface IdCase {
   kind: "id";
@@ -45,6 +45,14 @@ const ROUTES: Record<string, Case> = {
   "GET /api/presets": { kind: "list", paths: () => ["/api/presets"] },
   "PUT /api/presets/:id": { kind: "id", path: (a) => `/api/presets/${a.preset}`, body: (a) => ({ name: named(a, "rig"), sensor_width_mm: 30, sensor_height_mm: 20 }) },
   "DELETE /api/presets/:id": { kind: "id", path: (a) => `/api/presets/${a.preset}` },
+
+  "GET /api/mesh-networks": { kind: "list", paths: () => ["/api/mesh-networks"] },
+  "PUT /api/mesh-networks/:id": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}`, body: (a) => ({ name: named(a, "mesh"), next_unicast: 3 }) },
+  "DELETE /api/mesh-networks/:id": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}` },
+  "GET /api/fixtures": { kind: "list", paths: () => ["/api/fixtures"] },
+  // B names A's network as well: the realistic attack on the upsert.
+  "PUT /api/fixtures/:id": { kind: "id", path: (a) => `/api/fixtures/${a.fixture}`, body: (a) => fixtureBody(named(a, "light"), { mesh_network_id: a.meshNetwork, mesh_unicast: 2 }) },
+  "DELETE /api/fixtures/:id": { kind: "id", path: (a) => `/api/fixtures/${a.fixture}` },
 
   "GET /api/projects": { kind: "list", paths: () => ["/api/projects"] },
   "PUT /api/projects/:id": { kind: "id", path: (a) => `/api/projects/${a.project}`, body: (a) => ({ name: named(a, "project") }) },
@@ -206,7 +214,7 @@ describe("another workspace's resources", () => {
   });
 
   test("lists do show the owner's own resources (the leak check can fail)", async () => {
-    for (const path of ["/api/projects", "/api/presets", "/api/locations", "/api/spots", "/api/fields", "/api/views", "/api/days", "/api/timelines", "/api/shots", "/api/devices", "/api/viewfinder-layouts", "/api/workspaces"]) {
+    for (const path of ["/api/projects", "/api/presets", "/api/fixtures", "/api/mesh-networks", "/api/locations", "/api/spots", "/api/fields", "/api/views", "/api/days", "/api/timelines", "/api/shots", "/api/devices", "/api/viewfinder-layouts", "/api/workspaces"]) {
       const text = await (await api(a.token, "GET", path)).text();
       expect(text, path).toContain(listWorld.mark);
     }
@@ -227,6 +235,10 @@ describe("another workspace's resources", () => {
       ["a new shortcut in A's project", "PUT", "/api/desktop/{new}", (w) => ({ project_id: w.project, kind: "app", app_id: "gallery", x: 0, y: 0 })],
       ["a new project in A's workspace", "PUT", "/api/projects/{new}", (w) => ({ name: "x", workspace_id: w.workspace })],
       ["a new rig in A's workspace", "PUT", "/api/presets/{new}", (w) => ({ name: "x", sensor_width_mm: 36, sensor_height_mm: 24, workspace_id: w.workspace })],
+      ["a new mesh network in A's workspace", "PUT", "/api/mesh-networks/{new}", (w) => ({ name: "x", workspace_id: w.workspace })],
+      ["a new fixture in A's workspace", "PUT", "/api/fixtures/{new}", (w) => fixtureBody("x", { workspace_id: w.workspace })],
+      ["B's new fixture in A's mesh network", "PUT", "/api/fixtures/{new}", (w) => fixtureBody("x", { mesh_network_id: w.meshNetwork, mesh_unicast: 9 })],
+      ["B's fixture moved into A's mesh network", "PUT", "/api/fixtures/{b.fixture}", (w) => fixtureBody("x", { mesh_network_id: w.meshNetwork, mesh_unicast: 9 })],
       ["a new framing on A's photo", "PUT", "/api/framings/{new}", (w) => ({ photo_id: w.photo, name: "x", lens_mm: 35, frame: FRAME })],
       ["a framing on B's photo with A's rig", "PUT", "/api/framings/{new}", (w) => ({ photo_id: bWorld.photo, name: "x", rig_id: w.preset, lens_mm: 35, frame: FRAME })],
       ["a new overlay on A's photo", "PUT", "/api/overlays/{new}", (w) => overlayBody(w.photo, "x")],

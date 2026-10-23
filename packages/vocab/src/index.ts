@@ -9,3 +9,4 @@ export * from "./timeline.ts";
 export * from "./viewfinder.ts";
 export * from "./devices.ts";
 export * from "./files.ts";
+export * from "./lighting.ts";

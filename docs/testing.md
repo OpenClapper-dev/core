@@ -11,7 +11,7 @@ What runs where, and how to add a test. All of it runs in `make check` (`pnpm te
 | `apps/worker` project `routes` (`test/routes/`) | Vitest + `@cloudflare/vitest-plugin` | workerd (Miniflare), local D1 + R2 | Requests through the Worker's own `fetch` and `scheduled`: tenancy on every route, uploads, name clashes, recycle bin, image proxy, sessions, response headers and the CSRF guard |
 | `apps/admin` (`test/`) | Vitest + `@cloudflare/vitest-plugin` | workerd, the app's schema | The admin plane: the Access JWT check, the local bypass and its hostname guard, account actions, the audit trail |
 | `apps/studio` | `node --test` | Node | The shortcut registry |
-| `apps/mobile` | `node --test` | Node | Calibration, EXIF, framing, lens, zoom, layouts |
+| `apps/mobile` | `node --test` | Node | Calibration, EXIF, framing, lens, zoom, layouts; lights: the command queue, the connection manager (fake link and timers), scan suggestions, byte helpers (`src/**/*.test.ts`) |
 | End-to-end | | | Not yet (#222) |
 
 `pnpm -C apps/worker test` runs both Worker projects; `npx vitest run --project routes` (in `apps/worker`) only the route tests, `npx vitest run test/routes/trash.test.ts` one file, `npx vitest` watches.

@@ -30,7 +30,7 @@ pnpm test           # unit and route tests (docs/testing.md):
                     #                                      tenancy on every route, uploads, recycle bin, images, sign-in
                     #   pnpm -C apps/admin test            admin plane: Access JWT, local bypass, account actions
                     #   pnpm -C apps/studio test           shortcut registry: collisions, docs/shortcuts.md
-                    #   pnpm -C apps/mobile test           calibration, EXIF, framing, lens, zoom, layouts
+                    #   pnpm -C apps/mobile test           calibration, EXIF, framing, lens, zoom, layouts, lights
 pnpm build          # scripts/build-check.sh, dry runs only, nothing is deployed:
                     #   vite build in apps/studio and apps/admin
                     #   scripts/csp-hash.mjs --check: each _headers CSP still allows its index.html inline script
