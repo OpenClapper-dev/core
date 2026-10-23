@@ -13,7 +13,7 @@ function versionCode(v: string): number {
 
 /**
  * The staging app is built from main between releases, and Play takes each version code once, so it
- * counts commits instead (GIT_COMMIT_COUNT, set by the Build APK workflow from a full checkout). Without
+ * counts commits instead (GIT_COMMIT_COUNT, set by the Build phone app workflow from a full checkout). Without
  * the count (a local config run) it falls back to the release scheme.
  */
 function stagingVersionCode(): number {
@@ -63,7 +63,7 @@ const withReleaseSigning = (config: ExpoConfig): ExpoConfig =>
  * to the production app with its own storage instead of replacing it, and its own icon colour tells them
  * apart in the drawer (assets/icons, #249):
  * - development: the dev client "OpenClapper Dev" (make dev-build, make mobile), loads the JavaScript from Metro.
- * - staging: "OpenClapper Staging" for a staging instance, built by the Build APK workflow and signed
+ * - staging: "OpenClapper Staging" for a staging instance, built by the Build phone app workflow and signed
  *   with the deployment's key like production.
  * - local: "OpenClapper Local" (make apk-local), the JavaScript inside and signed with the template's
  *   debug key, so anyone can build it from a fresh clone without a secret; it updates no other build.

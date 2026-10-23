@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Uploads an Android App Bundle to a Google Play track, with Google's own API (androidpublisher v3)
-// and nothing else: no Expo account, no third-party action, no dependency. Run by the Build APK
+// and nothing else: no Expo account, no third-party action, no dependency. Run by the Build phone app
 // workflow with `track` set; like every script here it reads its secret from the environment only.
 //
 //   node scripts/play-upload.mjs --bundle app.aab --package org.openclapper --track internal [--notes "…"] [--status completed|draft]

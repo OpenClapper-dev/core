@@ -16,11 +16,11 @@ OpenClapper has **one version for the whole product**: the Worker and the Studio
   - Admin board: its header.
   - Phone: the Setup footer and the debug log.
 - **Android**: `versionName` is the version and `versionCode` is derived from it (`major·1 000 000 + minor·1 000 + patch`: 0.1.0 → 1000), so it grows with every release (`apps/mobile/app.config.ts`). Builds between releases carry the same code as the last release; Android installs a same-code update over it. Google Play takes each code once, so production goes to Play once per release.
-- **The staging app** (`APP_VARIANT=staging`) counts commits instead (`git rev-list --count HEAD`, Build APK sets it from a full checkout), so every build of `main` is a new version for Play. A branch build has a higher count than `main`: sideloaded, it blocks Play's next update of the staging app (Android refuses a lower code) until it is uninstalled. The same holds once for a staging app sideloaded before Play: its release-based code (`10000` for 0.10.0) is higher than the count.
+- **The staging app** (`APP_VARIANT=staging`) counts commits instead (`git rev-list --count HEAD`, Build phone app sets it from a full checkout), so every build of `main` is a new version for Play. A branch build has a higher count than `main`: sideloaded, it blocks Play's next update of the staging app (Android refuses a lower code) until it is uninstalled. The same holds once for a staging app sideloaded before Play: its release-based code (`10000` for 0.10.0) is higher than the count.
 
 ## Cutting a release
 
-Try it first where a deployment has a staging instance: deploy `main` there (its Deploy workflow with `ref: main`), click through, then release.
+Try it first where a deployment has a staging instance: deploy `main` there (its Deploy server workflow with `ref: main`), click through, then release.
 
 From an up-to-date, clean `main`:
 
@@ -39,5 +39,5 @@ The release carries no APK. An APK is built for one server and signed with its d
 ## After a release, per deployment
 
 1. Move the deployment to the tag. With this repository as a submodule: `scripts/bump.sh v0.2.0`, then commit and push. In a fork: merge the tag.
-2. Run **Deploy**. It applies new migrations before the new code goes live.
-3. Run **Build APK** and install the APK on the phones.
+2. Run **Deploy server**. It applies new migrations before the new code goes live.
+3. Run **Build phone app** and install the APK on the phones.

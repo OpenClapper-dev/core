@@ -1,6 +1,6 @@
 # Deploys OpenClapper to a Cloudflare account: migrates D1, then the app Worker (API + Studio) and,
 # once its Access application exists, the admin plane. Self-hosters run it on their copy of this
-# repository (Actions → Deploy → Run workflow); another repository can call it with this one as a
+# repository (Actions → Deploy server → Run workflow); another repository can call it with this one as a
 # submodule (`path`). Every setting comes from the run's GitHub variables and secrets, never from a
 # file: docs/self-hosting.md.
 #
@@ -10,7 +10,7 @@
 # `ref` deploys another version of this repository than the pinned one (a branch, for staging): it is
 # checked out in full instead of the submodule. With `ref`, the steps below come from the ref in the
 # caller's `uses:` line and the scripts from `ref`; a staging caller uses `@main` for both.
-name: Deploy
+name: Deploy server
 
 on:
   workflow_dispatch:

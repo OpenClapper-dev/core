@@ -1,17 +1,17 @@
 # Builds the Android app for a deployment, pointed at its server (the APP_URL variable): expo prebuild
 # + Gradle on the GitHub runner, signed with the deployment's own key (scripts/keystore.sh). No Expo
 # account. The APK is the run's artifact, deleted after 3 days: download and install it before then.
-# Self-hosters run it on their copy of this repository (Actions → Build APK → Run workflow); another
+# Self-hosters run it on their copy of this repository (Actions → Build phone app → Run workflow); another
 # repository can call it with this one as a submodule (`path`). Setup: docs/self-hosting.md#the-phone.
 # variant=staging builds "OpenClapper Staging" (its own package id and clay icon, so it sits next to the
 # production app; signed with the same key) for a staging instance's APP_URL. variant=dev builds the
 # development client "OpenClapper Dev" instead (debug-signed, its own package id, loads the JavaScript
 # from Metro: make mobile), on the same runner setup.
-# `environment` and `ref` work as in deploy.yml: the GitHub environment whose variables (APP_URL) and
+# `environment` and `ref` work as in deploy-server.yml: the GitHub environment whose variables (APP_URL) and
 # secrets (the signing key) to use, and another version of this repository to build than the pinned one.
 # The Android SDK, build-tools and NDK are the runner's; local builds (scripts/apk-local.sh) pin theirs in
 # docker/android.Dockerfile. When React Native needs another SDK platform or NDK, check both.
-name: Build APK
+name: Build phone app
 
 on:
   workflow_dispatch:
@@ -124,7 +124,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # As in deploy.yml: with a ref, this repository in full (itself, or replacing the submodule).
+          # As in deploy-server.yml: with a ref, this repository in full (itself, or replacing the submodule).
           ref: ${{ (inputs.path || '.') == '.' && inputs.ref || '' }}
           fetch-depth: ${{ inputs.ref != '' && '0' || '1' }}
           submodules: ${{ inputs.ref == '' }}

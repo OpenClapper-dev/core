@@ -4,8 +4,8 @@
 # names the source (SOURCE_D1_DATABASE_NAME, SOURCE_R2_BUCKET) and holds both R2 tokens. `confirm` must
 # be the target database's name. Deploy the target right after: the clone recreates its database, and
 # its Workers are bound to the old one until then (a caller chains Deploy after this job).
-# `path`, `environment` and `ref` work as in deploy.yml. Settings: docs/self-hosting.md.
-name: Clone
+# `path`, `environment` and `ref` work as in deploy-server.yml. Settings: docs/self-hosting.md.
+name: Clone instance
 
 on:
   workflow_dispatch:
@@ -80,7 +80,7 @@ jobs:
       SOURCE_R2_SECRET_ACCESS_KEY: ${{ secrets.SOURCE_R2_SECRET_ACCESS_KEY }}
       CONFIRM: ${{ inputs.confirm }}
     steps:
-      # As in deploy.yml: with a ref, this repository in full (itself, or replacing the submodule).
+      # As in deploy-server.yml: with a ref, this repository in full (itself, or replacing the submodule).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ (inputs.path || '.') == '.' && inputs.ref || '' }}

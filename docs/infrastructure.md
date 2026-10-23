@@ -1,6 +1,6 @@
 # Infrastructure
 
-Everything runs on one Cloudflare account per instance; nothing else is needed. The tracked `wrangler.jsonc` files are for local development and name no account, database or Access application: each deployment's settings are GitHub variables and secrets (per instance, a GitHub environment), the Deploy workflow exports them, and `scripts/deploy-config.mjs` writes the deploy configs from the environment alone, never from a file ([self-hosting](self-hosting.md)). The reference instances' identifiers live in the deployment repository's environments and notes, not here.
+Everything runs on one Cloudflare account per instance; nothing else is needed. The tracked `wrangler.jsonc` files are for local development and name no account, database or Access application: each deployment's settings are GitHub variables and secrets (per instance, a GitHub environment), the Deploy server workflow exports them, and `scripts/deploy-config.mjs` writes the deploy configs from the environment alone, never from a file ([self-hosting](self-hosting.md)). The reference instances' identifiers live in the deployment repository's environments and notes, not here.
 
 | Resource | Details |
 | --- | --- |

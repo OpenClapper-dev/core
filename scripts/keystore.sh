@@ -6,7 +6,7 @@
 # it lives in the deployment's GitHub secrets and in your backup, so the folder must be outside this
 # repository (default ~/openclapper-android-key). Nothing in this repository reads it from disk.
 # Uses keytool from a local JDK, else the Docker image of scripts/apk-local.sh.
-#   bash scripts/keystore.sh [folder] [owner/repo]   # owner/repo: whose Build APK workflow gets the secrets
+#   bash scripts/keystore.sh [folder] [owner/repo]   # owner/repo: whose Build phone app workflow gets the secrets
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -45,7 +45,7 @@ Made $jks and $envfile.
 BACK UP BOTH FILES NOW (a password manager or an encrypted drive). Without them no update installs
 over the app.
 
-For the Build APK workflow, set these four secrets in $repo (add --env <environment> to give them
+For the Build phone app workflow, set these four secrets in $repo (add --env <environment> to give them
 to one GitHub environment only):
   base64 -w0 $jks | gh secret set ANDROID_KEYSTORE_BASE64 -R $repo
   gh secret set ANDROID_KEYSTORE_PASSWORD -R $repo --body "\$(sed -n 's/^ANDROID_KEYSTORE_PASSWORD=//p' $envfile)"

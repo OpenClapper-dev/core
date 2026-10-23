@@ -6,7 +6,7 @@
 //   node scripts/deploy-config.mjs [--provision]
 //
 // Settings come from the environment only, never from a file: a deployment sets them as GitHub
-// variables and secrets (the Deploy workflow exports them), or exports the same names itself
+// variables and secrets (the Deploy server workflow exports them), or exports the same names itself
 // (docs/self-hosting.md). An empty variable counts as unset.
 //   CLOUDFLARE_ACCOUNT_ID   required
 //   D1_DATABASE_ID          required, unless --provision finds or creates the database by name
