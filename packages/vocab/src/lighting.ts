@@ -46,9 +46,10 @@ const LIGHT = { power: true, intensity: true, hsi: false, curves: true, telemetr
  * on the phone. Ids are stored with each fixture, so they never change.
  */
 export const FIXTURE_KINDS: readonly FixtureKind[] = [
-  // Bi-colour COB lights of NEEWER's "Infinity" app; green/magenta unknown until the snoop log (#207).
+  // Bi-colour COB lights of NEEWER's "Infinity" app (#209).
   { id: "neewer-fs230b", brand: "NEEWER", model: "FS230B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: null } } },
-  { id: "neewer-fs300b", brand: "NEEWER", model: "FS300B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: null } } },
+  // Green/magenta in the frame's own steps (−50..+50, sent as +50); the FS230B's app has no control for it.
+  { id: "neewer-fs300b", brand: "NEEWER", model: "FS300B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: { min: -50, max: 50 } } } },
   // V-mount battery in the same app: telemetry only.
   {
     id: "neewer-ps099s", brand: "NEEWER", model: "PS099S", transport: "gatt", driver: "neewer-battery",

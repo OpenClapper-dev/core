@@ -60,6 +60,17 @@ test("a white frame right after power-on waits for the light", async () => {
   assert.equal(clock.waits.length, 1);
 });
 
+test("green/magenta goes out with the white (FS300B)", async () => {
+  const { writes, link, driver } = setup();
+  const fs300: Fixture = { ...light, id: "f2", kindId: "neewer-fs300b" };
+  const s = await driver.open(link, [fs300], () => {});
+  writes.length = 0;
+  await s.send(fs300, { op: "cct", kelvin: 5600, gm: -20 });
+  await s.send(fs300, { op: "intensity", value: 0.8 });
+  assert.equal(writes[1].bytes, toHex(whiteFrame(MAC, { intensity: 0.8, kelvin: 5600, curve: "linear", gm: -20 })));
+  assert.equal(whiteFrame(MAC, { intensity: 0.8, kelvin: 5600, curve: "linear", gm: -20 })[12], 30);
+});
+
 test("colour is refused: the bi-colour lights have none", async () => {
   const { link, driver } = setup();
   const s = await driver.open(link, [light], () => {});
