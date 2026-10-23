@@ -16,7 +16,8 @@ OpenClapper has **one version for the whole product**: the Worker and the Studio
   - Admin board: its header.
   - Phone: the Setup footer and the debug log.
 - **Android**: `versionName` is the version and `versionCode` is derived from it (`major·1 000 000 + minor·1 000 + patch`: 0.1.0 → 1000), so it grows with every release (`apps/mobile/app.config.ts`). Builds between releases carry the same code as the last release; Android installs a same-code update over it. Google Play takes each code once, so production goes to Play once per release.
-- **The staging app** (`APP_VARIANT=staging`) counts commits instead (`git rev-list --count HEAD`, Build phone app sets it from a full checkout), so every build of `main` is a new version for Play. A branch build has a higher count than `main`: sideloaded, it blocks Play's next update of the staging app (Android refuses a lower code) until it is uninstalled. The same holds once for a staging app sideloaded before Play: its release-based code (`10000` for 0.10.0) is higher than the count.
+- **The staging app** (`APP_VARIANT=staging`) uses the build time instead: minutes since 2020-01-01 UTC, set by Build phone app. Every build is higher than the one before, whatever ref it comes from, so a build of an older tag installs on the phone as an ordinary update (data kept): staging can be rolled back, server and app. The version name and the commit in the Setup footer say what a build contains.
+- **Testing a release on staging**: after `scripts/release.sh`, the deployment's staging Update with `ref: vX.Y.Z` puts exactly that tag on staging (server and app) without moving the deployment's pin; its production Release then ships the same tag.
 
 ## Cutting a release
 

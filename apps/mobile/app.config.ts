@@ -12,13 +12,14 @@ function versionCode(v: string): number {
 }
 
 /**
- * The staging app is built from main between releases, and Play takes each version code once, so it
- * counts commits instead (GIT_COMMIT_COUNT, set by the Build phone app workflow from a full checkout). Without
- * the count (a local config run) it falls back to the release scheme.
+ * The staging app is built from any ref between releases, and Android only installs a higher version
+ * code, so it uses the build time instead (STAGING_VERSION_CODE, minutes since 2020, set by the Build
+ * phone app workflow): a build of an older tag still installs as an update. Without it (a local config
+ * run) it falls back to the release scheme.
  */
 function stagingVersionCode(): number {
-  const count = Number.parseInt(process.env.GIT_COMMIT_COUNT ?? "", 10);
-  return count > 1 ? count : versionCode(version);
+  const code = Number.parseInt(process.env.STAGING_VERSION_CODE ?? "", 10);
+  return code > 0 ? code : versionCode(version);
 }
 
 /**
