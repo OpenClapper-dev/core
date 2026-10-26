@@ -73,7 +73,7 @@ export function StackCanvas({ photo, presets, centre, stack }: Omit<Props, "onSt
   const img = { left: (1 - scale) * 50, top: (1 - scale) * 50, width: scale * 100, height: scale * 100 };
   const aspect = imageAspect(photo);
   return (
-    <div class="framed stack-canvas" style={{ aspectRatio: String(aspect), width: `min(100%, calc((100cqh - 330px) * ${aspect}))` }}>
+    <div class={`framed stack-canvas ${scale < 1 ? "is-beyond" : ""}`} style={{ aspectRatio: String(aspect), width: `min(100%, calc((100cqh - 330px) * ${aspect}))` }}>
       <img src={photo.image_url} alt="" style={{ inset: "auto", left: `${img.left}%`, top: `${img.top}%`, width: `${img.width}%`, height: `${img.height}%` }} />
       {frames.map(({ l, f }) => {
         // Every frame takes the shared centre, clamped so it stays on the photo where it can move at all.

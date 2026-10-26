@@ -65,6 +65,9 @@ export const FIXED = {
   frameLine: "#FFFFFF",
   frameOutline: "#000000",
   mask: "rgba(0,0,0,0.62)",
+  /* Beyond the capture: the part of a rig frame the phone could not see (the hatch tile in assets/hatch.png uses these). */
+  beyond: "#141416",
+  beyondLine: "#4A4A50",
   human: "#00E5FF",
   record: "#D0121B",
   white: "#FFFFFF",

@@ -30,6 +30,7 @@ import { HudChip } from "../components/Hud";
 import { LensSheet } from "../components/LensSheet";
 import { LensCarousel, LensStrip, ZoomCarousel, ZoomStrip } from "../components/LensStrip";
 import { HUMAN_COLOR, Overlay } from "../components/Overlay";
+import { Hatch } from "../components/Hatch";
 import { RigSheet } from "../components/RigSheet";
 import { EMPTY_TAGS } from "../components/TagEditor";
 import { retryAll } from "./Uploads";
@@ -489,7 +490,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       )}
       {chips.gps ? <HudChip icon={gpsMode === "off" ? "crosshairs-off" : gpsPoor ? "crosshairs-question" : "crosshairs-gps"} kind={gpsPoor && chips.warnings ? "warn" : undefined}>{gpsText}</HudChip>
         : chips.warnings && gpsPoor && <HudChip icon="crosshairs-question" kind="warn">{gpsAccuracy == null ? "No GPS" : gpsText}</HudChip>}
-      {chips.warnings && overlay?.exceedsPreview && <HudChip icon="arrow-expand-all" kind="warn">Rig sees more than the phone: black = outside its view</HudChip>}
+      {chips.warnings && overlay?.exceedsPreview && <HudChip icon="arrow-expand-all" kind="warn">Rig sees more than the phone: hatched = outside its view</HudChip>}
       {chips.warnings && !isConfigured && <HudChip icon="cloud-off-outline" kind="warn">No server in this build; shots stay on the phone</HudChip>}
       {chips.warnings && isConfigured && !authEmail && <HudChip icon="account-alert-outline" kind="warn" onPress={app.signIn} label="Not signed in, tap to sign in">Not signed in · shots stay on the phone</HudChip>}
     </View>
@@ -507,6 +508,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       {portrait ? startBars.length > 0 && <View style={[s.chrome, s.chromeTop]}>{startBars.map(bar)}</View> : startBars.map((b, i) => sideBar(b, true, i === 0))}
       <View style={[s.previewArea, { width: area.width, height: area.height }]}>
         <View style={{ width: preview.width, height: preview.height, backgroundColor: FIXED.photoBg, overflow: "hidden" }}>
+          {overlay?.exceedsPreview && <Hatch />}
           {window.width > 0 && device && (
             // contain: the 4:3 stream fills the 4:3 box exactly; if a phone ever streamed another ratio,
             // bars would show it instead of a silent crop that would make the frame lie.

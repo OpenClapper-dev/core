@@ -33,7 +33,7 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
 
   const fullImg = l.img.left === 0 && l.img.width === 100 && l.img.height === 100;
   return (
-    <div class={`framed ${className ?? ""}`} style={style}>
+    <div class={`framed ${className ?? ""} ${l.shrunk ? "is-beyond" : ""}`} style={style}>
       <Img src={img} alt="" loading="lazy" style={fullImg ? imgStyle : { inset: "auto", ...pct(l.img), ...imgStyle }} />
       {mode === "mask" && l.frame && (
         <>
