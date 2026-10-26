@@ -91,6 +91,14 @@ Everywhere else in the Studio the strips, hover scrub and SEQ badges count **ste
   `group_id`). Placeholders and sketch clips cannot be in the range; the menu item says why.
 - **Extract as own shot…** in the clip menu: the clip's photo copied out with the clip's saved framing as root.
 
-## Phone
+## Phone (`apps/mobile/src/components/ShotFrame.tsx` `StepFrame`, `ShotParts.tsx`)
 
-Built in the last PR of #266 (step-aware strips, Step-through and badges). Until then the phone shows photos.
+Read-only: the phone shows a progression, it never edits one. `steps(shot)` (`api.ts`, the same `stepsOf`)
+drives **Shot details**, **History**, **Step-through**, the photo strip and the SEQ badges on Shots and Day:
+- a step shows its photo, or its overlay's **render** (the offline copy when there is one; an overlay without
+  a render yet falls back to the photo), through the step's frame in the screen's frame mode (`StepFrame`);
+- the tag reads **"Step i / n"** once the Studio stored a progression and "Photo i / n" for a plain capture
+  sequence; the strip's thumbnails are the steps; Step-through's button cycles the steps;
+- the Position and Camera sections, Correct position and the overlays strip belong to the **step's photo**;
+- queued shots have no steps (their photos are the steps). Offline days and projects already download every
+  shot overlay's render, and steps only reference shot overlays, so nothing more is fetched.

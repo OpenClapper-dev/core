@@ -4,6 +4,7 @@ import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
 import type { DeviceSpecs, Extra, FieldDefinition, Framing, Presentation } from "@openclapper/vocab";
+import { stepsOf, type ResolvedStep, type ShotStep } from "@openclapper/vocab";
 import type { Fixture } from "./fixtures/types";
 import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
@@ -189,6 +190,8 @@ export interface Shot {
   overlays: Overlay[];
   /** Free canvases on the shot (floor plans, diagrams); the phone shows their renders. */
   sketches: Sketch[];
+  /** The stored progression (issue #266), raw rows; absent or empty = the photos are the steps (queued shots never have any). */
+  steps?: ShotStep[];
   /** Only on the phone: still in the upload queue (see localShots.ts). */
   queued?: boolean;
 }
@@ -205,6 +208,10 @@ export interface ShootingDay { id: string; project_id: string; date: string; tit
 
 /** The photo that stands for the shot in lists, maps and filters: the first one. */
 export const cover = (s: Shot): Photo => s.photos[0];
+/** The steps a shot shows (issue #266): its stored progression, else its photos. Strips, badges and Step-through count these. */
+export type Step = ResolvedStep<Photo, Overlay>;
+export const steps = (s: Shot): Step[] => stepsOf({ photos: s.photos, overlays: s.overlays ?? [], steps: s.steps });
+export const seqCount = (s: Shot): number => steps(s).length;
 /**
  * Where a shot is on a map: the location's pin when the shot is synced to it (and the pin is set),
  * else the cover photo, else the first photo with a position; null when none has one.

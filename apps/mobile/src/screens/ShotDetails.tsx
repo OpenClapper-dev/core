@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import * as Location from "expo-location";
 import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { extraSummary, label, lightLabel, MOVEMENTS, SHOT_SIZE_ABBR, STATE_ICONS, type FieldDef } from "@openclapper/vocab";
-import { cover, positionOf, type Composed, type Photo, type Shot } from "../api";
+import { cover, positionOf, type Composed, type Photo, type Shot, steps } from "../api";
 import { isWaiting, setPosition } from "../localShots";
 import { useApp } from "../appState";
 import { useOnline } from "../net";
@@ -44,7 +44,8 @@ export function ShotDetails({ shotId, list }: { shotId: string; list: string[] }
   if (!shot) {
     return <PushScreen title="Shot"><Empty icon="image-off-outline" title="This shot is gone" body="It was deleted or moved to another project." /></PushScreen>;
   }
-  const photo = shot.photos[Math.min(photoIndex, shot.photos.length - 1)];
+  const stepList = steps(shot);
+  const photo = stepList[Math.min(photoIndex, stepList.length - 1)].photo;
   const at = list.indexOf(shot.id);
   const step = (d: number) => { const nx = list[at + d]; if (nx && app.shots.shots?.some((x) => x.id === nx)) { setId(nx); setPhotoIndex(0); } };
   const fields = store.fieldsForProject(shot.project_id);

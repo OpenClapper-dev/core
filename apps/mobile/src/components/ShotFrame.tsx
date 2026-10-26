@@ -1,8 +1,8 @@
 import type { StyleProp, ViewStyle } from "react-native";
 import { rootFrame } from "@openclapper/vocab";
-import { imageHeaders, imageUri, type Photo } from "../api";
+import { imageHeaders, imageUri, renderUri, type Photo, type Step } from "../api";
 import { isOfflineMode } from "../net";
-import { offlinePhotoUri } from "../offline";
+import { offlinePhotoUri, offlineRenderUri } from "../offline";
 import type { ViewSettings } from "../types";
 import { FramedImage, type FrameFractions, type FrameMode } from "./FramedImage";
 
@@ -57,6 +57,29 @@ export function ShotFrame({ photo, width, settings, mode, style }: Props) {
       style={style}
     />
   );
+}
+
+/** What a step shows (issue #266): its overlay's render (offline copy first), else the photo; an overlay without a render yet falls back to the photo. */
+export function stepSource(step: Step): { uri: string; headers?: Record<string, string> } {
+  if (step.overlay?.render_url) {
+    const local = offlineRenderUri(step.overlay);
+    if (local) return { uri: local };
+    if (!isOfflineMode()) return { uri: renderUri(step.overlay)!, headers: imageHeaders() };
+  }
+  return photoSource(step.photo);
+}
+const fractions = (f: Step["frame"]): FrameFractions | null => (f ? { width: f.width_fraction, height: f.height_fraction, x: f.x, y: f.y } : null);
+
+/** A step of a sequence: the photo, or its overlay's render, in the frame the step is shown with (same layout rules as a photo). */
+export function StepFrame({ step, width, settings, mode, style }: { step: Step; width: number; settings: ViewSettings; mode: FrameMode; style?: StyleProp<ViewStyle> }) {
+  return <FramedImage source={stepSource(step)} aspect={imageAspect(step.photo)} frame={fractions(step.frame)} width={width} settings={settings} mode={mode} style={style} />;
+}
+
+/** Width at which a step (in this mode) fits inside maxW × maxH. */
+export function fitWidthFor(step: Step, mode: FrameMode, maxW: number, maxH: number): number {
+  const f = step.frame;
+  const aspect = mode === "fit" && f ? imageAspect(step.photo) * (f.width_fraction / f.height_fraction) : imageAspect(step.photo);
+  return Math.max(40, Math.min(maxW, maxH * aspect));
 }
 
 /** Width at which the framed photo (in this mode) fits inside maxW × maxH. */
