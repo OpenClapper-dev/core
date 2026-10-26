@@ -28,6 +28,7 @@
     "react-native-nitro-image": "0.15.2",
     "react-native-nitro-modules": "0.37.1",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-svg": "15.15.4",
     "react-native-vision-camera": "5.2.3",
     "react-native-webview": "13.16.1"
   },

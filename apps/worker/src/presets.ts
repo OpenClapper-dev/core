@@ -1,3 +1,4 @@
+import { normalizeVignetting, validateVignetting, type VignettePoint } from "@openclapper/vocab";
 import { assertNumber, assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces } from "./tenancy.ts";
@@ -13,9 +14,14 @@ export interface PresetRow {
   format_id: string | null;
   lens_min_mm: number | null;
   lens_max_mm: number | null;
+  /** JSON [{ mm, start, end, opacity }] or null: lens vignetting per focal length (issue #266, vocab vignetting.ts). */
+  vignetting: string | null;
   created_at: string;
   updated_at: string | null;
 }
+
+/** The row as the API returns it: `vignetting` parsed (always an array). */
+export const presetToApi = (r: PresetRow) => ({ ...r, vignetting: r.vignetting ? (JSON.parse(r.vignetting) as VignettePoint[]) : [] });
 
 const optionalId = (v: unknown, field: string): string | null => {
   if (v === undefined || v === null || v === "") return null;
@@ -34,7 +40,7 @@ export function registerPresetRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/presets", async ({ env, tenant }) => {
     const { results } = await env.DB.prepare(`SELECT * FROM presets WHERE ${inWorkspaces("workspace_id", 1)} ORDER BY name COLLATE NOCASE`)
       .bind(tenant.wsList).all<PresetRow>();
-    return json({ presets: results });
+    return json({ presets: results.map(presetToApi) });
   });
 
   // Upsert. The client owns the id so offline-created presets can be synced later. A new rig goes to
@@ -55,17 +61,20 @@ export function registerPresetRoutes(r: Router<Ctx>) {
     const lensMax = optionalNumber(b.lens_max_mm, "lens_max_mm", { min: 1, max: 2000 });
     if ((lensMin === null) !== (lensMax === null)) throw new HttpError(400, "lens_min_mm and lens_max_mm must be given together");
     if (lensMin !== null && lensMax !== null && lensMin >= lensMax) throw new HttpError(400, "lens_min_mm must be smaller than lens_max_mm");
+    const vigErr = validateVignetting(b.vignetting);
+    if (vigErr) throw new HttpError(400, vigErr);
+    const vignetting = Array.isArray(b.vignetting) && b.vignetting.length ? JSON.stringify(normalizeVignetting(b.vignetting as VignettePoint[])) : null;
     const now = new Date().toISOString();
 
     await env.DB.prepare(
-      `INSERT INTO presets (id, name, sensor_width_mm, sensor_height_mm, speedbooster_factor, camera_id, format_id, lens_min_mm, lens_max_mm, updated_at, workspace_id)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+      `INSERT INTO presets (id, name, sensor_width_mm, sensor_height_mm, speedbooster_factor, camera_id, format_id, lens_min_mm, lens_max_mm, updated_at, workspace_id, vignetting)
+       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
        ON CONFLICT(id) DO UPDATE SET name = ?2, sensor_width_mm = ?3, sensor_height_mm = ?4, speedbooster_factor = ?5,
-         camera_id = ?6, format_id = ?7, lens_min_mm = ?8, lens_max_mm = ?9, updated_at = ?10`,
-    ).bind(pid, name, w, h, sb, cameraId, formatId, lensMin, lensMax, now, ws).run();
+         camera_id = ?6, format_id = ?7, lens_min_mm = ?8, lens_max_mm = ?9, updated_at = ?10, vignetting = ?12`,
+    ).bind(pid, name, w, h, sb, cameraId, formatId, lensMin, lensMax, now, ws, vignetting).run();
 
-    const row = await env.DB.prepare("SELECT * FROM presets WHERE id = ?1").bind(pid).first<PresetRow>();
-    return json({ preset: row });
+    const row = (await env.DB.prepare("SELECT * FROM presets WHERE id = ?1").bind(pid).first<PresetRow>())!;
+    return json({ preset: presetToApi(row) });
   });
 
   r.on("DELETE", "/api/presets/:id", async (ctx, { id }) => {

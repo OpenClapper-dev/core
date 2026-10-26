@@ -582,3 +582,16 @@ button { font: inherit; }
 .zoom-preview { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; min-height: 80px; }
 .zoom-preview .framed { width: 104px; flex: none; }
 .zoom-preview .f-strip__lbl { pointer-events: none; }
+
+/* Lens vignetting (issue #266): a radial layer over the frame rect; the Framing lens strip marks affected lenses; a chip in the shot view's toolbar. */
+.framed .vignette { position: absolute; pointer-events: none; }
+.f-strip__it.is-vig .f-strip__lbl { color: var(--warn); }
+.vig-chip { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border-radius: var(--radius-pill, 999px); background: var(--warn-tint); color: var(--warn-ink); border: var(--bw) solid var(--warn); font: var(--weight-semibold) var(--text-small)/1 var(--font-sans); white-space: nowrap; }
+.vig-chip .mdi { font-size: 16px; }
+.vig-editor { display: flex; flex-direction: column; gap: 8px; }
+.vig-point { display: grid; grid-template-columns: 96px 1fr 32px; gap: 6px 8px; align-items: start; padding: 8px; border: var(--bw) solid var(--border-subtle); border-radius: var(--radius-sm); }
+.vig-point.is-sel { border-color: var(--accent); }
+.vig-point__sliders { display: flex; flex-direction: column; gap: 4px; grid-column: 1 / -1; }
+.vig-preview { position: relative; width: 100%; aspect-ratio: 3 / 2; border-radius: var(--radius-sm); overflow: hidden; background: repeating-linear-gradient(0deg, var(--surface-sunken) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, var(--surface-sunken) 0 1px, transparent 1px 24px), linear-gradient(135deg, #9db3c8, #e9d9c3); }
+.vig-preview__layer { position: absolute; inset: 0; }
+.vig-preview__lbl { position: absolute; left: 8px; bottom: 6px; font: var(--weight-bold) var(--text-caption)/1 var(--font-sans); color: #fff; text-shadow: 0 0 3px #000; }

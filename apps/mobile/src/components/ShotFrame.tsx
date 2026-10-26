@@ -1,8 +1,9 @@
 import type { StyleProp, ViewStyle } from "react-native";
-import { rootFrame } from "@openclapper/vocab";
+import { rootFrame, vignetteAt, type Framing, type Presentation, type Vignette } from "@openclapper/vocab";
 import { imageHeaders, imageUri, renderUri, type Photo, type Step } from "../api";
 import { isOfflineMode } from "../net";
 import { offlinePhotoUri, offlineRenderUri } from "../offline";
+import { getRigs } from "../rigs";
 import type { ViewSettings } from "../types";
 import { FramedImage, type FrameFractions, type FrameMode } from "./FramedImage";
 
@@ -18,6 +19,30 @@ export function capturedFrameOf(photo: Photo): FrameFractions | null {
   const fr = photo.framing?.frame as { width_fraction?: unknown; height_fraction?: unknown } | undefined;
   if (!fr || typeof fr.width_fraction !== "number" || typeof fr.height_fraction !== "number") return null;
   return { width: fr.width_fraction, height: fr.height_fraction };
+}
+
+/** Lens vignetting (issue #266) of a rig at a focal length, from the rigs on the phone; null without one. */
+export function vignetteOf(rigId: string | null | undefined, mm: number | null | undefined): Vignette | null {
+  if (!rigId || !mm) return null;
+  const p = getRigs().rigs.find((r) => r.id === rigId);
+  return p ? vignetteAt(p.vignetting, mm) : null;
+}
+const framingVignette = (photo: Photo, f: Framing) => vignetteOf(f.rig_id ?? photo.preset_id, f.lens_mm);
+/** What a photo's root frame shows: the root framing's rig and lens, else the capture's. */
+export function photoVignette(photo: Photo): Vignette | null {
+  const root = photo.root_framing_id ? photo.framings?.find((f) => f.id === photo.root_framing_id) : undefined;
+  return root ? framingVignette(photo, root) : vignetteOf(photo.preset_id, photo.lens_mm);
+}
+/** A step's: its framing, else the frame its overlay was drawn for, else the photo's root. */
+export function stepVignette(step: Step): Vignette | null {
+  if (step.framing) return framingVignette(step.photo, step.framing);
+  if (step.overlay) {
+    const pres = step.overlay.presentation as Presentation;
+    const f = pres.framing_id ? step.photo.framings?.find((x) => x.id === pres.framing_id) : undefined;
+    if (f) return framingVignette(step.photo, f);
+    if (pres.frame) return vignetteOf(pres.rig_id ?? step.photo.preset_id, pres.lens_mm ?? step.photo.lens_mm);
+  }
+  return photoVignette(step.photo);
 }
 
 /** Photo aspect ratio (w/h) as uploaded; 4:3 when unknown. */
@@ -51,6 +76,7 @@ export function ShotFrame({ photo, width, settings, mode, style }: Props) {
       source={photoSource(photo)}
       aspect={imageAspect(photo)}
       frame={frameOf(photo)}
+      vignette={photoVignette(photo)}
       width={width}
       settings={settings}
       mode={mode}
@@ -72,7 +98,7 @@ const fractions = (f: Step["frame"]): FrameFractions | null => (f ? { width: f.w
 
 /** A step of a sequence: the photo, or its overlay's render, in the frame the step is shown with (same layout rules as a photo). */
 export function StepFrame({ step, width, settings, mode, style }: { step: Step; width: number; settings: ViewSettings; mode: FrameMode; style?: StyleProp<ViewStyle> }) {
-  return <FramedImage source={stepSource(step)} aspect={imageAspect(step.photo)} frame={fractions(step.frame)} width={width} settings={settings} mode={mode} style={style} />;
+  return <FramedImage source={stepSource(step)} aspect={imageAspect(step.photo)} frame={fractions(step.frame)} vignette={stepVignette(step)} width={width} settings={settings} mode={mode} style={style} />;
 }
 
 /** Width at which a step (in this mode) fits inside maxW × maxH. */

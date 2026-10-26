@@ -4,6 +4,7 @@ import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
 import type { DeviceSpecs, Extra, FieldDefinition, Framing, Presentation } from "@openclapper/vocab";
+import type { VignettePoint } from "@openclapper/vocab";
 import { stepsOf, type ResolvedStep, type ShotStep } from "@openclapper/vocab";
 import type { Fixture } from "./fixtures/types";
 import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
@@ -95,6 +96,7 @@ interface ServerPreset {
   speedbooster_factor: number;
   lens_min_mm: number | null;
   lens_max_mm: number | null;
+  vignetting?: VignettePoint[];
   created_at: string;
 }
 
@@ -109,6 +111,7 @@ function fromServer(s: ServerPreset): Preset {
     speedboosterFactor: s.speedbooster_factor,
     lensMinMm: s.lens_min_mm ?? null,
     lensMaxMm: s.lens_max_mm ?? null,
+    vignetting: s.vignetting ?? [],
     createdAt: s.created_at,
     synced: true,
   };
@@ -325,6 +328,7 @@ export const api = {
         speedbooster_factor: p.speedboosterFactor,
         lens_min_mm: p.lensMinMm,
         lens_max_mm: p.lensMaxMm,
+        vignetting: p.vignetting ?? [],
       }),
     }),
 

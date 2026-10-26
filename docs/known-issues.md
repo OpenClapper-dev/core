@@ -47,3 +47,7 @@ Binning a shot removes its clips from timelines (with the clips' own overlays) a
 ## Task view shows wireframes, not live pictures (epic #90)
 
 The task view draws each workspace's windows as outlined boxes with the app's icon, and each window as a card with its title and icon. A live screenshot of every window would need rendering each app twice; the boxes keep the layout recognisable without it.
+
+## Vignetting is a rough indication, and a native dependency (issue #266)
+
+A rig's vignetting (Library › Rigs) is three numbers per focal length, interpolated between them: it ignores the aperture and the real falloff curve of the lens, so the darkened corners in the viewfinder and on photos are a hint of what the rig will show, not a measurement. On the phone the layer is an SVG radial gradient (`react-native-svg`, a native module): an installed app needs a new dev build or APK before it shows. A step of a sequence shows the vignette of its framing (or of the frame its overlay was drawn for).

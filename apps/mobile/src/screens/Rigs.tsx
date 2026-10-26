@@ -10,7 +10,7 @@ import { OptionSheet } from "../components/OptionSheet";
 
 export function rigMeta(p: Preset): string {
   if (!p.synced) return "Not synced yet · saved on the phone";
-  const lens = p.lensMinMm != null && p.lensMaxMm != null ? `${p.lensMinMm}–${p.lensMaxMm} mm` : "any lens";
+  const lens = `${p.lensMinMm != null && p.lensMaxMm != null ? `${p.lensMinMm}–${p.lensMaxMm} mm` : "any lens"}${p.vignetting?.length ? " · vignetting" : ""}`;
   return [describeRig(p.cameraId, p.formatId, p.sensorWidthMm, p.sensorHeightMm), p.speedboosterFactor !== 1 ? `×${p.speedboosterFactor}` : null, lens].filter(Boolean).join(" · ");
 }
 
@@ -112,6 +112,8 @@ export function RigEditor({ rigId }: { rigId: string | null }) {
       formatId: custom ? null : d.formatId,
       sensorWidthMm: w, sensorHeightMm: h, speedboosterFactor: sb,
       lensMinMm: d.range ? parse(d.lmin) : null, lensMaxMm: d.range ? parse(d.lmax) : null,
+      // Vignetting is edited in the Studio (Library › Rigs); the phone keeps what it has.
+      vignetting: existing?.vignetting ?? [],
       createdAt: existing?.createdAt ?? new Date().toISOString(),
       synced: false,
     };

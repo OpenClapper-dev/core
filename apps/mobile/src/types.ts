@@ -1,4 +1,5 @@
 import type { VfLenses, ViewfinderLayout } from "@openclapper/vocab";
+import type { VignettePoint } from "@openclapper/vocab";
 import type { LayoutPatch } from "./layoutPatch";
 import type { Extra } from "@openclapper/vocab";
 
@@ -15,6 +16,8 @@ export interface Preset {
   /** Optional focal-length range of the lens on this rig (e.g. 18-35 zoom); null = any lens. */
   lensMinMm: number | null;
   lensMaxMm: number | null;
+  /** Lens vignetting per focal length (issue #266, vocab vignetting.ts); [] = none. Set in the Studio. */
+  vignetting: VignettePoint[];
   createdAt: string;
   /** false until the Worker has acknowledged the PUT. */
   synced: boolean;

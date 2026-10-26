@@ -7,6 +7,7 @@ import { Framed, type MaskMode } from "./Framed";
 import { FromTimelines } from "./FromTimelines";
 import { bind, NUDGE, useKeys } from "./keys";
 import { initialStack, StackBar, StackCanvas, StackLayers, type StackState } from "./StackedFrames";
+import { vignetteOf } from "./vignette";
 import { Button, Checkbox, confirmDialog, cx, Empty, Icon, IconButton, promptDialog, Seg, Select, toast, ToolbarSpacer } from "@openclapper/ui";
 
 /**
@@ -158,6 +159,8 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
   const rigName = (c: RigChoice) => presets.find((p) => p.id === c.rig)?.name ?? `As shot · ${photo.preset_name ?? (photo.framing?.preset_name as string | undefined) ?? "rig"}`;
   const setB = (b: RigChoice) => onState({ ...state, b });
   const editMode: MaskMode = mode === "frame" ? "frame" : "mask"; // fit and raw cannot show where the frame sits
+  /** Lens vignetting of a choice on this photo (issue #266): the preset's, or the capture rig's for "As shot". */
+  const vigOf = (c: RigChoice) => vignetteOf(c.rig === AS_SHOT ? photo.preset_id : c.rig, c.lensMm);
   const options = [
     { value: "__captured__", label: `As captured${isRoot(null) ? " · root" : ""}` },
     ...photo.framings.map((f) => ({ value: f.id, label: `${f.name}${isRoot(f.id) ? " · root" : ""}`, group: "Saved framings" })),
@@ -194,7 +197,7 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
       </div>
       <div class="f-stage__view">
         {state.view === "one" ? (
-          fa && <Framed photo={photo} mode={editMode} frame={fa} maxHeight="calc(100cqh - 290px)">
+          fa && <Framed photo={photo} mode={editMode} frame={fa} vignette={vigOf(state.a)} maxHeight="calc(100cqh - 290px)">
             <DragFrame photo={photo} frame={fa} mode={editMode} onMove={(c) => onState({ ...state, centre: c })} />
           </Framed>
         ) : state.view === "stack" ? (
@@ -206,8 +209,8 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
               return (
                 <div key={tag} class="compare__pane">
                   <div class="compare__head"><span class="f-board-lbl">{tag}</span><Pickers photo={photo} presets={presets} choice={c} onChoice={set} /></div>
-                  <div class="compare__photo">{s && <Framed photo={photo} mode={mode === "off" ? "mask" : mode} frame={tag === "A" ? resize({ ...s, ...state.centre }, s) : s} maxHeight="calc(100cqh - 290px)" />}</div>
-                  <span class="compare__facts num">{s ? factsText(rigOf(source.rigLens, presets, c), s) : ""}</span>
+                  <div class="compare__photo">{s && <Framed photo={photo} mode={mode === "off" ? "mask" : mode} frame={tag === "A" ? resize({ ...s, ...state.centre }, s) : s} vignette={vigOf(c)} maxHeight="calc(100cqh - 290px)" />}</div>
+                  <span class="compare__facts num">{s ? factsText(rigOf(source.rigLens, presets, c), s, !!vigOf(c)) : ""}</span>
                 </div>
               );
             })}
@@ -218,15 +221,15 @@ export function RigsStage({ shot, photo, presets, mode, state, onState, onBack, 
       {state.view === "one" && (
         <div class="f-stage__foot">
           <div class="framing-facts">
-            <span class="meta num">{fa ? factsText(rigOf(source.rigLens, presets, state.a), fa) : ""}</span>
+            <span class="meta num">{fa ? factsText(rigOf(source.rigLens, presets, state.a), fa, !!vigOf(state.a)) : ""}</span>
             <span class="meta">{fa && canMove(fa) ? <><Icon name="cursor-move" size={14} />Drag the frame · ⇧ + arrows nudge · ←/→ lens</> : "This rig sees more than the photo: the frame cannot move."}{capturedSize && !isCaptured ? ` · as captured ${Math.round(capturedSize.width_fraction * 100)} % wide` : ""}</span>
           </div>
           <div class="f-strip" role="listbox" aria-label={`Lenses of ${rigName(state.a)}`}>
             {lenses.map((mm) => {
               const s = size({ ...state.a, lensMm: mm });
               return (
-                <button key={mm} type="button" role="option" aria-selected={mm === state.a.lensMm} class={cx("f-strip__it", mm === state.a.lensMm && "is-sel")} title={`${mm} mm`} onClick={() => setA({ ...state.a, lensMm: mm })}>
-                  {s && <Framed photo={photo} mode="mask" frame={resize({ ...s, ...state.centre }, s)} />}
+                <button key={mm} type="button" role="option" aria-selected={mm === state.a.lensMm} class={cx("f-strip__it", mm === state.a.lensMm && "is-sel", vigOf({ ...state.a, lensMm: mm }) && "is-vig")} title={`${mm} mm${vigOf({ ...state.a, lensMm: mm }) ? " · vignetting" : ""}`} onClick={() => setA({ ...state.a, lensMm: mm })}>
+                  {s && <Framed photo={photo} mode="mask" frame={resize({ ...s, ...state.centre }, s)} vignette={vigOf({ ...state.a, lensMm: mm })} />}
                   <span class="f-strip__lbl">{mm} mm</span>
                 </button>
               );
@@ -244,10 +247,10 @@ function rigOf(source: RigLens, presets: Preset[], c: RigChoice): RigLens {
   return { rig: { sensor: { widthMm: p.sensor_width_mm, heightMm: p.sensor_height_mm }, speedboosterFactor: p.speedbooster_factor }, lensMm: c.lensMm, portrait: source.portrait };
 }
 
-function factsText(rig: RigLens, frame: FrameGeometry): string {
+function factsText(rig: RigLens, frame: FrameGeometry, vignetting = false): string {
   const f = computeFraming(rig.rig, rig.lensMm);
   const wider = frame.width_fraction > 1 || frame.height_fraction > 1;
-  return `FF ${f.fullFrameEquivalentMm.toFixed(1)} mm · HFOV ${f.fov.horizontal.toFixed(1)}° · VFOV ${f.fov.vertical.toFixed(1)}°${wider ? " · sees more than this photo" : ""}`;
+  return `FF ${f.fullFrameEquivalentMm.toFixed(1)} mm · HFOV ${f.fov.horizontal.toFixed(1)}° · VFOV ${f.fov.vertical.toFixed(1)}°${wider ? " · sees more than this photo" : ""}${vignetting ? " · vignetting" : ""}`;
 }
 
 /** The frame as a drag handle inside a Framed box: moving it moves the frame's centre over the photo (clamped). */
