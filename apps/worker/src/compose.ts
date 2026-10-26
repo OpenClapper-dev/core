@@ -192,7 +192,7 @@ async function saveWithRender(env: Ctx["env"], kind: "overlays" | "sketches", id
 }
 
 /** Copy a render object to the key of another row (a duplicated clip gets its own render). */
-async function copyRender(env: Ctx["env"], kind: "overlays" | "sketches", id: string, key: string | null): Promise<string | null> {
+export async function copyRender(env: Ctx["env"], kind: "overlays" | "sketches", id: string, key: string | null): Promise<string | null> {
   if (!key) return null;
   const obj = await env.SHOTS_BUCKET.get(key);
   if (!obj) return null;

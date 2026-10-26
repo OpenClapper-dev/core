@@ -90,6 +90,10 @@ const ROUTES: Record<string, Case> = {
   "DELETE /api/shots/:id": { kind: "id", path: (a) => `/api/shots/${a.shot}` },
   "GET /api/photos/:id/image": { kind: "id", path: (a) => `/api/photos/${a.photo}/image` },
   "PATCH /api/photos/:id": { kind: "id", path: (a) => `/api/photos/${a.photo}`, body: () => ({ lat: 1, lon: 2, all_in_shot: true }) },
+  "PUT /api/shots/:id/steps": { kind: "id", path: (a) => `/api/shots/${a.shot}/steps`, body: (_a, actor) => ({ steps: [{ id: uuid(), photo_id: actor.photo }] }) },
+  // B names B's own photo for A's shot: refused on the shot; A moves A's second photo in.
+  "POST /api/shots/:id/photos": { kind: "id", path: (a) => `/api/shots/${a.shot}/photos`, body: (_a, actor) => ({ photo_ids: [actor.photo2] }) },
+  "POST /api/shots/:id/photos/:photo/extract": { kind: "id", path: (a) => `/api/shots/${a.shot}/photos/${a.photo}/extract`, body: () => ({}) },
 
   "GET /api/views": { kind: "list", paths: () => ["/api/views"] },
   "PUT /api/views/:id": { kind: "id", path: (a) => `/api/views/${a.view}`, body: (a, actor) => ({ name: named(a, "view"), project_id: actor.project, filter: { match: "any", rules: [] } }) },
@@ -250,6 +254,8 @@ describe("another workspace's resources", () => {
       ["B's shot into A's folder", "PUT", "/api/folder-items/shot/{b.shot}", (w) => ({ folder_id: w.folder })],
       ["A's fields imported into B's project order", "PUT", "/api/projects/{b.project}/fields", (w) => ({ field_ids: [w.field] })],
       ["B's photo root set to A's framing", "PUT", "/api/photos/{b.photo}/root", (w) => ({ framing_id: w.framing })],
+      ["B's shot adopting A's photo", "POST", "/api/shots/{b.shot}/photos", (w) => ({ photo_ids: [w.photo] })],
+      ["B's shot's steps on A's photo", "PUT", "/api/shots/{b.shot}/steps", (w) => ({ steps: [{ id: uuid(), photo_id: w.photo }] })],
     ];
     test.each(cases)("%s: refused, nothing changes", async (_name, method, pattern, body) => {
       const w = await fresh();

@@ -83,7 +83,7 @@ export async function runCron(): Promise<void> {
 export interface World {
   user: User; mark: string; workspace: string; member: string; memberEmail: string;
   project: string; preset: string; location: string; spot: string; field: string; view: string; binnedView: string;
-  shot: string; photo: string; day: string; framing: string; timeline: string; clip: string;
+  shot: string; photo: string; shot2: string; photo2: string; step: string; day: string; framing: string; timeline: string; clip: string;
   overlay: string; sketch: string; folder: string; desktop: string; device: string; layout: string;
   meshNetwork: string; fixture: string;
 }
@@ -115,7 +115,7 @@ export async function buildWorld(user: User): Promise<World> {
   const id = () => uuid();
   const w = {
     user, mark, workspace: id(), project: id(), preset: id(), location: id(), spot: id(), field: id(), view: id(), binnedView: id(),
-    shot: id(), photo: id(), day: id(), framing: id(), timeline: id(), clip: id(), overlay: id(), sketch: id(), folder: id(),
+    shot: id(), photo: id(), shot2: id(), photo2: id(), step: id(), day: id(), framing: id(), timeline: id(), clip: id(), overlay: id(), sketch: id(), folder: id(),
     desktop: id(), device: id(), layout: id(), meshNetwork: id(), fixture: id(),
   } as World;
   memberUser ??= await newUser({ signIn: false });
@@ -135,6 +135,9 @@ export async function buildWorld(user: User): Promise<World> {
   await ok(api(t, "POST", "/api/shots", uploadForm({ id: w.shot, project_id: w.project, name: `${mark} shot`, location_id: w.location, spot_id: w.spot, photos: [photo] })), 201);
   await ok(api(t, "PUT", `/api/days/${w.day}`, { project_id: w.project, date: "2026-11-01", title: `${mark} day`, shots: [{ shot_id: w.shot }] }));
   await ok(api(t, "PUT", `/api/framings/${w.framing}`, { photo_id: w.photo, name: `${mark} framing`, lens_mm: 50, frame: FRAME }), 201);
+  // A second shot (what a merge moves in) and a stored step on the first (issue #266).
+  await ok(api(t, "POST", "/api/shots", uploadForm({ id: w.shot2, project_id: w.project, name: `${mark} shot two`, photos: [photoMeta(0, { id: w.photo2 })] })), 201);
+  await ok(api(t, "PUT", `/api/shots/${w.shot}/steps`, { steps: [{ id: w.step, photo_id: w.photo, framing_id: w.framing }] }));
   await ok(api(t, "PUT", `/api/timelines/${w.timeline}`, timelineBody(w.project, `${mark} timeline`, w.clip, w.photo)));
   await ok(api(t, "PUT", `/api/overlays/${w.overlay}`, withRender(overlayBody(w.photo, `${mark} overlay`))), 201);
   await ok(api(t, "PUT", `/api/sketches/${w.sketch}`, withRender(sketchBody(w.shot, `${mark} sketch`))), 201);

@@ -6,6 +6,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Imag
 
 | File | What |
 | --- | --- |
+| `0028_shot_steps.sql` | `shot_steps`: a shot's stored progression (photo + optional framing + optional overlay per step). Additive, no backfill: a shot without rows shows its photos as steps (issue #266; see [sequences](features/sequences.md)) |
 | `0027_fixtures.sql` | `mesh_networks` and `fixtures`: the lights a workspace controls from the phone and the Bluetooth Mesh networks the phone provisions. Additive (epic #206, issue #208; see [lights](features/lights.md)) |
 | `0026_devices_per_user.sql` | `devices` keyed `(user_id, id)` instead of `id`; `viewfinder_layouts` rebuilt with `device_id` as a composite reference to `devices(user_id, id)` (the layout owner's device) and an index on `(user_id, device_id)`. Both tables rebuilt, every row copied with its owner; a `device_id` that was not one of the layout owner's devices is cleared (#224) |
 | `0025_admin_audit.sql` | `admin_audit`: every change an operator makes in the admin plane, written in the same batch as the change. Additive (#224; see [admin](features/admin.md#audit-trail-224)) |
@@ -67,6 +68,8 @@ Every project and rig belongs to a workspace, every device and viewfinder layout
 
 `framings(id, photo_id → photos CASCADE, name, rig_id → presets SET NULL (null = as shot), lens_mm, frame JSON { width_fraction, height_fraction, x, y }, position, created_at, updated_at)` and `photos.root_framing_id → framings SET NULL` (null = as captured). The API embeds `framings` and `root_framing_id` in every photo. See [framing](features/rig-explorer.md).
 
+`shot_steps(id, shot_id → shots CASCADE, ordinal UNIQUE per shot, photo_id → photos CASCADE, framing_id → framings SET NULL, overlay_id → overlays SET NULL, created_at)`: a sequence as a **progression** (issue #266). A step shows one of the shot's photos, through a saved framing when `framing_id` is set (a zoom step) and as one of its shot overlays when `overlay_id` is set (a light step). **A shot without rows shows its photos as steps**; phone captures never write rows, only the Studio's Sequence stage does. Deleting a framing or overlay clears the reference and the step falls back (framing → the overlay's presentation framing → the photo's root); a photo moved to another shot takes its framings and overlays along and loses its steps. The API embeds `steps` (raw rows) in every shot; both clients resolve them with `stepsOf` (`packages/vocab/src/steps.ts`). See [sequences](features/sequences.md).
+
 `viewfinder_layouts(id, user_id → users, name, layout JSON, device_id, created_at, updated_at)`, `(user_id, device_id) → devices(user_id, id)`: phone layouts made in the Studio; a user's own. The shipped default is in code. `device_id` is the device the layout is designed for, always one of the layout owner's own devices. The composite key has no ON DELETE action (SET NULL would clear `user_id` too): deleting a device clears `device_id` in the same batch (`devices.ts`).
 
 `fixtures(id, workspace_id → workspaces, label, kind_id, address, mesh_network_id → mesh_networks SET NULL, mesh_unicast, mesh_elements, created_at, updated_at)`: lights (and the battery) paired on a phone ([lights](features/lights.md)). `kind_id` is one of `FIXTURE_KINDS` in `packages/vocab/src/lighting.ts`; `address` the Bluetooth address as Android reports it. The mesh columns are set only for a provisioned mesh fixture (Aputure), unique per network.
@@ -114,4 +117,4 @@ Every project and rig belongs to a workspace, every device and viewfinder layout
 
 ## API shapes
 
-The Worker returns a shot with its photos embedded (`shotToApi` in `apps/worker/src/shots.ts`); `light` as array, `artificial` as boolean, `extra` as object, plus joined `project_name`, `location_name` and per photo `preset_name` and `image_url`. It also embeds `overlays` and `sketches` (ordered, without their `drawing`; each with `render_url` or null). Client types: `apps/studio/src/api.ts`, `apps/mobile/src/api.ts`.
+The Worker returns a shot with its photos embedded (`shotToApi` in `apps/worker/src/shots.ts`); `light` as array, `artificial` as boolean, `extra` as object, plus joined `project_name`, `location_name` and per photo `preset_name` and `image_url`. It also embeds `overlays` and `sketches` (ordered, without their `drawing`; each with `render_url` or null) and `steps` (the stored progression, raw rows; empty = the photos are the steps, [sequences](features/sequences.md)). Client types: `apps/studio/src/api.ts`, `apps/mobile/src/api.ts`.

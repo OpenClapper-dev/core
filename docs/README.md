@@ -35,6 +35,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/compose.md](features/compose.md) | Shot descriptions, overlays (drawing + look on a photo), sketches (floor plans, diagrams); Studio editor, phone viewer, renders |
 | [features/schedule.md](features/schedule.md) | Shooting days, daylight phases, forecast, shootable windows |
 | [features/timeline.md](features/timeline.md) | Timelines: rough cuts of photos and overlays with hold times, playback (Studio only) |
+| [features/sequences.md](features/sequences.md) | Sequences as progressions: steps (photo + framing + overlay), the Sequence stage, zoom and light progressions, Make a sequence from clips (merge), Extract as own shot |
 | [features/day-mode-offline.md](features/day-mode-offline.md) | Phone "Day" tab, offline days, offline project, offline mode, edits kept on the phone |
 | [features/phone-app.md](features/phone-app.md) | Phone shell: 5 tabs, gates, pushed screens, header and sync state, Setup hub, shared components |
 | [features/files.md](features/files.md) | Files on the desktop: folders, the Desktop folder, the Files app, desktop icons and selection, the recycle bin |
