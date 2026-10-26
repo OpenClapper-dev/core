@@ -169,6 +169,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | R | Re-frame the clip on the stage |
 | C | Draw the clip's overlay (or sketch it) |
 | ↵ | Open the clip's shot |
+| ⇧ click | Select a range of clips (right-click: Make a sequence…) |
 | ⇧N | New timeline |
 | Right-click | Actions on shots, clips and timelines |
 

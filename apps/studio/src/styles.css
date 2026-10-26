@@ -284,6 +284,8 @@ button { font: inherit; }
 .tl-clip { position: relative; flex: none; display: flex; flex-direction: column; gap: 2px; padding: 4px; border: var(--bw) solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); cursor: pointer; text-align: left; overflow: hidden; }
 .tl-clip:hover { border-color: var(--border-strong); }
 .tl-clip.is-sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-tint); }
+/* A Shift-click range (issue #266): every clip in it reads as selected, the anchor keeps the playhead. */
+.tl-clip.is-multi { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
 .tl-clip__thumb { position: relative; height: var(--tl-thumb-h, 54px); background: var(--photo-bg); border-radius: 3px; overflow: hidden; display: flex; justify-content: center; }
 .tl-clip__thumb .framed { height: var(--tl-thumb-h, 54px); width: 100%; aspect-ratio: auto !important; }
 .tl-clip__thumb .framed img { object-fit: cover; }

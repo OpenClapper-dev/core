@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { fetchTimelines, patchShot, promoteClip, type Preset, type Project, type Shot, type Timeline, type TimelineClip } from "./api";
+import { extractPhoto, fetchTimelines, movePhotos, patchShot, promoteClip, putSteps, type Preset, type Project, type Shot, type StepInput, type Timeline, type TimelineClip } from "./api";
 import { guardCut, useClipEditing, type EditKind } from "./ClipEditing";
 import { placeLabel, seqCount, shotTitle } from "./format";
 import type { MaskMode } from "./Framed";
@@ -7,8 +7,8 @@ import { ScrubCover, SeqBadges } from "./ShotCard";
 import { bind, useKeys } from "./keys";
 import type { CutPosition } from "./router";
 import { useSettings } from "./settings";
-import { ClipMenu, ClipPanel, clock, CutDecision, CutPreview, DRAWER_RESIZE, duplicateUnit, fillSpot, insertAfterUnit, insertShot, moveUnitTo, normalizeGroups, restorePhotos, setGroup, stepUnit, ungroup, withoutClip, duplicateTimeline, LockSelect, TimelineRail, newPlaceholder, resolveClips, setShotState, shotDrag, shotUsage, DECISIONS, Strip, useCut, useCutUrl, useTimelineStore, type Cut, type ResolvedClip } from "./TimelineParts";
-import { Banner, Button, ContextMenu, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, SaveStatus, Seg, Select, StateMarker, toast, useCtxMenu, type SaveState } from "@openclapper/ui";
+import { ClipMenu, ClipPanel, clock, CutDecision, CutPreview, DRAWER_RESIZE, duplicateUnit, fillSpot, insertAfterUnit, insertShot, moveUnitTo, normalizeGroups, newGroup, ownReframe, restorePhotos, setGroup, stepUnit, ungroup, unitAt, withoutClip, duplicateTimeline, LockSelect, TimelineRail, newPlaceholder, resolveClips, setShotState, shotDrag, shotUsage, DECISIONS, Strip, useCut, useCutUrl, useTimelineStore, type Cut, type ResolvedClip } from "./TimelineParts";
+import { Banner, Button, confirmDialog, ContextMenu, cx, Empty, EmptyNote, Field, Icon, IconButton, Input, MenuItem, Panel, PanelBody, PanelHead, Popover, promptDialog, SaveStatus, Seg, Select, StateMarker, toast, useCtxMenu, type SaveState } from "@openclapper/ui";
 
 /**
  * Timeline (issues #12, #31, #48): rough cuts of a project out of its photos, with the project's shots
@@ -30,6 +30,9 @@ interface Props {
   onTimeline: (id: string | null) => void;
   onOpen: (s: Shot, list: Shot[]) => void;
   onUpdated: (s: Shot | Shot[]) => void;
+  /** Shots that went away (a merge deleted them) and shots made here (Extract), issue #266. */
+  onDeleted?: (ids: string[]) => void;
+  onCreated?: (s: Shot) => void;
   onShowOnMap: (s: Shot) => void;
   onNewShot: () => void;
   /** The open timeline's name and the save state, for the window title and its close guard. */
@@ -104,6 +107,8 @@ function Workspace(p: WorkspaceProps) {
   const { cur } = cut;
   const [panel, setPanel] = useState<"browser" | "clip">("browser");
   const [menu, setMenu] = useState(false);
+  /** A Shift-click range of clips (issue #266): contiguous, whole blocks; cleared by a plain click or any edit. */
+  const [multi, setMulti] = useState<ReadonlySet<string> | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
   const durRef = useRef<HTMLInputElement>(null);
   const clipMenu = useCtxMenu<ResolvedClip>();
@@ -141,7 +146,77 @@ function Workspace(p: WorkspaceProps) {
 
   // While a clip is edited inline the playhead is pinned to it, or moving away ends the edit (Settings → Timeline).
   const guarded = guardCut(cut, inline, settings.autoOverlay ? "leave" : settings.inlinePlayhead);
-  const selectClip = (id: string | null) => { guarded.select(id); if (id && !inline.editing) setPanel("clip"); };
+  const selectClip = (id: string | null) => { setMulti(null); guarded.select(id); if (id && !inline.editing) setPanel("clip"); };
+  const range = (clipId: string) => {
+    const a = clips.findIndex((c) => c.clip.id === cut.sel), b = clips.findIndex((c) => c.clip.id === clipId);
+    if (a < 0 || b < 0) return;
+    const units = clips.map((c) => ({ group_id: c.clip.group_id }));
+    const [lo] = unitAt(units, Math.min(a, b)), [, hi] = unitAt(units, Math.max(a, b));
+    setMulti(new Set(clips.slice(lo, hi).map((c) => c.clip.id)));
+  };
+  const rangeClips = multi ? clips.filter((c) => multi.has(c.clip.id)) : [];
+  const rangeProblem = rangeClips.length < 2 ? "Shift-click a range of two or more clips first" : rangeClips.some((c) => c.kind !== "photo") ? "Placeholders and sketch clips cannot become steps" : null;
+  /**
+   * Make a sequence (issue #266): the range's clips become one shot's steps. Clips of one shot only
+   * need steps; several shots merge their photos into the first clip's shot (the server deletes emptied
+   * sources). A clip's own re-frame or overlay is promoted first so the step can reference it. The clips
+   * then form one block here; the server already ungrouped the moved photos' clips in other cuts.
+   */
+  async function makeSequence() {
+    const sel = rangeClips.filter((c): c is Extract<ResolvedClip, { kind: "photo" }> => c.kind === "photo");
+    if (rangeProblem || sel.length < 2) return;
+    const target = sel[0].shot;
+    const others = [...new Set(sel.filter((c) => c.shot.id !== target.id).map((c) => c.shot.id))];
+    const movedPhotos = [...new Set(sel.filter((c) => c.shot.id !== target.id).map((c) => c.photo.id))];
+    const body = others.length
+      ? `The ${sel.length} clips become the steps of “${shotTitle(target)}”. The photos of ${others.length} other shot${others.length === 1 ? "" : "s"} move into it; a shot left without photos is deleted for good (its sketches move along). This cannot be undone.`
+      : `The ${sel.length} clips become the steps of “${shotTitle(target)}”, replacing the steps it has.`;
+    if (!(await confirmDialog({ title: "Make a sequence?", body, confirmLabel: others.length ? "Merge and make the sequence" : "Make the sequence", danger: others.length > 0 }))) return;
+    try {
+      await p.onSaveNow(t.id);
+      const stepsIn: StepInput[] = [];
+      for (const c of sel) {
+        let pres = c.pres;
+        if (ownReframe(pres)) {
+          const r = await promoteClip(t.id, c.clip.id, { what: "framing" });
+          p.onReplace(r.timeline); p.onUpdated(r.shot);
+          pres = r.timeline.clips.find((x) => x.id === c.clip.id)?.presentation ?? pres;
+        }
+        if (c.overlay?.clip_id) { const r = await promoteClip(t.id, c.clip.id, { what: "overlay" }); p.onReplace(r.timeline); p.onUpdated(r.shot); }
+        stepsIn.push({ id: crypto.randomUUID(), photo_id: c.photo.id, framing_id: pres.framing_id ?? null, overlay_id: c.clip.overlay_id });
+      }
+      let shot: Shot;
+      if (movedPhotos.length) {
+        const r = await movePhotos(target.id, movedPhotos, stepsIn);
+        shot = r.shot;
+        p.onUpdated(shot);
+        if (r.removed_shot_ids.length) p.onDeleted?.(r.removed_shot_ids);
+      } else {
+        shot = await putSteps(target.id, stepsIn);
+        p.onUpdated(shot);
+      }
+      // One block out of the range; moved photos' clips now belong to the target shot.
+      const ids = new Set(sel.map((c) => c.clip.id));
+      const moved = new Set(movedPhotos);
+      const cur = latest.current;
+      const g = newGroup(sel.reduce((a, c) => a + c.clip.duration_ms, 0));
+      change({ ...cur, groups: [...cur.groups, g], clips: cur.clips.map((c) => (ids.has(c.id) ? { ...c, group_id: g.id, shot_id: target.id } : c.photo_id && moved.has(c.photo_id) ? { ...c, shot_id: target.id, group_id: null } : c)) });
+      setMulti(null);
+      cut.select(sel[0].clip.id);
+      toast(`“${shotTitle(shot)}” now has ${stepsIn.length} steps${others.length ? ` · ${others.length} shot${others.length === 1 ? "" : "s"} merged` : ""}`, "ok");
+    } catch (e) { toast(`Make a sequence failed: ${(e as Error).message}`, "danger"); }
+  }
+  /** Extract (issue #266): a copy of the clip's photo as a shot of its own, with the clip's saved framing as root. */
+  async function extractClip(c: ResolvedClip) {
+    if (c.kind !== "photo") return;
+    const ok = await confirmDialog({ title: "Extract as its own shot?", body: `A copy of photo ${c.photo.ordinal + 1} of “${shotTitle(c.shot)}” with its tags, framings and overlays. The sequence and this cut stay as they are.`, confirmLabel: "Extract" });
+    if (!ok) return;
+    try {
+      const made = await extractPhoto(c.shot.id, c.photo.id, { framing_id: c.pres.framing_id ?? null, overlay_id: c.overlay && !c.overlay.clip_id ? c.overlay.id : null });
+      p.onCreated?.(made);
+      toast(`Extracted “${shotTitle(made)}”`, "ok", { label: "Open", run: () => p.onOpen(made, [made]) });
+    } catch (e) { toast(`Extract failed: ${(e as Error).message}`, "danger"); }
+  }
   const guardedCut: Cut = { ...guarded, select: selectClip };
   const edit = (kind: EditKind, c: ResolvedClip) => { cut.select(c.clip.id); setPanel("clip"); inline.start(kind, c); };
   // Settings → Timeline → "Open overlays right away" (issue #51): a clip that shows an overlay opens in the
@@ -247,10 +322,11 @@ function Workspace(p: WorkspaceProps) {
             <Button kind={panel === "browser" ? "secondary" : "primary"} size="sm" icon="view-grid-outline" kbd="N" aria-pressed={panel === "browser"} disabled={!!inline.editing} onClick={() => setPanel(panel === "browser" ? "clip" : "browser")}>Shots</Button>
           </CutPreview>
 
-          <Strip clips={clips} cut={guardedCut} stripRef={stripRef} lock={t.lock_mode} editingId={inline.editing?.clipId ?? null} onOpen={open} onReorder={reorder} onDropShot={onDropShot} onContext={(c, e) => clipMenu.openMenu(e, c)} />
+          <Strip clips={clips} cut={guardedCut} stripRef={stripRef} lock={t.lock_mode} editingId={inline.editing?.clipId ?? null} onOpen={open} onReorder={reorder} onDropShot={onDropShot} onContext={(c, e) => clipMenu.openMenu(e, c)} multi={multi} onRange={inline.editing ? undefined : range} />
         </div>
       </div>
-      {clipMenu.menu && <ClipMenu menu={clipMenu.menu} onClose={clipMenu.closeMenu} onEdit={edit} onOpen={open} onDuplicate={(c) => void duplicate(c)} onRemove={removeClip} onState={(s, to) => void setShotState(s, to, p.onUpdated)} />}
+      {clipMenu.menu && <ClipMenu menu={clipMenu.menu} onClose={clipMenu.closeMenu} onEdit={edit} onOpen={open} onDuplicate={(c) => void duplicate(c)} onRemove={removeClip} onState={(s, to) => void setShotState(s, to, p.onUpdated)}
+        onExtract={(c) => void extractClip(c)} range={multi?.has(clipMenu.menu.ctx.clip.id) ? { n: rangeClips.length, problem: rangeProblem, onMake: () => void makeSequence() } : null} />}
       {inline.panel ?? (panel === "clip" && cur
         ? <ClipPanel key={cur.clip.id} c={cur} count={clips.length} lock={t.lock_mode} durRef={durRef} onUpdate={(patch) => update(cur.clip.id, patch)} onMove={(d) => move(cur, d)} onRemove={() => removeClip(cur)} onDuplicate={() => void duplicate(cur)} onOpen={() => open(cur)}
             onReframe={() => edit("reframe", cur)} onOverlay={() => edit("overlay", cur)} onSketch={() => edit("sketch", cur)} onAttachSketch={() => void attachSketch(cur)}

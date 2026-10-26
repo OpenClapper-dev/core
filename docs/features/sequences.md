@@ -76,7 +76,21 @@ Everywhere else in the Studio the strips, hover scrub and SEQ badges count **ste
 (`,` `.`), the Gallery's and the Metadata board's cards, the Timeline browser, the map and the list's badge
 (the list's "photos" column stays photos). The inspector's Shot section says "n photos · m steps".
 
-## Timeline, phone
+## Timeline (`apps/studio/src/Timeline.tsx`, `TimelineParts.tsx`)
 
-Built in the follow-up PRs of #266 (Shift-click range + "Make a sequence…" in the Timeline, step-aware strips
-on the phone). Until then a cut still gets one clip per photo, and the phone shows photos.
+- A sequence dropped into a cut contributes **one clip per step**: the step's framing becomes the clip's
+  presentation framing (`framing_id` + the frame copy), its overlay the clip's overlay. "Restore all photos"
+  matches clips to steps by what they show (`photo | framing | overlay`), so a repeated photo is told apart.
+  The block band and the clip labels count steps ("2 / 4" is the place in the block).
+- **Shift-click** selects a range of clips (whole blocks, contiguous; an accent ring); right-click in it →
+  **Make a sequence… (n clips)**. One shot: `PUT …/steps` replaces its steps. Several shots: a confirm names
+  the target (the first clip's shot) and the shots whose photos move into it, then `POST …/photos` merges and
+  deletes the emptied sources. Before either, a clip's own re-frame or clip-owned overlay is **promoted**
+  (`promote.ts`) so the step can reference a saved framing or shot overlay. The range becomes one block
+  (per-photo lengths kept); the moved photos' clips in other cuts leave their blocks (the server nulls their
+  `group_id`). Placeholders and sketch clips cannot be in the range; the menu item says why.
+- **Extract as own shot…** in the clip menu: the clip's photo copied out with the clip's saved framing as root.
+
+## Phone
+
+Built in the last PR of #266 (step-aware strips, Step-through and badges). Until then the phone shows photos.

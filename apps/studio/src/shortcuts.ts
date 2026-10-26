@@ -189,6 +189,7 @@ export const SHORTCUTS = [
   { scope: "timeline", action: "reframe", keys: ["r"], label: "Re-frame the clip on the stage" },
   { scope: "timeline", action: "compose", keys: ["c"], label: "Draw the clip's overlay (or sketch it)" },
   { scope: "timeline", action: "open", keys: ["Enter"], label: "Open the clip's shot" },
+  { scope: "timeline", action: "range", keys: ["Shift+Click"], info: true, display: "⇧ click", label: "Select a range of clips (right-click: Make a sequence…)" },
   { scope: "timeline", action: "newTimeline", keys: ["Shift+N"], label: "New timeline" },
   { scope: "timeline", action: "menu", keys: ["Right-click"], info: true, label: "Actions on shots, clips and timelines" },
   { scope: "browser", action: "approve", keys: ["a"], label: "Approve the selected shot" },
