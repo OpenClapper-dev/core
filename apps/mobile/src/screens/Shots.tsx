@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { FlatList, Pressable, ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { label, STATE_ICONS } from "@openclapper/vocab";
-import { cover, positionOf, type Shot } from "../api";
+import { cover, positionOf, seqCount, type Shot } from "../api";
 import { useApp } from "../appState";
 import { useOnline } from "../net";
 import { applyFilter, placeLabel, rigLabel, shortTime, shotTitle, STATE_FILTERS, type StateFilter } from "../shots";
@@ -122,7 +122,7 @@ export function ShotCard({ shot, width, mode, onPress }: { shot: Shot; width: nu
     <Pressable onPress={onPress} style={({ pressed }) => [s.card, { width }, pressed && s.cardPressed]} accessibilityRole="button" accessibilityLabel={shotTitle(shot)}>
       <View style={{ height: width * 0.75, alignItems: "center", justifyContent: "center", backgroundColor: FIXED.photoBg, overflow: "hidden" }}>
         <ShotFrame photo={cover(shot)} width={width - 2} settings={settings} mode={mode} />
-        {shot.photos.length > 1 && <View style={s.tl}><SeqBadge count={shot.photos.length} /></View>}
+        {seqCount(shot) > 1 && <View style={s.tl}><SeqBadge count={seqCount(shot)} /></View>}
         <View style={s.tr}><StateMarker state={shot.state} iconOnly /></View>
         {shot.queued && <View style={s.bl}><QueuedTag /></View>}
       </View>

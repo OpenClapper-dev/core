@@ -66,7 +66,7 @@ Reviewing is finding the shots that carry a sequence. On the Studio it happens i
 ## History on the phone
 
 The **History** tab (`screens/History.tsx`, was Review until issue #48) steps through the project's shots one at a time (queued ones included, newest first; the header button switches to oldest first and starts at the top of that order, remembered in `reviewOrder.v1`), photo first, with the decisions at the thumb. **All shots · To review** (remembered in `historyFilter.v1`) narrows it to the unreviewed queue; the tab badge counts the unreviewed shots either way:
-- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" for sequences and the photo strip under it. **Swipe** on the photo = next/prev shot; the strip moves between photos. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
+- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" (or "Step i / n" once the Studio stored a progression, [sequences](sequences.md)) for sequences and the step strip under it. **Swipe** on the photo = next/prev shot; the strip moves between steps. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
 - The frame-view switch (remembered in `reviewMode.v1`).
 - The summary:
   - the name (or the rig when untagged), the state and location
@@ -79,7 +79,7 @@ The **History** tab (`screens/History.tsx`, was Review until issue #48) steps th
 - Landscape: the photo fills the left with the mode switch floating on it; a 292 dp side panel holds the strip, the filter, the summary and the decisions at the bottom.
 
 **Shot details** (Shots → a shot, or ⋯ → Shot details; `screens/ShotDetails.tsx`) is a full screen:
-- the photo (swipe = the neighbours in the list it was opened from), strip and frame view
+- the step (swipe = the neighbours in the list it was opened from), the step strip and frame view ([sequences](sequences.md))
 - the summary, the **description** (when set) and the **overlays · sketches** strip ([compose](compose.md)), **Tags** with Edit, **Position** per photo (coordinates, ±accuracy or "corrected") with Show on map and Correct, **Camera** per photo, and **Raw metadata** (expands)
 - ⋯ holds Delete (Discard for a queued shot; deleting an uploaded shot needs a connection)
 - Pinned: the two states that aren't the current one (unreviewed → Archive | Approve; approved → Back to review | Archive; archived → Back to review | Approve)

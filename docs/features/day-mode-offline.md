@@ -14,7 +14,7 @@ The **Day** tab (`apps/mobile/src/screens/Day.tsx`, step-through in `StepThrough
    - The **offline control** (below).
    - Shots grouped by location in plan order: each group shows its combined window; each row shows a fit thumbnail, the name, the light requirement and the planned time (red with "outside window" when it falls outside).
    - Tap a row to step through from it, or "Start from the first shot" (pinned).
-3. **Step-through**: immersive (no tab bar, no header, status bar hidden, the screen kept on with `expo-keep-awake`).
+3. **Step-through**: immersive (no tab bar, no header, status bar hidden, the screen kept on with `expo-keep-awake`). A sequence's "Photo i / n ›" button cycles its steps ("Step i / n" once the Studio stored a progression, [sequences](sequences.md)).
    - Landscape: **Prev** as a 96 dp column at the left thumb, **Next** as a 112 dp accent column at the right thumb; both are disabled (dashed) at the ends.
    - The photo (fit mode by default; the mode is in the Details sheet and remembered in `stepMode.v1`) with a "3 / 9" badge. Sequences have a "Photo 2 / 5 ›" button that cycles. Swipe on the photo = prev/next shot.
    - The info panel: name, location, planned time, window and light requirement (green, or red with an alert when the plan falls outside).

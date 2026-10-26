@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, SectionList, Text, View } from "react-native";
 import { dayLight, lightLabel, localDay, PHASE_ICONS, shootableWindows, type DayLight, type Interval } from "@openclapper/vocab";
-import { api, cover, positionOf, type Shot, type ShootingDay } from "../api";
+import { api, cover, positionOf, seqCount, type Shot, type ShootingDay } from "../api";
 import { useApp } from "../appState";
 import { useOnline } from "../net";
 import { offlineDays, removeOfflineDay, saveDayOffline, type OfflineDay } from "../offline";
@@ -321,7 +321,7 @@ function DayOverview({ day, shots, offlineCopy, onBack, onStart, state, progress
                     <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
                       <Text style={s.shotName} numberOfLines={1}>{shotTitle(shot)}</Text>
                       <Text style={s.shotMeta} numberOfLines={1}>{lightLabel(shot.light, shot.artificial) || "Any light"}</Text>
-                      {shot.photos.length > 1 && <SeqBadge count={shot.photos.length} />}
+                      {seqCount(shot) > 1 && <SeqBadge count={seqCount(shot)} />}
                     </View>
                     <View style={{ alignItems: "flex-end" }}>
                       {planned && <Text style={[s.planned, bad && { color: c.danger }]}>{hhmm(planned)}</Text>}

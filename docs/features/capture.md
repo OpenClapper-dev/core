@@ -77,6 +77,8 @@ It then becomes a **draft** (`CaptureDraft = { shotId, photos: DraftPhoto[] }`),
 - **Direct upload** (Setup → Capture): no Tag screen; the shot is queued untagged ("Queued untagged · tag it later in History"). If queuing fails, Tag opens instead.
 - **Sequence mode:** every capture while Seq is on is appended to one shot (`addToSequence`). A red "SEQ · n" badge with a dot sits on the preview. Turning Seq off turns the set into one draft: Tag (with a photo strip), or the queue with direct upload.
 
+A capture never creates **steps**: a sequence uploaded from the phone shows its photos as steps until the Studio builds a progression ([sequences](sequences.md)).
+
 Drafts and running sequences are stored in the kv-store (`captureDraft.v1`, `sequence.v1`), so an app kill loses nothing: Tag or the sequence comes back on the next launch (Tag once the sign-in and project gates are through). A capture that finishes after Seq was switched off becomes a single shot, never part of the ended sequence.
 
 ## Upload queue (`apps/mobile/src/uploads.ts`)

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import type { Shot } from "../api";
+import { steps } from "../api";
 import { useApp } from "../appState";
 import { usePref } from "../storage";
 import { ActionBar, AppHeader, BORDER, Button, Empty, IconButton, makeStyles, num, RADIUS, Seg, SideBySide, Skeleton, type, useLayoutSize, useRefreshControl, useToastOffset } from "../ui";
@@ -104,7 +105,8 @@ export function History() {
     );
   }
 
-  const photo = current.photos[Math.min(photoIndex, current.photos.length - 1)];
+  const list = steps(current);
+  const photo = list[Math.min(photoIndex, list.length - 1)].photo;
   const disabled = busy;
   const nav = (big: boolean) => (
     <View style={s.navRow}>
