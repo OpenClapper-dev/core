@@ -4,6 +4,7 @@ import type { ViewSettings } from "../types";
 import { clampCentre } from "@openclapper/vocab";
 import { FIXED, Seg } from "../ui";
 import { Overlay } from "./Overlay";
+import { Hatch } from "./Hatch";
 
 /** "mask" = neutral dark mask outside the frame, "frame" = border only, "fit" = crop to the frame, "off" = raw photo. */
 export type FrameMode = "mask" | "frame" | "fit" | "off";
@@ -28,7 +29,7 @@ interface Props {
 /** A photo with the rig frame re-applied from its geometry (same layout rules as the live view). */
 export function FramedImage({ source, aspect, frame: f, width, settings, mode, style }: Props) {
   // Fit = the box is the rig frame. Where the rig saw more than the phone (fraction > 1) the photo
-  // covers less than the box and the rest stays black, like the live view.
+  // covers less than the box and the rest is hatched, like the live view.
   const fit = mode === "fit" && !!f;
   const box = fit && f
     ? { width, height: width / (aspect * (f.width / f.height)) }
@@ -50,6 +51,7 @@ export function FramedImage({ source, aspect, frame: f, width, settings, mode, s
   const shrunk = img.width < box.width - 0.5 || img.height < box.height - 0.5;
   return (
     <View style={[{ width: box.width, height: box.height, backgroundColor: FIXED.photoBg, overflow: "hidden" }, style]}>
+      {shrunk && <Hatch />}
       <Image
         source={source}
         style={{ position: "absolute", width: img.width, height: img.height, left: imgPos.left, top: imgPos.top }}

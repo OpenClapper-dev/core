@@ -113,6 +113,6 @@ The **History** tab (`screens/History.tsx`, was Review until issue #48) steps th
 
 `mask` (neutral dark mask outside the frame), `frame` (border only), `fit` (crop to exactly the frame), `raw`.
 
-- **Fit** always shows exactly the rig frame. Where the rig saw more than the phone (fraction > 1) the rest stays black, like the live view (`frameLayout` in `apps/studio/src/format.ts`, `FramedImage.tsx` on the phone).
+- **Fit** always shows exactly the rig frame. Where the rig saw more than the phone (fraction > 1) the rest is a **diagonal hatch** (`--beyond-hatch`; the phone tiles `assets/hatch.png`), like the live view (`frameLayout` in `apps/studio/src/format.ts`, `FramedImage.tsx` on the phone). Mask and Frame shrink the photo the same way and hatch what the frame covers beyond it, so a frame wider than the capture is told apart from the black stage at a glance (issue #266).
 - **Studio**: the Shots toolbar switch sets the global mode (`localStorage["maskMode"]`) for the grid, list, map, Plan and the Timeline browser's thumbnails. The shot view has its own switch (above).
 - **Phone**: History, Shots (shared by grid and map) and step-through remember their own mode (`reviewMode.v1`, `shotsMode.v1`, `stepMode.v1`); Shot details starts from the Shots mode.

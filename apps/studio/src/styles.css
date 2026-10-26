@@ -87,6 +87,8 @@ button { font: inherit; }
 /* Photos with the rig frame. Photos never take the theme: black letterbox, neutral mask, white frame with a black outline. */
 .framed { position: relative; overflow: hidden; background: var(--photo-bg); aspect-ratio: 4 / 3; max-width: 100%; }
 .framed img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+/* The rig saw more than the phone: where the frame has no photo, a hatch instead of black (issue #266). */
+.framed.is-beyond { background: var(--beyond-hatch); }
 .framed .tint { position: absolute; background: var(--mask); pointer-events: none; }
 .framed .frame { position: absolute; border: 2px solid var(--frame-line); box-shadow: 0 0 0 1px var(--frame-outline), inset 0 0 0 1px var(--frame-outline); pointer-events: none; }
 .framed .frame.dashed { border-style: dashed; box-shadow: none; filter: drop-shadow(0 0 1px #000) drop-shadow(0 0 1px #000); }

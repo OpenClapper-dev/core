@@ -28,7 +28,7 @@ The Shoot tab (`apps/mobile/src/screens/Viewfinder.tsx`) is a viewfinder for a c
   - Effective focal length = lens × speedbooster; the crop factor is by diagonal against 36×24; the FOV is computed per axis.
   - The phone's own FOV comes from its 35 mm-equivalent focal length (issue #26). **From the photos** (default): each capture reads the EXIF `FocalLengthIn35mmFilm` (`calibration.ts`); when it differs from the stored value, that capture is framed with the EXIF value and Setup takes it over (with the phone model). **Manual** keeps a typed value for phones without the tag. Before the first photo the default is 25 mm (`phone.ts`).
   - The frame size is the ratio of tan(fov/2) values.
-  - When the rig sees more than the phone, the live image is shrunk and the frame drawn dashed.
+  - When the rig sees more than the phone, the live image is shrunk, the area around it is hatched (`components/Hatch.tsx`, the same pattern the stored photos use) and the frame drawn dashed.
 
 ## Controls
 
