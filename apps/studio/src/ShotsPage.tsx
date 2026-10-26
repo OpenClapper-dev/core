@@ -4,7 +4,7 @@ import { deleteShot, type Location, type SavedView, type Shot } from "./api";
 import { binned, confirmShotBin } from "./apps/trashOps";
 import { BulkEditPanel, MoveDialog, type BulkDraft } from "./BulkEdit";
 import { FilterPanel } from "./FilterBuilder";
-import { cover, FRAME_MODES, placeLabel, rigLabel, shotTitle, when } from "./format";
+import { cover, FRAME_MODES, placeLabel, rigLabel, seqCount, shotTitle, when } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { bind, useKeys } from "./keys";
 import { ShotsMap } from "./MapView";
@@ -299,7 +299,7 @@ function ShotsList({ shots, mask, onOpen, onDeleted, bulk, onBulkOpen }: { shots
                 <Checkbox as="span" checked={selected.has(s.id)} role="checkbox" aria-checked={selected.has(s.id)} aria-label={`Select ${shotTitle(s)}`} />
               </td>
               <td><div class="f-table__thumb"><Framed photo={cover(s)} mode={mask} /></div></td>
-              <td class="is-strong"><div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "240px" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shotTitle(s)}</span>{s.photos.length > 1 && <SeqBadge count={s.photos.length} small />}</div></td>
+              <td class="is-strong"><div style={{ display: "flex", alignItems: "center", gap: "6px", maxWidth: "240px" }}><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{shotTitle(s)}</span>{seqCount(s) > 1 && <SeqBadge count={seqCount(s)} small />}</div></td>
               <td>{placeLabel(s) || <span class="is-dim">—</span>}</td>
               <td><StateMarker state={s.state} /></td>
               <td>{label(s.int_ext).toUpperCase() || <span class="is-dim">—</span>}</td>

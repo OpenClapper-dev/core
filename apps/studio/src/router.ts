@@ -1,4 +1,4 @@
-export type Stage = "photo" | "rigs" | "position" | "compose";
+export type Stage = "photo" | "rigs" | "position" | "compose" | "sequence";
 export type LibrarySection = "projects" | "fields" | "rigs" | "locations" | "viewfinder";
 export const LIBRARY_SECTIONS: readonly LibrarySection[] = ["projects", "fields", "rigs", "locations", "viewfinder"];
 
@@ -51,7 +51,7 @@ export function parseRoute(hash: string): Route {
     case "shots":
       if (parts[1]) {
         const st = q.get("stage");
-        return { page: "shot", shotId: parts[1], stage: st === "rigs" || st === "position" || st === "compose" ? st : "photo" };
+        return { page: "shot", shotId: parts[1], stage: st === "rigs" || st === "position" || st === "compose" || st === "sequence" ? st : "photo" };
       }
       return { page: "shots", viewId: q.get("view") };
     case "plan": return { page: "plan", dayId: parts[1] ?? null };

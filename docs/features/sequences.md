@@ -46,8 +46,37 @@ Three ways, two of them moving pictures between shots:
   other), its framings and overlays are copied with their renders, and the step's framing becomes the copy's
   root. No link back: from then on it is an ordinary shot, and the sequence is unchanged. Costs one image of storage.
 
-## Studio, Timeline, phone
+## Studio: the Sequence stage (`apps/studio/src/SequenceStage.tsx`)
 
-Built in the follow-up PRs of #266 (Sequence stage with "Zoom sequence…" and "From overlays", Shift-click
-range + "Make a sequence…" in the Timeline, step-aware strips on the phone). Until then stored steps are
-only reachable through the API.
+Shot view → stage **Sequence** (`S`; route `#/shots/<id>?stage=sequence`). The inspector stays and follows the
+selected step's photo.
+
+- **Bar**: "Step i of n", then for the selected step the **Photo** (one of the shot's), the **Framing** (the
+  root frame, or a saved framing of that photo; with an overlay the default is the frame the overlay was drawn
+  for), the **Overlay** (Photo as is, or one of the photo's overlays), Move earlier / later (`Alt+←/→`), Remove
+  (`Del`), **Extract as own shot…**, the save status, Back (`Esc`).
+- **Stage**: the step large, in the window's frame mode.
+- **Foot**: the **step strip** (`,` `.` select; drag a thumb to reorder, an accent line marks the drop; a crop
+  or layers glyph marks a framing or an overlay), then **+ Step** (a copy of the selected step, after it),
+  **From overlays · n** (one step per overlay of the selected photo, after it: a light progression),
+  **Zoom sequence…** and **Reset to photos** (confirms; deletes every step).
+- **Saving**: the list is a draft that **autosaves 600 ms after the last change and when leaving** the stage
+  (`Mod+S` saves now), like a cut: the PUT replaces the whole list, so a retry is idempotent. A shot without
+  stored steps starts from its photos ("Not stored yet"); the first change stores them.
+- **Zoom sequence…** (`ZoomSequenceDialog.tsx`): a rig (As shot or a preset, default the photo's), the lenses to
+  tick (the presets inside the rig's range plus the photo's own and any custom mm), the direction (zoom in: wide →
+  tight, or out), and a preview strip of the frames at the photo's **root centre** (move it in the Framing stage
+  first). Adds one saved framing per lens (an identical existing framing is reused, named like "6K FULL · 24 mm")
+  and one step each. Without stored steps the zoom **replaces** the implicit photo list; otherwise it is appended.
+  Lenses wider than the photo are allowed: the step shows the hatch beyond the capture.
+- **Extract** (Photo stage foot, Sequence bar): confirms, then `POST …/extract` with the step's framing (which
+  becomes the copy's root) and overlay; the new shot joins the lists and a toast offers **Open** (its own window).
+
+Everywhere else in the Studio the strips, hover scrub and SEQ badges count **steps**: the Photo stage's strip
+(`,` `.`), the Gallery's and the Metadata board's cards, the Timeline browser, the map and the list's badge
+(the list's "photos" column stays photos). The inspector's Shot section says "n photos · m steps".
+
+## Timeline, phone
+
+Built in the follow-up PRs of #266 (Shift-click range + "Make a sequence…" in the Timeline, step-aware strips
+on the phone). Until then a cut still gets one clip per photo, and the phone shows photos.

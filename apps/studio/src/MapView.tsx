@@ -4,7 +4,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { label, STATE_ICONS } from "@openclapper/vocab";
 import type { Shot } from "./api";
-import { cover, positionOf, shotTitle } from "./format";
+import { cover, positionOf, seqCount, shotTitle } from "./format";
 import { Framed, FramedThumb, type MaskMode } from "./Framed";
 import { shotSub } from "./ShotCard";
 import { Button, cx, SeqBadge, StateMarker } from "@openclapper/ui";
@@ -122,7 +122,7 @@ function popupContent(s: Shot, mask: MaskMode, open: () => void): HTMLElement {
 function MapPopup({ shot: s, mask, onOpen }: { shot: Shot; mask: MaskMode; onOpen: () => void }) {
   return (
     <>
-      <Framed photo={cover(s)} mode={mask}>{s.photos.length > 1 && <div class="f-card__tl"><SeqBadge count={s.photos.length} /></div>}</Framed>
+      <Framed photo={cover(s)} mode={mask}>{seqCount(s) > 1 && <div class="f-card__tl"><SeqBadge count={seqCount(s)} /></div>}</Framed>
       <div class="map-popup__body">
         <div class="map-popup__head"><strong>{shotTitle(s)}</strong><StateMarker state={s.state} /></div>
         <span class="meta">{[shotSub(s), s.project_name].filter(Boolean).join(" · ")}</span>
