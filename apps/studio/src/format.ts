@@ -1,9 +1,15 @@
 import type { RigLens } from "@openclapper/fov-math";
-import { cameraLabel, extraLabel, label, lightLabel, rootFrame, withCentre, type FilterableShot } from "@openclapper/vocab";
-import type { Photo, Shot } from "./api";
+import { cameraLabel, extraLabel, label, lightLabel, rootFrame, stepsOf, withCentre, type FilterableShot, type ResolvedStep } from "@openclapper/vocab";
+import type { Overlay, Photo, Shot } from "./api";
 
 /** The photo that stands for the shot in lists, maps and filters: the first one. */
 export const cover = (s: Shot): Photo => s.photos[0];
+/** The steps a shot shows (issue #266): the stored progression, else its photos. Every strip, scrub and badge counts these. */
+export type Step = ResolvedStep<Photo, Overlay>;
+export const steps = (s: Shot): Step[] => stepsOf(s);
+export const seqCount = (s: Shot): number => (s.steps.length ? steps(s).length : s.photos.length);
+/** What a step shows: the overlay's render when it has one, else the photo. */
+export const stepSrc = (st: Step): string => st.overlay?.render_url ?? st.photo.image_url;
 
 /** "Uploaded image" / "Drawn sketch" for photos that did not come from the phone camera. */
 export const sourceLabel = (p: Photo): string | null => (p.source === "upload" ? "Uploaded image" : p.source === "drawn" ? "Drawn sketch" : null);

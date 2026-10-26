@@ -243,7 +243,7 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
           <div class="f-sec__head"><Icon name="information-outline" />Shot</div>
           <dl class="f-facts">
             <dt>Captured</dt><dd>{stamp(shot.captured_at)}</dd>
-            <dt>Photos</dt><dd>{shot.photos.length}{shot.photos.length > 1 ? " · sequence" : ""}</dd>
+            <dt>Photos</dt><dd>{shot.photos.length}{shot.photos.length > 1 ? " · sequence" : ""}{shot.steps.length ? ` · ${shot.steps.length} steps` : ""}</dd>
             <dt>Uploaded</dt><dd>{stamp(shot.created_at)}</dd>
             <dt>Days</dt><dd>{days.length === 0 ? <span class="meta">not planned</span> : days.map((d, i) => <Fragment key={d.id}>{i > 0 && ", "}<a href="#" onClick={(e) => { e.preventDefault(); onOpenDay(shot.project_id, d.id); }}>{dayLabel(d.date)}</a></Fragment>)}</dd>
             <dt>Timelines</dt><dd>{timelines.length === 0 ? <span class="meta">not used</span> : timelines.map((t, i) => <Fragment key={t.id}>{i > 0 && ", "}<a href="#" onClick={(e) => { e.preventDefault(); onOpenTimeline(shot.project_id, t.id); }}>{t.name}</a></Fragment>)}</dd>

@@ -84,6 +84,7 @@ describe("purge", () => {
     for (const t of ["overlays", "sketches", "framings"]) {
       expect(await env.DB.prepare(`SELECT 1 FROM ${t} WHERE id IN (?1, ?2, ?3)`).bind(w.overlay, w.sketch, w.framing).first(), t).toBeNull();
     }
+    expect(await env.DB.prepare("SELECT 1 FROM shot_steps WHERE id = ?1").bind(w.step).first(), "shot_steps").toBeNull();
     for (const k of [...photos, ...renders]) expect(await env.SHOTS_BUCKET.head(k), k).toBeNull();
     // Younger than the retention: still in the bin; the binned view of buildWorld was binned just now.
     const left = (await trash(w.project)).entries.map((e) => e.id);

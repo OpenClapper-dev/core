@@ -1,9 +1,9 @@
 import type { ComponentChildren, JSX } from "preact";
 import { withCentre } from "@openclapper/vocab";
 import type { Photo } from "./api";
-import { frameLayout, frameOf, imageAspect, type FrameGeometry, type FrameMode, type PctRect } from "./format";
+import { frameLayout, frameOf, imageAspect, stepSrc, type FrameGeometry, type FrameMode, type PctRect, type Step } from "./format";
 import { cx, Img } from "@openclapper/ui";
-import { photoVignette, vignetteCss } from "./vignette";
+import { photoVignette, stepVignette, vignetteCss } from "./vignette";
 import type { Vignette } from "@openclapper/vocab";
 
 export type MaskMode = FrameMode;
@@ -36,7 +36,7 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
 
   const fullImg = l.img.left === 0 && l.img.width === 100 && l.img.height === 100;
   return (
-    <div class={`framed ${className ?? ""}`} style={style}>
+    <div class={`framed ${className ?? ""} ${l.shrunk ? "is-beyond" : ""}`} style={style}>
       <Img src={img} alt="" loading="lazy" style={fullImg ? imgStyle : { inset: "auto", ...pct(l.img), ...imgStyle }} />
       {mode === "mask" && l.frame && (
         <>
@@ -52,6 +52,11 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
       {children}
     </div>
   );
+}
+
+/** A step of a sequence (issue #266): the photo, or its overlay's render, in the frame the step is shown with. */
+export function StepFramed({ step, mode, className, maxHeight, children }: { step: Step; mode: MaskMode; className?: string; maxHeight?: string; children?: ComponentChildren }) {
+  return <Framed photo={step.photo} frame={step.frame} src={stepSrc(step)} vignette={stepVignette(step)} mode={mode} className={className} maxHeight={maxHeight}>{children}</Framed>;
 }
 
 /** Where the photo sits inside a Framed box (% of the box) and the box's aspect ratio, for things drawn in photo coordinates. */
@@ -77,10 +82,10 @@ export function FramedThumb({ photo, mode }: { photo: Photo; mode: MaskMode }) {
   );
 }
 
-/** Crop the photo to the rig frame in the browser and trigger a download. */
-export async function downloadCrop(photo: Photo): Promise<void> {
-  const f = frameOf(photo);
-  const res = await fetch(photo.image_url, { credentials: "same-origin" });
+/** Crop the photo (or a step's render) to the rig frame (the root's, or the given one) in the browser and trigger a download. */
+export async function downloadCrop(photo: Photo, frame?: FrameGeometry | null, src?: string): Promise<void> {
+  const f = frame === undefined ? frameOf(photo) : frame;
+  const res = await fetch(src ?? photo.image_url, { credentials: "same-origin" });
   const bitmap = await createImageBitmap(await res.blob());
   const c = f ? withCentre(f) : { width_fraction: 1, height_fraction: 1, x: 0.5, y: 0.5 };
   const wf = Math.min(1, c.width_fraction);

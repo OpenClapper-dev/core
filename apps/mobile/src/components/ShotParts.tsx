@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { label } from "@openclapper/vocab";
-import { api, positionOf, type Photo, type Shot } from "../api";
+import { api, positionOf, steps, type Photo, type Shot } from "../api";
 import { editShot, isWaiting } from "../localShots";
 import { isOfflineMode, isOnline } from "../net";
 import { discardPending } from "../uploads";
@@ -11,7 +11,7 @@ import type { ViewSettings } from "../types";
 import { extraLine, placeLabel, rigLabel, shortTime, shotTitle, tagsLabel } from "../shots";
 import { BORDER, confirm, FIXED, IconButton, ListRow, makeStyles, notice, num, PhotoTag, RADIUS, SeqBadge, Sheet, SheetList, StateMarker, toast, type, useTheme } from "../ui";
 import { useSwipe } from "./gestures";
-import { fitWidth, FrameModeSeg, ShotFrame, type FrameMode } from "./ShotFrame";
+import { fitWidthFor, FrameModeSeg, StepFrame, type FrameMode } from "./ShotFrame";
 
 const PAST: Record<Shot["state"], string> = { approved: "Approved", archived: "Archived", unreviewed: "Back to review" };
 
@@ -99,19 +99,25 @@ export function ShotSummary({ shot, photo }: { shot: Shot; photo: Photo }) {
   );
 }
 
+/** "Step i / n" once the Studio stored a progression, "Photo i / n" for a plain capture sequence (issue #266). */
+export const stepTag = (shot: Shot, i: number, n: number) => `${shot.steps?.length ? "Step" : "Photo"} ${Math.min(i, n - 1) + 1} / ${n}`;
+
 /**
- * A stored shot's photo with its badges (SEQ top-left, "Photo i / n" top-right). Swipe moves
- * between shots, the strip between photos; double-tap opens the full-screen photo.
+ * A stored shot's step with its badges (SEQ top-left, "Photo i / n" top-right; `badges={false}` for a
+ * screen with its own, like Step-through). `index` counts the shot's steps (issue #266). Swipe moves
+ * between shots, the strip between steps; double-tap opens the full-screen view.
  */
-export function ShotPhoto({ shot, index, mode, settings, maxW, maxH, onNext, onPrev, onOpen }: { shot: Shot; index: number; mode: FrameMode; settings: ViewSettings; maxW: number; maxH: number; onNext?: () => void; onPrev?: () => void; onOpen?: () => void }) {
+export function ShotPhoto({ shot, index, mode, settings, maxW, maxH, badges = true, onNext, onPrev, onOpen }: { shot: Shot; index: number; mode: FrameMode; settings: ViewSettings; maxW: number; maxH: number; badges?: boolean; onNext?: () => void; onPrev?: () => void; onOpen?: () => void }) {
   const s = useStyles();
-  const photo = shot.photos[Math.min(index, shot.photos.length - 1)];
+  const list = steps(shot);
+  const n = list.length;
+  const step = list[Math.min(index, n - 1)];
   const pan = useSwipe({ width: maxW, next: onNext, prev: onPrev, doubleTap: onOpen });
   return (
     <View style={[s.photoBox, { width: maxW, height: maxH }]} {...pan}>
-      <ShotFrame photo={photo} width={fitWidth(photo, mode, maxW, maxH)} settings={settings} mode={mode} />
-      {shot.photos.length > 1 && <View style={s.tl} pointerEvents="none"><SeqBadge count={shot.photos.length} /></View>}
-      {shot.photos.length > 1 && <View style={s.tr} pointerEvents="none"><PhotoTag>Photo {Math.min(index, shot.photos.length - 1) + 1} / {shot.photos.length}</PhotoTag></View>}
+      <StepFrame step={step} width={fitWidthFor(step, mode, maxW, maxH)} settings={settings} mode={mode} />
+      {badges && n > 1 && <View style={s.tl} pointerEvents="none"><SeqBadge count={n} /></View>}
+      {badges && n > 1 && <View style={s.tr} pointerEvents="none"><PhotoTag>{stepTag(shot, index, n)}</PhotoTag></View>}
     </View>
   );
 }
@@ -123,17 +129,18 @@ export function FullPhoto({ shot, index, mode, onMode, settings, onClose }: { sh
   const insets = useSafeAreaInsets();
   const [i, setI] = useState(index);
   useEffect(() => setI(index), [index]);
-  const n = shot.photos.length;
-  const photo = shot.photos[Math.min(i, n - 1)];
+  const list = steps(shot);
+  const n = list.length;
+  const step = list[Math.min(i, n - 1)];
   const pan = useSwipe({ width, next: () => setI((x) => Math.min(n - 1, x + 1)), prev: () => setI((x) => Math.max(0, x - 1)) });
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={s.full} {...pan}>
-        <ShotFrame photo={photo} width={fitWidth(photo, mode, width, height - 140)} settings={settings} mode={mode} />
+        <StepFrame step={step} width={fitWidthFor(step, mode, width, height - 140)} settings={settings} mode={mode} />
         <View style={[s.fullClose, { top: insets.top + 12 }]}><IconButton icon="close" label="Close" size={52} onPress={onClose} /></View>
         <View style={[s.fullCard, { bottom: Math.max(insets.bottom, 32) }]}>
           <FrameModeSeg value={mode} onChange={onMode} />
-          <Text style={s.fullText}>{n > 1 ? `Photo ${Math.min(i, n - 1) + 1} / ${n} · swipe for photos` : label(shot.state)}</Text>
+          <Text style={s.fullText}>{n > 1 ? `${stepTag(shot, i, n)} · swipe for ${shot.steps?.length ? "steps" : "photos"}` : label(shot.state)}</Text>
         </View>
       </View>
     </Modal>

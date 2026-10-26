@@ -22,6 +22,7 @@ Studio shot view → stage **Framing** (`R`; `apps/studio/src/RigExplorer.tsx`; 
 ## Who uses a framing
 
 - `frameOf()` on both clients returns the root (`rootFrame()` in `packages/vocab/src/framing.ts`); `frameLayout()` (Studio) and `FramedImage` (phone) place an off-centre frame and crop Fit around it.
+- **Steps** of a sequence ([sequences](sequences.md)) pick a saved framing: the step is then shown through it and follows its edits; deleting the framing drops the step back to the root frame. "Zoom sequence…" on the Sequence stage saves one framing per lens.
 - Overlay presentations and timeline clips pick a framing (As captured or a saved one) in a **Framing** select. They store `framing_id` and follow its edits, plus a copy of the frame that is used when the framing is deleted (`referencedFrame()`). New overlays and clips start on the root. Presentations from before #29 (a rig + lens without a framing) show as "Kept: …" until another framing is picked.
 - **Timeline clips re-framed inline** (issue #31) keep their frame in the clip only (no framing on the photo). The Framing stage bar shows **From timelines · n** for the photo on stage: each such re-frame with its timeline and clip, and **Make the shot's** (asks for a name) turns it into a saved framing of the photo; the clip then references it. A re-frame identical to an existing framing (same rig, lens and frame) links that one instead of saving a twin.
 

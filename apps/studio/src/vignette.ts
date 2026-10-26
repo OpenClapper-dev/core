@@ -1,5 +1,6 @@
 import { vignetteAt, type Framing, type Presentation, type Vignette } from "@openclapper/vocab";
 import type { Photo } from "./api";
+import type { Step } from "./format";
 import * as data from "./data";
 
 /**
@@ -30,3 +31,7 @@ export function presentationVignette(photo: Photo, pres: Presentation): Vignette
   if (pres.frame) return vignetteOf(pres.rig_id ?? photo.preset_id, pres.lens_mm ?? photo.lens_mm);
   return photoVignette(photo);
 }
+/** A step's: its framing, else its overlay's presentation, else the photo's root. */
+export const stepVignette = (st: Step): Vignette | null => (st.framing ? framingVignette(st.photo, st.framing) : st.overlay ? presentationVignette(st.photo, st.overlay.presentation) : photoVignette(st.photo));
+/** The focal length a step is shown at, for the "Vignetting at n mm" chip. */
+export const stepLensMm = (st: Step): number => st.framing?.lens_mm ?? (st.overlay?.presentation.lens_mm || null) ?? st.photo.lens_mm;

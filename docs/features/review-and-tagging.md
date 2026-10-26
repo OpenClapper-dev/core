@@ -33,11 +33,12 @@ The light model feeds the [schedule](schedule.md): phases are defined by sun ele
 
 The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp.tsx`): one window per shot, so two shots can sit side by side (opening a shot that is already open focuses its window). It keeps the list it was opened from (the Gallery's result, the map, Plan, Timeline or ⌘K); ←/→ move this window on to the next shot, and from a deep link without a list they walk the project's shots, newest first.
 
-- **Toolbar**: back (Esc) closes the window and focuses the one it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the window closes (`frameMode.ts` holds the global one). `M` cycles it.
+- **Toolbar**: back (Esc) closes the window and focuses the one it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Sequence (`S`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the window closes (`frameMode.ts` holds the global one). `M` cycles it.
 - **Stage**:
-  - **Photo**: the photo as large as fits, with prev/next buttons beside it and nothing drawn over the picture (rig and lens are in the inspector). The foot has the photo strip for sequences (`,` `.`) and the actions Download crop (cropped in the browser), Original, Show on map, and Delete (confirm dialog, offering Archive instead).
+  - **Photo**: the step as large as fits (a sequence is a progression of **steps**, [sequences](sequences.md): a photo, or a photo through a framing or as an overlay), with prev/next buttons beside it and nothing drawn over the picture (rig and lens are in the inspector). The foot has the step strip for sequences (`,` `.`; a crop or layers glyph marks a step with a framing or an overlay; picking a step also picks its photo for the other stages) and the actions Download crop (the step cropped to its frame, in the browser), Original, **Extract…** (a copy of the photo as a shot of its own, [sequences](sequences.md)), Show on map, and Delete (confirm dialog, offering Archive instead).
   - **Framing**: re-frame the photo, saved framings, the root frame ([framing](rig-explorer.md)).
   - **Compose**: overlays and sketches ([compose](compose.md)); the inspector is replaced by the compose panel.
+  - **Sequence**: the shot's steps as a progression: reorder, add, remove, a zoom sequence, a light progression from overlays ([sequences](sequences.md)).
   - **Position**: the [position correction](positions.md) map.
 - **Inspector** (`Inspector.tsx`, 380 px, scrolls on its own):
   - the name, state marker and a summary line
@@ -55,7 +56,7 @@ The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp
   - **Description**: a Markdown field ([compose](compose.md)), saved 0.7 s after the last edit or on leaving it.
   - **Compose**: the names of the shot's overlays and sketches, with Open (`C`).
   - **Position** of the photo on stage, with "Correct", and the switch "Use the location's position" ([positions](positions.md)). A photo captured without GPS says "No position · captured without GPS" and offers "Set position" (the same map stage, starting at another photo of the shot or Berlin).
-  - **Shot**: captured, photos, uploaded, the **shooting days** it is planned on (link to Plan) and the **timelines** it is cut into (link to Timeline).
+  - **Shot**: captured, photos (and the number of stored steps), uploaded, the **shooting days** it is planned on (link to Plan) and the **timelines** it is cut into (link to Timeline).
   - **Camera** of the photo on stage: rig, the frame shown (root framing or As captured, and how many framings), body, format, sensor, lens + FF-equivalent ("· vignetting" when the rig darkens the corners at it, [framing](rig-explorer.md#vignetting-issue-266)), FOV, time, GPS accuracy, fix age and altitude, phone.
   - **Raw metadata**: collapsed, with Copy.
 ## Reviewing
@@ -65,7 +66,7 @@ Reviewing is finding the shots that carry a sequence. On the Studio it happens i
 ## History on the phone
 
 The **History** tab (`screens/History.tsx`, was Review until issue #48) steps through the project's shots one at a time (queued ones included, newest first; the header button switches to oldest first and starts at the top of that order, remembered in `reviewOrder.v1`), photo first, with the decisions at the thumb. **All shots · To review** (remembered in `historyFilter.v1`) narrows it to the unreviewed queue; the tab badge counts the unreviewed shots either way:
-- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" for sequences and the photo strip under it. **Swipe** on the photo = next/prev shot; the strip moves between photos. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
+- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" (or "Step i / n" once the Studio stored a progression, [sequences](sequences.md)) for sequences and the step strip under it. **Swipe** on the photo = next/prev shot; the strip moves between steps. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
 - The frame-view switch (remembered in `reviewMode.v1`).
 - The summary:
   - the name (or the rig when untagged), the state and location
@@ -78,7 +79,7 @@ The **History** tab (`screens/History.tsx`, was Review until issue #48) steps th
 - Landscape: the photo fills the left with the mode switch floating on it; a 292 dp side panel holds the strip, the filter, the summary and the decisions at the bottom.
 
 **Shot details** (Shots → a shot, or ⋯ → Shot details; `screens/ShotDetails.tsx`) is a full screen:
-- the photo (swipe = the neighbours in the list it was opened from), strip and frame view
+- the step (swipe = the neighbours in the list it was opened from), the step strip and frame view ([sequences](sequences.md))
 - the summary, the **description** (when set) and the **overlays · sketches** strip ([compose](compose.md)), **Tags** with Edit, **Position** per photo (coordinates, ±accuracy or "corrected") with Show on map and Correct, **Camera** per photo, and **Raw metadata** (expands)
 - ⋯ holds Delete (Discard for a queued shot; deleting an uploaded shot needs a connection)
 - Pinned: the two states that aren't the current one (unreviewed → Archive | Approve; approved → Back to review | Archive; archived → Back to review | Approve)
@@ -113,6 +114,6 @@ The **History** tab (`screens/History.tsx`, was Review until issue #48) steps th
 
 `mask` (neutral dark mask outside the frame), `frame` (border only), `fit` (crop to exactly the frame), `raw`.
 
-- **Fit** always shows exactly the rig frame. Where the rig saw more than the phone (fraction > 1) the rest stays black, like the live view (`frameLayout` in `apps/studio/src/format.ts`, `FramedImage.tsx` on the phone).
+- **Fit** always shows exactly the rig frame. Where the rig saw more than the phone (fraction > 1) the rest is a **diagonal hatch** (`--beyond-hatch`; the phone tiles `assets/hatch.png`), like the live view (`frameLayout` in `apps/studio/src/format.ts`, `FramedImage.tsx` on the phone). Mask and Frame shrink the photo the same way and hatch what the frame covers beyond it, so a frame wider than the capture is told apart from the black stage at a glance (issue #266).
 - **Studio**: the Shots toolbar switch sets the global mode (`localStorage["maskMode"]`) for the grid, list, map, Plan and the Timeline browser's thumbnails. The shot view has its own switch (above).
 - **Phone**: History, Shots (shared by grid and map) and step-through remember their own mode (`reviewMode.v1`, `shotsMode.v1`, `stepMode.v1`); Shot details starts from the Shots mode.

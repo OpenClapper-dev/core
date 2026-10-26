@@ -56,6 +56,10 @@
   --frame-line: #FFFFFF;
   --frame-outline: #000000;
   --mask: rgba(0,0,0,0.62);
+  /* Beyond the capture: the part of a rig frame the phone could not see (both themes, drawn over photo black). */
+  --beyond: #141416;
+  --beyond-line: #4A4A50;
+  --beyond-hatch: repeating-linear-gradient(45deg, var(--beyond) 0 6px, var(--beyond-line) 6px 8px); /* @kind other */
   --scrim-alpha: 0.72; /* @kind other */
   --desktop-bg: #E9E9E4;
   --snap-preview-bg: rgba(0,64,216,0.12); /* @kind other */

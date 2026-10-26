@@ -1,6 +1,7 @@
 import { CAMERA_SUPPORTS, INT_EXT, isOneOf, LIGHT, PHOTO_SOURCES, MAX_DESCRIPTION, MOVEMENTS, fitExtra, patchExtra, pruneExtra, SHOT_SIZES, SHOT_STATES, validateExtra, validateValues, WEATHER, type Extra, type FieldDef } from "@openclapper/vocab";
 import { clipOverlaysLeaving, composeFor, deleteClipCompose, type OverlayApi, type SketchApi } from "./compose.ts";
 import { framingsFor, type FramingApi } from "./framings.ts";
+import { stepsFor } from "./steps.ts";
 import { projectFieldDefs } from "./fields.ts";
 import { locationInProject } from "./locations.ts";
 import { spotUnder } from "./spots.ts";
@@ -65,13 +66,14 @@ interface PhotoRow {
 const MAX_IMAGE_BYTES = 3 * 1024 * 1024; // "low-res reference" — generous ceiling
 const MAX_PHOTOS_PER_UPLOAD = 60;
 /** A shot (a sequence) holds at most this many photos across all its uploads (#224). */
-const MAX_PHOTOS_PER_SHOT = 200;
+export const MAX_PHOTOS_PER_SHOT = 200;
 /** The largest upload body: every image at the ceiling plus room for the metadata (checked before parsing, #224). */
 const MAX_UPLOAD_BYTES = MAX_PHOTOS_PER_UPLOAD * MAX_IMAGE_BYTES + 1024 * 1024;
 const MAX_JSON_BYTES = 16 * 1024;
 const MAX_BULK = 500;
 
-const objectKey = (photoId: string, type: ImageType) => `photos/${photoId}.${imageExt(type)}`;
+/** The R2 key of a photo; `type` is the image type, or an extension when copying an existing object. */
+export const objectKey = (photoId: string, type: ImageType | string) => `photos/${photoId}.${type.includes("/") ? imageExt(type as ImageType) : type}`;
 
 const parseJson = <T>(s: string | null): T | null => (s ? (JSON.parse(s) as T) : null);
 
@@ -101,11 +103,11 @@ function photoToApi(p: PhotoRow, framings: Map<string, FramingApi[]>) {
   };
 }
 
-type Compose = Awaited<ReturnType<typeof composeFor>> & { framings: Map<string, FramingApi[]> };
-/** Overlays, sketches and framings of these shots in one go. */
+type Compose = Awaited<ReturnType<typeof composeFor>> & { framings: Map<string, FramingApi[]>; steps: Awaited<ReturnType<typeof stepsFor>> };
+/** Overlays, sketches, framings and steps of these shots in one go. */
 async function extrasFor(env: Ctx["env"], ids: string[]): Promise<Compose> {
-  const [c, framings] = await Promise.all([composeFor(env, ids), framingsFor(env, ids)]);
-  return { ...c, framings };
+  const [c, framings, steps] = await Promise.all([composeFor(env, ids), framingsFor(env, ids), stepsFor(env, ids)]);
+  return { ...c, framings, steps };
 }
 
 function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
@@ -139,6 +141,8 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
     photos: photos.map((p) => photoToApi(p, compose.framings)),
     overlays: (compose.overlays.get(s.id) ?? []) as OverlayApi[],
     sketches: (compose.sketches.get(s.id) ?? []) as SketchApi[],
+    /** Stored steps (issue #266), raw: clients resolve them with `stepsOf`; empty = the photos are the steps. */
+    steps: compose.steps.get(s.id) ?? [],
   };
 }
 

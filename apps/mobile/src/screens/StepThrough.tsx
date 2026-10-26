@@ -4,14 +4,14 @@ import { StatusBar } from "expo-status-bar";
 import { useKeepAwake } from "expo-keep-awake";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { lightLabel, shootableWindows } from "@openclapper/vocab";
-import type { Composed, Shot, ShootingDay } from "../api";
+import { steps, type Composed, type Shot, type ShootingDay } from "../api";
 import { useApp } from "../appState";
 import { useOnline } from "../net";
 import { extraLine, hhmm, placeLabel, rigLabel, shotTitle, tagsLabel } from "../shots";
 import { FRAME_MODES, FrameModeSeg, type FrameMode } from "../components/ShotFrame";
 import { ComposeRows, ComposeViewer } from "../components/ComposeParts";
 import { MarkdownText } from "../components/Markdown";
-import { ShotPhoto } from "../components/ShotParts";
+import { ShotPhoto, stepTag } from "../components/ShotParts";
 import { BORDER, Button, FIXED, Icon, makeStyles, num, PhotoTag, RADIUS, Sheet, type, useLayoutSize, useTheme } from "../ui";
 import { store } from "../storage";
 import { plannedAt, useDayLight, windowFit, windowsText } from "./Day";
@@ -40,7 +40,8 @@ export function StepThrough({ day, shots, index: start }: { day: ShootingDay; sh
   const portrait = screen.height >= screen.width;
 
   const shot = shots[index];
-  const photo = shot.photos[Math.min(photoIndex, shot.photos.length - 1)];
+  const list = steps(shot);
+  const photo = list[Math.min(photoIndex, list.length - 1)].photo;
   const w = shootableWindows(light, shot.light);
   const planned = plannedAt(day, shot.id);
   const fit = windowFit(planned, w);
@@ -66,11 +67,11 @@ export function StepThrough({ day, shots, index: start }: { day: ShootingDay; sh
   };
   const photoArea = (
     <View style={{ flex: 1 }} onLayout={onBox}>
-      {box.width > 0 && <ShotPhoto shot={{ ...shot, photos: [photo] }} index={0} mode={mode} settings={app.settings} maxW={box.width} maxH={box.height} onNext={() => go(1)} onPrev={() => go(-1)} />}
+      {box.width > 0 && <ShotPhoto shot={shot} index={photoIndex} badges={false} mode={mode} settings={app.settings} maxW={box.width} maxH={box.height} onNext={() => go(1)} onPrev={() => go(-1)} />}
       <View style={s.pos} pointerEvents="none"><PhotoTag big>{index + 1} / {shots.length}</PhotoTag></View>
-      {shot.photos.length > 1 && (
-        <Pressable onPress={() => setPhotoIndex((photoIndex + 1) % shot.photos.length)} style={s.photoBtn} accessibilityRole="button" accessibilityLabel="Next photo of this shot">
-          <Text style={s.photoBtnText}>Photo {photoIndex + 1} / {shot.photos.length}</Text>
+      {list.length > 1 && (
+        <Pressable onPress={() => setPhotoIndex((photoIndex + 1) % list.length)} style={s.photoBtn} accessibilityRole="button" accessibilityLabel={shot.steps?.length ? "Next step of this shot" : "Next photo of this shot"}>
+          <Text style={s.photoBtnText}>{stepTag(shot, photoIndex, list.length)}</Text>
           <Icon name="chevron-right" size={22} color={FIXED.white} />
         </Pressable>
       )}

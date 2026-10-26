@@ -4,10 +4,10 @@ import { CLIP_MAX_MS, EDGE_WEIGHT, GROUP_MAX_MS, PRESENTATION_MODES, splitDurati
 import { type ClipGroup, copyOverlay, copySketch, deleteTimeline, patchShot, patchShots, putTimeline, type Overlay, type Photo, type Shot, type ShotState, type Sketch, type Timeline, type TimelineClip } from "./api";
 import { binned } from "./apps/trashOps";
 import * as data from "./data";
-import { frameModeLabel, shotTitle } from "./format";
+import { frameModeLabel, seqCount, shotTitle, steps, type Step } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateTimelines } from "./Inspector";
-import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
+import { framingPresentation, FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
 import { presentationVignette } from "./vignette";
 import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, type SaveState, Seg, Select, SeqBadge, Spinner, StateMarker, toast, withViewTransition } from "@openclapper/ui";
 import type { EditKind } from "./ClipEditing";
@@ -89,13 +89,23 @@ export const newPlaceholder = (title: string): TimelineClip =>
 
 export const newGroup = (totalMs: number, mode: GroupMode = "each"): ClipGroup => ({ id: crypto.randomUUID(), mode, total_ms: totalMs, split: "even", edge_weight: EDGE_WEIGHT.def });
 
-const photoClip = (s: Shot, p: Photo, mode: MaskMode, groupId: string | null): TimelineClip =>
-  ({ id: crypto.randomUUID(), photo_id: p.id, shot_id: s.id, overlay_id: null, presentation: defaultPresentation(p, mode), duration_ms: DEFAULT_MS, notes: null, title: null, sketch_id: null, group_id: groupId });
+/** A step's presentation (issue #266): its framing, else the frame its overlay was drawn for, else the photo's root. */
+const stepPresentation = (st: Step, mode: MaskMode): Presentation =>
+  st.framing ? { mode, ...framingPresentation(st.photo, st.framing.id) }
+    : st.overlay ? { ...st.overlay.presentation, mode }
+    : defaultPresentation(st.photo, mode);
+/** A clip for one step of a shot: the photo, seen through the step's framing and overlay. */
+const photoClip = (s: Shot, st: Step, mode: MaskMode, groupId: string | null): TimelineClip =>
+  ({ id: crypto.randomUUID(), photo_id: st.photo.id, shot_id: s.id, overlay_id: st.overlay?.id ?? null, presentation: stepPresentation(st, mode), duration_ms: DEFAULT_MS, notes: null, title: null, sketch_id: null, group_id: groupId });
+/** What a clip shows, for matching it against a step (a photo may repeat in a progression). */
+const clipKey = (c: TimelineClip) => `${c.photo_id}|${c.presentation?.framing_id ?? ""}|${c.overlay_id ?? ""}`;
+const stepKeyOf = (st: Step) => `${st.photo.id}|${st.framing?.id ?? (st.overlay?.presentation.framing_id ?? "")}|${st.overlay?.id ?? ""}`;
 
-/** The clips a shot contributes when added: one per photo at the default hold time; a sequence's form a block. */
+/** The clips a shot contributes when added: one per step at the default hold time; a sequence's form a block. */
 export function clipsOfShot(s: Shot, mode: MaskMode): { clips: TimelineClip[]; group: ClipGroup | null } {
-  const group = s.photos.length > 1 ? newGroup(s.photos.length * DEFAULT_MS) : null;
-  return { group, clips: s.photos.map((p) => photoClip(s, p, mode, group?.id ?? null)) };
+  const list = steps(s);
+  const group = list.length > 1 ? newGroup(list.length * DEFAULT_MS) : null;
+  return { group, clips: list.map((st) => photoClip(s, st, mode, group?.id ?? null)) };
 }
 
 /**
@@ -181,10 +191,11 @@ export function fillSpot(t: Timeline, spotId: string, s: Shot, mode: MaskMode): 
   const i = t.clips.findIndex((c) => c.id === spotId);
   if (i < 0) return t;
   const spot = t.clips[i];
-  const group = s.photos.length > 1 ? newGroup(Math.max(spot.duration_ms, s.photos.length * 100), "total") : null;
-  const fresh = s.photos.map((p, k) => (k === 0
-    ? { ...photoClip(s, p, mode, group?.id ?? null), id: spot.id, notes: spot.notes, duration_ms: spot.duration_ms }
-    : photoClip(s, p, mode, group!.id)));
+  const list = steps(s);
+  const group = list.length > 1 ? newGroup(Math.max(spot.duration_ms, list.length * 100), "total") : null;
+  const fresh = list.map((st, k) => (k === 0
+    ? { ...photoClip(s, st, mode, group?.id ?? null), id: spot.id, notes: spot.notes, duration_ms: spot.duration_ms }
+    : photoClip(s, st, mode, group!.id)));
   const l = [...t.clips];
   l.splice(i, 1, ...fresh);
   return normalizeGroups({ ...t, clips: l, groups: group ? [...t.groups, group] : t.groups });
@@ -214,13 +225,13 @@ export function insertAfterUnit(t: Timeline, clipId: string, copies: TimelineCli
 export const ungroup = (t: Timeline, groupId: string): Timeline =>
   ({ ...t, groups: t.groups.filter((g) => g.id !== groupId), clips: t.clips.map((c) => (c.group_id === groupId ? { ...c, group_id: null } : c)) });
 
-/** Brings a block's removed photos back, in photo order, at the default hold time. */
+/** Brings a block's removed steps back, in step order, at the default hold time (matched by what each clip shows). */
 export function restorePhotos(t: Timeline, groupId: string, s: Shot, mode: MaskMode): Timeline {
   const i = t.clips.findIndex((c) => c.group_id === groupId);
   if (i < 0) return t;
   const [a, b] = unitAt(t.clips, i);
-  const have = new Map(t.clips.slice(a, b).map((c) => [c.photo_id, c]));
-  const next = s.photos.map((p) => have.get(p.id) ?? photoClip(s, p, mode, groupId));
+  const have = new Map(t.clips.slice(a, b).map((c) => [clipKey(c), c]));
+  const next = steps(s).map((st) => have.get(stepKeyOf(st)) ?? photoClip(s, st, mode, groupId));
   const l = [...t.clips];
   l.splice(a, b - a, ...next);
   return normalizeGroups({ ...t, clips: l });
@@ -309,10 +320,14 @@ export interface ClipMenuProps {
   onRemove: (c: ResolvedClip) => void;
   /** Approve / archive the clip's shot (photo clips only). */
   onState: (s: Shot, to: ShotState) => void;
+  /** Extract the clip's photo as a shot of its own (issue #266). */
+  onExtract?: (c: ResolvedClip) => void;
+  /** The Shift-click range this clip is in: "Make a sequence… (n clips)", or why it cannot. */
+  range?: { n: number; problem: string | null; onMake: () => void } | null;
 }
 
 /** A clip's right-click menu, the same in Review and Timeline. */
-export function ClipMenu({ menu, onClose, onEdit, onOpen, onDuplicate, onRemove, onState }: ClipMenuProps) {
+export function ClipMenu({ menu, onClose, onEdit, onOpen, onDuplicate, onRemove, onState, onExtract, range }: ClipMenuProps) {
   const c = menu.ctx;
   return (
     <ContextMenu x={menu.x} y={menu.y} label="Clip" onClose={onClose}>
@@ -321,6 +336,8 @@ export function ClipMenu({ menu, onClose, onEdit, onOpen, onDuplicate, onRemove,
       {c.kind !== "photo" && <MenuItem icon="draw" onClick={() => onEdit("sketch", c)}>{c.kind === "sketch" ? "Edit the sketch" : "Sketch it"}</MenuItem>}
       {c.kind === "photo" && DECISIONS.filter((d) => d.to !== c.shot.state).map((d) => <MenuItem key={d.to} icon={d.icon} onClick={() => onState(c.shot, d.to)}>{d.label}</MenuItem>)}
       {c.kind === "photo" && <MenuItem icon="image-outline" onClick={() => onOpen(c)}>Open shot</MenuItem>}
+      {range && <MenuItem icon="view-carousel-outline" disabled={!!range.problem} title={range.problem ?? undefined} onClick={range.onMake}>Make a sequence… ({range.n} clips)</MenuItem>}
+      {c.kind === "photo" && onExtract && <MenuItem icon="export-variant" onClick={() => onExtract(c)}>Extract as own shot…</MenuItem>}
       <MenuItem icon="content-duplicate" onClick={() => onDuplicate(c)}>Duplicate</MenuItem>
       <MenuItem icon="delete-outline" danger onClick={() => onRemove(c)}>Remove</MenuItem>
     </ContextMenu>
@@ -586,9 +603,12 @@ export interface StripProps {
   /** A shot dropped from the browser; absent = the strip accepts no shots (no browser beside it). */
   onDropShot?: (shotId: string, at: DropAt) => void;
   onContext?: (c: ResolvedClip, e: MouseEvent) => void;
+  /** A Shift-click range (issue #266, "Make a sequence…"): the clips in it, and what a Shift-click does. */
+  multi?: ReadonlySet<string> | null;
+  onRange?: (clipId: string) => void;
 }
 
-export function Strip({ clips, cut, stripRef, lock, editingId, onOpen, onReorder, onDropShot, onContext }: StripProps) {
+export function Strip({ clips, cut, stripRef, lock, editingId, onOpen, onReorder, onDropShot, onContext, multi, onRange }: StripProps) {
   const { sel } = cut;
   const [drop, setDrop] = useState<DropAt | null>(null);
   const [zoom, setZoomState] = useState(() => stored("timelineZoom", ZOOM));
@@ -736,7 +756,7 @@ export function Strip({ clips, cut, stripRef, lock, editingId, onOpen, onReorder
             <div class="tl-seqs">
               {blocks.map(({ c, x, w, ms, sel: on }) => c.kind === "photo" && (
                 <div key={c.clip.id} class={cx("tl-seq", on && "is-sel")} style={{ left: `${x}px`, width: `${w}px` }}
-                  title={`Sequence · ${shotTitle(c.shot)} · ${c.seq!.n} photos · ${secs(ms)}${c.group?.mode === "total" ? ` total, split ${c.group.split === "edges" ? "with longer edges" : "evenly"}` : " (per photo)"} · drag to move the block`}
+                  title={`Sequence · ${shotTitle(c.shot)} · ${c.seq!.n} steps · ${secs(ms)}${c.group?.mode === "total" ? ` total, split ${c.group.split === "edges" ? "with longer edges" : "evenly"}` : " (per photo)"} · drag to move the block`}
                   draggable onDragStart={(e) => { e.dataTransfer?.setData(CLIP_TYPE, c.clip.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }}
                   onClick={() => cut.select(c.clip.id)} onDblClick={() => onOpen(c)}
                   onContextMenu={onContext && ((e) => { e.preventDefault(); cut.select(c.clip.id); onContext(c, e); })}>
@@ -751,17 +771,17 @@ export function Strip({ clips, cut, stripRef, lock, editingId, onOpen, onReorder
             {dropX !== null && <span class="tl-dropline" style={{ left: `${dropX - 2}px` }} />}
             {clips.map((c) => (
               <button key={c.clip.id} type="button" role="option" aria-selected={c.clip.id === sel} data-ph={c.kind !== "photo" ? c.clip.id : undefined}
-                class={cx("tl-clip", c.kind !== "photo" && "tl-clip--ph", c.kind === "photo" && c.seq && "tl-clip--seq", c.kind === "sketch" && "tl-clip--sk", c.clip.id === sel && "is-sel", c.clip.id === editingId && "is-editing", drop && "fill" in drop && drop.fill === c.clip.id && "is-fill")}
+                class={cx("tl-clip", c.kind !== "photo" && "tl-clip--ph", c.kind === "photo" && c.seq && "tl-clip--seq", c.kind === "sketch" && "tl-clip--sk", c.clip.id === sel && "is-sel", multi?.has(c.clip.id) && "is-multi", c.clip.id === editingId && "is-editing", drop && "fill" in drop && drop.fill === c.clip.id && "is-fill")}
                 style={{ width: `${widthPx(c.clip.duration_ms)}px` }}
                 title={`${clipLabel(c)}${c.kind === "photo" && c.overlay ? ` · ${c.overlay.name}` : ""} · ${secs(c.clip.duration_ms)}`}
                 draggable onDragStart={(e) => { e.dataTransfer?.setData(CLIP_TYPE, c.clip.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }}
-                onClick={() => cut.select(c.clip.id)} onDblClick={() => onOpen(c)}
-                onContextMenu={onContext && ((e) => { e.preventDefault(); cut.select(c.clip.id); onContext(c, e); })}>
+                onClick={(e) => { if (e.shiftKey && onRange) onRange(c.clip.id); else cut.select(c.clip.id); }} onDblClick={() => onOpen(c)}
+                onContextMenu={onContext && ((e) => { e.preventDefault(); if (!multi?.has(c.clip.id)) cut.select(c.clip.id); onContext(c, e); })}>
                 {c.kind === "photo"
                   ? <div class="tl-clip__thumb"><Framed photo={c.photo} mode={(lock ?? c.pres.mode) === "off" ? "off" : "fit"} frame={presentationFrame(c.photo, c.pres)} vignette={presentationVignette(c.photo, c.pres)} src={c.overlay?.render_url ?? undefined} /><span class="tl-clip__state"><StateMarker state={c.shot.state} iconOnly /></span></div>
                   : c.kind === "sketch" ? <div class="tl-clip__thumb tl-clip__thumb--sk">{c.sketch.render_url ? <img src={c.sketch.render_url} alt="" /> : <Icon name="floor-plan" />}</div>
                   : <div class="tl-clip__thumb tl-clip__thumb--ph"><Icon name="image-off-outline" /></div>}
-                <span class="tl-clip__name ellipsis">{c.kind === "photo" && c.overlay ? <Icon name="layers-outline" size={12} /> : null}{c.kind === "photo" && c.seq ? `${c.photo.ordinal + 1} / ${c.shot.photos.length}` : clipLabel(c)}{c.kind === "photo" && !c.seq && c.shot.photos.length > 1 ? ` · ${c.photo.ordinal + 1}` : ""}</span>
+                <span class="tl-clip__name ellipsis">{c.kind === "photo" && c.overlay ? <Icon name="layers-outline" size={12} /> : null}{c.kind === "photo" && c.seq ? `${c.seq.i + 1} / ${c.seq.n}` : clipLabel(c)}{c.kind === "photo" && !c.seq && c.shot.photos.length > 1 ? ` · ${c.photo.ordinal + 1}` : ""}</span>
                 <span class="tl-clip__dur num">{secs(c.clip.duration_ms)}</span>
               </button>
             ))}
@@ -827,12 +847,12 @@ function SecondsField({ label, ms, max, onCommit, disabled, inputRef, kbd, help 
 /** A sequence block's settings in the clip panel: how its length is made, Restore and Ungroup. */
 function SequenceSection({ c, onGroup, onUngroup, onRestore }: { c: Extract<ResolvedClip, { kind: "photo" }>; onGroup: (g: ClipGroup) => void; onUngroup?: () => void; onRestore?: () => void }) {
   const g = c.group!, seq = c.seq!;
-  const missing = c.shot.photos.length - seq.n;
+  const missing = seqCount(c.shot) - seq.n;
   const [weight, setWeight] = useState(g.edge_weight);
   useEffect(() => setWeight(g.edge_weight), [g.edge_weight]);
   return (
     <div class="tl-seqbox" role="group" aria-label="Sequence">
-      <div class="tl-seqbox__head"><SeqBadge count={c.shot.photos.length} small /><span class="meta">Photo {seq.i + 1} of {seq.n} in this block{missing > 0 ? ` · ${missing} removed` : ""}</span></div>
+      <div class="tl-seqbox__head"><SeqBadge count={seqCount(c.shot)} small /><span class="meta">Step {seq.i + 1} of {seq.n} in this block{missing > 0 ? ` · ${missing} removed` : ""}</span></div>
       <Field label="Length" as="div">
         <Seg label="How the block's length is made" value={g.mode} onChange={(mode) => onGroup({ ...g, mode })}
           options={[{ id: "each", label: "Per photo" }, { id: "total", label: "Total" }]} />

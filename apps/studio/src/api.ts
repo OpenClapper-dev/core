@@ -1,5 +1,6 @@
 /** Same-origin API; the session cookie is sent automatically. */
-import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, VignettePoint } from "@openclapper/vocab";
+import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint } from "@openclapper/vocab";
+export type { ShotStep, StepInput } from "@openclapper/vocab";
 export type { ClipGroup } from "@openclapper/vocab";
 export type { FieldDefinition };
 export type ShotState = "unreviewed" | "approved" | "archived";
@@ -67,6 +68,8 @@ export interface Shot {
   overlays: Overlay[];
   /** Free canvases on the shot, in display order, without their drawing data (fetchSketch has it). */
   sketches: Sketch[];
+  /** The stored progression (issue #266), raw rows; empty = the photos are the steps. Resolve with `steps()` in format.ts. */
+  steps: ShotStep[];
 }
 /** A drawing + look over one photo (issue #12). `drawing` is only present when fetched alone. */
 export interface Overlay {
@@ -318,6 +321,15 @@ export const putFraming = (id: string, f: FramingSave) => send<{ shot: Shot }>("
 export const deleteFraming = (id: string) => send<{ shot: Shot }>("DELETE", `/api/framings/${id}`).then((r) => r.shot);
 /** null = back to as captured. */
 export const setRootFraming = (photoId: string, framingId: string | null) => send<{ shot: Shot }>("PUT", `/api/photos/${photoId}/root`, { framing_id: framingId }).then((r) => r.shot);
+
+// ---------------------------------------------------------------- steps, merge, extract (issue #266)
+
+/** Replace the shot's stored steps; `[]` makes the photos the steps again. */
+export const putSteps = (shotId: string, steps: StepInput[]) => send<{ shot: Shot }>("PUT", `/api/shots/${shotId}/steps`, { steps }).then((r) => r.shot);
+/** Move photos of other shots (same project) into this one; emptied source shots are deleted for good. */
+export const movePhotos = (shotId: string, photoIds: string[], steps?: StepInput[]) => send<{ shot: Shot; removed_shot_ids: string[] }>("POST", `/api/shots/${shotId}/photos`, { photo_ids: photoIds, steps });
+/** Copy one photo out as a shot of its own (own image, framings and overlays copied; `framing_id` becomes its root). */
+export const extractPhoto = (shotId: string, photoId: string, o: { id?: string; framing_id?: string | null; overlay_id?: string | null } = {}) => send<{ shot: Shot }>("POST", `/api/shots/${shotId}/photos/${photoId}/extract`, o).then((r) => r.shot);
 
 /** Correct a photo's position by hand; `allInShot` moves every photo of its shot. Returns the updated shot. */
 export const patchPhotoPosition = (id: string, lat: number, lon: number, allInShot: boolean) =>
