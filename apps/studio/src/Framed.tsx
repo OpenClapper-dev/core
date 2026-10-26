@@ -3,6 +3,8 @@ import { withCentre } from "@openclapper/vocab";
 import type { Photo } from "./api";
 import { frameLayout, frameOf, imageAspect, type FrameGeometry, type FrameMode, type PctRect } from "./format";
 import { cx, Img } from "@openclapper/ui";
+import { photoVignette, vignetteCss } from "./vignette";
+import type { Vignette } from "@openclapper/vocab";
 
 export type MaskMode = FrameMode;
 
@@ -20,8 +22,9 @@ const pct = (r: PctRect) => ({ left: `${r.left}%`, top: `${r.top}%`, width: `${r
  * The box always has the photo's aspect ratio (or the frame's in fit mode) so the percentage
  * geometry of frame and tints lines up with the image.
  */
-export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src, children }: { photo: Photo; mode: MaskMode; className?: string; maxHeight?: string; /** Draw this frame instead of the stored one (rig explorer). */ frame?: FrameGeometry | null; /** Extra style on the <img> (the compose editor's look filter). */ imgStyle?: JSX.CSSProperties; /** Another image of the same size (an overlay render). */ src?: string; /** Tags drawn on the photo (positioned inside the box). */ children?: ComponentChildren }) {
+export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src, vignette, children }: { photo: Photo; mode: MaskMode; className?: string; maxHeight?: string; /** Draw this frame instead of the stored one (rig explorer). */ frame?: FrameGeometry | null; /** Extra style on the <img> (the compose editor's look filter). */ imgStyle?: JSX.CSSProperties; /** Another image of the same size (an overlay render). */ src?: string; /** Lens vignetting over the frame (issue #266); undefined = the photo's root frame's, so a caller that passes `frame` says which. */ vignette?: Vignette | null; /** Tags drawn on the photo (positioned inside the box). */ children?: ComponentChildren }) {
   const f = frame ?? frameOf(photo);
+  const vig = vignette === undefined ? (frame === undefined ? photoVignette(photo) : null) : vignette;
   const img = src ?? photo.image_url;
   const photoAspect = imageAspect(photo);
   const l = f && mode !== "off" ? frameLayout(f, mode, photoAspect) : null;
@@ -44,6 +47,7 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
           <div class="tint" style={{ left: `${l.frame.left + l.frame.width}%`, right: 0, top: `${l.frame.top}%`, height: `${l.frame.height}%` }} />
         </>
       )}
+      {vig && <div class="vignette" style={{ ...pct(l.frame ?? { left: 0, top: 0, width: 100, height: 100 }), background: vignetteCss(vig) }} />}
       {l.frame && <div class={`frame ${l.shrunk ? "dashed" : ""}`} style={pct(l.frame)} />}
       {children}
     </div>

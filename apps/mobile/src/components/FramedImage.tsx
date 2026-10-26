@@ -1,9 +1,10 @@
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { Image, type ImageSource } from "expo-image";
 import type { ViewSettings } from "../types";
-import { clampCentre } from "@openclapper/vocab";
+import { clampCentre, type Vignette as VignetteSpec } from "@openclapper/vocab";
 import { FIXED, Seg } from "../ui";
 import { Overlay } from "./Overlay";
+import { Vignette } from "./Vignette";
 
 /** "mask" = neutral dark mask outside the frame, "frame" = border only, "fit" = crop to the frame, "off" = raw photo. */
 export type FrameMode = "mask" | "frame" | "fit" | "off";
@@ -23,10 +24,12 @@ interface Props {
   settings: ViewSettings;
   mode: FrameMode;
   style?: StyleProp<ViewStyle>;
+  /** Lens vignetting over the frame (issue #266); drawn in every mode but raw. */
+  vignette?: VignetteSpec | null;
 }
 
 /** A photo with the rig frame re-applied from its geometry (same layout rules as the live view). */
-export function FramedImage({ source, aspect, frame: f, width, settings, mode, style }: Props) {
+export function FramedImage({ source, aspect, frame: f, width, settings, mode, style, vignette }: Props) {
   // Fit = the box is the rig frame. Where the rig saw more than the phone (fraction > 1) the photo
   // covers less than the box and the rest stays black, like the live view.
   const fit = mode === "fit" && !!f;
@@ -57,6 +60,7 @@ export function FramedImage({ source, aspect, frame: f, width, settings, mode, s
         cachePolicy="disk"
         transition={120}
       />
+      {vignette && mode !== "off" && <Vignette rect={rect ?? { left: 0, top: 0, width: box.width, height: box.height }} v={vignette} />}
       {rect && mode !== "off" && (
         <Overlay preview={box} rect={rect} settings={{ ...settings, blackoutEnabled: mode === "mask" }} exceedsPreview={shrunk} neutral />
       )}

@@ -81,7 +81,7 @@ export const store = {
   saveSettings: (s: Settings) => write(KEYS.settings, s),
 
   loadPresets: (): Preset[] =>
-    readArray<Preset>(KEYS.presets).map((p) => ({ ...p, cameraId: p.cameraId ?? null, formatId: p.formatId ?? null, lensMinMm: p.lensMinMm ?? null, lensMaxMm: p.lensMaxMm ?? null })),
+    readArray<Preset>(KEYS.presets).map((p) => ({ ...p, cameraId: p.cameraId ?? null, formatId: p.formatId ?? null, lensMinMm: p.lensMinMm ?? null, lensMaxMm: p.lensMaxMm ?? null, vignetting: p.vignetting ?? [] })),
   savePresets: (p: Preset[]) => write(KEYS.presets, p),
 
   loadFixtures: (): Fixture[] => readArray<Fixture>(KEYS.fixtures),

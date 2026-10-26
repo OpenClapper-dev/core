@@ -4,6 +4,7 @@ import { CAMERA_SUPPORTS, cameraLabel, droppedKeys, INT_EXT, label, lightLabel, 
 import { createProjectNamed, existingIdOf, fetchDays, fetchTimelines, patchShot, putLocation, putSpot, type Location, type Photo, type Project, type Shot, type ShootingDay, type ShotState, type Spot, type Timeline } from "./api";
 import { ExtraEditor } from "./ExtraEditor";
 import { coords, fovLabel, placeLabel, rigDescription, shotTitle, sourceLabel } from "./format";
+import { photoVignette } from "./vignette";
 import { Button, Chip, Combobox, Icon, Input, LightChips, MarkdownField, SaveStatus, Seg, StateMarker, Switch, toast, type SaveState } from "@openclapper/ui";
 
 // Shooting days per project, fetched on demand for the "Days" fact and the move warning.
@@ -257,7 +258,7 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
           <dl class="f-facts">
             <dt>Rig</dt><dd>{[photo.preset_name ?? (f.preset_name as string | undefined) ?? "deleted / unsynced", rigDescription(photo)].filter(Boolean).join(" · ")}</dd>
             <dt>Frame</dt><dd>{photo.framings.find((f) => f.id === photo.root_framing_id)?.name ?? "As captured"}{photo.framings.length ? <span class="meta"> · {photo.framings.length} framing{photo.framings.length === 1 ? "" : "s"}</span> : null}</dd>
-            <dt>Lens</dt><dd>{photo.lens_mm} mm{typeof f.full_frame_equivalent_mm === "number" ? ` · FF ${f.full_frame_equivalent_mm} mm` : ""}</dd>
+            <dt>Lens</dt><dd>{photo.lens_mm} mm{typeof f.full_frame_equivalent_mm === "number" ? ` · FF ${f.full_frame_equivalent_mm} mm` : ""}{photoVignette(photo) ? <span class="meta"> · vignetting</span> : null}</dd>
             <dt>FOV</dt><dd>{fovLabel(photo).replace(/^[^·]*mm FF-eq · /, "") || "n/a"}{typeof f.rig_orientation === "string" ? ` · ${f.rig_orientation}` : ""}</dd>
             <dt>Time</dt><dd>{new Date(photo.timestamp).toLocaleTimeString()}</dd>
             <dt>GPS</dt><dd>{[photo.gps_accuracy_m != null ? `±${Math.round(photo.gps_accuracy_m)} m` : null, typeof dev.gps_fix_age_ms === "number" ? `fix ${Math.round(dev.gps_fix_age_ms / 1000)} s old` : null, typeof dev.gps_altitude_m === "number" ? `${Math.round(dev.gps_altitude_m)} m alt.` : null].filter(Boolean).join(" · ") || "—"}</dd>

@@ -4,7 +4,7 @@ import { computeOverlay, previewBox } from "./framing.ts";
 import { DEFAULT_SETTINGS } from "./defaults.ts";
 
 const near = (a: number, b: number, tol = 1e-6) => assert.ok(Math.abs(a - b) <= tol, `${a} vs ${b}`);
-const ff = { id: "p", name: "FF", sensorWidthMm: 36, sensorHeightMm: 24, speedboosterFactor: 1, createdAt: "", synced: true };
+const ff = { id: "p", name: "FF", sensorWidthMm: 36, sensorHeightMm: 24, speedboosterFactor: 1, vignetting: [], createdAt: "", synced: true };
 
 test("previewBox: portrait window gets a 3:4 box limited by width", () => {
   const b = previewBox({ width: 1080, height: 2400 });

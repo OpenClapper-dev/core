@@ -1,8 +1,9 @@
 import type { StyleProp, ViewStyle } from "react-native";
-import { rootFrame } from "@openclapper/vocab";
+import { rootFrame, vignetteAt, type Framing, type Vignette } from "@openclapper/vocab";
 import { imageHeaders, imageUri, type Photo } from "../api";
 import { isOfflineMode } from "../net";
 import { offlinePhotoUri } from "../offline";
+import { getRigs } from "../rigs";
 import type { ViewSettings } from "../types";
 import { FramedImage, type FrameFractions, type FrameMode } from "./FramedImage";
 
@@ -20,6 +21,18 @@ export function capturedFrameOf(photo: Photo): FrameFractions | null {
   return { width: fr.width_fraction, height: fr.height_fraction };
 }
 
+/** Lens vignetting (issue #266) of a rig at a focal length, from the rigs on the phone; null without one. */
+export function vignetteOf(rigId: string | null | undefined, mm: number | null | undefined): Vignette | null {
+  if (!rigId || !mm) return null;
+  const p = getRigs().rigs.find((r) => r.id === rigId);
+  return p ? vignetteAt(p.vignetting, mm) : null;
+}
+const framingVignette = (photo: Photo, f: Framing) => vignetteOf(f.rig_id ?? photo.preset_id, f.lens_mm);
+/** What a photo's root frame shows: the root framing's rig and lens, else the capture's. */
+export function photoVignette(photo: Photo): Vignette | null {
+  const root = photo.root_framing_id ? photo.framings?.find((f) => f.id === photo.root_framing_id) : undefined;
+  return root ? framingVignette(photo, root) : vignetteOf(photo.preset_id, photo.lens_mm);
+}
 /** Photo aspect ratio (w/h) as uploaded; 4:3 when unknown. */
 export const imageAspect = (photo: Photo): number => (photo.width && photo.height ? photo.width / photo.height : 4 / 3);
 
@@ -51,6 +64,7 @@ export function ShotFrame({ photo, width, settings, mode, style }: Props) {
       source={photoSource(photo)}
       aspect={imageAspect(photo)}
       frame={frameOf(photo)}
+      vignette={photoVignette(photo)}
       width={width}
       settings={settings}
       mode={mode}

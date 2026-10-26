@@ -8,6 +8,7 @@ import { frameModeLabel, shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { invalidateTimelines } from "./Inspector";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
+import { presentationVignette } from "./vignette";
 import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, type SaveState, Seg, Select, SeqBadge, Spinner, StateMarker, toast, withViewTransition } from "@openclapper/ui";
 import type { EditKind } from "./ClipEditing";
 import { useSettings } from "./settings";
@@ -535,7 +536,7 @@ export function CutPreview({ cut, clips, total, lock, stage, editing, children }
     <div class="tl-preview" style={height.style as JSX.CSSProperties | undefined}>
       <div class={cx("tl-stage", editing && "tl-stage--edit")}>
         {stage ?? (!cur ? <div class="tl-preview__empty"><Icon name="filmstrip" /><span>Add shots to start the cut</span></div>
-          : cur.kind === "photo" ? <Framed photo={cur.photo} mode={lock ?? cur.pres.mode} frame={presentationFrame(cur.photo, cur.pres)} src={cur.overlay?.render_url ?? undefined} maxHeight={STAGE_H} />
+          : cur.kind === "photo" ? <Framed photo={cur.photo} mode={lock ?? cur.pres.mode} frame={presentationFrame(cur.photo, cur.pres)} vignette={presentationVignette(cur.photo, cur.pres)} src={cur.overlay?.render_url ?? undefined} maxHeight={STAGE_H} />
           : cur.kind === "sketch" ? <SketchView sketch={cur.sketch} />
           : (
             <div class="tl-ph-view">
@@ -757,7 +758,7 @@ export function Strip({ clips, cut, stripRef, lock, editingId, onOpen, onReorder
                 onClick={() => cut.select(c.clip.id)} onDblClick={() => onOpen(c)}
                 onContextMenu={onContext && ((e) => { e.preventDefault(); cut.select(c.clip.id); onContext(c, e); })}>
                 {c.kind === "photo"
-                  ? <div class="tl-clip__thumb"><Framed photo={c.photo} mode={(lock ?? c.pres.mode) === "off" ? "off" : "fit"} frame={presentationFrame(c.photo, c.pres)} src={c.overlay?.render_url ?? undefined} /><span class="tl-clip__state"><StateMarker state={c.shot.state} iconOnly /></span></div>
+                  ? <div class="tl-clip__thumb"><Framed photo={c.photo} mode={(lock ?? c.pres.mode) === "off" ? "off" : "fit"} frame={presentationFrame(c.photo, c.pres)} vignette={presentationVignette(c.photo, c.pres)} src={c.overlay?.render_url ?? undefined} /><span class="tl-clip__state"><StateMarker state={c.shot.state} iconOnly /></span></div>
                   : c.kind === "sketch" ? <div class="tl-clip__thumb tl-clip__thumb--sk">{c.sketch.render_url ? <img src={c.sketch.render_url} alt="" /> : <Icon name="floor-plan" />}</div>
                   : <div class="tl-clip__thumb tl-clip__thumb--ph"><Icon name="image-off-outline" /></div>}
                 <span class="tl-clip__name ellipsis">{c.kind === "photo" && c.overlay ? <Icon name="layers-outline" size={12} /> : null}{c.kind === "photo" && c.seq ? `${c.photo.ordinal + 1} / ${c.shot.photos.length}` : clipLabel(c)}{c.kind === "photo" && !c.seq && c.shot.photos.length > 1 ? ` · ${c.photo.ordinal + 1}` : ""}</span>
@@ -921,7 +922,7 @@ export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, 
     <Panel label="Clip" width="340px" resize={DRAWER_RESIZE}>
       <PanelHead title={shotTitle(c.shot)}>{headMeta}</PanelHead>
       <PanelBody>
-        <div class="f-row__thumb" style={{ width: "100%" }}><Framed photo={c.photo} mode={lock ?? pres.mode} frame={presentationFrame(c.photo, pres)} src={c.overlay?.render_url ?? undefined} /></div>
+        <div class="f-row__thumb" style={{ width: "100%" }}><Framed photo={c.photo} mode={lock ?? pres.mode} vignette={presentationVignette(c.photo, pres)} frame={presentationFrame(c.photo, pres)} src={c.overlay?.render_url ?? undefined} /></div>
         {c.shot.photos.length > 1 && <span class="meta">Photo {c.photo.ordinal + 1} of {c.shot.photos.length} in this sequence</span>}
         {onState && (
           <div class="tl-decide">

@@ -11,6 +11,7 @@ import { ModeSwitch } from "./ModeSwitch";
 import { PositionStage } from "./PositionEditor";
 import { initialRigs, RigsStage, type RigsState } from "./RigExplorer";
 import type { Stage } from "./router";
+import { photoVignette } from "./vignette";
 import { Button, cx, Icon, IconButton, Img, Kbd, Seg, toast, Toolbar, ToolbarSpacer } from "@openclapper/ui";
 
 export interface ShotContext { line: string; onBack: () => void; backLabel: string }
@@ -114,6 +115,7 @@ export function ShotView(p: Props) {
           { id: "position", icon: "crosshairs-gps", label: "Position" },
         ]} />
         {stage !== "compose" && <ModeSwitch value={p.mode} onChange={p.onMode} />}
+      {stage === "photo" && photoVignette(photo) && <span class="vig-chip" title="This rig darkens the corners at this focal length (Library › Rigs › Vignetting)"><Icon name="circle-half-full" />Vignetting · {photo.framings.find((f) => f.id === photo.root_framing_id)?.lens_mm ?? photo.lens_mm} mm</span>}
       </Toolbar>
       <div class="f-app__body">
         {stage === "compose" ? (

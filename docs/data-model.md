@@ -6,6 +6,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Imag
 
 | File | What |
 | --- | --- |
+| `0029_rig_vignetting.sql` | `presets.vignetting` (JSON, nullable): lens vignetting per focal length. Additive (issue #266; see [capture](features/capture.md)) |
 | `0027_fixtures.sql` | `mesh_networks` and `fixtures`: the lights a workspace controls from the phone and the Bluetooth Mesh networks the phone provisions. Additive (epic #206, issue #208; see [lights](features/lights.md)) |
 | `0026_devices_per_user.sql` | `devices` keyed `(user_id, id)` instead of `id`; `viewfinder_layouts` rebuilt with `device_id` as a composite reference to `devices(user_id, id)` (the layout owner's device) and an index on `(user_id, device_id)`. Both tables rebuilt, every row copied with its owner; a `device_id` that was not one of the layout owner's devices is cleared (#224) |
 | `0025_admin_audit.sql` | `admin_audit`: every change an operator makes in the admin plane, written in the same batch as the change. Additive (#224; see [admin](features/admin.md#audit-trail-224)) |
@@ -43,7 +44,7 @@ Every project and rig belongs to a workspace, every device and viewfinder layout
 
 `projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, notes, created_at, updated_at)`
 
-`presets(id, workspace_id → workspaces, name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm, created_at, updated_at)`: rigs. Sensor dimensions are the source of truth for the math; `camera_id`/`format_id` refer to `packages/fov-math/src/cameras.ts` (null = custom sensor).
+`presets(id, workspace_id → workspaces, name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm, vignetting JSON | null, created_at, updated_at)`: rigs. `vignetting` is `[{ mm, start, end, opacity }]` sorted by `mm` (issue #266, `packages/vocab/src/vignetting.ts`); the API returns `[]` for null. Sensor dimensions are the source of truth for the math; `camera_id`/`format_id` refer to `packages/fov-math/src/cameras.ts` (null = custom sensor).
 
 `locations(id, project_id → projects CASCADE, name UNIQUE NOCASE per project, lat, lon, created_at, updated_at)`: a location belongs to one project. `lat`/`lon` is the location's pin (null = none). No district (removed in the rework).
 

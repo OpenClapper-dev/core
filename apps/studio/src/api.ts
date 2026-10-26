@@ -1,5 +1,5 @@
 /** Same-origin API; the session cookie is sent automatically. */
-import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup } from "@openclapper/vocab";
+import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, VignettePoint } from "@openclapper/vocab";
 export type { ClipGroup } from "@openclapper/vocab";
 export type { FieldDefinition };
 export type ShotState = "unreviewed" | "approved" | "archived";
@@ -94,6 +94,8 @@ export interface Preset {
   speedbooster_factor: number;
   lens_min_mm: number | null;
   lens_max_mm: number | null;
+  /** Lens vignetting per focal length (issue #266, vocab vignetting.ts); [] = none. */
+  vignetting: VignettePoint[];
   created_at: string;
   updated_at: string | null;
 }
@@ -281,6 +283,7 @@ export const fetchPresets = () => get<{ presets: Preset[] }>("/api/presets").the
 export const putPreset = (p: Omit<Preset, "created_at" | "updated_at">) =>
   send<{ preset: Preset }>("PUT", `/api/presets/${p.id}`, {
     name: p.name, camera_id: p.camera_id, format_id: p.format_id, sensor_width_mm: p.sensor_width_mm, sensor_height_mm: p.sensor_height_mm,
+    vignetting: p.vignetting,
     speedbooster_factor: p.speedbooster_factor, lens_min_mm: p.lens_min_mm, lens_max_mm: p.lens_max_mm,
   }).then((r) => r.preset);
 export const deletePreset = (id: string) => send<{ deleted: string }>("DELETE", `/api/presets/${id}`).then(() => undefined);

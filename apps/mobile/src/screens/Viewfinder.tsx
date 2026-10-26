@@ -30,6 +30,7 @@ import { HudChip } from "../components/Hud";
 import { LensSheet } from "../components/LensSheet";
 import { LensCarousel, LensStrip, ZoomCarousel, ZoomStrip } from "../components/LensStrip";
 import { HUMAN_COLOR, Overlay } from "../components/Overlay";
+import { vignetteAt } from "@openclapper/vocab";
 import { RigSheet } from "../components/RigSheet";
 import { EMPTY_TAGS } from "../components/TagEditor";
 import { retryAll } from "./Uploads";
@@ -187,6 +188,8 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
   // The phone sees narrower or wider by the zoom: its 35 mm equivalent is the main lens's times the zoom.
   const phoneMm = settings.phoneEquivalentFocalMm * zoom;
   const overlay = useMemo(() => (rig ? computeOverlay({ ...settings, phoneEquivalentFocalMm: phoneMm }, rig, lensMm, preview) : null), [settings, phoneMm, rig, lensMm, preview]);
+  /** Lens vignetting of the rig at this lens (issue #266): drawn in the frame and named in the HUD. */
+  const vignette = useMemo(() => (rig ? vignetteAt(rig.vignetting, lensMm) : null), [rig, lensMm]);
 
   /**
    * The position for a capture, or null (GPS off, or no fix at all; the photo is kept without one).
@@ -490,6 +493,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
       {chips.gps ? <HudChip icon={gpsMode === "off" ? "crosshairs-off" : gpsPoor ? "crosshairs-question" : "crosshairs-gps"} kind={gpsPoor && chips.warnings ? "warn" : undefined}>{gpsText}</HudChip>
         : chips.warnings && gpsPoor && <HudChip icon="crosshairs-question" kind="warn">{gpsAccuracy == null ? "No GPS" : gpsText}</HudChip>}
       {chips.warnings && overlay?.exceedsPreview && <HudChip icon="arrow-expand-all" kind="warn">Rig sees more than the phone: black = outside its view</HudChip>}
+      {chips.warnings && vignette && <HudChip icon="circle-half-full" kind="warn">Vignetting at {lensMm} mm: the corners go dark</HudChip>}
       {chips.warnings && !isConfigured && <HudChip icon="cloud-off-outline" kind="warn">No server in this build; shots stay on the phone</HudChip>}
       {chips.warnings && isConfigured && !authEmail && <HudChip icon="account-alert-outline" kind="warn" onPress={app.signIn} label="Not signed in, tap to sign in">Not signed in · shots stay on the phone</HudChip>}
     </View>
@@ -526,7 +530,7 @@ export function Viewfinder({ active: tabActive }: { active: boolean }) {
             />
           )}
           {!device && <View style={[StyleSheet.absoluteFill, s.center]}><Text style={s.noCam}>No back camera found</Text></View>}
-          {overlay && <Overlay preview={preview} rect={overlay.rect} settings={settings} exceedsPreview={overlay.exceedsPreview} human={overlay.human} />}
+          {overlay && <Overlay preview={preview} rect={overlay.rect} settings={settings} exceedsPreview={overlay.exceedsPreview} human={overlay.human} vignette={vignette} />}
           {sequence && <View style={s.seqBadge} pointerEvents="none"><SeqBadge count={sequence.photos.length} recording /></View>}
           {card && <View style={s.cardWrap} pointerEvents="box-none">{card}</View>}
         </View>

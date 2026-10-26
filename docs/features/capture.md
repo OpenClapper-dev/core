@@ -14,6 +14,7 @@ The Shoot tab (`apps/mobile/src/screens/Viewfinder.tsx`) is a viewfinder for a c
 
 - **Rigs** (presets) are a camera body + recording format + speedbooster, or a custom sensor. Bodies and formats are in `packages/fov-math/src/cameras.ts`: BMPCC 4K/6K, generic FF, S35, APS-C, MFT, 1".
   - Optionally a lens range, e.g. an 18–35 zoom.
+  - Optionally **lens vignetting** (issue #266, edited in the Studio's Library › Rigs): per focal length, where the dark corners start and are fully dark (fractions of the frame's half-diagonal) and how dark they get. The dark fading corners of a wide lens are its image circle ending before the format diagonal, so the shape is a circle around the centre and only those numbers are asked; between focal lengths the values interpolate, below the widest one they hold, above the longest there is none (aperture is ignored: a rough indication). The viewfinder draws it inside the frame (`components/Vignette.tsx`, an SVG radial gradient: `react-native-svg`) and every stored photo shows it over its frame; it is never baked into a photo.
   - Shoot → Rig opens the **Rig sheet** (`components/RigSheet.tsx`): tap a rig to shoot with it. "Edit <rig>" and "New rig" open the **Rig editor** (`screens/Rigs.tsx`). The editor has:
     - body + format as rows that open option sheets, or a custom sensor
     - speedbooster (none, ×0.71, ×0.64, ×0.58, other)
@@ -55,7 +56,7 @@ In landscape the row becomes an 80 dp column next to the tab bar, read top to bo
 - **GPS**: the mode and accuracy ("GPS ±5 m", "GPS low ±40 m", "GPS off"); see [positions](positions.md).
 - **Warnings**, shown independently of the others:
   - red "No project" (tap to pick)
-  - amber: no GPS fix, or worse than ±20 m in high precision (never in GPS off), rig wider than the phone, not signed in (tap to sign in), no server in this build
+  - amber: no GPS fix, or worse than ±20 m in high precision (never in GPS off), rig wider than the phone, **"Vignetting at n mm"** when the rig darkens the corners at the chosen lens, not signed in (tap to sign in), no server in this build
 
 There is no theme button on the HUD any more; the theme is Setup → Theme.
 

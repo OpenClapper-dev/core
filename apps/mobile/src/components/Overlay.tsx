@@ -2,6 +2,8 @@ import { StyleSheet, Text, View } from "react-native";
 import type { Box, Rect } from "../framing";
 import { BORDER, FIXED, FONT } from "../ui";
 import type { ViewSettings } from "../types";
+import type { Vignette as VignetteSpec } from "@openclapper/vocab";
+import { Vignette } from "./Vignette";
 
 interface Props {
   preview: Box;
@@ -12,6 +14,8 @@ interface Props {
   human?: { rect: Rect; fits: boolean; focalMm?: number } | null;
   /** Stored photos: neutral mask and white frame regardless of the live-view settings (photos never take a colour). */
   neutral?: boolean;
+  /** Lens vignetting of the rig at this lens (issue #266), drawn inside the frame under its lines. */
+  vignette?: VignetteSpec | null;
 }
 
 export const HUMAN_COLOR = FIXED.human;
@@ -20,7 +24,7 @@ export const HUMAN_COLOR = FIXED.human;
  * Frame rectangle plus optional blackout outside it. Pure layout, no per-frame work.
  * The frame line has a 1 dp black outline on both sides so it reads over sky and shadow alike.
  */
-export function Overlay({ preview, rect, settings, exceedsPreview, human, neutral }: Props) {
+export function Overlay({ preview, rect, settings, exceedsPreview, human, neutral, vignette }: Props) {
   const right = preview.width - rect.left - rect.width;
   const bottom = preview.height - rect.top - rect.height;
   const tint = neutral ? FIXED.mask : settings.blackoutColor;
@@ -30,6 +34,7 @@ export function Overlay({ preview, rect, settings, exceedsPreview, human, neutra
   const style = exceedsPreview ? "dashed" : "solid";
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { width: preview.width, height: preview.height }]}>
+      {vignette && <Vignette rect={rect} v={vignette} />}
       {settings.blackoutEnabled && (
         <>
           <View style={{ position: "absolute", left: 0, top: 0, right: 0, height: rect.top, backgroundColor: tint }} />
