@@ -46,7 +46,7 @@ export function TimelineApp({ win, setTitle, replaceRoute, open }: AppProps) {
   if (!pd.project || !pd.data.presets) return null;
   return (
     <TimelinePage key={win.stateSeq ?? 0} project={pd.project} shots={pd.scoped} presets={pd.data.presets} mask={mask} timelineId={timelineId} at={at}
-      onTimeline={(id) => { setAt(null); setTimelineId(id); }} onOpen={openShot} onUpdated={data.updated}
+      onTimeline={(id) => { setAt(null); setTimelineId(id); }} onOpen={openShot} onUpdated={data.updated} onDeleted={data.deleted} onCreated={(s) => data.created([s])}
       onShowOnMap={(s) => open({ app: "gallery", state: { showShot: s.id } })} onNewShot={() => openOverlay("newShot")}
       onStatus={(s) => { setSave(s.save); setTitle(s.name ? `Timeline · ${s.name}` : "Timeline"); }}
       onCutPosition={(pos) => replaceRoute({ page: "timeline", timelineId, at: pos })} />
