@@ -33,11 +33,12 @@ The light model feeds the [schedule](schedule.md): phases are defined by sun ele
 
 The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp.tsx`): one window per shot, so two shots can sit side by side (opening a shot that is already open focuses its window). It keeps the list it was opened from (the Gallery's result, the map, Plan, Timeline or ⌘K); ←/→ move this window on to the next shot, and from a deep link without a list they walk the project's shots, newest first.
 
-- **Toolbar**: back (Esc) closes the window and focuses the one it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the window closes (`frameMode.ts` holds the global one). `M` cycles it.
+- **Toolbar**: back (Esc) closes the window and focuses the one it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Sequence (`S`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the window closes (`frameMode.ts` holds the global one). `M` cycles it.
 - **Stage**:
-  - **Photo**: the photo as large as fits, with prev/next buttons beside it and nothing drawn over the picture (rig and lens are in the inspector). The foot has the photo strip for sequences (`,` `.`) and the actions Download crop (cropped in the browser), Original, Show on map, and Delete (confirm dialog, offering Archive instead).
+  - **Photo**: the step as large as fits (a sequence is a progression of **steps**, [sequences](sequences.md): a photo, or a photo through a framing or as an overlay), with prev/next buttons beside it and nothing drawn over the picture (rig and lens are in the inspector). The foot has the step strip for sequences (`,` `.`; a crop or layers glyph marks a step with a framing or an overlay; picking a step also picks its photo for the other stages) and the actions Download crop (the step cropped to its frame, in the browser), Original, **Extract…** (a copy of the photo as a shot of its own, [sequences](sequences.md)), Show on map, and Delete (confirm dialog, offering Archive instead).
   - **Framing**: re-frame the photo, saved framings, the root frame ([framing](rig-explorer.md)).
   - **Compose**: overlays and sketches ([compose](compose.md)); the inspector is replaced by the compose panel.
+  - **Sequence**: the shot's steps as a progression: reorder, add, remove, a zoom sequence, a light progression from overlays ([sequences](sequences.md)).
   - **Position**: the [position correction](positions.md) map.
 - **Inspector** (`Inspector.tsx`, 380 px, scrolls on its own):
   - the name, state marker and a summary line
@@ -55,7 +56,7 @@ The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp
   - **Description**: a Markdown field ([compose](compose.md)), saved 0.7 s after the last edit or on leaving it.
   - **Compose**: the names of the shot's overlays and sketches, with Open (`C`).
   - **Position** of the photo on stage, with "Correct", and the switch "Use the location's position" ([positions](positions.md)). A photo captured without GPS says "No position · captured without GPS" and offers "Set position" (the same map stage, starting at another photo of the shot or Berlin).
-  - **Shot**: captured, photos, uploaded, the **shooting days** it is planned on (link to Plan) and the **timelines** it is cut into (link to Timeline).
+  - **Shot**: captured, photos (and the number of stored steps), uploaded, the **shooting days** it is planned on (link to Plan) and the **timelines** it is cut into (link to Timeline).
   - **Camera** of the photo on stage: rig, the frame shown (root framing or As captured, and how many framings), body, format, sensor, lens + FF-equivalent, FOV, time, GPS accuracy, fix age and altitude, phone.
   - **Raw metadata**: collapsed, with Copy.
 ## Reviewing

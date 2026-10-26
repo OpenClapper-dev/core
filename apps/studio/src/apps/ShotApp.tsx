@@ -23,7 +23,7 @@ export interface ShotLaunch {
   from?: string;
 }
 
-const STAGES: readonly Stage[] = ["photo", "rigs", "position", "compose"];
+const STAGES: readonly Stage[] = ["photo", "rigs", "position", "compose", "sequence"];
 
 /**
  * One shot in a window (#/shots/<id>), resource = the shot: the stage, the inspector, ←/→
@@ -80,6 +80,8 @@ export function ShotApp({ win, resource, setTitle, replaceRoute, open, close }: 
       projects={d.projects ?? []} presets={d.presets ?? []} fieldsOf={data.fieldsOf} locations={data.locationsOf(shot.project_id, d)} onLocations={data.setLocationsOf(shot.project_id)}
       spots={d.spots ?? []} onSpots={(update) => data.setSpots((cur) => update(cur ?? []))}
       onUpdated={data.updated}
+      onCreated={(s) => data.created([s])}
+      onOpen={(s) => open({ app: "shot", resource: { type: "shot", id: s.id }, state: { stage: "photo", list: [s.id], line: "Extracted from a sequence", from: win.id } })}
       onDeleted={(id) => {
         const i = list.findIndex((s) => s.id === id);
         const n = list[i + 1] ?? list[i - 1];

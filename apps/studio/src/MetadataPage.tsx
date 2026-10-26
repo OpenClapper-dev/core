@@ -2,7 +2,7 @@ import type { JSX } from "preact";
 import { useMemo, useState } from "preact/hooks";
 import { CAMERA_SUPPORTS, INT_EXT, label, SHOT_SIZES, WEATHER } from "@openclapper/vocab";
 import { existingIdOf, patchShot, putLocation, type Location, type Project, type Shot, type ShotState, type ShotTags } from "./api";
-import { placeLabel, shotTitle } from "./format";
+import { placeLabel, seqCount, shotTitle } from "./format";
 import type { MaskMode } from "./Framed";
 import { ScrubCover, SeqBadges } from "./ShotCard";
 import { Combobox, cx, EmptyNote, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, StateMarker, toast, Toolbar, ToolbarTitle } from "@openclapper/ui";
@@ -181,7 +181,7 @@ function Board(p: Props & { project: Project }) {
       onDblClick={() => p.onOpen(s, list)}>
       <ScrubCover shot={s} mask={p.mask} badges={(at) => (
         <>
-          <SeqBadges count={s.photos.length} at={at} />
+          <SeqBadges count={seqCount(s)} at={at} />
           <div class="f-card__tr"><StateMarker state={s.state} iconOnly /></div>
         </>
       )} />

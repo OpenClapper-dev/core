@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { fetchTimelines, patchShot, promoteClip, type Preset, type Project, type Shot, type Timeline, type TimelineClip } from "./api";
 import { guardCut, useClipEditing, type EditKind } from "./ClipEditing";
-import { placeLabel, shotTitle } from "./format";
+import { placeLabel, seqCount, shotTitle } from "./format";
 import type { MaskMode } from "./Framed";
 import { ScrubCover, SeqBadges } from "./ShotCard";
 import { bind, useKeys } from "./keys";
@@ -357,7 +357,7 @@ function Browser(p: BrowserProps) {
               onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setSel(s.id); } }}
               title={`${shotTitle(s)} · drag into the strip`}>
               <ScrubCover shot={s} mask={p.mask} badges={(at) => (<>
-                <SeqBadges count={s.photos.length} at={at} />
+                <SeqBadges count={seqCount(s)} at={at} />
                 <div class="f-card__tr rw-card__tr">
                   <StateMarker state={s.state} iconOnly />
                   {uses > 0 && (

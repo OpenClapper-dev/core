@@ -10,7 +10,7 @@
  */
 
 export type ScopeId =
-  | "global" | "wm" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "compose" | "draw" | "reframe"
+  | "global" | "wm" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "sequence" | "compose" | "draw" | "reframe"
   | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop" | "trash";
 
 export interface Scope {
@@ -32,6 +32,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   map: { label: "Shots · map", with: ["shots"] },
   shot: { label: "Shot view", with: [] },
   framing: { label: "Shot view · Framing", with: [] },
+  sequence: { label: "Shot view · Sequence", with: [] },
   compose: { label: "Shot view · Compose", with: ["draw"] },
   draw: { label: "Drawing (Compose, and overlays or sketches on the timeline stage)", with: ["compose"] },
   reframe: { label: "Re-framing a clip on the timeline stage", with: [] },
@@ -129,6 +130,7 @@ export const SHORTCUTS = [
   { scope: "shot", action: "archive", keys: ["e"], label: "Archive (archived: back to review)" },
   { scope: "shot", action: "framing", keys: ["r"], label: "Framing stage" },
   { scope: "shot", action: "compose", keys: ["c"], label: "Compose stage" },
+  { scope: "shot", action: "sequence", keys: ["s"], label: "Sequence stage" },
   { scope: "shot", action: "frameMode", keys: ["m"], label: "Cycle the frame mode" },
   { scope: "shot", action: "back", keys: ["Escape"], label: "Back to where the shot was opened" },
   { scope: "framing", action: "drag", keys: ["Drag"], info: true, label: "Move the frame" },
@@ -137,6 +139,13 @@ export const SHORTCUTS = [
   { scope: "framing", action: "nudge", keys: arrows.map((k) => `Shift+${k}`), display: "⇧ arrows", label: "Nudge the frame by 1 %" },
   { scope: "framing", action: "save", keys: ["Mod+s"], label: "Save the framing" },
   { scope: "framing", action: "back", keys: ["Escape"], label: "Back to the photo" },
+  { scope: "sequence", action: "prevStep", keys: [","], label: "Previous step" },
+  { scope: "sequence", action: "nextStep", keys: ["."], label: "Next step" },
+  { scope: "sequence", action: "earlier", keys: ["Alt+ArrowLeft"], label: "Move the step earlier" },
+  { scope: "sequence", action: "later", keys: ["Alt+ArrowRight"], label: "Move the step later" },
+  { scope: "sequence", action: "remove", keys: ["Delete"], label: "Remove the step" },
+  { scope: "sequence", action: "save", keys: ["Mod+s"], label: "Save now (changes autosave)" },
+  { scope: "sequence", action: "back", keys: ["Escape"], label: "Back to the photo" },
   { scope: "compose", action: "prevPhoto", keys: [","], label: "Previous photo of a sequence" },
   { scope: "compose", action: "nextPhoto", keys: ["."], label: "Next photo of a sequence" },
   { scope: "position", action: "drag", keys: ["Drag"], info: true, label: "Move the pin" },
