@@ -248,6 +248,8 @@ jobs:
       - name: Upload to Google Play
         if: env.AAB_NAME != '' && env.TRACK != 'none'
         run: |
+          # The script's exit code, not tee's: a rejected upload must fail the run.
+          set -o pipefail
           tools=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           package=$("$tools/aapt2" dump badging "$RUNNER_TEMP/$APK_NAME" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
           node scripts/play-upload.mjs --bundle "$RUNNER_TEMP/$AAB_NAME" --package "$package" --track "$TRACK" \
