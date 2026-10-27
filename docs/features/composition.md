@@ -106,6 +106,9 @@ their bakes.
   by step.
 - A clip's **Shows** select picks the step of its photo it shows (or the photo with the layers on every step).
   Its **own layers** (Layers, `C`) go on top, edited inline with the same layer list and settings.
+- **Sequence layers** (`Shift+C`, in a block's Sequence section): the **shot's** layers edited inline on the
+  timeline stage, the same list as the Compose stage. A change shows on every clip of the shot at once. Shows on
+  offers Every step, and This step when the clip shows a stored step; chosen steps are picked in the Compose stage.
 - **Shift-click** range → **Make a sequence…**, and **Extract as own shot…** in the clip menu, as above. Details in
   [timeline](timeline.md).
 

@@ -8,13 +8,13 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = ["projects", "fields"
  */
 import { META_FIELDS, type MetaField } from "./MetadataPage";
 
-export type CutTool = "reframe" | "layers" | "sketch";
+export type CutTool = "reframe" | "layers" | "shot-layers" | "sketch";
 export interface CutPosition { ms: number; tool: CutTool | null }
 
 function parseCutPosition(q: URLSearchParams): CutPosition | null {
   const t = Number(q.get("t"));
   const tool = q.get("tool");
-  const ok = tool === "reframe" || tool === "layers" || tool === "sketch" ? tool : null;
+  const ok = tool === "reframe" || tool === "layers" || tool === "shot-layers" || tool === "sketch" ? tool : null;
   if (!q.has("t") && !ok) return null;
   return { ms: Number.isFinite(t) && t > 0 ? Math.round(t * 10) * 100 : 0, tool: ok };
 }

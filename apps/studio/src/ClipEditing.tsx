@@ -1,12 +1,15 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { byPosition, layersAt, SKETCH_ASPECTS, withCentre, type Drawing, type Layer, type Presentation, type Shape } from "@openclapper/vocab";
-import { deleteClipSketch, fetchLayer, fetchSketch, putClipSketch, type Photo, type Preset, type Timeline, type TimelineClip } from "./api";
+import { byPosition, clipLayersOf, layersAt, SKETCH_ASPECTS, withCentre, type Drawing, type Layer, type Presentation, type Shape } from "@openclapper/vocab";
+import { deleteClipSketch, fetchLayer, fetchShotLayers, fetchSketch, putClipSketch, type Photo, type Preset, type Timeline, type TimelineClip } from "./api";
 import { DrawSurface } from "./compose/DrawSurface";
 import { DrawToolbar, drawingKeys, ShapeSection, useDrawingEditor } from "./compose/editor";
-import { LayerList, LayerProps, useLayerDocs } from "./compose/layers";
+import { FOOTAGE, LayerList, LayerProps, useLayerDocs } from "./compose/layers";
 import { renderSketch } from "./compose/render";
-import { Composition, layerRect, stackAreas, useShotLayers } from "./compose/stack";
+import { Composition, layerRect, primeShotLayers, stackAreas, useShotLayers } from "./compose/stack";
+import { useClipLayers } from "./ClipPicture";
+import * as data from "./data";
+import { shotTitle } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
 import { bind, NUDGE, useKeys } from "./keys";
@@ -23,7 +26,8 @@ import { Button, confirmDialog, Empty, Icon, Input, Panel, PanelBody, PanelHead,
  * timeline's autosave, layers a moment after the last change, a sketch 1.2 s after the last stroke.
  */
 
-export type EditKind = "reframe" | "layers" | "sketch";
+/** `layers`: the clip's own; `shot-layers`: its shot's (sequence-wide), the same as the shot's Compose stage. */
+export type EditKind = "reframe" | "layers" | "shot-layers" | "sketch";
 
 type SketchDoc = { kind: "sketch"; id: string; name: string; shapes: Shape[]; aspect: number; isNew: boolean };
 type Doc = SketchDoc;
@@ -74,11 +78,23 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
     onDeleted: (id) => { const t = tRef.current; onChange({ ...t, layers: t.layers.filter((x) => x.id !== id) }); },
   });
   const shotLayers = useShotLayers(layersClip?.shot ?? null);
+  // ----- the shot's layers from the timeline: every clip of the shot (the whole sequence) shows them -----
+  const shotClip = editing?.kind === "shot-layers" && c?.kind === "photo" ? c : null;
+  const sdocs = useLayerDocs({
+    load: async () => (shotClip ? fetchShotLayers(shotClip.shot.id) : []),
+    deps: [shotClip?.shot.id ?? null],
+    onSaved: (r) => data.updated(r.shot),
+    onDeleted: (_id, s) => data.updated(s),
+  });
+  // The strip and the stage read the shot's layers from the cache: keep it on what is edited here.
+  useEffect(() => { if (shotClip && !sdocs.loading) primeShotLayers(shotClip.shot.id, sdocs.list); }, [sdocs.list, sdocs.loading]);
+  const shotClipOwn = useClipLayers(shotClip?.ownLayers ?? []);
+  const active = shotClip ? sdocs : docs;
   const [layerSel, setLayerSel] = useState<string | null>(null);
-  useEffect(() => { setLayerSel(null); }, [layersClip?.clip.id]);
-  const picked = docs.list.find((l) => l.id === layerSel) ?? null;
+  useEffect(() => { setLayerSel(null); }, [layersClip?.clip.id, shotClip?.shot.id]);
+  const picked = active.list.find((l) => l.id === layerSel) ?? null;
   const drawingLayer = picked && picked.kind === "drawing" && !picked.locked && picked.visible ? picked : null;
-  const led = useDrawingEditor(drawingLayer?.shapes ?? [], (shapes) => { if (drawingLayer) docs.update(drawingLayer.id, { shapes }); }, false);
+  const led = useDrawingEditor(drawingLayer?.shapes ?? [], (shapes) => { if (drawingLayer) active.update(drawingLayer.id, { shapes }); }, false);
   useEffect(() => { led.reset(false); }, [drawingLayer?.id]);
   // The clip went away (removed, or its shot deleted): the edit ends without saving.
   useEffect(() => { if (editing && !c) { setEditing(null); setDoc(null); } }, [editing, c]);
@@ -128,8 +144,8 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
 
   async function stop(): Promise<boolean> {
     if (!editing) return true;
-    if (editing.kind === "layers") {
-      if (!(await docs.flush()) && !(await confirmDialog({ title: "The layers are not saved", body: "Saving them failed. Leave the edit anyway? The changes since the last save are lost.", confirmLabel: "Leave without saving", danger: true, cancelLabel: "Keep editing" }))) return false;
+    if (editing.kind === "layers" || editing.kind === "shot-layers") {
+      if (!(await (editing.kind === "layers" ? docs : sdocs).flush()) && !(await confirmDialog({ title: "The layers are not saved", body: "Saving them failed. Leave the edit anyway? The changes since the last save are lost.", confirmLabel: "Leave without saving", danger: true, cancelLabel: "Keep editing" }))) return false;
       setEditing(null); setLayerSel(null);
       return true;
     }
@@ -149,7 +165,7 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
       setEditing({ kind, clipId: cl.clip.id });
       return;
     }
-    if (kind === "layers") {
+    if (kind === "layers" || kind === "shot-layers") {
       if (cl.kind !== "photo") return;
       setEditing({ kind, clipId: cl.clip.id });
       return;
@@ -202,9 +218,9 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
     escape: () => { if (ed.textEdit) { ed.setTextEdit(null); return; } if (ed.selected) { ed.setSelected(null); return; } void stop(); },
   }), editing?.kind === "sketch" && !!doc);
   useKeys(drawingKeys(led, {
-    save: () => { void docs.flush(); },
+    save: () => { void active.flush(); },
     escape: () => { if (led.textEdit) { led.setTextEdit(null); return; } if (led.selected) { led.setSelected(null); return; } if (layerSel) { setLayerSel(null); return; } void stop(); },
-  }), !!layersClip);
+  }), !!(layersClip || shotClip));
   const reframe = editing?.kind === "reframe" && c?.kind === "photo" ? c : null;
   const rf = reframeOf(reframe, presets, (patch) => reframe && patchClip(reframe.clip.id, { presentation: { ...reframe.pres, ...patch } }));
   useKeys(bind("reframe", {
@@ -278,6 +294,58 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
           </div>
           {picked && (
             <LayerProps layer={picked} docs={docs} space={(space) => docs.update(picked.id, { space, photo_id: space === "photo" ? cl.photo.id : null })}>
+              {picked.kind === "drawing" && <ShapeSection ed={led} />}
+            </LayerProps>
+          )}
+        </PanelBody>
+      </Panel>
+    );
+  } else if (shotClip) {
+    const cl = shotClip;
+    const frame = presentationFrame(cl.photo, cl.pres);
+    const mode: MaskMode = cl.pres.mode === "off" ? "fit" : cl.pres.mode;
+    const areas = stackAreas(cl.photo, mode, frame);
+    const shown = layersAt(sdocs.list, cl.step);
+    const own = clipLayersOf(shotClipOwn, cl.clip.id);
+    stage = drawingLayer ? (
+      <DrawSurface shapes={drawingLayer.shapes ?? []} onPreview={led.preview} onCommit={led.commit} selected={led.selected} onSelect={led.setSelected} tool={led.tool} style={led.style} mask={led.mask}
+        canvasOf={(w, h) => layerRect(drawingLayer, areas, w, h) ?? { x: 0, y: 0, w, h }} aspect={areas.aspect} maxHeight={STAGE_H} sketch={false}
+        textEdit={led.textEdit} onTextEdit={led.setTextEdit} onTextDone={led.textDone}
+        background={() => <Composition photo={cl.photo} frame={frame} mode={mode} layers={shown.filter((l) => l.id !== drawingLayer.id)} extra={own} className="compose__photo" />} />
+    ) : <Composition photo={cl.photo} frame={frame} mode={mode} layers={shown} extra={own} maxHeight={STAGE_H} />;
+    // "This step" needs the clip's step stored; chosen steps are picked in the shot's Compose stage.
+    const here = cl.step.stored ? cl.step.id : null;
+    const badge = (l: Layer) => (l.range === null ? null : here && l.range.includes(here) ? (l.range.length === 1 ? "this step" : `${l.range.length} steps`) : "not here");
+    const add = async (kind: Layer["kind"]) => {
+      const l = await sdocs.add(kind, { shot_id: cl.shot.id, space: "frame", photo_id: null, range: null, timeline_id: null, clip_id: null });
+      if (l) setLayerSel(l.id);
+    };
+    const range = (l: Layer) => {
+      const kind = l.range === null ? "all" : here && l.range.length === 1 && l.range[0] === here ? "this" : "some";
+      const options = [{ id: "all", label: "Every step" }, ...(here ? [{ id: "this", label: "This step" }] : []), ...(kind === "some" ? [{ id: "some", label: `${l.range?.length ?? 0} chosen` }] : [])];
+      return (
+        <div class="f-field">
+          <span class="f-field__label">Shows on</span>
+          <Seg label="Shows on" value={kind} onChange={(k) => { if (k === "all") sdocs.update(l.id, { range: null }); else if (k === "this" && here) sdocs.update(l.id, { range: [here] }); }} options={options} />
+          <span class="meta">{l.space === "photo" ? "Anchored to a photo: only on that photo's steps. " : ""}Pick single steps in the shot's Compose stage.</span>
+        </div>
+      );
+    };
+    panel = (
+      <Panel label="Shot layers" width="380px" resize={DRAWER_RESIZE}>
+        <PanelHead title="Shot layers"><SaveStatus state={sdocs.save} onRetry={sdocs.retry} />{done}</PanelHead>
+        <PanelBody flush>
+          {drawingLayer && <div class="f-sec tl-drawbar"><DrawToolbar ed={led} compact /></div>}
+          <div class="f-sec">
+            <span class="meta">The layers of “{shotTitle(cl.shot)}”: every clip of the shot shows them, here and everywhere else.</span>
+            {sdocs.loading ? <Spinner /> : <LayerList docs={sdocs} selected={layerSel} onSelect={(id) => setLayerSel(id === FOOTAGE ? null : id)} footage="Footage" badge={badge} />}
+            <div class="btn-row" style={{ gap: "6px" }}>
+              <Button kind="secondary" size="sm" icon="draw" onClick={() => void add("drawing")}>Drawing</Button>
+              <Button kind="secondary" size="sm" icon="tune-variant" onClick={() => void add("adjustment")}>Adjustment</Button>
+            </div>
+          </div>
+          {picked && (
+            <LayerProps layer={picked} docs={sdocs} range={range(picked)} space={(space) => sdocs.update(picked.id, { space, photo_id: space === "photo" ? cl.photo.id : null })}>
               {picked.kind === "drawing" && <ShapeSection ed={led} />}
             </LayerProps>
           )}
