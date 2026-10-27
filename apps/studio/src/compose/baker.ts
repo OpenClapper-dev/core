@@ -3,9 +3,9 @@
  * Studio can draw the stack. It watches the loaded shots and bakes every step whose bake is
  * missing or stale (vocab `bakeHash`), one at a time in the background, so a layer edit, a
  * framing change or migrated data reach the phone without anyone opening the shot. A step that
- * shows no layers needs no bake.
+ * shows no layers needs no bake. A project that bakes approved shots only holds the others back.
  */
-import { bakeHash, bakeKey, layersAt } from "@openclapper/vocab";
+import { bakeHash, bakeKey, bakeWaits, layersAt } from "@openclapper/vocab";
 import { putBake, type Shot } from "../api";
 import * as data from "../data";
 import { steps, stepStale } from "../format";
@@ -14,6 +14,7 @@ import { loadShotLayers } from "./stack";
 
 /** Bake the stale steps of one shot; returns the shot as the server last answered (or the input). */
 export async function bakeShot(shot: Shot, onShot: (s: Shot) => void): Promise<Shot> {
+  if (bakeWaits(shot)) return shot;
   const stale = steps(shot).filter((st) => stepStale(shot, st));
   if (!stale.length) return shot;
   const layers = await loadShotLayers(shot);
@@ -46,7 +47,7 @@ async function run() {
     for (;;) {
       const now = Date.now();
       // A shot that failed waits a few minutes before the next attempt (a missing photo, a network error).
-      const next = (data.getData().shots ?? []).find((s) => (failed.get(s.id) ?? 0) < now && steps(s).some((st) => stepStale(s, st)));
+      const next = (data.getData().shots ?? []).find((s) => (failed.get(s.id) ?? 0) < now && !bakeWaits(s) && steps(s).some((st) => stepStale(s, st)));
       if (!next) break;
       // The shot list only, not data.updated: a bake changes no counts.
       try { await bakeShot(next, (s) => data.setShots((cur) => (cur ?? []).map((x) => (x.id === s.id ? s : x)))); failed.delete(next.id); }

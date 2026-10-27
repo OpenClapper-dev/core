@@ -65,7 +65,7 @@ Reviewing is finding the shots that carry a sequence. On the Studio it happens i
 ## History on the phone
 
 The **History** tab (`screens/History.tsx`, was Review until issue #48) steps through the project's shots one at a time (queued ones included, newest first; the header button switches to oldest first and starts at the top of that order, remembered in `reviewOrder.v1`), photo first, with the decisions at the thumb. **All shots · To review** (remembered in `historyFilter.v1`) narrows it to the unreviewed queue; the tab badge counts the unreviewed shots either way:
-- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" (or "Step i / n" once the Studio stored steps, [composition](composition.md)) for sequences and the step strip under it; a step with layers shows the Studio's bake, or the photo with "Layers not baked yet". **Swipe** on the photo = next/prev shot; the strip moves between steps. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
+- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" (or "Step i / n" once the Studio stored steps, [composition](composition.md)) for sequences and the step strip under it; a step with layers shows the Studio's bake, or the photo with "Layers not baked yet" ("Baked once approved" in a project that bakes approved shots only). **Swipe** on the photo = next/prev shot; the strip moves between steps. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
 - The frame-view switch (remembered in `reviewMode.v1`).
 - The summary:
   - the name (or the rig when untagged), the state and location

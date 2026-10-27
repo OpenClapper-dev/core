@@ -6,6 +6,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Imag
 
 | File | What |
 | --- | --- |
+| `0031_bake_approved_only.sql` | `projects.bake_approved_only` (0/1, default 0): the project's bakes wait until a shot is approved. Additive (epic #275; see [composition](features/composition.md)) |
 | `0030_composition.sql` | `layers` (a shot's or a clip's drawing and adjustment layers), `step_bakes`, `timeline_clips.step_id`. Copies every overlay into layers (a drawing layer with its id, an adjustment layer for a look that is not neutral), gives shots without stored steps that had overlays stored steps (each photo, then one step per overlay), ranges each layer to the steps that showed its overlay, and points clips at those steps (or copies the layers as the clip's own). The `overlays` table and `shot_steps.overlay_id` stay, unread, until a later release drops them (epic #275; see [composition](features/composition.md)) |
 | `0029_rig_vignetting.sql` | `presets.vignetting` (JSON, nullable): lens vignetting per focal length. Additive (issue #266; see [capture](features/capture.md)) |
 | `0028_shot_steps.sql` | `shot_steps`: a shot's stored steps (photo + optional framing; the `overlay_id` column is unused since 0030). Additive, no backfill: a shot without rows shows its photos as steps (issue #266) |

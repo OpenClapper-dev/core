@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { NEUTRAL_LOOK } from "./compose.ts";
-import { bakeHash, bakeKey, clipLayersOf, freshBake, layersAt, validateLayerInput, type Layer } from "./layers.ts";
+import { bakeHash, bakeKey, bakeWaits, clipLayersOf, freshBake, layersAt, validateLayerInput, type Layer } from "./layers.ts";
 
 const U = (n: number) => `11111111-2222-4333-8444-${String(n).padStart(12, "0")}`;
 const layer = (id: string, patch: Partial<Layer> = {}): Layer => ({
@@ -49,4 +49,11 @@ test("input validation", () => {
   assert.match(validateLayerInput({ ...ok, opacity: 2 })!, /opacity/);
   assert.match(validateLayerInput({ ...ok, timeline_id: U(4) })!, /together/);
   assert.match(validateLayerInput({ ...ok, name: " " })!, /name/);
+});
+
+test("bakeWaits: only when the project bakes approved shots and the shot is not approved", () => {
+  assert.equal(bakeWaits({ state: "unreviewed" }), false);
+  assert.equal(bakeWaits({ state: "unreviewed", bake_approved_only: true }), true);
+  assert.equal(bakeWaits({ state: "archived", bake_approved_only: true }), true);
+  assert.equal(bakeWaits({ state: "approved", bake_approved_only: true }), false);
 });

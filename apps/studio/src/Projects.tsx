@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { deleteProject, existingIdOf, putProject, type FieldDefinition, type Project } from "./api";
-import { Button, confirmDialog, Empty, Field, Input, ListRow, Mark, MenuItem, Panel, PanelBody, PanelHead, ProjectTag, promptDialog, SaveStatus, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@openclapper/ui";
+import { Button, confirmDialog, Empty, Field, Input, ListRow, Mark, MenuItem, Panel, PanelBody, PanelHead, ProjectTag, promptDialog, SaveStatus, Seg, toast, Toolbar, ToolbarSpacer, ToolbarTitle, type SaveState } from "@openclapper/ui";
+import * as data from "./data";
 import { useUser } from "./user";
 
 const sortByName = (list: Project[]) => [...list].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
@@ -89,6 +90,16 @@ function ProjectDetail({ project, projects, onChange, fields, active, onActivate
     try { const saved = await putProject({ id: project.id, name: n.trim(), notes: t.trim() || null }); replace({ ...saved, field_ids: project.field_ids }); setSave("saved"); }
     catch (err) { setSave("error"); setNameError(existingIdOf(err) ? `A project called “${n.trim()}” already exists. Names are unique, ignoring case.` : (err as Error).message); }
   }
+  /** Bake for the phone only once approved (epic #275); the loaded shots carry the setting too, so the baker follows at once. */
+  async function setBakeApproved(on: boolean) {
+    setSave("saving");
+    try {
+      const saved = await putProject({ id: project.id, name: project.name, notes: project.notes, bake_approved_only: on });
+      replace({ ...saved, field_ids: project.field_ids });
+      data.setShots((cur) => (cur ?? []).map((x) => (x.project_id === project.id ? { ...x, bake_approved_only: on } : x)));
+      setSave("saved");
+    } catch (e) { setSave("error"); toast(`Not saved: ${(e as Error).message}`, "danger"); }
+  }
   async function remove() {
     const ok = await confirmDialog({ title: `Delete “${project.name}”?`, body: "The project is empty; nothing else is removed.", confirmLabel: "Delete project", danger: true });
     if (!ok) return;
@@ -110,6 +121,13 @@ function ProjectDetail({ project, projects, onChange, fields, active, onActivate
           <Input invalid={!!nameError} value={name} maxLength={80} onInput={(e) => setName((e.target as HTMLInputElement).value)} onBlur={() => void saveMeta()} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
         </Field>
         <Field label="Notes"><textarea class="f-textarea" rows={3} value={notes} onInput={(e) => setNotes((e.target as HTMLTextAreaElement).value)} onBlur={() => void saveMeta()} /></Field>
+        <Field label="Phone images of compositions" as="div">
+          <Seg label="Phone images of compositions" value={project.bake_approved_only ? "approved" : "all"} onChange={(v) => void setBakeApproved(v === "approved")}
+            options={[{ id: "all", label: "Every shot" }, { id: "approved", label: "Approved shots only" }]} />
+          <span class="f-field__help">{project.bake_approved_only
+            ? "The Studio bakes a shot's layers into images for the phone once the shot is approved. Until then the phone shows the photo, tagged “Baked once approved”; images made before stay while they match."
+            : "The Studio bakes every shot's layers into images for the phone, in the background. Approved only saves that work and storage on shots that never make it."}</span>
+        </Field>
         <div class="f-field" style={{ gap: "8px" }}>
           <div class="btn-row"><span class="f-field__label" style={{ flex: 1 }}>Extra fields, in order</span><a href="#" style={{ fontSize: "var(--text-caption)" }} onClick={(e) => { e.preventDefault(); onEditFields(project.id); }}>{active ? "Edit fields" : "Make active and edit fields"}</a></div>
           {own.length > 0 ? (

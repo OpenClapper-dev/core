@@ -38,6 +38,8 @@ export interface Shot {
   id: string;
   project_id: string;
   project_name: string | null;
+  /** The project bakes approved shots only (epic #275); see vocab `bakeWaits`. */
+  bake_approved_only: boolean;
   location_id: string | null;
   location_name: string | null;
   /** A spot within the location (issue #44); always one of the shot's location. */
@@ -79,7 +81,7 @@ export interface Sketch {
   id: string; shot_id: string; timeline_id?: string | null; clip_id?: string | null; name: string; kind: string | null; description: string | null;
   drawing?: Drawing; aspect: number; position: number; render_url: string | null; created_at: string; updated_at: string | null;
 }
-export interface Project { id: string; workspace_id: string; name: string; notes: string | null; created_at: string; updated_at: string | null; shot_count: number; /** Extra-field definitions the project uses, in order. */ field_ids: string[] }
+export interface Project { id: string; workspace_id: string; name: string; notes: string | null; created_at: string; updated_at: string | null; shot_count: number; /** Bakes for the phone wait until a shot is approved (epic #275). */ bake_approved_only: boolean; /** Extra-field definitions the project uses, in order. */ field_ids: string[] }
 export interface Preset {
   id: string;
   name: string;
@@ -215,8 +217,8 @@ export async function fetchAllShots(): Promise<Shot[]> {
 
 export const fetchProjects = () => get<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
 /** Upsert; a 409 carries body.existing_id when another project already has the name. */
-export const putProject = (p: { id: string; name: string; notes: string | null; workspace_id?: string }) =>
-  send<{ project: Project }>("PUT", `/api/projects/${p.id}`, { name: p.name, notes: p.notes, workspace_id: p.workspace_id }).then((r) => r.project);
+export const putProject = (p: { id: string; name: string; notes: string | null; workspace_id?: string; bake_approved_only?: boolean }) =>
+  send<{ project: Project }>("PUT", `/api/projects/${p.id}`, { name: p.name, notes: p.notes, workspace_id: p.workspace_id, bake_approved_only: p.bake_approved_only }).then((r) => r.project);
 /** Listeners told when a project was created somewhere other than Library › Projects (App refreshes its list). */
 const projectCreated = new Set<(p: Project) => void>();
 export function onProjectCreated(cb: (p: Project) => void): () => void { projectCreated.add(cb); return () => { projectCreated.delete(cb); }; }

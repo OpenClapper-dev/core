@@ -28,7 +28,7 @@ Who a request is (`index.ts` `identify`): a session (bearer header, else cookie;
 | Method | Path | Notes |
 | --- | --- | --- |
 | GET | `/api/projects` | Each with `workspace_id`, `shot_count` and `field_ids` (ordered) |
-| PUT | `/api/projects/:id` | `{ name, notes?, workspace_id? }` upsert. A new project goes to `workspace_id` (editor there), default the caller's own workspace; an existing one keeps its workspace. Names are unique per workspace: clash → `409 { existing_id }` (of that workspace) |
+| PUT | `/api/projects/:id` | `{ name, notes?, workspace_id?, bake_approved_only? }` upsert (`bake_approved_only` a boolean; absent keeps the project's setting; every shot payload carries it too). A new project goes to `workspace_id` (editor there), default the caller's own workspace; an existing one keeps its workspace. Names are unique per workspace: clash → `409 { existing_id }` (of that workspace) |
 | DELETE | `/api/projects/:id` | Only without live shots, else `409`; the project's recycle bin is emptied first |
 | PUT | `/api/projects/:id/fields` | `{ field_ids: [...] }` reorders the project's own fields (must list exactly them) |
 
