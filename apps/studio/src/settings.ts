@@ -28,8 +28,19 @@ export interface Settings {
   taskbarPosition: "bottom" | "top" | "left" | "right";
   /** Launcher, pins and windows from the left, or centred like Windows 11. */
   taskbarAlign: "start" | "center";
+  /**
+   * The background behind photos on every stage, thumbnail and strip (`--photo-bg`), as #rrggbb; null
+   * keeps the theme's black. A dark lens vignette or a dark photo edge is hard to tell from black.
+   */
+  stageBg: string | null;
+  /** Per app (registry id): its own stage background, overriding `stageBg` inside its windows. */
+  stageBgApps: Record<string, string>;
 }
-export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true, taskbarPosition: "bottom", taskbarAlign: "start" };
+export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true, taskbarPosition: "bottom", taskbarAlign: "start", stageBg: null, stageBgApps: {} };
+
+const HEX = /^#[0-9a-f]{6}$/i;
+/** A stored colour, or null when it is not #rrggbb (hand-edited storage never reaches the CSS). */
+export const hexOrNull = (v: unknown): string | null => (typeof v === "string" && HEX.test(v) ? v.toLowerCase() : null);
 
 function read(): Settings {
   try {
@@ -42,6 +53,8 @@ function read(): Settings {
       binOnDesktop: raw.binOnDesktop !== false,
       taskbarPosition: raw.taskbarPosition === "top" || raw.taskbarPosition === "left" || raw.taskbarPosition === "right" ? raw.taskbarPosition : "bottom",
       taskbarAlign: raw.taskbarAlign === "center" ? "center" : "start",
+      stageBg: hexOrNull(raw.stageBg),
+      stageBgApps: Object.fromEntries(Object.entries(raw.stageBgApps && typeof raw.stageBgApps === "object" ? raw.stageBgApps : {}).flatMap(([k, v]) => { const h = hexOrNull(v); return h ? [[k, h]] : []; })),
     };
   } catch { return { ...DEFAULT_SETTINGS }; }
 }

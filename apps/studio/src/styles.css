@@ -352,6 +352,11 @@ button { font: inherit; }
 .settings__row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-4); align-items: center; padding: 14px 16px; border-bottom: var(--bw) solid var(--border-subtle); }
 .settings__row:last-child { border-bottom: 0; }
 .settings__row > div:first-child { display: flex; flex-direction: column; gap: 2px; }
+/* Stage background (Settings): swatches carry their own colour as data; the ring uses the tokens. */
+.stage-color { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.stage-color__sw { width: 22px; height: 22px; border-radius: 50%; padding: 0; cursor: pointer; border: var(--bw) solid var(--border-strong); }
+.stage-color__sw.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+.stage-color__pick { width: 30px; height: 24px; padding: 0; border: var(--bw) solid var(--border-strong); border-radius: var(--radius-sm); background: none; cursor: pointer; }
 /* Settings › Account (AccountSettings.tsx): a workspace row holds its members and the invite form. */
 .settings__ws { align-items: start; }
 .settings__wsact { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-2); }
