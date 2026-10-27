@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { clipLayersOf, layersAt, type Layer } from "@openclapper/vocab";
 import { fetchLayer } from "./api";
 import { Composition, useShotLayers } from "./compose/stack";
-import { stepBake } from "./format";
+import { stepBake, stepStale } from "./format";
 import { Framed, type MaskMode } from "./Framed";
 import { presentationFrame } from "./FramingSelect";
 import type { ResolvedClip } from "./TimelineParts";
@@ -28,12 +28,15 @@ export function useClipLayers(own: readonly Layer[]): Layer[] {
 
 /**
  * A photo clip's picture (epic #275): live on the stage and in the clip panel (the step's layers
- * from the shot, then the clip's own), its step's bake in the strip (a layers glyph says it has
- * its own on top).
+ * from the shot, then the clip's own). The strip uses the step's bake when that shows everything,
+ * and composes live when the clip has its own layers or the bake is not made yet, so a thumb never
+ * drops what the stage shows.
  */
 export function ClipPicture({ c, mode, maxHeight, live }: { c: PhotoClip; mode: MaskMode; maxHeight?: string; live?: boolean }) {
   const frame = presentationFrame(c.photo, c.pres);
-  if (!live) return <Framed photo={c.photo} mode={mode} frame={frame} vignette={presentationVignette(c.photo, c.pres)} src={stepBake(c.shot, c.step)?.url} maxHeight={maxHeight} />;
+  const bake = stepBake(c.shot, c.step);
+  const needsLive = live || c.ownLayers.length > 0 || (!bake && stepStale(c.shot, c.step));
+  if (!needsLive) return <Framed photo={c.photo} mode={mode} frame={frame} vignette={presentationVignette(c.photo, c.pres)} src={bake?.url} maxHeight={maxHeight} />;
   return <LivePicture c={c} mode={mode} maxHeight={maxHeight} />;
 }
 
