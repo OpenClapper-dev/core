@@ -21,13 +21,12 @@ import { ownedBy } from "./timelines.ts";
 const now = () => new Date().toISOString();
 const ids = (list: readonly string[]) => JSON.stringify(list);
 
-/** Statements removing a shot's timeline clips (and the clips' own overlays) and day places. */
+/** Statements removing a shot's timeline clips (and the clips' own layers) and day places. */
 async function shotsLeave(env: Env, shotIds: string): Promise<D1PreparedStatement[]> {
   const onPhotos = "photo_id IN (SELECT id FROM photos WHERE shot_id IN (SELECT value FROM json_each(?1)))";
   await deleteClipCompose(env, {
-    overlays: env.DB.prepare(`SELECT render_key AS k FROM overlays WHERE ${onPhotos} AND timeline_id IS NOT NULL`).bind(shotIds),
-    sketches: null,
-    deletes: [env.DB.prepare(`DELETE FROM overlays WHERE ${onPhotos} AND timeline_id IS NOT NULL`).bind(shotIds)],
+    reads: [],
+    deletes: [env.DB.prepare("DELETE FROM layers WHERE shot_id IN (SELECT value FROM json_each(?1)) AND timeline_id IS NOT NULL").bind(shotIds)],
   });
   return [
     env.DB.prepare(`DELETE FROM timeline_clips WHERE ${onPhotos}`).bind(shotIds),
@@ -154,9 +153,9 @@ async function purgeFiles(env: Env, type: FileResourceType, list: string[]): Pro
       keys = (await env.DB.prepare("SELECT r2_object_key AS k FROM photos WHERE shot_id IN (SELECT value FROM json_each(?1))").bind(j).all<{ k: string }>()).results.map((r) => r.k);
       for (const sid of chunk) keys.push(...(await renderKeysOf(env, sid)));
     }
-    // A timeline's clips own overlays and sketches with renders of their own (issue #31).
+    // A timeline's clips own layers, and sketches with renders of their own (issues #31, #275).
     if (type === "timeline") await deleteClipCompose(env, ownedBy(env, "timeline_id IN (SELECT value FROM json_each(?1))", [j]));
-    // Photos, overlays, sketches, clips and spots cascade; placements and shortcuts go here.
+    // Photos, layers, bakes, sketches, clips and spots cascade; placements and shortcuts go here.
     await env.DB.batch([env.DB.prepare(`DELETE FROM ${table} WHERE deleted_at IS NOT NULL AND id IN (SELECT value FROM json_each(?1))`).bind(j), ...fileRefCleanup(env, type, j)]);
     if (keys.length) await env.SHOTS_BUCKET.delete(keys);
   }

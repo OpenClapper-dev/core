@@ -1,13 +1,13 @@
 import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { lookFilter, NEUTRAL_LOOK, SKETCH_ASPECTS, withCentre, type Drawing, type Look, type Presentation, type Shape } from "@openclapper/vocab";
-import { deleteClipSketch, deleteOverlay, fetchOverlay, fetchSketch, putClipOverlay, putClipSketch, type Photo, type Preset, type Timeline, type TimelineClip } from "./api";
+import { byPosition, layersAt, SKETCH_ASPECTS, withCentre, type Drawing, type Layer, type Presentation, type Shape } from "@openclapper/vocab";
+import { deleteClipSketch, fetchLayer, fetchSketch, putClipSketch, type Photo, type Preset, type Timeline, type TimelineClip } from "./api";
 import { DrawSurface } from "./compose/DrawSurface";
-import { DrawToolbar, drawingKeys, LookSection, ShapeSection, useDrawingEditor } from "./compose/editor";
-import type { CanvasRect } from "./compose/geometry";
-import { BLUR_FRACTION, renderOverlay, renderSketch, vignetteCss } from "./compose/render";
-import { frameModeLabel } from "./format";
-import { Framed, framedLayout, type MaskMode } from "./Framed";
+import { DrawToolbar, drawingKeys, ShapeSection, useDrawingEditor } from "./compose/editor";
+import { LayerList, LayerProps, useLayerDocs } from "./compose/layers";
+import { renderSketch } from "./compose/render";
+import { Composition, layerRect, stackAreas, useShotLayers } from "./compose/stack";
+import { Framed, type MaskMode } from "./Framed";
 import { FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
 import { bind, NUDGE, useKeys } from "./keys";
 import { AS_SHOT, choiceLabel, DragFrame, frameForChoice, lensesFor, Pickers, type RigChoice } from "./RigExplorer";
@@ -17,18 +17,16 @@ import { Button, confirmDialog, Empty, Icon, Input, Panel, PanelBody, PanelHead,
 /**
  * Inline clip editing on the timeline stage (issue #31), like a video editor's inspector: the
  * frame handle or the drawing canvas goes onto the stage, the settings into the right drawer.
- * Everything is timeline-scoped: a re-frame writes only the clip's presentation, an overlay or a
- * sketch belongs to the clip until it is promoted to the shot (shot view → From timelines).
- * Changes save on their own: the clip with the timeline's autosave, a drawing 1.2 s after the last
- * stroke and when the edit ends.
+ * Everything is timeline-scoped: a re-frame writes only the clip's presentation, the clip's own
+ * layers (epic #275) and a sketch clip's sketch belong to the clip until they are promoted to the
+ * shot (shot view → Compose → From timelines). Changes save on their own: the clip with the
+ * timeline's autosave, layers a moment after the last change, a sketch 1.2 s after the last stroke.
  */
 
-export type EditKind = "reframe" | "overlay" | "sketch";
+export type EditKind = "reframe" | "layers" | "sketch";
 
-
-type OverlayDoc = { kind: "overlay"; id: string; name: string; shapes: Shape[]; look: Look; isNew: boolean };
 type SketchDoc = { kind: "sketch"; id: string; name: string; shapes: Shape[]; aspect: number; isNew: boolean };
-type Doc = OverlayDoc | SketchDoc;
+type Doc = SketchDoc;
 
 interface Options {
   timeline: Timeline;
@@ -66,6 +64,22 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
 
   const c = editing ? clips.find((x) => x.clip.id === editing.clipId) ?? null : null;
   const cRef = useRef(c); cRef.current = c;
+
+  // ----- the clip's own layers (epic #275): the same editing as the shot's Compose stage -----
+  const layersClip = editing?.kind === "layers" && c?.kind === "photo" ? c : null;
+  const docs = useLayerDocs({
+    load: async () => (layersClip ? Promise.all(layersClip.ownLayers.map((l) => fetchLayer(l.id))) : []),
+    deps: [layersClip?.clip.id ?? null],
+    onSaved: (r) => { const t = tRef.current; onChange({ ...t, layers: [...t.layers.filter((x) => x.id !== r.layer.id), { ...r.layer, shapes: undefined }] }); },
+    onDeleted: (id) => { const t = tRef.current; onChange({ ...t, layers: t.layers.filter((x) => x.id !== id) }); },
+  });
+  const shotLayers = useShotLayers(layersClip?.shot ?? null);
+  const [layerSel, setLayerSel] = useState<string | null>(null);
+  useEffect(() => { setLayerSel(null); }, [layersClip?.clip.id]);
+  const picked = docs.list.find((l) => l.id === layerSel) ?? null;
+  const drawingLayer = picked && picked.kind === "drawing" && !picked.locked && picked.visible ? picked : null;
+  const led = useDrawingEditor(drawingLayer?.shapes ?? [], (shapes) => { if (drawingLayer) docs.update(drawingLayer.id, { shapes }); }, false);
+  useEffect(() => { led.reset(false); }, [drawingLayer?.id]);
   // The clip went away (removed, or its shot deleted): the edit ends without saving.
   useEffect(() => { if (editing && !c) { setEditing(null); setDoc(null); } }, [editing, c]);
 
@@ -83,13 +97,7 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
     setSave("saving");
     try {
       const owner = { timeline_id: t.id, clip_id: cl.clip.id };
-      if (d.kind === "overlay" && cl.kind === "photo") {
-        const drawing: Drawing = { v: 1, shapes: d.shapes, look: d.look };
-        const res = await putClipOverlay(d.id, { photo_id: cl.photo.id, name: d.name.trim() || "Clip overlay", description: null, drawing, presentation: cl.pres, ...owner }, await renderOverlay(cl.photo, drawing));
-        const { drawing: _drawing, ...row } = res.overlay;
-        const now = tRef.current;
-        patchClip(cl.clip.id, { overlay_id: row.id }, { overlays: [...now.overlays.filter((o) => o.id !== row.id), row] });
-      } else if (d.kind === "sketch") {
+      if (d.kind === "sketch") {
         const drawing: Drawing = { v: 1, shapes: d.shapes, look: null };
         const name = d.name.trim() || "Sketch";
         const res = await putClipSketch(d.id, { name, kind: null, description: null, drawing, aspect: d.aspect, ...owner }, await renderSketch(drawing, d.aspect));
@@ -120,6 +128,11 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
 
   async function stop(): Promise<boolean> {
     if (!editing) return true;
+    if (editing.kind === "layers") {
+      if (!(await docs.flush()) && !(await confirmDialog({ title: "The layers are not saved", body: "Saving them failed. Leave the edit anyway? The changes since the last save are lost.", confirmLabel: "Leave without saving", danger: true, cancelLabel: "Keep editing" }))) return false;
+      setEditing(null); setLayerSel(null);
+      return true;
+    }
     const ok = await saveNow();
     if (!ok) {
       const r = await confirmDialog({ title: "The drawing is not saved", body: "Saving it failed. Leave the edit anyway? The changes since the last save are lost.", confirmLabel: "Leave without saving", danger: true, cancelLabel: "Keep editing" });
@@ -136,20 +149,17 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
       setEditing({ kind, clipId: cl.clip.id });
       return;
     }
-    if (kind === "overlay" && cl.kind !== "photo") return;
-    if (kind === "sketch" && cl.kind === "photo") return;
+    if (kind === "layers") {
+      if (cl.kind !== "photo") return;
+      setEditing({ kind, clipId: cl.clip.id });
+      return;
+    }
+    if (cl.kind === "photo") return;
     setEditing({ kind, clipId: cl.clip.id });
     setLoading(true);
     try {
       let d: Doc;
-      if (kind === "overlay" && cl.kind === "photo") {
-        const own = cl.overlay?.clip_id === cl.clip.id;
-        if (cl.overlay) {
-          // A shot overlay is edited as a copy for this clip: the shot keeps its own.
-          const o = await fetchOverlay(cl.overlay.id);
-          d = { kind: "overlay", id: own ? o.id : crypto.randomUUID(), name: own ? o.name : `${o.name} · clip`.slice(0, 80), shapes: o.drawing.shapes, look: o.drawing.look ?? { ...NEUTRAL_LOOK }, isNew: !own };
-        } else d = { kind: "overlay", id: crypto.randomUUID(), name: "Clip overlay", shapes: [], look: { ...NEUTRAL_LOOK }, isNew: true };
-      } else {
+      {
         const sk = cl.kind === "sketch" ? cl.sketch : null;
         const own = sk?.clip_id === cl.clip.id;
         if (sk) {
@@ -171,29 +181,30 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
   async function discard() {
     const d = docRef.current, cl = cRef.current;
     if (!d || !cl) return;
-    const ok = await confirmDialog({ title: `Delete “${d.name}”?`, body: d.kind === "overlay" ? "The clip's own overlay is removed; the clip shows the photo as is." : "The clip's own sketch is removed; the clip becomes a placeholder again.", confirmLabel: "Delete", danger: true });
+    const ok = await confirmDialog({ title: `Delete “${d.name}”?`, body: "The clip's own sketch is removed; the clip becomes a placeholder again.", confirmLabel: "Delete", danger: true });
     if (!ok) return;
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
     try {
       const t = tRef.current;
       if (!d.isNew || json(d) !== savedJson.current) {
-        if (d.kind === "overlay" && t.overlays.some((o) => o.id === d.id)) await deleteOverlay(d.id);
-        if (d.kind === "sketch" && t.sketches.some((k) => k.id === d.id)) await deleteClipSketch(d.id);
+        if (t.sketches.some((k) => k.id === d.id)) await deleteClipSketch(d.id);
       }
       const now = tRef.current;
-      if (d.kind === "overlay") patchClip(cl.clip.id, cl.clip.overlay_id === d.id ? { overlay_id: null } : {}, { overlays: now.overlays.filter((o) => o.id !== d.id) });
-      else patchClip(cl.clip.id, cl.clip.sketch_id === d.id ? { sketch_id: null } : {}, { sketches: now.sketches.filter((k) => k.id !== d.id) });
+      patchClip(cl.clip.id, cl.clip.sketch_id === d.id ? { sketch_id: null } : {}, { sketches: now.sketches.filter((k) => k.id !== d.id) });
       savedJson.current = "null";
       setEditing(null); setDoc(null); setSave("idle");
     } catch (e) { toast(`Delete failed: ${(e as Error).message}`, "danger"); }
   }
 
   // ----- keys: the edit mode owns them, the timeline's map is off meanwhile (modal scopes in shortcuts.ts) -----
-  const drawing = !!editing && editing.kind !== "reframe";
   useKeys(drawingKeys(ed, {
     save: () => { void saveNow(); },
     escape: () => { if (ed.textEdit) { ed.setTextEdit(null); return; } if (ed.selected) { ed.setSelected(null); return; } void stop(); },
-  }), drawing && !!doc);
+  }), editing?.kind === "sketch" && !!doc);
+  useKeys(drawingKeys(led, {
+    save: () => { void docs.flush(); },
+    escape: () => { if (led.textEdit) { led.setTextEdit(null); return; } if (led.selected) { led.setSelected(null); return; } if (layerSel) { setLayerSel(null); return; } void stop(); },
+  }), !!layersClip);
   const reframe = editing?.kind === "reframe" && c?.kind === "photo" ? c : null;
   const rf = reframeOf(reframe, presets, (patch) => reframe && patchClip(reframe.clip.id, { presentation: { ...reframe.pres, ...patch } }));
   useKeys(bind("reframe", {
@@ -233,41 +244,49 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
         </PanelBody>
       </Panel>
     );
-  } else if (loading || !doc) {
-    stage = <div class="tl-preview__empty"><Spinner /></div>;
-    panel = <Panel label="Loading" width="340px" resize={DRAWER_RESIZE}><PanelHead title="Opening…">{done}</PanelHead><PanelBody><Spinner /></PanelBody></Panel>;
-  } else if (doc.kind === "overlay" && c.kind === "photo") {
-    const pres = c.pres;
-    const frame = presentationFrame(c.photo, pres);
-    const layout = framedLayout(c.photo, pres.mode, frame);
-    const canvasOf = (w: number, h: number): CanvasRect => ({ x: (layout.img.left / 100) * w, y: (layout.img.top / 100) * h, w: (layout.img.width / 100) * w, h: (layout.img.height / 100) * h });
-    const look = doc.look;
-    stage = (
-      <DrawSurface shapes={doc.shapes} onPreview={ed.preview} onCommit={ed.commit} selected={ed.selected} onSelect={ed.setSelected} tool={ed.tool} style={ed.style} mask={ed.mask}
-        canvasOf={canvasOf} aspect={layout.aspect} maxHeight={STAGE_H} sketch={false} textEdit={ed.textEdit} onTextEdit={ed.setTextEdit} onTextDone={ed.textDone}
-        background={(_size, cv) => (
-          <Framed photo={c.photo} mode={pres.mode} frame={frame} className="compose__photo" imgStyle={{ filter: lookFilter(look, cv.w * BLUR_FRACTION) }}>
-            {look.tint && look.tint_opacity > 0 && <div class="compose__layer" style={pct(layout.img, { background: look.tint, opacity: look.tint_opacity })} />}
-            {look.vignette > 0 && <div class="compose__layer" style={pct(layout.img, { background: vignetteCss(look.vignette) })} />}
-          </Framed>
-        )} />
-    );
+  } else if (layersClip) {
+    const cl = layersClip;
+    const pres = cl.pres;
+    const frame = presentationFrame(cl.photo, pres);
+    const mode: MaskMode = pres.mode === "off" ? "fit" : pres.mode;
+    const areas = stackAreas(cl.photo, mode, frame);
+    const own = [...docs.list].sort(byPosition).filter((l) => l.visible);
+    const base: Layer[] = layersAt(shotLayers, cl.step);
+    stage = drawingLayer ? (
+      <DrawSurface shapes={drawingLayer.shapes ?? []} onPreview={led.preview} onCommit={led.commit} selected={led.selected} onSelect={led.setSelected} tool={led.tool} style={led.style} mask={led.mask}
+        canvasOf={(w, h) => layerRect(drawingLayer, areas, w, h) ?? { x: 0, y: 0, w, h }} aspect={areas.aspect} maxHeight={STAGE_H} sketch={false}
+        textEdit={led.textEdit} onTextEdit={led.setTextEdit} onTextDone={led.textDone}
+        background={() => <Composition photo={cl.photo} frame={frame} mode={mode} layers={base} extra={own.filter((l) => l.id !== drawingLayer.id)} className="compose__photo" />} />
+    ) : <Composition photo={cl.photo} frame={frame} mode={mode} layers={base} extra={own} maxHeight={STAGE_H} />;
+    const add = async (kind: Layer["kind"]) => {
+      const l = await docs.add(kind, { shot_id: cl.shot.id, space: "photo", photo_id: cl.photo.id, range: null, timeline_id: tRef.current.id, clip_id: cl.clip.id });
+      if (l) setLayerSel(l.id);
+    };
     panel = (
-      <Panel label="Overlay" width="380px" resize={DRAWER_RESIZE}>
-        <PanelHead title="Overlay"><SaveStatus state={save} onRetry={() => void saveNow()} savedLabel={doc.isNew ? "Not saved yet" : "Saved"} />{done}</PanelHead>
+      <Panel label="Clip layers" width="380px" resize={DRAWER_RESIZE}>
+        <PanelHead title="Layers"><SaveStatus state={docs.save} onRetry={docs.retry} />{done}</PanelHead>
         <PanelBody flush>
-          <div class="f-sec tl-drawbar"><DrawToolbar ed={ed} compact /></div>
+          {drawingLayer && <div class="f-sec tl-drawbar"><DrawToolbar ed={led} compact /></div>}
           <div class="f-sec">
-            <div class="f-formgrid"><label for="clip-ov-name">Name</label><Input sm id="clip-ov-name" value={doc.name} maxLength={80} onInput={(e) => setDoc({ ...doc, name: (e.target as HTMLInputElement).value })} /></div>
-            <span class="meta">Drawn in {frameModeLabel(pres.mode)} · {pres.label ?? "as shot"}; it stays on the photo in every frame.</span>
-            {promoteHint("overlay")}
+            {docs.loading ? <Spinner /> : <LayerList docs={docs} selected={layerSel} onSelect={setLayerSel} footage={null} />}
+            {!docs.loading && !docs.list.length && <span class="meta">This clip has no layers of its own. They go on top of what its step shows.</span>}
+            <div class="btn-row" style={{ gap: "6px" }}>
+              <Button kind="secondary" size="sm" icon="draw" onClick={() => void add("drawing")}>Drawing</Button>
+              <Button kind="secondary" size="sm" icon="tune-variant" onClick={() => void add("adjustment")}>Adjustment</Button>
+            </div>
+            {promoteHint("layer")}
           </div>
-          <LookSection look={doc.look} onLook={(l) => setDoc({ ...doc, look: l })} />
-          <ShapeSection ed={ed} />
-          <div class="f-sec"><div class="btn-row"><Button kind="danger" size="sm" icon={doc.isNew ? "close" : "delete-outline"} onClick={() => void discard()}>{doc.isNew ? "Discard" : "Delete overlay…"}</Button></div></div>
+          {picked && (
+            <LayerProps layer={picked} docs={docs} space={(space) => docs.update(picked.id, { space, photo_id: space === "photo" ? cl.photo.id : null })}>
+              {picked.kind === "drawing" && <ShapeSection ed={led} />}
+            </LayerProps>
+          )}
         </PanelBody>
       </Panel>
     );
+  } else if (loading || !doc) {
+    stage = <div class="tl-preview__empty"><Spinner /></div>;
+    panel = <Panel label="Loading" width="340px" resize={DRAWER_RESIZE}><PanelHead title="Opening…">{done}</PanelHead><PanelBody><Spinner /></PanelBody></Panel>;
   } else if (doc.kind === "sketch") {
     stage = (
       <DrawSurface shapes={doc.shapes} onPreview={ed.preview} onCommit={ed.commit} selected={ed.selected} onSelect={ed.setSelected} tool={ed.tool} style={ed.style} mask={ed.mask}
@@ -300,7 +319,6 @@ export function useClipEditing({ timeline, clips, presets, onChange }: Options):
   return { editing, start: (k, cl) => void start(k, cl), stop, stage: <div class="tl-stage__edit">{stage}</div>, panel };
 }
 
-const pct = (r: { left: number; top: number; width: number; height: number }, extra: Record<string, string | number>) => ({ left: `${r.left}%`, top: `${r.top}%`, width: `${r.width}%`, height: `${r.height}%`, ...extra });
 
 /** The re-frame of one clip, derived from its presentation: rig + lens give the size, the drag gives the centre. */
 function reframeOf(c: Extract<ResolvedClip, { kind: "photo" }> | null, presets: Preset[], onPatch: (p: Partial<Presentation>) => void) {

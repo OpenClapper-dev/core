@@ -31,7 +31,7 @@ export function presentationVignette(photo: Photo, pres: Presentation): Vignette
   if (pres.frame) return vignetteOf(pres.rig_id ?? photo.preset_id, pres.lens_mm ?? photo.lens_mm);
   return photoVignette(photo);
 }
-/** A step's: its framing, else its overlay's presentation, else the photo's root. */
-export const stepVignette = (st: Step): Vignette | null => (st.framing ? framingVignette(st.photo, st.framing) : st.overlay ? presentationVignette(st.photo, st.overlay.presentation) : photoVignette(st.photo));
+/** A step's: its framing, else the photo's root. */
+export const stepVignette = (st: Step): Vignette | null => (st.framing ? framingVignette(st.photo, st.framing) : photoVignette(st.photo));
 /** The focal length a step is shown at, for the "Vignetting at n mm" chip. */
-export const stepLensMm = (st: Step): number => st.framing?.lens_mm ?? (st.overlay?.presentation.lens_mm || null) ?? st.photo.lens_mm;
+export const stepLensMm = (st: Step): number => st.framing?.lens_mm ?? st.photo.framings.find((f) => f.id === st.photo.root_framing_id)?.lens_mm ?? st.photo.lens_mm;

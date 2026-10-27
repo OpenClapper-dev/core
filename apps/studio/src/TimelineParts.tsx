@@ -1,16 +1,16 @@
 import type { ComponentChildren, JSX, RefObject } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { CLIP_MAX_MS, EDGE_WEIGHT, GROUP_MAX_MS, PRESENTATION_MODES, splitDuration, type GroupMode, type Presentation } from "@openclapper/vocab";
-import { type ClipGroup, copyOverlay, copySketch, deleteTimeline, patchShot, patchShots, putTimeline, type Overlay, type Photo, type Shot, type ShotState, type Sketch, type Timeline, type TimelineClip } from "./api";
+import { CLIP_MAX_MS, EDGE_WEIGHT, GROUP_MAX_MS, PRESENTATION_MODES, rootFrame, splitDuration, type GroupMode, type Presentation } from "@openclapper/vocab";
+import { type ClipGroup, copyLayer, copySketch, deleteTimeline, patchShot, patchShots, putTimeline, type Layer, type Photo, type Shot, type ShotState, type Sketch, type Timeline, type TimelineClip } from "./api";
 import { binned } from "./apps/trashOps";
 import * as data from "./data";
 import { frameModeLabel, seqCount, shotTitle, steps, type Step } from "./format";
-import { Framed, type MaskMode } from "./Framed";
+import type { MaskMode } from "./Framed";
 import { invalidateTimelines } from "./Inspector";
-import { framingPresentation, FramingSelect, presentationFrame, rootPresentation } from "./FramingSelect";
-import { presentationVignette } from "./vignette";
+import { framingPresentation, FramingSelect, rootPresentation } from "./FramingSelect";
 import { Button, ContextMenu, cx, EmptyNote, Field, Icon, IconButton, Input, Kbd, MenuItem, Panel, PanelBody, PanelHead, type SaveState, Seg, Select, SeqBadge, Spinner, StateMarker, toast, withViewTransition } from "@openclapper/ui";
 import type { EditKind } from "./ClipEditing";
+import { ClipPicture } from "./ClipPicture";
 import { useSettings } from "./settings";
 import type { CutPosition } from "./router";
 
@@ -38,16 +38,16 @@ export const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 
 /**
  * A clip with what it points at; photo clips of deleted shots/photos are skipped (the server drops
- * them on the next save). `ownOverlays` / `ownSketch` are what the clip made inline (issue #31).
+ * them on the next save). `ownLayers` / `ownSketch` are what the clip made inline (issues #31, #275); `step` is the step of its shot it shows.
  */
 export type ResolvedClip =
-  | { kind: "photo"; clip: TimelineClip; pres: Presentation; shot: Shot; photo: Photo; overlay: Overlay | null; ownOverlays: Overlay[]; ownSketch: Sketch | null; index: number; startMs: number; /** Its sequence block (issue #37): settings, and its place among the block's clips. */ group: ClipGroup | null; seq: { i: number; n: number } | null }
+  | { kind: "photo"; clip: TimelineClip; pres: Presentation; shot: Shot; photo: Photo; step: Step; ownLayers: Layer[]; ownSketch: Sketch | null; index: number; startMs: number; /** Its sequence block (issue #37): settings, and its place among the block's clips. */ group: ClipGroup | null; seq: { i: number; n: number } | null }
   | { kind: "sketch"; clip: TimelineClip; sketch: Sketch; index: number; startMs: number }
   | { kind: "placeholder"; clip: TimelineClip; index: number; startMs: number };
 
 export function resolveClips(t: Timeline, byId: Map<string, Shot>): ResolvedClip[] {
   const out: ResolvedClip[] = [];
-  const own = (clipId: string) => t.overlays.filter((o) => o.clip_id === clipId);
+  const own = (clipId: string) => t.layers.filter((l) => l.clip_id === clipId);
   const sketches = new Map<string, Sketch>([...[...byId.values()].flatMap((s) => s.sketches), ...t.sketches].map((k) => [k.id, k]));
   let at = 0;
   t.clips.forEach((clip, index) => {
@@ -60,9 +60,9 @@ export function resolveClips(t: Timeline, byId: Map<string, Shot>): ResolvedClip
     const shot = clip.shot_id ? byId.get(clip.shot_id) : undefined;
     const photo = shot?.photos.find((p) => p.id === clip.photo_id);
     if (!shot || !photo || !clip.presentation) return;
-    const ownOverlays = own(clip.id);
-    const overlay = shot.overlays.find((o) => o.id === clip.overlay_id) ?? ownOverlays.find((o) => o.id === clip.overlay_id) ?? null;
-    out.push({ kind: "photo", clip, pres: clip.presentation, shot, photo, overlay, ownOverlays, ownSketch: t.sketches.find((k) => k.clip_id === clip.id) ?? null, index, startMs: at, group: null, seq: null });
+    const ownLayers = own(clip.id);
+    const step = clipStep(shot, photo, clip.step_id);
+    out.push({ kind: "photo", clip, pres: clip.presentation, shot, photo, step, ownLayers, ownSketch: t.sketches.find((k) => k.clip_id === clip.id) ?? null, index, startMs: at, group: null, seq: null });
     at += clip.duration_ms;
   });
   // Blocks, counted over the clips that render (a clip of a deleted photo is skipped).
@@ -83,23 +83,26 @@ export const ownReframe = (pres: Presentation) => !pres.framing_id && pres.frame
 /** Default presentation of a photo: the view's frame mode and the rig it was shot with. */
 export const defaultPresentation = (photo: Photo, mode: MaskMode): Presentation => ({ mode, ...rootPresentation(photo) });
 export const newPlaceholder = (title: string): TimelineClip =>
-  ({ id: crypto.randomUUID(), photo_id: null, shot_id: null, overlay_id: null, presentation: null, duration_ms: DEFAULT_MS, notes: null, title, sketch_id: null, group_id: null });
+  ({ id: crypto.randomUUID(), photo_id: null, shot_id: null, step_id: null, presentation: null, duration_ms: DEFAULT_MS, notes: null, title, sketch_id: null, group_id: null });
 
 // ---------- Sequence blocks (issue #37): a sequence's clips stay together, in photo order ----------
 
 export const newGroup = (totalMs: number, mode: GroupMode = "each"): ClipGroup => ({ id: crypto.randomUUID(), mode, total_ms: totalMs, split: "even", edge_weight: EDGE_WEIGHT.def });
 
-/** A step's presentation (issue #266): its framing, else the frame its overlay was drawn for, else the photo's root. */
+/** A step's presentation (issue #266): its framing, else the photo's root. */
 const stepPresentation = (st: Step, mode: MaskMode): Presentation =>
-  st.framing ? { mode, ...framingPresentation(st.photo, st.framing.id) }
-    : st.overlay ? { ...st.overlay.presentation, mode }
-    : defaultPresentation(st.photo, mode);
-/** A clip for one step of a shot: the photo, seen through the step's framing and overlay. */
+  st.framing ? { mode, ...framingPresentation(st.photo, st.framing.id) } : defaultPresentation(st.photo, mode);
+/** A clip for one step of a shot: the photo through the step's framing; a stored step brings its layers (epic #275). */
 const photoClip = (s: Shot, st: Step, mode: MaskMode, groupId: string | null): TimelineClip =>
-  ({ id: crypto.randomUUID(), photo_id: st.photo.id, shot_id: s.id, overlay_id: st.overlay?.id ?? null, presentation: stepPresentation(st, mode), duration_ms: DEFAULT_MS, notes: null, title: null, sketch_id: null, group_id: groupId });
-/** What a clip shows, for matching it against a step (a photo may repeat in a progression). */
-const clipKey = (c: TimelineClip) => `${c.photo_id}|${c.presentation?.framing_id ?? ""}|${c.overlay_id ?? ""}`;
-const stepKeyOf = (st: Step) => `${st.photo.id}|${st.framing?.id ?? (st.overlay?.presentation.framing_id ?? "")}|${st.overlay?.id ?? ""}`;
+  ({ id: crypto.randomUUID(), photo_id: st.photo.id, shot_id: s.id, step_id: st.stored ? st.id : null, presentation: stepPresentation(st, mode), duration_ms: DEFAULT_MS, notes: null, title: null, sketch_id: null, group_id: groupId });
+/** Which step a clip shows, for matching it against the shot's steps (a photo may repeat in a progression). */
+const clipKey = (c: TimelineClip) => c.step_id ?? `photo:${c.photo_id}`;
+const stepKeyOf = (st: Step) => st.id;
+/** The step a clip shows: its stored step when it still is one of its photo's, else the photo as a step. */
+export function clipStep(shot: Shot, photo: Photo, stepId: string | null): Step {
+  const all = steps(shot);
+  return all.find((x) => x.id === stepId && x.photo.id === photo.id) ?? all.find((x) => !x.stored && x.photo.id === photo.id) ?? { id: `photo:${photo.id}`, photo, framing: null, frame: rootFrame(photo), stored: false };
+}
 
 /** The clips a shot contributes when added: one per step at the default hold time; a sequence's form a block. */
 export function clipsOfShot(s: Shot, mode: MaskMode): { clips: TimelineClip[]; group: ClipGroup | null } {
@@ -249,7 +252,7 @@ export function setGroup(t: Timeline, g: ClipGroup): Timeline {
 export const clipLabel = (c: ResolvedClip): string => (c.kind === "photo" ? shotTitle(c.shot) : c.kind === "sketch" ? c.sketch.name : c.clip.title ?? "Placeholder");
 
 /**
- * The clips that use each shot (issue #35): a clip of any of its photos (an overlay hangs off the
+ * The clips that use each shot (issue #35): a clip of any of its photos (its layers hang off the
  * photo, so it counts too) or a sketch clip showing one of its sketches. One clip is enough; a
  * sequence block counts once (issue #37).
  */
@@ -332,7 +335,7 @@ export function ClipMenu({ menu, onClose, onEdit, onOpen, onDuplicate, onRemove,
   return (
     <ContextMenu x={menu.x} y={menu.y} label="Clip" onClose={onClose}>
       {c.kind === "photo" && c.photo.source === "camera" && <MenuItem icon="crop" onClick={() => onEdit("reframe", c)}>Re-frame</MenuItem>}
-      {c.kind === "photo" && <MenuItem icon="layers-outline" onClick={() => onEdit("overlay", c)}>Overlay</MenuItem>}
+      {c.kind === "photo" && <MenuItem icon="layers-outline" onClick={() => onEdit("layers", c)}>Layers</MenuItem>}
       {c.kind !== "photo" && <MenuItem icon="draw" onClick={() => onEdit("sketch", c)}>{c.kind === "sketch" ? "Edit the sketch" : "Sketch it"}</MenuItem>}
       {c.kind === "photo" && DECISIONS.filter((d) => d.to !== c.shot.state).map((d) => <MenuItem key={d.to} icon={d.icon} onClick={() => onState(c.shot, d.to)}>{d.label}</MenuItem>)}
       {c.kind === "photo" && <MenuItem icon="image-outline" onClick={() => onOpen(c)}>Open shot</MenuItem>}
@@ -345,32 +348,32 @@ export function ClipMenu({ menu, onClose, onEdit, onOpen, onDuplicate, onRemove,
 }
 
 /**
- * Copy a clip for Duplicate: a new id, and its own overlay or sketch copied server-side so the two
- * clips do not share a drawing. Shot overlays and sketches are shared (they are references).
+ * Copy a clip for Duplicate: a new id, and its own layers and sketch copied server-side so the two
+ * clips do not share a drawing. The shot's layers and sketches are shared (they are references).
  */
 export async function copyClip(t: Timeline, clip: TimelineClip): Promise<TimelineClip> {
   const copy: TimelineClip = { ...clip, id: crypto.randomUUID() };
   const owner = { timeline_id: t.id, clip_id: copy.id };
-  if (clip.overlay_id && t.overlays.some((o) => o.id === clip.overlay_id)) copy.overlay_id = (await copyOverlay(clip.overlay_id, crypto.randomUUID(), owner)).id;
+  for (const l of t.layers.filter((x) => x.clip_id === clip.id)) await copyLayer(l.id, crypto.randomUUID(), owner);
   if (clip.sketch_id && t.sketches.some((k) => k.id === clip.sketch_id)) copy.sketch_id = (await copySketch(clip.sketch_id, crypto.randomUUID(), owner)).id;
   return copy;
 }
 
 /**
- * Duplicate a timeline with its clips' own overlays and sketches: the copy is saved first (its clips
+ * Duplicate a timeline with its clips' own layers and sketches: the copy is saved first (its clips
  * can only own drawings once it exists), then the drawings are copied, then the clips point at them.
  */
 export async function duplicateTimeline(t: Timeline): Promise<Timeline> {
   const ids = new Map(t.clips.map((c) => [c.id, crypto.randomUUID()]));
   const gids = new Map(t.groups.map((g) => [g.id, crypto.randomUUID()]));
-  const ownOverlay = new Set(t.overlays.map((o) => o.id)), ownSketch = new Set(t.sketches.map((k) => k.id));
-  const base: Timeline = { ...t, id: crypto.randomUUID(), name: `${t.name} (copy)`, groups: t.groups.map((g) => ({ ...g, id: gids.get(g.id)! })), overlays: [], sketches: [], created_at: "", updated_at: null, clips: [] };
-  const stripped = t.clips.map((c) => ({ ...c, id: ids.get(c.id)!, group_id: c.group_id ? gids.get(c.group_id) ?? null : null, overlay_id: c.overlay_id && ownOverlay.has(c.overlay_id) ? null : c.overlay_id, sketch_id: c.sketch_id && ownSketch.has(c.sketch_id) ? null : c.sketch_id }));
+  const ownSketch = new Set(t.sketches.map((k) => k.id));
+  const base: Timeline = { ...t, id: crypto.randomUUID(), name: `${t.name} (copy)`, groups: t.groups.map((g) => ({ ...g, id: gids.get(g.id)! })), layers: [], sketches: [], created_at: "", updated_at: null, clips: [] };
+  const stripped = t.clips.map((c) => ({ ...c, id: ids.get(c.id)!, group_id: c.group_id ? gids.get(c.group_id) ?? null : null, sketch_id: c.sketch_id && ownSketch.has(c.sketch_id) ? null : c.sketch_id }));
   await putTimeline({ ...base, clips: stripped });
   const clips = await Promise.all(t.clips.map(async (c, i) => {
     const owner = { timeline_id: base.id, clip_id: ids.get(c.id)! };
     const next = { ...stripped[i] };
-    if (c.overlay_id && ownOverlay.has(c.overlay_id)) next.overlay_id = (await copyOverlay(c.overlay_id, crypto.randomUUID(), owner)).id;
+    for (const l of t.layers.filter((x) => x.clip_id === c.id)) await copyLayer(l.id, crypto.randomUUID(), owner);
     if (c.sketch_id && ownSketch.has(c.sketch_id)) next.sketch_id = (await copySketch(c.sketch_id, crypto.randomUUID(), owner)).id;
     return next;
   }));
@@ -435,7 +438,7 @@ export function useTimelineStore(load: (set: (t: Timeline[]) => void, fail: (e: 
   };
   const create = async (projectId: string): Promise<Timeline | null> => {
     const n = (list?.length ?? 0) + 1;
-    const t: Timeline = { id: crypto.randomUUID(), project_id: projectId, name: `Cut ${n}`, notes: null, lock_mode: null, clips: [], groups: [], overlays: [], sketches: [], created_at: "", updated_at: null };
+    const t: Timeline = { id: crypto.randomUUID(), project_id: projectId, name: `Cut ${n}`, notes: null, lock_mode: null, clips: [], groups: [], layers: [], sketches: [], created_at: "", updated_at: null };
     try { const saved = await putTimeline(t); invalidateTimelines(projectId); setListState((cur) => [...(cur ?? []), saved]); return saved; } catch (e) { toast(`Could not create the timeline: ${(e as Error).message}`, "danger"); return null; }
   };
   /** To the recycle bin with Undo; a pending edit is sent first so the restored copy has it. */
@@ -553,7 +556,7 @@ export function CutPreview({ cut, clips, total, lock, stage, editing, children }
     <div class="tl-preview" style={height.style as JSX.CSSProperties | undefined}>
       <div class={cx("tl-stage", editing && "tl-stage--edit")}>
         {stage ?? (!cur ? <div class="tl-preview__empty"><Icon name="filmstrip" /><span>Add shots to start the cut</span></div>
-          : cur.kind === "photo" ? <Framed photo={cur.photo} mode={lock ?? cur.pres.mode} frame={presentationFrame(cur.photo, cur.pres)} vignette={presentationVignette(cur.photo, cur.pres)} src={cur.overlay?.render_url ?? undefined} maxHeight={STAGE_H} />
+          : cur.kind === "photo" ? <ClipPicture c={cur} live mode={lock ?? cur.pres.mode} maxHeight={STAGE_H} />
           : cur.kind === "sketch" ? <SketchView sketch={cur.sketch} />
           : (
             <div class="tl-ph-view">
@@ -773,15 +776,15 @@ export function Strip({ clips, cut, stripRef, lock, editingId, onOpen, onReorder
               <button key={c.clip.id} type="button" role="option" aria-selected={c.clip.id === sel} data-ph={c.kind !== "photo" ? c.clip.id : undefined}
                 class={cx("tl-clip", c.kind !== "photo" && "tl-clip--ph", c.kind === "photo" && c.seq && "tl-clip--seq", c.kind === "sketch" && "tl-clip--sk", c.clip.id === sel && "is-sel", multi?.has(c.clip.id) && "is-multi", c.clip.id === editingId && "is-editing", drop && "fill" in drop && drop.fill === c.clip.id && "is-fill")}
                 style={{ width: `${widthPx(c.clip.duration_ms)}px` }}
-                title={`${clipLabel(c)}${c.kind === "photo" && c.overlay ? ` · ${c.overlay.name}` : ""} · ${secs(c.clip.duration_ms)}`}
+                title={`${clipLabel(c)}${c.kind === "photo" && c.ownLayers.length ? ` · ${c.ownLayers.length} layer${c.ownLayers.length === 1 ? "" : "s"} of its own` : ""} · ${secs(c.clip.duration_ms)}`}
                 draggable onDragStart={(e) => { e.dataTransfer?.setData(CLIP_TYPE, c.clip.id); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; }}
                 onClick={(e) => { if (e.shiftKey && onRange) onRange(c.clip.id); else cut.select(c.clip.id); }} onDblClick={() => onOpen(c)}
                 onContextMenu={onContext && ((e) => { e.preventDefault(); if (!multi?.has(c.clip.id)) cut.select(c.clip.id); onContext(c, e); })}>
                 {c.kind === "photo"
-                  ? <div class="tl-clip__thumb"><Framed photo={c.photo} mode={(lock ?? c.pres.mode) === "off" ? "off" : "fit"} frame={presentationFrame(c.photo, c.pres)} vignette={presentationVignette(c.photo, c.pres)} src={c.overlay?.render_url ?? undefined} /><span class="tl-clip__state"><StateMarker state={c.shot.state} iconOnly /></span></div>
+                  ? <div class="tl-clip__thumb"><ClipPicture c={c} mode={(lock ?? c.pres.mode) === "off" ? "off" : "fit"} /><span class="tl-clip__state"><StateMarker state={c.shot.state} iconOnly /></span></div>
                   : c.kind === "sketch" ? <div class="tl-clip__thumb tl-clip__thumb--sk">{c.sketch.render_url ? <img src={c.sketch.render_url} alt="" /> : <Icon name="floor-plan" />}</div>
                   : <div class="tl-clip__thumb tl-clip__thumb--ph"><Icon name="image-off-outline" /></div>}
-                <span class="tl-clip__name ellipsis">{c.kind === "photo" && c.overlay ? <Icon name="layers-outline" size={12} /> : null}{c.kind === "photo" && c.seq ? `${c.seq.i + 1} / ${c.seq.n}` : clipLabel(c)}{c.kind === "photo" && !c.seq && c.shot.photos.length > 1 ? ` · ${c.photo.ordinal + 1}` : ""}</span>
+                <span class="tl-clip__name ellipsis">{c.kind === "photo" && c.ownLayers.length ? <Icon name="layers-outline" size={12} /> : null}{c.kind === "photo" && c.seq ? `${c.seq.i + 1} / ${c.seq.n}` : clipLabel(c)}{c.kind === "photo" && !c.seq && c.shot.photos.length > 1 ? ` · ${c.photo.ordinal + 1}` : ""}</span>
                 <span class="tl-clip__dur num">{secs(c.clip.duration_ms)}</span>
               </button>
             ))}
@@ -807,9 +810,9 @@ export interface ClipPanelProps {
   onRemove: () => void;
   onDuplicate: () => void;
   onOpen: () => void;
-  /** Inline editing (issue #31): re-frame the clip, draw its overlay, draw a sketch for a placeholder or a sketch clip. */
+  /** Inline editing (issues #31, #275): re-frame the clip, edit its own layers, draw a sketch for a placeholder or a sketch clip. */
   onReframe?: () => void;
-  onOverlay?: () => void;
+  onLayers?: () => void;
   onSketch?: () => void;
   /** A photo clip that replaced a sketch clip still owns that sketch: attach it to the clip's shot. */
   onAttachSketch?: () => void;
@@ -882,7 +885,7 @@ function SequenceSection({ c, onGroup, onUngroup, onRestore }: { c: Extract<Reso
   );
 }
 
-export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, onDuplicate, onOpen, onReframe, onOverlay, onSketch, onAttachSketch, onState, onGroup, onUngroup, onRestore, head }: ClipPanelProps) {
+export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, onDuplicate, onOpen, onReframe, onLayers, onSketch, onAttachSketch, onState, onGroup, onUngroup, onRestore, head }: ClipPanelProps) {
   const i = c.index;
   const seq = c.kind === "photo" ? c.seq : null;
   const inTotal = c.kind === "photo" && c.group?.mode === "total";
@@ -930,19 +933,19 @@ export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, 
   }
 
   const pres = c.pres;
-  const overlays = c.shot.overlays.filter((o) => o.photo_id === c.photo.id);
-  const all = [...c.ownOverlays, ...overlays];
-  const pickOverlay = (id: string) => {
-    const o = all.find((x) => x.id === id) ?? null;
-    // An overlay brings the presentation it was drawn in; "Photo" keeps the current one. A clip's own overlay keeps the clip's.
-    onUpdate(o ? (o.clip_id ? { overlay_id: o.id } : { overlay_id: o.id, presentation: o.presentation }) : { overlay_id: null });
+  // The steps this clip can show: the stored steps of its photo (each brings its layers), or the photo as is.
+  const photoSteps = steps(c.shot).filter((x) => x.stored && x.photo.id === c.photo.id);
+  const pickStep = (id: string) => {
+    const st = photoSteps.find((x) => x.id === id) ?? null;
+    // A step brings its framing; "the photo" keeps the clip's presentation.
+    onUpdate(st ? { step_id: st.id, presentation: { ...pres, ...framingPresentation(st.photo, st.framing?.id ?? st.photo.root_framing_id) } } : { step_id: null });
   };
   const ownFrame = ownReframe(pres);
   return (
     <Panel label="Clip" width="340px" resize={DRAWER_RESIZE}>
       <PanelHead title={shotTitle(c.shot)}>{headMeta}</PanelHead>
       <PanelBody>
-        <div class="f-row__thumb" style={{ width: "100%" }}><Framed photo={c.photo} mode={lock ?? pres.mode} vignette={presentationVignette(c.photo, pres)} frame={presentationFrame(c.photo, pres)} src={c.overlay?.render_url ?? undefined} /></div>
+        <div class="f-row__thumb" style={{ width: "100%" }}><ClipPicture c={c} live mode={lock ?? pres.mode} /></div>
         {c.shot.photos.length > 1 && <span class="meta">Photo {c.photo.ordinal + 1} of {c.shot.photos.length} in this sequence</span>}
         {onState && (
           <div class="tl-decide">
@@ -951,17 +954,18 @@ export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, 
             {DECISIONS.filter((d) => d.to !== c.shot.state).map((d) => <Button key={d.to} kind={d.to === "approved" ? "approve" : "archive"} size="sm" icon={d.icon} onClick={() => onState(d.to)}>{d.label}</Button>)}
           </div>
         )}
-        {(onReframe || onOverlay) && (
+        {(onReframe || onLayers) && (
           <div class="tl-tools" role="group" aria-label="Clip tools">
             {onReframe && c.photo.source === "camera" && <Button kind="secondary" size="sm" icon="crop" kbd="R" onClick={onReframe}>Re-frame</Button>}
-            {onOverlay && <Button kind="secondary" size="sm" icon="layers-outline" kbd="C" onClick={onOverlay}>{c.overlay?.clip_id ? "Edit overlay" : c.overlay ? "Overlay (copy)" : "Overlay"}</Button>}
+            {onLayers && <Button kind="secondary" size="sm" icon="layers-outline" kbd="C" onClick={onLayers}>{c.ownLayers.length ? `Layers · ${c.ownLayers.length}` : "Layers"}</Button>}
           </div>
         )}
         {c.group && seq && onGroup && <SequenceSection c={c} onGroup={onGroup} onUngroup={onUngroup} onRestore={onRestore} />}
         {holdTime}
-        <Field label="Show as" as="div">
-          <Select label="Show as" width="100%" value={c.clip.overlay_id ?? ""} onChange={pickOverlay}
-            options={[{ value: "", label: "Photo as is" }, ...c.ownOverlays.map((o) => ({ value: o.id, label: o.name, group: "This clip" })), ...overlays.map((o) => ({ value: o.id, label: o.name, group: "The shot's overlays" }))]} />
+        <Field label="Shows" as="div">
+          <Select label="Shows" width="100%" value={c.clip.step_id ?? ""} onChange={pickStep}
+            options={[{ value: "", label: "The photo (layers on every step)" }, ...photoSteps.map((st) => ({ value: st.id, label: `Step ${steps(c.shot).indexOf(st) + 1}${st.framing ? ` · ${st.framing.name}` : ""}`, group: "Steps of this photo" }))]} />
+          <span class="f-field__help">A step brings the shot's layers on it; the clip's own layers go on top.</span>
         </Field>
         <Field label="Presentation" as="div">
           {lock ? (
@@ -1042,7 +1046,7 @@ export function TimelineRail({ list, selectedId, onSelect, onCreate, onContext }
 
 /** Whether an inline tool applies to a clip (re-frame needs a camera photo, a sketch a spot without a photo). */
 export const toolFits = (tool: EditKind, c: ResolvedClip) =>
-  tool === "sketch" ? c.kind !== "photo" : c.kind === "photo" && (tool === "overlay" || c.photo.source === "camera");
+  tool === "sketch" ? c.kind !== "photo" : c.kind === "photo" && (tool === "layers" || c.photo.source === "camera");
 
 /**
  * Restores the URL's cut position once on mount, then keeps it in the URL 300 ms after the playhead

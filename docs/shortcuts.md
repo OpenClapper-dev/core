@@ -86,8 +86,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | A | Approve |
 | E | Archive (archived: back to review) |
 | R | Framing stage |
-| C | Compose stage |
-| S | Sequence stage |
+| C | Compose stage (steps, layers, sketches) |
 | M | Cycle the frame mode |
 | Esc | Back to where the shot was opened |
 
@@ -102,26 +101,14 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ⌘S | Save the framing |
 | Esc | Back to the photo |
 
-## Shot view · Sequence
+## Shot view · Compose (steps, layers, sketches)
 
 | Keys | What |
 | --- | --- |
 | , | Previous step |
 | . | Next step |
-| Alt ← | Move the step earlier |
-| Alt → | Move the step later |
-| Del | Remove the step |
-| ⌘S | Save now (changes autosave) |
-| Esc | Back to the photo |
 
-## Shot view · Compose
-
-| Keys | What |
-| --- | --- |
-| , | Previous photo of a sequence |
-| . | Next photo of a sequence |
-
-## Drawing (Compose, and overlays or sketches on the timeline stage)
+## Drawing (Compose, and a clip's layers or sketch on the timeline stage)
 
 | Keys | What |
 | --- | --- |

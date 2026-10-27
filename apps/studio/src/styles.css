@@ -572,7 +572,7 @@ button { font: inherit; }
 .trash__icon img { width: 100%; height: 100%; object-fit: cover; }
 .trash__soon { color: var(--danger); font-weight: var(--weight-semibold); }
 
-/* Sequence stage (issue #266): step strips carry framing / overlay glyphs; dragging a step shows an accent drop marker. */
+/* Compose stage steps (issue #266): step strips carry a framing glyph; dragging a step shows an accent drop marker. */
 .f-strip__g { position: absolute; right: 4px; top: 4px; display: flex; gap: 2px; pointer-events: none; }
 .f-strip__g .mdi { font-size: 12px; background: #000; color: #fff; border-radius: 2px; padding: 2px; }
 .seq-strip .f-strip__it.is-drop-before { box-shadow: -3px 0 0 var(--accent), 0 0 0 1px var(--border); }
@@ -595,3 +595,21 @@ button { font: inherit; }
 .vig-preview { position: relative; width: 100%; aspect-ratio: 3 / 2; border-radius: var(--radius-sm); overflow: hidden; background: repeating-linear-gradient(0deg, var(--surface-sunken) 0 1px, transparent 1px 24px), repeating-linear-gradient(90deg, var(--surface-sunken) 0 1px, transparent 1px 24px), linear-gradient(135deg, #9db3c8, #e9d9c3); }
 .vig-preview__layer { position: absolute; inset: 0; }
 .vig-preview__lbl { position: absolute; left: 8px; bottom: 6px; font: var(--weight-bold) var(--text-caption)/1 var(--font-sans); color: #fff; text-shadow: 0 0 3px #000; }
+
+/* The composition (epic #275): layers composed live in a Framed box, the layer list, step ranges. */
+.stack-fill { position: absolute; inset: 0; pointer-events: none; }
+.stack-adj { position: absolute; pointer-events: none; }
+.stack-adj__part { position: absolute; inset: 0; }
+.bake-mark { position: absolute; right: 4px; bottom: 4px; z-index: 2; background: #000; color: #fff; border-radius: 2px; padding: 0 4px; font: var(--weight-bold) 11px/16px var(--font-sans); pointer-events: auto; }
+.layer-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.layer-row { display: flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 8px 0 2px; border-radius: var(--radius-sm); border: var(--bw) solid transparent; cursor: pointer; color: var(--text); }
+.layer-row:hover { background: var(--surface-sunken); }
+.layer-row.is-sel { border-color: var(--accent); background: var(--accent-tint); }
+.layer-row.is-hidden .layer-row__name { color: var(--text-dim); text-decoration: line-through; }
+.layer-row--footage { padding-left: 10px; border-style: dashed; border-color: var(--border); }
+.layer-row__name { flex: 1; min-width: 0; font-size: var(--text-small); font-weight: var(--weight-semibold); }
+.layer-row__badge { flex: none; font-size: var(--text-caption); color: var(--text-dim); border: var(--bw) solid var(--border); border-radius: var(--radius-pill); padding: 0 6px; }
+.range-chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.range-chip { min-width: 28px; height: 28px; border-radius: var(--radius-sm); border: var(--bw) solid var(--border); background: var(--surface); color: var(--text); font: var(--weight-bold) var(--text-small)/1 var(--font-sans); cursor: pointer; }
+.range-chip.is-on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.range-chip.is-here { box-shadow: 0 0 0 2px var(--border-strong); }

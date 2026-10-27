@@ -1,13 +1,13 @@
-import { stepsProblem, validateStepInput, type ShotStep, type StepInput } from "@openclapper/vocab";
+import { layersAt, stepsProblem, validateStepInput, type ShotStep, type StepInput } from "@openclapper/vocab";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
-import { copyRender } from "./compose.ts";
 import { fileRefCleanup } from "./files.ts";
 import type { Ctx } from "./index.ts";
+import { bakeKeysOf, layerToApi, pruneBakes } from "./layers.ts";
 import { loadShot, MAX_PHOTOS_PER_SHOT, objectKey } from "./shots.ts";
 import { assertAccess } from "./tenancy.ts";
 
 /**
- * Steps (issue #266): a sequence as a progression, see packages/vocab/src/steps.ts. Studio only
+ * Steps (issue #266): the time axis of a shot's composition (epic #275), see packages/vocab/src/steps.ts. Studio only
  * (interactive, strict). Shots embed their rows (`stepsFor`); the clients resolve them with
  * `stepsOf`. This module also moves photos between shots (the merge behind "Make a sequence")
  * and copies one photo out as a shot of its own ("Extract"), the two ways a progression is built
@@ -19,7 +19,7 @@ export async function stepsFor(env: Ctx["env"], shotIds: string[]): Promise<Map<
   const out = new Map<string, ShotStep[]>();
   if (shotIds.length === 0) return out;
   const { results } = await env.DB.prepare(
-    "SELECT id, shot_id, ordinal, photo_id, framing_id, overlay_id FROM shot_steps WHERE shot_id IN (SELECT value FROM json_each(?1)) ORDER BY shot_id, ordinal",
+    "SELECT id, shot_id, ordinal, photo_id, framing_id FROM shot_steps WHERE shot_id IN (SELECT value FROM json_each(?1)) ORDER BY shot_id, ordinal",
   ).bind(JSON.stringify(shotIds)).all<ShotStep>();
   for (const s of results) out.set(s.shot_id, [...(out.get(s.shot_id) ?? []), s]);
   return out;
@@ -34,18 +34,10 @@ async function liveShot(env: Ctx["env"], id: string): Promise<{ project_id: stri
   return row;
 }
 
-/** What steps may reference: the shot's photos, their framings, their shot overlays (clip-owned ones marked). */
+/** What steps may reference: the shot's photos and their framings. */
 async function referable(env: Ctx["env"], photoIds: string[]) {
-  const j = list(photoIds);
-  const [framings, overlays] = await Promise.all([
-    env.DB.prepare("SELECT id, photo_id FROM framings WHERE photo_id IN (SELECT value FROM json_each(?1))").bind(j).all<{ id: string; photo_id: string }>(),
-    env.DB.prepare("SELECT id, photo_id, timeline_id FROM overlays WHERE photo_id IN (SELECT value FROM json_each(?1))").bind(j).all<{ id: string; photo_id: string; timeline_id: string | null }>(),
-  ]);
-  return {
-    photos: new Set(photoIds),
-    framingPhoto: new Map(framings.results.map((f) => [f.id, f.photo_id])),
-    overlayPhoto: new Map(overlays.results.map((o) => [o.id, { photo_id: o.photo_id, clip_owned: o.timeline_id !== null }])),
-  };
+  const framings = await env.DB.prepare("SELECT id, photo_id FROM framings WHERE photo_id IN (SELECT value FROM json_each(?1))").bind(list(photoIds)).all<{ id: string; photo_id: string }>();
+  return { photos: new Set(photoIds), framingPhoto: new Map(framings.results.map((f) => [f.id, f.photo_id])) };
 }
 
 /** The body's `steps`, checked structurally and against what the shot (will) hold. Undefined when absent. */
@@ -63,13 +55,17 @@ async function parseSteps(env: Ctx["env"], v: unknown, photoIds: string[]): Prom
 function replaceSteps(env: Ctx["env"], shotId: string, steps: StepInput[]): D1PreparedStatement[] {
   return [
     env.DB.prepare("DELETE FROM shot_steps WHERE shot_id = ?1").bind(shotId),
-    ...steps.map((s, i) => env.DB.prepare("INSERT INTO shot_steps (id, shot_id, ordinal, photo_id, framing_id, overlay_id) VALUES (?1, ?2, ?3, ?4, ?5, ?6)")
-      .bind(s.id, shotId, i, s.photo_id, s.framing_id ?? null, s.overlay_id ?? null)),
+    ...steps.map((s, i) => env.DB.prepare("INSERT INTO shot_steps (id, shot_id, ordinal, photo_id, framing_id) VALUES (?1, ?2, ?3, ?4, ?5)")
+      .bind(s.id, shotId, i, s.photo_id, s.framing_id ?? null)),
   ];
 }
 
 export function registerStepRoutes(r: Router<Ctx>) {
-  /** `{ steps: [{ id, photo_id, framing_id?, overlay_id? }] }` replaces the list; `[]` = the photos are the steps again. Returns `{ shot }`. */
+  /**
+   * `{ steps: [{ id, photo_id, framing_id? }] }` replaces the list; `[]` = the photos are the steps
+   * again. Layer ranges keep ids of removed steps (they show nowhere then); bakes of removed steps go.
+   * Returns `{ shot }`.
+   */
   r.on("PUT", "/api/shots/:id/steps", async (ctx, { id }) => {
     const { env, request } = ctx;
     const sid = assertUuid(id, "id");
@@ -79,15 +75,17 @@ export function registerStepRoutes(r: Router<Ctx>) {
     const photoIds = (await env.DB.prepare("SELECT id FROM photos WHERE shot_id = ?1").bind(sid).all<{ id: string }>()).results.map((p) => p.id);
     const steps = await parseSteps(env, b.steps ?? [], photoIds);
     await env.DB.batch([...replaceSteps(env, sid, steps ?? []), env.DB.prepare("UPDATE shots SET updated_at = ?1 WHERE id = ?2").bind(new Date().toISOString(), sid)]);
+    await pruneBakes(env, sid);
     return json({ shot: await loadShot(env, sid) });
   });
 
   /**
    * Move photos of other shots into this one (the merge behind "Make a sequence"): `{ photo_ids, steps? }`.
    * The photos must be in live shots of the same project; they are appended in the given order with
-   * their framings and overlays (photo-keyed, so nothing to do). A source shot left without photos is
-   * deleted for good, its sketches moved here (a photo-less shot in the bin could not be restored to
-   * anything). Timeline clips of the moved photos leave their sequence blocks (a block holds one
+   * their framings (photo-keyed) and their photo-space layers (on every step of the photo now), and
+   * their clips' own layers follow the clips. A source shot left without photos is deleted for good:
+   * its sketches move here, its frame-space layers too (hidden, to switch on where wanted), since a
+   * photo-less shot in the bin could not be restored to anything. Timeline clips of the moved photos leave their sequence blocks (a block holds one
    * shot's photos; the Studio regroups what it is working on). Returns `{ shot, removed_shot_ids }`.
    */
   r.on("POST", "/api/shots/:id/photos", async (ctx, { id }) => {
@@ -123,9 +121,16 @@ export function registerStepRoutes(r: Router<Ctx>) {
       env.DB.prepare("DELETE FROM shot_steps WHERE photo_id IN (SELECT value FROM json_each(?1))").bind(list(moving)),
       env.DB.prepare("UPDATE timeline_clips SET group_id = NULL WHERE photo_id IN (SELECT value FROM json_each(?1))").bind(list(moving)),
     ];
+    stmts.push(
+      env.DB.prepare("UPDATE layers SET shot_id = ?1, range = NULL, updated_at = ?2 WHERE photo_id IN (SELECT value FROM json_each(?3))").bind(sid, now, list(moving)),
+      env.DB.prepare("UPDATE layers SET shot_id = ?1, updated_at = ?2 WHERE timeline_id IS NOT NULL AND clip_id IN (SELECT id FROM timeline_clips WHERE photo_id IN (SELECT value FROM json_each(?3)))").bind(sid, now, list(moving)),
+    );
+    const staleBakes: string[] = [];
+    for (const e of emptied) staleBakes.push(...(await bakeKeysOf(env, e)));
     if (emptied.length) {
       const j = list(emptied);
       stmts.push(
+        env.DB.prepare("UPDATE layers SET shot_id = ?1, visible = 0, range = NULL, updated_at = ?2 WHERE shot_id IN (SELECT value FROM json_each(?3))").bind(sid, now, j),
         env.DB.prepare("UPDATE sketches SET shot_id = ?1, position = position + ?2 WHERE shot_id IN (SELECT value FROM json_each(?3))").bind(sid, sketchBase, j),
         env.DB.prepare("DELETE FROM day_shots WHERE shot_id IN (SELECT value FROM json_each(?1))").bind(j),
         ...fileRefCleanup(env, "shot", j),
@@ -135,16 +140,19 @@ export function registerStepRoutes(r: Router<Ctx>) {
     stmts.push(env.DB.prepare("UPDATE shots SET captured_at = (SELECT min(timestamp) FROM photos WHERE shot_id = ?1), updated_at = ?2 WHERE id = ?1").bind(sid, now));
     if (steps) stmts.push(...replaceSteps(env, sid, steps));
     await env.DB.batch(stmts);
+    if (staleBakes.length) await env.SHOTS_BUCKET.delete(staleBakes).catch(() => {});
+    for (const sh of [sid, ...sources.filter((x) => keep.has(x))]) await pruneBakes(env, sh);
     return json({ shot: await loadShot(env, sid), removed_shot_ids: emptied });
   });
 
   /**
-   * Copy one photo out as a shot of its own ("Extract", a copy, never a move): `{ id?, framing_id?, overlay_id? }`.
+   * Copy one photo out as a shot of its own ("Extract", a copy, never a move): `{ id?, framing_id?, step_id? }`.
    * The new shot (`id`, else a fresh one) takes the tags, description and state; the photo row is
    * copied with its own R2 object (one object per photo stays the rule, so neither shot's delete
-   * touches the other), and so are its framings and shot overlays with their renders. `framing_id`
-   * (a framing of the photo, say the step's) becomes the copy's root, else the photo's root carries
-   * over. No link back. Returns `{ shot }`, 201.
+   * touches the other), and so are its framings. The layers the step shows (`step_id`, a stored
+   * step of that photo; else the photo as a step) are copied onto every step of the new shot.
+   * `framing_id` (a framing of the photo, say the step's) becomes the copy's root, else the photo's
+   * root carries over. No link back; the Studio bakes the copy. Returns `{ shot }`, 201.
    */
   r.on("POST", "/api/shots/:id/photos/:photo/extract", async (ctx, { id, photo }) => {
     const { env, request } = ctx;
@@ -155,18 +163,21 @@ export function registerStepRoutes(r: Router<Ctx>) {
     const b = await readJson<Record<string, unknown>>(request);
     const newShot = b.id === undefined || b.id === null ? crypto.randomUUID() : assertUuid(b.id, "id");
     const framingId = b.framing_id == null ? null : assertUuid(b.framing_id, "framing_id");
-    const overlayId = b.overlay_id == null ? null : assertUuid(b.overlay_id, "overlay_id");
+    const stepId = b.step_id == null ? null : assertUuid(b.step_id, "step_id");
     if (await env.DB.prepare("SELECT 1 FROM shots WHERE id = ?1").bind(newShot).first()) throw new HttpError(409, "a shot with this id exists");
 
     const src = await env.DB.prepare("SELECT * FROM photos WHERE id = ?1 AND shot_id = ?2").bind(pid, sid).first<Record<string, unknown> & { ordinal: number; r2_object_key: string; root_framing_id: string | null; timestamp: string }>();
     if (!src) throw new HttpError(404, "photo not found");
     const shot = (await env.DB.prepare("SELECT * FROM shots WHERE id = ?1").bind(sid).first<Record<string, unknown> & { name: string | null }>())!;
-    const [framings, overlays] = await Promise.all([
+    const [framings, layerRows] = await Promise.all([
       env.DB.prepare("SELECT * FROM framings WHERE photo_id = ?1 ORDER BY position, created_at").bind(pid).all<Record<string, unknown> & { id: string; frame: string }>(),
-      env.DB.prepare("SELECT * FROM overlays WHERE photo_id = ?1 AND timeline_id IS NULL ORDER BY position, created_at").bind(pid).all<Record<string, unknown> & { id: string; render_key: string | null; presentation: string }>(),
+      env.DB.prepare("SELECT * FROM layers WHERE shot_id = ?1 AND timeline_id IS NULL").bind(sid).all<Record<string, unknown> & Parameters<typeof layerToApi>[0]>(),
     ]);
     if (framingId && !framings.results.some((f) => f.id === framingId)) throw new HttpError(400, "framing_id is not a framing of this photo");
-    if (overlayId && !overlays.results.some((o) => o.id === overlayId)) throw new HttpError(400, "overlay_id is not an overlay of this photo");
+    if (stepId && !(await env.DB.prepare("SELECT 1 FROM shot_steps WHERE id = ?1 AND shot_id = ?2 AND photo_id = ?3").bind(stepId, sid, pid).first())) throw new HttpError(400, "step_id is not a step of this photo");
+    // The layers the step shows, by the same rule the clients use.
+    const shown = new Set(layersAt(layerRows.results.map((r) => layerToApi(r)), stepId ? { id: stepId, stored: true, photo: { id: pid } } : { id: `photo:${pid}`, stored: false, photo: { id: pid } }).map((l) => l.id));
+    const layers = layerRows.results.filter((l) => shown.has(l.id));
 
     const obj = await env.SHOTS_BUCKET.get(src.r2_object_key);
     if (!obj) throw new HttpError(404, "image missing in storage");
@@ -175,15 +186,8 @@ export function registerStepRoutes(r: Router<Ctx>) {
     const key = objectKey(newPhoto, ext);
     const written: string[] = [key];
     const framingIds = new Map(framings.results.map((f) => [f.id, crypto.randomUUID()]));
-    const overlayIds = new Map(overlays.results.map((o) => [o.id, crypto.randomUUID()]));
     try {
       await env.SHOTS_BUCKET.put(key, obj.body, { httpMetadata: obj.httpMetadata, customMetadata: { shot_id: newShot, photo_id: newPhoto, workspace_id: ws } });
-      const renders = new Map<string, string | null>();
-      for (const o of overlays.results) {
-        const k = await copyRender(env, "overlays", overlayIds.get(o.id)!, o.render_key);
-        if (k) written.push(k);
-        renders.set(o.id, k);
-      }
       const now = new Date().toISOString();
       const name = shot.name ? `${shot.name} · photo ${src.ordinal + 1}`.slice(0, 120) : null;
       const root = framingId ?? src.root_framing_id;
@@ -197,11 +201,7 @@ export function registerStepRoutes(r: Router<Ctx>) {
         insertCopy("shots", shot, { id: newShot, name, captured_at: src.timestamp, created_at: now, updated_at: now, deleted_at: null, deleted_with: null }, []),
         insertCopy("photos", src, { id: newPhoto, shot_id: newShot, ordinal: 0, r2_object_key: key, root_framing_id: null, created_at: now }, []),
         ...framings.results.map((f) => insertCopy("framings", f, { id: framingIds.get(f.id), photo_id: newPhoto, created_at: now, updated_at: now }, [])),
-        ...overlays.results.map((o) => {
-          const pres = JSON.parse(o.presentation) as { framing_id?: string | null };
-          if (pres.framing_id) pres.framing_id = framingIds.get(pres.framing_id) ?? null;
-          return insertCopy("overlays", o, { id: overlayIds.get(o.id), photo_id: newPhoto, presentation: JSON.stringify(pres), render_key: renders.get(o.id) ?? null, created_at: now, updated_at: now }, []);
-        }),
+        ...layers.map((l) => insertCopy("layers", l, { id: crypto.randomUUID(), shot_id: newShot, photo_id: l.photo_id ? newPhoto : null, range: null, created_at: now, updated_at: now }, [])),
       ];
       if (root && framingIds.has(root)) stmts.push(env.DB.prepare("UPDATE photos SET root_framing_id = ?1 WHERE id = ?2").bind(framingIds.get(root), newPhoto));
       await env.DB.batch(stmts);

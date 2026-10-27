@@ -14,18 +14,18 @@ The **Day** tab (`apps/mobile/src/screens/Day.tsx`, step-through in `StepThrough
    - The **offline control** (below).
    - Shots grouped by location in plan order: each group shows its combined window; each row shows a fit thumbnail, the name, the light requirement and the planned time (red with "outside window" when it falls outside).
    - Tap a row to step through from it, or "Start from the first shot" (pinned).
-3. **Step-through**: immersive (no tab bar, no header, status bar hidden, the screen kept on with `expo-keep-awake`). A sequence's "Photo i / n ›" button cycles its steps ("Step i / n" once the Studio stored a progression, [sequences](sequences.md)).
+3. **Step-through**: immersive (no tab bar, no header, status bar hidden, the screen kept on with `expo-keep-awake`). A sequence's "Photo i / n ›" button cycles its steps ("Step i / n" once the Studio stored steps, [composition](composition.md)).
    - Landscape: **Prev** as a 96 dp column at the left thumb, **Next** as a 112 dp accent column at the right thumb; both are disabled (dashed) at the ends.
    - The photo (fit mode by default; the mode is in the Details sheet and remembered in `stepMode.v1`) with a "3 / 9" badge. Sequences have a "Photo 2 / 5 ›" button that cycles. Swipe on the photo = prev/next shot.
    - The info panel: name, location, planned time, window and light requirement (green, or red with an alert when the plan falls outside).
    - Portrait: the photo on top, the info below, and Prev | Next as a 120 dp bar at the bottom (1 : 1.4).
-   - **Details** (ⓘ sheet): planned time and window, location, tags, rig, extra fields, the planned shot's notes, the shot's description and a row per overlay and sketch (tap = full-screen viewer, [compose](compose.md)), the frame mode, Show on map (online only), Leave step-through. Android back also leaves.
+   - **Details** (ⓘ sheet): planned time and window, location, tags, rig, extra fields, the planned shot's notes, the shot's description and a row per sketch (tap = full-screen viewer, [compose](compose.md)), the frame mode, Show on map (online only), Leave step-through. Android back also leaves.
 
 Light is computed on the phone (`@openclapper/vocab` `dayLight`), so it works offline.
 
 ## Offline
 
-- **Make offline** (the overview's control, or long-press in the list) stores the day and its shots with all metadata, and downloads every photo and every overlay/sketch render to `Documents/offline-photos/` (`apps/mobile/src/offline.ts`, `File.downloadFileAsync` with the auth header; renders as `r-<id>-<version>.jpg`, older versions replaced). The control shows:
+- **Make offline** (the overview's control, or long-press in the list) stores the day and its shots with all metadata, and downloads every photo and every sketch render and every fresh step bake (the steps' layers, [composition](composition.md)) to `Documents/offline-photos/` (`apps/mobile/src/offline.ts`, `File.downloadFileAsync` with the auth header; renders as `r-<id>-<version>.jpg`, older versions replaced). The control shows:
   - progress (n / m photos) while it runs; the rest of the screen stays usable
   - "Offline · up to date" with **Remove** (photos shared with another offline day stay; Remove confirms)
   - "Offline copy out of date" with **Update offline** when the plan changed on the server (`updated_at` differs)

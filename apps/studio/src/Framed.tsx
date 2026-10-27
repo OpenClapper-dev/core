@@ -1,7 +1,8 @@
 import type { ComponentChildren, JSX } from "preact";
 import { withCentre } from "@openclapper/vocab";
 import type { Photo } from "./api";
-import { frameLayout, frameOf, imageAspect, stepSrc, type FrameGeometry, type FrameMode, type PctRect, type Step } from "./format";
+import { frameLayout, frameOf, imageAspect, stepSrc, stepStale, type FrameGeometry, type FrameMode, type PctRect, type Step } from "./format";
+import type { Shot } from "./api";
 import { cx, Img } from "@openclapper/ui";
 import { photoVignette, stepVignette, vignetteCss } from "./vignette";
 import type { Vignette } from "@openclapper/vocab";
@@ -22,7 +23,7 @@ const pct = (r: PctRect) => ({ left: `${r.left}%`, top: `${r.top}%`, width: `${r
  * The box always has the photo's aspect ratio (or the frame's in fit mode) so the percentage
  * geometry of frame and tints lines up with the image.
  */
-export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src, vignette, children }: { photo: Photo; mode: MaskMode; className?: string; maxHeight?: string; /** Draw this frame instead of the stored one (rig explorer). */ frame?: FrameGeometry | null; /** Extra style on the <img> (the compose editor's look filter). */ imgStyle?: JSX.CSSProperties; /** Another image of the same size (an overlay render). */ src?: string; /** Lens vignetting over the frame (issue #266); undefined = the photo's root frame's, so a caller that passes `frame` says which. */ vignette?: Vignette | null; /** Tags drawn on the photo (positioned inside the box). */ children?: ComponentChildren }) {
+export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src, vignette, below, above, children }: { photo: Photo; mode: MaskMode; className?: string; maxHeight?: string; /** Draw this frame instead of the stored one (rig explorer). */ frame?: FrameGeometry | null; /** Extra style on the <img> (the compose editor's look filter). */ imgStyle?: JSX.CSSProperties; /** Another image of the same size (a step's bake). */ src?: string; /** Layers under and over the photo (epic #275), positioned inside the box; under the mask and the frame line. */ below?: ComponentChildren; above?: ComponentChildren; /** Lens vignetting over the frame (issue #266); undefined = the photo's root frame's, so a caller that passes `frame` says which. */ vignette?: Vignette | null; /** Tags drawn on the photo (positioned inside the box). */ children?: ComponentChildren }) {
   const f = frame ?? frameOf(photo);
   const vig = vignette === undefined ? (frame === undefined ? photoVignette(photo) : null) : vignette;
   const img = src ?? photo.image_url;
@@ -32,12 +33,14 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
   // No inline height: thumbnails fix theirs in CSS; elsewhere the aspect ratio gives it. The width is
   // explicit with maxHeight, so the box never depends on a shrink-to-fit parent (its children are absolute).
   const style = { aspectRatio: String(aspect), width: maxHeight ? `min(100%, calc(${maxHeight} * ${aspect}))` : undefined };
-  if (!l) return <div class={`framed ${className ?? ""}`} style={style}><Img src={img} alt="" loading="lazy" style={imgStyle} />{children}</div>;
+  if (!l) return <div class={`framed ${className ?? ""}`} style={style}>{below}<Img src={img} alt="" loading="lazy" style={imgStyle} />{above}{children}</div>;
 
   const fullImg = l.img.left === 0 && l.img.width === 100 && l.img.height === 100;
   return (
     <div class={`framed ${className ?? ""} ${l.shrunk ? "is-beyond" : ""}`} style={style}>
+      {below}
       <Img src={img} alt="" loading="lazy" style={fullImg ? imgStyle : { inset: "auto", ...pct(l.img), ...imgStyle }} />
+      {above}
       {mode === "mask" && l.frame && (
         <>
           {/* Four bands around the frame; a re-framed frame is off-centre, so each side has its own size. */}
@@ -54,9 +57,17 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
   );
 }
 
-/** A step of a sequence (issue #266): the photo, or its overlay's render, in the frame the step is shown with. */
-export function StepFramed({ step, mode, className, maxHeight, children }: { step: Step; mode: MaskMode; className?: string; maxHeight?: string; children?: ComponentChildren }) {
-  return <Framed photo={step.photo} frame={step.frame} src={stepSrc(step)} vignette={stepVignette(step)} mode={mode} className={className} maxHeight={maxHeight}>{children}</Framed>;
+/**
+ * A step of a shot as thumbnails and strips show it (epic #275): its fresh bake, else the photo with
+ * a small "not baked" mark while the Studio's baker catches up. The stage composes live instead.
+ */
+export function StepFramed({ shot, step, mode, className, maxHeight, children }: { shot: Shot; step: Step; mode: MaskMode; className?: string; maxHeight?: string; children?: ComponentChildren }) {
+  return (
+    <Framed photo={step.photo} frame={step.frame} src={stepSrc(shot, step)} vignette={stepVignette(step)} mode={mode} className={className} maxHeight={maxHeight}>
+      {stepStale(shot, step) && <span class="bake-mark" title="Layers not baked yet: the Studio is making the image">◌</span>}
+      {children}
+    </Framed>
+  );
 }
 
 /** Where the photo sits inside a Framed box (% of the box) and the box's aspect ratio, for things drawn in photo coordinates. */

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { extractPhoto, fetchTimelines, movePhotos, patchShot, promoteClip, putSteps, type Preset, type Project, type Shot, type StepInput, type Timeline, type TimelineClip } from "./api";
+import { extractPhoto, fetchLayer, fetchTimelines, movePhotos, patchShot, promoteClip, putLayer, putSteps, type Preset, type Project, type Shot, type StepInput, type Timeline, type TimelineClip } from "./api";
 import { guardCut, useClipEditing, type EditKind } from "./ClipEditing";
+import { toInput } from "./compose/layers";
 import { placeLabel, seqCount, shotTitle } from "./format";
 import type { MaskMode } from "./Framed";
 import { ScrubCover, SeqBadges } from "./ShotCard";
@@ -12,9 +13,9 @@ import { Banner, Button, confirmDialog, ContextMenu, cx, Empty, EmptyNote, Field
 
 /**
  * Timeline (issues #12, #31, #48): rough cuts of a project out of its photos, with the project's shots
- * in a browser beside the cut. A clip is one photo, optionally seen through one of its overlays, with a
+ * in a browser beside the cut. A clip is one photo, optionally one step of its shot (with that step's layers), with a
  * presentation and a hold time — or a placeholder holding the spot for a missing shot. Reviewing is
- * building the cut: drag shots in, re-frame a clip or draw its overlay inline on the stage
+ * building the cut: drag shots in, re-frame a clip or edit its own layers inline on the stage
  * (ClipEditing.tsx), sketch the shots you still lack, approve or archive from the browser. Changes autosave.
  */
 
@@ -159,8 +160,10 @@ function Workspace(p: WorkspaceProps) {
   /**
    * Make a sequence (issue #266): the range's clips become one shot's steps. Clips of one shot only
    * need steps; several shots merge their photos into the first clip's shot (the server deletes emptied
-   * sources). A clip's own re-frame or overlay is promoted first so the step can reference it. The clips
-   * then form one block here; the server already ungrouped the moved photos' clips in other cuts.
+   * sources). A clip's own re-frame is promoted first so the step can reference it; a clip that shows a
+   * stored step keeps that step (and the shot's layers on it); the clip's own layers become the shot's,
+   * on its new step. The clips then form one block here; the server already ungrouped the moved photos'
+   * clips in other cuts.
    */
   async function makeSequence() {
     const sel = rangeClips.filter((c): c is Extract<ResolvedClip, { kind: "photo" }> => c.kind === "photo");
@@ -175,6 +178,7 @@ function Workspace(p: WorkspaceProps) {
     try {
       await p.onSaveNow(t.id);
       const stepsIn: StepInput[] = [];
+      const used = new Set<string>();
       for (const c of sel) {
         let pres = c.pres;
         if (ownReframe(pres)) {
@@ -182,8 +186,11 @@ function Workspace(p: WorkspaceProps) {
           p.onReplace(r.timeline); p.onUpdated(r.shot);
           pres = r.timeline.clips.find((x) => x.id === c.clip.id)?.presentation ?? pres;
         }
-        if (c.overlay?.clip_id) { const r = await promoteClip(t.id, c.clip.id, { what: "overlay" }); p.onReplace(r.timeline); p.onUpdated(r.shot); }
-        stepsIn.push({ id: crypto.randomUUID(), photo_id: c.photo.id, framing_id: pres.framing_id ?? null, overlay_id: c.clip.overlay_id });
+        // A stored step of the target shot keeps its id, so the layers ranged to it stay on it.
+        const keep = c.shot.id === target.id && c.step.stored && !used.has(c.step.id) ? c.step.id : null;
+        const id = keep ?? crypto.randomUUID();
+        used.add(id);
+        stepsIn.push({ id, photo_id: c.photo.id, framing_id: pres.framing_id ?? null });
       }
       let shot: Shot;
       if (movedPhotos.length) {
@@ -195,12 +202,21 @@ function Workspace(p: WorkspaceProps) {
         shot = await putSteps(target.id, stepsIn);
         p.onUpdated(shot);
       }
-      // One block out of the range; moved photos' clips now belong to the target shot.
-      const ids = new Set(sel.map((c) => c.clip.id));
+      // The clips' own layers become the shot's, each on the step its clip now is.
+      for (const [k, c] of sel.entries()) {
+        for (const own of c.ownLayers) {
+          const r = await promoteClip(t.id, c.clip.id, { what: "layer", layer_id: own.id });
+          const full = await fetchLayer(own.id);
+          shot = (await putLayer(own.id, { ...toInput(full), range: [stepsIn[k].id] })).shot;
+          p.onReplace(r.timeline); p.onUpdated(shot);
+        }
+      }
+      // One block out of the range, each clip on its step; moved photos' clips now belong to the target shot.
+      const stepOf = new Map(sel.map((c, k) => [c.clip.id, stepsIn[k].id]));
       const moved = new Set(movedPhotos);
       const cur = latest.current;
       const g = newGroup(sel.reduce((a, c) => a + c.clip.duration_ms, 0));
-      change({ ...cur, groups: [...cur.groups, g], clips: cur.clips.map((c) => (ids.has(c.id) ? { ...c, group_id: g.id, shot_id: target.id } : c.photo_id && moved.has(c.photo_id) ? { ...c, shot_id: target.id, group_id: null } : c)) });
+      change({ ...cur, groups: [...cur.groups, g], clips: cur.clips.map((c) => (stepOf.has(c.id) ? { ...c, group_id: g.id, shot_id: target.id, step_id: stepOf.get(c.id)! } : c.photo_id && moved.has(c.photo_id) ? { ...c, shot_id: target.id, group_id: null } : c)) });
       setMulti(null);
       cut.select(sel[0].clip.id);
       toast(`“${shotTitle(shot)}” now has ${stepsIn.length} steps${others.length ? ` · ${others.length} shot${others.length === 1 ? "" : "s"} merged` : ""}`, "ok");
@@ -209,24 +225,24 @@ function Workspace(p: WorkspaceProps) {
   /** Extract (issue #266): a copy of the clip's photo as a shot of its own, with the clip's saved framing as root. */
   async function extractClip(c: ResolvedClip) {
     if (c.kind !== "photo") return;
-    const ok = await confirmDialog({ title: "Extract as its own shot?", body: `A copy of photo ${c.photo.ordinal + 1} of “${shotTitle(c.shot)}” with its tags, framings and overlays. The sequence and this cut stay as they are.`, confirmLabel: "Extract" });
+    const ok = await confirmDialog({ title: "Extract as its own shot?", body: `A copy of photo ${c.photo.ordinal + 1} of “${shotTitle(c.shot)}” with its tags, framings and the layers its step shows. The sequence and this cut stay as they are.`, confirmLabel: "Extract" });
     if (!ok) return;
     try {
-      const made = await extractPhoto(c.shot.id, c.photo.id, { framing_id: c.pres.framing_id ?? null, overlay_id: c.overlay && !c.overlay.clip_id ? c.overlay.id : null });
+      const made = await extractPhoto(c.shot.id, c.photo.id, { framing_id: c.pres.framing_id ?? null, step_id: c.step.stored ? c.step.id : null });
       p.onCreated?.(made);
       toast(`Extracted “${shotTitle(made)}”`, "ok", { label: "Open", run: () => p.onOpen(made, [made]) });
     } catch (e) { toast(`Extract failed: ${(e as Error).message}`, "danger"); }
   }
   const guardedCut: Cut = { ...guarded, select: selectClip };
   const edit = (kind: EditKind, c: ResolvedClip) => { cut.select(c.clip.id); setPanel("clip"); inline.start(kind, c); };
-  // Settings → Timeline → "Open overlays right away" (issue #51): a clip that shows an overlay opens in the
-  // inline editor when the playhead lands on it (not while playing). Esc keeps it closed until you move on.
+  // Settings → Timeline → "Open layers right away" (issue #51): a clip with layers of its own opens them in
+  // the inline editor when the playhead lands on it (not while playing). Esc keeps it closed until you move on.
   const autoOpened = useRef<string | null>(null);
   useEffect(() => { if (autoOpened.current !== cur?.clip.id) autoOpened.current = null; }, [cur?.clip.id]);
   useEffect(() => {
-    if (!settings.autoOverlay || cut.playing || inline.editing || cur?.kind !== "photo" || !cur.overlay || autoOpened.current === cur.clip.id) return;
+    if (!settings.autoOverlay || cut.playing || inline.editing || cur?.kind !== "photo" || !cur.ownLayers.length || autoOpened.current === cur.clip.id) return;
     autoOpened.current = cur.clip.id;
-    edit("overlay", cur);
+    edit("layers", cur);
   }, [settings.autoOverlay, cur?.clip.id, cut.playing, !!inline.editing]);
   useCutUrl(t.id, clips, cut, inline.editing?.kind ?? null, edit, p.at, p.onCutPosition);
   /** The browser's "in this timeline" badge: the shot's first clip, then the next one on each click. The browser stays open. */
@@ -283,7 +299,7 @@ function Workspace(p: WorkspaceProps) {
     panel: () => setPanel(panel === "browser" ? "clip" : "browser"),
     placeholder: addPlaceholder,
     reframe: () => { if (cur?.kind === "photo") edit("reframe", cur); },
-    compose: () => { if (cur) edit(cur.kind === "photo" ? "overlay" : "sketch", cur); },
+    compose: () => { if (cur) edit(cur.kind === "photo" ? "layers" : "sketch", cur); },
     open: () => { if (cur) open(cur); },
   }), !inline.editing);
   // The clip panel's keys: decisions on the clip's shot (issue #35 asked for them), hold time, remove.
@@ -329,7 +345,7 @@ function Workspace(p: WorkspaceProps) {
         onExtract={(c) => void extractClip(c)} range={multi?.has(clipMenu.menu.ctx.clip.id) ? { n: rangeClips.length, problem: rangeProblem, onMake: () => void makeSequence() } : null} />}
       {inline.panel ?? (panel === "clip" && cur
         ? <ClipPanel key={cur.clip.id} c={cur} count={clips.length} lock={t.lock_mode} durRef={durRef} onUpdate={(patch) => update(cur.clip.id, patch)} onMove={(d) => move(cur, d)} onRemove={() => removeClip(cur)} onDuplicate={() => void duplicate(cur)} onOpen={() => open(cur)}
-            onReframe={() => edit("reframe", cur)} onOverlay={() => edit("overlay", cur)} onSketch={() => edit("sketch", cur)} onAttachSketch={() => void attachSketch(cur)}
+            onReframe={() => edit("reframe", cur)} onLayers={() => edit("layers", cur)} onSketch={() => edit("sketch", cur)} onAttachSketch={() => void attachSketch(cur)}
             onState={cur.kind === "photo" ? (to) => void setShotState(cur.shot, to, p.onUpdated) : undefined}
             onGroup={(g) => change(setGroup(t, g))} onUngroup={() => cur.clip.group_id && change(ungroup(t, cur.clip.group_id))}
             onRestore={() => cur.kind === "photo" && cur.clip.group_id && change(restorePhotos(t, cur.clip.group_id, cur.shot, mask))}
@@ -447,7 +463,7 @@ function Browser(p: BrowserProps) {
               <div class="f-card__body rw-card__body">
                 <div class="rw-card__txt">
                   <span class="f-card__title">{shotTitle(s)}</span>
-                  <span class="f-card__sub">{[placeLabel(s), s.photos.length > 1 ? `${s.photos.length} photos` : "", s.overlays.length ? `${s.overlays.length} overlay${s.overlays.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "—"}</span>
+                  <span class="f-card__sub">{[placeLabel(s), s.photos.length > 1 ? `${s.photos.length} photos` : "", s.layers.length ? `${s.layers.length} layer${s.layers.length === 1 ? "" : "s"}` : ""].filter(Boolean).join(" · ") || "—"}</span>
                 </div>
                 {/* The decisions in the foot, always visible (issue #35): the two states the shot is not in. */}
                 <div class="rw-card__acts" onDblClick={(e) => e.stopPropagation()}>

@@ -1,9 +1,9 @@
 /**
- * Flattened renders. An overlay render is the raw photo at its stored size with the look applied
- * and the drawing on top, so the phone can frame it exactly like the photo. A sketch render is the
+ * Flattened renders. A step's bake (epic #275) is the raw photo at its stored size with the layers
+ * the step shows on top, so the phone frames it exactly like the photo. A sketch render is the
  * canvas on white. Both draw the same shapes as the SVG (Canvas.tsx), on a 2D context.
  */
-import { lookFilter, type Drawing, type Look, type Shape } from "@openclapper/vocab";
+import { lookFilter, withCentre, type Drawing, type Frame, type Layer, type Look, type Shape } from "@openclapper/vocab";
 import type { Photo } from "../api";
 import { arrowPoints } from "./Canvas";
 import { arrowHead, sizePx, strokePx, toPx, type CanvasRect } from "./geometry";
@@ -119,8 +119,14 @@ export const vignetteCss = (v: number) => `radial-gradient(ellipse at center, rg
 const toBlob = (canvas: HTMLCanvasElement, type: string, quality?: number) =>
   new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("render failed"))), type, quality));
 
-/** The photo with the look and the drawing, at the photo's own size, as JPEG. */
-export async function renderOverlay(photo: Photo, drawing: Drawing): Promise<Blob> {
+/**
+ * A step's bake: the photo at its stored size, then the step's layers bottom to top. Layers below
+ * the footage are covered by the photo (they only show beyond it, which a photo-sized image has no
+ * room for). An adjustment layer re-draws what is there through its look, blended by its opacity;
+ * a drawing layer is drawn on its own canvas, then laid on with its opacity. Frame-space layers sit
+ * in (and are cut at) the frame rect; photo-space layers span the photo.
+ */
+export async function renderStep(photo: Photo, frame: Frame | null, layers: readonly Layer[]): Promise<Blob> {
   const res = await fetch(photo.image_url, { credentials: "same-origin" });
   if (!res.ok) throw new Error(`photo ${res.status}`);
   const bitmap = await createImageBitmap(await res.blob());
@@ -128,13 +134,42 @@ export async function renderOverlay(photo: Photo, drawing: Drawing): Promise<Blo
   const canvas = document.createElement("canvas");
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext("2d")!;
-  const look = drawing.look;
-  if (look) ctx.filter = lookFilter(look, w * BLUR_FRACTION);
   ctx.drawImage(bitmap, 0, 0, w, h);
-  ctx.filter = "none";
-  if (look) drawLookLayers(ctx, look, w, h);
-  drawShapes(ctx, drawing.shapes, { x: 0, y: 0, w, h });
   bitmap.close();
+  const full: CanvasRect = { x: 0, y: 0, w, h };
+  const fr = frame ? withCentre(frame) : null;
+  const frameRect: CanvasRect = fr ? { x: (fr.x - fr.width_fraction / 2) * w, y: (fr.y - fr.height_fraction / 2) * h, w: fr.width_fraction * w, h: fr.height_fraction * h } : full;
+  for (const l of layers) {
+    if (l.position < 0) continue;
+    const c = l.space === "photo" ? full : frameRect;
+    ctx.save();
+    if (l.space === "frame") { ctx.beginPath(); ctx.rect(c.x, c.y, c.w, c.h); ctx.clip(); }
+    if (l.kind === "adjustment" && l.look) {
+      const look = l.look;
+      const under = document.createElement("canvas");
+      under.width = w; under.height = h;
+      under.getContext("2d")!.drawImage(canvas, 0, 0);
+      ctx.globalAlpha = l.opacity;
+      ctx.filter = lookFilter(look, c.w * BLUR_FRACTION);
+      ctx.drawImage(under, 0, 0);
+      ctx.filter = "none";
+      if (look.tint && look.tint_opacity > 0) { ctx.globalAlpha = l.opacity * look.tint_opacity; ctx.fillStyle = look.tint; ctx.fillRect(c.x, c.y, c.w, c.h); }
+      if (look.vignette > 0) {
+        ctx.globalAlpha = l.opacity;
+        const g = ctx.createRadialGradient(c.x + c.w / 2, c.y + c.h / 2, Math.min(c.w, c.h) * 0.35, c.x + c.w / 2, c.y + c.h / 2, Math.hypot(c.w, c.h) / 2);
+        g.addColorStop(0, "rgba(0,0,0,0)");
+        g.addColorStop(1, `rgba(0,0,0,${look.vignette.toFixed(3)})`);
+        ctx.fillStyle = g; ctx.fillRect(c.x, c.y, c.w, c.h);
+      }
+    } else if (l.kind === "drawing" && l.shapes?.length) {
+      const own = document.createElement("canvas");
+      own.width = w; own.height = h;
+      drawShapes(own.getContext("2d")!, l.shapes, c);
+      ctx.globalAlpha = l.opacity;
+      ctx.drawImage(own, 0, 0);
+    }
+    ctx.restore();
+  }
   return toBlob(canvas, "image/jpeg", 0.9);
 }
 

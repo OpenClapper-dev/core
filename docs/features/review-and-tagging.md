@@ -33,12 +33,11 @@ The light model feeds the [schedule](schedule.md): phases are defined by sun ele
 
 The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp.tsx`): one window per shot, so two shots can sit side by side (opening a shot that is already open focuses its window). It keeps the list it was opened from (the Gallery's result, the map, Plan, Timeline or ⌘K); ←/→ move this window on to the next shot, and from a deep link without a list they walk the project's shots, newest first.
 
-- **Toolbar**: back (Esc) closes the window and focuses the one it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Sequence (`S`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the window closes (`frameMode.ts` holds the global one). `M` cycles it.
+- **Toolbar**: back (Esc) closes the window and focuses the one it was opened from, "7 of 212" with the list's description (state · view or project · sort), and ←/→; the **stage switch** Photo · Framing (`R`) · Compose (`C`) · Position, and the frame-mode switch (hidden in Compose, where the overlay's own presentation applies). The frame mode starts from the global mode; a change sticks for ←/→ until the window closes (`frameMode.ts` holds the global one). `M` cycles it.
 - **Stage**:
-  - **Photo**: the step as large as fits (a sequence is a progression of **steps**, [sequences](sequences.md): a photo, or a photo through a framing or as an overlay), with prev/next buttons beside it and nothing drawn over the picture (rig and lens are in the inspector). The foot has the step strip for sequences (`,` `.`; a crop or layers glyph marks a step with a framing or an overlay; picking a step also picks its photo for the other stages) and the actions Download crop (the step cropped to its frame, in the browser), Original, **Extract…** (a copy of the photo as a shot of its own, [sequences](sequences.md)), Show on map, and Delete (confirm dialog, offering Archive instead).
+  - **Photo**: the step as large as fits (a sequence is a progression of **steps**, [composition](composition.md): a photo, or a photo through a framing) composed live with the layers it shows, with prev/next buttons beside it and nothing drawn over the picture (rig and lens are in the inspector). The foot has the step strip for sequences (`,` `.`; each thumb is the step's bake; a crop glyph marks a step with a framing; picking a step also picks its photo for the other stages) and the actions Download crop (the step, from its bake, cropped to its frame, in the browser), Original, **Extract…** (a copy of the photo as a shot of its own, [sequences](sequences.md)), Show on map, and Delete (confirm dialog, offering Archive instead).
   - **Framing**: re-frame the photo, saved framings, the root frame ([framing](rig-explorer.md)).
-  - **Compose**: overlays and sketches ([compose](compose.md)); the inspector is replaced by the compose panel.
-  - **Sequence**: the shot's steps as a progression: reorder, add, remove, a zoom sequence, a light progression from overlays ([sequences](sequences.md)).
+  - **Compose**: the shot as a composition: its steps, the layer stack drawn live on the step, and its sketches; the inspector is replaced by the Layers panel ([composition](composition.md), [compose](compose.md)).
   - **Position**: the [position correction](positions.md) map.
 - **Inspector** (`Inspector.tsx`, 380 px, scrolls on its own):
   - the name, state marker and a summary line
@@ -54,7 +53,7 @@ The shot view (`ShotView.tsx`) is the **Shot** app on the desktop (`apps/ShotApp
     - Shot size and Support: comboboxes; Movement: chips (any number).
     - Extra fields: saved 0.7 s after the last change.
   - **Description**: a Markdown field ([compose](compose.md)), saved 0.7 s after the last edit or on leaving it.
-  - **Compose**: the names of the shot's overlays and sketches, with Open (`C`).
+  - **Compose**: the names of the shot's layers and sketches, with Open (`C`).
   - **Position** of the photo on stage, with "Correct", and the switch "Use the location's position" ([positions](positions.md)). A photo captured without GPS says "No position · captured without GPS" and offers "Set position" (the same map stage, starting at another photo of the shot or Berlin).
   - **Shot**: captured, photos (and the number of stored steps), uploaded, the **shooting days** it is planned on (link to Plan) and the **timelines** it is cut into (link to Timeline).
   - **Camera** of the photo on stage: rig, the frame shown (root framing or As captured, and how many framings), body, format, sensor, lens + FF-equivalent ("· vignetting" when the rig darkens the corners at it, [framing](rig-explorer.md#vignetting-issue-266)), FOV, time, GPS accuracy, fix age and altitude, phone.
@@ -66,7 +65,7 @@ Reviewing is finding the shots that carry a sequence. On the Studio it happens i
 ## History on the phone
 
 The **History** tab (`screens/History.tsx`, was Review until issue #48) steps through the project's shots one at a time (queued ones included, newest first; the header button switches to oldest first and starts at the top of that order, remembered in `reviewOrder.v1`), photo first, with the decisions at the thumb. **All shots · To review** (remembered in `historyFilter.v1`) narrows it to the unreviewed queue; the tab badge counts the unreviewed shots either way:
-- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" (or "Step i / n" once the Studio stored a progression, [sequences](sequences.md)) for sequences and the step strip under it. **Swipe** on the photo = next/prev shot; the strip moves between steps. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
+- The photo spans the width (up to 262 dp), with the SEQ badge and "Photo i / n" (or "Step i / n" once the Studio stored steps, [composition](composition.md)) for sequences and the step strip under it; a step with layers shows the Studio's bake, or the photo with "Layers not baked yet". **Swipe** on the photo = next/prev shot; the strip moves between steps. **Double-tap** opens the photo full screen (mode switch on an opaque card; swipe = photos).
 - The frame-view switch (remembered in `reviewMode.v1`).
 - The summary:
   - the name (or the rig when untagged), the state and location
@@ -79,8 +78,8 @@ The **History** tab (`screens/History.tsx`, was Review until issue #48) steps th
 - Landscape: the photo fills the left with the mode switch floating on it; a 292 dp side panel holds the strip, the filter, the summary and the decisions at the bottom.
 
 **Shot details** (Shots → a shot, or ⋯ → Shot details; `screens/ShotDetails.tsx`) is a full screen:
-- the step (swipe = the neighbours in the list it was opened from), the step strip and frame view ([sequences](sequences.md))
-- the summary, the **description** (when set) and the **overlays · sketches** strip ([compose](compose.md)), **Tags** with Edit, **Position** per photo (coordinates, ±accuracy or "corrected") with Show on map and Correct, **Camera** per photo, and **Raw metadata** (expands)
+- the step (swipe = the neighbours in the list it was opened from), the step strip and frame view ([composition](composition.md))
+- the summary, the **description** (when set) and the **sketches** strip ([compose](compose.md)), **Tags** with Edit, **Position** per photo (coordinates, ±accuracy or "corrected") with Show on map and Correct, **Camera** per photo, and **Raw metadata** (expands)
 - ⋯ holds Delete (Discard for a queued shot; deleting an uploaded shot needs a connection)
 - Pinned: the two states that aren't the current one (unreviewed → Archive | Approve; approved → Back to review | Archive; archived → Back to review | Approve)
 

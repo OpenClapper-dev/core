@@ -32,10 +32,10 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/positions.md](features/positions.md) | GPS modes (High · Low · Off), photos without a position, manual pin correction, location pins and shots synced to them |
 | [features/rig-explorer.md](features/rig-explorer.md) | Framing: re-frame a photo (other rig + lens, moved), saved framings, the root frame, Compare A / B |
 | [features/new-shot.md](features/new-shot.md) | New shot in the Studio from uploaded images or a drawn sketch |
-| [features/compose.md](features/compose.md) | Shot descriptions, overlays (drawing + look on a photo), sketches (floor plans, diagrams); Studio editor, phone viewer, renders |
+| [features/compose.md](features/compose.md) | Shot descriptions, the drawing model, sketches (floor plans, diagrams); Studio editor, phone viewer, renders |
 | [features/schedule.md](features/schedule.md) | Shooting days, daylight phases, forecast, shootable windows |
-| [features/timeline.md](features/timeline.md) | Timelines: rough cuts of photos and overlays with hold times, playback (Studio only) |
-| [features/sequences.md](features/sequences.md) | Sequences as progressions: steps (photo + framing + overlay), the Sequence stage, zoom and light progressions, Make a sequence from clips (merge), Extract as own shot |
+| [features/timeline.md](features/timeline.md) | Timelines: rough cuts of steps and clip layers with hold times, playback (Studio only) |
+| [features/composition.md](features/composition.md) | A shot as a composition: steps, layers (drawing and adjustment, with order, range and space), bakes for the phone, the Compose stage, merge and extract, the migration from overlays |
 | [features/day-mode-offline.md](features/day-mode-offline.md) | Phone "Day" tab, offline days, offline project, offline mode, edits kept on the phone |
 | [features/phone-app.md](features/phone-app.md) | Phone shell: 5 tabs, gates, pushed screens, header and sync state, Setup hub, shared components |
 | [features/files.md](features/files.md) | Files on the desktop: folders, the Desktop folder, the Files app, desktop icons and selection, the recycle bin |
