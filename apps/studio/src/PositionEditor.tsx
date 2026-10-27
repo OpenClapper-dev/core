@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import L from "leaflet";
+import { osmTiles } from "./mapTiles";
 import "leaflet/dist/leaflet.css";
 import { patchPhotoPosition, type Photo, type Shot } from "./api";
 import { positionOf } from "./format";
@@ -31,7 +32,7 @@ export function PositionStage({ shot, photo, onSaved, onCancel, onError }: Props
   useEffect(() => {
     if (!el.current) return;
     const map = L.map(el.current, { zoomControl: false }).setView(start, had || positionOf(shot) ? 18 : 12);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+    osmTiles().addTo(map);
     L.control.zoom({ position: "topleft" }).addTo(map);
     // Reported accuracy: dashed ring with a faint accent fill, readable on light and (filtered) dark tiles.
     if (had && photo.gps_accuracy_m) L.circle(start, { radius: photo.gps_accuracy_m, color: "#0B0B0C", weight: 2, dashArray: "6 4", fillColor: "#0040D8", fillOpacity: 0.12 }).addTo(map);

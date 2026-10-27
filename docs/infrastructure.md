@@ -12,7 +12,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 | Cloudflare Access | The admin plane's sign-in. |
 | Android signing key | Per deployment, made once with `scripts/keystore.sh` (into a folder outside the checkout); in the deployment's GitHub secrets and a backup, never in git or a checkout. The staging app (`org.openclapper.staging`) uses the same key. Builds need no other service; the only build-time setting is `EXPO_PUBLIC_API_URL` ([self-hosting](self-hosting.md#the-phone)) |
 | Open-Meteo | Weather forecast, called from the Studio browser directly (free, no key); the only origin besides the tiles in the Studio's CSP `connect-src` |
-| OpenStreetMap tiles | Maps in the Studio (Leaflet) and the phone (Leaflet in a WebView, loaded from unpkg) |
+| OpenStreetMap tiles | Maps in the Studio (Leaflet, `mapTiles.ts`) and the phone (Leaflet in a WebView, loaded from unpkg). Straight from `tile.openstreetmap.org` under its [usage policy](https://operations.osmfoundation.org/policies/tiles/): attribution and a valid Referer. The Studio's page policy is `same-origin`, so the tile layers send the origin themselves; the phone's map page takes the instance's origin as its base URL (issue #281) |
 
 ## Auth
 

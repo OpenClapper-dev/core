@@ -3,7 +3,14 @@ import { View } from "react-native";
 import { WebView as RNWebView, type WebViewMessageEvent, type WebViewProps } from "react-native-webview";
 import { useOnline } from "../net";
 import { Empty, IconButton, makeStyles, useTheme } from "../ui";
+import { API_URL } from "../config";
 import { mapPage } from "./mapHtml";
+
+/**
+ * The map page's origin: the instance's own (issue #281). It is the Referer of the tile requests, and
+ * OpenStreetMap's usage policy asks for a real one; a made-up host got the tiles blocked.
+ */
+const PAGE_ORIGIN = API_URL ? `${new URL(API_URL).origin}/` : "about:blank";
 
 // react-native-webview's class typings collapse to `never` under this TS/React combination; use the props type directly.
 const WebView = RNWebView as unknown as ComponentType<WebViewProps & { ref?: Ref<{ injectJavaScript: (js: string) => void }> }>;
@@ -19,7 +26,7 @@ export function LeafletView({ script, onMessage, fitLabel = "Show all", offlineA
   const { c, name } = useTheme();
   const online = useOnline();
   const ref = useRef<{ injectJavaScript: (js: string) => void } | null>(null);
-  const source = useMemo(() => ({ html: mapPage({ dark: name === "set", bg: c.bg, script }), baseUrl: "https://openclapper.local/" }), [name, c.bg, script]);
+  const source = useMemo(() => ({ html: mapPage({ dark: name === "set", bg: c.bg, script }), baseUrl: PAGE_ORIGIN }), [name, c.bg, script]);
   const run = (js: string) => ref.current?.injectJavaScript(`${js};true;`);
   if (handle) handle.current = { run };
   if (!online) {

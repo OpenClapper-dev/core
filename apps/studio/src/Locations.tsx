@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import L from "leaflet";
+import { osmTiles } from "./mapTiles";
 import "leaflet/dist/leaflet.css";
 import { ApiError, deleteLocation, deleteSpot, existingIdOf, putLocation, putSpot, type Location, type Shot, type Spot } from "./api";
 import { binned } from "./apps/trashOps";
@@ -187,7 +188,7 @@ function PinDialog({ title, place, shots, onClose, onSave }: { title: string; pl
   useEffect(() => {
     if (!el.current) return;
     const map = L.map(el.current, { zoomControl: true }).setView(centre, at || own.length ? 17 : 12);
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+    osmTiles().addTo(map);
     for (const { s, p } of own) {
       L.circleMarker([p.lat, p.lon], { radius: 6, color: "#0B0B0C", weight: 2, fillColor: s.position_from_location ? "#FFB000" : "#FFFFFF", fillOpacity: 1 })
         .bindTooltip(`${shotTitle(s)}${s.position_from_location ? " · synced to the place" : ""}`).addTo(map);
