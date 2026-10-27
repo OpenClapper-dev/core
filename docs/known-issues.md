@@ -55,3 +55,15 @@ A rig's vignetting (Library › Rigs) is three numbers per focal length, interpo
 ## The Bluetooth plugin's location permissions are removed (lights #208)
 
 `@sfourdrinier/react-native-ble-plx` with `neverForLocation` declares the location permissions a second time, capped at Android 11. Google Play rejects a permission declared twice with different `maxSdkVersion`s, so `withUncappedLocation` in `apps/mobile/app.config.ts` removes the capped copies; the app keeps them uncapped for GPS. A plugin update that declares them another way would bring the rejection back: Build phone app now fails when an upload is rejected (it used to pass, because the step piped into `tee`).
+
+## Layers need the Studio to reach the phone (epic #275)
+
+The phone shows a step's layers only through its bake, and only the Studio makes bakes (it draws the stack in the browser; a Worker has no canvas). The Studio's bakery bakes every stale step of the loaded shots in the background whenever it is open. Until then the phone shows the photo with "Layers not baked yet". Right after migration 0030, every shot that had overlays has stale steps: the first Studio session bakes them (a few seconds per step, one shot at a time). A server-side baker would remove this dependency; it is not built.
+
+## What a bake leaves out (epic #275)
+
+A bake is photo-sized, so the phone frames it like the photo in every view mode. Anything beyond the photo is not in it: layers below the footage (they only show in the area beyond the capture) and shapes drawn outside the picture. A timeline clip's own layers are Studio-only (the phone never reads timelines). A clip re-framed differently from its step shows its strip thumbnail from the step's bake (frame-space layers at the step's frame); the stage and the clip panel compose the clip's own frame live.
+
+## Old overlays are kept, unread (epic #275)
+
+Migration 0030 copied the overlays into layers and left the `overlays` table, its renders under `renders/overlays/` and `shot_steps.overlay_id` in place. Nothing reads them any more (the purge still deletes their renders with a shot). A later release drops them once the migration has proven itself on production.

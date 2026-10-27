@@ -51,8 +51,11 @@ describe("layers", () => {
       expect(await res.text()).toMatch(re);
     }
     expect(await snapshot()).toBe(before);
-    // At most 50 layers on a shot.
-    for (let i = 0; i < 49; i++) await ok(api(u.token, "PUT", `/api/layers/${uuid()}`, layerBody(w.shot2, `L${i}`)), 201);
+  });
+
+  test("a shot holds at most 50 layers", async () => {
+    // 49 straight into D1 (the route is what is tested here, not 49 round trips).
+    await env.DB.batch(Array.from({ length: 49 }, (_, i) => env.DB.prepare("INSERT INTO layers (id, shot_id, kind, name, space, shapes) VALUES (?1, ?2, 'drawing', ?3, 'frame', '[]')").bind(uuid(), w.shot2, `L${i}`)));
     await ok(api(u.token, "PUT", `/api/layers/${uuid()}`, layerBody(w.shot2, "one more")), 201);
     await ok(api(u.token, "PUT", `/api/layers/${uuid()}`, layerBody(w.shot2, "too many")), 413);
   });

@@ -9,7 +9,7 @@
 
 ## What such a shot is
 
-A normal shot whose photos have `source` `upload` or `drawn` instead of `camera` (`photos.source`, migration 0009). They have no rig framing, no position and `lens_mm` 0. Everywhere a rig would be named they say "Uploaded image" or "Drawn sketch" (`rigLabel` on both clients); the inspector's Camera section shows the source and size. Frame modes show the image as is; the rig explorer says it has no framing data; Compose and Timeline hide the rig and lens pickers for them. Tags, overlays, sketches, shooting days and timelines work as for any shot, and the phone shows them like other photos. A position comes from a location pin ([positions](positions.md)) or Set position.
+A normal shot whose photos have `source` `upload` or `drawn` instead of `camera` (`photos.source`, migration 0009). They have no rig framing, no position and `lens_mm` 0. Everywhere a rig would be named they say "Uploaded image" or "Drawn sketch" (`rigLabel` on both clients); the inspector's Camera section shows the source and size. Frame modes show the image as is; the rig explorer says it has no framing data; Compose and Timeline hide the rig and lens pickers for them. Tags, layers, sketches, shooting days and timelines work as for any shot, and the phone shows them like other photos. A position comes from a location pin ([positions](positions.md)) or Set position.
 
 ## Not done
 

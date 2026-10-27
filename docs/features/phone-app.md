@@ -65,7 +65,7 @@ One app, four installs side by side, each with its own package id, storage and i
 - `ui/chrome.tsx`: `AppHeader`, `PushScreen`, `Block`, `OfflineBanner`, `SyncIcon`, `SyncCard`, `Badge`, `FieldRow`, `ActionBar`.
 - `components/TagEditor.tsx`: the one tag editor (Tag, History edit, Shot details edit), see [review and tagging](review-and-tagging.md). `components/OptionSheet.tsx`: chips up to 12 options, a search list above, checkboxes for multiple.
 - `components/gestures.ts`: `useSwipe` (PanResponder: horizontal swipe, double-tap).
-- `components/ComposeParts.tsx`: overlay/sketch strip, sheet rows and the full-screen viewer; `components/Markdown.tsx`: native rendering of descriptions ([compose](compose.md)).
+- `components/ComposeParts.tsx`: the sketch strip, sheet rows and the full-screen viewer; `components/ShotFrame.tsx` `StepFrame`: a step's bake or photo ([composition](composition.md)); `components/Markdown.tsx`: native rendering of descriptions ([compose](compose.md)).
 - Data: `src/shots.ts` (`useShots`: server, phone copy, queue and waiting edits merged; labels), `src/localShots.ts` (queued shots as shots, `editShot`, `setPosition`, waiting edits), `src/rigs.ts` (rigs and the one in use, shared by Shoot and Setup), `src/storage.ts` (`usePref` for per-screen choices), `src/device.ts` (this phone as a device: its id, the measured Shoot sizes, its specs and their sync, issue #68), `src/kv.ts` (the kv store and photo folders, scoped per server: `make mobile` keeps local data apart from production).
 
 ## Not done (from the designs)
