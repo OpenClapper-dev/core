@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { label } from "@openclapper/vocab";
+import { bakeWaits, label } from "@openclapper/vocab";
 import { api, positionOf, steps, stepStale, type Photo, type Shot } from "../api";
 import { editShot, isWaiting } from "../localShots";
 import { isOfflineMode, isOnline } from "../net";
@@ -116,7 +116,7 @@ export function ShotPhoto({ shot, index, mode, settings, maxW, maxH, badges = tr
   return (
     <View style={[s.photoBox, { width: maxW, height: maxH }]} {...pan}>
       <StepFrame shot={shot} step={step} width={fitWidthFor(step, mode, maxW, maxH)} settings={settings} mode={mode} />
-      {stepStale(shot, step) && <View style={s.bl} pointerEvents="none"><PhotoTag icon="progress-clock">Layers not baked yet</PhotoTag></View>}
+      {stepStale(shot, step) && <View style={s.bl} pointerEvents="none"><PhotoTag icon={bakeWaits(shot) ? "check-decagram-outline" : "progress-clock"}>{bakeWaits(shot) ? "Baked once approved" : "Layers not baked yet"}</PhotoTag></View>}
       {badges && n > 1 && <View style={s.tl} pointerEvents="none"><SeqBadge count={n} /></View>}
       {badges && n > 1 && <View style={s.tr} pointerEvents="none"><PhotoTag>{stepTag(shot, index, n)}</PhotoTag></View>}
     </View>

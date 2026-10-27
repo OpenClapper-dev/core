@@ -10,12 +10,14 @@ export interface ProjectRow {
   notes: string | null;
   created_at: string;
   updated_at: string | null;
+  /** 1: bakes wait until a shot is approved (epic #275). */
+  bake_approved_only: number;
   shot_count?: number;
   /** JSON array of the project's own field definition ids, in order. */
   field_ids?: string;
 }
 
-const toApi = (p: ProjectRow) => ({ ...p, field_ids: JSON.parse(p.field_ids ?? "[]") as string[] });
+const toApi = (p: ProjectRow) => ({ ...p, bake_approved_only: !!p.bake_approved_only, field_ids: JSON.parse(p.field_ids ?? "[]") as string[] });
 
 const LIST_SQL = `SELECT pr.*, (SELECT count(*) FROM shots s WHERE s.project_id = pr.id AND s.deleted_at IS NULL) AS shot_count,
   (SELECT json_group_array(id) FROM (SELECT id FROM field_definitions WHERE project_id = pr.id AND deleted_at IS NULL ORDER BY position, key)) AS field_ids
@@ -41,6 +43,9 @@ export function registerProjectRoutes(r: Router<Ctx>) {
     const b = await readJson<Record<string, unknown>>(request);
     const name = assertString(b.name, "name", 80);
     const notes = b.notes === undefined || b.notes === null || b.notes === "" ? null : assertString(b.notes, "notes", 4000);
+    // Optional: absent keeps the project's setting (older clients send only name and notes).
+    if (b.bake_approved_only !== undefined && typeof b.bake_approved_only !== "boolean") throw new HttpError(400, "bake_approved_only must be a boolean");
+    const bakeApproved = b.bake_approved_only === undefined ? null : b.bake_approved_only ? 1 : 0;
     const ws = (await accessIfExists(ctx, "project", pid, "editor"))
       ?? (b.workspace_id == null ? await defaultWorkspace(ctx) : assertRank(ctx, assertUuid(b.workspace_id, "workspace_id"), "editor", "workspace not found"));
     const clash = await env.DB.prepare("SELECT id FROM projects WHERE workspace_id = ?3 AND name = ?1 COLLATE NOCASE AND id != ?2")
@@ -48,9 +53,9 @@ export function registerProjectRoutes(r: Router<Ctx>) {
     if (clash) return json({ error: "a project with this name already exists", existing_id: clash.id }, 409);
     const now = new Date().toISOString();
     await env.DB.prepare(
-      `INSERT INTO projects (id, name, notes, updated_at, workspace_id) VALUES (?1, ?2, ?3, ?4, ?5)
-       ON CONFLICT(id) DO UPDATE SET name = ?2, notes = ?3, updated_at = ?4`,
-    ).bind(pid, name, notes, now, ws).run();
+      `INSERT INTO projects (id, name, notes, updated_at, workspace_id, bake_approved_only) VALUES (?1, ?2, ?3, ?4, ?5, COALESCE(?6, 0))
+       ON CONFLICT(id) DO UPDATE SET name = ?2, notes = ?3, updated_at = ?4, bake_approved_only = COALESCE(?6, bake_approved_only)`,
+    ).bind(pid, name, notes, now, ws, bakeApproved).run();
     const row = await env.DB.prepare(`${LIST_SQL} WHERE pr.id = ?1`).bind(pid).first<ProjectRow>();
     return json({ project: toApi(row!) });
   });

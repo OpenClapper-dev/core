@@ -47,6 +47,10 @@ Content beyond the photo is not baked (layers below the footage, shapes outside 
   the background, one shot at a time (a failed shot waits five minutes). So a layer edit, a framing change, a
   merge or migrated data reach the phone without anyone opening the shot. Until then strips show the photo with
   a "◌" mark (Studio) or a "Layers not baked yet" tag (phone).
+- **Approved shots only** (Library › Projects › "Phone images of compositions", `projects.bake_approved_only`, carried on
+  every shot payload; vocab `bakeWaits`): the bakery skips shots that are not approved. Their steps show the photo
+  with "Baked once approved" on the phone (the "◌" mark's tooltip says so in the Studio). Bakes made earlier are
+  kept and shown while they still match; approving a shot bakes it at the next pass. Off by default.
 - Bakes of steps that no longer exist are deleted (when steps are replaced and on every bake upload).
 
 ## Building a progression

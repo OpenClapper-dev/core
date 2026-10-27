@@ -34,6 +34,8 @@ interface ShotRow {
   created_at: string;
   updated_at: string | null;
   project_name: string | null;
+  /** The project's setting, carried on every shot so the clients need no project lookup. */
+  bake_approved_only: number;
   location_name: string | null;
   location_lat: number | null;
   location_lon: number | null;
@@ -118,6 +120,7 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
     id: s.id,
     project_id: s.project_id,
     project_name: s.project_name ?? null,
+    bake_approved_only: !!s.bake_approved_only,
     // A location in the recycle bin reads as none (the shot keeps it, so a restore brings it back).
     location_id: s.location_name === null ? null : s.location_id,
     location_name: s.location_name ?? null,
@@ -151,7 +154,7 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
   };
 }
 
-const SHOT_SQL = `SELECT s.*, pr.name AS project_name, l.name AS location_name, l.lat AS location_lat, l.lon AS location_lon,
+const SHOT_SQL = `SELECT s.*, pr.name AS project_name, pr.bake_approved_only AS bake_approved_only, l.name AS location_name, l.lat AS location_lat, l.lon AS location_lon,
     sp.name AS spot_name, sp.lat AS spot_lat, sp.lon AS spot_lon
   FROM shots s JOIN projects pr ON pr.id = s.project_id LEFT JOIN locations l ON l.id = s.location_id AND l.deleted_at IS NULL LEFT JOIN spots sp ON sp.id = s.spot_id AND l.id IS NOT NULL`;
 

@@ -114,6 +114,13 @@ export const layersAt = <L extends Layer>(layers: readonly L[], step: StepRef): 
 /** A clip's own layers, bottom to top (clips show their step's layers under these). */
 export const clipLayersOf = <L extends Layer>(layers: readonly L[], clipId: string): L[] => layers.filter((l) => l.clip_id === clipId && l.visible).sort(byPosition);
 
+/**
+ * Whether a shot's bakes wait for approval: its project bakes approved shots only (a project setting,
+ * to spare the Studio's work and storage on shots that never make it) and it is not approved. Bakes
+ * already made stay; the phone shows them while they are fresh.
+ */
+export const bakeWaits = (s: { state: string; bake_approved_only?: boolean }): boolean => !!s.bake_approved_only && s.state !== "approved";
+
 /** The key a step's bake is stored under: the stored step's id, or the photo's id for a shot without stored steps. */
 export const bakeKey = (step: StepRef): string => (step.stored ? step.id : step.photo.id);
 

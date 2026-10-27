@@ -164,6 +164,8 @@ export interface Shot {
   id: string;
   project_id: string;
   project_name: string | null;
+  /** The project bakes approved shots only (epic #275); absent on queued shots. */
+  bake_approved_only?: boolean;
   location_id: string | null;
   location_name: string | null;
   spot_id: string | null;

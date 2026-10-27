@@ -84,6 +84,19 @@ describe("bakes", () => {
   });
 });
 
+describe("bake approved only (project setting)", () => {
+  test("shots carry their project's setting; a project PUT without it keeps it; it must be a boolean", async () => {
+    const name = `p-${uuid().slice(0, 8)}`;
+    const put = (body: Record<string, unknown>) => api(u.token, "PUT", `/api/projects/${w.project}`, { name, ...body });
+    expect((await shot(w.shot) as Shot & { bake_approved_only: boolean }).bake_approved_only).toBe(false);
+    expect((await ok<{ project: { bake_approved_only: boolean } }>(put({ bake_approved_only: true }))).project.bake_approved_only).toBe(true);
+    expect((await shot(w.shot) as Shot & { bake_approved_only: boolean }).bake_approved_only).toBe(true);
+    expect((await ok<{ project: { bake_approved_only: boolean } }>(put({ notes: "kept" }))).project.bake_approved_only).toBe(true);
+    await ok(put({ bake_approved_only: "yes" }), 400);
+    expect((await ok<{ project: { bake_approved_only: boolean } }>(put({ bake_approved_only: false }))).project.bake_approved_only).toBe(false);
+  });
+});
+
 describe("merge and timelines", () => {
   test("merged photos bring their photo-space layers along (on every step), and an emptied source's frame layers arrive hidden", async () => {
     const photoLayer = uuid(), frameLayer = uuid();

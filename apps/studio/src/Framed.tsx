@@ -1,5 +1,5 @@
 import type { ComponentChildren, JSX } from "preact";
-import { withCentre } from "@openclapper/vocab";
+import { bakeWaits, withCentre } from "@openclapper/vocab";
 import type { Photo } from "./api";
 import { frameLayout, frameOf, imageAspect, stepSrc, stepStale, type FrameGeometry, type FrameMode, type PctRect, type Step } from "./format";
 import type { Shot } from "./api";
@@ -64,7 +64,7 @@ export function Framed({ photo, mode, className, maxHeight, frame, imgStyle, src
 export function StepFramed({ shot, step, mode, className, maxHeight, children }: { shot: Shot; step: Step; mode: MaskMode; className?: string; maxHeight?: string; children?: ComponentChildren }) {
   return (
     <Framed photo={step.photo} frame={step.frame} src={stepSrc(shot, step)} vignette={stepVignette(step)} mode={mode} className={className} maxHeight={maxHeight}>
-      {stepStale(shot, step) && <span class="bake-mark" title="Layers not baked yet: the Studio is making the image">◌</span>}
+      {stepStale(shot, step) && <span class="bake-mark" title={bakeWaits(shot) ? "Not baked: this project bakes approved shots only" : "Layers not baked yet: the Studio is making the image"}>◌</span>}
       {children}
     </Framed>
   );
