@@ -1,4 +1,4 @@
-/** The image proxy (photos, overlay and sketch renders): headers and conditional requests. */
+/** The image proxy (photos, sketch renders, step bakes): headers and conditional requests. */
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
 import { api, buildWorld, newUser, ok, type User, type World } from "./helpers.ts";
@@ -14,7 +14,7 @@ const IMMUTABLE = "private, max-age=31536000, immutable";
 
 describe.each([
   ["photo", () => `/api/photos/${w.photo}/image`, "image/jpeg"],
-  ["overlay render", () => `/api/overlays/${w.overlay}/render`, "image/png"],
+  ["step bake", () => `/api/shots/${w.shot}/bakes/${w.step}`, "image/png"],
   ["sketch render", () => `/api/sketches/${w.sketch}/render`, "image/png"],
 ])("%s", (_what, path, type) => {
   test("is served with its type (never sniffed), an ETag and a year of private caching", async () => {

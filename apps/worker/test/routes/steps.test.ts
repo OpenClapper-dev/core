@@ -4,10 +4,10 @@
  */
 import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, test } from "vitest";
-import { api, buildWorld, FRAME, newUser, ok, overlayBody, photoMeta, snapshot, timelineBody, uploadForm, uuid, withRender, type User, type World } from "./helpers.ts";
+import { api, buildWorld, FRAME, layerBody, newUser, ok, photoMeta, snapshot, timelineBody, uploadForm, uuid, type User, type World } from "./helpers.ts";
 
-interface Step { id: string; photo_id: string; framing_id: string | null; overlay_id: string | null; ordinal: number }
-interface Shot { id: string; name: string | null; captured_at: string; photos: { id: string; ordinal: number; root_framing_id: string | null; r2_object_key?: string; framings: { id: string; name: string }[] }[]; overlays: { id: string; render_url: string | null; presentation: { framing_id?: string | null } }[]; sketches: { id: string }[]; steps: Step[] }
+interface Step { id: string; photo_id: string; framing_id: string | null; ordinal: number }
+interface Shot { id: string; name: string | null; captured_at: string; photos: { id: string; ordinal: number; root_framing_id: string | null; framings: { id: string; name: string }[] }[]; layers: { id: string; shot_id: string; photo_id: string | null; range: string[] | null; visible: boolean }[]; bakes: { step_key: string }[]; sketches: { id: string }[]; steps: Step[] }
 
 let u: User;
 let w: World;
@@ -23,19 +23,18 @@ const keysOf = async (shotId: string) => (await env.DB.prepare("SELECT r2_object
 describe("PUT /api/shots/:id/steps", () => {
   test("stores the list in order, embeds it in the shot and the list, and [] resets", async () => {
     const a = uuid(), b = uuid();
-    const r = await put(w.shot, [{ id: a, photo_id: w.photo, overlay_id: w.overlay }, { id: b, photo_id: w.photo, framing_id: w.framing }]);
-    expect(r.shot.steps.map((s) => [s.id, s.ordinal, s.framing_id, s.overlay_id])).toEqual([[a, 0, null, w.overlay], [b, 1, w.framing, null]]);
+    const r = await put(w.shot, [{ id: a, photo_id: w.photo }, { id: b, photo_id: w.photo, framing_id: w.framing }]);
+    expect(r.shot.steps.map((s) => [s.id, s.ordinal, s.framing_id])).toEqual([[a, 0, null], [b, 1, w.framing]]);
     const listed = await ok<{ shots: Shot[] }>(api(u.token, "GET", `/api/shots?project_id=${w.project}`));
     expect(listed.shots.find((s) => s.id === w.shot)!.steps.map((s) => s.id)).toEqual([a, b]);
     expect((await put(w.shot, [])).shot.steps).toEqual([]);
   });
 
-  test("is strict: another shot's photo, another photo's framing or overlay, a clip's overlay, duplicates, too many", async () => {
+  test("is strict: another shot's photo, another photo's framing, duplicates, too many", async () => {
     const before = await snapshot();
     const cases: [unknown, RegExp][] = [
       [[{ id: uuid(), photo_id: w.photo2 }], /not one of the shot's photos/],
       [[{ id: uuid(), photo_id: w.photo, framing_id: uuid() }], /framing/],
-      [[{ id: uuid(), photo_id: w.photo, overlay_id: uuid() }], /overlay is not/],
       [[{ id: w.step, photo_id: w.photo }, { id: w.step, photo_id: w.photo }], /repeats/],
       [Array.from({ length: 501 }, () => ({ id: uuid(), photo_id: w.photo })), /at most/],
       ["nope", /array/],
@@ -45,22 +44,15 @@ describe("PUT /api/shots/:id/steps", () => {
       expect(res.status).toBe(400);
       expect(await res.text()).toMatch(re);
     }
-    // A timeline clip's own overlay is never a step.
-    const clipOverlay = uuid();
-    await ok(api(u.token, "PUT", `/api/overlays/${clipOverlay}`, withRender({ ...overlayBody(w.photo, "clip's"), timeline_id: w.timeline, clip_id: w.clip })), 201);
-    const res = await api(u.token, "PUT", `/api/shots/${w.shot}/steps`, { steps: [{ id: uuid(), photo_id: w.photo, overlay_id: clipOverlay }] });
-    expect(res.status).toBe(400);
-    expect(await res.text()).toMatch(/timeline clip/);
-    await ok(api(u.token, "DELETE", `/api/overlays/${clipOverlay}`));
     expect(await snapshot()).toBe(before);
   });
 
-  test("a deleted framing or overlay clears the reference; a binned shot is 404", async () => {
-    await put(w.shot, [{ id: uuid(), photo_id: w.photo, framing_id: w.framing, overlay_id: w.overlay }]);
+  test("a deleted framing clears the reference; removed steps lose their bakes; a binned shot is 404", async () => {
+    expect((await shot(w.shot)).bakes.map((b) => b.step_key)).toEqual([w.step]);
+    await put(w.shot, [{ id: uuid(), photo_id: w.photo, framing_id: w.framing }]);
+    expect((await shot(w.shot)).bakes).toEqual([]);
     await ok(api(u.token, "DELETE", `/api/framings/${w.framing}`));
     expect((await shot(w.shot)).steps[0].framing_id).toBeNull();
-    await ok(api(u.token, "DELETE", `/api/overlays/${w.overlay}`));
-    expect((await shot(w.shot)).steps[0].overlay_id).toBeNull();
     await ok(api(u.token, "DELETE", `/api/shots/${w.shot}`));
     await put(w.shot, [], 404);
   });
@@ -118,10 +110,10 @@ describe("POST /api/shots/:id/photos (merge)", () => {
 });
 
 describe("POST /api/shots/:id/photos/:photo/extract", () => {
-  test("copies the photo, its object, framings and overlays into a new shot; the source is untouched", async () => {
+  test("copies the photo, its object, framings and the layers the step shows into a new shot; the source is untouched", async () => {
     const before = await snapshot();
     const id = uuid();
-    const r = await ok<{ shot: Shot }>(api(u.token, "POST", `/api/shots/${w.shot}/photos/${w.photo}/extract`, { id, framing_id: w.framing }), 201);
+    const r = await ok<{ shot: Shot }>(api(u.token, "POST", `/api/shots/${w.shot}/photos/${w.photo}/extract`, { id, framing_id: w.framing, step_id: w.step }), 201);
     expect(r.shot.id).toBe(id);
     expect(r.shot.name).toMatch(/· photo 1$/);
     expect(r.shot.photos).toHaveLength(1);
@@ -130,16 +122,16 @@ describe("POST /api/shots/:id/photos/:photo/extract", () => {
     expect(p.framings).toHaveLength(1);
     expect(p.framings[0].id).not.toBe(w.framing);
     expect(p.root_framing_id).toBe(p.framings[0].id);
-    expect(r.shot.overlays).toHaveLength(1);
-    expect(r.shot.overlays[0].id).not.toBe(w.overlay);
-    expect(r.shot.overlays[0].render_url).toBeTruthy();
+    // The step's layer (ranged to w.step) is on every step of the copy.
+    expect(r.shot.layers).toHaveLength(1);
+    expect(r.shot.layers[0]).toMatchObject({ shot_id: id, range: null });
+    expect(r.shot.layers[0].id).not.toBe(w.layer);
     expect(r.shot.steps).toEqual([]);
     // A new object for the copy, the source's still there; the copy serves.
     const [srcKey] = await keysOf(w.shot), [newKey] = await keysOf(id);
     expect(newKey).not.toBe(srcKey);
     expect(await env.SHOTS_BUCKET.head(srcKey)).not.toBeNull();
     expect((await api(u.token, "GET", `/api/photos/${p.id}/image`)).status).toBe(200);
-    expect((await api(u.token, "GET", r.shot.overlays[0].render_url!)).status).toBe(200);
     // Source unchanged apart from nothing: deleting the copy leaves it whole.
     await ok(api(u.token, "DELETE", `/api/shots/${id}`));
     await ok(api(u.token, "DELETE", `/api/trash/shot/${id}`));
@@ -150,7 +142,7 @@ describe("POST /api/shots/:id/photos/:photo/extract", () => {
     const before = await snapshot();
     expect((await api(u.token, "POST", `/api/shots/${w.shot}/photos/${w.photo2}/extract`, {})).status).toBe(404);
     expect((await api(u.token, "POST", `/api/shots/${w.shot}/photos/${w.photo}/extract`, { framing_id: uuid() })).status).toBe(400);
-    expect((await api(u.token, "POST", `/api/shots/${w.shot}/photos/${w.photo}/extract`, { overlay_id: uuid() })).status).toBe(400);
+    expect((await api(u.token, "POST", `/api/shots/${w.shot}/photos/${w.photo}/extract`, { step_id: uuid() })).status).toBe(400);
     expect((await api(u.token, "POST", `/api/shots/${w.shot}/photos/${w.photo}/extract`, { id: w.shot2 })).status).toBe(409);
     expect(await snapshot()).toBe(before);
   });
@@ -158,3 +150,4 @@ describe("POST /api/shots/:id/photos/:photo/extract", () => {
 
 // `timelineBody` is what buildWorld uses; referenced so the import list stays honest if the helper changes.
 void timelineBody;
+void layerBody;

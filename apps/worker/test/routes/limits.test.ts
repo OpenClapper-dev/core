@@ -4,7 +4,7 @@
  */
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
-import { api, buildWorld, jpeg, newUser, ok, overlayBody, photoMeta, png, uploadForm, uuid, type User, type World } from "./helpers.ts";
+import { api, buildWorld, jpeg, newUser, ok, photoMeta, png, sketchBody, uploadForm, uuid, type User, type World } from "./helpers.ts";
 import { DEFAULT_VIEWFINDER_LAYOUT } from "@openclapper/vocab";
 
 let u: User;
@@ -79,17 +79,25 @@ describe("POST /api/shots", () => {
 describe("compose renders", () => {
   test("a declared body above the ceiling is 413", async () => {
     const form = new FormData();
-    form.set("metadata", JSON.stringify(overlayBody(w.photo, "big")));
+    form.set("metadata", JSON.stringify(sketchBody(w.shot, "big")));
     form.set("render", png());
-    await ok(api(u.token, "PUT", `/api/overlays/${uuid()}`, form, { "content-length": BIG }), 413);
+    await ok(api(u.token, "PUT", `/api/sketches/${uuid()}`, form, { "content-length": BIG }), 413);
+    const bake = new FormData();
+    bake.set("metadata", JSON.stringify({ hash: "0123456789abcdef" }));
+    bake.set("image", png());
+    await ok(api(u.token, "PUT", `/api/shots/${w.shot}/bakes/${w.step}`, bake, { "content-length": BIG }), 413);
   });
 
   test("the render's type comes from its bytes; anything else is 415", async () => {
     const id = uuid();
-    const form = (file: File) => { const f = new FormData(); f.set("metadata", JSON.stringify(overlayBody(w.photo, `typed ${id}`))); f.set("render", file); return f; };
-    await ok(api(u.token, "PUT", `/api/overlays/${id}`, form(text())), 415);
-    await ok(api(u.token, "PUT", `/api/overlays/${id}`, form(webp())), 201);
-    expect(await objects(`renders/overlays/${id}`)).toEqual([`renders/overlays/${id}.webp`]);
+    const form = (file: File) => { const f = new FormData(); f.set("metadata", JSON.stringify(sketchBody(w.shot, `typed ${id}`))); f.set("render", file); return f; };
+    await ok(api(u.token, "PUT", `/api/sketches/${id}`, form(text())), 415);
+    await ok(api(u.token, "PUT", `/api/sketches/${id}`, form(webp())), 201);
+    expect(await objects(`renders/sketches/${id}`)).toEqual([`renders/sketches/${id}.webp`]);
+    const bake = (file: File) => { const f = new FormData(); f.set("metadata", JSON.stringify({ hash: "0123456789abcdef" })); f.set("image", file); return f; };
+    await ok(api(u.token, "PUT", `/api/shots/${w.shot}/bakes/${w.step}`, bake(text())), 415);
+    await ok(api(u.token, "PUT", `/api/shots/${w.shot}/bakes/${w.step}`, bake(webp())));
+    expect(await objects(`bakes/${w.shot}/${w.step}`)).toEqual([`bakes/${w.shot}/${w.step}-0123456789abcdef.webp`]);
   });
 });
 

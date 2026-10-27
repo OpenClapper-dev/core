@@ -84,7 +84,7 @@ export interface World {
   user: User; mark: string; workspace: string; member: string; memberEmail: string;
   project: string; preset: string; location: string; spot: string; field: string; view: string; binnedView: string;
   shot: string; photo: string; shot2: string; photo2: string; step: string; day: string; framing: string; timeline: string; clip: string;
-  overlay: string; sketch: string; folder: string; desktop: string; device: string; layout: string;
+  layer: string; sketch: string; folder: string; desktop: string; device: string; layout: string;
   meshNetwork: string; fixture: string;
 }
 
@@ -92,14 +92,23 @@ const DEVICE_SPECS = { v: 1, model: "Test phone", viewport: { portrait: { width:
 export const FRAME = { width_fraction: 0.5, height_fraction: 0.5 };
 export const deviceBody = (name: string) => ({ name, specs: DEVICE_SPECS });
 export const layoutBody = (name: string) => ({ name, layout: DEFAULT_VIEWFINDER_LAYOUT });
-export const overlayBody = (photo: string, name: string) => ({ photo_id: photo, name, drawing: emptyDrawing(true), presentation: { mode: "fit" } });
+/** A drawing layer of a shot (epic #275); `extra` overrides (space, photo_id, range, clip owner…). */
+export const layerBody = (shot: string, name: string, extra: Record<string, unknown> = {}) =>
+  ({ shot_id: shot, kind: "drawing", name, position: 0, visible: true, locked: false, opacity: 1, space: "frame", shapes: [], ...extra });
+/** A step's bake: metadata with the hash, and an image. */
+export function bakeForm(hash = "0123456789abcdef"): FormData {
+  const form = new FormData();
+  form.set("metadata", JSON.stringify({ hash }));
+  form.set("image", png("bake"));
+  return form;
+}
 export const sketchBody = (shot: string, name: string) => ({ shot_id: shot, name, drawing: emptyDrawing(false), aspect: 1.5 });
 /** An Aputure MC (a mesh kind); `extra` adds its network, unicast, workspace. */
 export const fixtureBody = (label: string, extra: Record<string, unknown> = {}) => ({ label, kind_id: "aputure-mc", address: "A4:C1:38:0B:2F:9E", ...extra });
 export const timelineBody = (project: string, name: string, clip: string, photo: string) =>
   ({ project_id: project, name, clips: [{ id: clip, photo_id: photo, presentation: { mode: "fit", frame: FRAME }, duration_ms: 2000 }] });
 
-/** A JSON body as multipart with a render image (overlays and sketches). */
+/** A JSON body as multipart with a render image (sketches). */
 export function withRender(meta: unknown): FormData {
   const form = new FormData();
   form.set("metadata", JSON.stringify(meta));
@@ -115,7 +124,7 @@ export async function buildWorld(user: User): Promise<World> {
   const id = () => uuid();
   const w = {
     user, mark, workspace: id(), project: id(), preset: id(), location: id(), spot: id(), field: id(), view: id(), binnedView: id(),
-    shot: id(), photo: id(), shot2: id(), photo2: id(), step: id(), day: id(), framing: id(), timeline: id(), clip: id(), overlay: id(), sketch: id(), folder: id(),
+    shot: id(), photo: id(), shot2: id(), photo2: id(), step: id(), day: id(), framing: id(), timeline: id(), clip: id(), layer: id(), sketch: id(), folder: id(),
     desktop: id(), device: id(), layout: id(), meshNetwork: id(), fixture: id(),
   } as World;
   memberUser ??= await newUser({ signIn: false });
@@ -138,8 +147,9 @@ export async function buildWorld(user: User): Promise<World> {
   // A second shot (what a merge moves in) and a stored step on the first (issue #266).
   await ok(api(t, "POST", "/api/shots", uploadForm({ id: w.shot2, project_id: w.project, name: `${mark} shot two`, photos: [photoMeta(0, { id: w.photo2 })] })), 201);
   await ok(api(t, "PUT", `/api/shots/${w.shot}/steps`, { steps: [{ id: w.step, photo_id: w.photo, framing_id: w.framing }] }));
+  await ok(api(t, "PUT", `/api/layers/${w.layer}`, layerBody(w.shot, `${mark} layer`, { range: [w.step] })), 201);
+  await ok(api(t, "PUT", `/api/shots/${w.shot}/bakes/${w.step}`, bakeForm()));
   await ok(api(t, "PUT", `/api/timelines/${w.timeline}`, timelineBody(w.project, `${mark} timeline`, w.clip, w.photo)));
-  await ok(api(t, "PUT", `/api/overlays/${w.overlay}`, withRender(overlayBody(w.photo, `${mark} overlay`))), 201);
   await ok(api(t, "PUT", `/api/sketches/${w.sketch}`, withRender(sketchBody(w.shot, `${mark} sketch`))), 201);
   await ok(api(t, "PUT", `/api/folders/${w.folder}`, { project_id: w.project, name: `${mark} folder` }));
   await ok(api(t, "PUT", `/api/desktop/${w.desktop}`, { project_id: w.project, kind: "app", app_id: "gallery", label: `${mark} app`, x: 10, y: 10 }));

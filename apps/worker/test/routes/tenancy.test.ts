@@ -13,7 +13,7 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
 import { publicRouter, router } from "../../src/routes.ts";
-import { api, buildWorld, deviceBody, fixtureBody, FRAME, idsOf, layoutBody, newUser, ok, overlayBody, photoMeta, sketchBody, snapshot, uploadForm, uuid, type User, type World } from "./helpers.ts";
+import { api, buildWorld, deviceBody, fixtureBody, FRAME, idsOf, layerBody, layoutBody, newUser, ok, bakeForm, photoMeta, sketchBody, snapshot, uploadForm, uuid, type User, type World } from "./helpers.ts";
 
 interface IdCase {
   kind: "id";
@@ -111,12 +111,14 @@ const ROUTES: Record<string, Case> = {
   "DELETE /api/trash/:type/:id": { kind: "id", path: (a) => `/api/trash/view/${a.binnedView}` },
   "DELETE /api/trash": { kind: "id", path: (a) => `/api/trash?project_id=${a.project}` },
 
-  "GET /api/overlays/:id": { kind: "id", path: (a) => `/api/overlays/${a.overlay}` },
-  "PUT /api/overlays/:id": { kind: "id", path: (a) => `/api/overlays/${a.overlay}`, body: (a, actor) => overlayBody(actor.photo, named(a, "overlay")) },
-  "PATCH /api/overlays/:id": { kind: "id", path: (a) => `/api/overlays/${a.overlay}`, body: (a) => ({ name: named(a, "overlay") }) },
-  "DELETE /api/overlays/:id": { kind: "id", path: (a) => `/api/overlays/${a.overlay}` },
-  "POST /api/overlays/:id/copy": { kind: "id", path: (a) => `/api/overlays/${a.overlay}/copy`, body: (_a, actor) => ({ id: uuid(), timeline_id: actor.timeline, clip_id: actor.clip }) },
-  "GET /api/overlays/:id/render": { kind: "id", path: (a) => `/api/overlays/${a.overlay}/render` },
+  "GET /api/shots/:id/layers": { kind: "id", path: (a) => `/api/shots/${a.shot}/layers` },
+  "GET /api/layers/:id": { kind: "id", path: (a) => `/api/layers/${a.layer}` },
+  // B names B's own shot for A's layer id: refused on the layer (the upsert must not take it over).
+  "PUT /api/layers/:id": { kind: "id", path: (a) => `/api/layers/${a.layer}`, body: (a, actor) => layerBody(actor.shot, named(a, "layer")) },
+  "DELETE /api/layers/:id": { kind: "id", path: (a) => `/api/layers/${a.layer}` },
+  "POST /api/layers/:id/copy": { kind: "id", path: (a) => `/api/layers/${a.layer}/copy`, body: (_a, actor) => ({ id: uuid(), timeline_id: actor.timeline, clip_id: actor.clip }) },
+  "PUT /api/shots/:id/bakes/:key": { kind: "id", path: (a) => `/api/shots/${a.shot}/bakes/${a.step}`, body: () => bakeForm("fedcba9876543210") },
+  "GET /api/shots/:id/bakes/:key": { kind: "id", path: (a) => `/api/shots/${a.shot}/bakes/${a.step}` },
   "GET /api/sketches/:id": { kind: "id", path: (a) => `/api/sketches/${a.sketch}` },
   "PUT /api/sketches/:id": { kind: "id", path: (a) => `/api/sketches/${a.sketch}`, body: (a, actor) => sketchBody(actor.shot, named(a, "sketch")) },
   "PATCH /api/sketches/:id": { kind: "id", path: (a) => `/api/sketches/${a.sketch}`, body: (a) => ({ name: named(a, "sketch") }) },
@@ -245,11 +247,13 @@ describe("another workspace's resources", () => {
       ["B's fixture moved into A's mesh network", "PUT", "/api/fixtures/{b.fixture}", (w) => fixtureBody("x", { mesh_network_id: w.meshNetwork, mesh_unicast: 9 })],
       ["a new framing on A's photo", "PUT", "/api/framings/{new}", (w) => ({ photo_id: w.photo, name: "x", lens_mm: 35, frame: FRAME })],
       ["a framing on B's photo with A's rig", "PUT", "/api/framings/{new}", (w) => ({ photo_id: bWorld.photo, name: "x", rig_id: w.preset, lens_mm: 35, frame: FRAME })],
-      ["a new overlay on A's photo", "PUT", "/api/overlays/{new}", (w) => overlayBody(w.photo, "x")],
-      ["an overlay owned by A's timeline clip", "PUT", "/api/overlays/{new}", (w) => ({ ...overlayBody(bWorld.photo, "x"), timeline_id: w.timeline, clip_id: w.clip })],
+      ["a new layer on A's shot", "PUT", "/api/layers/{new}", (w) => layerBody(w.shot, "x")],
+      ["B's layer on A's photo", "PUT", "/api/layers/{new}", (w) => layerBody(bWorld.shot, "x", { space: "photo", photo_id: w.photo })],
+      ["B's layer on A's steps", "PUT", "/api/layers/{new}", (w) => layerBody(bWorld.shot, "x", { range: [w.step] })],
+      ["B's layer owned by A's timeline clip", "PUT", "/api/layers/{new}", (w) => layerBody(bWorld.shot, "x", { timeline_id: w.timeline, clip_id: w.clip })],
       ["a new sketch on A's shot", "PUT", "/api/sketches/{new}", (w) => sketchBody(w.shot, "x")],
       ["B's sketch copied into A's timeline", "POST", "/api/sketches/{b.sketch}/copy", (w) => ({ id: uuid(), timeline_id: w.timeline, clip_id: w.clip })],
-      ["B's overlay copied into A's timeline", "POST", "/api/overlays/{b.overlay}/copy", (w) => ({ id: uuid(), timeline_id: w.timeline, clip_id: w.clip })],
+      ["B's layer copied into A's timeline", "POST", "/api/layers/{b.layer}/copy", (w) => ({ id: uuid(), timeline_id: w.timeline, clip_id: w.clip })],
       ["B's layout for A's device", "PUT", "/api/viewfinder-layouts/{new}", (w) => ({ ...layoutBody("x"), device_id: w.device })],
       ["B's shot into A's folder", "PUT", "/api/folder-items/shot/{b.shot}", (w) => ({ folder_id: w.folder })],
       ["A's fields imported into B's project order", "PUT", "/api/projects/{b.project}/fields", (w) => ({ field_ids: [w.field] })],

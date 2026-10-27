@@ -20,7 +20,7 @@ const listed = async (path: string, id: string) => (await (await api(u.token, "G
 const trash = (project: string) => ok<{ entries: { type: string; id: string; name: string }[] }>(api(u.token, "GET", `/api/trash?project_id=${project}`));
 const shotKeys = async (shot: string) => (await env.DB.prepare("SELECT r2_object_key AS k FROM photos WHERE shot_id = ?1").bind(shot).all<{ k: string }>()).results.map((r) => r.k);
 const renderKeys = async () => [
-  (await env.DB.prepare("SELECT render_key AS k FROM overlays WHERE id = ?1").bind(w.overlay).first<{ k: string }>())!.k,
+  (await env.DB.prepare("SELECT render_key AS k FROM step_bakes WHERE shot_id = ?1").bind(w.shot).first<{ k: string }>())!.k,
   (await env.DB.prepare("SELECT render_key AS k FROM sketches WHERE id = ?1").bind(w.sketch).first<{ k: string }>())!.k,
 ];
 
@@ -81,8 +81,8 @@ describe("purge", () => {
 
     expect(await env.DB.prepare("SELECT 1 FROM shots WHERE id = ?1").bind(w.shot).first()).toBeNull();
     expect(await env.DB.prepare("SELECT 1 FROM photos WHERE id = ?1").bind(w.photo).first()).toBeNull();
-    for (const t of ["overlays", "sketches", "framings"]) {
-      expect(await env.DB.prepare(`SELECT 1 FROM ${t} WHERE id IN (?1, ?2, ?3)`).bind(w.overlay, w.sketch, w.framing).first(), t).toBeNull();
+    for (const t of ["layers", "sketches", "framings"]) {
+      expect(await env.DB.prepare(`SELECT 1 FROM ${t} WHERE id IN (?1, ?2, ?3)`).bind(w.layer, w.sketch, w.framing).first(), t).toBeNull();
     }
     expect(await env.DB.prepare("SELECT 1 FROM shot_steps WHERE id = ?1").bind(w.step).first(), "shot_steps").toBeNull();
     for (const k of [...photos, ...renders]) expect(await env.SHOTS_BUCKET.head(k), k).toBeNull();

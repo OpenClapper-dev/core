@@ -1,5 +1,6 @@
 import { CAMERA_SUPPORTS, INT_EXT, isOneOf, LIGHT, PHOTO_SOURCES, MAX_DESCRIPTION, MOVEMENTS, fitExtra, patchExtra, pruneExtra, SHOT_SIZES, SHOT_STATES, validateExtra, validateValues, WEATHER, type Extra, type FieldDef } from "@openclapper/vocab";
-import { clipOverlaysLeaving, composeFor, deleteClipCompose, type OverlayApi, type SketchApi } from "./compose.ts";
+import { clipLayersLeaving, composeFor, deleteClipCompose, type SketchApi } from "./compose.ts";
+import { bakesFor, layersFor } from "./layers.ts";
 import { framingsFor, type FramingApi } from "./framings.ts";
 import { stepsFor } from "./steps.ts";
 import { projectFieldDefs } from "./fields.ts";
@@ -103,11 +104,13 @@ function photoToApi(p: PhotoRow, framings: Map<string, FramingApi[]>) {
   };
 }
 
-type Compose = Awaited<ReturnType<typeof composeFor>> & { framings: Map<string, FramingApi[]>; steps: Awaited<ReturnType<typeof stepsFor>> };
-/** Overlays, sketches, framings and steps of these shots in one go. */
+type Compose = Awaited<ReturnType<typeof composeFor>> & {
+  framings: Map<string, FramingApi[]>; steps: Awaited<ReturnType<typeof stepsFor>>; layers: Awaited<ReturnType<typeof layersFor>>; bakes: Awaited<ReturnType<typeof bakesFor>>;
+};
+/** Sketches, framings, steps, layers and bakes of these shots in one go. */
 async function extrasFor(env: Ctx["env"], ids: string[]): Promise<Compose> {
-  const [c, framings, steps] = await Promise.all([composeFor(env, ids), framingsFor(env, ids), stepsFor(env, ids)]);
-  return { ...c, framings, steps };
+  const [c, framings, steps, layers, bakes] = await Promise.all([composeFor(env, ids), framingsFor(env, ids), stepsFor(env, ids), layersFor(env, ids), bakesFor(env, ids)]);
+  return { ...c, framings, steps, layers, bakes };
 }
 
 function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
@@ -139,10 +142,12 @@ function shotToApi(s: ShotRow, photos: PhotoRow[], compose: Compose) {
     created_at: s.created_at,
     updated_at: s.updated_at,
     photos: photos.map((p) => photoToApi(p, compose.framings)),
-    overlays: (compose.overlays.get(s.id) ?? []) as OverlayApi[],
     sketches: (compose.sketches.get(s.id) ?? []) as SketchApi[],
     /** Stored steps (issue #266), raw: clients resolve them with `stepsOf`; empty = the photos are the steps. */
     steps: compose.steps.get(s.id) ?? [],
+    /** The composition (epic #275): the shot's own layers in stack order (without shapes) and the stored bakes per step. */
+    layers: compose.layers.get(s.id) ?? [],
+    bakes: compose.bakes.get(s.id) ?? [],
   };
 }
 
@@ -499,8 +504,8 @@ export function registerShotRoutes(r: Router<Ctx>) {
       env.DB.prepare("DELETE FROM timeline_clips WHERE photo_id IN (SELECT id FROM photos WHERE shot_id = ?1) AND timeline_id IN (SELECT id FROM timelines WHERE project_id != ?2)").bind(sid, movedTo),
       ...fileRefCleanup(env, "shot", JSON.stringify([sid]), movedTo),
     ]);
-    // Their clips' own overlays go with them (issue #31).
-    if (movedTo) await deleteClipCompose(env, clipOverlaysLeaving(env, JSON.stringify([sid]), movedTo));
+    // Their clips' own layers go with them (issues #31, #275).
+    if (movedTo) await deleteClipCompose(env, clipLayersLeaving(env, JSON.stringify([sid]), movedTo));
     return json({ shot: await loadShot(env, sid) });
   });
 
@@ -598,7 +603,7 @@ export function registerShotRoutes(r: Router<Ctx>) {
       stmts.push(...fileRefCleanup(env, "shot", list, movedTo));
     }
     await env.DB.batch(stmts);
-    if (movedTo) await deleteClipCompose(env, clipOverlaysLeaving(env, list, movedTo));
+    if (movedTo) await deleteClipCompose(env, clipLayersLeaving(env, list, movedTo));
 
     const { results } = await env.DB.prepare(`${SHOT_SQL} WHERE s.id IN (SELECT value FROM json_each(?1))`).bind(list).all<ShotRow>();
     const [photos, compose] = await Promise.all([photosFor(env, ids), extrasFor(env, ids)]);

@@ -53,8 +53,7 @@ const WORKSPACE_OF = {
   day: "SELECT p.workspace_id AS ws FROM shooting_days d JOIN projects p ON p.id = d.project_id WHERE d.id = ?1",
   timeline: "SELECT p.workspace_id AS ws FROM timelines t JOIN projects p ON p.id = t.project_id WHERE t.id = ?1",
   folder: "SELECT p.workspace_id AS ws FROM folders f JOIN projects p ON p.id = f.project_id WHERE f.id = ?1",
-  overlay: `SELECT p.workspace_id AS ws FROM overlays o JOIN photos ph ON ph.id = o.photo_id JOIN shots s ON s.id = ph.shot_id
-    JOIN projects p ON p.id = s.project_id WHERE o.id = ?1`,
+  layer: "SELECT p.workspace_id AS ws FROM layers l JOIN shots s ON s.id = l.shot_id JOIN projects p ON p.id = s.project_id WHERE l.id = ?1",
   // A sketch is on a shot, or a timeline clip's own.
   sketch: `SELECT p.workspace_id AS ws FROM sketches k LEFT JOIN shots s ON s.id = k.shot_id LEFT JOIN timelines t ON t.id = k.timeline_id
     JOIN projects p ON p.id = coalesce(s.project_id, t.project_id) WHERE k.id = ?1`,
