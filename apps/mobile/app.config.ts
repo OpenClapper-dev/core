@@ -1,5 +1,5 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
-import { withAppBuildGradle } from "expo/config-plugins";
+import { withAndroidManifest, withAppBuildGradle } from "expo/config-plugins";
 import { version } from "../../package.json";
 
 /**
@@ -60,6 +60,25 @@ const withReleaseSigning = (config: ExpoConfig): ExpoConfig =>
   }) as ExpoConfig;
 
 /**
+ * The Bluetooth plugin (react-native-ble-plx, lights #208) with `neverForLocation` declares the location
+ * permissions again as `uses-permission-sdk-23` capped at Android 11 (maxSdkVersion 30). The app needs
+ * them on every version for GPS (app.json, expo-location), and Google Play rejects a permission declared
+ * twice with different maxSdkVersions. So the capped copies go; Bluetooth scanning keeps its
+ * `neverForLocation` flag.
+ */
+const LOCATION = new Set(["android.permission.ACCESS_COARSE_LOCATION", "android.permission.ACCESS_FINE_LOCATION"]);
+const withUncappedLocation = (config: ExpoConfig): ExpoConfig =>
+  withAndroidManifest(config, (c) => {
+    const m = c.modResults.manifest as { "uses-permission-sdk-23"?: { $: Record<string, string> }[] };
+    const sdk23 = m["uses-permission-sdk-23"];
+    if (sdk23) m["uses-permission-sdk-23"] = sdk23.filter((p) => !(LOCATION.has(p.$["android:name"]) && p.$["android:maxSdkVersion"]));
+    return c;
+  }) as ExpoConfig;
+
+/** Every build's config plugins of our own. */
+const withOwnPlugins = (config: ExpoConfig): ExpoConfig => withUncappedLocation(withReleaseSigning(config));
+
+/**
  * The builds besides production (app.json), by APP_VARIANT. Each has its own package id, so it sits next
  * to the production app with its own storage instead of replacing it, and its own icon colour tells them
  * apart in the drawer (assets/icons, #249):
@@ -88,12 +107,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: { ...base.extra, commit: process.env.GIT_COMMIT ?? "" },
   };
   const name = process.env.APP_VARIANT;
-  if (!name) return withReleaseSigning(app);
+  if (!name) return withOwnPlugins(app);
   const v = VARIANTS[name];
   // A typo must not silently build the production app.
   if (!v) throw new Error(`APP_VARIANT=${name}: expected one of ${Object.keys(VARIANTS).join(", ")}, or unset for production`);
   const icons = `./assets/icons/${v.icons}`;
-  return withReleaseSigning({
+  return withOwnPlugins({
     ...app,
     name: v.name,
     scheme: `openclapper-${v.slug}`,

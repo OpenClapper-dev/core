@@ -51,3 +51,7 @@ The task view draws each workspace's windows as outlined boxes with the app's ic
 ## Vignetting is a rough indication, and a native dependency (issue #266)
 
 A rig's vignetting (Library › Rigs) is three numbers per focal length, interpolated between them: it ignores the aperture and the real falloff curve of the lens, so the darkened corners in the viewfinder and on photos are a hint of what the rig will show, not a measurement. On the phone the layer is an SVG radial gradient (`react-native-svg`, a native module): an installed app needs a new dev build or APK before it shows. A step of a sequence shows the vignette of its framing (or of the frame its overlay was drawn for).
+
+## The Bluetooth plugin's location permissions are removed (lights #208)
+
+`@sfourdrinier/react-native-ble-plx` with `neverForLocation` declares the location permissions a second time, capped at Android 11. Google Play rejects a permission declared twice with different `maxSdkVersion`s, so `withUncappedLocation` in `apps/mobile/app.config.ts` removes the capped copies; the app keeps them uncapped for GPS. A plugin update that declares them another way would bring the rejection back: Build phone app now fails when an upload is rejected (it used to pass, because the step piped into `tee`).
