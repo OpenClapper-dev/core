@@ -813,6 +813,8 @@ export interface ClipPanelProps {
   /** Inline editing (issues #31, #275): re-frame the clip, edit its own layers, draw a sketch for a placeholder or a sketch clip. */
   onReframe?: () => void;
   onLayers?: () => void;
+  /** The shot's layers (sequence-wide), edited inline (epic #275). */
+  onShotLayers?: () => void;
   onSketch?: () => void;
   /** A photo clip that replaced a sketch clip still owns that sketch: attach it to the clip's shot. */
   onAttachSketch?: () => void;
@@ -848,7 +850,7 @@ function SecondsField({ label, ms, max, onCommit, disabled, inputRef, kbd, help 
 }
 
 /** A sequence block's settings in the clip panel: how its length is made, Restore and Ungroup. */
-function SequenceSection({ c, onGroup, onUngroup, onRestore }: { c: Extract<ResolvedClip, { kind: "photo" }>; onGroup: (g: ClipGroup) => void; onUngroup?: () => void; onRestore?: () => void }) {
+function SequenceSection({ c, onGroup, onUngroup, onRestore, onShotLayers }: { c: Extract<ResolvedClip, { kind: "photo" }>; onGroup: (g: ClipGroup) => void; onUngroup?: () => void; onRestore?: () => void; onShotLayers?: () => void }) {
   const g = c.group!, seq = c.seq!;
   const missing = seqCount(c.shot) - seq.n;
   const [weight, setWeight] = useState(g.edge_weight);
@@ -856,6 +858,11 @@ function SequenceSection({ c, onGroup, onUngroup, onRestore }: { c: Extract<Reso
   return (
     <div class="tl-seqbox" role="group" aria-label="Sequence">
       <div class="tl-seqbox__head"><SeqBadge count={seqCount(c.shot)} small /><span class="meta">Step {seq.i + 1} of {seq.n} in this block{missing > 0 ? ` · ${missing} removed` : ""}</span></div>
+      {onShotLayers && (
+        <div class="btn-row">
+          <Button kind="secondary" size="sm" icon="layers-triple-outline" kbd="⇧C" title="The shot's layers: every step of the sequence, everywhere it is shown" onClick={onShotLayers}>{c.shot.layers.length ? `Sequence layers · ${c.shot.layers.length}` : "Sequence layers"}</Button>
+        </div>
+      )}
       <Field label="Length" as="div">
         <Seg label="How the block's length is made" value={g.mode} onChange={(mode) => onGroup({ ...g, mode })}
           options={[{ id: "each", label: "Per photo" }, { id: "total", label: "Total" }]} />
@@ -885,7 +892,7 @@ function SequenceSection({ c, onGroup, onUngroup, onRestore }: { c: Extract<Reso
   );
 }
 
-export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, onDuplicate, onOpen, onReframe, onLayers, onSketch, onAttachSketch, onState, onGroup, onUngroup, onRestore, head }: ClipPanelProps) {
+export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, onDuplicate, onOpen, onReframe, onLayers, onShotLayers, onSketch, onAttachSketch, onState, onGroup, onUngroup, onRestore, head }: ClipPanelProps) {
   const i = c.index;
   const seq = c.kind === "photo" ? c.seq : null;
   const inTotal = c.kind === "photo" && c.group?.mode === "total";
@@ -960,7 +967,7 @@ export function ClipPanel({ c, count, lock, durRef, onUpdate, onMove, onRemove, 
             {onLayers && <Button kind="secondary" size="sm" icon="layers-outline" kbd="C" onClick={onLayers}>{c.ownLayers.length ? `Layers · ${c.ownLayers.length}` : "Layers"}</Button>}
           </div>
         )}
-        {c.group && seq && onGroup && <SequenceSection c={c} onGroup={onGroup} onUngroup={onUngroup} onRestore={onRestore} />}
+        {c.group && seq && onGroup && <SequenceSection c={c} onGroup={onGroup} onUngroup={onUngroup} onRestore={onRestore} onShotLayers={onShotLayers} />}
         {holdTime}
         <Field label="Shows" as="div">
           <Select label="Shows" width="100%" value={c.clip.step_id ?? ""} onChange={pickStep}
@@ -1046,7 +1053,7 @@ export function TimelineRail({ list, selectedId, onSelect, onCreate, onContext }
 
 /** Whether an inline tool applies to a clip (re-frame needs a camera photo, a sketch a spot without a photo). */
 export const toolFits = (tool: EditKind, c: ResolvedClip) =>
-  tool === "sketch" ? c.kind !== "photo" : c.kind === "photo" && (tool === "layers" || c.photo.source === "camera");
+  tool === "sketch" ? c.kind !== "photo" : c.kind === "photo" && (tool === "layers" || tool === "shot-layers" || c.photo.source === "camera");
 
 /**
  * Restores the URL's cut position once on mount, then keeps it in the URL 300 ms after the playhead

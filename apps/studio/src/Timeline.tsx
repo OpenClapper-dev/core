@@ -300,6 +300,7 @@ function Workspace(p: WorkspaceProps) {
     placeholder: addPlaceholder,
     reframe: () => { if (cur?.kind === "photo") edit("reframe", cur); },
     compose: () => { if (cur) edit(cur.kind === "photo" ? "layers" : "sketch", cur); },
+    shotLayers: () => { if (cur?.kind === "photo") edit("shot-layers", cur); },
     open: () => { if (cur) open(cur); },
   }), !inline.editing);
   // The clip panel's keys: decisions on the clip's shot (issue #35 asked for them), hold time, remove.
@@ -345,7 +346,7 @@ function Workspace(p: WorkspaceProps) {
         onExtract={(c) => void extractClip(c)} range={multi?.has(clipMenu.menu.ctx.clip.id) ? { n: rangeClips.length, problem: rangeProblem, onMake: () => void makeSequence() } : null} />}
       {inline.panel ?? (panel === "clip" && cur
         ? <ClipPanel key={cur.clip.id} c={cur} count={clips.length} lock={t.lock_mode} durRef={durRef} onUpdate={(patch) => update(cur.clip.id, patch)} onMove={(d) => move(cur, d)} onRemove={() => removeClip(cur)} onDuplicate={() => void duplicate(cur)} onOpen={() => open(cur)}
-            onReframe={() => edit("reframe", cur)} onLayers={() => edit("layers", cur)} onSketch={() => edit("sketch", cur)} onAttachSketch={() => void attachSketch(cur)}
+            onReframe={() => edit("reframe", cur)} onLayers={() => edit("layers", cur)} onShotLayers={() => edit("shot-layers", cur)} onSketch={() => edit("sketch", cur)} onAttachSketch={() => void attachSketch(cur)}
             onState={cur.kind === "photo" ? (to) => void setShotState(cur.shot, to, p.onUpdated) : undefined}
             onGroup={(g) => change(setGroup(t, g))} onUngroup={() => cur.clip.group_id && change(ungroup(t, cur.clip.group_id))}
             onRestore={() => cur.kind === "photo" && cur.clip.group_id && change(restorePhotos(t, cur.clip.group_id, cur.shot, mask))}
