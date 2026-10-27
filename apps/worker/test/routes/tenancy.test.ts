@@ -220,7 +220,8 @@ describe("another workspace's resources", () => {
   });
 
   test("lists do show the owner's own resources (the leak check can fail)", async () => {
-    for (const path of ["/api/projects", "/api/presets", "/api/fixtures", "/api/mesh-networks", "/api/locations", "/api/spots", "/api/fields", "/api/views", "/api/days", "/api/timelines", "/api/shots", "/api/devices", "/api/viewfinder-layouts", "/api/workspaces"]) {
+    // /api/shots pages (100 by default) and every case above adds a world of A's with the same capture time: ask for all.
+    for (const path of ["/api/projects", "/api/presets", "/api/fixtures", "/api/mesh-networks", "/api/locations", "/api/spots", "/api/fields", "/api/views", "/api/days", "/api/timelines", "/api/shots?limit=500", "/api/devices", "/api/viewfinder-layouts", "/api/workspaces"]) {
       const text = await (await api(a.token, "GET", path)).text();
       expect(text, path).toContain(listWorld.mark);
     }
