@@ -1,6 +1,6 @@
 import { File } from "expo-file-system";
 import { dataDir, kv as Storage } from "./kv";
-import { imageHeaders, imageUri, renderUri, type Overlay, type Photo, type Shot, type ShootingDay, type Sketch } from "./api";
+import { imageHeaders, imageUri, renderUri, stepBakeOf, steps, type Photo, type Shot, type ShootingDay } from "./api";
 import { API_URL } from "./config";
 import { log } from "./log";
 
@@ -26,19 +26,24 @@ const photoFile = (id: string) => new File(dir, `${id}.jpg`);
 // Renders change when the Studio saves again, so the file carries the version from render_url (?v=…).
 const renderVersion = (item: { render_url: string | null }) => (item.render_url?.split("v=")[1] ?? "").replace(/[^0-9A-Za-z]/g, "").slice(0, 24);
 const renderFile = (item: { id: string; render_url: string | null }) => new File(dir, `r-${item.id}-${renderVersion(item)}.jpg`);
-const rendersOf = (shots: Shot[]): (Overlay | Sketch)[] => shots.flatMap((s) => [...s.overlays, ...s.sketches]).filter((r) => !!r.render_url);
+/** A render to keep on the phone: a sketch's, or a step's bake (epic #275) under an id of its own. */
+interface Render { id: string; render_url: string | null }
+/** The bake of a step as a render: one file per shot and step, its version from the hash in the URL. */
+export const bakeRender = (shotId: string, bake: { step_key: string; url: string }): Render => ({ id: `b-${shotId}-${bake.step_key}`, render_url: bake.url });
+const bakesOf = (s: Shot): Render[] => steps(s).flatMap((st) => { const b = stepBakeOf(s, st); return b ? [bakeRender(s.id, b)] : []; });
+const rendersOf = (shots: Shot[]): Render[] => shots.flatMap((s) => [...s.sketches, ...bakesOf(s)]).filter((r) => !!r.render_url);
 
 /** Local copy of a photo if one was saved for an offline day, else null. */
 export function offlinePhotoUri(photo: Photo): string | null {
   try { const f = photoFile(photo.id); return f.exists ? f.uri : null; } catch { return null; }
 }
-/** Local copy of an overlay or sketch render (this exact version), else null. */
+/** Local copy of a sketch render or a bake (this exact version), else null. */
 export function offlineRenderUri(item: { id: string; render_url: string | null }): string | null {
   if (!item.render_url) return null;
   try { const f = renderFile(item); return f.exists ? f.uri : null; } catch { return null; }
 }
 /** Download one render and drop older versions of it. */
-async function fetchRender(item: Overlay | Sketch) {
+async function fetchRender(item: Render) {
   const f = renderFile(item);
   if (f.exists) return;
   await File.downloadFileAsync(renderUri(item)!, f, { headers: imageHeaders(), idempotent: true });
@@ -85,7 +90,7 @@ function deleteUnused(shots: Shot[]) {
       if (keep.has(p.id)) continue;
       try { const f = photoFile(p.id); if (f.exists) f.delete(); } catch { /* best effort */ }
     }
-    for (const r of [...s.overlays, ...s.sketches]) {
+    for (const r of [...s.sketches, ...bakesOf(s)]) {
       if (keepRenders.has(r.id)) continue;
       try { for (const f of dir.list()) if (f instanceof File && f.name.startsWith(`r-${r.id}-`)) f.delete(); } catch { /* best effort */ }
     }

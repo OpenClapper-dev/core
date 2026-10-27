@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Modal, Text, useWindowDimensions, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { label } from "@openclapper/vocab";
-import { api, positionOf, steps, type Photo, type Shot } from "../api";
+import { api, positionOf, steps, stepStale, type Photo, type Shot } from "../api";
 import { editShot, isWaiting } from "../localShots";
 import { isOfflineMode, isOnline } from "../net";
 import { discardPending } from "../uploads";
@@ -115,7 +115,8 @@ export function ShotPhoto({ shot, index, mode, settings, maxW, maxH, badges = tr
   const pan = useSwipe({ width: maxW, next: onNext, prev: onPrev, doubleTap: onOpen });
   return (
     <View style={[s.photoBox, { width: maxW, height: maxH }]} {...pan}>
-      <StepFrame step={step} width={fitWidthFor(step, mode, maxW, maxH)} settings={settings} mode={mode} />
+      <StepFrame shot={shot} step={step} width={fitWidthFor(step, mode, maxW, maxH)} settings={settings} mode={mode} />
+      {stepStale(shot, step) && <View style={s.bl} pointerEvents="none"><PhotoTag icon="progress-clock">Layers not baked yet</PhotoTag></View>}
       {badges && n > 1 && <View style={s.tl} pointerEvents="none"><SeqBadge count={n} /></View>}
       {badges && n > 1 && <View style={s.tr} pointerEvents="none"><PhotoTag>{stepTag(shot, index, n)}</PhotoTag></View>}
     </View>
@@ -136,7 +137,7 @@ export function FullPhoto({ shot, index, mode, onMode, settings, onClose }: { sh
   return (
     <Modal visible animationType="fade" onRequestClose={onClose} statusBarTranslucent navigationBarTranslucent>
       <View style={s.full} {...pan}>
-        <StepFrame step={step} width={fitWidthFor(step, mode, width, height - 140)} settings={settings} mode={mode} />
+        <StepFrame shot={shot} step={step} width={fitWidthFor(step, mode, width, height - 140)} settings={settings} mode={mode} />
         <View style={[s.fullClose, { top: insets.top + 12 }]}><IconButton icon="close" label="Close" size={52} onPress={onClose} /></View>
         <View style={[s.fullCard, { bottom: Math.max(insets.bottom, 32) }]}>
           <FrameModeSeg value={mode} onChange={onMode} />
@@ -155,6 +156,7 @@ const useStyles = makeStyles((c) => ({
   photoBox: { backgroundColor: FIXED.photoBg, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   tl: { position: "absolute", top: 10, left: 10 },
   tr: { position: "absolute", top: 10, right: 10 },
+  bl: { position: "absolute", bottom: 10, left: 10 },
   full: { flex: 1, backgroundColor: FIXED.photoBg, alignItems: "center", justifyContent: "center" },
   fullClose: { position: "absolute", left: 12 },
   fullCard: { position: "absolute", alignSelf: "center", alignItems: "center", gap: 6, padding: 10, borderRadius: RADIUS.md, backgroundColor: c.chromeBg, borderWidth: BORDER.badge, borderColor: c.chromeBorder },

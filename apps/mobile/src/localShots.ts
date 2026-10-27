@@ -48,7 +48,8 @@ export function queuedToShot(entry: PendingUpload): Shot {
       lens_mm: p.lens_mm, width: p.width, height: p.height, framing: p.framing, device: p.device, image_url: "", created_at: p.timestamp,
       local_uri: entry.files[p.id],
     })),
-    overlays: [],
+    layers: [],
+    bakes: [],
     sketches: [],
     queued: true,
   };

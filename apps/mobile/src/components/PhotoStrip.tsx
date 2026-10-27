@@ -14,7 +14,7 @@ export function PhotoStrip({ shot, index, onPick }: { shot: Shot; index: number;
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingVertical: 8, paddingHorizontal: 2 }}>
       {list.map((st, i) => (
         <Pressable key={st.id} onPress={() => onPick(i)} style={[s.thumb, i === index && s.thumbOn]} accessibilityRole="button" accessibilityLabel={`${st.stored ? "Step" : "Photo"} ${i + 1}`} accessibilityState={{ selected: i === index }}>
-          <Image source={stepSource(st)} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="disk" />
+          <Image source={stepSource(shot, st)} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="disk" />
           <Text style={[s.n, i === index && { backgroundColor: c.accent, color: c.onAccent }]}>{i + 1}</Text>
         </Pressable>
       ))}

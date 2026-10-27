@@ -3,9 +3,9 @@ import { getSession, getToken, setSession } from "./auth";
 import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
-import type { DeviceSpecs, Extra, FieldDefinition, Framing, Presentation } from "@openclapper/vocab";
+import type { DeviceSpecs, Extra, FieldDefinition, Framing } from "@openclapper/vocab";
 import type { VignettePoint } from "@openclapper/vocab";
-import { stepsOf, type ResolvedStep, type ShotStep } from "@openclapper/vocab";
+import { bakeHash, freshBake, stepsOf, type Layer, type ResolvedStep, type ShotStep, type StepBake } from "@openclapper/vocab";
 import type { Fixture } from "./fixtures/types";
 import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
@@ -189,21 +189,20 @@ export interface Shot {
   updated_at: string | null;
   /** Ordered; never empty. */
   photos: Photo[];
-  /** Drawings over single photos (Studio-made); the phone shows their renders. */
-  overlays: Overlay[];
   /** Free canvases on the shot (floor plans, diagrams); the phone shows their renders. */
   sketches: Sketch[];
-  /** The stored progression (issue #266), raw rows; absent or empty = the photos are the steps (queued shots never have any). */
+  /** The stored steps (issue #266), raw rows; absent or empty = the photos are the steps (queued shots never have any). */
   steps?: ShotStep[];
+  /** The composition (epic #275): the shot's layers (no shapes; the phone never draws them) and the Studio's bakes per step. */
+  layers?: Layer[];
+  bakes?: StepBake[];
   /** Only on the phone: still in the upload queue (see localShots.ts). */
   queued?: boolean;
 }
-/** A drawing + look over one photo, as a flattened render the size of the photo (issue #12). */
-export interface Overlay { id: string; photo_id: string; shot_id: string; name: string; description: string | null; presentation: Presentation; position: number; render_url: string | null; created_at: string; updated_at: string | null }
 /** A sketch of the shot (floor plan, lighting diagram, …), rendered on white. */
 export interface Sketch { id: string; shot_id: string; name: string; kind: string | null; description: string | null; aspect: number; position: number; render_url: string | null; created_at: string; updated_at: string | null }
-/** Either kind, for strips and the viewer. */
-export type Composed = ({ type: "overlay" } & Overlay) | ({ type: "sketch" } & Sketch);
+/** What the compose strip and viewer show: the shot's sketches. */
+export type Composed = { type: "sketch" } & Sketch;
 
 /** A shooting day of a project with its planned shots in order (planned in the Studio). */
 export interface DayShot { shot_id: string; planned_time: string | null; notes: string | null }
@@ -211,9 +210,13 @@ export interface ShootingDay { id: string; project_id: string; date: string; tit
 
 /** The photo that stands for the shot in lists, maps and filters: the first one. */
 export const cover = (s: Shot): Photo => s.photos[0];
-/** The steps a shot shows (issue #266): its stored progression, else its photos. Strips, badges and Step-through count these. */
-export type Step = ResolvedStep<Photo, Overlay>;
-export const steps = (s: Shot): Step[] => stepsOf({ photos: s.photos, overlays: s.overlays ?? [], steps: s.steps });
+/** The steps a shot shows (issue #266): its stored steps, else its photos. Strips, badges and Step-through count these. */
+export type Step = ResolvedStep<Photo>;
+export const steps = (s: Shot): Step[] => stepsOf({ photos: s.photos, steps: s.steps });
+/** A step's bake when it is fresh (epic #275): the Studio's flattened picture of the step with its layers. */
+export const stepBakeOf = (s: Shot, st: Step): StepBake | null => freshBake(s.bakes, st, bakeHash(st, s.layers ?? []));
+/** A step that shows layers but has no fresh bake yet (the Studio makes it); the phone then shows the photo. */
+export const stepStale = (s: Shot, st: Step): boolean => bakeHash(st, s.layers ?? []) !== null && !stepBakeOf(s, st);
 export const seqCount = (s: Shot): number => steps(s).length;
 /**
  * Where a shot is on a map: the location's pin when the shot is synced to it (and the pin is set),
@@ -235,7 +238,7 @@ interface ShotsPage { shots: Shot[]; next: Cursor }
 /** Headers for <Image> requests to the API (the session token). */
 export const imageHeaders = (): Record<string, string> => headers();
 export const imageUri = (photo: Photo) => `${API_URL}${photo.image_url}`;
-/** Absolute URL of an overlay or sketch render; null before the Studio saved one. */
+/** Absolute URL of a sketch render or a bake; null before the Studio saved one. */
 export const renderUri = (item: { render_url: string | null }) => (item.render_url ? `${API_URL}${item.render_url}` : null);
 
 export const api = {
