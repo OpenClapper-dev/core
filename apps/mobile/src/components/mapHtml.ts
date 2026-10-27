@@ -27,7 +27,7 @@ export function mapPage({ dark, bg, script }: { dark: boolean; bg: string; scrip
 </head><body><div id="m"></div><script>
 function post(m){window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify(m));}
 var map=L.map('m',{zoomControl:false});
-L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}).addTo(map);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap',referrerPolicy:'strict-origin-when-cross-origin'}).addTo(map);
 function zoomIn(){map.zoomIn();} function zoomOut(){map.zoomOut();}
 ${script}
 </script></body></html>`;

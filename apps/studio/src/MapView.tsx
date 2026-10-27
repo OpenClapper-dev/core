@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import L from "leaflet";
+import { osmTiles } from "./mapTiles";
 import "leaflet/dist/leaflet.css";
 import { label, STATE_ICONS } from "@openclapper/vocab";
 import type { Shot } from "./api";
@@ -66,7 +67,7 @@ function LeafletMap({ shots, mask, selectedId, onSelect, onOpen }: Props) {
   useEffect(() => {
     if (!el.current) return;
     const m = L.map(el.current, { zoomControl: false });
-    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(m);
+    osmTiles().addTo(m);
     L.control.zoom({ position: "topleft" }).addTo(m);
     map.current = m;
     m.setView([51, 10], 5);
