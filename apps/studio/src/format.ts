@@ -1,15 +1,21 @@
 import type { RigLens } from "@openclapper/fov-math";
-import { cameraLabel, extraLabel, label, lightLabel, rootFrame, stepsOf, withCentre, type FilterableShot, type ResolvedStep } from "@openclapper/vocab";
-import type { Overlay, Photo, Shot } from "./api";
+import { bakeHash, cameraLabel, extraLabel, freshBake, label, lightLabel, rootFrame, stepsOf, withCentre, type FilterableShot, type ResolvedStep, type StepBake } from "@openclapper/vocab";
+import type { Photo, Shot } from "./api";
 
 /** The photo that stands for the shot in lists, maps and filters: the first one. */
 export const cover = (s: Shot): Photo => s.photos[0];
-/** The steps a shot shows (issue #266): the stored progression, else its photos. Every strip, scrub and badge counts these. */
-export type Step = ResolvedStep<Photo, Overlay>;
+/** The steps a shot shows (issue #266): the stored steps, else its photos. Every strip, scrub and badge counts these. */
+export type Step = ResolvedStep<Photo>;
 export const steps = (s: Shot): Step[] => stepsOf(s);
 export const seqCount = (s: Shot): number => (s.steps.length ? steps(s).length : s.photos.length);
-/** What a step shows: the overlay's render when it has one, else the photo. */
-export const stepSrc = (st: Step): string => st.overlay?.render_url ?? st.photo.image_url;
+/** What a step's bake must be made from (epic #275); null when the step shows no layers (the photo is the picture). */
+export const stepHash = (s: Shot, st: Step): string | null => bakeHash(st, s.layers);
+/** The step's bake when it is fresh. */
+export const stepBake = (s: Shot, st: Step): StepBake | null => freshBake(s.bakes, st, stepHash(s, st));
+/** A step that shows layers but has no fresh bake yet (the Studio bakes it in the background). */
+export const stepStale = (s: Shot, st: Step): boolean => stepHash(s, st) !== null && !stepBake(s, st);
+/** What a step shows when not composed live: its fresh bake, else the photo. */
+export const stepSrc = (s: Shot, st: Step): string => stepBake(s, st)?.url ?? st.photo.image_url;
 
 /** "Uploaded image" / "Drawn sketch" for photos that did not come from the phone camera. */
 export const sourceLabel = (p: Photo): string | null => (p.source === "upload" ? "Uploaded image" : p.source === "drawn" ? "Drawn sketch" : null);

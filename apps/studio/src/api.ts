@@ -1,6 +1,6 @@
 /** Same-origin API; the session cookie is sent automatically. */
-import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint } from "@openclapper/vocab";
-export type { ShotStep, StepInput } from "@openclapper/vocab";
+import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint, Layer, LayerInput, StepBake } from "@openclapper/vocab";
+export type { Layer, LayerInput, ShotStep, StepBake, StepInput } from "@openclapper/vocab";
 export type { ClipGroup } from "@openclapper/vocab";
 export type { FieldDefinition };
 export type ShotState = "unreviewed" | "approved" | "archived";
@@ -64,21 +64,14 @@ export interface Shot {
   updated_at: string | null;
   /** Ordered; never empty. */
   photos: Photo[];
-  /** Drawings over single photos, in display order, without their drawing data (fetchOverlay has it). */
-  overlays: Overlay[];
   /** Free canvases on the shot, in display order, without their drawing data (fetchSketch has it). */
   sketches: Sketch[];
-  /** The stored progression (issue #266), raw rows; empty = the photos are the steps. Resolve with `steps()` in format.ts. */
+  /** The stored steps (issue #266), raw rows; empty = the photos are the steps. Resolve with `steps()` in format.ts. */
   steps: ShotStep[];
-}
-/** A drawing + look over one photo (issue #12). `drawing` is only present when fetched alone. */
-export interface Overlay {
-  id: string; photo_id: string; shot_id: string; name: string; description: string | null;
-  /** Set when the overlay belongs to a timeline clip (issue #31); shots never embed those. */
-  timeline_id?: string | null; clip_id?: string | null;
-  drawing?: Drawing; presentation: Presentation; position: number;
-  /** Flattened render (photo + look + drawing, photo-sized), or null before the first save with a render. */
-  render_url: string | null; created_at: string; updated_at: string | null;
+  /** The composition (epic #275): the shot's own layers in stack order, without shapes (fetchShotLayers has them). */
+  layers: Layer[];
+  /** One flattened image per step, made by the Studio; fresh when its hash matches `bakeHash`. */
+  bakes: StepBake[];
 }
 /** A free canvas on the shot (floor plan, lighting diagram, …). */
 export interface Sketch {
@@ -263,22 +256,22 @@ export const deleteDay = (id: string) => send<{ deleted: string }>("DELETE", `/a
 
 /**
  * A rough cut of a project out of its photos (issue #12, part 2). A clip without a photo is a
- * placeholder (issue #31): `title` says what is wanted there; overlay and presentation are null.
+ * placeholder (issue #31): `title` says what is wanted there; step and presentation are null.
  */
-export interface TimelineClip { id: string; photo_id: string | null; shot_id: string | null; /** Seen through this overlay's render; null = the photo as is. */ overlay_id: string | null; presentation: Presentation | null; duration_ms: number; notes: string | null; title: string | null; /** A placeholder with a sketch is a sketch clip. */ sketch_id: string | null; /** The sequence block it belongs to (issue #37). */ group_id: string | null }
+export interface TimelineClip { id: string; photo_id: string | null; shot_id: string | null; /** The step of its shot it shows (that step's layers come along); null = the photo with the shot's layers on every step. */ step_id: string | null; presentation: Presentation | null; duration_ms: number; notes: string | null; title: string | null; /** A placeholder with a sketch is a sketch clip. */ sketch_id: string | null; /** The sequence block it belongs to (issue #37). */ group_id: string | null }
 export interface Timeline {
   id: string; project_id: string; name: string; notes: string | null; /** Forces one presentation mode on every clip; null = per clip. */ lock_mode: Presentation["mode"] | null; created_at: string; updated_at: string | null; clips: TimelineClip[];
   /** Sequence blocks' length settings (issue #37); the server recomputes a "total" block's clip durations. */
   groups: ClipGroup[];
-  /** The clips' own overlays and sketches (made inline, issue #31), without drawings; read-only for the PUT. */
-  overlays: Overlay[]; sketches: Sketch[];
+  /** The clips' own layers and sketches (made inline, issues #31, #275), without shapes or drawings; read-only for the PUT. */
+  layers: Layer[]; sketches: Sketch[];
 }
 export const fetchTimelines = (projectId: string) => get<{ timelines: Timeline[] }>(`/api/timelines?project_id=${projectId}`).then((r) => r.timelines);
 /** Replaces the whole timeline. Clips of photos that left the project are dropped by the server. */
 export const putTimeline = (t: Omit<Timeline, "created_at" | "updated_at">) =>
-  send<{ timeline: Timeline }>("PUT", `/api/timelines/${t.id}`, { project_id: t.project_id, name: t.name, notes: t.notes, lock_mode: t.lock_mode, groups: t.groups, clips: t.clips.map((c) => ({ id: c.id, photo_id: c.photo_id, overlay_id: c.overlay_id, presentation: c.presentation, duration_ms: c.duration_ms, notes: c.notes, title: c.title, sketch_id: c.sketch_id, group_id: c.group_id })) }).then((r) => r.timeline);
-/** A clip's own re-frame, overlay or sketch becomes the shot's (issue #31). */
-export const promoteClip = (timelineId: string, clipId: string, body: { what: "framing" | "overlay" | "sketch"; name?: string; shot_id?: string; sketch_id?: string }) =>
+  send<{ timeline: Timeline }>("PUT", `/api/timelines/${t.id}`, { project_id: t.project_id, name: t.name, notes: t.notes, lock_mode: t.lock_mode, groups: t.groups, clips: t.clips.map((c) => ({ id: c.id, photo_id: c.photo_id, step_id: c.step_id, presentation: c.presentation, duration_ms: c.duration_ms, notes: c.notes, title: c.title, sketch_id: c.sketch_id, group_id: c.group_id })) }).then((r) => r.timeline);
+/** A clip's own re-frame, layer or sketch becomes the shot's (issues #31, #275). */
+export const promoteClip = (timelineId: string, clipId: string, body: { what: "framing" | "layer" | "sketch"; name?: string; layer_id?: string; shot_id?: string; sketch_id?: string }) =>
   send<{ timeline: Timeline; shot: Shot }>("POST", `/api/timelines/${timelineId}/clips/${clipId}/promote`, body);
 export const deleteTimeline = (id: string) => send<{ deleted: string }>("DELETE", `/api/timelines/${id}`).then(() => undefined);
 
@@ -328,17 +321,33 @@ export const setRootFraming = (photoId: string, framingId: string | null) => sen
 export const putSteps = (shotId: string, steps: StepInput[]) => send<{ shot: Shot }>("PUT", `/api/shots/${shotId}/steps`, { steps }).then((r) => r.shot);
 /** Move photos of other shots (same project) into this one; emptied source shots are deleted for good. */
 export const movePhotos = (shotId: string, photoIds: string[], steps?: StepInput[]) => send<{ shot: Shot; removed_shot_ids: string[] }>("POST", `/api/shots/${shotId}/photos`, { photo_ids: photoIds, steps });
-/** Copy one photo out as a shot of its own (own image, framings and overlays copied; `framing_id` becomes its root). */
-export const extractPhoto = (shotId: string, photoId: string, o: { id?: string; framing_id?: string | null; overlay_id?: string | null } = {}) => send<{ shot: Shot }>("POST", `/api/shots/${shotId}/photos/${photoId}/extract`, o).then((r) => r.shot);
+/** Copy one photo out as a shot of its own (own image and framings, the layers the step shows; `framing_id` becomes its root). */
+export const extractPhoto = (shotId: string, photoId: string, o: { id?: string; framing_id?: string | null; step_id?: string | null } = {}) => send<{ shot: Shot }>("POST", `/api/shots/${shotId}/photos/${photoId}/extract`, o).then((r) => r.shot);
 
 /** Correct a photo's position by hand; `allInShot` moves every photo of its shot. Returns the updated shot. */
 export const patchPhotoPosition = (id: string, lat: number, lon: number, allInShot: boolean) =>
   send<{ shot: Shot }>("PATCH", `/api/photos/${id}`, { lat, lon, all_in_shot: allInShot }).then((r) => r.shot);
 
-// ---------- Overlays and sketches ----------
+// ---------- Layers and bakes (epic #275) ----------
 
-/** Full overlay with its drawing. */
-export const fetchOverlay = (id: string) => get<{ overlay: Overlay & { drawing: Drawing } }>(`/api/overlays/${id}`).then((r) => r.overlay);
+/** The shot's own layers with their shapes. */
+export const fetchShotLayers = (shotId: string) => get<{ layers: Layer[] }>(`/api/shots/${shotId}/layers`).then((r) => r.layers);
+/** One layer with its shapes (a clip's own, say). */
+export const fetchLayer = (id: string) => get<{ layer: Layer }>(`/api/layers/${id}`).then((r) => r.layer);
+export const putLayer = (id: string, l: LayerInput) => send<{ layer: Layer; shot: Shot }>("PUT", `/api/layers/${id}`, l);
+export const deleteLayer = (id: string) => send<{ deleted: string; shot: Shot }>("DELETE", `/api/layers/${id}`);
+/** Copy a layer as another clip's own (a duplicated clip gets its own). */
+export const copyLayer = (from: string, to: string, owner: ClipOwner) => send<{ layer: Layer }>("POST", `/api/layers/${from}/copy`, { id: to, ...owner }).then((r) => r.layer);
+/** Upload a step's flattened image with the hash of what it was made from. */
+export async function putBake(shotId: string, key: string, hash: string, image: Blob): Promise<Shot> {
+  const form = new FormData();
+  form.append("metadata", JSON.stringify({ hash }));
+  form.append("image", image, "bake.jpg");
+  return request<{ shot: Shot }>(`/api/shots/${shotId}/bakes/${key}`, { method: "PUT", body: form }).then((r) => r.shot);
+}
+
+// ---------- Sketches ----------
+
 export const fetchSketch = (id: string) => get<{ sketch: Sketch & { drawing: Drawing } }>(`/api/sketches/${id}`).then((r) => r.sketch);
 
 /** Multipart save: the metadata JSON plus the flattened render the Studio produced. */
@@ -348,22 +357,16 @@ async function putComposed<T>(path: string, metadata: unknown, render: Blob | nu
   if (render) form.append("render", render, "render");
   return request<T>(path, { method: "PUT", body: form });
 }
-export interface OverlaySave { photo_id: string; name: string; description: string | null; drawing: Drawing; presentation: Presentation; position?: number }
-export const putOverlay = (id: string, m: OverlaySave, render: Blob | null) => putComposed<{ overlay: Overlay & { drawing: Drawing }; shot: Shot }>(`/api/overlays/${id}`, m, render);
-export const patchOverlay = (id: string, m: { name?: string; description?: string | null; position?: number }) => send<{ overlay: Overlay; shot: Shot }>("PATCH", `/api/overlays/${id}`, m);
-export const deleteOverlay = (id: string) => send<{ deleted: string; shot: Shot }>("DELETE", `/api/overlays/${id}`);
 export interface SketchSave { shot_id: string; name: string; kind: string | null; description: string | null; drawing: Drawing; aspect: number; position?: number }
 export const putSketch = (id: string, m: SketchSave, render: Blob | null) => putComposed<{ sketch: Sketch & { drawing: Drawing }; shot: Shot }>(`/api/sketches/${id}`, m, render);
 export const patchSketch = (id: string, m: { name?: string; kind?: string | null; description?: string | null; position?: number }) => send<{ sketch: Sketch; shot: Shot }>("PATCH", `/api/sketches/${id}`, m);
 export const deleteSketch = (id: string) => send<{ deleted: string; shot: Shot }>("DELETE", `/api/sketches/${id}`);
 
-// ---------- A timeline clip's own overlay and sketch (issue #31) ----------
+// ---------- A timeline clip's own sketch (issue #31) ----------
 export interface ClipOwner { timeline_id: string; clip_id: string }
-export const putClipOverlay = (id: string, m: OverlaySave & ClipOwner, render: Blob | null) => putComposed<{ overlay: Overlay & { drawing: Drawing }; shot: Shot }>(`/api/overlays/${id}`, m, render);
 export const putClipSketch = (id: string, m: Omit<SketchSave, "shot_id"> & ClipOwner, render: Blob | null) => putComposed<{ sketch: Sketch & { drawing: Drawing }; shot: null }>(`/api/sketches/${id}`, m, render);
 export const deleteClipSketch = (id: string) => send<{ deleted: string; shot: null }>("DELETE", `/api/sketches/${id}`);
-/** Copy an overlay / sketch as another clip's own (a duplicated clip gets its own drawing). */
-export const copyOverlay = (from: string, to: string, owner: ClipOwner) => send<{ overlay: Overlay }>("POST", `/api/overlays/${from}/copy`, { id: to, ...owner }).then((r) => r.overlay);
+/** Copy a sketch as another clip's own (a duplicated clip gets its own drawing). */
 export const copySketch = (from: string, to: string, owner: ClipOwner) => send<{ sketch: Sketch }>("POST", `/api/sketches/${from}/copy`, { id: to, ...owner }).then((r) => r.sketch);
 
 export const fetchLocations = () => get<{ locations: Location[] }>("/api/locations").then((r) => r.locations);

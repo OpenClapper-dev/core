@@ -48,7 +48,7 @@ interface Props {
   onState: (state: ShotState) => void;
   stateBusy: boolean;
   onCorrect: () => void;
-  /** Open the Compose stage (overlays and sketches). */
+  /** Open the Compose stage (steps, layers and sketches). */
   onCompose: () => void;
   onOpenDay: (projectId: string, dayId: string) => void;
   onOpenTimeline: (projectId: string, timelineId: string) => void;
@@ -220,7 +220,7 @@ export function Inspector({ shot, photo, projects, fields, fieldsOf, locations, 
         <div class="f-sec">
           <div class="f-sec__head"><Icon name="draw" />Compose<span class="f-sec__aside"><Button kind="secondary" size="sm" style={{ height: "26px" }} kbd="C" onClick={onCompose}>Open</Button></span></div>
           <dl class="f-facts">
-            <dt>Overlays</dt><dd>{shot.overlays.length === 0 ? <span class="meta">none</span> : shot.overlays.map((o) => o.name).join(", ")}</dd>
+            <dt>Layers</dt><dd>{shot.layers.length === 0 ? <span class="meta">none</span> : shot.layers.map((l) => l.name).join(", ")}</dd>
             <dt>Sketches</dt><dd>{shot.sketches.length === 0 ? <span class="meta">none</span> : shot.sketches.map((s) => s.name).join(", ")}</dd>
           </dl>
         </div>

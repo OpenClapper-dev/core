@@ -23,7 +23,7 @@ export interface ShotLaunch {
   from?: string;
 }
 
-const STAGES: readonly Stage[] = ["photo", "rigs", "position", "compose", "sequence"];
+const STAGES: readonly Stage[] = ["photo", "rigs", "position", "compose"];
 
 /**
  * One shot in a window (#/shots/<id>), resource = the shot: the stage, the inspector, ←/→

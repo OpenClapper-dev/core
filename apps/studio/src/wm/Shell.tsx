@@ -26,6 +26,7 @@ import { WindowGhosts } from "./WindowGhosts";
 import { Window } from "./Window";
 import { goToWorkspace } from "./switchWorkspace";
 import * as wm from "./wm";
+import { startBakery } from "../compose/baker";
 
 setFocusSource(wm.getFocusedId);
 
@@ -90,6 +91,8 @@ function SignedIn() {
     setReady(valid);
   }, [valid]);
   useEffect(() => (ready ? startRouteBridge() : undefined), [!!ready]);
+  // Steps with layers need a flattened image for the phone (epic #275): baked in the background.
+  useEffect(() => (ready ? startBakery() : undefined), [!!ready]);
   useEffect(() => {
     const flush = () => desktopState.flush();
     window.addEventListener("pagehide", flush);

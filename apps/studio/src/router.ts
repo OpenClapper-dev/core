@@ -1,4 +1,4 @@
-export type Stage = "photo" | "rigs" | "position" | "compose" | "sequence";
+export type Stage = "photo" | "rigs" | "position" | "compose";
 export type LibrarySection = "projects" | "fields" | "rigs" | "locations" | "viewfinder";
 export const LIBRARY_SECTIONS: readonly LibrarySection[] = ["projects", "fields", "rigs", "locations", "viewfinder"];
 
@@ -8,13 +8,13 @@ export const LIBRARY_SECTIONS: readonly LibrarySection[] = ["projects", "fields"
  */
 import { META_FIELDS, type MetaField } from "./MetadataPage";
 
-export type CutTool = "reframe" | "overlay" | "sketch";
+export type CutTool = "reframe" | "layers" | "sketch";
 export interface CutPosition { ms: number; tool: CutTool | null }
 
 function parseCutPosition(q: URLSearchParams): CutPosition | null {
   const t = Number(q.get("t"));
   const tool = q.get("tool");
-  const ok = tool === "reframe" || tool === "overlay" || tool === "sketch" ? tool : null;
+  const ok = tool === "reframe" || tool === "layers" || tool === "sketch" ? tool : null;
   if (!q.has("t") && !ok) return null;
   return { ms: Number.isFinite(t) && t > 0 ? Math.round(t * 10) * 100 : 0, tool: ok };
 }
@@ -51,7 +51,7 @@ export function parseRoute(hash: string): Route {
     case "shots":
       if (parts[1]) {
         const st = q.get("stage");
-        return { page: "shot", shotId: parts[1], stage: st === "rigs" || st === "position" || st === "compose" || st === "sequence" ? st : "photo" };
+        return { page: "shot", shotId: parts[1], stage: st === "rigs" || st === "position" || st === "compose" ? st : "photo" };
       }
       return { page: "shots", viewId: q.get("view") };
     case "plan": return { page: "plan", dayId: parts[1] ?? null };

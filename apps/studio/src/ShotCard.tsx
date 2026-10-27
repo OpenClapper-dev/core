@@ -22,7 +22,7 @@ export function ScrubCover({ shot, mask, badges }: { shot: Shot; mask: MaskMode;
   const n = list.length;
   const onMove = (e: PointerEvent) => {
     if (n < 2 || e.pointerType !== "mouse") return;
-    if (!preloaded.current) { preloaded.current = true; for (const s of list) new Image().src = stepSrc(s); }
+    if (!preloaded.current) { preloaded.current = true; for (const s of list) new Image().src = stepSrc(shot, s); }
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const fx = Math.min(0.9999, Math.max(0, (e.clientX - r.left) / r.width));
     const i = Math.floor(fx * n);
@@ -30,7 +30,7 @@ export function ScrubCover({ shot, mask, badges }: { shot: Shot; mask: MaskMode;
   };
   return (
     <div class={cx("f-card__img", n > 1 && "scrub")} onPointerMove={onMove} onPointerLeave={() => setAt(null)}>
-      <StepFramed step={at ? list[at.i] : list[0]} mode={mask} />
+      <StepFramed shot={shot} step={at ? list[at.i] : list[0]} mode={mask} />
       {at && <span class="scrub__line" style={{ left: `${at.x}%` }} />}
       {badges?.(at?.i ?? null)}
     </div>
