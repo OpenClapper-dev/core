@@ -1,7 +1,7 @@
 {
   "name": "openclapper",
   "private": true,
-  "version": "0.13.0",
+  "version": "0.13.1",
   "license": "Apache-2.0",
   "packageManager": "pnpm@11.13.1",
   "engines": {
