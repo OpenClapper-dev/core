@@ -4,10 +4,11 @@ import { fetchServerBuild, type ServerBuild } from "./api";
 import { AccountSettings } from "./AccountSettings";
 import { FRAME_MODES, frameModeLabel } from "./format";
 import type { MaskMode } from "./Framed";
-import { DEFAULT_SETTINGS, updateSettings, useSettings } from "./settings";
+import { DEFAULT_SETTINGS, hexOrNull, updateSettings, useSettings } from "./settings";
+import { APPS, type AppId } from "./apps/registry";
 import { ShortcutList } from "./CommandPalette";
 import type { SettingsTab } from "./router";
-import { Icon, LinkButton, Seg, type ThemeChoice, Toolbar, ToolbarTitle } from "@openclapper/ui";
+import { Button, cx, Icon, LinkButton, Seg, type ThemeChoice, Toolbar, ToolbarTitle } from "@openclapper/ui";
 
 interface Props { tab: SettingsTab; onTab: (t: SettingsTab) => void; theme: ThemeChoice; onTheme: (t: ThemeChoice) => void; mask: MaskMode; onMask: (m: MaskMode) => void }
 
@@ -43,6 +44,20 @@ export function SettingsPage({ tab, onTab, theme, onTheme, mask, onMask }: Props
             <Row label="Frame mode" help="How the rig frame is drawn on photos in Shots, Plan and when a shot opens (M cycles it).">
               <Seg label="Frame mode" value={mask} onChange={onMask} options={FRAME_MODES.map((m) => ({ id: m, label: frameModeLabel(m) }))} />
             </Row>
+          </Section>
+          <Section icon="palette-outline" title="Stage background">
+            <Row label="All stages" help="Behind the photos on every stage, thumbnail and strip. Black hides a dark lens vignette or a dark photo edge; a grey shows where the picture ends.">
+              <StageColor value={s.stageBg} fallback="Theme black" onChange={(v) => updateSettings({ stageBg: v })} />
+            </Row>
+            {STAGE_APPS.map((id) => (
+              <Row key={id} label={APPS[id].name} help={`Only in ${APPS[id].name} windows; otherwise as all stages.`}>
+                <StageColor value={s.stageBgApps[id] ?? null} fallback="As all stages" onChange={(v) => {
+                  const next = { ...s.stageBgApps };
+                  if (v) next[id] = v; else delete next[id];
+                  updateSettings({ stageBgApps: next });
+                }} />
+              </Row>
+            ))}
           </Section>
           <Section icon="monitor" title="Desktop">
             <Row label="Recycle bin on the desktop" help="An icon you can drop files on and open. Off, the recycle bin is still in Files, at the bottom of its side bar.">
@@ -101,6 +116,24 @@ function About() {
         <a href={`${REPO}/releases`} target="_blank" rel="noreferrer">GitHub releases</a>
       </Row>
     </Section>
+  );
+}
+
+/** The apps that show photos on a stage or as thumbnails: each can have its own background. */
+const STAGE_APPS: AppId[] = ["shot", "timeline", "gallery", "plan", "metadata", "files", "rigs", "viewfinder", "trash"];
+/** Quick picks; any other colour through the picker. Stored values, not theme colours. */
+const STAGE_SWATCHES = [{ hex: "#000000", label: "Black" }, { hex: "#1f1f1f", label: "Near black" }, { hex: "#404040", label: "Dark grey" }, { hex: "#808080", label: "Mid grey" }, { hex: "#ffffff", label: "White" }];
+
+/** A stage colour: swatches, a colour picker, and Default (null: the fallback named). */
+function StageColor({ value, fallback, onChange }: { value: string | null; fallback: string; onChange: (v: string | null) => void }) {
+  return (
+    <div class="stage-color">
+      {STAGE_SWATCHES.map((w) => (
+        <button key={w.hex} type="button" class={cx("stage-color__sw", value === w.hex && "is-on")} style={{ background: w.hex }} title={w.label} aria-label={w.label} aria-pressed={value === w.hex} onClick={() => onChange(w.hex)} />
+      ))}
+      <input type="color" class="stage-color__pick" aria-label="Pick a colour" title="Pick a colour" value={value ?? "#000000"} onChange={(e) => onChange(hexOrNull((e.target as HTMLInputElement).value))} />
+      <Button kind={value ? "secondary" : "ghost"} size="sm" disabled={!value} title={`Back to: ${fallback}`} onClick={() => onChange(null)}>{value ? "Default" : fallback}</Button>
+    </div>
   );
 }
 

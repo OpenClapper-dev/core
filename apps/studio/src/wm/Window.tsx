@@ -14,7 +14,7 @@ import type { Win } from "./wm";
  * inline left/top/width/height in normal mode, CSS classes for max/snapped/min. A window of
  * another workspace stays mounted but hidden (`away`), so its app keeps its state.
  */
-export function Window({ win, icon, focused, away, children }: { win: Win; icon: string; focused: boolean; away?: boolean; children: ComponentChildren }) {
+export function Window({ win, icon, focused, away, stageBg, children }: { win: Win; icon: string; focused: boolean; away?: boolean; /** The app's own stage background (Settings), else the page's. */ stageBg?: string; children: ComponentChildren }) {
   const ref = useRef<HTMLDivElement>(null);
   const barMenu = useCtxMenu<null>();
   const { onBarPointerDown, onHandlePointerDown } = useWindowDrag(win, ref);
@@ -23,7 +23,7 @@ export function Window({ win, icon, focused, away, children }: { win: Win; icon:
     <div
       ref={ref}
       class={cx("wm-window", focused && "is-focused", away && "wm-window--away", win.mode === "max" && "wm-window--max", win.mode === "min" && "wm-window--min", win.mode === "snapped" && `wm-window--snap-${win.snap}`)}
-      style={normal ? { left: `${win.bounds.x}px`, top: `${win.bounds.y}px`, width: `${win.bounds.w}px`, height: `${win.bounds.h}px`, zIndex: win.z } : { zIndex: win.z }}
+      style={{ ...(normal ? { left: `${win.bounds.x}px`, top: `${win.bounds.y}px`, width: `${win.bounds.w}px`, height: `${win.bounds.h}px`, zIndex: win.z } : { zIndex: win.z }), ...(stageBg ? { "--photo-bg": stageBg } : {}) }}
       data-win-id={win.id}
       role="group"
       aria-label={win.title}

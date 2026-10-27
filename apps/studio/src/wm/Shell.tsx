@@ -119,6 +119,12 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const activeWs = wm.useActiveWs();
   const split = wm.useSplit();
   const settings = useSettings();
+  // The stage background (Settings › Appearance): the global choice replaces the theme's on the page;
+  // an app's own choice is set on its windows (Window `stageBg`).
+  useEffect(() => {
+    const root = document.documentElement.style;
+    if (settings.stageBg) root.setProperty("--photo-bg", settings.stageBg); else root.removeProperty("--photo-bg");
+  }, [settings.stageBg]);
   const focusedId = wm.useFocusedId();
   const preview = wm.useSnapPreview();
   const overlay = useOverlay();
@@ -211,7 +217,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
           if (!def) return null;
           const Comp = def.component;
           return (
-            <Window key={w.id} win={w} icon={def.icon} focused={w.id === focusedId} away={w.ws !== activeWs}>
+            <Window key={w.id} win={w} icon={def.icon} focused={w.id === focusedId} away={w.ws !== activeWs} stageBg={settings.stageBgApps[w.app]}>
               <Comp win={w} focused={w.id === focusedId} resource={w.resource} setTitle={(t) => wm.setTitle(w.id, t)}
                 replaceRoute={(r) => wm.setRoute(w.id, routeHash(r))}
                 open={(intent) => launch(intent)} close={() => void requestClose(w.id)} />
