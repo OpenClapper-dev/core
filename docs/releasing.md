@@ -5,7 +5,7 @@
 OpenClapper has **one version for the whole product**: the Worker and the Studio deploy together, the admin plane reads the same database, and the phone talks to that API. Nothing is published as a separate library. The workspace packages (`apps/*`, `packages/*`) are private and stay at `0.0.0`.
 
 - **Source**: the `version` of the root `package.json`, and nothing else.
-- **SemVer, `0.x` during the alpha**:
+- **SemVer, `0.x` while experimental and through the alpha**:
   - a minor bump (`0.2.0`) for new features and anything that changes behaviour or data in a way a deployment or a phone has to follow;
   - a patch (`0.1.1`) for fixes only.
   - `1.0.0` will mean "stable".

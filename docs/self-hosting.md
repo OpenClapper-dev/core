@@ -1,6 +1,6 @@
 # Self-hosting
 
-OpenClapper runs entirely on your own Cloudflare account: one Worker serves the API and the Studio, a second one the admin plane, D1 holds the data, R2 the photos. Nothing calls home, and nothing is shared between instances. You pay Cloudflare for what you use (the free plan goes a long way for a crew, see [the free plan](#the-free-plan)).
+OpenClapper runs entirely on your own Cloudflare account: one Worker serves the API and the Studio, a second one the admin plane, D1 holds the data, R2 the photos. Nothing calls home, and nothing is shared between instances. You pay Cloudflare for what you use: storage for the photos is what costs, compute stays small (one setting matters on the free plan, see [the free plan](#the-free-plan)).
 
 OpenClapper is open source under the [Apache License 2.0](../LICENSE): you may run instances for yourself, your crew, your company or anyone else, and offer them as a service. Keep the licence and the [NOTICE](../NOTICE) with your copy. If you offer an instance to others, give it a name of your own: the licence does not cover the project's name.
 
@@ -143,7 +143,7 @@ Google Play delivers the app instead of sideloading, starting with the **interna
 
 ## The free plan
 
-The Workers free plan allows 10 ms of CPU per request. Checking a password with 100 000 PBKDF2 iterations takes about 16 ms, so a sign-in may fail there. Set `PBKDF2_ITERATIONS` lower, e.g. `50000`; stored passwords are rehashed to the new count on their next sign-in. Everything else stays well within the free limits for a small crew.
+The Workers free plan allows 10 ms of CPU per request. Checking a password with 100 000 PBKDF2 iterations takes about 16 ms, so a sign-in may fail there. Set `PBKDF2_ITERATIONS` lower, e.g. `50000`; stored passwords are rehashed to the new count on their next sign-in. How far the free plan reaches beyond that depends on your photos: storage is the one cost that grows.
 
 ## Your own sign-in
 
