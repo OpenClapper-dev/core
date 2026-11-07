@@ -399,7 +399,7 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
             <Slider label="Green / magenta" value={cct.gm} min={caps.cct.gm.min} max={caps.cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} disabled={!ready}
               onChange={(x) => send({ cct: { ...cct, gm: x } }, { op: "cct", kelvin: cct.kelvin, gm: x })} />
           )}
-          {caps.curves && (
+          {caps.curves && !hsiMode && (
             <View style={{ gap: 6 }}>
               <SectionLabel>Dimming curve</SectionLabel>
               <Seg size="lg" block accessibilityLabel="Dimming curve" disabled={!ready} value={v.curve ?? null}

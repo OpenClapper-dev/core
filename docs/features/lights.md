@@ -8,9 +8,9 @@ First fixtures:
 | --- | --- | --- |
 | NEEWER FS230B, FS300B | Bluetooth LE, its own connection (GATT) | Power, intensity, white 2700–6500 K, dimming curves; green/magenta on the FS300B |
 | NEEWER PS099S (V-mount battery) | Bluetooth LE, its own connection | Charge, volts, current, watts, estimated time left (read-only) |
-| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K, colour; reports its state and its built-in battery; 9 built-in effects |
+| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K, colour; reports its state and its built-in battery; dimming curve; 9 built-in effects |
 
-**Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213) are built. Not yet: the Aputure's native dimming curve and device-side fade (their commands are not known; #289).
+**Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213), with their battery (#293), effects (#291) and dimming curve (#289), are built. The MC's device-side fade (Program Continue, see below) is not used yet.
 
 ## Kinds (`packages/vocab/src/lighting.ts`)
 
@@ -90,7 +90,8 @@ The phone is the provisioner of its own mesh network, so a light paired here lea
 - **Built-in effects** (#291): the MC offers 9 of the 15 first-generation effects (Paparazzi, Lightning, TV, Fire, Pulsing, Faulty bulb, Cop car, Party lights, Fireworks; tested on the owner's MCs), with Sidus Link's default settings. The codec knows all 15 (Club lights, Candle, Strobe, Explosion, Welding and Color chase too), for other models: command `0x87`, the effect's code in byte 8, the default fields, intensity at bit 46 or 54, run bit 8; stop is code 15 (`96000000000000000f87`). From neyako/amaran-hacs (MIT), which took them from the decompiled Sidus Link app and confirmed them on amaran lights; each encoding is checked against that table. Intensity changes re-send the running effect; white or colour ends it, as in the maker's app; stopping returns the light to white and the driver asks what it shows. A running effect also comes back in the light's reports. Effect options (Faulty bulb first) are #292.
 - **Built-in battery** (#293): on connect and then every minute the driver asks each light for its battery page (type `0x0a`): charge %, battery voltage, the light's own time left, and whether an external supply is connected (layout from neyako/amaran-hacs, MIT). It shows in the light's battery block; the power dashboard across all batteries is #294.
 - **Firmware**: each light's composition data (maker, product, version, elements) is stored with its device key at setup and shown on its screen. The owner's MCs are not all on the same firmware (one reports one element, another three); nothing depends on it.
-- **Not known yet**: the commands for the dimming curve and the device-side fade ("Dimming Design" in Sidus Link), tracked in #289. The MC therefore has no curve control.
+- **Dimming curve** (#289): its own command, type `0x08` (wire `0x88`), the curve in byte 8: 0 linear, 1 exponential, 2 logarithmic, 3 S. Found in Sidus Link 2.0.42, decompiled with Aputure's permission (the owner asked them); no Aputure code is in this repository, only the layout. Sidus Link offers it in white only, so the screen does too; the light does not report it back.
+- **Fades in Sidus Link** (from the same source): its "Dimming Design" is **not** a device feature. The app runs a 100 ms timer and sends an ordinary white or colour command with the interpolated intensity each tick, i.e. what our sequence engine will do. The one device-side fade is the "Program → Continue" effect (type `0x15`, wire `0x95`): fade-in curve and time, hold time, fade-out curve and time (tenths of a second, 8 bits each for the fades, 10 bits for the hold, 1023 = hold forever), one intensity with a white or colour setting. Not used yet; a candidate for the sequence editor.
 
 ## Screens (`apps/mobile/src/screens/Lights.tsx`)
 
