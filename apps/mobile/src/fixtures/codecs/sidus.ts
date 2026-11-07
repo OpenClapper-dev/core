@@ -1,4 +1,4 @@
-import { DEFAULT_EFFECT_SETTINGS, type Curve, type EffectId, type EffectSettings } from "@openclapper/vocab";
+import { effectSettingsOf, type Curve, type EffectId, type EffectSettings } from "@openclapper/vocab";
 
 /**
  * Aputure's light commands inside the mesh (#213): one access message with the Telink vendor
@@ -147,42 +147,97 @@ const GEN1: Record<EffectId, { code: number; fields: [number, number][]; intensi
 
 const bitLength = (v: number) => (v ? Math.floor(Math.log2(v)) + 1 : 0);
 
-/**
- * Faulty bulb and Pulsing with their options (#292), as Sidus Link 2.0.42 lays them out: run bit 8,
- * intensity at 46, frequency at 56, colour mode at 60 (0 white, 1 colour). White: colour
- * temperature flag 20, green/magenta 29 (sent neutral: 10 of 0..20), speed 23, trigger 27, kelvin
- * in tens at 36. Colour: speed 24, trigger 28, saturation 30, hue 37. Trigger is always 2 (auto).
- */
-function bulbLike(code: number, i: number, o: EffectSettings) {
-  const p = new Uint8Array(10);
-  const step = (v: number) => clamp(Math.round(v), 1, 11);
-  setBits(p, 8, 1, 1);
-  if ("kelvin" in o.color) {
-    const tens = clamp(Math.round(o.color.kelvin / 10), 80, 2000);
-    setBits(p, 20, 1, tens > 1000 ? 1 : 0);
-    setBits(p, 23, 4, step(o.speed));
-    setBits(p, 27, 2, 2);
-    setBits(p, 29, 7, 10);
-    setBits(p, 36, 10, tens > 1000 ? tens - 1000 : tens);
-    setBits(p, 60, 4, 0);
-  } else {
-    setBits(p, 24, 4, step(o.speed));
-    setBits(p, 28, 2, 2);
-    setBits(p, 30, 7, clamp(Math.round(o.color.s * 100), 0, 100));
-    setBits(p, 37, 9, clamp(Math.round(o.color.h), 0, 360));
-    setBits(p, 60, 4, 1);
-  }
-  setBits(p, 46, 10, Math.round(clamp(i, 0, 1) * 1000));
-  setBits(p, 56, 4, step(o.frequency));
-  p[8] = code;
-  return finish(p, EFFECT_CMD);
+const step = (v: number | undefined, max: number) => clamp(Math.round(v ?? 5), 1, max);
+
+/** A white-only effect's colour temperature: kelvin in tens, above 10 000 K offset with a flag; green/magenta sent neutral. */
+function putWhite(p: Uint8Array, kelvin: number | undefined, flagBit: number, gmBit: number, cctBit: number) {
+  const tens = clamp(Math.round((kelvin ?? 5600) / 10), 80, 2000);
+  setBits(p, flagBit, 1, tens > 1000 ? 1 : 0);
+  setBits(p, gmBit, 7, 10);
+  setBits(p, cctBit, 10, tens > 1000 ? tens - 1000 : tens);
+}
+const whiteOf = (p: Uint8Array, flagBit: number, cctBit: number) => (getBits(p, cctBit, 10) + (getBits(p, flagBit, 1) ? 1000 : 0)) * 10;
+
+interface Layout {
+  intensityBit: number;
+  encode(p: Uint8Array, o: EffectSettings, trigger: boolean): void;
+  /** Null when the packet is not a form this layout makes (another colour mode). */
+  decode(p: Uint8Array): EffectSettings | null;
 }
 
-const WITH_OPTIONS: Partial<Record<EffectId, true>> = { faulty_bulb: true, pulsing: true };
+/**
+ * Faulty bulb and Pulsing (#292): intensity at 46, frequency at 56, colour mode at 60 (0 white,
+ * 1 colour). White: temperature flag 20, speed 23, trigger 27, green/magenta 29, kelvin at 36.
+ * Colour: speed 24, trigger 28, saturation 30, hue 37. Trigger 2 = automatic.
+ */
+const BULB: Layout = {
+  intensityBit: 46,
+  encode(p, o) {
+    const color = o.color ?? { h: 0, s: 1 };
+    if ("kelvin" in color) {
+      putWhite(p, color.kelvin, 20, 29, 36);
+      setBits(p, 23, 4, step(o.speed, 11));
+      setBits(p, 27, 2, 2);
+      setBits(p, 60, 4, 0);
+    } else {
+      setBits(p, 24, 4, step(o.speed, 11));
+      setBits(p, 28, 2, 2);
+      setBits(p, 30, 7, clamp(Math.round(color.s * 100), 0, 100));
+      setBits(p, 37, 9, clamp(Math.round(color.h), 0, 360));
+      setBits(p, 60, 4, 1);
+    }
+    setBits(p, 56, 4, step(o.frequency, 11));
+  },
+  decode(p) {
+    const mode = getBits(p, 60, 4);
+    if (mode === 0) return { frequency: getBits(p, 56, 4), speed: getBits(p, 23, 4), color: { kelvin: whiteOf(p, 20, 36) } };
+    if (mode === 1) return { frequency: getBits(p, 56, 4), speed: getBits(p, 24, 4), color: { h: Math.min(360, getBits(p, 37, 9)), s: Math.min(100, getBits(p, 30, 7)) / 100 } };
+    return null;
+  },
+};
 
-/** Run a built-in effect at an intensity 0..1, with options where the effect has them (else the app's defaults). */
-export function effect(id: EffectId, i: number, settings?: EffectSettings) {
-  if (WITH_OPTIONS[id]) return bulbLike(GEN1[id].code, i, settings ?? DEFAULT_EFFECT_SETTINGS);
+/** The other MC effects (#300) share intensity at 54 and frequency at 50; their own field sits below. */
+function simple(field: (p: Uint8Array, o: EffectSettings) => void, read: (p: Uint8Array) => EffectSettings, freqMax: number): Layout {
+  return {
+    intensityBit: 54,
+    encode(p, o) { field(p, o); setBits(p, 50, 4, step(o.frequency, freqMax)); },
+    decode(p) { return { ...read(p), frequency: getBits(p, 50, 4) }; },
+  };
+}
+const tone = simple((p, o) => setBits(p, 40, 10, clamp(o.choice ?? 0, 0, 2)), (p) => ({ choice: getBits(p, 40, 10) }), 11);
+
+/** Effects with options, from Sidus Link 2.0.42's effect classes (decompiled with Aputure's permission). */
+const LAYOUTS: Partial<Record<EffectId, Layout>> = {
+  faulty_bulb: BULB,
+  pulsing: BULB,
+  paparazzi: simple((p, o) => putWhite(p, o.kelvin, 30, 33, 40), (p) => ({ kelvin: whiteOf(p, 30, 40) }), 10),
+  lightning: {
+    intensityBit: 54,
+    // Trigger 1 strikes once now; 2 is the automatic pattern.
+    encode(p, o, trigger) { putWhite(p, o.kelvin, 24, 33, 40); setBits(p, 27, 4, step(o.speed, 11)); setBits(p, 31, 2, trigger ? 1 : 2); setBits(p, 50, 4, step(o.frequency, 11)); },
+    decode(p) { return { kelvin: whiteOf(p, 24, 40), speed: getBits(p, 27, 4), frequency: getBits(p, 50, 4) }; },
+  },
+  tv: tone,
+  fire: tone,
+  cop_car: simple((p, o) => setBits(p, 46, 4, clamp(o.choice ?? 2, 0, 4)), (p) => ({ choice: getBits(p, 46, 4) }), 10),
+  party_lights: simple((p, o) => setBits(p, 43, 7, clamp(Math.round((o.saturation ?? 1) * 100), 0, 100)), (p) => ({ saturation: Math.min(100, getBits(p, 43, 7)) / 100 }), 11),
+  fireworks: simple((p, o) => setBits(p, 42, 8, clamp(o.choice ?? 0, 0, 2)), (p) => ({ choice: getBits(p, 42, 8) }), 11),
+};
+
+/**
+ * Run a built-in effect at an intensity 0..1, with its options where it has them (missing ones take
+ * Sidus Link's defaults), or the app's preset. `trigger` fires one Lightning strike now.
+ */
+export function effect(id: EffectId, i: number, settings?: EffectSettings, trigger = false) {
+  const layout = LAYOUTS[id];
+  if (layout) {
+    const p = new Uint8Array(10);
+    setBits(p, 8, 1, 1);
+    layout.encode(p, effectSettingsOf(id, settings), trigger);
+    setBits(p, layout.intensityBit, 10, Math.round(clamp(i, 0, 1) * 1000));
+    p[8] = GEN1[id].code;
+    return finish(p, EFFECT_CMD);
+  }
   const e = GEN1[id];
   const p = new Uint8Array(10);
   for (const [value, bit] of e.fields) setBits(p, bit, bitLength(value), value);
@@ -196,8 +251,8 @@ export function effect(id: EffectId, i: number, settings?: EffectSettings) {
 export function effectOff() { const p = new Uint8Array(10); p[8] = EFFECT_STOP; return finish(p, EFFECT_CMD); }
 
 /**
- * A report of a running effect (or of the stop), or null. Effects that carry a mode field (codes
- * 6–10, bits 60–63) are only confirmed in mode 1, the one the presets use.
+ * A report of a running effect (or of the stop), or null. Effects with options come back with them;
+ * the preset-only ones with a mode field (codes 6–10) only in mode 1, the one the presets use.
  */
 export function parseEffect(p: Uint8Array): { effect: EffectId | null; on: boolean; intensity: number; settings?: EffectSettings } | null {
   if (p.length !== 10 || p[0] !== checksum(p) || (p[9] & 0x7f) !== (EFFECT_CMD & 0x7f)) return null;
@@ -205,16 +260,14 @@ export function parseEffect(p: Uint8Array): { effect: EffectId | null; on: boole
   const hit = (Object.entries(GEN1) as [EffectId, (typeof GEN1)[EffectId]][]).find(([, e]) => e.code === p[8]);
   if (!hit) return null;
   const [id, e] = hit;
-  if (WITH_OPTIONS[id]) {
-    const mode = getBits(p, 60, 4);
-    if (mode > 1) return null;
-    const settings: EffectSettings = mode === 0
-      ? { frequency: getBits(p, 56, 4), speed: getBits(p, 23, 4), color: { kelvin: (getBits(p, 36, 10) + (getBits(p, 20, 1) ? 1000 : 0)) * 10 } }
-      : { frequency: getBits(p, 56, 4), speed: getBits(p, 24, 4), color: { h: Math.min(360, getBits(p, 37, 9)), s: Math.min(100, getBits(p, 30, 7)) / 100 } };
-    return { effect: id, on: getBits(p, 8, 1) === 1, intensity: Math.min(1000, getBits(p, 46, 10)) / 1000, settings };
+  const on = getBits(p, 8, 1) === 1;
+  const layout = LAYOUTS[id];
+  if (layout) {
+    const settings = layout.decode(p);
+    return settings ? { effect: id, on, intensity: Math.min(1000, getBits(p, layout.intensityBit, 10)) / 1000, settings } : null;
   }
   if (e.intensityBit === 46 && getBits(p, 60, 4) !== 1) return null;
-  return { effect: id, on: getBits(p, 8, 1) === 1, intensity: Math.min(1000, getBits(p, e.intensityBit, 10)) / 1000 };
+  return { effect: id, on, intensity: Math.min(1000, getBits(p, e.intensityBit, 10)) / 1000 };
 }
 
 /** The curve values Sidus Link sends (its White screen: Linear, Exponential, Logarithmic, S). */
