@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { k2, k4, ofHex } from "../mesh/crypto.ts";
 import { FakeProxyNode } from "../mesh/fakeNode.testlib.ts";
 import { SeqAllocator } from "../mesh/seq.ts";
-import { batteryRequest, cct, hsi, intensity, power, statusRequest } from "../codecs/sidus.ts";
+import { batteryRequest, cct, effect, effectOff, hsi, intensity, power, statusRequest } from "../codecs/sidus.ts";
 import type { Fixture, Telemetry } from "../types.ts";
 import { sidusMesh } from "./sidusMesh.ts";
 
@@ -41,7 +41,7 @@ test("opening asks the light what it shows; its report becomes the screen's stat
   const s = await driver.open(node.link(), [mc("MC 3", 3)], (_id, t) => got.push(t));
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(node.telink.slice(0, 2), [hex(statusRequest()), hex(batteryRequest())]);
-  assert.deepEqual(got.at(-1)?.state, { power: true, intensity: 0.25, cct: { kelvin: 4300, gm: 3 } });
+  assert.deepEqual(got.at(-1)?.state, { power: true, intensity: 0.25, cct: { kelvin: 4300, gm: 3 }, effect: null });
   await s.close();
 });
 
@@ -68,6 +68,27 @@ test("the light's battery page becomes telemetry", async () => {
   const s = await driver.open(node.link(), [mc("MC 3", 3)], (_id, t) => got.push(t));
   await new Promise((r) => setTimeout(r, 20));
   assert.deepEqual(got.find((t) => t.battery !== undefined), { at: got.find((t) => t.battery !== undefined)!.at, battery: 77, volts: 7.4, minutesLeft: 300, plugged: false });
+  await s.close();
+});
+
+test("effects: run, intensity re-sends the effect, white ends it, off stops it and asks for the state", async () => {
+  const { node, driver } = setup();
+  const light = mc("MC 3", 3);
+  const s = await driver.open(node.link(), [light], () => {});
+  await new Promise((r) => setTimeout(r, 10));
+  await s.send(light, { op: "intensity", value: 0.6 });
+  node.telink.length = 0;
+  await s.send(light, { op: "effect", effect: "faulty_bulb" });
+  await s.send(light, { op: "intensity", value: 0.3 });
+  await s.send(light, { op: "cct", kelvin: 4300, gm: 0 });
+  await s.send(light, { op: "intensity", value: 0.2 });
+  await s.send(light, { op: "effect", effect: "fire" });
+  await s.send(light, { op: "effect", effect: null });
+  const once = (b: Uint8Array) => [hex(b), hex(b)];
+  assert.deepEqual(node.telink, [
+    ...once(effect("faulty_bulb", 0.6)), ...once(effect("faulty_bulb", 0.3)), ...once(cct(4300, 0.3, 0)), ...once(intensity(0.2)),
+    ...once(effect("fire", 0.2)), ...once(effectOff()), hex(statusRequest()),
+  ]);
   await s.close();
 });
 

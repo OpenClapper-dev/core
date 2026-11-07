@@ -64,8 +64,9 @@ export function applyCommand(s: LightState, cmd: Command): LightState {
   switch (cmd.op) {
     case "power": return { ...s, power: cmd.on };
     case "intensity": return { ...s, intensity: cmd.value };
-    case "cct": return { ...s, cct: { kelvin: cmd.kelvin, gm: cmd.gm }, hsi: undefined };
-    case "hsi": return { ...s, hsi: { h: cmd.h, s: cmd.s, i: cmd.i }, cct: undefined, intensity: cmd.i };
+    case "cct": return { ...s, cct: { kelvin: cmd.kelvin, gm: cmd.gm }, hsi: undefined, effect: null };
+    case "hsi": return { ...s, hsi: { h: cmd.h, s: cmd.s, i: cmd.i }, cct: undefined, intensity: cmd.i, effect: null };
+    case "effect": return { ...s, effect: cmd.effect };
     case "curve": return { ...s, curve: cmd.curve };
     default: return s;
   }

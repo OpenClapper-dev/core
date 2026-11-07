@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { batteryRequest, cct, hsi, intensity, parseBattery, parseStatus, power, statusRequest } from "./sidus.ts";
+import { EFFECTS } from "@openclapper/vocab";
+import { batteryRequest, cct, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest } from "./sidus.ts";
 
 const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 const ofHex = (s: string) => Uint8Array.from(s.match(/../g)!, (h) => parseInt(h, 16));
@@ -53,4 +54,42 @@ test("battery page: request, and a report decoded field by field", () => {
   q[0] = q.slice(1).reduce((a, b) => a + b, 0) & 0xff;
   assert.equal(parseBattery(q)?.plugged, true);
   assert.equal(parseBattery(cct(5600, 1)), null);
+});
+
+// The reference's first-generation table (neyako/amaran-hacs effects.py) as 80-bit values, to check
+// our byte packing against an independent BigInt computation: [code, defaults, intensity bit].
+const REF: Record<string, [number, bigint, number]> = {
+  club_lights: [0, 5n << 50n, 54], paparazzi: [1, (10n << 33n) | (560n << 40n) | (5n << 50n), 54],
+  lightning: [2, (5n << 27n) | (2n << 31n) | (10n << 33n) | (560n << 40n) | (5n << 50n), 54],
+  tv: [3, 5n << 50n, 54], candle: [4, 5n << 50n, 54], fire: [5, 5n << 50n, 54],
+  strobe: [6, (2n << 28n) | (100n << 30n) | (5n << 56n) | (1n << 60n), 46],
+  explosion: [7, (1n << 28n) | (100n << 30n) | (5n << 56n) | (1n << 60n), 46],
+  faulty_bulb: [8, (5n << 24n) | (2n << 28n) | (100n << 30n) | (5n << 56n) | (1n << 60n), 46],
+  pulsing: [9, (5n << 24n) | (2n << 28n) | (100n << 30n) | (5n << 56n) | (1n << 60n), 46],
+  welding: [10, (18n << 21n) | (2n << 28n) | (100n << 30n) | (5n << 56n) | (1n << 60n), 46],
+  cop_car: [11, (2n << 46n) | (5n << 50n), 54], color_chase: [12, (100n << 43n) | (5n << 50n), 54],
+  party_lights: [13, (100n << 43n) | (5n << 50n), 54], fireworks: [14, 5n << 50n, 54],
+};
+function reference(id: string, i1000: number): string {
+  const [code, defaults, bit] = REF[id];
+  const v = (0x87n << 72n) | (BigInt(code) << 64n) | defaults | (1n << 8n) | (BigInt(i1000) << BigInt(bit));
+  const b = Array.from({ length: 10 }, (_, k) => Number((v >> BigInt(k * 8)) & 0xffn));
+  b[0] = b.slice(1).reduce((a, x) => a + x, 0) & 0xff;
+  return b.map((x) => x.toString(16).padStart(2, "0")).join("");
+}
+
+test("effects: all 15 match the reference table, decode back, and stop as the reference's packet", () => {
+  assert.equal(EFFECTS.length, 15);
+  for (const { id } of EFFECTS) {
+    for (const [i, i1000] of [[1, 1000], [0.5, 500], [0.05, 50]] as const) {
+      assert.equal(hex(effect(id, i)), reference(id, i1000), `${id} at ${i1000}`);
+      assert.deepEqual(parseEffect(effect(id, i)), { effect: id, on: true, intensity: i }, id);
+    }
+  }
+  // The reference test's own checks: Candle's code and command, intensity at bit 54; the stop packet.
+  const candle = effect("candle", 1);
+  assert.deepEqual([candle[8], candle[9]], [4, 0x87]);
+  assert.equal(hex(effectOff()), "96000000000000000f87");
+  assert.deepEqual(parseEffect(effectOff()), { effect: null, on: false, intensity: 0 });
+  assert.equal(parseEffect(cct(5600, 1)), null);
 });
