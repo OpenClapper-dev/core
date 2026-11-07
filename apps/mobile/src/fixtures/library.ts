@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { log } from "../log";
 import { store } from "../storage";
+import { syncMeshNetworks } from "./meshNetworks";
 import type { Fixture } from "./types";
 
 /**
@@ -48,6 +49,8 @@ let syncing: Promise<void> | null = null;
 /** Push offline edits, then take the server list. Quiet when unreachable. */
 export function syncFixtures(): Promise<void> {
   syncing ??= (async () => {
+    // Networks first: a fixture names its network.
+    await syncMeshNetworks();
     try {
       // One refused fixture must not block the others; it stays unsynced and is logged.
       for (const f of fixtures.filter((x) => !x.synced)) {

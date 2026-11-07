@@ -4,6 +4,8 @@ import { DEFAULT_SETTINGS } from "./defaults";
 import type { ZoomRange } from "./zoom";
 import type { FieldDef, FieldDefinition } from "@openclapper/vocab";
 import type { Fixture } from "./fixtures/types";
+import type { MeshNetwork } from "./fixtures/meshNetworks";
+import type { SeqState } from "./fixtures/mesh/seq";
 import type { CaptureDraft, LocationEntry, PendingEdit, PendingUpload, Preset, ProjectEntry, Settings, ShotTags, SpotEntry, UploadRecord, LayoutEntry, PendingLayout } from "./types";
 
 export { DEFAULT_SETTINGS };
@@ -32,6 +34,7 @@ const KEYS = {
   uploadHistory: "uploadHistory.v1",
   // Lights (#208); the mesh keys are not here but in the secure store.
   fixtures: "fixtures.v1",
+  meshNetworks: "meshNetworks.v1",
 } as const;
 
 /** How long uploaded shots stay listed on the Uploads screen. */
@@ -86,6 +89,11 @@ export const store = {
 
   loadFixtures: (): Fixture[] => readArray<Fixture>(KEYS.fixtures),
   saveFixtures: (f: Fixture[]) => write(KEYS.fixtures, f),
+  loadMeshNetworks: (): MeshNetwork[] => readArray<MeshNetwork>(KEYS.meshNetworks),
+  saveMeshNetworks: (n: MeshNetwork[]) => write(KEYS.meshNetworks, n),
+  /** A network's sequence numbers (mesh/seq.ts): written before every new block is used. */
+  loadMeshSeq: (networkId: string): SeqState | null => { const v = read<SeqState | null>(`meshSeq.${networkId}.v1`, null); return v && typeof v.reserved === "number" ? v : null; },
+  saveMeshSeq: (networkId: string, v: SeqState) => write(`meshSeq.${networkId}.v1`, v),
 
   loadActivePresetId: (): string | null => Storage.getItemSync(KEYS.activePresetId),
   saveActivePresetId: (id: string | null) =>
