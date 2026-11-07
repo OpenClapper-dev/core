@@ -6,6 +6,7 @@ import { configureNode } from "./mesh/configure";
 import { PB_GATT_IN, PB_GATT_OUT, PB_GATT_SERVICE, provision, ProvisioningError, type ProvisioningIo } from "./mesh/provision";
 import { PDU, proxyChunks, ProxyReassembler } from "./mesh/proxy";
 import { MeshSession } from "./mesh/session";
+import { hub } from "./hub";
 import { getFixtures, saveFixture } from "./library";
 import { overlapping } from "./meshAddress";
 import { APP_KEY_INDEX, appKeyOf, ensureNetwork, getMeshNetworks, NET_KEY_INDEX, netKeyOf, networkKeys, nodeState, rememberNode, saveMeshNetwork, seqFor, type MeshNetwork } from "./meshNetworks";
@@ -69,6 +70,9 @@ async function connectWithRetry(address: string, tries: number): Promise<Link> {
  * not configured (the app was closed, the light went out of range) only gets the second half.
  */
 export async function provisionFixture(f: Fixture, onStage: (s: Stage) => void, opts: { fresh?: boolean } = {}): Promise<Fixture> {
+  // The light's own screen may still hold a connection for a moment; pairing needs it alone.
+  if (!(await hub.release(f.id))) throw new Error("The light is in use (a running sequence). Stop it first.");
+  await wait(500);
   if (!(await askBluetooth())) throw new Error("Bluetooth permission denied. Allow “Nearby devices” for OpenClapper in Android settings.");
   if ((await adapterState().catch(() => "unknown")) !== "on") throw new Error("Bluetooth is off.");
   // A fresh pairing (the light was reset) forgets the old address; the light gets a new one.
@@ -136,7 +140,7 @@ export async function provisionFixture(f: Fixture, onStage: (s: Stage) => void, 
     }
     const clash = overlapping(fixture, getFixtures());
     if (clash) throw new Error(`This light's addresses (${mesh.unicast}–${mesh.unicast + elements - 1}) overlap “${clash.label}”. Reset this light, then use Pair again on its screen.`);
-    rememberNode(network.id, mesh.unicast, devKey, true);
+    rememberNode(network.id, mesh.unicast, devKey, true, { cid: r.composition.cid, pid: r.composition.pid, vid: r.composition.vid, elements });
   } finally {
     await session.close();
     await link.close();

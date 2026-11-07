@@ -175,3 +175,14 @@ test("a kind without a driver says so instead of connecting", async () => {
   assert.equal(connects.length, 0);
   assert.equal(hub.status("nope").error, "unknown fixture");
 });
+
+test("release closes a link that only the grace period keeps, not one still held", async () => {
+  const { hub, time, links } = world();
+  const held = hub.acquire(["a"], "screen");
+  await time.advance(0);
+  assert.equal(await hub.release("a"), false);
+  held();
+  assert.equal(await hub.release("a"), true);
+  assert.equal(hub.status("a").link, "off");
+  assert.equal(links[0].closed, true);
+});

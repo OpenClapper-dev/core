@@ -146,6 +146,19 @@ export class Hub {
     return rec ? { ...base, link: rec.state, attempt: rec.attempt, error: rec.error } : { ...base, link: "off", attempt: 0, error: null };
   }
 
+  /**
+   * Close the connection serving this fixture now, when nothing holds it (only the grace period
+   * keeps it open): pairing needs the light to itself. Returns false when it is still in use.
+   */
+  async release(fixtureId: string): Promise<boolean> {
+    const r = this.resolve(fixtureId);
+    const rec = r && this.links.get(r.key);
+    if (!rec) return true;
+    if (rec.leases > 0) return false;
+    await this.stop(rec);
+    return true;
+  }
+
   /** The app went to the background: close everything, keep the leases. */
   suspend() {
     this.suspended = true;

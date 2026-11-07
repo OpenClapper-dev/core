@@ -8,9 +8,9 @@ First fixtures:
 | --- | --- | --- |
 | NEEWER FS230B, FS300B | Bluetooth LE, its own connection (GATT) | Power, intensity, white 2700–6500 K, dimming curves; green/magenta on the FS300B |
 | NEEWER PS099S (V-mount battery) | Bluetooth LE, its own connection | Charge, volts, current, watts, estimated time left (read-only) |
-| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K + green/magenta, colour, dimming curves |
+| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K + green/magenta, colour; reports its state |
 
-**Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209) and the PS099S battery readout (#210) are built. Aputure over the mesh ([#211](https://github.com/OpenClapper-dev/core/issues/211)–[#213](https://github.com/OpenClapper-dev/core/issues/213)) is not: its screen says "the controls for this model are not built yet".
+**Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213) are built. Not yet: the Aputure's native dimming curve and device-side fade (their commands are not known; #289).
 
 ## Kinds (`packages/vocab/src/lighting.ts`)
 
@@ -80,13 +80,22 @@ The phone is the provisioner of its own mesh network, so a light paired here lea
 - **What an MC is made of** (composition data, company 0x0131, product 0x300b): element 0 with the configuration and health servers, generic on/off, level, power on/off and default transition time, scenes, scheduler, time, light lightness and CTL, plus a vendor model 0x03F4:0x1000; elements 1 and 2 with generic level and the CTL temperature and HSL hue/saturation servers. Not every MC is the same: one of the owner's MCs reports a single element (other firmware), so a light's element count comes from its own data, never from the model. The Telink light commands (0x26) go to the primary element (#213).
 - If provisioning breaks off after the network key went out but before the light confirmed, the light may hold the keys while the phone has no device key for it: reset it and pair again.
 
+## Aputure lights (`drivers/sidusMesh.ts`, `codecs/sidus.ts`, #213)
+
+- **One connection per network**: the hub's link for every paired MC of a network is the same mesh session, through whichever light it reaches first; that light relays to the others. Unpaired MCs cannot be the proxy.
+- **Commands** are Telink access messages (opcode `0x26`, 10-byte payload: checksum, bit-packed fields, command type) to the light's primary address with the network's application key: power (`0x8c`), intensity 0–1000 (`0x8f`), white with green/magenta −10..+10 (`0x82`), colour with hue and saturation (`0x81`). Layout from wesbos/amaran-BLE-control (MIT); the encoder is checked against vectors produced by that implementation.
+- **Unacknowledged**, so each command goes out twice, 40 ms apart; one write per 120 ms per network, newer values replacing queued ones.
+- **The light reports its state**: on connect the driver asks every light of the network (`0x0e`), and each report (`0x02` white, `0x01` colour) becomes the light's state, so the controls show what the light really shows.
+- **Firmware**: each light's composition data (maker, product, version, elements) is stored with its device key at setup and shown on its screen. The owner's MCs are not all on the same firmware (one reports one element, another three); nothing depends on it.
+- **Not known yet**: the commands for the dimming curve and the device-side fade ("Dimming Design" in Sidus Link), tracked in #289. The MC therefore has no curve control.
+
 ## Screens (`apps/mobile/src/screens/Lights.tsx`)
 
 - **Lights** (Setup → Lights): every fixture with its model and sync state. Tap opens it, long press edits it, **Add light** pairs a new one.
 - **Add light**: scans for 10 s (Scan again repeats). Likely fixtures come first, with the model they look like; devices already paired are greyed out. Pick one, confirm the model, name it (default: the model and a number), **Pair**.
 - **Edit light**: name and model; delete (only from the phone and the server; the light itself is not changed).
 - **A battery**: its connection state, then charge %, voltage, current, power, whether it feeds a load and the estimated time left, updated every second; a reading older than 5 s shows its age.
-- **A light**: its connection state, held open while the screen is shown, and the controls its model has: power, intensity, white, green/magenta, dimming curve. Sliders drag or step with − and + (1 % and 100 K). Until the phone has set a value they show the shared start values (half intensity, the middle of the white range, linear), because the lights report nothing back. Controls are greyed out while not connected.
+- **A light**: its connection state, held open while the screen is shown, and the controls its model has: power, intensity, White/Colour with hue and saturation (Aputure), white, green/magenta, dimming curve (NEEWER). Sliders drag or step with − and + (1 % and 100 K). Until the phone has set a value they show the shared start values (half intensity, the middle of the white range, linear), because the lights report nothing back. Controls are greyed out while not connected.
 
 ## On the server
 
@@ -94,7 +103,7 @@ The phone is the provisioner of its own mesh network, so a light paired here lea
 
 ## Not done
 
-- The Aputure driver (see Status above).
+- The Aputure's native dimming curve and fade (see Status above).
 - Removing a light from the phone's network over the mesh (Config Node Reset): deleting a fixture leaves the light in the network until it is reset.
 - More than one mesh network per phone, and moving keys to another phone.
 - The battery's per-output voltages.
