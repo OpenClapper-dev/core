@@ -72,3 +72,13 @@ A bake is photo-sized, so the phone frames it like the photo in every view mode.
 ## Old overlays are kept, unread (epic #275)
 
 Migration 0030 copied the overlays into layers and left the `overlays` table, its renders under `renders/overlays/` and `shot_steps.overlay_id` in place. Nothing reads them any more (the purge still deletes their renders with a shot). A later release drops them once the migration has proven itself on production.
+
+## Live picture: what is not tested yet (issue #302)
+
+The picture works on the owner's phone (docs/features/live-picture.md). Not tried yet:
+- a glass-to-glass latency measurement against HollyView;
+- the transmitter's limit on viewers (HollyView and OpenClapper at the same time);
+- other phones' decoders;
+- Wi-Fi drops mid-stream.
+
+The dev client loads its JavaScript from Metro, which the transmitter's Wi-Fi cannot reach: open the app on another network first, then switch.
