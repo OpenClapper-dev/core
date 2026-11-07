@@ -1,4 +1,4 @@
-import type { EffectId } from "@openclapper/vocab";
+import type { Curve, EffectId } from "@openclapper/vocab";
 
 /**
  * Aputure's light commands inside the mesh (#213): one access message with the Telink vendor
@@ -8,7 +8,7 @@ import type { EffectId } from "@openclapper/vocab";
  * against vectors produced by that implementation.
  */
 export const TELINK_OPCODE = 0x26;
-export const CMD = { HSI: 0x81, CCT: 0x82, POWER: 0x8c, INTENSITY: 0x8f, STATUS: 0x0e, BATTERY: 0x0a } as const;
+export const CMD = { HSI: 0x81, CCT: 0x82, POWER: 0x8c, INTENSITY: 0x8f, STATUS: 0x0e, BATTERY: 0x0a, CURVE: 0x88 } as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -174,3 +174,12 @@ export function parseEffect(p: Uint8Array): { effect: EffectId | null; on: boole
   if (e.intensityBit === 46 && getBits(p, 60, 4) !== 1) return null;
   return { effect: id, on: getBits(p, 8, 1) === 1, intensity: Math.min(1000, getBits(p, e.intensityBit, 10)) / 1000 };
 }
+
+/** The curve values Sidus Link sends (its White screen: Linear, Exponential, Logarithmic, S). */
+const CURVE_VALUE: Record<Curve, number> = { linear: 0, exp: 1, log: 2, s: 3 };
+
+/**
+ * The light's dimming curve (#289): its own command, type 0x08, the curve in byte 8. From Sidus Link
+ * 2.0.42 (decompiled with Aputure's permission). The light does not report it back.
+ */
+export function curve(c: Curve) { const p = new Uint8Array(10); p[8] = CURVE_VALUE[c]; return finish(p, CMD.CURVE); }

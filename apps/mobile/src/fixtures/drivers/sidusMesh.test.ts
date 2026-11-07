@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { k2, k4, ofHex } from "../mesh/crypto.ts";
 import { FakeProxyNode } from "../mesh/fakeNode.testlib.ts";
 import { SeqAllocator } from "../mesh/seq.ts";
-import { batteryRequest, cct, effect, effectOff, hsi, intensity, power, statusRequest } from "../codecs/sidus.ts";
+import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, power, statusRequest } from "../codecs/sidus.ts";
 import type { Fixture, Telemetry } from "../types.ts";
 import { sidusMesh } from "./sidusMesh.ts";
 
@@ -56,7 +56,8 @@ test("commands reach the light as Telink messages, each sent twice; white keeps 
   await s.send(light, { op: "cct", kelvin: 3200, gm: -2 });
   await s.send(light, { op: "hsi", h: 120, s: 1, i: 0.8 });
   assert.deepEqual(node.telink, [power(true), power(true), intensity(0.4), intensity(0.4), cct(3200, 0.4, -2), cct(3200, 0.4, -2), hsi(120, 1, 0.8), hsi(120, 1, 0.8)].map(hex));
-  await assert.rejects(s.send(light, { op: "curve", curve: "s" }), /no curve command/);
+  await s.send(light, { op: "curve", curve: "s" });
+  assert.deepEqual(node.telink.slice(-2), [hex(curve("s")), hex(curve("s"))]);
   await s.close();
 });
 

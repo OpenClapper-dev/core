@@ -80,9 +80,9 @@ export const FIXTURE_KINDS: readonly FixtureKind[] = [
     caps: { power: false, intensity: false, cct: null, hsi: false, curves: false, telemetry: ["battery", "volts", "amps", "watts", "minutesLeft"], capacityWh: 99 },
   },
   // Sidus Mesh RGBWW. No green/magenta (the light has none, though the white command carries the
-  // field: sent neutral); the command for its dimming curve is not known yet (#289). Its built-in
+  // field: sent neutral); its dimming curve is its own command (#289). Its built-in
   // battery reports charge, voltage and its own time left (#293).
-  { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: null }, hsi: true, curves: false, telemetry: ["battery", "volts", "minutesLeft"], effects: MC_EFFECTS } },
+  { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: null }, hsi: true, curves: true, telemetry: ["battery", "volts", "minutesLeft"], effects: MC_EFFECTS } },
 ];
 
 export const fixtureKind = (id: string): FixtureKind | undefined => FIXTURE_KINDS.find((k) => k.id === id);

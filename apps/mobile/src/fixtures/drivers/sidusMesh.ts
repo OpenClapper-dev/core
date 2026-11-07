@@ -1,7 +1,7 @@
 import { bytes } from "../mesh/crypto.ts";
 import { MeshSession, type NetworkKeys } from "../mesh/session.ts";
 import type { SeqAllocator } from "../mesh/seq.ts";
-import { batteryRequest, cct, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
+import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
 import type { EffectId, LightState } from "@openclapper/vocab";
 
@@ -116,7 +116,8 @@ export function sidusMesh(o: SidusOptions): Driver {
               // The light returns to white: ask what it shows now.
               return toLight(f, statusRequest(), 1);
             case "status": return toLight(f, statusRequest(), 1);
-            default: throw new Error(`the light has no ${cmd.op} command we know of`);
+            case "curve": return toLight(f, curve(cmd.curve));
+            default: throw new Error("unknown command");
           }
         },
         async close() { stopEvery(timer); stopListening(); await session.close(); },

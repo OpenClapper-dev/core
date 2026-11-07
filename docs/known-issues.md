@@ -4,6 +4,7 @@ Things that may go wrong but are not fixed (or not verified on a device) yet. Ad
 
 | Since | Area | What can happen | Why it is left | Where |
 | --- | --- | --- | --- | --- |
+| 2026-11-07 (#289) | Phone · Lights | The MC's dimming curve command is taken from Sidus Link 2.0.42's code, not yet sent from OpenClapper to an MC; the light does not report its curve, so the screen cannot show the one set from Sidus Link. | Owner switches curves on an MC and compares with Sidus Link. | `codecs/sidus.ts` |
 | 2026-11-07 (#293) | Phone · Lights | The MC battery page follows the amaran-hacs layout (verified on an Ace 25c), not yet on an MC: that the MC answers it, and whether its time left and voltage read sensibly. | Owner checks the battery block on MC 1 and MC 3, once on battery and once on its charger. | `codecs/sidus.ts`, `drivers/sidusMesh.ts` |
 | 2026-11-07 (#213) | Phone · Lights | Aputure control works on MC 1 and MC 3 (both firmwares), but a light takes a moment to settle: very fast changes briefly show an older value. The report hold (1.5 s) keeps the controls steady; the light's own reaction time is unmeasured. | Benchmark a light's settling time before the keyframe editor and space keyframes accordingly. | `drivers/sidusMesh.ts`, `fixtures/hubCore.ts` |
 | 2026-11-07 (#212) | Phone · Lights | If provisioning breaks off after the network key went out but before the light confirmed, the light holds the keys while the phone has no device key for it. | Reset the light and pair again; the flow itself is tested on two MCs. | `fixtures/provisionFlow.ts` |

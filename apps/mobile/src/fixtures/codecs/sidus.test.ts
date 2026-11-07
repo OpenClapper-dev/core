@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EFFECTS } from "@openclapper/vocab";
-import { batteryRequest, cct, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest } from "./sidus.ts";
+import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest } from "./sidus.ts";
 
 const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 const ofHex = (s: string) => Uint8Array.from(s.match(/../g)!, (h) => parseInt(h, 16));
@@ -92,4 +92,11 @@ test("effects: all 15 match the reference table, decode back, and stop as the re
   assert.equal(hex(effectOff()), "96000000000000000f87");
   assert.deepEqual(parseEffect(effectOff()), { effect: null, on: false, intensity: 0 });
   assert.equal(parseEffect(cct(5600, 1)), null);
+});
+
+test("dimming curve: its own command, the value in byte 8, as Sidus Link 2.0.42 sends it", () => {
+  assert.equal(hex(curve("linear")), "88000000000000000088");
+  assert.equal(hex(curve("exp")), "89000000000000000188");
+  assert.equal(hex(curve("log")), "8a000000000000000288");
+  assert.equal(hex(curve("s")), "8b000000000000000388");
 });
