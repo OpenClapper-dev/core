@@ -25,6 +25,7 @@ export type Route =
   | { name: "fixtures" }
   | { name: "fixtureEditor"; fixtureId: string | null }
   | { name: "fixture"; fixtureId: string }
+  | { name: "fixtureProvision"; fixtureId: string; /** Pair again after a reset: a new address. */ fresh?: boolean }
   | { name: "viewfinderSettings" }
   | { name: "captureSettings" }
   | { name: "calibration" }

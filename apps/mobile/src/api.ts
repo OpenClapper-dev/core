@@ -7,6 +7,7 @@ import type { DeviceSpecs, Extra, FieldDefinition, Framing } from "@openclapper/
 import type { VignettePoint } from "@openclapper/vocab";
 import { bakeHash, freshBake, stepsOf, type Layer, type ResolvedStep, type ShotStep, type StepBake } from "@openclapper/vocab";
 import type { Fixture } from "./fixtures/types";
+import type { MeshNetwork } from "./fixtures/meshNetworks";
 import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
 export class ApiError extends Error {
@@ -349,6 +350,14 @@ export const api = {
       }),
     }),
   deleteFixture: (id: string) => call<{ deleted: string }>(`/api/fixtures/${id}`, { method: "DELETE" }),
+
+  /** Mesh networks the phone provisions (#212): no keys, those stay on the phone. */
+  listMeshNetworks: () => call<{ mesh_networks: { id: string; name: string; iv_index: number; next_unicast: number; created_at: string }[] }>("/api/mesh-networks")
+    .then((r) => r.mesh_networks.map((n): MeshNetwork => ({ id: n.id, name: n.name, ivIndex: n.iv_index, nextUnicast: n.next_unicast, createdAt: n.created_at, synced: true }))),
+  putMeshNetwork: (n: MeshNetwork) => call<unknown>(`/api/mesh-networks/${n.id}`, {
+    method: "PUT", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ name: n.name, iv_index: n.ivIndex, next_unicast: n.nextUnicast }),
+  }),
 
   deletePreset: (id: string) => call<{ deleted: string }>(`/api/presets/${id}`, { method: "DELETE" }),
 

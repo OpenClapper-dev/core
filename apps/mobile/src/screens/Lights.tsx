@@ -8,10 +8,13 @@ import { askBluetooth } from "../ble/permissions";
 import { linkLabel, sendToFixture, useFixtureLease, useFixtureStatus } from "../fixtures/hub";
 import { deleteFixture, getFixtures, saveFixture, syncFixtures, useFixtures } from "../fixtures/library";
 import { formatMinutes } from "../fixtures/batteryEstimate";
+import { hasKeys, nodeState } from "../fixtures/meshNetworks";
+import { overlapping } from "../fixtures/meshAddress";
+import { provisionFixture, STAGES, type Stage } from "../fixtures/provisionFlow";
 import { ALL_KINDS, suggestKinds } from "../fixtures/registry";
 import type { Command, Fixture, Telemetry } from "../fixtures/types";
 import { log } from "../log";
-import { Banner, Block, Button, confirm, Empty, ErrorText, FieldRow, Hint, Input, ListRow, makeStyles, num, PushScreen, SectionLabel, Seg, SideBySide, Slider, toast, type } from "../ui";
+import { Banner, Block, Button, confirm, Empty, ErrorText, FieldRow, Hint, Input, ListRow, makeStyles, num, PushScreen, SectionLabel, Seg, SideBySide, Slider, toast, type, useTheme } from "../ui";
 import { OptionSheet } from "../components/OptionSheet";
 
 const kindIcon = (k: FixtureKind | undefined) => (k && !k.caps.power ? "battery-high" : "lightbulb-outline");
@@ -191,6 +194,95 @@ const CURVE_OPTIONS = [
   { id: "s", label: "S" },
 ] as const;
 
+/**
+ * Where a mesh light stands with the phone's network (#212): not paired, paired on another phone,
+ * provisioned but not configured, or ready.
+ */
+function MeshPairing({ f }: { f: Fixture }) {
+  const app = useApp();
+  const open = (fresh = false) => app.push({ name: "fixtureProvision", fixtureId: f.id, fresh });
+  if (!f.mesh) return (
+    <>
+      <Hint>Not on OpenClapper's mesh yet. Pairing takes it out of Sidus Link.</Hint>
+      <Button icon="link-variant" label="Pair with OpenClapper" onPress={() => open()} />
+    </>
+  );
+  if (!hasKeys(f.mesh.networkId)) return <Hint>Paired on another phone: this light's network keys are not on this one.</Hint>;
+  const node = nodeState(f.mesh.networkId, f.mesh.unicast);
+  if (!node?.configured) return (
+    <>
+      <Hint>Paired, but the setup did not finish.</Hint>
+      <Button icon="cog-outline" label="Finish setup" onPress={() => open()} />
+    </>
+  );
+  const clash = overlapping(f, getFixtures());
+  return (
+    <>
+      <Hint>{`On OpenClapper's mesh at address ${f.mesh.unicast}${f.mesh.elements > 1 ? `–${f.mesh.unicast + f.mesh.elements - 1}` : ""}. The controls come with the next update.`}</Hint>
+      {clash && <Banner kind="warn" icon="alert-outline" title={`Addresses overlap “${clash.label}”`} meta="Run setup again to check; if it stays, reset this light and pair it again." />}
+      <SideBySide>
+        <Button style={{ flex: 1 }} kind="secondary" icon="cog-outline" label="Run setup again" onPress={() => open()} />
+        <Button style={{ flex: 1 }} kind="secondary" icon="link-variant" label="Pair again" onPress={() => open(true)} />
+      </SideBySide>
+    </>
+  );
+}
+
+const STAGE_LABELS: Record<Stage, string> = {
+  find: "Find the light",
+  invite: "Invite it",
+  keys: "Exchange keys",
+  confirm: "Confirm both sides",
+  data: "Send the network key and address",
+  reconnect: "Reconnect through its proxy",
+  configure: "Configure it",
+};
+
+/** Setup → Lights → a mesh light → Pair: provisions and configures it, with each step shown (#212). */
+export function FixtureProvision({ fixtureId, fresh = false }: { fixtureId: string; fresh?: boolean }) {
+  const app = useApp();
+  const { c } = useTheme();
+  const f = useFixtures().find((x) => x.id === fixtureId);
+  const [stage, setStage] = useState<Stage | null>(null);
+  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [error, setError] = useState<string | null>(null);
+  if (!f) return <PushScreen title="Pair"><Empty icon="lightbulb-off-outline" title="This light is gone" /></PushScreen>;
+  const resume = !!f.mesh && !fresh;
+  const stages: readonly Stage[] = resume ? STAGES.filter((x) => x === "reconnect" || x === "configure") : STAGES;
+  const run = async () => {
+    setState("running"); setError(null); setStage(null);
+    try {
+      await provisionFixture(f, setStage, { fresh });
+      setState("done");
+      toast(`“${f.label}” is on OpenClapper's mesh`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setState("error");
+    }
+  };
+  const at = stage ? stages.indexOf(stage) : -1;
+  return (
+    <PushScreen title={resume ? "Set up" : "Pair with OpenClapper"} sub={f.label}
+      footer={state === "done"
+        ? <Button style={{ flex: 1 }} icon="check" label="Done" onPress={app.pop} />
+        : <Button style={{ flex: 1 }} icon={state === "error" ? "refresh" : "link-variant"} label={state === "error" ? "Try again" : resume ? "Set up" : "Pair"} busy={state === "running"} disabled={state === "running"} onPress={() => void run()} />}>
+      {!resume && state === "idle" && (
+        <Block>
+          <Banner kind="warn" icon="alert-outline" title="Sidus Link loses this light" meta="Pairing gives it OpenClapper's keys. To use it with Sidus Link again, reset it and add it there." />
+          <Hint>First take it out of Sidus Link: remove it in the app (the light's settings → remove), or reset it on the light itself (see its manual). Then switch it on, keep the phone close, and tap Pair. It takes about half a minute.</Hint>
+        </Block>
+      )}
+      {state !== "idle" && stages.map((s, i) => {
+        const done = state === "done" || i < at;
+        const now = state === "running" && i === at;
+        const failed = state === "error" && i === Math.max(0, at);
+        return <ListRow key={s} icon={done ? "check-circle" : failed ? "alert-circle-outline" : now ? "progress-clock" : "circle-outline"} iconColor={failed ? c.danger : undefined} title={STAGE_LABELS[s]} trailing={null} />;
+      })}
+      {error && <Block><ErrorText>{error}</ErrorText><Hint>Details are in the debug log (Setup → Debug log).</Hint></Block>}
+    </PushScreen>
+  );
+}
+
 /** A reading older than this is shown as stale (the battery is polled every second). */
 const STALE_MS = 5000;
 
@@ -247,7 +339,7 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
       footer={<Button style={{ flex: 1 }} kind="secondary" icon="pencil-outline" label="Edit" onPress={() => app.push({ name: "fixtureEditor", fixtureId: f.id })} />}>
       <Block>
         <Banner kind={ready ? "ok" : status.link === "failed" ? "warn" : "info"} icon="bluetooth" title={linkLabel(status)} meta={f.address} />
-        {status.link === "failed" && <Hint>The controls for this model are not built yet; pairing and syncing already work.</Hint>}
+        {kind?.transport === "mesh" ? <MeshPairing f={f} /> : status.link === "failed" && <Hint>The controls for this model are not built yet; pairing and syncing already work.</Hint>}
       </Block>
       {caps && controllable && status.link !== "failed" && (
         <Block style={{ gap: 16 }}>
