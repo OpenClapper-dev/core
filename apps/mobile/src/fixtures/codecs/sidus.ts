@@ -1,4 +1,4 @@
-import type { Curve, EffectId } from "@openclapper/vocab";
+import { DEFAULT_EFFECT_SETTINGS, type Curve, type EffectId, type EffectSettings } from "@openclapper/vocab";
 
 /**
  * Aputure's light commands inside the mesh (#213): one access message with the Telink vendor
@@ -147,8 +147,42 @@ const GEN1: Record<EffectId, { code: number; fields: [number, number][]; intensi
 
 const bitLength = (v: number) => (v ? Math.floor(Math.log2(v)) + 1 : 0);
 
-/** Run a built-in effect at an intensity 0..1 with the app's default settings. */
-export function effect(id: EffectId, i: number) {
+/**
+ * Faulty bulb and Pulsing with their options (#292), as Sidus Link 2.0.42 lays them out: run bit 8,
+ * intensity at 46, frequency at 56, colour mode at 60 (0 white, 1 colour). White: colour
+ * temperature flag 20, green/magenta 29 (sent neutral: 10 of 0..20), speed 23, trigger 27, kelvin
+ * in tens at 36. Colour: speed 24, trigger 28, saturation 30, hue 37. Trigger is always 2 (auto).
+ */
+function bulbLike(code: number, i: number, o: EffectSettings) {
+  const p = new Uint8Array(10);
+  const step = (v: number) => clamp(Math.round(v), 1, 11);
+  setBits(p, 8, 1, 1);
+  if ("kelvin" in o.color) {
+    const tens = clamp(Math.round(o.color.kelvin / 10), 80, 2000);
+    setBits(p, 20, 1, tens > 1000 ? 1 : 0);
+    setBits(p, 23, 4, step(o.speed));
+    setBits(p, 27, 2, 2);
+    setBits(p, 29, 7, 10);
+    setBits(p, 36, 10, tens > 1000 ? tens - 1000 : tens);
+    setBits(p, 60, 4, 0);
+  } else {
+    setBits(p, 24, 4, step(o.speed));
+    setBits(p, 28, 2, 2);
+    setBits(p, 30, 7, clamp(Math.round(o.color.s * 100), 0, 100));
+    setBits(p, 37, 9, clamp(Math.round(o.color.h), 0, 360));
+    setBits(p, 60, 4, 1);
+  }
+  setBits(p, 46, 10, Math.round(clamp(i, 0, 1) * 1000));
+  setBits(p, 56, 4, step(o.frequency));
+  p[8] = code;
+  return finish(p, EFFECT_CMD);
+}
+
+const WITH_OPTIONS: Partial<Record<EffectId, true>> = { faulty_bulb: true, pulsing: true };
+
+/** Run a built-in effect at an intensity 0..1, with options where the effect has them (else the app's defaults). */
+export function effect(id: EffectId, i: number, settings?: EffectSettings) {
+  if (WITH_OPTIONS[id]) return bulbLike(GEN1[id].code, i, settings ?? DEFAULT_EFFECT_SETTINGS);
   const e = GEN1[id];
   const p = new Uint8Array(10);
   for (const [value, bit] of e.fields) setBits(p, bit, bitLength(value), value);
@@ -165,12 +199,20 @@ export function effectOff() { const p = new Uint8Array(10); p[8] = EFFECT_STOP; 
  * A report of a running effect (or of the stop), or null. Effects that carry a mode field (codes
  * 6–10, bits 60–63) are only confirmed in mode 1, the one the presets use.
  */
-export function parseEffect(p: Uint8Array): { effect: EffectId | null; on: boolean; intensity: number } | null {
+export function parseEffect(p: Uint8Array): { effect: EffectId | null; on: boolean; intensity: number; settings?: EffectSettings } | null {
   if (p.length !== 10 || p[0] !== checksum(p) || (p[9] & 0x7f) !== (EFFECT_CMD & 0x7f)) return null;
   if (p[8] === EFFECT_STOP) return { effect: null, on: getBits(p, 8, 1) === 1, intensity: 0 };
   const hit = (Object.entries(GEN1) as [EffectId, (typeof GEN1)[EffectId]][]).find(([, e]) => e.code === p[8]);
   if (!hit) return null;
   const [id, e] = hit;
+  if (WITH_OPTIONS[id]) {
+    const mode = getBits(p, 60, 4);
+    if (mode > 1) return null;
+    const settings: EffectSettings = mode === 0
+      ? { frequency: getBits(p, 56, 4), speed: getBits(p, 23, 4), color: { kelvin: (getBits(p, 36, 10) + (getBits(p, 20, 1) ? 1000 : 0)) * 10 } }
+      : { frequency: getBits(p, 56, 4), speed: getBits(p, 24, 4), color: { h: Math.min(360, getBits(p, 37, 9)), s: Math.min(100, getBits(p, 30, 7)) / 100 } };
+    return { effect: id, on: getBits(p, 8, 1) === 1, intensity: Math.min(1000, getBits(p, 46, 10)) / 1000, settings };
+  }
   if (e.intensityBit === 46 && getBits(p, 60, 4) !== 1) return null;
   return { effect: id, on: getBits(p, 8, 1) === 1, intensity: Math.min(1000, getBits(p, e.intensityBit, 10)) / 1000 };
 }

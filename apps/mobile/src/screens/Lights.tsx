@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, effectName, type EffectId, type FixtureKind, type LightState, type TelemetryField } from "@openclapper/vocab";
+import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, effectName, DEFAULT_EFFECT_SETTINGS, EFFECT_RANDOM, EFFECTS_WITH_OPTIONS, type EffectId, type EffectSettings, type FixtureKind, type LightState, type TelemetryField } from "@openclapper/vocab";
 import { useApp } from "../appState";
 import { adapterState, scan, type Seen } from "../ble/link";
 import { askBluetooth } from "../ble/permissions";
@@ -372,6 +372,36 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
             <>
               <FieldRow icon="creation" label="Effect" value={v.effect ? effectName(v.effect) : "Off"} onPress={() => setFxSheet(true)} />
               {v.effect && <Hint>Intensity applies to the effect; choose White or Colour to stop it.</Hint>}
+              {v.effect && EFFECTS_WITH_OPTIONS.includes(v.effect) && (() => {
+                const fx = v.effect;
+                const o = v.effectSettings ?? DEFAULT_EFFECT_SETTINGS;
+                const set = (next: EffectSettings) => send({ effectSettings: next }, { op: "effect", effect: fx, settings: next });
+                const step = (x: number) => (x >= EFFECT_RANDOM ? "Random" : String(x));
+                const white = "kelvin" in o.color;
+                const mid = caps.cct ? Math.round((caps.cct.min + caps.cct.max) / 200) * 100 : 5600;
+                return (
+                  <View style={{ gap: 12 }}>
+                    <Seg size="lg" block accessibilityLabel="Effect colour" disabled={!ready} value={white ? "white" : "colour"}
+                      onChange={(m) => set({ ...o, color: m === "white" ? { kelvin: mid } : { h: 0, s: 1 } })}
+                      options={[{ id: "white", label: "White" }, { id: "colour", label: "Colour" }]} />
+                    {"kelvin" in o.color && caps.cct && (
+                      <Slider label="Effect white" value={o.color.kelvin} min={caps.cct.min} max={caps.cct.max} step={100} format={(x) => `${x} K`} disabled={!ready}
+                        onChange={(x) => set({ ...o, color: { kelvin: x } })} />
+                    )}
+                    {"h" in o.color && (() => {
+                      const col = o.color;
+                      return (
+                        <>
+                          <Slider label="Effect hue" value={Math.round(col.h)} min={0} max={360} format={(x) => `${x}°`} disabled={!ready} onChange={(x) => set({ ...o, color: { ...col, h: x } })} />
+                          <Slider label="Effect saturation" value={Math.round(col.s * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready} onChange={(x) => set({ ...o, color: { ...col, s: x / 100 } })} />
+                        </>
+                      );
+                    })()}
+                    <Slider label="Frequency" value={o.frequency} min={1} max={EFFECT_RANDOM} format={step} disabled={!ready} onChange={(x) => set({ ...o, frequency: x })} />
+                    <Slider label="Speed" value={o.speed} min={1} max={EFFECT_RANDOM} format={step} disabled={!ready} onChange={(x) => set({ ...o, speed: x })} />
+                  </View>
+                );
+              })()}
               <OptionSheet visible={fxSheet} title="Effect" sub="With Sidus Link's default settings" list
                 options={[{ id: "off", label: "Off" }, ...caps.effects.map((id) => ({ id, label: effectName(id) }))]} value={[v.effect ?? "off"]}
                 onChange={(ids) => { const id = ids[0]; if (!id || !ready) return; const fx = id === "off" ? null : (id as EffectId); send({ effect: fx }, { op: "effect", effect: fx }); }}

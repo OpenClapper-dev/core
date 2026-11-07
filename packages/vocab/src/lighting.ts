@@ -24,6 +24,22 @@ export type EffectId = (typeof EFFECTS)[number]["id"];
 export const effectName = (id: EffectId) => EFFECTS.find((e) => e.id === id)?.name ?? id;
 
 /**
+ * Options of an effect, as Sidus Link names them (#292). Frequency and speed run 1..10, 11 means
+ * random; colour is white at a colour temperature or a colour (hue 0..360, saturation 0..1).
+ */
+export interface EffectSettings {
+  frequency: number;
+  speed: number;
+  color: { kelvin: number } | { h: number; s: number };
+}
+/** 11 on the frequency or speed scale: the light varies it at random. */
+export const EFFECT_RANDOM = 11;
+/** Effects whose options are known (Faulty bulb and Pulsing share one layout). */
+export const EFFECTS_WITH_OPTIONS: readonly EffectId[] = ["faulty_bulb", "pulsing"];
+/** What the app's presets send: red at full saturation, frequency and speed 5. */
+export const DEFAULT_EFFECT_SETTINGS: EffectSettings = { frequency: 5, speed: 5, color: { h: 0, s: 1 } };
+
+/**
  * The effects the MC offers (owner's MC, 2026-11-07): the other six first-generation effects are
  * not on it. Kept in the order of EFFECTS.
  */
@@ -98,6 +114,8 @@ export interface LightState {
   curve?: Curve;
   /** A running built-in effect; null when the light shows plain white or colour. */
   effect?: EffectId | null;
+  /** Its options, for effects that have them (#292). */
+  effectSettings?: EffectSettings;
 }
 
 /**

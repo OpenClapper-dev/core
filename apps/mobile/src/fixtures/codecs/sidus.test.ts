@@ -83,7 +83,8 @@ test("effects: all 15 match the reference table, decode back, and stop as the re
   for (const { id } of EFFECTS) {
     for (const [i, i1000] of [[1, 1000], [0.5, 500], [0.05, 50]] as const) {
       assert.equal(hex(effect(id, i)), reference(id, i1000), `${id} at ${i1000}`);
-      assert.deepEqual(parseEffect(effect(id, i)), { effect: id, on: true, intensity: i }, id);
+      const back = parseEffect(effect(id, i))!;
+      assert.deepEqual({ effect: back.effect, on: back.on, intensity: back.intensity }, { effect: id, on: true, intensity: i }, id);
     }
   }
   // The reference test's own checks: Candle's code and command, intensity at bit 54; the stop packet.
@@ -99,4 +100,19 @@ test("dimming curve: its own command, the value in byte 8, as Sidus Link 2.0.42 
   assert.equal(hex(curve("exp")), "89000000000000000188");
   assert.equal(hex(curve("log")), "8a000000000000000288");
   assert.equal(hex(curve("s")), "8b000000000000000388");
+});
+
+test("Faulty bulb and Pulsing options: the defaults are the reference preset, white and colour round-trip", () => {
+  // Without options, and with the default options, they send the reference table's preset (checked above).
+  for (const id of ["faulty_bulb", "pulsing"] as const) {
+    assert.equal(hex(effect(id, 0.5, { frequency: 5, speed: 5, color: { h: 0, s: 1 } })), reference(id, 500));
+  }
+  // White, 3200 K, frequency 3, speed 8: fields at the Sidus Link 2.0.42 positions.
+  const w = effect("faulty_bulb", 0.4, { frequency: 3, speed: 8, color: { kelvin: 3200 } });
+  assert.deepEqual(parseEffect(w), { effect: "faulty_bulb", on: true, intensity: 0.4, settings: { frequency: 3, speed: 8, color: { kelvin: 3200 } } });
+  // Colour, hue 200, saturation 60 %, random frequency and speed (11).
+  const c = effect("pulsing", 1, { frequency: 11, speed: 11, color: { h: 200, s: 0.6 } });
+  assert.deepEqual(parseEffect(c)?.settings, { frequency: 11, speed: 11, color: { h: 200, s: 0.6 } });
+  // Out of range is clamped: 0 → 1, 15 → 11.
+  assert.equal(parseEffect(effect("faulty_bulb", 1, { frequency: 0, speed: 15, color: { kelvin: 5600 } }))?.settings?.frequency, 1);
 });

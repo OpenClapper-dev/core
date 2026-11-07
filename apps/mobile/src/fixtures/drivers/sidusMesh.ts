@@ -3,7 +3,7 @@ import { MeshSession, type NetworkKeys } from "../mesh/session.ts";
 import type { SeqAllocator } from "../mesh/seq.ts";
 import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
-import type { EffectId, LightState } from "@openclapper/vocab";
+import type { EffectId, EffectSettings, LightState } from "@openclapper/vocab";
 
 /** What the driver needs of a network, supplied by the app (fixtures/meshNetworks.ts) or a test. */
 export interface MeshAccess {
@@ -54,7 +54,7 @@ export function sidusMesh(o: SidusOptions): Driver {
       const byUnicast = new Map(fixtures.filter((f) => f.mesh).map((f) => [f.mesh!.unicast, f]));
       const last = new Map<string, Last>();
       /** The effect each light runs (#291): intensity changes re-send it rather than a plain intensity. */
-      const running = new Map<string, EffectId | null>();
+      const running = new Map<string, { id: EffectId; settings?: EffectSettings } | null>();
       const lastOf = (f: Fixture) => last.get(f.id) ?? { intensity: 0.5, kelvin: 5600, gm: 0 };
       const app = { kind: "app" as const, key: net.keys.appKey, aid: net.keys.aid };
 
@@ -65,8 +65,8 @@ export function sidusMesh(o: SidusOptions): Driver {
         if (bat) { sink(f.id, { at: Date.now(), battery: bat.charge, volts: bat.volts, minutesLeft: bat.minutesLeft, plugged: bat.plugged }); return; }
         const fx = parseEffect(r.access.params);
         if (fx) {
-          running.set(f.id, fx.effect);
-          sink(f.id, { at: Date.now(), state: fx.effect ? { power: fx.on, intensity: fx.intensity, effect: fx.effect } : { effect: null } });
+          running.set(f.id, fx.effect ? { id: fx.effect, settings: fx.settings } : null);
+          sink(f.id, { at: Date.now(), state: fx.effect ? { power: fx.on, intensity: fx.intensity, effect: fx.effect, ...(fx.settings ? { effectSettings: fx.settings } : {}) } : { effect: null } });
           return;
         }
         const st = parseStatus(r.access.params);
@@ -104,14 +104,14 @@ export function sidusMesh(o: SidusOptions): Driver {
             case "intensity": {
               last.set(f.id, { ...l, intensity: cmd.value });
               const fx = running.get(f.id);
-              return toLight(f, fx ? effect(fx, cmd.value) : intensity(cmd.value));
+              return toLight(f, fx ? effect(fx.id, cmd.value, fx.settings) : intensity(cmd.value));
             }
             // White or colour leaves a running effect, as in the maker's app.
             case "cct": last.set(f.id, { ...l, kelvin: cmd.kelvin, gm: cmd.gm }); running.set(f.id, null); return toLight(f, cct(cmd.kelvin, l.intensity, cmd.gm));
             case "hsi": last.set(f.id, { ...l, intensity: cmd.i }); running.set(f.id, null); return toLight(f, hsi(cmd.h, cmd.s, cmd.i));
             case "effect":
-              running.set(f.id, cmd.effect);
-              if (cmd.effect) return toLight(f, effect(cmd.effect, l.intensity));
+              running.set(f.id, cmd.effect ? { id: cmd.effect, settings: cmd.settings } : null);
+              if (cmd.effect) return toLight(f, effect(cmd.effect, l.intensity, cmd.settings));
               await toLight(f, effectOff());
               // The light returns to white: ask what it shows now.
               return toLight(f, statusRequest(), 1);
