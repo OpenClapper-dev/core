@@ -1,14 +1,16 @@
 import { FIXTURE_KINDS, fixtureKind } from "@openclapper/vocab";
+import { neewerBattery } from "./drivers/neewerBattery.ts";
 import { neewerInfinity } from "./drivers/neewerInfinity.ts";
 import type { Driver } from "./types.ts";
 
 /**
- * The phone's drivers by id (FixtureKind.driver): NEEWER lights (#209); still to come the PS099S
- * battery (#210) and Aputure over the mesh (#213). A new model is a kind in
+ * The phone's drivers by id (FixtureKind.driver): NEEWER lights (#209), the PS099S battery (#210);
+ * still to come Aputure over the mesh (#213). A new model is a kind in
  * packages/vocab/src/lighting.ts plus, when its protocol is new, one driver file registered here.
  */
 const DRIVERS: Record<string, Driver> = {
   "neewer-infinity": neewerInfinity({ log: (level, event, data) => logSink(level, event, data) }),
+  "neewer-battery": neewerBattery({ log: (level, event, data) => logSink(level, event, data) }),
 };
 
 type LogFn = (level: "debug" | "info" | "warn", event: string, data?: unknown) => void;

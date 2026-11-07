@@ -7,8 +7,9 @@ import { adapterState, scan, type Seen } from "../ble/link";
 import { askBluetooth } from "../ble/permissions";
 import { linkLabel, sendToFixture, useFixtureLease, useFixtureStatus } from "../fixtures/hub";
 import { deleteFixture, getFixtures, saveFixture, syncFixtures, useFixtures } from "../fixtures/library";
+import { formatMinutes } from "../fixtures/batteryEstimate";
 import { ALL_KINDS, suggestKinds } from "../fixtures/registry";
-import type { Command, Fixture } from "../fixtures/types";
+import type { Command, Fixture, Telemetry } from "../fixtures/types";
 import { log } from "../log";
 import { Banner, Block, Button, confirm, Empty, ErrorText, FieldRow, Hint, Input, ListRow, makeStyles, num, PushScreen, SectionLabel, Seg, SideBySide, Slider, toast, type } from "../ui";
 import { OptionSheet } from "../components/OptionSheet";
@@ -24,7 +25,7 @@ function capsLine(k: FixtureKind): string {
     c.cct && `white ${c.cct.min}–${c.cct.max} K${c.cct.gm ? " + green/magenta" : ""}`,
     c.hsi && "colour",
     c.curves && "dimming curves",
-    c.telemetry.length > 0 && "charge, volts, watts, time left",
+    c.telemetry.length > 0 && `charge, volts, current, watts${c.capacityWh ? ", estimated time left" : ""}`,
   ].filter(Boolean).join(" · ");
 }
 
@@ -190,6 +191,35 @@ const CURVE_OPTIONS = [
   { id: "s", label: "S" },
 ] as const;
 
+/** A reading older than this is shown as stale (the battery is polled every second). */
+const STALE_MS = 5000;
+
+/** The battery's readout (#210), redrawn every second so a stalled reading shows its age. */
+function BatteryReadout({ t, ready }: { t: Telemetry | null; ready: boolean }) {
+  const s = useStyles();
+  const [, tick] = useState(0);
+  useEffect(() => { const h = setInterval(() => tick((x) => x + 1), 1000); return () => clearInterval(h); }, []);
+  if (!t || t.battery === undefined) return <Block><Hint>{ready ? "Waiting for the first reading…" : "Readings start once connected."}</Hint></Block>;
+  const age = Date.now() - t.at;
+  const rows: [string, string][] = [
+    ["Voltage", t.volts !== undefined ? `${t.volts.toFixed(2)} V` : "–"],
+    ["Current", t.amps !== undefined ? `${t.amps.toFixed(2)} A` : "–"],
+    ["Power", t.watts !== undefined ? `${t.watts < 10 ? t.watts.toFixed(1) : Math.round(t.watts)} W` : "–"],
+    ["State", t.discharging ? "Feeding a load" : "Idle"],
+    ["Time left", t.minutesLeft !== undefined ? `about ${formatMinutes(t.minutesLeft)}` : "– (no load)"],
+  ];
+  return (
+    <Block style={{ gap: 8 }}>
+      <SectionLabel>Battery</SectionLabel>
+      <Text style={s.charge}>{t.battery} %</Text>
+      {rows.map(([k, v]) => (
+        <View key={k} style={s.reading}><Text style={s.readingLabel}>{k}</Text><Text style={s.readingValue}>{v}</Text></View>
+      ))}
+      <Hint>{age > STALE_MS ? `No new reading for ${Math.round(age / 1000)} s` : "Updated every second. Time left is estimated from the battery's rated energy and the power of the last ~20 s."}</Hint>
+    </Block>
+  );
+}
+
 /** Send and forget: the hub coalesces, and a refused write is in the debug log. */
 const fire = (id: string, cmd: Command) => { void sendToFixture(id, cmd).catch((e) => log("debug", "fixture send dropped", { fixture: id, error: e })); };
 
@@ -250,6 +280,7 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
           <Hint>The light does not report its settings yet: the controls show what this phone last set.</Hint>
         </Block>
       )}
+      {caps && caps.telemetry.length > 0 && status.link !== "failed" && <BatteryReadout t={status.telemetry} ready={ready} />}
       {kind && <Block><Hint>{capsLine(kind)}</Hint></Block>}
     </PushScreen>
   );
@@ -257,4 +288,8 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
 
 const useStyles = makeStyles((c) => ({
   address: { ...type("caption"), color: c.textDim, ...num },
+  charge: { ...type("display", "bold"), color: c.text, ...num },
+  reading: { flexDirection: "row", justifyContent: "space-between" },
+  readingLabel: { ...type("body"), color: c.textDim },
+  readingValue: { ...type("body", "semibold"), color: c.text, ...num },
 }));

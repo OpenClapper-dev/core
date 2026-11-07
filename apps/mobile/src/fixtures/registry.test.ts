@@ -12,10 +12,10 @@ test("suggestions from the advertisement", () => {
   assert.deepEqual(suggestKinds({ name: "Pixel Buds", serviceUUIDs: null }), []);
 });
 
-test("drivers: NEEWER lights have one; the battery and Aputure not yet (#210, #213)", () => {
+test("drivers: NEEWER lights and the battery have one; Aputure not yet (#213)", () => {
   assert.equal(driverFor("neewer-fs230b")?.id, "neewer-infinity");
   assert.equal(driverFor("neewer-fs300b")?.id, "neewer-infinity");
-  assert.equal(driverFor("neewer-ps099s"), undefined);
+  assert.equal(driverFor("neewer-ps099s")?.id, "neewer-battery");
   assert.equal(driverFor("aputure-mc"), undefined);
   assert.equal(driverFor("nope"), undefined);
 });
