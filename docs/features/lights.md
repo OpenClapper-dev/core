@@ -64,6 +64,19 @@ The Aputure lights are Bluetooth Mesh nodes (Telink firmware). The phone talks t
 - **`proxy.ts`**: proxy PDUs split to the connection's MTU and joined back; the proxy filter (accept list, then the phone's address), without which no reply reaches the phone; the Secure Network Beacon, authenticated, which tells the IV index.
 - **`seq.ts`**: sequence numbers. A number used twice makes every light drop the phone silently as a replay, so they are reserved in blocks of 128 and the block is saved *before* its first number goes out; after a crash or a kill the phone resumes past the block.
 - **`message.ts`**: an access message in, network PDUs out (one sequence number per segment); `Inbox` turns what the proxy forwards into access messages and answers segmented ones with an acknowledgment.
+- **`session.ts`** (#212): one connection to a network through a proxy node. On start it reads the IV index from the proxy's beacon (and stores a change with the network), then sets the proxy filter to an accept list with the phone's address; then `send`, and `request`, which waits for the matching answer and repeats up to three times with fresh sequence numbers.
+- **`provision.ts`** (#212): provisioning over PB-GATT (service `0x1827`): invite, capabilities, P-256 public keys, confirmation and random, then the network key, IV index and unicast address encrypted with the session key. No OOB authentication (the lights offer none); algorithm 0 (P-256 with CMAC). The whole exchange reproduces the specification's provisioning sample data byte for byte.
+- **`configure.ts`** (#212): reads the light's composition data, adds the AppKey and binds it to every model except the configuration ones, all with the light's device key. Safe to repeat.
+
+## Pairing an Aputure light (`fixtures/provisionFlow.ts`, `fixtures/meshNetworks.ts`, #212)
+
+The phone is the provisioner of its own mesh network, so a light paired here leaves Sidus Link: to use it there again, reset it and add it in Sidus Link.
+
+- **Before pairing**, take the light out of Sidus Link: remove it in the app (the light's settings → remove), or reset it on the light (see its manual). A light still in another network advertises the proxy service instead of the provisioning service, and the phone says so instead of trying.
+- **One network per phone**, made on the first pairing: a random NetKey and AppKey, the phone at address `0x0001`, lights from `0x0002` on. Its record (name, IV index, next free address) syncs to the server like the fixtures (`/api/mesh-networks`); the keys and every light's device key stay in the phone's secure store (`openclapper.mesh.<networkId>`, scoped per server). A light paired on another phone shows there as "paired on another phone".
+- **Pair** (a light's screen → Pair with OpenClapper): find the light (10 s scan), provision it, store its device key *first*, then its address with the fixture, wait for it to restart as a proxy, reconnect, configure. Each step is shown; the debug log has the details.
+- **Resumable**: if the configuration does not finish (out of range, the app closed), the light's screen offers **Finish setup**, which only reconnects and configures.
+- If provisioning breaks off after the network key went out but before the light confirmed, the light may hold the keys while the phone has no device key for it: reset it and pair again.
 
 ## Screens (`apps/mobile/src/screens/Lights.tsx`)
 
@@ -80,6 +93,8 @@ The Aputure lights are Bluetooth Mesh nodes (Telink firmware). The phone talks t
 ## Not done
 
 - The Aputure driver (see Status above).
+- Removing a light from the phone's network over the mesh (Config Node Reset): deleting a fixture leaves the light in the network until it is reset.
+- More than one mesh network per phone, and moving keys to another phone.
 - The battery's per-output voltages.
 - Reading a light's current settings: the NEEWER lights answer queries, but what the replies mean is not decoded.
 - The keyframed sequence editor (a later epic): it will hold leases as `"sequence"` and send through the same queues.
