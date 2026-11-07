@@ -21,6 +21,10 @@ export interface LinkStatus {
   dropped?: number;
   /** Mean time from a frame's last packet to its display, in ms. */
   decodeMs?: number;
+  /** Diagnostics: RTP packets of the video track, NAL units by type ("1:120 7:1 8:1"), and the decoder's state. */
+  packets?: number;
+  nals?: string;
+  decoder?: string;
 }
 
 export interface VideoLinkProps extends ViewProps {

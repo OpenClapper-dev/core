@@ -36,7 +36,7 @@ internal class LinkSession(
 
   fun stop() {
     running = false
-    closer?.invoke()
+    closer?.let { c -> Thread({ c() }, "video-link-stop").start() }
     thread.interrupt()
   }
 
@@ -67,7 +67,7 @@ internal class LinkSession(
     var rtcp: DatagramSocket? = null
     val stats = Stats()
     val decoder = Decoder(surface, stats, onSize)
-    closer = { hccp.close(); rtsp?.close(); rtp?.close(); rtcp?.close() }
+    closer = { hccp.close(); rtsp?.abort(); rtp?.close(); rtcp?.close() }
     try {
       hccp.open()
       val r = Rtsp(network, "rtsp://$host:5554")
@@ -126,6 +126,9 @@ internal class LinkSession(
             "lost" to depack.lost,
             "dropped" to stats.dropped.get(),
             "decodeMs" to (if (frames > 0) lat / frames / 1000.0 else 0.0),
+            "packets" to depack.packets,
+            "nals" to depack.nalCounts.withIndex().filter { it.value > 0 }.joinToString(" ") { "${it.index}:${it.value}" },
+            "decoder" to (if (!stats.started) "waiting for SPS/PPS" else "fed ${stats.inputs.get()} frames"),
           ))
           bytes = 0
           nextStats = now + 1000

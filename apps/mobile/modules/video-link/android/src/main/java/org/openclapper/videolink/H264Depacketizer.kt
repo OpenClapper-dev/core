@@ -29,12 +29,18 @@ internal class H264Depacketizer(private val payloadType: Int, parameterSets: Lis
   var lost = 0
     private set
 
+  /** NAL units seen by type (1 slice, 5 IDR, 6 SEI, 7 SPS, 8 PPS), for the debug log. */
+  val nalCounts = IntArray(32)
+  var packets = 0
+    private set
+
   init { for (p in parameterSets) remember(p, 0, p.size) }
 
   /** Feeds one RTP packet; calls [emit] for every access unit it completes. */
   fun push(p: ByteArray, len: Int, emit: (AccessUnit) -> Unit) {
     if (len < 12 || (p[0].toInt() and 0xc0) != 0x80) return
     if ((p[1].toInt() and 0x7f) != payloadType) return
+    packets++
     val marker = (p[1].toInt() and 0x80) != 0
     val seq = ((p[2].toInt() and 0xff) shl 8) or (p[3].toInt() and 0xff)
     val ts = ((p[4].toLong() and 0xff) shl 24) or ((p[5].toLong() and 0xff) shl 16) or ((p[6].toLong() and 0xff) shl 8) or (p[7].toLong() and 0xff)
@@ -110,6 +116,7 @@ internal class H264Depacketizer(private val payloadType: Int, parameterSets: Lis
   /** Records the NAL just written at [at] (after its start code): key frame, SPS, PPS. */
   private fun noted(at: Int) {
     if (at >= size) return
+    nalCounts[buf[at].toInt() and 0x1f]++
     when (buf[at].toInt() and 0x1f) {
       5 -> key = true
       7, 8 -> remember(buf, at, size - at)

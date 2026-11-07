@@ -53,6 +53,11 @@ internal class Rtsp(network: Network?, private val url: String) {
   /** Keeps the RTSP session open (the server's timeout is longer than our 30 s). */
   fun keepAlive() { request("OPTIONS", url) }
 
+  /** Closes the connection without a TEARDOWN: safe from any thread, unblocks a pending read. */
+  fun abort() {
+    try { socket.close() } catch (_: IOException) {}
+  }
+
   fun close() {
     try { if (session != null) send("TEARDOWN", aggregate(), emptyList()) } catch (_: IOException) {}
     try { socket.close() } catch (_: IOException) {}

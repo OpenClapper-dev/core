@@ -23,9 +23,9 @@ A local Expo module in Kotlin, because the low latency needs a pipeline without 
 - `Hccp.kt`: login, burst, keep-alive.
 - `Rtsp.kt`: OPTIONS, DESCRIBE (SDP parse), SETUP over UDP, PLAY, keep-alive, TEARDOWN.
 - `H264Depacketizer.kt`: RTP to Annex-B frames (single NAL, STAP-A, FU-A). A lost packet drops only its fragmented NAL; the decoder conceals the rest instead of freezing until the next key frame.
-- `Decoder.kt`: the hardware decoder (`MediaCodec`, low-latency mode on Android 11+). A frame is rendered as soon as it is decoded; a full decoder drops the frame instead of queueing it.
+- `Decoder.kt`: the hardware decoder (`MediaCodec`, low-latency mode on Android 11+). It starts as soon as SPS and PPS are known, not on an IDR frame: a low-latency stream may refresh gradually and never send one. A frame is rendered as soon as it is decoded; a full decoder drops the frame instead of queueing it.
 - `LinkSession.kt`: one session on its own thread. It retries after 1, 2, 5 s and gives up on a session after 3 s without a packet.
-- `VideoLinkView.kt`: a `TextureView` with the picture letterboxed; it runs while `active`, mounted and the surface exists. It reports its state once a second (`onStatus`): fps, Mbit/s, decode time (last packet to display), packets lost, frames dropped.
+- `VideoLinkView.kt`: a `TextureView` with the picture letterboxed; it runs while `active`, mounted and the surface exists. It reports its state once a second (`onStatus`): fps, Mbit/s, decode time (last packet to display), packets lost, frames dropped. Until the first frame it also reports what arrived (RTP packets, NAL units by type, the decoder state), and the screen logs it every 5 s to the debug log.
 
 `src/screens/LivePicture.tsx` shows it with these numbers and keeps the screen on.
 

@@ -12,6 +12,8 @@ internal class Stats {
   val frames = AtomicInteger()
   val dropped = AtomicInteger()
   val latencyUs = AtomicLong()
+  val inputs = AtomicInteger()
+  @Volatile var started = false
 }
 
 /**
@@ -31,7 +33,9 @@ internal class Decoder(private val surface: Surface, private val stats: Stats, p
     val pps = au.pps
     if (codec != null && sps != null && !sps.contentEquals(configuredSps)) stop() // new resolution or profile
     if (codec == null) {
-      if (!au.key || sps == null || pps == null) return // waits for a key frame
+      // Starts on the parameter sets, not on an IDR: a low-latency stream may refresh gradually and never send one.
+      if (sps == null || pps == null) return
+      stats.started = true
       start(sps, pps)
     }
     val c = codec ?: return
@@ -46,6 +50,7 @@ internal class Decoder(private val surface: Surface, private val stats: Stats, p
     }
     buf.put(au.data, 0, au.size)
     c.queueInputBuffer(idx, 0, au.size, arrivalUs, 0)
+    stats.inputs.incrementAndGet()
   }
 
   private fun start(sps: ByteArray, pps: ByteArray) {
