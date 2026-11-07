@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { GRACE_MS, Hub, RETRY_MS } from "./hubCore.ts";
+import { GRACE_MS, Hub, REPORT_HOLD_MS, RETRY_MS } from "./hubCore.ts";
 import type { Command, Driver, Fixture, Link } from "./types.ts";
 
 const settle = async () => { for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r)); };
@@ -185,4 +185,26 @@ test("release closes a link that only the grace period keeps, not one still held
   assert.equal(await hub.release("a"), true);
   assert.equal(hub.status("a").link, "off");
   assert.equal(links[0].closed, true);
+});
+
+test("a light's late report does not pull the control back while the phone is still sending", async () => {
+  const time = fakeTime();
+  let sink: ((id: string, t: { at: number; state?: object }) => void) | null = null;
+  const driver: Driver = {
+    id: "fake", linkKey: (f) => f.address, rate: { minIntervalMs: 0 }, addressesFor: (k) => [k],
+    open: async (_l, _f, s) => { sink = s; return { send: async () => {}, close: async () => {} }; },
+  };
+  const hub = new Hub({
+    fixtures: () => [fixture("a", "AA:00:00:00:00:01")], driverFor: () => driver,
+    connect: async (address) => new FakeLink(address), timers: time,
+    clock: { now: () => time.now, wait: async () => {} }, log: () => {},
+  });
+  hub.acquire(["a"], "screen");
+  await time.advance(0);
+  await hub.send("a", { op: "intensity", value: 0.9 });
+  sink!("a", { at: time.now, state: { intensity: 0.4 } }); // the report for an earlier value
+  assert.equal(hub.status("a").state.intensity, 0.9);
+  await time.advance(REPORT_HOLD_MS);
+  sink!("a", { at: time.now, state: { intensity: 0.85 } }); // the light changed on its own later
+  assert.equal(hub.status("a").state.intensity, 0.85);
 });

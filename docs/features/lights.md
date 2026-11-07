@@ -8,7 +8,7 @@ First fixtures:
 | --- | --- | --- |
 | NEEWER FS230B, FS300B | Bluetooth LE, its own connection (GATT) | Power, intensity, white 2700–6500 K, dimming curves; green/magenta on the FS300B |
 | NEEWER PS099S (V-mount battery) | Bluetooth LE, its own connection | Charge, volts, current, watts, estimated time left (read-only) |
-| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K + green/magenta, colour; reports its state |
+| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K, colour; reports its state |
 
 **Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213) are built. Not yet: the Aputure's native dimming curve and device-side fade (their commands are not known; #289).
 
@@ -83,9 +83,10 @@ The phone is the provisioner of its own mesh network, so a light paired here lea
 ## Aputure lights (`drivers/sidusMesh.ts`, `codecs/sidus.ts`, #213)
 
 - **One connection per network**: the hub's link for every paired MC of a network is the same mesh session, through whichever light it reaches first; that light relays to the others. Unpaired MCs cannot be the proxy.
-- **Commands** are Telink access messages (opcode `0x26`, 10-byte payload: checksum, bit-packed fields, command type) to the light's primary address with the network's application key: power (`0x8c`), intensity 0–1000 (`0x8f`), white with green/magenta −10..+10 (`0x82`), colour with hue and saturation (`0x81`). Layout from wesbos/amaran-BLE-control (MIT); the encoder is checked against vectors produced by that implementation.
+- **Commands** are Telink access messages (opcode `0x26`, 10-byte payload: checksum, bit-packed fields, command type) to the light's primary address with the network's application key: power (`0x8c`), intensity 0–1000 (`0x8f`), white (`0x82`; its green/magenta field is sent neutral, the MC has no such control), colour with hue and saturation (`0x81`). Layout from wesbos/amaran-BLE-control (MIT); the encoder is checked against vectors produced by that implementation.
 - **Unacknowledged**, so each command goes out twice, 40 ms apart; one write per 120 ms per network, newer values replacing queued ones.
-- **The light reports its state**: on connect the driver asks every light of the network (`0x0e`), and each report (`0x02` white, `0x01` colour) becomes the light's state, so the controls show what the light really shows.
+- **The light reports its state**: on connect the driver asks every light of the network (`0x0e`), and each report (`0x02` white, `0x01` colour) becomes the light's state, so the controls show what the light really shows. The lights also report after changes, to the provisioner, which is the phone; while a slider moves, those reports trail behind. So the hub ignores a light's reports for 1.5 s after the phone last sent it a command (`REPORT_HOLD_MS`), or a late report would pull the control back to a value already left.
+- **Reaction time** (owner's test on MC 1 and MC 3): the lights follow fast changes, but not instantly. Before the keyframe editor, measure how long a light takes to settle on a new value, per kind, and plan keyframe spacing around it.
 - **Firmware**: each light's composition data (maker, product, version, elements) is stored with its device key at setup and shown on its screen. The owner's MCs are not all on the same firmware (one reports one element, another three); nothing depends on it.
 - **Not known yet**: the commands for the dimming curve and the device-side fade ("Dimming Design" in Sidus Link), tracked in #289. The MC therefore has no curve control.
 
