@@ -9,6 +9,20 @@
 export const CURVES = ["linear", "exp", "log", "s"] as const;
 export type Curve = (typeof CURVES)[number];
 
+/**
+ * Built-in effects with their makers' default settings (#291). The first-generation set is what
+ * Sidus Link offers for the Aputure MC.
+ */
+export const EFFECTS = [
+  { id: "club_lights", name: "Club lights" }, { id: "paparazzi", name: "Paparazzi" }, { id: "lightning", name: "Lightning" },
+  { id: "tv", name: "TV" }, { id: "candle", name: "Candle" }, { id: "fire", name: "Fire" }, { id: "strobe", name: "Strobe" },
+  { id: "explosion", name: "Explosion" }, { id: "faulty_bulb", name: "Faulty bulb" }, { id: "pulsing", name: "Pulsing" },
+  { id: "welding", name: "Welding" }, { id: "cop_car", name: "Cop car" }, { id: "color_chase", name: "Color chase" },
+  { id: "party_lights", name: "Party lights" }, { id: "fireworks", name: "Fireworks" },
+] as const;
+export type EffectId = (typeof EFFECTS)[number]["id"];
+export const effectName = (id: EffectId) => EFFECTS.find((e) => e.id === id)?.name ?? id;
+
 /** Read-only values a fixture reports (the battery). */
 export const TELEMETRY_FIELDS = ["battery", "volts", "amps", "watts", "minutesLeft"] as const;
 export type TelemetryField = (typeof TELEMETRY_FIELDS)[number];
@@ -24,6 +38,8 @@ export interface Capabilities {
   /** The fixture's own dimming-curve setting. */
   curves: boolean;
   telemetry: readonly TelemetryField[];
+  /** Built-in effects it runs (EFFECTS ids). */
+  effects?: readonly EffectId[];
   /** A battery's rated energy, for the time-left estimate. */
   capacityWh?: number;
 }
@@ -60,7 +76,7 @@ export const FIXTURE_KINDS: readonly FixtureKind[] = [
   // Sidus Mesh RGBWW. No green/magenta (the light has none, though the white command carries the
   // field: sent neutral); the command for its dimming curve is not known yet (#289). Its built-in
   // battery reports charge, voltage and its own time left (#293).
-  { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: null }, hsi: true, curves: false, telemetry: ["battery", "volts", "minutesLeft"] } },
+  { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: null }, hsi: true, curves: false, telemetry: ["battery", "volts", "minutesLeft"], effects: EFFECTS.map((e) => e.id) } },
 ];
 
 export const fixtureKind = (id: string): FixtureKind | undefined => FIXTURE_KINDS.find((k) => k.id === id);
@@ -74,6 +90,8 @@ export interface LightState {
   hsi?: { h: number; s: number; i: number };
   /** The fixture's own dimming curve (NEEWER: part of every white-light command). */
   curve?: Curve;
+  /** A running built-in effect; null when the light shows plain white or colour. */
+  effect?: EffectId | null;
 }
 
 /**

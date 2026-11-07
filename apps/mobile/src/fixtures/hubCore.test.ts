@@ -164,7 +164,7 @@ test("sends go through the link and update the known state", async () => {
   await hub.send("a", { op: "intensity", value: 0.4 });
   await hub.send("a", { op: "cct", kelvin: 3200, gm: 0 });
   assert.equal(links[0].writes.length, 2);
-  assert.deepEqual(hub.status("a").state, { intensity: 0.4, cct: { kelvin: 3200, gm: 0 }, hsi: undefined });
+  assert.deepEqual(hub.status("a").state, { intensity: 0.4, cct: { kelvin: 3200, gm: 0 }, hsi: undefined, effect: null });
 });
 
 test("a kind without a driver says so instead of connecting", async () => {
