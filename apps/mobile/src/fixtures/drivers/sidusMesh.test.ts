@@ -107,6 +107,20 @@ test("an effect's options travel with it and survive an intensity change", async
   await s.close();
 });
 
+test("a Lightning strike goes out once, with the running effect's options", async () => {
+  const { node, driver } = setup();
+  const light = mc("MC 3", 3);
+  const s = await driver.open(node.link(), [light], () => {});
+  await new Promise((r) => setTimeout(r, 10));
+  await s.send(light, { op: "intensity", value: 1 });
+  const o = { kelvin: 6000, frequency: 3, speed: 4 };
+  await s.send(light, { op: "effect", effect: "lightning", settings: o });
+  node.telink.length = 0;
+  await s.send(light, { op: "trigger" });
+  assert.deepEqual(node.telink, [hex(effect("lightning", 1, o, true))]);
+  await s.close();
+});
+
 test("without the network's keys on this phone the connection is refused", async () => {
   const { node } = setup();
   const driver = sidusMesh({ access: () => ({ keysFor: () => null }) });

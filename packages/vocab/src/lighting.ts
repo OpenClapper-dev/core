@@ -24,20 +24,51 @@ export type EffectId = (typeof EFFECTS)[number]["id"];
 export const effectName = (id: EffectId) => EFFECTS.find((e) => e.id === id)?.name ?? id;
 
 /**
- * Options of an effect, as Sidus Link names them (#292). Frequency and speed run 1..10, 11 means
- * random; colour is white at a colour temperature or a colour (hue 0..360, saturation 0..1).
+ * Options of an effect, as Sidus Link names them (#292, #300). Every field is optional: an effect
+ * uses the ones its spec lists. Steps run 1..10, 11 meaning random where the effect allows it.
  */
 export interface EffectSettings {
-  frequency: number;
-  speed: number;
-  color: { kelvin: number } | { h: number; s: number };
+  frequency?: number;
+  speed?: number;
+  /** White at a colour temperature, or a colour (hue 0..360, saturation 0..1): Faulty bulb, Pulsing. */
+  color?: { kelvin: number } | { h: number; s: number };
+  /** A white-only effect's colour temperature: Paparazzi, Lightning. */
+  kelvin?: number;
+  /** 0..1: Party lights. */
+  saturation?: number;
+  /** Index into the effect's choice list: TV and Fire tone, Cop car colours, Fireworks kind. */
+  choice?: number;
 }
-/** 11 on the frequency or speed scale: the light varies it at random. */
+/** 11 on a frequency or speed scale: the light varies it at random. */
 export const EFFECT_RANDOM = 11;
-/** Effects whose options are known (Faulty bulb and Pulsing share one layout). */
-export const EFFECTS_WITH_OPTIONS: readonly EffectId[] = ["faulty_bulb", "pulsing"];
-/** What the app's presets send: red at full saturation, frequency and speed 5. */
-export const DEFAULT_EFFECT_SETTINGS: EffectSettings = { frequency: 5, speed: 5, color: { h: 0, s: 1 } };
+
+/** One option on an effect's screen; `max` 11 adds Random. Cop car's flash shows 6..10 as cycles. */
+export type EffectOptionSpec =
+  | { key: "frequency" | "speed"; label: string; max: 10 | 11; cycles?: boolean }
+  | { key: "color" | "kelvin" | "saturation"; label: string }
+  | { key: "choice"; label: string; values: readonly string[] };
+
+/**
+ * Each MC effect's options and the defaults Sidus Link's presets send (from its 2.0.42 effect
+ * classes). The defaults reproduce the amaran-hacs presets byte for byte.
+ */
+export const EFFECT_OPTIONS: Partial<Record<EffectId, { options: readonly EffectOptionSpec[]; defaults: EffectSettings }>> = {
+  paparazzi: { options: [{ key: "kelvin", label: "White" }, { key: "frequency", label: "Frequency", max: 10 }], defaults: { kelvin: 5600, frequency: 5 } },
+  lightning: { options: [{ key: "kelvin", label: "White" }, { key: "frequency", label: "Frequency", max: 11 }, { key: "speed", label: "Speed", max: 11 }], defaults: { kelvin: 5600, frequency: 5, speed: 5 } },
+  tv: { options: [{ key: "choice", label: "Tone", values: ["Warmer", "Natural", "Cooler"] }, { key: "frequency", label: "Speed", max: 11 }], defaults: { choice: 0, frequency: 5 } },
+  fire: { options: [{ key: "choice", label: "Tone", values: ["Warmer", "Natural", "Cooler"] }, { key: "frequency", label: "Speed", max: 11 }], defaults: { choice: 0, frequency: 5 } },
+  faulty_bulb: { options: [{ key: "color", label: "Colour" }, { key: "frequency", label: "Frequency", max: 11 }, { key: "speed", label: "Speed", max: 11 }], defaults: { frequency: 5, speed: 5, color: { h: 0, s: 1 } } },
+  pulsing: { options: [{ key: "color", label: "Colour" }, { key: "frequency", label: "Frequency", max: 11 }, { key: "speed", label: "Speed", max: 11 }], defaults: { frequency: 5, speed: 5, color: { h: 0, s: 1 } } },
+  cop_car: { options: [{ key: "choice", label: "Colours", values: ["Red", "Blue", "Red + blue", "Blue + white", "Red + blue + white"] }, { key: "frequency", label: "Flash", max: 10, cycles: true }], defaults: { choice: 2, frequency: 5 } },
+  party_lights: { options: [{ key: "saturation", label: "Saturation" }, { key: "frequency", label: "Speed", max: 11 }], defaults: { saturation: 1, frequency: 5 } },
+  fireworks: { options: [{ key: "choice", label: "Kind", values: ["White", "Colour", "Multi"] }, { key: "frequency", label: "Frequency", max: 11 }], defaults: { choice: 0, frequency: 5 } },
+};
+/** Effects with options on the screen. */
+export const EFFECTS_WITH_OPTIONS = Object.keys(EFFECT_OPTIONS) as EffectId[];
+/** An effect's options with its defaults filled in. */
+export const effectSettingsOf = (id: EffectId, s?: EffectSettings): EffectSettings => ({ ...EFFECT_OPTIONS[id]?.defaults, ...s });
+/** Lightning can strike once on demand (Sidus Link's Trigger button). */
+export const TRIGGER_EFFECTS: readonly EffectId[] = ["lightning"];
 
 /**
  * The effects the MC offers (owner's MC, 2026-11-07): the other six first-generation effects are

@@ -117,6 +117,11 @@ export function sidusMesh(o: SidusOptions): Driver {
               return toLight(f, statusRequest(), 1);
             case "status": return toLight(f, statusRequest(), 1);
             case "curve": return toLight(f, curve(cmd.curve));
+            case "trigger": {
+              const fx = running.get(f.id);
+              // Once only: a repeat would strike twice.
+              return fx ? toLight(f, effect(fx.id, l.intensity, fx.settings, true), 1) : undefined;
+            }
             default: throw new Error("unknown command");
           }
         },

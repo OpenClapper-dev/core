@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, effectName, DEFAULT_EFFECT_SETTINGS, EFFECT_RANDOM, EFFECTS_WITH_OPTIONS, type EffectId, type EffectSettings, type FixtureKind, type LightState, type TelemetryField } from "@openclapper/vocab";
+import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, effectName, effectSettingsOf, EFFECT_OPTIONS, EFFECT_RANDOM, TRIGGER_EFFECTS, type Capabilities, type EffectId, type EffectSettings, type FixtureKind, type LightState, type TelemetryField } from "@openclapper/vocab";
 import { useApp } from "../appState";
 import { adapterState, scan, type Seen } from "../ble/link";
 import { askBluetooth } from "../ble/permissions";
@@ -319,6 +319,77 @@ function BatteryReadout({ t, ready, estimated }: { t: Telemetry | null; ready: b
   );
 }
 
+/** A frequency or speed step: 11 is Random; Cop car's flash shows 6..10 as cycles. */
+function stepLabel(x: number, max: number, cycles?: boolean) {
+  if (max === 11 && x >= EFFECT_RANDOM) return "Random";
+  return cycles && x > 5 ? `Cycle ${x - 5}` : String(x);
+}
+
+/** The running effect's options, as its spec in packages/vocab lists them (#292, #300). */
+function EffectOptions({ effect, settings: o, ready, cct, onChange, onTrigger }: {
+  effect: EffectId; settings: EffectSettings; ready: boolean; cct: Capabilities["cct"];
+  onChange: (next: EffectSettings) => void; onTrigger?: () => void;
+}) {
+  const [sheet, setSheet] = useState<string | null>(null);
+  const spec = EFFECT_OPTIONS[effect];
+  if (!spec) return null;
+  const mid = cct ? Math.round((cct.min + cct.max) / 200) * 100 : 5600;
+  const kelvinSlider = (label: string, value: number, set: (k: number) => void) => cct
+    ? <Slider key={label} label={label} value={value} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} disabled={!ready} onChange={set} />
+    : null;
+  return (
+    <View style={{ gap: 12 }}>
+      {spec.options.map((opt) => {
+        switch (opt.key) {
+          case "frequency":
+          case "speed":
+            return <Slider key={opt.key} label={opt.label} value={o[opt.key] ?? 5} min={1} max={opt.max} format={(x) => stepLabel(x, opt.max, opt.cycles)} disabled={!ready}
+              onChange={(x) => onChange({ ...o, [opt.key]: x })} />;
+          case "kelvin":
+            return kelvinSlider(`Effect ${opt.label.toLowerCase()}`, o.kelvin ?? mid, (k) => onChange({ ...o, kelvin: k }));
+          case "saturation":
+            return <Slider key={opt.key} label={opt.label} value={Math.round((o.saturation ?? 1) * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready}
+              onChange={(x) => onChange({ ...o, saturation: x / 100 })} />;
+          case "choice":
+            // Long lists (Cop car's five colour sets) open a sheet; short ones fit a segmented row.
+            if (opt.values.length > 3) return (
+              <View key={opt.key}>
+                <FieldRow icon="palette-outline" label={opt.label} value={opt.values[o.choice ?? 0] ?? null} onPress={() => ready && setSheet(opt.key)} />
+                <OptionSheet visible={sheet === opt.key} title={opt.label} list options={opt.values.map((label, i) => ({ id: String(i), label }))} value={[String(o.choice ?? 0)]}
+                  onChange={(ids) => { if (ids[0] !== undefined) onChange({ ...o, choice: Number(ids[0]) }); }} onClose={() => setSheet(null)} />
+              </View>
+            );
+            return (
+              <View key={opt.key} style={{ gap: 6 }}>
+                <SectionLabel>{opt.label}</SectionLabel>
+                <Seg block accessibilityLabel={opt.label} disabled={!ready} value={String(o.choice ?? 0)}
+                  onChange={(x) => onChange({ ...o, choice: Number(x) })} options={opt.values.map((label, i) => ({ id: String(i), label }))} />
+              </View>
+            );
+          case "color": {
+            const color = o.color ?? { h: 0, s: 1 };
+            return (
+              <View key={opt.key} style={{ gap: 12 }}>
+                <Seg size="lg" block accessibilityLabel="Effect colour" disabled={!ready} value={"kelvin" in color ? "white" : "colour"}
+                  onChange={(m) => onChange({ ...o, color: m === "white" ? { kelvin: mid } : { h: 0, s: 1 } })}
+                  options={[{ id: "white", label: "White" }, { id: "colour", label: "Colour" }]} />
+                {"kelvin" in color ? kelvinSlider("Effect white", color.kelvin, (k) => onChange({ ...o, color: { kelvin: k } })) : (
+                  <>
+                    <Slider label="Effect hue" value={Math.round(color.h)} min={0} max={360} format={(x) => `${x}°`} disabled={!ready} onChange={(x) => onChange({ ...o, color: { ...color, h: x } })} />
+                    <Slider label="Effect saturation" value={Math.round(color.s * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready} onChange={(x) => onChange({ ...o, color: { ...color, s: x / 100 } })} />
+                  </>
+                )}
+              </View>
+            );
+          }
+          default: return null;
+        }
+      })}
+      {onTrigger && <Button kind="secondary" icon="flash" label="Strike now" disabled={!ready} onPress={onTrigger} />}
+    </View>
+  );
+}
+
 /** Send and forget: the hub coalesces, and a refused write is in the debug log. */
 const fire = (id: string, cmd: Command) => { void sendToFixture(id, cmd).catch((e) => log("debug", "fixture send dropped", { fixture: id, error: e })); };
 
@@ -372,36 +443,11 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
             <>
               <FieldRow icon="creation" label="Effect" value={v.effect ? effectName(v.effect) : "Off"} onPress={() => setFxSheet(true)} />
               {v.effect && <Hint>Intensity applies to the effect; choose White or Colour to stop it.</Hint>}
-              {v.effect && EFFECTS_WITH_OPTIONS.includes(v.effect) && (() => {
-                const fx = v.effect;
-                const o = v.effectSettings ?? DEFAULT_EFFECT_SETTINGS;
-                const set = (next: EffectSettings) => send({ effectSettings: next }, { op: "effect", effect: fx, settings: next });
-                const step = (x: number) => (x >= EFFECT_RANDOM ? "Random" : String(x));
-                const white = "kelvin" in o.color;
-                const mid = caps.cct ? Math.round((caps.cct.min + caps.cct.max) / 200) * 100 : 5600;
-                return (
-                  <View style={{ gap: 12 }}>
-                    <Seg size="lg" block accessibilityLabel="Effect colour" disabled={!ready} value={white ? "white" : "colour"}
-                      onChange={(m) => set({ ...o, color: m === "white" ? { kelvin: mid } : { h: 0, s: 1 } })}
-                      options={[{ id: "white", label: "White" }, { id: "colour", label: "Colour" }]} />
-                    {"kelvin" in o.color && caps.cct && (
-                      <Slider label="Effect white" value={o.color.kelvin} min={caps.cct.min} max={caps.cct.max} step={100} format={(x) => `${x} K`} disabled={!ready}
-                        onChange={(x) => set({ ...o, color: { kelvin: x } })} />
-                    )}
-                    {"h" in o.color && (() => {
-                      const col = o.color;
-                      return (
-                        <>
-                          <Slider label="Effect hue" value={Math.round(col.h)} min={0} max={360} format={(x) => `${x}°`} disabled={!ready} onChange={(x) => set({ ...o, color: { ...col, h: x } })} />
-                          <Slider label="Effect saturation" value={Math.round(col.s * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready} onChange={(x) => set({ ...o, color: { ...col, s: x / 100 } })} />
-                        </>
-                      );
-                    })()}
-                    <Slider label="Frequency" value={o.frequency} min={1} max={EFFECT_RANDOM} format={step} disabled={!ready} onChange={(x) => set({ ...o, frequency: x })} />
-                    <Slider label="Speed" value={o.speed} min={1} max={EFFECT_RANDOM} format={step} disabled={!ready} onChange={(x) => set({ ...o, speed: x })} />
-                  </View>
-                );
-              })()}
+              {v.effect && EFFECT_OPTIONS[v.effect] && (
+                <EffectOptions effect={v.effect} settings={effectSettingsOf(v.effect, v.effectSettings)} ready={ready} cct={caps.cct}
+                  onChange={(next) => send({ effectSettings: next }, { op: "effect", effect: v.effect!, settings: next })}
+                  onTrigger={TRIGGER_EFFECTS.includes(v.effect) ? () => fire(f.id, { op: "trigger" }) : undefined} />
+              )}
               <OptionSheet visible={fxSheet} title="Effect" sub="With Sidus Link's default settings" list
                 options={[{ id: "off", label: "Off" }, ...caps.effects.map((id) => ({ id, label: effectName(id) }))]} value={[v.effect ?? "off"]}
                 onChange={(ids) => { const id = ids[0]; if (!id || !ready) return; const fx = id === "off" ? null : (id as EffectId); send({ effect: fx }, { op: "effect", effect: fx }); }}

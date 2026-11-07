@@ -116,3 +116,26 @@ test("Faulty bulb and Pulsing options: the defaults are the reference preset, wh
   // Out of range is clamped: 0 → 1, 15 → 11.
   assert.equal(parseEffect(effect("faulty_bulb", 1, { frequency: 0, speed: 15, color: { kelvin: 5600 } }))?.settings?.frequency, 1);
 });
+
+test("the other MC effects' options round-trip at the app's positions (#300)", () => {
+  const cases: [Parameters<typeof effect>[0], NonNullable<Parameters<typeof effect>[2]>][] = [
+    ["paparazzi", { kelvin: 3200, frequency: 9 }],
+    ["lightning", { kelvin: 6500, frequency: 11, speed: 2 }],
+    ["tv", { choice: 2, frequency: 7 }],
+    ["fire", { choice: 1, frequency: 11 }],
+    ["cop_car", { choice: 4, frequency: 8 }],
+    ["party_lights", { saturation: 0.3, frequency: 3 }],
+    ["fireworks", { choice: 2, frequency: 10 }],
+  ];
+  for (const [id, o] of cases) assert.deepEqual(parseEffect(effect(id, 0.7, o)), { effect: id, on: true, intensity: 0.7, settings: o }, id);
+  // Ranges: Paparazzi and Cop car stop at 10, choices at their last value.
+  assert.equal(parseEffect(effect("paparazzi", 1, { frequency: 11 }))?.settings?.frequency, 10);
+  assert.equal(parseEffect(effect("cop_car", 1, { choice: 9 }))?.settings?.choice, 4);
+});
+
+test("Lightning: trigger 1 strikes once, 2 is the automatic pattern", () => {
+  const auto = effect("lightning", 1);
+  const strike = effect("lightning", 1, undefined, true);
+  const field = (p: Uint8Array) => ((p[3] >> 7) & 1) | ((p[4] & 1) << 1); // bits 31-32
+  assert.deepEqual([field(auto), field(strike)], [2, 1]);
+});

@@ -27,6 +27,8 @@ export type Command =
   | { op: "curve"; curve: Curve }
   /** Run a built-in effect at the current intensity, or stop it (null). */
   | { op: "effect"; effect: EffectId | null; settings?: EffectSettings }
+  /** Fire the running effect once now (Lightning's strike). */
+  | { op: "trigger" }
   | { op: "status" };
 
 /** What a fixture reported last; `state` is what a light says it shows. */
