@@ -32,8 +32,12 @@ export interface Telemetry {
   at: number;
   battery?: number;
   volts?: number;
+  /** Current drawn; the battery reports this, watts are volts × amps. */
+  amps?: number;
   watts?: number;
   minutesLeft?: number;
+  /** A battery feeding a load. */
+  discharging?: boolean;
   state?: LightState;
 }
 
