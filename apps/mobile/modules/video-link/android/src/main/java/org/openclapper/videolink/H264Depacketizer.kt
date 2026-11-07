@@ -34,17 +34,17 @@ internal class H264Depacketizer(private val payloadType: Int, parameterSets: Lis
   /** Feeds one RTP packet; calls [emit] for every access unit it completes. */
   fun push(p: ByteArray, len: Int, emit: (AccessUnit) -> Unit) {
     if (len < 12 || (p[0].toInt() and 0xc0) != 0x80) return
-    if (p[1].toInt() and 0x7f != payloadType) return
-    val marker = p[1].toInt() and 0x80 != 0
+    if ((p[1].toInt() and 0x7f) != payloadType) return
+    val marker = (p[1].toInt() and 0x80) != 0
     val seq = ((p[2].toInt() and 0xff) shl 8) or (p[3].toInt() and 0xff)
     val ts = ((p[4].toLong() and 0xff) shl 24) or ((p[5].toLong() and 0xff) shl 16) or ((p[6].toLong() and 0xff) shl 8) or (p[7].toLong() and 0xff)
     var off = 12 + 4 * (p[0].toInt() and 0x0f)
-    if (p[0].toInt() and 0x10 != 0) {
+    if ((p[0].toInt() and 0x10) != 0) {
       if (off + 4 > len) return
       off += 4 + 4 * (((p[off + 2].toInt() and 0xff) shl 8) or (p[off + 3].toInt() and 0xff))
     }
     var end = len
-    if (p[0].toInt() and 0x20 != 0) end -= p[len - 1].toInt() and 0xff
+    if ((p[0].toInt() and 0x20) != 0) end -= p[len - 1].toInt() and 0xff
     if (off >= end) return
 
     if (expectedSeq >= 0 && seq != expectedSeq) {
@@ -72,8 +72,8 @@ internal class H264Depacketizer(private val payloadType: Int, parameterSets: Lis
       28 -> { // FU-A
         if (off + 2 > end) return
         val fu = p[off + 1].toInt()
-        val start = fu and 0x80 != 0
-        val stop = fu and 0x40 != 0
+        val start = (fu and 0x80) != 0
+        val stop = (fu and 0x40) != 0
         if (start) {
           fuActive = true
           fuBroken = false

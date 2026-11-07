@@ -182,7 +182,8 @@ internal class LinkSession(
   @SuppressLint("HardwareIds")
   private fun appId(): ByteArray {
     val hex = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID) ?: ""
-    return ByteArray(8) { i -> hex.substring(2 * i, 2 * i + 2).toIntOrNull(16)?.toByte() ?: 0 }.takeIf { hex.length >= 16 } ?: Random.nextBytes(8)
+    if (hex.length < 16) return Random.nextBytes(8)
+    return ByteArray(8) { i -> hex.substring(2 * i, 2 * i + 2).toIntOrNull(16)?.toByte() ?: 0 }
   }
 
   companion object {

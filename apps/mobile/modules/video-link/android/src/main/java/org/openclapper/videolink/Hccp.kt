@@ -45,7 +45,7 @@ internal class Hccp(
       if (len < 0 || len > 1 shl 20) throw IOException("Transmitter sent a malformed reply")
       val body = ByteArray(len)
       input.readFully(body)
-      if (header[1].toInt() and 0xff != OP_LOGIN) continue
+      if ((header[1].toInt() and 0xff) != OP_LOGIN) continue
       val status = if (body.isEmpty()) -1 else body[0].toInt() and 0xff
       if (status == 2) throw IOException("The transmitter has too many viewers")
       if (status != 0) throw IOException("The transmitter refused the login ($status)")
