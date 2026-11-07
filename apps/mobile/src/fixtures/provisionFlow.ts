@@ -6,7 +6,8 @@ import { configureNode } from "./mesh/configure";
 import { PB_GATT_IN, PB_GATT_OUT, PB_GATT_SERVICE, provision, ProvisioningError, type ProvisioningIo } from "./mesh/provision";
 import { PDU, proxyChunks, ProxyReassembler } from "./mesh/proxy";
 import { MeshSession } from "./mesh/session";
-import { saveFixture } from "./library";
+import { getFixtures, saveFixture } from "./library";
+import { overlapping } from "./meshAddress";
 import { APP_KEY_INDEX, appKeyOf, ensureNetwork, getMeshNetworks, NET_KEY_INDEX, netKeyOf, networkKeys, nodeState, rememberNode, saveMeshNetwork, seqFor, type MeshNetwork } from "./meshNetworks";
 import type { Fixture, Link } from "./types";
 
@@ -67,9 +68,11 @@ async function connectWithRetry(address: string, tries: number): Promise<Link> {
  * unprovisioned, then configures it through its proxy. Resumable: a light provisioned earlier but
  * not configured (the app was closed, the light went out of range) only gets the second half.
  */
-export async function provisionFixture(f: Fixture, onStage: (s: Stage) => void): Promise<Fixture> {
+export async function provisionFixture(f: Fixture, onStage: (s: Stage) => void, opts: { fresh?: boolean } = {}): Promise<Fixture> {
   if (!(await askBluetooth())) throw new Error("Bluetooth permission denied. Allow “Nearby devices” for OpenClapper in Android settings.");
   if ((await adapterState().catch(() => "unknown")) !== "on") throw new Error("Bluetooth is off.");
+  // A fresh pairing (the light was reset) forgets the old address; the light gets a new one.
+  if (opts.fresh) f = { ...f, mesh: null };
   let network: MeshNetwork = f.mesh ? getMeshNetworks().find((n) => n.id === f.mesh!.networkId) ?? (await ensureNetwork()) : await ensureNetwork();
   let fixture = f;
 
@@ -121,7 +124,18 @@ export async function provisionFixture(f: Fixture, onStage: (s: Stage) => void):
     await session.start();
     onStage("configure");
     const r = await configureNode(session, { unicast: mesh.unicast, devKey }, { netKeyIndex: NET_KEY_INDEX, appKeyIndex: APP_KEY_INDEX, appKey });
-    log("info", "mesh: configured", { fixture: f.id, models: r.boundModels, failed: r.failedModels, cid: r.composition.cid.toString(16), pid: r.composition.pid.toString(16) });
+    log("info", "mesh: configured", { fixture: f.id, unicast: mesh.unicast, elements: r.composition.elements.length, models: r.boundModels, failed: r.failedModels, cid: r.composition.cid.toString(16), pid: r.composition.pid.toString(16) });
+    // The composition is the truth about how many addresses the light occupies.
+    const elements = r.composition.elements.length;
+    if (elements !== mesh.elements) {
+      log("warn", "mesh: element count differs from the pairing", { fixture: f.id, recorded: mesh.elements, actual: elements });
+      fixture = { ...fixture, mesh: { ...mesh, elements } };
+      await saveFixture(fixture);
+      const end = mesh.unicast + elements;
+      if (end > network.nextUnicast) { network = { ...network, nextUnicast: end }; await saveMeshNetwork(network); }
+    }
+    const clash = overlapping(fixture, getFixtures());
+    if (clash) throw new Error(`This light's addresses (${mesh.unicast}–${mesh.unicast + elements - 1}) overlap “${clash.label}”. Reset this light, then use Pair again on its screen.`);
     rememberNode(network.id, mesh.unicast, devKey, true);
   } finally {
     await session.close();

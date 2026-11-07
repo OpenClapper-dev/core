@@ -9,6 +9,7 @@ import { linkLabel, sendToFixture, useFixtureLease, useFixtureStatus } from "../
 import { deleteFixture, getFixtures, saveFixture, syncFixtures, useFixtures } from "../fixtures/library";
 import { formatMinutes } from "../fixtures/batteryEstimate";
 import { hasKeys, nodeState } from "../fixtures/meshNetworks";
+import { overlapping } from "../fixtures/meshAddress";
 import { provisionFixture, STAGES, type Stage } from "../fixtures/provisionFlow";
 import { ALL_KINDS, suggestKinds } from "../fixtures/registry";
 import type { Command, Fixture, Telemetry } from "../fixtures/types";
@@ -199,11 +200,11 @@ const CURVE_OPTIONS = [
  */
 function MeshPairing({ f }: { f: Fixture }) {
   const app = useApp();
-  const open = () => app.push({ name: "fixtureProvision", fixtureId: f.id });
+  const open = (fresh = false) => app.push({ name: "fixtureProvision", fixtureId: f.id, fresh });
   if (!f.mesh) return (
     <>
       <Hint>Not on OpenClapper's mesh yet. Pairing takes it out of Sidus Link.</Hint>
-      <Button icon="link-variant" label="Pair with OpenClapper" onPress={open} />
+      <Button icon="link-variant" label="Pair with OpenClapper" onPress={() => open()} />
     </>
   );
   if (!hasKeys(f.mesh.networkId)) return <Hint>Paired on another phone: this light's network keys are not on this one.</Hint>;
@@ -211,10 +212,20 @@ function MeshPairing({ f }: { f: Fixture }) {
   if (!node?.configured) return (
     <>
       <Hint>Paired, but the setup did not finish.</Hint>
-      <Button icon="cog-outline" label="Finish setup" onPress={open} />
+      <Button icon="cog-outline" label="Finish setup" onPress={() => open()} />
     </>
   );
-  return <Hint>{`On OpenClapper's mesh as address ${f.mesh.unicast}. The controls come with the next update.`}</Hint>;
+  const clash = overlapping(f, getFixtures());
+  return (
+    <>
+      <Hint>{`On OpenClapper's mesh at address ${f.mesh.unicast}${f.mesh.elements > 1 ? `–${f.mesh.unicast + f.mesh.elements - 1}` : ""}. The controls come with the next update.`}</Hint>
+      {clash && <Banner kind="warn" icon="alert-outline" title={`Addresses overlap “${clash.label}”`} meta="Run setup again to check; if it stays, reset this light and pair it again." />}
+      <SideBySide>
+        <Button style={{ flex: 1 }} kind="secondary" icon="cog-outline" label="Run setup again" onPress={() => open()} />
+        <Button style={{ flex: 1 }} kind="secondary" icon="link-variant" label="Pair again" onPress={() => open(true)} />
+      </SideBySide>
+    </>
+  );
 }
 
 const STAGE_LABELS: Record<Stage, string> = {
@@ -228,7 +239,7 @@ const STAGE_LABELS: Record<Stage, string> = {
 };
 
 /** Setup → Lights → a mesh light → Pair: provisions and configures it, with each step shown (#212). */
-export function FixtureProvision({ fixtureId }: { fixtureId: string }) {
+export function FixtureProvision({ fixtureId, fresh = false }: { fixtureId: string; fresh?: boolean }) {
   const app = useApp();
   const { c } = useTheme();
   const f = useFixtures().find((x) => x.id === fixtureId);
@@ -236,12 +247,12 @@ export function FixtureProvision({ fixtureId }: { fixtureId: string }) {
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   if (!f) return <PushScreen title="Pair"><Empty icon="lightbulb-off-outline" title="This light is gone" /></PushScreen>;
-  const resume = !!f.mesh;
+  const resume = !!f.mesh && !fresh;
   const stages: readonly Stage[] = resume ? STAGES.filter((x) => x === "reconnect" || x === "configure") : STAGES;
   const run = async () => {
     setState("running"); setError(null); setStage(null);
     try {
-      await provisionFixture(f, setStage);
+      await provisionFixture(f, setStage, { fresh });
       setState("done");
       toast(`“${f.label}” is on OpenClapper's mesh`);
     } catch (e) {
@@ -251,10 +262,10 @@ export function FixtureProvision({ fixtureId }: { fixtureId: string }) {
   };
   const at = stage ? stages.indexOf(stage) : -1;
   return (
-    <PushScreen title={resume ? "Finish setup" : "Pair with OpenClapper"} sub={f.label}
+    <PushScreen title={resume ? "Set up" : "Pair with OpenClapper"} sub={f.label}
       footer={state === "done"
         ? <Button style={{ flex: 1 }} icon="check" label="Done" onPress={app.pop} />
-        : <Button style={{ flex: 1 }} icon={state === "error" ? "refresh" : "link-variant"} label={state === "error" ? "Try again" : resume ? "Finish setup" : "Pair"} busy={state === "running"} disabled={state === "running"} onPress={() => void run()} />}>
+        : <Button style={{ flex: 1 }} icon={state === "error" ? "refresh" : "link-variant"} label={state === "error" ? "Try again" : resume ? "Set up" : "Pair"} busy={state === "running"} disabled={state === "running"} onPress={() => void run()} />}>
       {!resume && state === "idle" && (
         <Block>
           <Banner kind="warn" icon="alert-outline" title="Sidus Link loses this light" meta="Pairing gives it OpenClapper's keys. To use it with Sidus Link again, reset it and add it there." />

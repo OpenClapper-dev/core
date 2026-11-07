@@ -262,7 +262,7 @@ function Screen({ route }: { route: Route }) {
     case "fixtures": return <FixtureList />;
     case "fixtureEditor": return <FixtureEditor key={route.fixtureId ?? "new"} fixtureId={route.fixtureId} />;
     case "fixture": return <FixtureControl key={route.fixtureId} fixtureId={route.fixtureId} />;
-    case "fixtureProvision": return <FixtureProvision key={route.fixtureId} fixtureId={route.fixtureId} />;
+    case "fixtureProvision": return <FixtureProvision key={`${route.fixtureId}:${route.fresh ? 1 : 0}`} fixtureId={route.fixtureId} fresh={route.fresh} />;
     case "viewfinderSettings": return <ViewfinderSettings />;
     case "captureSettings": return <CaptureSettings />;
     case "calibration": return <Calibration />;
