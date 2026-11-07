@@ -21,6 +21,10 @@ export interface FakeNodeOptions {
   /** Ignore this many access requests before answering (tests the repeats). */
   dropFirst?: number;
   mtu?: number;
+  /** Start configured with this AppKey (skips AppKey Add in driver tests). */
+  appKey?: Uint8Array;
+  /** Reported in status replies to Telink 0x26 status requests (10-byte payload). */
+  status?: Uint8Array;
 }
 
 export class FakeProxyNode {
@@ -28,6 +32,8 @@ export class FakeProxyNode {
   readonly filter: { type: number | null; addresses: number[] } = { type: null, addresses: [] };
   appKey: Uint8Array | null = null;
   readonly binds: string[] = [];
+  /** Telink 0x26 payloads received, as hex. */
+  readonly telink: string[] = [];
   private notify: ((b: Uint8Array) => void) | null = null;
   private readonly keys: Keys;
   private readonly seq = new SeqAllocator({ load: () => ({ next: 0, reserved: 1000 }), save: () => {} });
@@ -42,6 +48,7 @@ export class FakeProxyNode {
     this.drop = o.dropFirst ?? 0;
     this.keys = { net: k2(o.netKey), ivIndex: o.ivIndex, src: o.unicast };
     this.inbox = new Inbox(this.keys, this.appKeys, () => o.devKey, this.seq);
+    if (o.appKey) { this.appKey = o.appKey; this.appKeys.push({ key: o.appKey, aid: k4(o.appKey) }); }
   }
 
   link(): Link {
@@ -81,6 +88,14 @@ export class FakeProxyNode {
     if (!r || r.dst !== this.o.unicast) return;
     this.received.push(r);
     if (this.drop > 0) { this.drop--; return; }
+    if (r.access.opcode === 0x26) {
+      this.telink.push(Array.from(r.access.params, (x) => x.toString(16).padStart(2, "0")).join(""));
+      // A status request (type 0x0e) is answered with the light's state, under the AppKey.
+      if (r.access.params[9] === 0x0e && this.o.status && this.appKey) {
+        for (const pdu of encodeAccessMessage(this.keys, this.seq, { dst: r.src, access: bytes([0x26], this.o.status), key: { kind: "app", key: this.appKey, aid: k4(this.appKey) } })) this.emit(PDU.NETWORK, pdu);
+      }
+      return;
+    }
     const reply = this.answer(r);
     if (reply) for (const pdu of encodeAccessMessage(this.keys, this.seq, { dst: r.src, access: reply, key: { kind: "device", key: this.o.devKey } })) this.emit(PDU.NETWORK, pdu);
   }
