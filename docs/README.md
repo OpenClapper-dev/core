@@ -42,6 +42,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/desktop.md](features/desktop.md) | The Studio desktop: startup and projects, windows and the side-by-side split, workspaces and task view, taskbar and pins, launcher, the apps, URL and keys, the Gallery (grid/list/map, filters, views) |
 | [shortcuts.md](shortcuts.md) | Every Studio keyboard shortcut, generated from `apps/studio/src/shortcuts.ts` |
 | [features/lights.md](features/lights.md) | Lights: pairing NEEWER and Aputure fixtures and the NEEWER battery over Bluetooth, the connection manager, the synced list (epic #206) |
+| [features/live-picture.md](features/live-picture.md) | Live picture: the Hollyland Mars 400S Pro transmitter's picture on the phone (HCCP login, RTSP/UDP, native H.264 decoder; #302) |
 | [features/debug-log.md](features/debug-log.md) | The phone's background debug log |
 
 ## History

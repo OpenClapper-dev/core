@@ -72,3 +72,7 @@ A bake is photo-sized, so the phone frames it like the photo in every view mode.
 ## Old overlays are kept, unread (epic #275)
 
 Migration 0030 copied the overlays into layers and left the `overlays` table, its renders under `renders/overlays/` and `shot_steps.overlay_id` in place. Nothing reads them any more (the purge still deletes their renders with a shot). A later release drops them once the migration has proven itself on production.
+
+## Live picture is untested on hardware (issue #302)
+
+The Hollyland pipeline (`apps/mobile/modules/video-link`) was written against probe captures from a PC, where UDP never arrived (WSL's NAT). Not yet verified on the phone: that the transmitter accepts our login and RTSP from the app, that frames decode on the phone's decoder, the latency against HollyView, and what happens when the transmitter's limit on viewers is reached. A decoder that rejects the low-latency settings or needs the real resolution up front would fail at configure; the error shows on the screen and in the debug log.
