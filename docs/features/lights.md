@@ -7,7 +7,7 @@ First fixtures:
 | Kind | How it is reached | Can do |
 | --- | --- | --- |
 | NEEWER FS230B, FS300B | Bluetooth LE, its own connection (GATT) | Power, intensity, white 2700–6500 K, dimming curves; green/magenta on the FS300B |
-| NEEWER PS099S (V-mount battery) | Bluetooth LE, its own connection | Charge, volts, current, watts (read-only) |
+| NEEWER PS099S (V-mount battery) | Bluetooth LE, its own connection | Charge, volts, current, watts, estimated time left (read-only) |
 | Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K + green/magenta, colour, dimming curves |
 
 **Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209) and the PS099S battery readout (#210) are built. Aputure over the mesh ([#211](https://github.com/OpenClapper-dev/core/issues/211)–[#213](https://github.com/OpenClapper-dev/core/issues/213)) is not: its screen says "the controls for this model are not built yet".
@@ -50,7 +50,7 @@ Decoded from an HCI snoop of the NEEWER app reading a PS099S, with an FS300B at 
 - **On connect** the driver sends what the app sends: a short status query (`78 cd 01 01`), the lights' hello, and an info query (`78 80 00`, answered with the model name "PS099S").
 - **Readout**: polled once a second with `78 cd 01 00`, as the app does. The reply is 85 bytes, split over several notifications when the connection's MTU is small; `FrameAssembler` joins them, and drops a partial reply that is still waiting at the next poll.
 - **Fields**: charge % at offset 4, pack voltage in mV at 5–6 and current in mA at 7–8 (both big-endian), state at 10 (2 = feeding a load). Watts are volts × amps: the battery reports current, not power (101 W against the ~100 W load). The rest of the reply holds per-output voltages (5 V USB, 8 V, 12 V, the pack voltage on D-tap/BP), not shown yet.
-- **Time left** is not in the data; the NEEWER app works it out. Not shown, by choice.
+- **Time left** is not in the data, so the phone estimates it (`fixtures/batteryEstimate.ts`): rated energy (`capacityWh`, 99 Wh for the PS099S) × charge ÷ power. The power is an exponential moving average over about 20 s, so a one-second dip does not swing it and a light ramping up settles gradually. No estimate while the battery is idle or under 2 W (it draws 0.7 W on its own). It assumes the full rated energy is usable, so near empty it is optimistic.
 - The info reply's third byte is not its length, unlike every other frame; a notification that checks out on its own is taken as one frame.
 
 ## Screens (`apps/mobile/src/screens/Lights.tsx`)
@@ -58,7 +58,7 @@ Decoded from an HCI snoop of the NEEWER app reading a PS099S, with an FS300B at 
 - **Lights** (Setup → Lights): every fixture with its model and sync state. Tap opens it, long press edits it, **Add light** pairs a new one.
 - **Add light**: scans for 10 s (Scan again repeats). Likely fixtures come first, with the model they look like; devices already paired are greyed out. Pick one, confirm the model, name it (default: the model and a number), **Pair**.
 - **Edit light**: name and model; delete (only from the phone and the server; the light itself is not changed).
-- **A battery**: its connection state, then charge %, voltage, current, power and whether it feeds a load, updated every second; a reading older than 5 s shows its age.
+- **A battery**: its connection state, then charge %, voltage, current, power, whether it feeds a load and the estimated time left, updated every second; a reading older than 5 s shows its age.
 - **A light**: its connection state, held open while the screen is shown, and the controls its model has: power, intensity, white, green/magenta, dimming curve. Sliders drag or step with − and + (1 % and 100 K). Until the phone has set a value they show the shared start values (half intensity, the middle of the white range, linear), because the lights report nothing back. Controls are greyed out while not connected.
 
 ## On the server
@@ -68,7 +68,7 @@ Decoded from an HCI snoop of the NEEWER app reading a PS099S, with an FS300B at 
 ## Not done
 
 - The Aputure driver (see Status above).
-- The battery's per-output voltages and time left.
+- The battery's per-output voltages.
 - Reading a light's current settings: the NEEWER lights answer queries, but what the replies mean is not decoded.
 - The keyframed sequence editor (a later epic): it will hold leases as `"sequence"` and send through the same queues.
 - Sequences in the background: Android stops Bluetooth work there, so a running sequence will need the screen on.

@@ -7,6 +7,7 @@ import { adapterState, scan, type Seen } from "../ble/link";
 import { askBluetooth } from "../ble/permissions";
 import { linkLabel, sendToFixture, useFixtureLease, useFixtureStatus } from "../fixtures/hub";
 import { deleteFixture, getFixtures, saveFixture, syncFixtures, useFixtures } from "../fixtures/library";
+import { formatMinutes } from "../fixtures/batteryEstimate";
 import { ALL_KINDS, suggestKinds } from "../fixtures/registry";
 import type { Command, Fixture, Telemetry } from "../fixtures/types";
 import { log } from "../log";
@@ -24,7 +25,7 @@ function capsLine(k: FixtureKind): string {
     c.cct && `white ${c.cct.min}–${c.cct.max} K${c.cct.gm ? " + green/magenta" : ""}`,
     c.hsi && "colour",
     c.curves && "dimming curves",
-    c.telemetry.length > 0 && "charge, volts, current, watts",
+    c.telemetry.length > 0 && `charge, volts, current, watts${c.capacityWh ? ", estimated time left" : ""}`,
   ].filter(Boolean).join(" · ");
 }
 
@@ -205,6 +206,7 @@ function BatteryReadout({ t, ready }: { t: Telemetry | null; ready: boolean }) {
     ["Current", t.amps !== undefined ? `${t.amps.toFixed(2)} A` : "–"],
     ["Power", t.watts !== undefined ? `${t.watts < 10 ? t.watts.toFixed(1) : Math.round(t.watts)} W` : "–"],
     ["State", t.discharging ? "Feeding a load" : "Idle"],
+    ["Time left", t.minutesLeft !== undefined ? `about ${formatMinutes(t.minutesLeft)}` : "– (no load)"],
   ];
   return (
     <Block style={{ gap: 8 }}>
@@ -213,7 +215,7 @@ function BatteryReadout({ t, ready }: { t: Telemetry | null; ready: boolean }) {
       {rows.map(([k, v]) => (
         <View key={k} style={s.reading}><Text style={s.readingLabel}>{k}</Text><Text style={s.readingValue}>{v}</Text></View>
       ))}
-      <Hint>{age > STALE_MS ? `No new reading for ${Math.round(age / 1000)} s` : "Updated every second"}</Hint>
+      <Hint>{age > STALE_MS ? `No new reading for ${Math.round(age / 1000)} s` : "Updated every second. Time left is estimated from the battery's rated energy and the power of the last ~20 s."}</Hint>
     </Block>
   );
 }

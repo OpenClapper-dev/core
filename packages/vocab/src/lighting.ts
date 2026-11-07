@@ -24,6 +24,8 @@ export interface Capabilities {
   /** The fixture's own dimming-curve setting. */
   curves: boolean;
   telemetry: readonly TelemetryField[];
+  /** A battery's rated energy, for the time-left estimate. */
+  capacityWh?: number;
 }
 
 /** "gatt": the phone talks to the fixture itself; "mesh": through a Bluetooth Mesh network the phone provisions. */
@@ -50,10 +52,10 @@ export const FIXTURE_KINDS: readonly FixtureKind[] = [
   { id: "neewer-fs230b", brand: "NEEWER", model: "FS230B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: null } } },
   // Green/magenta in the frame's own steps (−50..+50, sent as +50); the FS230B's app has no control for it.
   { id: "neewer-fs300b", brand: "NEEWER", model: "FS300B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: { min: -50, max: 50 } } } },
-  // V-mount battery in the same app: telemetry only (#210). It reports no time left; the app works that out.
+  // V-mount battery in the same app: telemetry only (#210). It reports no time left: the phone estimates it from capacityWh.
   {
     id: "neewer-ps099s", brand: "NEEWER", model: "PS099S", transport: "gatt", driver: "neewer-battery",
-    caps: { power: false, intensity: false, cct: null, hsi: false, curves: false, telemetry: ["battery", "volts", "amps", "watts"] },
+    caps: { power: false, intensity: false, cct: null, hsi: false, curves: false, telemetry: ["battery", "volts", "amps", "watts", "minutesLeft"], capacityWh: 99 },
   },
   // Sidus Mesh RGBWW; green/magenta in the light's own 21 steps (−10..+10).
   { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: { min: -10, max: 10 } }, hsi: true } },

@@ -45,7 +45,16 @@ test("a readout split over notifications becomes telemetry", async () => {
   for (let i = 0; i < bytes.length; i += 20) notify(bytes.slice(i, i + 20).join(" "));
   assert.equal(got.length, 1);
   assert.equal(got[0][0], "b1");
-  assert.deepEqual({ ...got[0][1], watts: Math.round(got[0][1].watts! * 1000) / 1000 }, { at: 1234, battery: 96, volts: 16.414, amps: 0.04, watts: 0.657, discharging: false });
+  assert.deepEqual({ ...got[0][1], watts: Math.round(got[0][1].watts! * 1000) / 1000 }, { at: 1234, battery: 96, volts: 16.414, amps: 0.04, watts: 0.657, discharging: false, minutesLeft: undefined });
+});
+
+test("under load: time left from the rated 99 Wh", async () => {
+  const { link, driver, notify } = setup();
+  const got: Telemetry[] = [];
+  await driver.open(link, [bat], (_id, t) => got.push(t));
+  // The 100 W reply: 95 %, 101.07 W → 99 × 0.95 / 101.07 h ≈ 56 min.
+  notify("78 18 51 01 5f 3c 88 19 7a 39 02 02 63 00 02 00 01 03 00 00 14 26 00 04 64 00 00 04 00 00 00 00 00 00 64 00 00 05 00 02 00 00 00 00 00 00 00 06 00 02 1f 40 00 00 00 00 00 07 00 02 2e e0 00 00 00 00 00 08 00 00 3c 88 00 00 00 00 00 09 00 00 00 00 00 00 a2");
+  assert.equal(got[0].minutesLeft, 56);
 });
 
 test("close stops polling and listening; only status is accepted", async () => {
