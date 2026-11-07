@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { k2, k4, ofHex } from "../mesh/crypto.ts";
 import { FakeProxyNode } from "../mesh/fakeNode.testlib.ts";
 import { SeqAllocator } from "../mesh/seq.ts";
-import { cct, hsi, intensity, power, statusRequest } from "../codecs/sidus.ts";
+import { batteryRequest, cct, hsi, intensity, power, statusRequest } from "../codecs/sidus.ts";
 import type { Fixture, Telemetry } from "../types.ts";
 import { sidusMesh } from "./sidusMesh.ts";
 
@@ -14,12 +14,12 @@ const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "
 const mc = (id: string, unicast: number, mesh = true): Fixture =>
   ({ id, label: id, kindId: "aputure-mc", address: `DC:2C:26:00:00:0${unicast}`, mesh: mesh ? { networkId: "n1", unicast, elements: 3 } : null, createdAt: "", synced: true });
 
-function setup(status?: Uint8Array) {
-  const node = new FakeProxyNode({ netKey: NET_KEY, ivIndex: 0x12345678, unicast: 3, devKey: DEV_KEY, composition: new Uint8Array(10), appKey: APP_KEY, status });
+function setup(status?: Uint8Array, battery?: Uint8Array) {
+  const node = new FakeProxyNode({ netKey: NET_KEY, ivIndex: 0x12345678, unicast: 3, devKey: DEV_KEY, composition: new Uint8Array(10), appKey: APP_KEY, status, battery });
   const seq = new SeqAllocator({ load: () => null, save: () => {} });
   const driver = sidusMesh({
     access: () => ({ keysFor: (id) => (id === "n1" ? { keys: { netKey: NET_KEY, net: k2(NET_KEY), appKey: APP_KEY, aid: k4(APP_KEY), ivIndex: 0x12345678, src: 1, devKeyOf: () => undefined }, seq, onIvIndex: () => {} } : null) }),
-    wait: async () => {}, setupWaitMs: 100, repeats: 2,
+    wait: async () => {}, setupWaitMs: 100, repeats: 2, setInterval: () => 0, clearInterval: () => {},
   });
   return { node, driver };
 }
@@ -40,7 +40,7 @@ test("opening asks the light what it shows; its report becomes the screen's stat
   const got: Telemetry[] = [];
   const s = await driver.open(node.link(), [mc("MC 3", 3)], (_id, t) => got.push(t));
   await new Promise((r) => setTimeout(r, 20));
-  assert.equal(node.telink[0], hex(statusRequest()));
+  assert.deepEqual(node.telink.slice(0, 2), [hex(statusRequest()), hex(batteryRequest())]);
   assert.deepEqual(got.at(-1)?.state, { power: true, intensity: 0.25, cct: { kelvin: 4300, gm: 3 } });
   await s.close();
 });
@@ -49,6 +49,7 @@ test("commands reach the light as Telink messages, each sent twice; white keeps 
   const { node, driver } = setup();
   const light = mc("MC 3", 3);
   const s = await driver.open(node.link(), [light], () => {});
+  await new Promise((r) => setTimeout(r, 10));
   node.telink.length = 0;
   await s.send(light, { op: "power", on: true });
   await s.send(light, { op: "intensity", value: 0.4 });
@@ -56,6 +57,17 @@ test("commands reach the light as Telink messages, each sent twice; white keeps 
   await s.send(light, { op: "hsi", h: 120, s: 1, i: 0.8 });
   assert.deepEqual(node.telink, [power(true), power(true), intensity(0.4), intensity(0.4), cct(3200, 0.4, -2), cct(3200, 0.4, -2), hsi(120, 1, 0.8), hsi(120, 1, 0.8)].map(hex));
   await assert.rejects(s.send(light, { op: "curve", curve: "s" }), /no curve command/);
+  await s.close();
+});
+
+test("the light's battery page becomes telemetry", async () => {
+  const page = Uint8Array.of(0, 0, 0, 0x2c, (77 << 1) | 1, 0xe8, 0x1c, 0, 0, 0x0a);
+  page[0] = page.slice(1).reduce((a, b) => a + b, 0) & 0xff;
+  const { node, driver } = setup(undefined, page);
+  const got: Telemetry[] = [];
+  const s = await driver.open(node.link(), [mc("MC 3", 3)], (_id, t) => got.push(t));
+  await new Promise((r) => setTimeout(r, 20));
+  assert.deepEqual(got.find((t) => t.battery !== undefined), { at: got.find((t) => t.battery !== undefined)!.at, battery: 77, volts: 7.4, minutesLeft: 300, plugged: false });
   await s.close();
 });
 

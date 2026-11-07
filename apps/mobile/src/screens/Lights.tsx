@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, type FixtureKind, type LightState } from "@openclapper/vocab";
+import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, type FixtureKind, type LightState, type TelemetryField } from "@openclapper/vocab";
 import { useApp } from "../appState";
 import { adapterState, scan, type Seen } from "../ble/link";
 import { askBluetooth } from "../ble/permissions";
@@ -20,6 +20,8 @@ import { OptionSheet } from "../components/OptionSheet";
 const kindIcon = (k: FixtureKind | undefined) => (k && !k.caps.power ? "battery-high" : "lightbulb-outline");
 const kindName = (id: string) => { const k = fixtureKind(id); return k ? fixtureKindName(k) : `Unknown kind (${id})`; };
 
+const TELEMETRY_WORDS: Record<TelemetryField, string> = { battery: "charge", volts: "voltage", amps: "current", watts: "power", minutesLeft: "time left" };
+
 /** What a kind can be asked to do, in words. */
 function capsLine(k: FixtureKind): string {
   const c = k.caps;
@@ -28,7 +30,7 @@ function capsLine(k: FixtureKind): string {
     c.cct && `white ${c.cct.min}–${c.cct.max} K${c.cct.gm ? " + green/magenta" : ""}`,
     c.hsi && "colour",
     c.curves && "dimming curves",
-    c.telemetry.length > 0 && `charge, volts, current, watts${c.capacityWh ? ", estimated time left" : ""}`,
+    c.telemetry.length > 0 && c.telemetry.map((t) => TELEMETRY_WORDS[t]).join(", ").replace("time left", c.capacityWh ? "estimated time left" : "battery time left"),
   ].filter(Boolean).join(" · ");
 }
 
@@ -287,21 +289,23 @@ export function FixtureProvision({ fixtureId, fresh = false }: { fixtureId: stri
 
 /** A reading older than this is shown as stale (the battery is polled every second). */
 const STALE_MS = 5000;
+/** An Aputure light reports its battery once a minute (#293). */
+const MESH_BATTERY_STALE_MS = 75_000;
 
 /** The battery's readout (#210), redrawn every second so a stalled reading shows its age. */
-function BatteryReadout({ t, ready }: { t: Telemetry | null; ready: boolean }) {
+function BatteryReadout({ t, ready, estimated }: { t: Telemetry | null; ready: boolean; /** Time left computed by the phone (PS099S), not reported by the device. */ estimated: boolean }) {
   const s = useStyles();
   const [, tick] = useState(0);
   useEffect(() => { const h = setInterval(() => tick((x) => x + 1), 1000); return () => clearInterval(h); }, []);
   if (!t || t.battery === undefined) return <Block><Hint>{ready ? "Waiting for the first reading…" : "Readings start once connected."}</Hint></Block>;
   const age = Date.now() - t.at;
-  const rows: [string, string][] = [
-    ["Voltage", t.volts !== undefined ? `${t.volts.toFixed(2)} V` : "–"],
-    ["Current", t.amps !== undefined ? `${t.amps.toFixed(2)} A` : "–"],
-    ["Power", t.watts !== undefined ? `${t.watts < 10 ? t.watts.toFixed(1) : Math.round(t.watts)} W` : "–"],
-    ["State", t.discharging ? "Feeding a load" : "Idle"],
-    ["Time left", t.minutesLeft !== undefined ? `about ${formatMinutes(t.minutesLeft)}` : "– (no load)"],
-  ];
+  const rows: [string, string][] = [];
+  if (t.volts !== undefined) rows.push(["Voltage", `${t.volts.toFixed(2)} V`]);
+  if (t.amps !== undefined) rows.push(["Current", `${t.amps.toFixed(2)} A`]);
+  if (t.watts !== undefined) rows.push(["Power", `${t.watts < 10 ? t.watts.toFixed(1) : Math.round(t.watts)} W`]);
+  if (t.discharging !== undefined) rows.push(["State", t.discharging ? "Feeding a load" : "Idle"]);
+  if (t.plugged !== undefined) rows.push(["Power source", t.plugged ? "External supply" : "Battery"]);
+  rows.push(["Time left", t.minutesLeft !== undefined ? `about ${formatMinutes(t.minutesLeft)}` : estimated ? "– (no load)" : "–"]);
   return (
     <Block style={{ gap: 8 }}>
       <SectionLabel>Battery</SectionLabel>
@@ -309,7 +313,7 @@ function BatteryReadout({ t, ready }: { t: Telemetry | null; ready: boolean }) {
       {rows.map(([k, v]) => (
         <View key={k} style={s.reading}><Text style={s.readingLabel}>{k}</Text><Text style={s.readingValue}>{v}</Text></View>
       ))}
-      <Hint>{age > STALE_MS ? `No new reading for ${Math.round(age / 1000)} s` : "Updated every second. Time left is estimated from the battery's rated energy and the power of the last ~20 s."}</Hint>
+      <Hint>{age > (estimated ? STALE_MS : MESH_BATTERY_STALE_MS) ? `No new reading for ${Math.round(age / 1000)} s` : estimated ? "Updated every second. Time left is estimated from the battery's rated energy and the power of the last ~20 s." : "Reported by the light, every minute."}</Hint>
     </Block>
   );
 }
@@ -393,7 +397,7 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
           <Hint>{kind?.transport === "mesh" ? "The controls follow what the light reports." : "The light does not report its settings yet: the controls show what this phone last set."}</Hint>
         </Block>
       )}
-      {caps && caps.telemetry.length > 0 && status.link !== "failed" && <BatteryReadout t={status.telemetry} ready={ready} />}
+      {caps && caps.telemetry.length > 0 && status.link !== "failed" && <BatteryReadout t={status.telemetry} ready={ready} estimated={!!caps.capacityWh} />}
       {kind && <Block><Hint>{capsLine(kind)}</Hint></Block>}
     </PushScreen>
   );

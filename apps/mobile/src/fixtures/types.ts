@@ -38,6 +38,8 @@ export interface Telemetry {
   minutesLeft?: number;
   /** A battery feeding a load. */
   discharging?: boolean;
+  /** A light with a built-in battery runs on an external supply. */
+  plugged?: boolean;
   state?: LightState;
 }
 

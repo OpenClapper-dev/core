@@ -6,7 +6,7 @@
  * against vectors produced by that implementation.
  */
 export const TELINK_OPCODE = 0x26;
-export const CMD = { HSI: 0x81, CCT: 0x82, POWER: 0x8c, INTENSITY: 0x8f, STATUS: 0x0e } as const;
+export const CMD = { HSI: 0x81, CCT: 0x82, POWER: 0x8c, INTENSITY: 0x8f, STATUS: 0x0e, BATTERY: 0x0a } as const;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -87,4 +87,32 @@ export function parseStatus(p: Uint8Array): SidusStatus | null {
     return { on, intensity: intensityOf(p), mode: "hsi", hue: Math.min(360, getBits(p, 53, 9)), saturation: Math.min(100, getBits(p, 46, 7)) / 100 };
   }
   return null;
+}
+
+/** Ask for the battery page (#293). */
+export const batteryRequest = () => finish(new Uint8Array(10), CMD.BATTERY);
+
+export interface SidusBattery {
+  /** 0..100 */
+  charge: number;
+  volts: number;
+  /** The light's own estimate. */
+  minutesLeft: number;
+  /** An external supply is connected (not necessarily charging). */
+  plugged: boolean;
+}
+
+/**
+ * The battery page (type 0x0a): minutes left in byte 3 plus bit 0 of byte 4, charge in bits 1–7
+ * of byte 4, battery and external supply in mV (bytes 5–6 and 7–8, little-endian). Layout from
+ * neyako/amaran-hacs (MIT), taken from the decompiled Sidus Link app and verified on an Ace 25c.
+ */
+export function parseBattery(p: Uint8Array): SidusBattery | null {
+  if (p.length !== 10 || p[0] !== checksum(p) || (p[9] & 0x7f) !== CMD.BATTERY) return null;
+  return {
+    minutesLeft: p[3] | ((p[4] & 1) << 8),
+    charge: Math.min(100, p[4] >> 1),
+    volts: (p[5] | (p[6] << 8)) / 1000,
+    plugged: (p[7] | (p[8] << 8)) > 0,
+  };
 }
