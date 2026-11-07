@@ -1,7 +1,7 @@
 import { bytes } from "../mesh/crypto.ts";
 import { MeshSession, type NetworkKeys } from "../mesh/session.ts";
 import type { SeqAllocator } from "../mesh/seq.ts";
-import { cct, hsi, intensity, parseStatus, power, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
+import { batteryRequest, cct, hsi, intensity, parseBattery, parseStatus, power, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
 import type { LightState } from "@openclapper/vocab";
 
@@ -21,6 +21,10 @@ export interface SidusOptions {
   repeatGapMs?: number;
   wait?: (ms: number) => Promise<void>;
   setupWaitMs?: number;
+  /** How often lights with a built-in battery are asked for it while connected (#293). */
+  batteryPollMs?: number;
+  setInterval?: (fn: () => void, ms: number) => unknown;
+  clearInterval?: (h: unknown) => void;
 }
 
 /** Intensity is part of white and colour commands: what the phone last set or the light last said. */
@@ -55,6 +59,8 @@ export function sidusMesh(o: SidusOptions): Driver {
       const stopListening = session.onMessage((r) => {
         const f = byUnicast.get(r.src);
         if (!f || r.access.opcode !== TELINK_OPCODE) return;
+        const bat = parseBattery(r.access.params);
+        if (bat) { sink(f.id, { at: Date.now(), battery: bat.charge, volts: bat.volts, minutesLeft: bat.minutesLeft, plugged: bat.plugged }); return; }
         const st = parseStatus(r.access.params);
         if (!st) return;
         const state: LightState = { power: st.on, intensity: st.intensity };
@@ -72,8 +78,13 @@ export function sidusMesh(o: SidusOptions): Driver {
         }
       };
 
-      // Ask every light of the network what it shows.
+      // Ask every light of the network what it shows, and its battery; the battery again every minute.
       for (const f of byUnicast.values()) await toLight(f, statusRequest(), 1);
+      const askBatteries = async () => { for (const f of byUnicast.values()) await toLight(f, batteryRequest(), 1).catch((e) => o.log?.("debug", "mesh: battery request failed", { fixture: f.id, error: e })); };
+      await askBatteries();
+      const every = o.setInterval ?? ((fn: () => void, ms: number) => setInterval(fn, ms));
+      const stopEvery = o.clearInterval ?? ((h: unknown) => clearInterval(h as ReturnType<typeof setInterval>));
+      const timer = every(() => { void askBatteries(); }, o.batteryPollMs ?? 60_000);
 
       return {
         async send(f: Fixture, cmd: Command) {
@@ -87,7 +98,7 @@ export function sidusMesh(o: SidusOptions): Driver {
             default: throw new Error(`the light has no ${cmd.op} command we know of`);
           }
         },
-        async close() { stopListening(); await session.close(); },
+        async close() { stopEvery(timer); stopListening(); await session.close(); },
       };
     },
   };

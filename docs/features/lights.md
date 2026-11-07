@@ -8,7 +8,7 @@ First fixtures:
 | --- | --- | --- |
 | NEEWER FS230B, FS300B | Bluetooth LE, its own connection (GATT) | Power, intensity, white 2700–6500 K, dimming curves; green/magenta on the FS300B |
 | NEEWER PS099S (V-mount battery) | Bluetooth LE, its own connection | Charge, volts, current, watts, estimated time left (read-only) |
-| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K, colour; reports its state |
+| Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K, colour; reports its state and its built-in battery |
 
 **Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213) are built. Not yet: the Aputure's native dimming curve and device-side fade (their commands are not known; #289).
 
@@ -87,6 +87,7 @@ The phone is the provisioner of its own mesh network, so a light paired here lea
 - **Unacknowledged**, so each command goes out twice, 40 ms apart; one write per 120 ms per network, newer values replacing queued ones.
 - **The light reports its state**: on connect the driver asks every light of the network (`0x0e`), and each report (`0x02` white, `0x01` colour) becomes the light's state, so the controls show what the light really shows. The lights also report after changes, to the provisioner, which is the phone; while a slider moves, those reports trail behind. So the hub ignores a light's reports for 1.5 s after the phone last sent it a command (`REPORT_HOLD_MS`), or a late report would pull the control back to a value already left.
 - **Reaction time** (owner's test on MC 1 and MC 3): the lights follow fast changes, but not instantly. Before the keyframe editor, measure how long a light takes to settle on a new value, per kind, and plan keyframe spacing around it.
+- **Built-in battery** (#293): on connect and then every minute the driver asks each light for its battery page (type `0x0a`): charge %, battery voltage, the light's own time left, and whether an external supply is connected (layout from neyako/amaran-hacs, MIT). It shows in the light's battery block; the power dashboard across all batteries is #294.
 - **Firmware**: each light's composition data (maker, product, version, elements) is stored with its device key at setup and shown on its screen. The owner's MCs are not all on the same firmware (one reports one element, another three); nothing depends on it.
 - **Not known yet**: the commands for the dimming curve and the device-side fade ("Dimming Design" in Sidus Link), tracked in #289. The MC therefore has no curve control.
 
@@ -95,7 +96,7 @@ The phone is the provisioner of its own mesh network, so a light paired here lea
 - **Lights** (Setup → Lights): every fixture with its model and sync state. Tap opens it, long press edits it, **Add light** pairs a new one.
 - **Add light**: scans for 10 s (Scan again repeats). Likely fixtures come first, with the model they look like; devices already paired are greyed out. Pick one, confirm the model, name it (default: the model and a number), **Pair**.
 - **Edit light**: name and model; delete (only from the phone and the server; the light itself is not changed).
-- **A battery**: its connection state, then charge %, voltage, current, power, whether it feeds a load and the estimated time left, updated every second; a reading older than 5 s shows its age.
+- **A battery**: its connection state, then charge %, voltage, current, power, whether it feeds a load and the estimated time left, updated every second; a reading older than 5 s shows its age. An Aputure light shows its built-in battery the same way (charge, voltage, power source, its own time left), updated every minute.
 - **A light**: its connection state, held open while the screen is shown, and the controls its model has: power, intensity, White/Colour with hue and saturation (Aputure), white, green/magenta, dimming curve (NEEWER). Sliders drag or step with − and + (1 % and 100 K). Until the phone has set a value they show the shared start values (half intensity, the middle of the white range, linear), because the lights report nothing back. Controls are greyed out while not connected.
 
 ## On the server

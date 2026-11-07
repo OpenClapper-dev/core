@@ -25,6 +25,8 @@ export interface FakeNodeOptions {
   appKey?: Uint8Array;
   /** Reported in status replies to Telink 0x26 status requests (10-byte payload). */
   status?: Uint8Array;
+  /** Reported to a battery request (type 0x0a). */
+  battery?: Uint8Array;
 }
 
 export class FakeProxyNode {
@@ -91,8 +93,9 @@ export class FakeProxyNode {
     if (r.access.opcode === 0x26) {
       this.telink.push(Array.from(r.access.params, (x) => x.toString(16).padStart(2, "0")).join(""));
       // A status request (type 0x0e) is answered with the light's state, under the AppKey.
-      if (r.access.params[9] === 0x0e && this.o.status && this.appKey) {
-        for (const pdu of encodeAccessMessage(this.keys, this.seq, { dst: r.src, access: bytes([0x26], this.o.status), key: { kind: "app", key: this.appKey, aid: k4(this.appKey) } })) this.emit(PDU.NETWORK, pdu);
+      const page = r.access.params[9] === 0x0e ? this.o.status : r.access.params[9] === 0x0a ? this.o.battery : undefined;
+      if (page && this.appKey) {
+        for (const pdu of encodeAccessMessage(this.keys, this.seq, { dst: r.src, access: bytes([0x26], page), key: { kind: "app", key: this.appKey, aid: k4(this.appKey) } })) this.emit(PDU.NETWORK, pdu);
       }
       return;
     }
