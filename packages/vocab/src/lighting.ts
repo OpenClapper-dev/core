@@ -23,6 +23,12 @@ export const EFFECTS = [
 export type EffectId = (typeof EFFECTS)[number]["id"];
 export const effectName = (id: EffectId) => EFFECTS.find((e) => e.id === id)?.name ?? id;
 
+/**
+ * The effects the MC offers (owner's MC, 2026-11-07): the other six first-generation effects are
+ * not on it. Kept in the order of EFFECTS.
+ */
+const MC_EFFECTS: readonly EffectId[] = ["paparazzi", "lightning", "tv", "fire", "pulsing", "faulty_bulb", "cop_car", "party_lights", "fireworks"];
+
 /** Read-only values a fixture reports (the battery). */
 export const TELEMETRY_FIELDS = ["battery", "volts", "amps", "watts", "minutesLeft"] as const;
 export type TelemetryField = (typeof TELEMETRY_FIELDS)[number];
@@ -76,7 +82,7 @@ export const FIXTURE_KINDS: readonly FixtureKind[] = [
   // Sidus Mesh RGBWW. No green/magenta (the light has none, though the white command carries the
   // field: sent neutral); the command for its dimming curve is not known yet (#289). Its built-in
   // battery reports charge, voltage and its own time left (#293).
-  { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: null }, hsi: true, curves: false, telemetry: ["battery", "volts", "minutesLeft"], effects: EFFECTS.map((e) => e.id) } },
+  { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: null }, hsi: true, curves: false, telemetry: ["battery", "volts", "minutesLeft"], effects: MC_EFFECTS } },
 ];
 
 export const fixtureKind = (id: string): FixtureKind | undefined => FIXTURE_KINDS.find((k) => k.id === id);
