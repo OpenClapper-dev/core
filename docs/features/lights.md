@@ -53,6 +53,18 @@ Decoded from an HCI snoop of the NEEWER app reading a PS099S, with an FS300B at 
 - **Time left** is not in the data, so the phone estimates it (`fixtures/batteryEstimate.ts`): rated energy (`capacityWh`, 99 Wh for the PS099S) × charge ÷ power. The power is an exponential moving average over about 20 s, so a one-second dip does not swing it and a light ramping up settles gradually. No estimate while the battery is idle or under 2 W (it draws 0.7 W on its own). It assumes the full rated energy is usable, so near empty it is optimistic.
 - The info reply's third byte is not its length, unlike every other frame; a notification that checks out on its own is taken as one frame.
 
+## Bluetooth Mesh client (`fixtures/mesh/`, #211)
+
+The Aputure lights are Bluetooth Mesh nodes (Telink firmware). The phone talks to them as a mesh client through one light acting as GATT proxy, so it carries the mesh stack itself. Pure TypeScript, no Bluetooth in it: provisioning (#212) and the light session (#213) put it on a connection. Every layer is tested against the Mesh Profile 1.0.1 §8 sample data.
+
+- **`crypto.ts`**: AES-CMAC (from `@noble/ciphers`), `s1`, `k1`–`k4`, the beacon key, and AES-CCM built on AES-ECB (noble has no CCM; 13-byte nonce, 4- or 8-byte MIC).
+- **`network.ts`**: network PDUs: header obfuscation, encryption with the NetKey, network or proxy nonce, the IV index's low bit. Twelve spec messages (#1–#11, #22) encode byte for byte and decode back.
+- **`transport.ts`**: access messages encrypted with an AppKey (AKF 1 and its AID) or a node's device key; split into 12-byte segments above 15 bytes; reassembly in any order with the SeqAuth of the first segment; the Segment Acknowledgment. A Telink light command (1 + 10 bytes) stays in one PDU.
+- **`access.ts`**: opcodes and the configuration messages provisioning needs: AppKey Add, Composition Data Get and its parsing, Model App Bind (every model except the configuration ones), their status.
+- **`proxy.ts`**: proxy PDUs split to the connection's MTU and joined back; the proxy filter (accept list, then the phone's address), without which no reply reaches the phone; the Secure Network Beacon, authenticated, which tells the IV index.
+- **`seq.ts`**: sequence numbers. A number used twice makes every light drop the phone silently as a replay, so they are reserved in blocks of 128 and the block is saved *before* its first number goes out; after a crash or a kill the phone resumes past the block.
+- **`message.ts`**: an access message in, network PDUs out (one sequence number per segment); `Inbox` turns what the proxy forwards into access messages and answers segmented ones with an acknowledgment.
+
 ## Screens (`apps/mobile/src/screens/Lights.tsx`)
 
 - **Lights** (Setup → Lights): every fixture with its model and sync state. Tap opens it, long press edits it, **Add light** pairs a new one.
