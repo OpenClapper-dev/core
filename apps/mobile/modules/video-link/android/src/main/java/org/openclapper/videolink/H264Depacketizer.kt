@@ -113,22 +113,41 @@ internal class H264Depacketizer(private val payloadType: Int, parameterSets: Lis
     noted(start + 4)
   }
 
-  /** Records the NAL just written at [at] (after its start code): key frame, SPS, PPS. */
-  private fun noted(at: Int) {
-    if (at >= size) return
-    nalCounts[buf[at].toInt() and 0x1f]++
-    when (buf[at].toInt() and 0x1f) {
-      5 -> key = true
-      7, 8 -> remember(buf, at, size - at)
+  /**
+   * Records the NAL just written at [at] (after its start code): key frame, SPS, PPS. The Mars transmitter
+   * packs SPS, PPS and the IDR slice into what RTP calls one NAL unit, joined by Annex-B start codes, so
+   * it is split at every start code inside (a real NAL unit cannot contain one: emulation prevention).
+   */
+  private fun noted(at: Int) { split(buf, at, size) }
+
+  private fun remember(b: ByteArray, at: Int, n: Int) { split(b, at, at + n) }
+
+  private fun split(b: ByteArray, from: Int, to: Int) {
+    var s = from
+    while (s < to) {
+      var j = s
+      var end = to
+      var next = to
+      while (j + 2 < to) {
+        if (b[j].toInt() == 0 && b[j + 1].toInt() == 0 && b[j + 2].toInt() == 1) {
+          end = if (j > s && b[j - 1].toInt() == 0) j - 1 else j
+          next = j + 3
+          break
+        }
+        j++
+      }
+      if (end > s) classify(b, s, end)
+      s = next
     }
   }
 
-  private fun remember(b: ByteArray, at: Int, n: Int) {
-    if (n <= 0) return
-    val copy = b.copyOfRange(at, at + n)
-    when (copy[0].toInt() and 0x1f) {
-      7 -> sps = copy
-      8 -> pps = copy
+  private fun classify(b: ByteArray, s: Int, e: Int) {
+    val type = b[s].toInt() and 0x1f
+    nalCounts[type]++
+    when (type) {
+      5 -> key = true
+      7 -> sps = b.copyOfRange(s, e)
+      8 -> pps = b.copyOfRange(s, e)
     }
   }
 
