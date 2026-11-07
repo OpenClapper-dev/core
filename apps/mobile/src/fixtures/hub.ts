@@ -4,10 +4,19 @@ import { connect } from "../ble/link";
 import { log } from "../log";
 import { Hub, type FixtureStatus, type Holder } from "./hubCore";
 import { getFixtures } from "./library";
-import { driverFor, setDriverLog } from "./registry";
+import { driverFor, setDriverLog, setMeshAccess } from "./registry";
+import { getMeshNetworks, networkKeys, saveMeshNetwork, seqFor } from "./meshNetworks";
 import type { Command } from "./types";
 
 setDriverLog(log);
+setMeshAccess({
+  keysFor(networkId) {
+    const n = getMeshNetworks().find((x) => x.id === networkId);
+    const keys = n && networkKeys(n);
+    if (!n || !keys) return null;
+    return { keys, seq: seqFor(networkId), onIvIndex: (iv) => { const cur = getMeshNetworks().find((x) => x.id === networkId); if (cur) void saveMeshNetwork({ ...cur, ivIndex: iv }); } };
+  },
+});
 
 /** The app's one hub (fixtures/hubCore.ts) on the real Bluetooth stack and clock. */
 export const hub = new Hub({

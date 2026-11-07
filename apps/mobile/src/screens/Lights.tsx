@@ -218,7 +218,7 @@ function MeshPairing({ f }: { f: Fixture }) {
   const clash = overlapping(f, getFixtures());
   return (
     <>
-      <Hint>{`On OpenClapper's mesh at address ${f.mesh.unicast}${f.mesh.elements > 1 ? `–${f.mesh.unicast + f.mesh.elements - 1}` : ""}. The controls come with the next update.`}</Hint>
+      <Hint>{`On OpenClapper's mesh at address ${f.mesh.unicast}${f.mesh.elements > 1 ? `–${f.mesh.unicast + f.mesh.elements - 1}` : ""}.${node.info ? ` Firmware: product ${hex4(node.info.pid)}, version ${hex4(node.info.vid)}, ${node.info.elements} element${node.info.elements === 1 ? "" : "s"}.` : " Run setup again to read its firmware."}`}</Hint>
       {clash && <Banner kind="warn" icon="alert-outline" title={`Addresses overlap “${clash.label}”`} meta="Run setup again to check; if it stays, reset this light and pair it again." />}
       <SideBySide>
         <Button style={{ flex: 1 }} kind="secondary" icon="cog-outline" label="Run setup again" onPress={() => open()} />
@@ -227,6 +227,8 @@ function MeshPairing({ f }: { f: Fixture }) {
     </>
   );
 }
+
+const hex4 = (v: number) => v.toString(16).padStart(4, "0");
 
 const STAGE_LABELS: Record<Stage, string> = {
   find: "Find the light",
@@ -328,11 +330,17 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
   const status = useFixtureStatus(fixtureId);
   const kind = f ? fixtureKind(f.kindId) : undefined;
   const [v, setV] = useState<LightState>(() => ({ ...(kind ? startState(kind) : {}), ...status.state }));
+  // A light that reports its state (Aputure) moves the controls to what it really shows.
+  const reported = JSON.stringify(status.state);
+  useEffect(() => { setV((cur) => ({ ...cur, ...status.state })); }, [reported]);
+  const [mode, setMode] = useState<"cct" | "hsi">(() => (status.state.hsi && !status.state.cct ? "hsi" : "cct"));
   if (!f) return <PushScreen title="Light"><Empty icon="lightbulb-off-outline" title="This light is gone" body="It was deleted, here or on another phone." /></PushScreen>;
   const ready = status.link === "ready";
   const caps = kind?.caps;
   const send = (patch: LightState, cmd: Command) => { setV((cur) => ({ ...cur, ...patch })); fire(f.id, cmd); };
   const cct = v.cct ?? { kelvin: 5600, gm: 0 };
+  const col = v.hsi ?? { h: 0, s: 1, i: v.intensity ?? 0.5 };
+  const hsiMode = !!caps?.hsi && mode === "hsi";
   const controllable = !!caps && (caps.power || caps.intensity || !!caps.cct);
   return (
     <PushScreen title={f.label} sub={kindName(f.kindId)}
@@ -354,11 +362,24 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
             <Slider label="Intensity" value={Math.round((v.intensity ?? 0.5) * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready}
               onChange={(x) => send({ intensity: x / 100 }, { op: "intensity", value: x / 100 })} />
           )}
-          {caps.cct && (
+          {caps.hsi && caps.cct && (
+            <Seg size="lg" block accessibilityLabel="Mode" disabled={!ready} value={mode}
+              onChange={(m) => { setMode(m); if (m === "hsi") send({ hsi: col }, { op: "hsi", h: col.h, s: col.s, i: v.intensity ?? col.i }); else send({ cct }, { op: "cct", kelvin: cct.kelvin, gm: cct.gm }); }}
+              options={[{ id: "cct", label: "White" }, { id: "hsi", label: "Colour" }]} />
+          )}
+          {hsiMode && (
+            <>
+              <Slider label="Hue" value={Math.round(col.h)} min={0} max={360} format={(x) => `${x}°`} disabled={!ready}
+                onChange={(x) => send({ hsi: { ...col, h: x } }, { op: "hsi", h: x, s: col.s, i: v.intensity ?? col.i })} />
+              <Slider label="Saturation" value={Math.round(col.s * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready}
+                onChange={(x) => send({ hsi: { ...col, s: x / 100 } }, { op: "hsi", h: col.h, s: x / 100, i: v.intensity ?? col.i })} />
+            </>
+          )}
+          {caps.cct && !hsiMode && (
             <Slider label="White" value={cct.kelvin} min={caps.cct.min} max={caps.cct.max} step={100} format={(x) => `${x} K`} disabled={!ready}
               onChange={(x) => send({ cct: { ...cct, kelvin: x } }, { op: "cct", kelvin: x, gm: cct.gm })} />
           )}
-          {caps.cct?.gm && (
+          {caps.cct?.gm && !hsiMode && (
             <Slider label="Green / magenta" value={cct.gm} min={caps.cct.gm.min} max={caps.cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} disabled={!ready}
               onChange={(x) => send({ cct: { ...cct, gm: x } }, { op: "cct", kelvin: cct.kelvin, gm: x })} />
           )}
@@ -369,7 +390,7 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
                 onChange={(x) => send({ curve: x }, { op: "curve", curve: x })} options={CURVE_OPTIONS} />
             </View>
           )}
-          <Hint>The light does not report its settings yet: the controls show what this phone last set.</Hint>
+          <Hint>{kind?.transport === "mesh" ? "The controls follow what the light reports." : "The light does not report its settings yet: the controls show what this phone last set."}</Hint>
         </Block>
       )}
       {caps && caps.telemetry.length > 0 && status.link !== "failed" && <BatteryReadout t={status.telemetry} ready={ready} />}

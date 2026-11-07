@@ -24,7 +24,10 @@ export interface MeshNetwork {
 }
 
 /** Secrets of one network: keys as hex, the device key of each provisioned light by unicast address. */
-interface Secrets { netKey: string; appKey: string; nodes: Record<string, { devKey: string; configured: boolean }> }
+/** What a light says about itself in its composition data: maker, product, firmware version, elements. */
+export interface NodeInfo { cid: number; pid: number; vid: number; elements: number }
+
+interface Secrets { netKey: string; appKey: string; nodes: Record<string, { devKey: string; configured: boolean; info?: NodeInfo }> }
 
 /** The phone's own address in every network it provisions. */
 export const PHONE_UNICAST = 0x0001;
@@ -90,15 +93,15 @@ export async function ensureNetwork(): Promise<MeshNetwork> {
 }
 
 /** Keep a provisioned light's device key, before anything else happens with it. */
-export function rememberNode(networkId: string, unicast: number, devKey: Uint8Array, configured = false) {
+export function rememberNode(networkId: string, unicast: number, devKey: Uint8Array, configured = false, info?: NodeInfo) {
   const s = readSecrets(networkId);
   if (!s) throw new Error("the network's keys are not on this phone");
-  writeSecrets(networkId, { ...s, nodes: { ...s.nodes, [String(unicast)]: { devKey: hexOf(devKey), configured } } });
+  writeSecrets(networkId, { ...s, nodes: { ...s.nodes, [String(unicast)]: { devKey: hexOf(devKey), configured, info } } });
 }
 
-export function nodeState(networkId: string, unicast: number): { configured: boolean } | null {
+export function nodeState(networkId: string, unicast: number): { configured: boolean; info: NodeInfo | null } | null {
   const n = readSecrets(networkId)?.nodes[String(unicast)];
-  return n ? { configured: n.configured } : null;
+  return n ? { configured: n.configured, info: n.info ?? null } : null;
 }
 
 export const netKeyOf = (networkId: string) => { const s = readSecrets(networkId); return s ? ofHex(s.netKey) : null; };

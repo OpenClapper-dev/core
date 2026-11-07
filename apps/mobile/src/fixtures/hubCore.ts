@@ -35,6 +35,11 @@ export interface HubDeps {
 export const RETRY_MS = [1000, 2000, 5000, 15_000, 30_000];
 /** A connection outlives its last lease this long, so going back and forth between screens does not reconnect. */
 export const GRACE_MS = 2000;
+/**
+ * A light's own state reports are ignored this long after the phone last sent it a command: while
+ * a slider moves, a report for a value already left arrives late and would pull the control back.
+ */
+export const REPORT_HOLD_MS = 1500;
 
 interface LinkRec {
   key: string;
@@ -76,6 +81,8 @@ export class Hub {
   private links = new Map<string, LinkRec>();
   private telemetry = new Map<string, Telemetry>();
   private states = new Map<string, LightState>();
+  /** When the phone last sent each fixture a command (see REPORT_HOLD_MS). */
+  private sentAt = new Map<string, number>();
   private listeners = new Set<() => void>();
   private suspended = false;
 
@@ -128,6 +135,7 @@ export class Hub {
     const r = f && this.resolve(fixtureId);
     const rec = r ? this.links.get(r.key) : undefined;
     if (!f || !rec || rec.state !== "ready" || !rec.queue) return Promise.reject(new Error("not connected"));
+    if (cmd.op !== "status") this.sentAt.set(fixtureId, this.d.clock.now());
     return rec.queue.push(`${fixtureId}:${cmd.op}`, async () => {
       if (!rec.session) throw new Error("not connected");
       await rec.session.send(f, cmd);
@@ -144,6 +152,19 @@ export class Hub {
     if (!r) return { ...base, link: "failed", attempt: 0, error: "this kind cannot be controlled yet" };
     const rec = this.links.get(r.key);
     return rec ? { ...base, link: rec.state, attempt: rec.attempt, error: rec.error } : { ...base, link: "off", attempt: 0, error: null };
+  }
+
+  /**
+   * Close the connection serving this fixture now, when nothing holds it (only the grace period
+   * keeps it open): pairing needs the light to itself. Returns false when it is still in use.
+   */
+  async release(fixtureId: string): Promise<boolean> {
+    const r = this.resolve(fixtureId);
+    const rec = r && this.links.get(r.key);
+    if (!rec) return true;
+    if (rec.leases > 0) return false;
+    await this.stop(rec);
+    return true;
   }
 
   /** The app went to the background: close everything, keep the leases. */
@@ -250,7 +271,8 @@ export class Hub {
 
   private onTelemetry(fixtureId: string, t: Telemetry) {
     this.telemetry.set(fixtureId, { ...this.telemetry.get(fixtureId), ...t });
-    if (t.state) this.states.set(fixtureId, { ...this.states.get(fixtureId), ...t.state });
+    const quiet = this.d.clock.now() - (this.sentAt.get(fixtureId) ?? Number.NEGATIVE_INFINITY) >= REPORT_HOLD_MS;
+    if (t.state && quiet) this.states.set(fixtureId, { ...this.states.get(fixtureId), ...t.state });
     this.notify();
   }
 }
