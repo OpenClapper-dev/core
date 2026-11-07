@@ -2,7 +2,7 @@
 
 The picture of a Hollyland Mars 400S Pro wireless video transmitter on the phone, with HollyView's latency as the target (issue [#302](https://github.com/OpenClapper-dev/core/issues/302), part of epic [#206](https://github.com/OpenClapper-dev/core/issues/206)). Later it sits next to the lights and sequences on one screen. Setup → **Live picture** shows it.
 
-**Status:** prototype, Android only, one transmitter at its default address. Not tested on hardware yet.
+**Status:** prototype, Android only, one transmitter at its default address. Tested on the owner's phone (2026-11-07): 1920 × 1080 at 25 fps, about 2.5 Mbit/s, 15–21 ms from a frame's last packet to display, no dropped frames. The picture is back within 3 s after reopening the screen or returning from the background, and the server stays reachable over mobile data meanwhile. The owner judged the latency fine by eye; a glass-to-glass measurement against HollyView is still open.
 
 ## How the transmitter is reached
 
