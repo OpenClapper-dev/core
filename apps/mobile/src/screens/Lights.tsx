@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 import * as Crypto from "expo-crypto";
-import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, type FixtureKind, type LightState, type TelemetryField } from "@openclapper/vocab";
+import { fixtureKind, fixtureKindName, FIXTURE_LABEL_MAX, startState, effectName, type EffectId, type FixtureKind, type LightState, type TelemetryField } from "@openclapper/vocab";
 import { useApp } from "../appState";
 import { adapterState, scan, type Seen } from "../ble/link";
 import { askBluetooth } from "../ble/permissions";
@@ -30,6 +30,7 @@ function capsLine(k: FixtureKind): string {
     c.cct && `white ${c.cct.min}–${c.cct.max} K${c.cct.gm ? " + green/magenta" : ""}`,
     c.hsi && "colour",
     c.curves && "dimming curves",
+    !!c.effects?.length && `${c.effects.length} effects`,
     c.telemetry.length > 0 && c.telemetry.map((t) => TELEMETRY_WORDS[t]).join(", ").replace("time left", c.capacityWh ? "estimated time left" : "battery time left"),
   ].filter(Boolean).join(" · ");
 }
@@ -337,6 +338,7 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
   // A light that reports its state (Aputure) moves the controls to what it really shows.
   const reported = JSON.stringify(status.state);
   useEffect(() => { setV((cur) => ({ ...cur, ...status.state })); }, [reported]);
+  const [fxSheet, setFxSheet] = useState(false);
   const [mode, setMode] = useState<"cct" | "hsi">(() => (status.state.hsi && !status.state.cct ? "hsi" : "cct"));
   if (!f) return <PushScreen title="Light"><Empty icon="lightbulb-off-outline" title="This light is gone" body="It was deleted, here or on another phone." /></PushScreen>;
   const ready = status.link === "ready";
@@ -365,6 +367,16 @@ export function FixtureControl({ fixtureId }: { fixtureId: string }) {
           {caps.intensity && (
             <Slider label="Intensity" value={Math.round((v.intensity ?? 0.5) * 100)} min={0} max={100} format={(x) => `${x} %`} disabled={!ready}
               onChange={(x) => send({ intensity: x / 100 }, { op: "intensity", value: x / 100 })} />
+          )}
+          {!!caps.effects?.length && (
+            <>
+              <FieldRow icon="creation" label="Effect" value={v.effect ? effectName(v.effect) : "Off"} onPress={() => setFxSheet(true)} />
+              {v.effect && <Hint>Intensity applies to the effect; choose White or Colour to stop it.</Hint>}
+              <OptionSheet visible={fxSheet} title="Effect" sub="With Sidus Link's default settings" list
+                options={[{ id: "off", label: "Off" }, ...caps.effects.map((id) => ({ id, label: effectName(id) }))]} value={[v.effect ?? "off"]}
+                onChange={(ids) => { const id = ids[0]; if (!id || !ready) return; const fx = id === "off" ? null : (id as EffectId); send({ effect: fx }, { op: "effect", effect: fx }); }}
+                onClose={() => setFxSheet(false)} />
+            </>
           )}
           {caps.hsi && caps.cct && (
             <Seg size="lg" block accessibilityLabel="Mode" disabled={!ready} value={mode}
