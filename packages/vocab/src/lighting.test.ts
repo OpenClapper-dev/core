@@ -25,3 +25,11 @@ test("BLE addresses as Android reports them", () => {
   assert.ok(!isBleAddress("A4C1380B2F9E"));
   assert.ok(!isBleAddress(null));
 });
+
+test("the MC offers nine of the fifteen effects, all of them known ids", async () => {
+  const { EFFECTS } = await import("./lighting.ts");
+  const mc = fixtureKind("aputure-mc")!;
+  assert.equal(mc.caps.effects?.length, 9);
+  assert.ok(mc.caps.effects!.every((id) => EFFECTS.some((e) => e.id === id)));
+  assert.ok(!mc.caps.effects!.includes("strobe"));
+});
