@@ -93,6 +93,20 @@ test("effects: run, intensity re-sends the effect, white ends it, off stops it a
   await s.close();
 });
 
+test("an effect's options travel with it and survive an intensity change", async () => {
+  const { node, driver } = setup();
+  const light = mc("MC 3", 3);
+  const s = await driver.open(node.link(), [light], () => {});
+  await new Promise((r) => setTimeout(r, 10));
+  await s.send(light, { op: "intensity", value: 0.5 });
+  node.telink.length = 0;
+  const o = { frequency: 2, speed: 9, color: { kelvin: 2700 } };
+  await s.send(light, { op: "effect", effect: "faulty_bulb", settings: o });
+  await s.send(light, { op: "intensity", value: 0.8 });
+  assert.deepEqual(node.telink.filter((_, i) => i % 2 === 0), [hex(effect("faulty_bulb", 0.5, o)), hex(effect("faulty_bulb", 0.8, o))]);
+  await s.close();
+});
+
 test("without the network's keys on this phone the connection is refused", async () => {
   const { node } = setup();
   const driver = sidusMesh({ access: () => ({ keysFor: () => null }) });

@@ -1,4 +1,4 @@
-import type { Curve, EffectId, LightState } from "@openclapper/vocab";
+import type { Curve, EffectId, EffectSettings, LightState } from "@openclapper/vocab";
 
 /**
  * Lights (epic #206): the phone's side. "Fixture" because "device" already means this phone
@@ -26,7 +26,7 @@ export type Command =
   | { op: "hsi"; h: number; s: number; i: number }
   | { op: "curve"; curve: Curve }
   /** Run a built-in effect at the current intensity, or stop it (null). */
-  | { op: "effect"; effect: EffectId | null }
+  | { op: "effect"; effect: EffectId | null; settings?: EffectSettings }
   | { op: "status" };
 
 /** What a fixture reported last; `state` is what a light says it shows. */
