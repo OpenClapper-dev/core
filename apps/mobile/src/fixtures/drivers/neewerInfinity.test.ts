@@ -107,3 +107,16 @@ test("the light's state reply moves the controls (and the values the next white 
   await s.send(light, { op: "intensity", value: 0.5 });
   assert.equal(writes[0].bytes, toHex(whiteFrame(MAC, { intensity: 0.5, kelvin: 4000, curve: "log", gm: 0 })));
 });
+
+test("instant changes send Music FX's short white frame; smooth goes back to the full one", async () => {
+  const { writes, link, driver } = setup();
+  const s = await driver.open(link, [light], () => {});
+  await s.send(light, { op: "smooth", on: false });
+  writes.length = 0;
+  await s.send(light, { op: "intensity", value: 0.8 });
+  assert.equal(writes[0].bytes.slice(0, 8), "78 90 0a");
+  await s.send(light, { op: "smooth", on: true });
+  writes.length = 0;
+  await s.send(light, { op: "intensity", value: 0.2 });
+  assert.equal(writes[0].bytes.slice(0, 8), "78 90 0c");
+});

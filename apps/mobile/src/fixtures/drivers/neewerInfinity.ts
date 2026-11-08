@@ -1,6 +1,6 @@
 import { effectSettingsOf, fixtureKind, startState, type Curve, type EffectId, type EffectSettings, type LightState } from "@openclapper/vocab";
 import { toHex } from "../bytes.ts";
-import { effectFrame, helloFrames, modelOf, NEEWER_NOTIFY, NEEWER_SERVICE, NEEWER_WRITE, parseNotice, parseState, powerFrame, smoothFrame, stateQuery, whiteFrame } from "../codecs/neewer.ts";
+import { effectFrame, helloFrames, modelOf, NEEWER_NOTIFY, NEEWER_SERVICE, NEEWER_WRITE, parseNotice, parseState, powerFrame, quickWhiteFrame, smoothFrame, stateQuery, whiteFrame } from "../codecs/neewer.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
 
 /** A light needs a moment after power-on before it takes a white-light frame. */
@@ -43,6 +43,8 @@ export function neewerInfinity(opts: NeewerOptions = {}): Driver {
       const f = fixtures.find((x) => x.address === link.address) ?? fixtures[0];
       const white = new Map<string, White>();
       const running = new Map<string, { id: EffectId; settings?: EffectSettings }>();
+      /** Lights switched to instant changes: they get Music FX's short white frame (#206). */
+      const instant = new Set<string>();
       let poweredOnAt = Number.NEGATIVE_INFINITY;
       const stop = await link.notify(NEEWER_SERVICE, NEEWER_NOTIFY, (b) => {
         log("debug", "neewer notify", { fixture: f?.id, bytes: toHex(b) });
@@ -97,14 +99,16 @@ export function neewerInfinity(opts: NeewerOptions = {}): Driver {
                 await write(whiteFrame(fx.address, w));
               }
               return write(stateQuery(fx.address));
-            case "smooth": return write(smoothFrame(fx.address, cmd.on));
+            case "smooth":
+              if (cmd.on) instant.delete(fx.id); else instant.add(fx.id);
+              return write(smoothFrame(fx.address, cmd.on));
             case "status": return write(stateQuery(fx.address));
             default: throw new Error(`${fx.kindId} has no ${cmd.op}`);
           }
           white.set(fx.id, w);
           const left = poweredOnAt + AFTER_POWER_ON_MS - now();
           if (left > 0) await wait(left);
-          await write(whiteFrame(fx.address, w));
+          await write(instant.has(fx.id) ? quickWhiteFrame(fx.address, w) : whiteFrame(fx.address, w));
         },
         async close() { stop(); },
       };

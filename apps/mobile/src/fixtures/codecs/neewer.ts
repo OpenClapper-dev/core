@@ -42,6 +42,16 @@ export function whiteFrame(address: string, w: { intensity: number; kelvin: numb
   return frame(0x90, address, [0x87, bri, cct, gm, CURVE_BYTE[w.curve], 0x00]);
 }
 
+/**
+ * The short white frame NEEWER 5.8.0's Music FX streams after `d3 01` (smoothing off): intensity,
+ * kelvin/100 and G/M + 50, without the curve and decimal bytes. Music must follow the beat at once,
+ * so this is the app's only white command meant to land instantly (#206).
+ */
+export function quickWhiteFrame(address: string, w: { intensity: number; kelvin: number; gm?: number }): Uint8Array {
+  const bri = Math.round(Math.min(1, Math.max(0, w.intensity)) * 100);
+  return frame(0x90, address, [0x87, bri, Math.round(w.kelvin / 100), Math.round(Math.min(50, Math.max(-50, w.gm ?? 0))) + 50]);
+}
+
 /** What the app sends right after connecting: a hello and five queries. Replayed so the light sees the same start. */
 export const helloFrames = (address: string): Uint8Array[] => [
   frame(0x9f, address, [0x01, 0x00, 0xff, 0xff, 0xff, 0xff]),
