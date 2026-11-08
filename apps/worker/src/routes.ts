@@ -11,6 +11,7 @@ import { registerDeviceRoutes } from "./devices.ts";
 import { registerFieldRoutes } from "./fields.ts";
 import { registerFileRoutes } from "./files.ts";
 import { registerFixtureRoutes } from "./fixtures.ts";
+import { registerLightSequenceRoutes } from "./lightSequences.ts";
 import { registerFramingRoutes } from "./framings.ts";
 import type { Ctx } from "./index.ts";
 import { registerLayerRoutes } from "./layers.ts";
@@ -63,6 +64,7 @@ router.on("GET", "/api/me", async ({ env, identity }) => {
 });
 registerPresetRoutes(router);
 registerFixtureRoutes(router);
+registerLightSequenceRoutes(router);
 registerProjectRoutes(router);
 registerFieldRoutes(router);
 registerDayRoutes(router);

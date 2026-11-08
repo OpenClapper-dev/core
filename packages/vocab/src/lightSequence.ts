@@ -236,3 +236,58 @@ export function nativeStep(keyframes: readonly Keyframe[], t: number, prev: Sequ
   };
   return { commands: [...base.commands, cmd], sent: { ...base.sent, ...target, power: base.sent.power }, key };
 }
+
+export const SEQUENCE_NAME_MAX = 120;
+export const SEQUENCE_TRACKS_MAX = 64;
+export const SEQUENCE_KEYFRAMES_MAX = 2000;
+
+const isNum = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
+const CURVE_IDS = ["linear", "exp", "log", "s"];
+
+/**
+ * A sequence's tracks as the Worker stores them (#304): checked strictly (they come from the editor),
+ * unknown fields dropped. Returns the clean tracks, or an error naming the first problem.
+ */
+export function parseSequenceTracks(v: unknown, durationMs: number, isKind: (id: string) => boolean, isEffect: (id: string) => boolean): { tracks: SequenceTrack[] } | { error: string } {
+  if (!Array.isArray(v)) return { error: "tracks must be an array" };
+  if (v.length > SEQUENCE_TRACKS_MAX) return { error: `at most ${SEQUENCE_TRACKS_MAX} tracks` };
+  let total = 0;
+  const tracks: SequenceTrack[] = [];
+  for (const [i, raw] of v.entries()) {
+    const t = (raw ?? {}) as Record<string, unknown>;
+    const where = `tracks[${i}]`;
+    if (typeof t.id !== "string" || !t.id || t.id.length > 64) return { error: `${where}.id is missing` };
+    if (typeof t.name !== "string" || !t.name.trim() || t.name.length > 60) return { error: `${where}.name must be 1–60 characters` };
+    if (typeof t.kindId !== "string" || !isKind(t.kindId)) return { error: `${where}.kindId is not a known light type` };
+    if (t.fixtureId != null && (typeof t.fixtureId !== "string" || t.fixtureId.length > 64)) return { error: `${where}.fixtureId is not an id` };
+    if (!Array.isArray(t.keyframes)) return { error: `${where}.keyframes must be an array` };
+    total += t.keyframes.length;
+    if (total > SEQUENCE_KEYFRAMES_MAX) return { error: `at most ${SEQUENCE_KEYFRAMES_MAX} keyframes per sequence` };
+    const keyframes: Keyframe[] = [];
+    for (const [j, rk] of t.keyframes.entries()) {
+      const k = (rk ?? {}) as Record<string, unknown>;
+      const at = `${where}.keyframes[${j}]`;
+      if (typeof k.id !== "string" || !k.id || k.id.length > 64) return { error: `${at}.id is missing` };
+      if (!isNum(k.at, 0, durationMs)) return { error: `${at}.at must be within the sequence` };
+      const out: Keyframe = { id: k.id, at: Math.round(k.at) };
+      if (k.fadeIn != null) { if (!CURVE_IDS.includes(k.fadeIn as string)) return { error: `${at}.fadeIn is not a curve` }; out.fadeIn = k.fadeIn as Curve; }
+      if (k.fadeStepped === true) out.fadeStepped = true;
+      if (k.power != null) { if (typeof k.power !== "boolean") return { error: `${at}.power must be true or false` }; out.power = k.power; }
+      for (const [f, lo, hi] of [["intensity", 0, 1], ["kelvin", 1000, 20000], ["gm", -50, 50], ["hue", 0, 360], ["sat", 0, 1]] as const) {
+        if (k[f] == null) continue;
+        if (!isNum(k[f], lo, hi)) return { error: `${at}.${f} is out of range` };
+        out[f] = k[f] as number;
+      }
+      if (k.curve != null) { if (!CURVE_IDS.includes(k.curve as string)) return { error: `${at}.curve is not a curve` }; out.curve = k.curve as Curve; }
+      if (k.effect != null) {
+        const e = k.effect as Record<string, unknown>;
+        if (typeof e !== "object" || (e.id !== null && (typeof e.id !== "string" || !isEffect(e.id)))) return { error: `${at}.effect is not a known effect` };
+        out.effect = { id: e.id as EffectId | null, ...(e.settings && typeof e.settings === "object" ? { settings: e.settings as EffectSettings } : {}) };
+      }
+      keyframes.push(out);
+    }
+    if (!keyframes.some((k) => k.id === START_KEYFRAME && k.at === 0)) return { error: `${where} has no start keyframe at 0` };
+    tracks.push({ id: t.id, name: t.name.trim(), kindId: t.kindId, fixtureId: (t.fixtureId as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), keyframes });
+  }
+  return { tracks };
+}

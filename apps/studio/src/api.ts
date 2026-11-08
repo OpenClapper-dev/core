@@ -1,5 +1,5 @@
 /** Same-origin API; the session cookie is sent automatically. */
-import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint, Layer, LayerInput, StepBake } from "@openclapper/vocab";
+import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint, Layer, LayerInput, StepBake, LightSequence, SequenceTrack } from "@openclapper/vocab";
 export type { Layer, LayerInput, ShotStep, StepBake, StepInput } from "@openclapper/vocab";
 export type { ClipGroup } from "@openclapper/vocab";
 export type { FieldDefinition };
@@ -451,3 +451,13 @@ export const fetchFixtures = () => get<{ fixtures: ServerFixture[] }>("/api/fixt
 export const putFixture = (f: { id: string; label: string; kind_id: string; address: string }) =>
   send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${f.id}`, { label: f.label, kind_id: f.kind_id, address: f.address }).then((r) => r.fixture);
 export const deleteFixture = (id: string) => send<{ deleted: string }>("DELETE", `/api/fixtures/${id}`).then(() => undefined);
+
+/** Light sequences (#304), per project; the editor's model (vocab LightSequence) with snake-case envelope fields. */
+interface ServerLightSequence { id: string; project_id: string; name: string; duration_ms: number; loop: boolean; tracks: SequenceTrack[]; updated_at: string | null; created_at: string }
+const sequenceFromServer = (s: ServerLightSequence): LightSequence => ({ id: s.id, name: s.name, durationMs: s.duration_ms, loop: s.loop, tracks: s.tracks, updatedAt: s.updated_at ?? s.created_at });
+export const fetchLightSequences = (projectId: string) =>
+  get<{ light_sequences: ServerLightSequence[] }>(`/api/light-sequences?project_id=${encodeURIComponent(projectId)}`).then((r) => r.light_sequences.map(sequenceFromServer));
+export const putLightSequence = (projectId: string, s: LightSequence) =>
+  send<{ light_sequence: ServerLightSequence }>("PUT", `/api/light-sequences/${s.id}`, { project_id: projectId, name: s.name, duration_ms: s.durationMs, loop: s.loop, tracks: s.tracks })
+    .then((r) => sequenceFromServer(r.light_sequence));
+export const deleteLightSequence = (id: string) => send<{ deleted: string }>("DELETE", `/api/light-sequences/${id}`).then(() => undefined);

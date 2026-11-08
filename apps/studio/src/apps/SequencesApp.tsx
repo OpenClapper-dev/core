@@ -4,12 +4,13 @@ import {
   commandsFor, CURVES, effectName, FIXTURE_KINDS, fixtureKind, inFade, nativeStep, sampleTrack, SEQUENCE_MAX_MS, SEQUENCE_TICK_MS, START_KEYFRAME, startKeyframe,
   type Curve, type EffectId, type Keyframe, type LightSequence, type SequenceSample, type SequenceTrack,
 } from "@openclapper/vocab";
-import { Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
+import { Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { fetchFixtures, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { bind, useKeys } from "../keys";
 import { useLightProxy } from "../lightProxy";
 import { setPlayingFixtures } from "../sequencePlayback";
+import { useProjectId } from "../project";
 import { deleteSequence, getSequences, upsertSequence, useSequences } from "../sequences";
 import type { AppProps } from "./registry";
 
@@ -40,8 +41,10 @@ function newSequence(n: number): LightSequence {
 
 export function SequencesApp(_p: AppProps) {
   const proxy = useLightProxy();
-  const sequences = useSequences();
+  const sequences = useSequences(useProjectId());
   const [selId, setSelId] = useState<string | null>(sequences[0]?.id ?? null);
+  // Sequences arrive from the server after the first render: pick the first once they do.
+  useEffect(() => { if (!sequences.some((s) => s.id === selId)) setSelId(sequences[0]?.id ?? null); }, [sequences.map((s) => s.id).join(",")]);
   const seq = sequences.find((s) => s.id === selId) ?? null;
   const [fixtures, setFixtures] = useState<ServerFixture[]>([]);
   useEffect(() => { void fetchFixtures().then((f) => setFixtures(f.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })))).catch(() => {}); }, []);
@@ -60,7 +63,7 @@ export function SequencesApp(_p: AppProps) {
   const seqRef = useRef(seq);
   seqRef.current = seq;
 
-  const save = (s: LightSequence) => { if (!upsertSequence(s)) toast("This browser did not store the sequence", "danger"); };
+  const save = (s: LightSequence) => { upsertSequence(s); };
   /** Edits start from the stored sequence, not this render's copy: quick clicks and drags must not undo each other. */
   const current = () => getSequences().find((s) => s.id === selId) ?? null;
   const patch = (fn: (s: LightSequence) => LightSequence) => { const cur = current(); if (cur) save(fn(cur)); };
@@ -132,7 +135,7 @@ export function SequencesApp(_p: AppProps) {
   const create = () => { const s = newSequence(sequences.length + 1); save(s); setSelId(s.id); setPlayhead(0); setSel(new Set()); };
   const remove = async () => {
     if (!seq) return;
-    if ((await confirmDialog({ title: `Delete “${seq.name}”?`, body: "It is stored only in this browser.", confirmLabel: "Delete", danger: true })) !== true) return;
+    if ((await confirmDialog({ title: `Delete “${seq.name}”?`, body: "It is deleted from the project for everyone.", confirmLabel: "Delete", danger: true })) !== true) return;
     deleteSequence(seq.id);
     setSelId(sequences.find((s) => s.id !== seq.id)?.id ?? null);
   };
@@ -178,7 +181,7 @@ export function SequencesApp(_p: AppProps) {
         <span class={cx("devices-chip", proxy.proxy ? "is-ok" : "is-off")}><Icon name={proxy.proxy ? "access-point" : "access-point-off"} />{proxy.proxy ? `Proxy: ${proxy.proxy.phone.model ?? "phone"}` : "No proxy"}</span>
       </Toolbar>
       {!seq ? (
-        <div class="f-app__body"><Empty icon="chart-timeline-variant" title="No sequence yet" actions={<Button icon="plus" onClick={create}>New sequence</Button>}>Tracks of a light type, keyframes on them, played through the phone's proxy. Stored in this browser for now.</Empty></div>
+        <div class="f-app__body"><Empty icon="chart-timeline-variant" title="No sequence yet" actions={<Button icon="plus" onClick={create}>New sequence</Button>}>Tracks of a light type, keyframes on them, played through the phone's proxy. Saved with the project.</Empty></div>
       ) : (
         <div class="f-app__body">
           <div class="seq-main">

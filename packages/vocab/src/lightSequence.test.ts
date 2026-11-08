@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { commandsFor, ease, inFade, nativeFades, nativeStep, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./lightSequence.ts";
+import { commandsFor, ease, inFade, nativeFades, nativeStep, parseSequenceTracks, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./lightSequence.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const start = (x: Omit<Keyframe, "id" | "at">) => kf(0, x, START_KEYFRAME);
@@ -89,4 +89,18 @@ test("inFade: true only inside a fade tile", () => {
   assert.equal(inFade(k, 500), false);
   assert.equal(inFade(k, 1500), true);
   assert.equal(inFade(k, 2500), false);
+});
+
+test("stored tracks are checked strictly and cleaned", () => {
+  const isKind = (id: string) => id === "aputure-mc", isEffect = (id: string) => id === "fire";
+  const good = [{ id: "t1", name: " MC 1 ", kindId: "aputure-mc", fixtureId: null, extra: 1, keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4900, gm: 0, junk: true }, { id: "k", at: 500, fadeIn: "s", effect: { id: "fire" } }] }];
+  const ok = parseSequenceTracks(good, 1000, isKind, isEffect);
+  assert.ok("tracks" in ok);
+  assert.deepEqual(ok.tracks[0], { id: "t1", name: "MC 1", kindId: "aputure-mc", fixtureId: null, keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4900, gm: 0 }, { id: "k", at: 500, fadeIn: "s", effect: { id: "fire" } }] });
+  const bad = (patch: Record<string, unknown>, kf: Record<string, unknown> = {}) => parseSequenceTracks([{ ...good[0], ...patch, keyframes: [{ ...good[0].keyframes[0] }, { id: "k", at: 500, ...kf }] }], 1000, isKind, isEffect);
+  assert.ok("error" in bad({ kindId: "x" }));
+  assert.ok("error" in bad({}, { at: 5000 }));
+  assert.ok("error" in bad({}, { intensity: 2 }));
+  assert.ok("error" in bad({}, { effect: { id: "disco" } }));
+  assert.ok("error" in parseSequenceTracks([{ ...good[0], keyframes: [{ id: "k", at: 0 }] }], 1000, isKind, isEffect));
 });
