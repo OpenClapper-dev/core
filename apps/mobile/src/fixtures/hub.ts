@@ -30,7 +30,7 @@ export const hub = new Hub({
 
 let watching = false;
 /** Android stops Bluetooth work in the background: close there, reopen on return. Started on first use. */
-function watchAppState() {
+export function watchAppState() {
   if (watching) return;
   watching = true;
   AppState.addEventListener("change", (s) => {

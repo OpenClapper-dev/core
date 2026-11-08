@@ -127,4 +127,24 @@ describe("preview room", () => {
     phone.ws.close();
     studio.ws.close();
   });
+
+  test("light proxy (#307): commands relayed only when valid, state to the Studio, studios counted for the phone", async () => {
+    const phone = await socket("phone");
+    const studio = await socket("studio");
+    // The Studio connecting asks the phone to report.
+    await until(() => phone.got.some((m) => m.type === "lights.hello"));
+    await until(() => phone.got.some((m) => m.type === "lights.studios" && m.count === 1));
+    const fixtureId = "00000000-0000-4000-8000-000000000001";
+    studio.ws.send(JSON.stringify({ type: "lights.command", fixtureId, command: { op: "intensity", value: 2 } }));
+    studio.ws.send(JSON.stringify({ type: "lights.command", fixtureId: "not-a-uuid", command: { op: "power", on: true } }));
+    studio.ws.send(JSON.stringify({ type: "lights.command", fixtureId, command: { op: "intensity", value: 0.3, sneaky: true } }));
+    const commands = () => phone.got.filter((m) => m.type === "lights.command");
+    await until(() => commands().length > 0);
+    expect(commands()).toEqual([{ type: "lights.command", fixtureId, command: { op: "intensity", value: 0.3 } }]);
+    phone.ws.send(JSON.stringify({ type: "lights.state", phone: { id: fixtureId, model: "x" }, proxy: true, fixtures: [] }));
+    await until(() => studio.got.some((m) => m.type === "lights.state" && m.proxy === true));
+    studio.ws.close();
+    await until(() => phone.got.some((m) => m.type === "lights.studios" && m.count === 0));
+    phone.ws.close();
+  });
 });

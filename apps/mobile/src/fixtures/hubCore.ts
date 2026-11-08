@@ -1,8 +1,8 @@
-import type { LightState } from "@openclapper/vocab";
+import type { LightState, LinkState } from "@openclapper/vocab";
 import { CommandQueue, type Clock } from "./queue.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "./types.ts";
 
-export type LinkState = "off" | "connecting" | "ready" | "retrying" | "failed";
+export type { LinkState };
 
 export interface FixtureStatus {
   link: LinkState;
@@ -15,7 +15,7 @@ export interface FixtureStatus {
 }
 
 /** Who holds a connection open: a screen showing the fixture, or a running sequence (later). */
-export type Holder = "screen" | "sequence";
+export type Holder = "screen" | "sequence" | "proxy";
 
 export interface Timers {
   setTimeout(fn: () => void, ms: number): unknown;
