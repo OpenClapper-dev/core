@@ -1,7 +1,7 @@
 import { bytes } from "../mesh/crypto.ts";
 import { MeshSession, type NetworkKeys } from "../mesh/session.ts";
 import type { SeqAllocator } from "../mesh/seq.ts";
-import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
+import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, programFade, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
 import type { EffectId, EffectSettings, LightState } from "@openclapper/vocab";
 
@@ -117,6 +117,13 @@ export function sidusMesh(o: SidusOptions): Driver {
               return toLight(f, statusRequest(), 1);
             case "status": return toLight(f, statusRequest(), 1);
             case "curve": return toLight(f, curve(cmd.curve));
+            // The light fades by itself and holds (#289). Sent once: a repeat would restart the fade.
+            case "fade": {
+              const white = cmd.colour ? undefined : cmd.white ?? { kelvin: l.kelvin ?? 5600, gm: l.gm ?? 0 };
+              last.set(f.id, { ...l, intensity: cmd.intensity, ...(white ? { kelvin: white.kelvin, gm: white.gm } : {}) });
+              running.set(f.id, null);
+              return toLight(f, programFade({ intensity: cmd.intensity, fadeInMs: cmd.ms, curve: cmd.curve, white, colour: cmd.colour }), 1);
+            }
             case "trigger": {
               const fx = running.get(f.id);
               // Once only: a repeat would strike twice.

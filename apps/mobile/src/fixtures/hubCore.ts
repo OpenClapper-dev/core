@@ -68,6 +68,11 @@ export function applyCommand(s: LightState, cmd: Command): LightState {
     case "hsi": return { ...s, hsi: { h: cmd.h, s: cmd.s, i: cmd.i }, cct: undefined, intensity: cmd.i, effect: null };
     case "effect": return { ...s, effect: cmd.effect, ...(cmd.settings ? { effectSettings: cmd.settings } : {}) };
     case "curve": return { ...s, curve: cmd.curve };
+    // Where the light ends up; it gets there by itself over cmd.ms.
+    case "fade": return {
+      ...s, intensity: cmd.intensity, effect: null,
+      ...(cmd.colour ? { hsi: { h: cmd.colour.h, s: cmd.colour.s, i: cmd.intensity }, cct: undefined } : cmd.white ? { cct: cmd.white, hsi: undefined } : {}),
+    };
     default: return s;
   }
 }

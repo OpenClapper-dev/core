@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { EFFECTS } from "@openclapper/vocab";
-import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, statusRequest } from "./sidus.ts";
+import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, programFade, statusRequest } from "./sidus.ts";
 
 const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
 const ofHex = (s: string) => Uint8Array.from(s.match(/../g)!, (h) => parseInt(h, 16));
@@ -138,4 +138,25 @@ test("Lightning: trigger 1 strikes once, 2 is the automatic pattern", () => {
   const strike = effect("lightning", 1, undefined, true);
   const field = (p: Uint8Array) => ((p[3] >> 7) & 1) | ((p[4] & 1) << 1); // bits 31-32
   assert.deepEqual([field(auto), field(strike)], [2, 1]);
+});
+
+/**
+ * Sidus Link's packer, ported from its BinaryKit: each field MSB-first, reversed, concatenated;
+ * bit k lands in byte k >> 3 at bit k & 7; byte 0 is the sum of the others.
+ */
+function sidusPack(fields: [number, number][]): Uint8Array {
+  const bits = fields.map(([v, n]) => (v | (1 << n)).toString(2).slice(1).split("").reverse().join("")).join("");
+  const p = new Uint8Array(10);
+  for (let k = 0; k < 80; k++) if (bits[k] === "1") p[k >> 3] |= 1 << (k & 7);
+  p[0] = (p[1] + p[2] + p[3] + p[4] + p[5] + p[6] + p[7] + p[8] + p[9]) & 0xff;
+  return p;
+}
+
+test("program continue (native fade, #289) matches Sidus Link's ProgramContinueProtocol", () => {
+  // White: lightType 0, fade-out linear 0 s, hold for ever, fade-in S over 5 s, G/M neutral, 5600 K, 80 %.
+  const white = sidusPack([[0, 8], [0, 1], [0, 3], [0, 8], [1023, 10], [3, 3], [50, 8], [10, 6], [560, 10], [800, 10], [0, 2], [0, 3], [21, 7], [1, 1]]);
+  assert.deepEqual(programFade({ intensity: 0.8, fadeInMs: 5000, curve: "s", white: { kelvin: 5600, gm: 0 } }), white);
+  // Colour: hue 240, saturation 70 %, 30 %, expo over 12.5 s, hold 3 s, fade out log over 2 s.
+  const colour = sidusPack([[0, 8], [0, 1], [2, 3], [20, 8], [30, 10], [1, 3], [125, 8], [70, 7], [240, 9], [300, 10], [1, 2], [1, 3], [21, 7], [1, 1]]);
+  assert.deepEqual(programFade({ intensity: 0.3, fadeInMs: 12_500, curve: "exp", colour: { h: 240, s: 0.7 }, holdMs: 3000, fadeOutMs: 2000, fadeOutCurve: "log" }), colour);
 });

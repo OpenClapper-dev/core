@@ -13,6 +13,9 @@ describe("parseLightCommand", () => {
     assert.deepEqual(parseLightCommand({ op: "effect", effect: "fire", settings: { choice: 1, frequency: 11 } }), { op: "effect", effect: "fire", settings: { choice: 1, frequency: 11 } });
     assert.deepEqual((parseLightCommand({ op: "effect", effect: "pulsing", settings: { color: { h: 10, s: 0.5 } } }) as { settings?: unknown } | null)?.settings, { color: { h: 10, s: 0.5 } });
     assert.deepEqual(parseLightCommand({ op: "trigger" }), { op: "trigger" });
+    assert.deepEqual(parseLightCommand({ op: "fade", ms: 5000, curve: "s", intensity: 1, white: { kelvin: 5600, gm: 0 } }), { op: "fade", ms: 5000, curve: "s", intensity: 1, white: { kelvin: 5600, gm: 0 } });
+    assert.equal(parseLightCommand({ op: "fade", ms: 30_000, curve: "s", intensity: 1 }), null);
+    assert.equal(parseLightCommand({ op: "fade", ms: 1000, curve: "s", intensity: 1, colour: { h: 400, s: 1 } }), null);
   });
 
   test("drops anything malformed or out of range, and unknown fields", () => {

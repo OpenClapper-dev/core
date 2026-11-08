@@ -278,3 +278,41 @@ const CURVE_VALUE: Record<Curve, number> = { linear: 0, exp: 1, log: 2, s: 3 };
  * 2.0.42 (decompiled with Aputure's permission). The light does not report it back.
  */
 export function curve(c: Curve) { const p = new Uint8Array(10); p[8] = CURVE_VALUE[c]; return finish(p, CMD.CURVE); }
+
+/**
+ * Program → Continue (#289): the light runs it by itself, fade in to the target (curve, up to 25.5 s),
+ * hold (1023 tenths = for ever), fade out (curve, time). Type 0x15; layout from Sidus Link 2.0.42's
+ * ProgramContinueProtocol (decompiled with Aputure's permission): fade-out curve at 9 (3 bits) and
+ * time at 12 (8, tenths), hold at 20 (10), fade-in curve at 30 (3) and time at 33 (8), then white
+ * (G/M + 10 at 41, 6 bits; K/10 at 47, 10 bits, bit 8 set above 10000 K) or colour (saturation at
+ * 41, 7; hue at 48, 9), intensity 0..1000 at 57, base type at 67 (0 white, 1 colour), light type at 69.
+ */
+export function programFade(o: {
+  intensity: number; fadeInMs: number; curve: Curve;
+  white?: { kelvin: number; gm: number }; colour?: { h: number; s: number };
+  /** null: hold for ever. */
+  holdMs?: number | null; fadeOutMs?: number; fadeOutCurve?: Curve;
+}) {
+  const p = new Uint8Array(10);
+  const tenths = (ms: number) => clamp(Math.round(ms / 100), 0, 255);
+  setBits(p, 9, 3, CURVE_VALUE[o.fadeOutCurve ?? "linear"]);
+  setBits(p, 12, 8, tenths(o.fadeOutMs ?? 0));
+  setBits(p, 20, 10, o.holdMs == null ? 1023 : clamp(Math.round(o.holdMs / 100), 0, 1000));
+  setBits(p, 30, 3, CURVE_VALUE[o.curve]);
+  setBits(p, 33, 8, tenths(o.fadeInMs));
+  if (o.colour) {
+    setBits(p, 41, 7, clamp(Math.round(o.colour.s * 100), 0, 100));
+    setBits(p, 48, 9, clamp(Math.round(o.colour.h), 0, 360));
+    setBits(p, 67, 2, 1);
+    setBits(p, 69, 3, 1);
+  } else {
+    const w = o.white ?? { kelvin: 5600, gm: 0 };
+    let t = clamp(Math.round(w.kelvin / 10), 80, 2000);
+    if (t > 1000) { setBits(p, 8, 1, 1); t -= 1000; }
+    setBits(p, 47, 10, t);
+    setBits(p, 41, 6, clamp(Math.round(w.gm) + 10, 0, 20));
+  }
+  setBits(p, 57, 10, Math.round(clamp(o.intensity, 0, 1) * 1000));
+  return finish(p, PROGRAM_CONTINUE);
+}
+const PROGRAM_CONTINUE = 0x95;
