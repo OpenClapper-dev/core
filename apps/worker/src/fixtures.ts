@@ -25,7 +25,7 @@ async function assertHolder(env: Ctx["env"], id: string, holder: string | null) 
 }
 export interface FixtureRow {
   id: string; workspace_id: string; label: string; kind_id: string; address: string;
-  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; created_at: string; updated_at: string | null;
+  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; powered_by: string | null; created_at: string; updated_at: string | null;
 }
 
 const assertInt = (v: unknown, field: string, min: number, max: number): number => {
@@ -166,11 +166,44 @@ export function registerFixtureRoutes(r: Router<Ctx>) {
     return json({ fixture: await env.DB.prepare("SELECT * FROM fixtures WHERE id = ?1").bind(fid).first<FixtureRow>() });
   });
 
+  /**
+   * JSON { powered_by }: the battery a light runs on (#294), or null for a socket. Only for lights
+   * without a battery of their own, only a battery of the same workspace; one light per battery, so the
+   * battery leaves any other light it was assigned to.
+   */
+  r.on("PUT", "/api/fixtures/:id/power", async (ctx, { id }) => {
+    const { env, request } = ctx;
+    const fid = assertUuid(id, "id");
+    const ws = await assertAccess(ctx, "fixture", fid, "editor");
+    const b = await readJson<Record<string, unknown>>(request);
+    const light = await env.DB.prepare("SELECT kind_id FROM fixtures WHERE id = ?1").bind(fid).first<{ kind_id: string }>();
+    const kind = light ? fixtureKind(light.kind_id) : undefined;
+    if (!kind?.caps.power || kind.caps.telemetry.includes("battery")) throw new HttpError(400, "only a light without its own battery can be given one");
+    const battery = b.powered_by == null ? null : assertUuid(b.powered_by, "powered_by");
+    if (battery) {
+      const row = await env.DB.prepare("SELECT kind_id, workspace_id FROM fixtures WHERE id = ?1").bind(battery).first<{ kind_id: string; workspace_id: string }>();
+      const bk = row ? fixtureKind(row.kind_id) : undefined;
+      // Another workspace's battery answers like a missing one.
+      if (!row || row.workspace_id !== ws) throw new HttpError(400, "powered_by does not exist");
+      if (!bk || bk.caps.power || !bk.caps.telemetry.includes("battery")) throw new HttpError(400, "powered_by is not a battery");
+    }
+    const now = new Date().toISOString();
+    await env.DB.batch([
+      ...(battery ? [env.DB.prepare("UPDATE fixtures SET powered_by = NULL, updated_at = ?3 WHERE powered_by = ?1 AND id != ?2").bind(battery, fid, now)] : []),
+      env.DB.prepare("UPDATE fixtures SET powered_by = ?2, updated_at = ?3 WHERE id = ?1").bind(fid, battery, now),
+    ]);
+    return json({ fixture: await env.DB.prepare("SELECT * FROM fixtures WHERE id = ?1").bind(fid).first<FixtureRow>() });
+  });
+
   r.on("DELETE", "/api/fixtures/:id", async (ctx, { id }) => {
     const { env } = ctx;
     const fid = assertUuid(id, "id");
     await assertAccess(ctx, "fixture", fid, "editor");
-    await env.DB.prepare("DELETE FROM fixtures WHERE id = ?1").bind(fid).run();
+    // A deleted battery leaves the light it powered on "not set".
+    await env.DB.batch([
+      env.DB.prepare("UPDATE fixtures SET powered_by = NULL WHERE powered_by = ?1").bind(fid),
+      env.DB.prepare("DELETE FROM fixtures WHERE id = ?1").bind(fid),
+    ]);
     return json({ deleted: fid });
   });
 }

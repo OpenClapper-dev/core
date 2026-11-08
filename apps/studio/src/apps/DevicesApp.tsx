@@ -4,7 +4,8 @@ import {
   type Curve, type EffectId, type EffectSettings, type FixtureKind, type FixtureLive, type LightCommand, type LightState, type ProvisionStage, type ProvisionState, type ScannedDevice,
 } from "@openclapper/vocab";
 import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, ListRow, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, Spinner, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
-import { deleteFixture, fetchFixtures, putFixture, type ServerFixture } from "../api";
+import { deleteFixture, fetchFixtures, putFixture, setFixturePower, type ServerFixture } from "../api";
+import { BatteryChip, isBattery, minutesText, powerOf, takesBattery } from "../power";
 import { Range } from "../compose/editor";
 import { useLightProxy, type LightProxy } from "../lightProxy";
 import { usePlayingFixtures } from "../sequencePlayback";
@@ -43,6 +44,8 @@ export function DevicesApp(_p: AppProps) {
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  /** At a glance (tiles with power) or the list by brand. */
+  const [view, setView] = useState<"overview" | "list">("overview");
   const load = () => fetchFixtures().then((f) => { setFixtures(f.sort((x, y) => x.label.localeCompare(y.label, undefined, { numeric: true }))); setError(null); }).catch((e) => setError((e as Error).message));
   useEffect(() => { void load(); }, []);
   // A fixture the proxy holds but this list lacks was paired since: fetch again.
@@ -59,6 +62,7 @@ export function DevicesApp(_p: AppProps) {
     <>
       <Toolbar>
         <ToolbarTitle icon="access-point" count={fixtures?.length}>Devices</ToolbarTitle>
+        <Seg label="View" value={view} onChange={setView} options={[{ id: "overview", icon: "view-dashboard-outline", title: "At a glance" }, { id: "list", icon: "format-list-bulleted", title: "By brand" }]} />
         <ToolbarSpacer />
         <ProxyChip proxy={proxy} />
         <Button size="sm" icon="plus" disabled={!proxy.proxy} title={proxy.proxy ? undefined : "Needs the phone's proxy"} onClick={() => { setSel(null); setAdding(true); }}>Add device</Button>
@@ -68,7 +72,8 @@ export function DevicesApp(_p: AppProps) {
         <div class="f-scroll devices-list">
           {!proxy.proxy && <div class="devices-banner"><ProxyBanner proxy={proxy} /></div>}
           {error && <ErrorLine>{error}</ErrorLine>}
-          {BRANDS.map((brand) => {
+          {view === "overview" && fixtures && <Overview fixtures={fixtures} live={live} proxyOn={!!proxy.proxy} sel={sel} onSelect={setSel} />}
+          {view === "list" && BRANDS.map((brand) => {
             const kinds = FIXTURE_KINDS.filter((k) => k.brand === brand);
             const mine = (fixtures ?? []).filter((f) => fixtureKind(f.kind_id)?.brand === brand);
             return (
@@ -89,7 +94,7 @@ export function DevicesApp(_p: AppProps) {
               </section>
             );
           })}
-          {PHONE_ONLY.map((b) => (
+          {view === "list" && PHONE_ONLY.map((b) => (
             <section key={b.brand} class="devices-brand">
               <h3 class="section-title">{b.brand}</h3>
               <p class="meta">{b.models.join(" · ")}</p>
@@ -102,7 +107,7 @@ export function DevicesApp(_p: AppProps) {
           <AddDevicePanel fixtures={fixtures} proxy={proxy} onClose={() => setAdding(false)} onPaired={(id) => { setAdding(false); changed(id); }} />
         )}
         {selected && fixtures && (
-          <FixturePanel key={selected.id} f={selected} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} onChanged={changed} />
+          <FixturePanel key={selected.id} f={selected} fixtures={fixtures} liveOf={live} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} onChanged={changed} />
         )}
         {!selected && !adding && fixtures && fixtures.length > 0 && (
           <Panel label="Device"><PanelBody><Empty icon="gesture-tap" title="Pick a device">Its controls and readings show here.</Empty></PanelBody></Panel>
@@ -132,7 +137,7 @@ const minutes = (m: number) => (m >= 24 * 60 ? "over 24 h" : m < 60 ? `${m} min`
  * One fixture's controls. They start from what the light reports (Aputure) or what the phone last
  * set (NEEWER), follow its reports, and ignore them for HOLD_MS after a change made here.
  */
-function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture; live: FixtureLive | undefined; proxy: LightProxy; onClose: () => void; onChanged: (selectId: string | null) => void }) {
+function FixturePanel({ f, fixtures, liveOf, live, proxy, onClose, onChanged }: { f: ServerFixture; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; live: FixtureLive | undefined; proxy: LightProxy; onClose: () => void; onChanged: (selectId: string | null) => void }) {
   const kind = fixtureKind(f.kind_id);
   const [v, setV] = useState<LightState>(() => ({ ...(kind ? startState(kind) : {}), ...live?.state }));
   const touched = useRef(0);
@@ -205,7 +210,9 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
         {caps.fade && (
           <FadeTest disabled={!ready} onFade={(intensity, ms, curve) => send({ intensity, effect: null }, { op: "fade", ms, curve, intensity, ...(hsiMode ? { colour: { h: col.h, s: col.s } } : { white: { kelvin: cct.kelvin, gm: cct.gm } }) })} />
         )}
+        {takesBattery(f) && <PowerSource f={f} fixtures={fixtures} liveOf={liveOf} onChanged={onChanged} />}
         {caps.telemetry.length > 0 && <Readings live={live} estimated={!!caps.capacityWh} />}
+        {isBattery(f) && (() => { const powers = fixtures.find((x) => x.powered_by === f.id); return <p class="meta">{powers ? `Powers ${powers.label}.` : "Powers no light (assign it on the light)."}</p>; })()}
         {!proxy.proxy && <p class="meta">Controls work once the phone's proxy is on.</p>}
         {kind.transport === "mesh" && <MeshSection f={f} proxy={proxy} />}
         <Manage f={f} onChanged={onChanged} />
@@ -439,7 +446,7 @@ function Manage({ f, onChanged }: { f: ServerFixture; onChanged: (selectId: stri
   const rename = async () => {
     const next = label.trim();
     if (!next || next === f.label) { setLabel(f.label); return; }
-    try { await putFixture({ id: f.id, label: next, kind_id: f.kind_id, address: f.address }); onChanged(f.id); } catch (e) { setError((e as Error).message); }
+    try { await putFixture({ ...f, label: next }); onChanged(f.id); } catch (e) { setError((e as Error).message); }
   };
   const remove = async () => {
     const mesh = f.mesh_unicast != null;
@@ -473,6 +480,69 @@ function FadeTest({ disabled, onFade }: { disabled: boolean; onFade: (intensity:
       <Range label="Over" value={secs} min={0.5} max={25.5} step={0.5} format={(x) => `${x.toFixed(1)} s`} onChange={setSecs} />
       <Seg label="Fade curve" value={curve} onChange={setCurve} options={CURVES.map((c) => ({ id: c, label: CURVE_LABELS[c] }))} />
       <div class="btn-row"><Button size="sm" icon="transition" disabled={disabled} onClick={() => onFade(to / 100, Math.round(secs * 1000), curve)}>Fade</Button></div>
+    </div>
+  );
+}
+
+/**
+ * At a glance (#294): a tile per device with its connection and power. A COB shows the battery it is
+ * assigned (or its socket), a battery the light it powers.
+ */
+function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: ServerFixture[]; live: (id: string) => FixtureLive | undefined; proxyOn: boolean; sel: string | null; onSelect: (id: string) => void }) {
+  if (fixtures.length === 0) return <Empty icon="lightbulb-outline" title="No devices yet">Add one with Add device (the phone's proxy must be on).</Empty>;
+  return (
+    <div class="power-grid">
+      {fixtures.map((f) => {
+        const l = live(f.id);
+        const k = fixtureKind(f.kind_id);
+        const pw = powerOf(f, fixtures, live);
+        const powers = isBattery(f) ? fixtures.find((x) => x.powered_by === f.id) : undefined;
+        const level = pw.pct === null ? null : pw.pct < 10 ? "is-critical" : pw.pct < 25 ? "is-low" : "";
+        return (
+          <button key={f.id} type="button" class={cx("power-tile", f.id === sel && "is-selected")} onClick={() => onSelect(f.id)}>
+            <span class="power-tile__head">
+              <span class={cx("devices-dot", l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} title={linkText(l, proxyOn)} />
+              <span class="power-tile__name">{f.label}</span>
+              <span class="meta">{k?.model}</span>
+            </span>
+            {pw.source === "socket"
+              ? <span class="power-tile__big"><BatteryChip power={pw} /></span>
+              : <>
+                  <span class="power-tile__big num">{pw.pct === null ? "–" : `${pw.pct} %`}</span>
+                  <span class={cx("power-bar", level)}><span style={{ width: `${pw.pct ?? 0}%` }} /></span>
+                </>}
+            <span class="meta">{[
+              pw.source === "battery" && pw.battery ? `on ${pw.battery.label}` : null,
+              powers ? `powers ${powers.label}` : null,
+              pw.minutesLeft !== undefined ? `about ${minutesText(pw.minutesLeft)} left` : null,
+              pw.pct === null && pw.source !== "socket" ? (proxyOn ? "no reading yet" : "proxy off") : null,
+            ].filter(Boolean).join(" · ") || "\u00a0"}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** What a COB runs on (#294): a socket, or one of the batteries; a battery powers one light at a time. */
+function PowerSource({ f, fixtures, liveOf, onChanged }: { f: ServerFixture; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; onChanged: (selectId: string | null) => void }) {
+  const [error, setError] = useState<string | null>(null);
+  const batteries = fixtures.filter(isBattery);
+  const set = async (id: string) => {
+    setError(null);
+    try { await setFixturePower(f.id, id || null); onChanged(f.id); } catch (e) { setError((e as Error).message); }
+  };
+  return (
+    <div class="devices-field">
+      <span class="section-title">Power</span>
+      <Select label="Power source" value={f.powered_by ?? ""} onChange={(id) => void set(id)}
+        options={[{ value: "", label: "Socket" }, ...batteries.map((b) => {
+          const other = fixtures.find((x) => x.powered_by === b.id && x.id !== f.id);
+          return { value: b.id, label: `${b.label}${other ? ` (now on ${other.label})` : ""}` };
+        })]} />
+      <div class="btn-row"><BatteryChip power={powerOf(f, fixtures, liveOf)} /></div>
+      <p class="meta">The light cannot tell which battery feeds it: pick it here. A battery taken from another light leaves that one on Socket. Sequences show this battery next to the light's track.</p>
+      {error && <ErrorLine>{error}</ErrorLine>}
     </div>
   );
 }
