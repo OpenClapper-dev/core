@@ -52,6 +52,16 @@ export function quickWhiteFrame(address: string, w: { intensity: number; kelvin:
   return frame(0x90, address, [0x87, bri, Math.round(w.kelvin / 100), Math.round(Math.min(50, Math.max(-50, w.gm ?? 0))) + 50]);
 }
 
+/** Tag a4 (`87 <intensity> <K/100> 00 <curve>`): built by NEEWER 5.8.0's sendCurveType but never sent there; tried as an instant setter. */
+export function a4WhiteFrame(address: string, w: { intensity: number; kelvin: number; curve: Curve }): Uint8Array {
+  return frame(0xa4, address, [0x87, Math.round(Math.min(1, Math.max(0, w.intensity)) * 100), Math.round(w.kelvin / 100), 0x00, CURVE_BYTE[w.curve]]);
+}
+
+/** The FS300B's Effect Picker live command (tag a1, `00 <intensity> 00 <K/100> <G/M + 50>`). */
+export function pickerWhiteFrame(address: string, w: { intensity: number; kelvin: number; gm?: number }): Uint8Array {
+  return frame(0xa1, address, [0x00, Math.round(Math.min(1, Math.max(0, w.intensity)) * 100), 0x00, Math.round(w.kelvin / 100), Math.round(Math.min(50, Math.max(-50, w.gm ?? 0))) + 50]);
+}
+
 /** What the app sends right after connecting: a hello and five queries. Replayed so the light sees the same start. */
 export const helloFrames = (address: string): Uint8Array[] => [
   frame(0x9f, address, [0x01, 0x00, 0xff, 0xff, 0xff, 0xff]),

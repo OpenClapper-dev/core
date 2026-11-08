@@ -1,6 +1,6 @@
-import { effectSettingsOf, fixtureKind, startState, type Curve, type EffectId, type EffectSettings, type LightState } from "@openclapper/vocab";
+import { effectSettingsOf, fixtureKind, startState, type Curve, type EffectId, type EffectSettings, type InstantMethod, type LightState } from "@openclapper/vocab";
 import { toHex } from "../bytes.ts";
-import { effectFrame, helloFrames, modelOf, NEEWER_NOTIFY, NEEWER_SERVICE, NEEWER_WRITE, parseNotice, parseState, powerFrame, quickWhiteFrame, smoothFrame, stateQuery, whiteFrame } from "../codecs/neewer.ts";
+import { a4WhiteFrame, effectFrame, helloFrames, modelOf, NEEWER_NOTIFY, NEEWER_SERVICE, NEEWER_WRITE, parseNotice, parseState, pickerWhiteFrame, powerFrame, quickWhiteFrame, smoothFrame, stateQuery, whiteFrame } from "../codecs/neewer.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
 
 /** A light needs a moment after power-on before it takes a white-light frame. */
@@ -43,8 +43,19 @@ export function neewerInfinity(opts: NeewerOptions = {}): Driver {
       const f = fixtures.find((x) => x.address === link.address) ?? fixtures[0];
       const white = new Map<string, White>();
       const running = new Map<string, { id: EffectId; settings?: EffectSettings }>();
-      /** Lights switched to instant changes: they get Music FX's short white frame (#206). */
-      const instant = new Set<string>();
+      /** Lights switched to instant changes, and how their white is sent then (#206, an experiment). */
+      const instant = new Map<string, InstantMethod>();
+      /** The method last chosen per light (Devices); a sequence's "instant" without one keeps it. */
+      const chosen = new Map<string, InstantMethod>();
+      const instantWhite = (fx: Fixture, w: White): Uint8Array => {
+        switch (instant.get(fx.id)) {
+          case "whiteLoop": return effectFrame(fx.address, "nw_cct_loop", w.intensity, { kelvin: w.kelvin, kelvinMax: w.kelvin, frequency: 10 });
+          case "brightnessLoop": return effectFrame(fx.address, "nw_intensity_loop", w.intensity, { intensityMin: w.intensity, intensityMax: w.intensity, kelvin: w.kelvin, frequency: 10 });
+          case "a4": return a4WhiteFrame(fx.address, w);
+          case "picker": return pickerWhiteFrame(fx.address, w);
+          default: return quickWhiteFrame(fx.address, w);
+        }
+      };
       let poweredOnAt = Number.NEGATIVE_INFINITY;
       const stop = await link.notify(NEEWER_SERVICE, NEEWER_NOTIFY, (b) => {
         log("debug", "neewer notify", { fixture: f?.id, bytes: toHex(b) });
@@ -100,7 +111,9 @@ export function neewerInfinity(opts: NeewerOptions = {}): Driver {
               }
               return write(stateQuery(fx.address));
             case "smooth":
-              if (cmd.on) instant.delete(fx.id); else instant.add(fx.id);
+              if (cmd.method) chosen.set(fx.id, cmd.method);
+              if (cmd.on) instant.delete(fx.id); else instant.set(fx.id, chosen.get(fx.id) ?? "short");
+              log("info", "neewer changes", { fixture: fx.id, smooth: cmd.on, method: instant.get(fx.id) ?? null });
               return write(smoothFrame(fx.address, cmd.on));
             case "status": return write(stateQuery(fx.address));
             default: throw new Error(`${fx.kindId} has no ${cmd.op}`);
@@ -108,7 +121,7 @@ export function neewerInfinity(opts: NeewerOptions = {}): Driver {
           white.set(fx.id, w);
           const left = poweredOnAt + AFTER_POWER_ON_MS - now();
           if (left > 0) await wait(left);
-          await write(instant.has(fx.id) ? quickWhiteFrame(fx.address, w) : whiteFrame(fx.address, w));
+          await write(instant.has(fx.id) ? instantWhite(fx, w) : whiteFrame(fx.address, w));
         },
         async close() { stop(); },
       };

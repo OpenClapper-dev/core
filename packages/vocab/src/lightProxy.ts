@@ -18,14 +18,25 @@ export type LightCommand =
   | { op: "effect"; effect: EffectId | null; settings?: EffectSettings }
   /** Fire the running effect once now (Lightning's strike). */
   | { op: "trigger" }
-  /** Smooth changes (the light eases between values by itself) or instant ones; kinds with `caps.smoothing`. */
-  | { op: "smooth"; on: boolean }
+  /**
+   * Smooth changes (the light eases between values by itself) or instant ones; kinds with `caps.smoothing`.
+   * `method` (an experiment, #206): how instant white is sent, see INSTANT_METHODS.
+   */
+  | { op: "smooth"; on: boolean; method?: InstantMethod }
   /**
    * The light fades by itself to the target over `ms` with `curve`, then holds it (#289; kinds with
    * `caps.fade`). White or colour optional: without them it keeps its light and fades only intensity.
    */
   | { op: "fade"; ms: number; curve: Curve; intensity: number; white?: { kelvin: number; gm: number }; colour?: { h: number; s: number } }
   | { op: "status" };
+
+/**
+ * Ways to make a NEEWER COB take a white value at once (#206, being tried on the lights): Music FX's
+ * short frame, a constant White loop or Brightness loop effect, the unused tag a4 frame, the FS300B's
+ * Effect Picker live command.
+ */
+export const INSTANT_METHODS = ["short", "whiteLoop", "brightnessLoop", "a4", "picker"] as const;
+export type InstantMethod = (typeof INSTANT_METHODS)[number];
 
 /** The longest native fade: the MC counts tenths of a second in 8 bits. */
 export const FADE_MAX_MS = 25_500;
@@ -160,7 +171,9 @@ export function parseLightCommand(v: unknown): LightCommand | null {
       return settings ? { op: "effect", effect: c.effect as EffectId, settings } : null;
     }
     case "trigger": return { op: "trigger" };
-    case "smooth": return typeof c.on === "boolean" ? { op: "smooth", on: c.on } : null;
+    case "smooth":
+      if (typeof c.on !== "boolean") return null;
+      return (INSTANT_METHODS as readonly unknown[]).includes(c.method) ? { op: "smooth", on: c.on, method: c.method as InstantMethod } : { op: "smooth", on: c.on };
     case "fade": {
       if (!num(c.ms, 0, FADE_MAX_MS) || !(CURVES as readonly unknown[]).includes(c.curve) || !num(c.intensity, 0, 1)) return null;
       const out: LightCommand = { op: "fade", ms: c.ms, curve: c.curve as Curve, intensity: c.intensity };
