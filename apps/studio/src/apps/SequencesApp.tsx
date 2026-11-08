@@ -27,6 +27,8 @@ const snap = (ms: number) => Math.round(ms / SNAP_MS) * SNAP_MS;
 const fmt = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 const newId = () => crypto.randomUUID();
 const TRACK_KINDS = FIXTURE_KINDS.filter((k) => k.caps.intensity);
+/** The inspector always takes this width, empty or not, so the lanes never change width under the pointer. */
+const INSPECTOR_W = "360px";
 
 /** A selected keyframe: track id and keyframe id. */
 const keyOf = (trackId: string, kfId: string) => `${trackId}/${kfId}`;
@@ -69,7 +71,7 @@ export function SequencesApp(_p: AppProps) {
     const s = seqRef.current;
     if (!s || !proxy.proxy) return;
     for (const tr of s.tracks) {
-      if (!tr.fixtureId) continue;
+      if (!tr.fixtureId || tr.muted) continue;
       const prev = sent.current.get(tr.id) ?? null;
       const step = playback && native(tr)
         ? nativeStep(tr.keyframes, t, prev, fadeKeys.current.get(tr.id) ?? null)
@@ -85,7 +87,7 @@ export function SequencesApp(_p: AppProps) {
     if (!playing || !seq) return;
     sent.current.clear();
     fadeKeys.current.clear();
-    setPlayingFixtures(seq.tracks.flatMap((t) => (t.fixtureId ? [t.fixtureId] : [])));
+    setPlayingFixtures(seq.tracks.flatMap((t) => (t.fixtureId && !t.muted ? [t.fixtureId] : [])));
     let start = performance.now() - playhead;
     const h = setInterval(() => {
       const s = seqRef.current;
@@ -211,7 +213,7 @@ export function SequencesApp(_p: AppProps) {
               onDelete={() => deleteSelected()} onClose={() => setSel(new Set())} />
           )}
           {sel.size > 1 && (
-            <Panel label="Selection" width="300px">
+            <Panel label="Selection" width={INSPECTOR_W}>
               <PanelHead title={`${sel.size} keyframes`}><IconButton icon="close" label="Clear the selection" onClick={() => setSel(new Set())} /></PanelHead>
               <PanelBody>
                 <p class="meta">Drag one of them to move them all. Start keyframes stay where they are.</p>
@@ -223,6 +225,11 @@ export function SequencesApp(_p: AppProps) {
             <FadePanel kf={tileKf} track={tileTrack}
               onChange={(curve) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (curve) n.fadeIn = curve; else delete n.fadeIn; return n; }) }))}
               onClose={() => setTile(null)} />
+          )}
+          {!(selKf && selTrack) && sel.size <= 1 && !(tile && tileKf && tileTrack) && (
+            <Panel label="Inspector" width={INSPECTOR_W}>
+              <PanelBody><Empty icon="cursor-default-click-outline" title="Nothing selected">Select a keyframe to edit its values, or click the strip between two keyframes for a fade.</Empty></PanelBody>
+            </Panel>
           )}
           {!proxy.proxy && <div class="seq-noproxy"><ErrorLine>No proxy: open Setup → Lights proxy on the phone to play or preview.</ErrorLine></div>}
         </div>
@@ -355,9 +362,13 @@ function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => strin
             onChange={(id) => p.onTrack(tr.id, (t) => ({ ...t, fixtureId: id || null }))}
             options={[{ value: "", label: kind ? `No ${kind.model} assigned` : "Not assigned" }, ...missing, ...options]} />
         </div>
-        <IconButton icon="close" label="Remove the track" onClick={() => p.onRemoveTrack(tr.id)} />
+        <div class="seq-label__actions">
+          <IconButton icon={tr.muted ? "lightbulb-off-outline" : "lightbulb-on-outline"} label={tr.muted ? "Unmute the track" : "Mute the track (left out of playback and Live)"} kind={tr.muted ? "secondary" : "ghost"}
+            onClick={() => p.onTrack(tr.id, (t) => ({ ...t, muted: !t.muted }))} />
+          <IconButton icon="close" label="Remove the track" onClick={() => p.onRemoveTrack(tr.id)} />
+        </div>
       </div>
-      <div class={cx("seq-lane", !tr.fixtureId && "is-unassigned")} data-track={tr.id}>
+      <div class={cx("seq-lane", !tr.fixtureId && "is-unassigned", tr.muted && "is-muted")} data-track={tr.id}>
         {ks.slice(1).map((k, i) => {
           const from = ks[i];
           const on = p.tile?.trackId === tr.id && p.tile.toId === k.id;
@@ -409,7 +420,7 @@ function KeyframePanel({ kf, track, durationMs, onChange, onDelete, onClose }: {
   const mode = kf.hue !== undefined ? "colour" : kf.kelvin !== undefined ? "white" : "leave";
   const cct = caps?.cct;
   return (
-    <Panel label="Keyframe" width="360px">
+    <Panel label="Keyframe" width={INSPECTOR_W}>
       <PanelHead title={`${isStart ? "Start" : "Keyframe"} · ${track.name}`}><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead>
       <PanelBody>
         {isStart
@@ -470,7 +481,7 @@ function KeyframePanel({ kf, track, durationMs, onChange, onDelete, onClose }: {
 function FadePanel({ kf, track, onChange, onClose }: { kf: Keyframe; track: SequenceTrack; onChange: (curve: Curve | null) => void; onClose: () => void }) {
   const nativeFade = !!fixtureKind(track.kindId)?.caps.fade;
   return (
-    <Panel label="Fade" width="320px">
+    <Panel label="Fade" width={INSPECTOR_W}>
       <PanelHead title={`Into ${fmt(kf.at)} · ${track.name}`}><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead>
       <PanelBody>
         <Seg label="Transition" value={kf.fadeIn ? "fade" : "jump"} onChange={(v) => onChange(v === "fade" ? kf.fadeIn ?? "linear" : null)} options={[{ id: "jump", label: "Jump" }, { id: "fade", label: "Fade" }]} />

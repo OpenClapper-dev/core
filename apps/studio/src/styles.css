@@ -677,3 +677,5 @@ button { font: inherit; }
 .seq-add { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
 .seq-empty { padding: var(--space-3) 0; }
 .seq-noproxy { position: absolute; bottom: var(--space-3); left: var(--space-4); }
+.seq-label__actions { display: flex; flex-direction: column; }
+.seq-lane.is-muted { opacity: 0.35; background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--border-subtle) 6px 7px); }

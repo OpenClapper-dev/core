@@ -45,6 +45,8 @@ export interface SequenceTrack {
   kindId: string;
   /** The light it drives; null until assigned (an unassigned track does not play). */
   fixtureId: string | null;
+  /** Temporarily left out of playback and Live, like a muted track in an audio editor. */
+  muted?: boolean;
   keyframes: Keyframe[];
 }
 
