@@ -72,7 +72,8 @@ export function useLightProxy(): LightProxy {
   }, []);
 
   const send = (fixtureId: string, command: LightCommand) => {
-    const key = `${fixtureId}:${command.op}`;
+    // Camera messages thin per parameter (#318): different parameters must all go out.
+    const key = command.op === "ccu" ? `${fixtureId}:ccu:${command.message.category}.${command.message.parameter}` : `${fixtureId}:${command.op}`;
     const msg = { type: "lights.command", fixtureId, command };
     const out = () => {
       const p = pending.current.get(key);

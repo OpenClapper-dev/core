@@ -29,6 +29,8 @@ export interface Link {
   /** Resolves once notifications are on; the function turns them off. */
   notify(service: string, characteristic: string, cb: (bytes: Uint8Array) => void): Promise<() => void>;
   onDisconnect(cb: (error: unknown) => void): () => void;
+  /** A characteristic's value (the camera's protocol version, #318); fake links in tests may leave it out. */
+  read?(service: string, characteristic: string): Promise<Uint8Array>;
   close(): Promise<void>;
 }
 

@@ -699,3 +699,4 @@ button { font: inherit; }
 .power-tile__big { font-size: var(--text-title, 20px); font-weight: var(--weight-bold); }
 .seq-label__top { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .seq-label__top .seq-name { flex: 1; min-width: 0; }
+.camera-log { margin: 0; max-height: 220px; overflow: auto; font: var(--text-micro)/1.4 var(--font-mono, monospace); color: var(--text-dim); background: var(--surface-sunken); padding: var(--space-2); border-radius: var(--radius-sm, 4px); white-space: pre-wrap; }

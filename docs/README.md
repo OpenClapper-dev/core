@@ -43,6 +43,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [shortcuts.md](shortcuts.md) | Every Studio keyboard shortcut, generated from `apps/studio/src/shortcuts.ts` |
 | [features/lights.md](features/lights.md) | Lights: pairing NEEWER and Aputure fixtures and the NEEWER battery over Bluetooth, the connection manager, the synced list (epic #206) |
 | [features/live-picture.md](features/live-picture.md) | Live picture: the Hollyland Mars 400S Pro transmitter's picture on the phone (HCCP login, RTSP/UDP, native H.264 decoder; #302) |
+| [features/cameras.md](features/cameras.md) | Cameras: the Blackmagic Pocket 6K over Bluetooth through the phone proxy (camera control protocol, pairing, the per-output test; #318) |
 | [features/debug-log.md](features/debug-log.md) | The phone's background debug log |
 
 ## History

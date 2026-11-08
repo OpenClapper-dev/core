@@ -142,7 +142,9 @@ export class Hub {
     const rec = r ? this.links.get(r.key) : undefined;
     if (!f || !rec || rec.state !== "ready" || !rec.queue) return Promise.reject(new Error("not connected"));
     if (cmd.op !== "status") this.sentAt.set(fixtureId, this.d.clock.now());
-    return rec.queue.push(`${fixtureId}:${cmd.op}`, async () => {
+    // Camera messages coalesce per parameter, not per op: a zebra change must not replace a queued ISO (#318).
+    const key = cmd.op === "ccu" ? `${fixtureId}:ccu:${cmd.message.category}.${cmd.message.parameter}` : `${fixtureId}:${cmd.op}`;
+    return rec.queue.push(key, async () => {
       if (!rec.session) throw new Error("not connected");
       await rec.session.send(f, cmd);
       this.states.set(fixtureId, applyCommand(this.states.get(fixtureId) ?? {}, cmd));

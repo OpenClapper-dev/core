@@ -136,6 +136,8 @@ export interface Capabilities {
   fade?: boolean;
   /** Smooths changes by itself, or takes them at once, as switched (NEEWER's D3 setting). */
   smoothing?: boolean;
+  /** A camera controlled by Blackmagic's camera control protocol (#318): commands are `ccu` messages. */
+  camera?: boolean;
 }
 
 /** "gatt": the phone talks to the fixture itself; "mesh": through a Bluetooth Mesh network the phone provisions. */
@@ -171,6 +173,8 @@ export const FIXTURE_KINDS: readonly FixtureKind[] = [
   // field: sent neutral); its dimming curve is its own command (#289). Its built-in
   // battery reports charge, voltage and its own time left (#293).
   { id: "aputure-mc", brand: "Aputure", model: "MC", transport: "mesh", driver: "sidus-mesh", caps: { ...LIGHT, cct: { min: 3200, max: 6500, gm: null }, hsi: true, curves: true, telemetry: ["battery", "volts", "minutesLeft"], effects: MC_EFFECTS, fade: true } },
+  // A camera (#318), not a light: Blackmagic's Bluetooth camera control, the same protocol on the Pocket 4K/6K family.
+  { id: "bmd-pocket-6k", brand: "Blackmagic", model: "Pocket Cinema Camera 6K", transport: "gatt", driver: "bmd-camera", caps: { power: false, intensity: false, cct: null, hsi: false, curves: false, telemetry: [], camera: true } },
 ];
 
 export const fixtureKind = (id: string): FixtureKind | undefined => FIXTURE_KINDS.find((k) => k.id === id);

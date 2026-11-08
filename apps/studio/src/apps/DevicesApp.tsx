@@ -6,6 +6,7 @@ import {
 import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, ListRow, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, Spinner, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { deleteFixture, fetchFixtures, putFixture, setFixturePower, type ServerFixture } from "../api";
 import { BatteryChip, isBattery, minutesText, powerOf, takesBattery } from "../power";
+import { CameraPanel } from "./CameraPanel";
 import { Range } from "../compose/editor";
 import { useLightProxy, type LightProxy } from "../lightProxy";
 import { usePlayingFixtures } from "../sequencePlayback";
@@ -107,7 +108,9 @@ export function DevicesApp(_p: AppProps) {
           <AddDevicePanel fixtures={fixtures} proxy={proxy} onClose={() => setAdding(false)} onPaired={(id) => { setAdding(false); changed(id); }} />
         )}
         {selected && fixtures && (
-          <FixturePanel key={selected.id} f={selected} fixtures={fixtures} liveOf={live} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} onChanged={changed} />
+          fixtureKind(selected.kind_id)?.caps.camera
+            ? <CameraPanel key={selected.id} f={selected} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)}><Manage f={selected} onChanged={changed} /></CameraPanel>
+            : <FixturePanel key={selected.id} f={selected} fixtures={fixtures} liveOf={live} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} onChanged={changed} />
         )}
         {!selected && !adding && fixtures && fixtures.length > 0 && (
           <Panel label="Device"><PanelBody><Empty icon="gesture-tap" title="Pick a device">Its controls and readings show here.</Empty></PanelBody></Panel>
@@ -505,7 +508,9 @@ function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: Server
               <span class="power-tile__name">{f.label}</span>
               <span class="meta">{k?.model}</span>
             </span>
-            {pw.source === "socket"
+            {k?.caps.camera
+              ? <span class="power-tile__big num">{l?.telemetry?.camera?.timecode ?? "–"}</span>
+              : pw.source === "socket"
               ? <span class="power-tile__big"><BatteryChip power={pw} /></span>
               : <>
                   <span class="power-tile__big num">{pw.pct === null ? "–" : `${pw.pct} %`}</span>
@@ -515,7 +520,8 @@ function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: Server
               pw.source === "battery" && pw.battery ? `on ${pw.battery.label}` : null,
               powers ? `powers ${powers.label}` : null,
               pw.minutesLeft !== undefined ? `about ${minutesText(pw.minutesLeft)} left` : null,
-              pw.pct === null && pw.source !== "socket" ? (proxyOn ? "no reading yet" : "proxy off") : null,
+              k?.caps.camera ? (l?.link === "ready" ? "camera · timecode" : proxyOn ? "camera, not connected" : "proxy off") : null,
+              !k?.caps.camera && pw.pct === null && pw.source !== "socket" ? (proxyOn ? "no reading yet" : "proxy off") : null,
             ].filter(Boolean).join(" · ") || "\u00a0"}</span>
           </button>
         );

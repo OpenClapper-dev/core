@@ -56,6 +56,10 @@ export async function connect(address: string): Promise<Link> {
       const sub = m.monitorCharacteristicForDevice(address, service, characteristic, (err, c) => { if (!err && c?.value) cb(fromBase64(c.value)); });
       return () => sub.remove();
     },
+    async read(service, characteristic) {
+      const c = await m.readCharacteristicForDevice(address, service, characteristic);
+      return c.value ? fromBase64(c.value) : new Uint8Array();
+    },
     onDisconnect(cb) {
       const sub = m.onDeviceDisconnected(address, (err) => cb(err));
       return () => sub.remove();
