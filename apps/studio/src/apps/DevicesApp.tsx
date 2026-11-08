@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  CURVES, EFFECT_OPTIONS, EFFECT_RANDOM, effectName, effectSettingsOf, FIXTURE_KINDS, fixtureKind, startState, TRIGGER_EFFECTS,
-  type Curve, type EffectId, type EffectSettings, type FixtureKind, type FixtureLive, type LightCommand, type LightState,
+  CURVES, EFFECT_OPTIONS, EFFECT_RANDOM, effectName, effectSettingsOf, FIXTURE_KINDS, FIXTURE_LABEL_MAX, fixtureKind, PROVISION_STAGE_LABELS, PROVISION_STAGES, startState, TRIGGER_EFFECTS,
+  type Curve, type EffectId, type EffectSettings, type FixtureKind, type FixtureLive, type LightCommand, type LightState, type ProvisionStage, type ProvisionState, type ScannedDevice,
 } from "@openclapper/vocab";
-import { Banner, Button, cx, Empty, ErrorLine, Icon, IconButton, ListRow, Panel, PanelBody, PanelHead, Seg, Select, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
-import { fetchFixtures, type ServerFixture } from "../api";
+import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, ListRow, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, Spinner, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
+import { deleteFixture, fetchFixtures, putFixture, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { useLightProxy, type LightProxy } from "../lightProxy";
 import type { AppProps } from "./registry";
@@ -41,6 +41,7 @@ export function DevicesApp(_p: AppProps) {
   const [fixtures, setFixtures] = useState<ServerFixture[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sel, setSel] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
   const load = () => fetchFixtures().then((f) => { setFixtures(f.sort((x, y) => x.label.localeCompare(y.label, undefined, { numeric: true }))); setError(null); }).catch((e) => setError((e as Error).message));
   useEffect(() => { void load(); }, []);
   // A fixture the proxy holds but this list lacks was paired since: fetch again.
@@ -48,13 +49,18 @@ export function DevicesApp(_p: AppProps) {
   useEffect(() => { if (fixtures && proxy.proxy?.fixtures.some((l) => !fixtures.some((f) => f.id === l.id))) void load(); }, [liveIds]);
 
   const live = (id: string) => proxy.proxy?.fixtures.find((l) => l.id === id);
-  const selected = fixtures?.find((f) => f.id === sel) ?? null;
+  const selected = adding ? null : fixtures?.find((f) => f.id === sel) ?? null;
+  // A pairing finished on the phone: its mesh address is on the server now.
+  const doneKey = Object.values(proxy.provisioning).filter((s) => s.phase === "done").map((s) => s.fixtureId).join(",");
+  useEffect(() => { if (doneKey) void load(); }, [doneKey]);
+  const changed = (selectId: string | null) => { proxy.request({ type: "lights.sync" }); void load(); setSel(selectId); };
   return (
     <>
       <Toolbar>
         <ToolbarTitle icon="access-point" count={fixtures?.length}>Devices</ToolbarTitle>
         <ToolbarSpacer />
         <ProxyChip proxy={proxy} />
+        <Button size="sm" icon="plus" disabled={!proxy.proxy} title={proxy.proxy ? undefined : "Needs the phone's proxy"} onClick={() => { setSel(null); setAdding(true); }}>Add device</Button>
         <IconButton icon="refresh" label="Reload the list" onClick={() => void load()} />
       </Toolbar>
       <div class="f-app__body">
@@ -89,12 +95,15 @@ export function DevicesApp(_p: AppProps) {
               <p class="meta is-dim">{b.note}</p>
             </section>
           ))}
-          <p class="meta devices-foot">Pair new lights on the phone for now (Setup → Lights); pairing moves here next.</p>
+          <p class="meta devices-foot">The phone pairs and connects (Setup → Proxy, kept open); the list is stored on the server.</p>
         </div>
-        {selected && (
-          <FixturePanel key={selected.id} f={selected} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} />
+        {adding && fixtures && (
+          <AddDevicePanel fixtures={fixtures} proxy={proxy} onClose={() => setAdding(false)} onPaired={(id) => { setAdding(false); changed(id); }} />
         )}
-        {!selected && fixtures && fixtures.length > 0 && (
+        {selected && fixtures && (
+          <FixturePanel key={selected.id} f={selected} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} onChanged={changed} />
+        )}
+        {!selected && !adding && fixtures && fixtures.length > 0 && (
           <Panel label="Device"><PanelBody><Empty icon="gesture-tap" title="Pick a device">Its controls and readings show here.</Empty></PanelBody></Panel>
         )}
       </div>
@@ -122,7 +131,7 @@ const minutes = (m: number) => (m >= 24 * 60 ? "over 24 h" : m < 60 ? `${m} min`
  * One fixture's controls. They start from what the light reports (Aputure) or what the phone last
  * set (NEEWER), follow its reports, and ignore them for HOLD_MS after a change made here.
  */
-function FixturePanel({ f, live, proxy, onClose }: { f: ServerFixture; live: FixtureLive | undefined; proxy: LightProxy; onClose: () => void }) {
+function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture; live: FixtureLive | undefined; proxy: LightProxy; onClose: () => void; onChanged: (selectId: string | null) => void }) {
   const kind = fixtureKind(f.kind_id);
   const [v, setV] = useState<LightState>(() => ({ ...(kind ? startState(kind) : {}), ...live?.state }));
   const touched = useRef(0);
@@ -183,6 +192,8 @@ function FixturePanel({ f, live, proxy, onClose }: { f: ServerFixture; live: Fix
         </fieldset>
         {caps.telemetry.length > 0 && <Readings live={live} estimated={!!caps.capacityWh} />}
         {!proxy.proxy && <p class="meta">Controls work once the phone's proxy is on.</p>}
+        {kind.transport === "mesh" && <MeshSection f={f} proxy={proxy} />}
+        <Manage f={f} onChanged={onChanged} />
       </PanelBody>
     </Panel>
   );
@@ -259,6 +270,158 @@ function Readings({ live, estimated }: { live: FixtureLive | undefined; estimate
       <span class="section-title">Battery</span>
       <dl class="f-facts">{rows.map(([k, val]) => <><dt key={`${k}-k`}>{k}</dt><dd key={`${k}-v`} class="num">{val}</dd></>)}</dl>
       <p class="meta">{age > (estimated ? 5 : 75) ? `No new reading for ${age} s` : estimated ? "Every second; time left estimated from the rated energy." : "Reported by the light every minute."}</p>
+    </div>
+  );
+}
+
+/** The next free "MC 3" style name for a model. */
+function defaultLabel(kind: FixtureKind, fixtures: ServerFixture[]): string {
+  const taken = new Set(fixtures.map((f) => f.label));
+  for (let n = fixtures.filter((f) => f.kind_id === kind.id).length + 1; ; n++) if (!taken.has(`${kind.model} ${n}`)) return `${kind.model} ${n}`;
+}
+
+/**
+ * Add device (#307): the phone scans, the list shows here live; pick one, confirm the model, name it.
+ * NEEWER devices need no pairing on the device: the record is enough, and the proxy connects. An
+ * Aputure light is then provisioned into the phone's mesh, with each step shown.
+ */
+function AddDevicePanel({ fixtures, proxy, onClose, onPaired }: { fixtures: ServerFixture[]; proxy: LightProxy; onClose: () => void; onPaired: (id: string) => void }) {
+  const [pick, setPick] = useState<ScannedDevice | null>(null);
+  const [kindId, setKindId] = useState<string | null>(null);
+  const [label, setLabel] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pairing, setPairing] = useState<string | null>(null);
+  useEffect(() => { proxy.request({ type: "lights.scan", on: true }); return () => proxy.request({ type: "lights.scan", on: false }); }, []);
+  const scan = proxy.scan;
+  const kind = kindId ? fixtureKind(kindId) : undefined;
+  const progress = pairing ? proxy.provisioning[pairing] : undefined;
+  useEffect(() => { if (pairing && progress?.phase === "done") { toast(`“${label || (kind ? defaultLabel(kind, fixtures) : "")}” paired`); onPaired(pairing); } }, [progress?.phase]);
+
+  const choose = (d: ScannedDevice) => { setPick(d); setError(null); if (d.kinds[0] && (!kindId || !d.kinds.includes(kindId))) setKindId(d.kinds[0]); };
+  const pair = async () => {
+    if (!pick || !kind) return;
+    setBusy(true); setError(null);
+    try {
+      const f = await putFixture({ id: crypto.randomUUID(), label: label.trim() || defaultLabel(kind, fixtures), kind_id: kind.id, address: pick.address });
+      proxy.request({ type: "lights.sync" });
+      if (kind.transport === "mesh") { setPairing(f.id); proxy.request({ type: "lights.provision", fixtureId: f.id }); }
+      else { toast(`“${f.label}” added`); onPaired(f.id); }
+    } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
+
+  if (pairing) return (
+    <Panel label="Pairing" width="380px">
+      <PanelHead title="Pairing"><IconButton icon="close" label="Close" onClick={() => onPaired(pairing)} /></PanelHead>
+      <PanelBody>
+        <p class="meta">The phone is pairing the light with its mesh network; its other connections pause meanwhile. About half a minute.</p>
+        <ProvisionSteps p={progress} />
+        {progress?.phase === "error" && <Button size="sm" kind="secondary" icon="refresh" onClick={() => proxy.request({ type: "lights.provision", fixtureId: pairing })}>Try again</Button>}
+      </PanelBody>
+    </Panel>
+  );
+
+  const taken = (a: string) => fixtures.find((f) => f.address === a);
+  const kindOptions = [...(pick?.kinds ?? []), ...FIXTURE_KINDS.map((k) => k.id).filter((id) => !pick?.kinds.includes(id))].map((id) => ({ value: id, label: `${fixtureKind(id)!.brand} ${fixtureKind(id)!.model}`, group: pick?.kinds.includes(id) ? "Looks like" : "Other models" }));
+  return (
+    <Panel label="Add device" width="380px">
+      <PanelHead title="Add device"><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead>
+      <PanelBody>
+        <p class="meta">Switch the device on and close the maker's app. An Aputure light must not be in Sidus Link (remove it there, or reset it).</p>
+        <div class="btn-row">
+          {scan?.phase === "scanning" ? <><Spinner /><span class="meta">Scanning on the phone…</span></> : <Button size="sm" kind="secondary" icon="refresh" onClick={() => proxy.request({ type: "lights.scan", on: true })}>Scan again</Button>}
+        </div>
+        {scan?.phase === "error" && <ErrorLine>{scan.message}</ErrorLine>}
+        <div class="devices-found">
+          {(scan?.found ?? []).map((d) => {
+            const t = taken(d.address);
+            const k = d.kinds[0] ? fixtureKind(d.kinds[0]) : undefined;
+            return (
+              <ListRow key={d.address} selected={pick?.address === d.address} aria-disabled={!!t} class={t ? "is-dim" : undefined} onClick={() => { if (!t) choose(d); }}
+                thumb={<Icon name={k ? "lightbulb-outline" : "bluetooth"} />} title={d.name ?? "Unnamed device"}
+                meta={[k ? `Looks like ${k.brand} ${k.model}` : null, t ? `already added as ${t.label}` : null, d.address, d.rssi != null ? `${d.rssi} dBm` : null].filter(Boolean).join(" · ")} />
+            );
+          })}
+          {scan?.phase === "done" && scan.found.length === 0 && <p class="meta">Nothing found. Is it on and close to the phone?</p>}
+        </div>
+        {pick && (
+          <>
+            <Field as="div" label="Model"><Select label="Model" value={kindId ?? ""} onChange={setKindId} options={kindOptions} /></Field>
+            <Field label="Name"><Input sm value={label} maxLength={FIXTURE_LABEL_MAX} placeholder={kind ? defaultLabel(kind, fixtures) : "e.g. Key left"} onInput={(e) => setLabel((e.target as HTMLInputElement).value)} /></Field>
+          </>
+        )}
+        {error && <ErrorLine>{error}</ErrorLine>}
+      </PanelBody>
+      <PanelFoot>
+        <Button icon={kind?.transport === "mesh" ? "link-variant" : "check"} disabled={!pick || !kind || busy} onClick={() => void pair()}>{kind?.transport === "mesh" ? "Pair" : "Add"}</Button>
+      </PanelFoot>
+    </Panel>
+  );
+}
+
+/** The pairing steps as the phone reports them. */
+function ProvisionSteps({ p }: { p: ProvisionState | undefined }) {
+  const stages: readonly ProvisionStage[] = p?.resume ? PROVISION_STAGES.filter((s) => s === "reconnect" || s === "configure") : PROVISION_STAGES;
+  const at = p?.stage ? stages.indexOf(p.stage) : -1;
+  return (
+    <>
+      <ol class="devices-steps">
+        {stages.map((s, i) => {
+          const done = p?.phase === "done" || i < at;
+          const now = p?.phase === "running" && i === Math.max(0, at);
+          const failed = p?.phase === "error" && i === Math.max(0, at);
+          return <li key={s} class={cx(done && "is-done", now && "is-now", failed && "is-failed")}><Icon name={done ? "check-circle" : failed ? "alert-circle-outline" : now ? "progress-clock" : "circle-outline"} />{PROVISION_STAGE_LABELS[s]}</li>;
+        })}
+      </ol>
+      {!p && <p class="meta">Waiting for the phone…</p>}
+      {p?.phase === "error" && <ErrorLine>{p.error ?? "Pairing stopped."}</ErrorLine>}
+    </>
+  );
+}
+
+/** An Aputure light's place in the phone's mesh: pair it, run its setup again, or pair again after a reset. */
+function MeshSection({ f, proxy }: { f: ServerFixture; proxy: LightProxy }) {
+  const p = proxy.provisioning[f.id];
+  const running = p?.phase === "running";
+  const go = (fresh: boolean) => proxy.request({ type: "lights.provision", fixtureId: f.id, fresh });
+  return (
+    <div class="devices-field">
+      <span class="section-title">Mesh</span>
+      <p class="meta">{f.mesh_unicast == null ? "Not on OpenClapper's mesh yet. Pairing takes it out of Sidus Link." : `On the phone's mesh at address ${f.mesh_unicast}${(f.mesh_elements ?? 1) > 1 ? `–${f.mesh_unicast + (f.mesh_elements ?? 1) - 1}` : ""}.`}</p>
+      {p && <ProvisionSteps p={p} />}
+      <div class="btn-row">
+        {f.mesh_unicast == null
+          ? <Button size="sm" icon="link-variant" disabled={!proxy.proxy || running} onClick={() => go(false)}>Pair with OpenClapper</Button>
+          : <>
+              <Button size="sm" kind="secondary" icon="cog-outline" disabled={!proxy.proxy || running} onClick={() => go(false)}>Run setup again</Button>
+              <Button size="sm" kind="secondary" icon="link-variant" disabled={!proxy.proxy || running} onClick={() => go(true)} title="After resetting the light: a fresh pairing at a new address">Pair again</Button>
+            </>}
+      </div>
+    </div>
+  );
+}
+
+/** Rename or delete; the phone takes the change on `lights.sync`. The device itself is not changed. */
+function Manage({ f, onChanged }: { f: ServerFixture; onChanged: (selectId: string | null) => void }) {
+  const [label, setLabel] = useState(f.label);
+  const [error, setError] = useState<string | null>(null);
+  const rename = async () => {
+    const next = label.trim();
+    if (!next || next === f.label) { setLabel(f.label); return; }
+    try { await putFixture({ id: f.id, label: next, kind_id: f.kind_id, address: f.address }); onChanged(f.id); } catch (e) { setError((e as Error).message); }
+  };
+  const remove = async () => {
+    const mesh = f.mesh_unicast != null;
+    const ok = await confirmDialog({ title: `Delete “${f.label}”?`, body: `Removes it from the list on the server and the phone.${mesh ? " The light keeps the phone's mesh keys: reset it before pairing it again or adding it to Sidus Link." : ""}`, confirmLabel: "Delete", danger: true });
+    if (ok !== true) return;
+    try { await deleteFixture(f.id); toast(`“${f.label}” deleted`); onChanged(null); } catch (e) { setError((e as Error).message); }
+  };
+  return (
+    <div class="devices-field devices-manage">
+      <span class="section-title">Device</span>
+      <Field label="Name"><Input sm value={label} maxLength={FIXTURE_LABEL_MAX} onInput={(e) => setLabel((e.target as HTMLInputElement).value)} onBlur={() => void rename()} onKeyDown={(e) => { if (e.key === "Enter") void rename(); }} /></Field>
+      {error && <ErrorLine>{error}</ErrorLine>}
+      <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={() => void remove()}>Delete</Button></div>
     </div>
   );
 }

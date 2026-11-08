@@ -633,3 +633,10 @@ button { font: inherit; }
 .devices-controls { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 .devices-controls:disabled { opacity: 0.55; }
 .devices-field { display: flex; flex-direction: column; gap: var(--space-2); }
+.devices-found { display: flex; flex-direction: column; }
+.devices-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
+.devices-steps li { display: flex; align-items: center; gap: var(--space-2); color: var(--text-dim); }
+.devices-steps li.is-done, .devices-steps li.is-now { color: var(--text); }
+.devices-steps li.is-now { font-weight: var(--weight-semibold); }
+.devices-steps li.is-failed { color: var(--danger); }
+.devices-manage { padding-top: var(--space-3); border-top: var(--bw) solid var(--border-subtle); }

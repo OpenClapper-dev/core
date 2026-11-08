@@ -447,3 +447,7 @@ export interface ServerFixture {
   mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; created_at: string; updated_at: string | null;
 }
 export const fetchFixtures = () => get<{ fixtures: ServerFixture[] }>("/api/fixtures").then((r) => r.fixtures);
+/** Creates or edits a fixture; the phone picks it up on `lights.sync` (#307). */
+export const putFixture = (f: { id: string; label: string; kind_id: string; address: string }) =>
+  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${f.id}`, { label: f.label, kind_id: f.kind_id, address: f.address }).then((r) => r.fixture);
+export const deleteFixture = (id: string) => send<{ deleted: string }>("DELETE", `/api/fixtures/${id}`).then(() => undefined);

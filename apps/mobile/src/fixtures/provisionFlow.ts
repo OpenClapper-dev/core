@@ -13,8 +13,10 @@ import { APP_KEY_INDEX, appKeyOf, ensureNetwork, getMeshNetworks, NET_KEY_INDEX,
 import type { Fixture, Link } from "./types";
 
 /** The steps the provisioning screen shows, in order. */
-export const STAGES = ["find", "invite", "keys", "confirm", "data", "reconnect", "configure"] as const;
-export type Stage = (typeof STAGES)[number];
+import { PROVISION_STAGES, type ProvisionStage } from "@openclapper/vocab";
+
+export const STAGES = PROVISION_STAGES;
+export type Stage = ProvisionStage;
 
 const PROXY_UUID = "00001828-0000-1000-8000-00805f9b34fb";
 const PROV_UUID = PB_GATT_SERVICE;

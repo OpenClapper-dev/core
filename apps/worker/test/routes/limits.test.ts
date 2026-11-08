@@ -141,6 +141,19 @@ describe("preview room", () => {
     const commands = () => phone.got.filter((m) => m.type === "lights.command");
     await until(() => commands().length > 0);
     expect(commands()).toEqual([{ type: "lights.command", fixtureId, command: { op: "intensity", value: 0.3 } }]);
+    // Pairing from the Studio: requests to the phone, progress back.
+    studio.ws.send(JSON.stringify({ type: "lights.scan", on: "yes" }));
+    studio.ws.send(JSON.stringify({ type: "lights.scan", on: true }));
+    studio.ws.send(JSON.stringify({ type: "lights.provision", fixtureId: "nope" }));
+    studio.ws.send(JSON.stringify({ type: "lights.provision", fixtureId, fresh: true }));
+    studio.ws.send(JSON.stringify({ type: "lights.sync", extra: 1 }));
+    await until(() => phone.got.some((m) => m.type === "lights.sync"));
+    expect(phone.got.filter((m) => m.type === "lights.scan")).toEqual([{ type: "lights.scan", on: true }]);
+    expect(phone.got.filter((m) => m.type === "lights.provision")).toEqual([{ type: "lights.provision", fixtureId, fresh: true }]);
+    expect(phone.got.find((m) => m.type === "lights.sync")).toEqual({ type: "lights.sync" });
+    phone.ws.send(JSON.stringify({ type: "lights.scan.state", phase: "scanning", found: [] }));
+    phone.ws.send(JSON.stringify({ type: "lights.provision.state", fixtureId, phase: "running", stage: "find", resume: false }));
+    await until(() => studio.got.some((m) => m.type === "lights.provision.state") && studio.got.some((m) => m.type === "lights.scan.state"));
     phone.ws.send(JSON.stringify({ type: "lights.state", phone: { id: fixtureId, model: "x" }, proxy: true, fixtures: [] }));
     await until(() => studio.got.some((m) => m.type === "lights.state" && m.proxy === true));
     studio.ws.close();

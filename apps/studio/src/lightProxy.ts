@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { LightCommand, ProxyState } from "@openclapper/vocab";
+import type { LightCommand, ProvisionState, ProxyRequest, ProxyState, ScanState } from "@openclapper/vocab";
 
 /**
  * The Studio's end of the light proxy (#307): the same per-user phone room as the layout preview
@@ -18,12 +18,19 @@ export interface LightProxy {
   /** The phone whose proxy is on, with its fixtures; null when none is. */
   proxy: ProxyState | null;
   send: (fixtureId: string, command: LightCommand) => void;
+  /** The phone's latest scan (null: none since this tab opened). */
+  scan: ScanState | null;
+  /** Pairing progress per fixture, as the phone reports it. */
+  provisioning: Record<string, ProvisionState>;
+  request: (r: Exclude<ProxyRequest, { type: "lights.command" }>) => void;
 }
 
 export function useLightProxy(): LightProxy {
   const [connected, setConnected] = useState(false);
   const [phones, setPhones] = useState<{ id: string | null; model: string | null }[]>([]);
   const [states, setStates] = useState<Record<string, ProxyState>>({});
+  const [scan, setScan] = useState<ScanState | null>(null);
+  const [provisioning, setProvisioning] = useState<Record<string, ProvisionState>>({});
   const ws = useRef<WebSocket | null>(null);
   const pending = useRef(new Map<string, { at: number; timer: ReturnType<typeof setTimeout> | null; msg: unknown }>());
 
@@ -44,6 +51,11 @@ export function useLightProxy(): LightProxy {
           } else if (m.type === "lights.state" && m.phone && typeof m.phone.id === "string" && Array.isArray(m.fixtures)) {
             const s = m as ProxyState;
             setStates((cur) => ({ ...cur, [s.phone.id]: s }));
+          } else if (m.type === "lights.scan.state" && Array.isArray((m as unknown as ScanState).found)) {
+            setScan(m as unknown as ScanState);
+          } else if (m.type === "lights.provision.state") {
+            const p = m as unknown as ProvisionState;
+            if (typeof p.fixtureId === "string") setProvisioning((cur) => ({ ...cur, [p.fixtureId]: p }));
           }
         } catch { /* not ours */ }
       };
@@ -75,6 +87,7 @@ export function useLightProxy(): LightProxy {
     if (wait <= 0) out(); else p.timer = setTimeout(out, wait);
   };
 
+  const request = (r: Exclude<ProxyRequest, { type: "lights.command" }>) => { if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(r)); };
   const proxy = Object.values(states).find((s) => s.proxy) ?? null;
-  return { connected, phones, proxy, send };
+  return { connected, phones, proxy, send, scan, provisioning, request };
 }
