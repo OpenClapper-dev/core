@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { commandsFor, ease, nativeFades, nativeStep, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./lightSequence.ts";
+import { commandsFor, ease, inFade, nativeFades, nativeStep, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./lightSequence.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const start = (x: Omit<Keyframe, "id" | "at">) => kf(0, x, START_KEYFRAME);
@@ -82,4 +82,11 @@ test("a fade set to stepped is sent in steps even on a light that fades by itsel
   const a = nativeStep(k, 0, null, null);
   assert.ok(!a.commands.some((c) => c.op === "fade"));
   assert.deepEqual(nativeStep(k, 500, a.sent, a.key).commands, [{ op: "intensity", value: 0.5 }]);
+});
+
+test("inFade: true only inside a fade tile", () => {
+  const k = [start({ intensity: 0 }), kf(1000, { intensity: 1 }), kf(2000, { intensity: 0, fadeIn: "s" })];
+  assert.equal(inFade(k, 500), false);
+  assert.equal(inFade(k, 1500), true);
+  assert.equal(inFade(k, 2500), false);
 });

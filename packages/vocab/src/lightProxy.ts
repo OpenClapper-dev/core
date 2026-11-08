@@ -18,6 +18,8 @@ export type LightCommand =
   | { op: "effect"; effect: EffectId | null; settings?: EffectSettings }
   /** Fire the running effect once now (Lightning's strike). */
   | { op: "trigger" }
+  /** Smooth changes (the light eases between values by itself) or instant ones; kinds with `caps.smoothing`. */
+  | { op: "smooth"; on: boolean }
   /**
    * The light fades by itself to the target over `ms` with `curve`, then holds it (#289; kinds with
    * `caps.fade`). White or colour optional: without them it keeps its light and fades only intensity.
@@ -124,6 +126,9 @@ function parseSettings(v: unknown): EffectSettings | null {
   if (typeof v !== "object") return null;
   const s = v as Record<string, unknown>, out: EffectSettings = {};
   for (const k of ["frequency", "speed"] as const) if (s[k] != null) { if (!num(s[k], 1, 11)) return null; out[k] = s[k]; }
+  if (s.ember != null) { if (!num(s.ember, 1, 10)) return null; out.ember = s.ember; }
+  for (const k of ["intensityMin", "intensityMax"] as const) if (s[k] != null) { if (!num(s[k], 0, 1)) return null; out[k] = s[k]; }
+  if (s.kelvinMax != null) { if (!num(s.kelvinMax, 1000, 20000)) return null; out.kelvinMax = s.kelvinMax; }
   if (s.kelvin != null) { if (!num(s.kelvin, 1000, 20000)) return null; out.kelvin = s.kelvin; }
   if (s.saturation != null) { if (!num(s.saturation, 0, 1)) return null; out.saturation = s.saturation; }
   if (s.choice != null) { if (!num(s.choice, 0, 31) || !Number.isInteger(s.choice)) return null; out.choice = s.choice; }
@@ -155,6 +160,7 @@ export function parseLightCommand(v: unknown): LightCommand | null {
       return settings ? { op: "effect", effect: c.effect as EffectId, settings } : null;
     }
     case "trigger": return { op: "trigger" };
+    case "smooth": return typeof c.on === "boolean" ? { op: "smooth", on: c.on } : null;
     case "fade": {
       if (!num(c.ms, 0, FADE_MAX_MS) || !(CURVES as readonly unknown[]).includes(c.curve) || !num(c.intensity, 0, 1)) return null;
       const out: LightCommand = { op: "fade", ms: c.ms, curve: c.curve as Curve, intensity: c.intensity };

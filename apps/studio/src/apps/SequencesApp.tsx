@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import {
-  commandsFor, CURVES, effectName, FIXTURE_KINDS, fixtureKind, nativeStep, sampleTrack, SEQUENCE_MAX_MS, SEQUENCE_TICK_MS, START_KEYFRAME, startKeyframe,
+  commandsFor, CURVES, effectName, FIXTURE_KINDS, fixtureKind, inFade, nativeStep, sampleTrack, SEQUENCE_MAX_MS, SEQUENCE_TICK_MS, START_KEYFRAME, startKeyframe,
   type Curve, type EffectId, type Keyframe, type LightSequence, type SequenceSample, type SequenceTrack,
 } from "@openclapper/vocab";
 import { Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
@@ -55,6 +55,8 @@ export function SequencesApp(_p: AppProps) {
 
   const sent = useRef(new Map<string, SequenceSample | null>());
   const fadeKeys = useRef(new Map<string, string | null>());
+  /** Per light with switchable smoothing (NEEWER): what it was last told; null after a reset. */
+  const smoothSent = useRef(new Map<string, boolean>());
   const seqRef = useRef(seq);
   seqRef.current = seq;
 
@@ -78,6 +80,11 @@ export function SequencesApp(_p: AppProps) {
       const step = playback && native(tr)
         ? nativeStep(tr.keyframes, t, prev, fadeKeys.current.get(tr.id) ?? null)
         : { ...commandsFor(prev, sampleTrack(tr.keyframes, t)), key: null };
+      // Lights that can switch smoothing: instant at jumps, smooth inside fades (and while scrubbing).
+      if (fixtureKind(tr.kindId)?.caps.smoothing) {
+        const smooth = !playback || inFade(tr.keyframes, t);
+        if (smoothSent.current.get(tr.id) !== smooth) { smoothSent.current.set(tr.id, smooth); proxy.send(tr.fixtureId, { op: "smooth", on: smooth }); }
+      }
       sent.current.set(tr.id, step.sent);
       fadeKeys.current.set(tr.id, step.key);
       for (const c of step.commands) proxy.send(tr.fixtureId, c);
@@ -89,6 +96,7 @@ export function SequencesApp(_p: AppProps) {
     if (!playing || !seq) return;
     sent.current.clear();
     fadeKeys.current.clear();
+    smoothSent.current.clear();
     setPlayingFixtures(seq.tracks.flatMap((t) => (t.fixtureId && !t.muted ? [t.fixtureId] : [])));
     let start = performance.now() - playhead;
     const h = setInterval(() => {

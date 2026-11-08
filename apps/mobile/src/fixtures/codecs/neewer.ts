@@ -1,4 +1,4 @@
-import type { Curve } from "@openclapper/vocab";
+import type { Curve, EffectId, EffectSettings } from "@openclapper/vocab";
 
 /**
  * NEEWER "Infinity" lights (FS230B, FS300B), decoded from an HCI snoop of the NEEWER app (#207,
@@ -69,4 +69,68 @@ export function modelOf(n: Notice): string | null {
   const text = String.fromCharCode(...n.payload.filter((x) => x >= 0x20 && x < 0x7f));
   const m = /[A-Z]{2}\d{2,4}[A-Z]?/.exec(text);
   return m ? m[0] : null;
+}
+
+/**
+ * Smooth or instant changes (tag D3; NEEWER 5.8.0 sends 00 for its gradient modes and while idle, 01
+ * while it streams music or blink effects): 00 = the light eases between values, 01 = it jumps.
+ */
+export const smoothFrame = (address: string, smooth: boolean) => frame(0xd3, address, [smooth ? 0x00 : 0x01]);
+
+/** Asks for the light's state; the answer is tag 0x04 (parseState). The app sends it on connect. */
+export const stateQuery = (address: string) => frame(0x8e, address, [0x85]);
+
+/** The FS series' effects (scene class 5): device id and parameter layout, from NEEWER 5.8.0. */
+type Field = "int" | "intMin" | "intMax" | "k" | "kMax" | "gm" | "rate" | "ember" | "zero";
+export const NW_EFFECT_LAYOUT: Partial<Record<EffectId, { id: number; fields: readonly Field[] }>> = {
+  nw_flash: { id: 1, fields: ["int", "k", "rate"] },
+  nw_paparazzi: { id: 2, fields: ["int", "k", "gm", "rate"] },
+  nw_bad_bulb: { id: 3, fields: ["int", "k", "gm", "rate"] },
+  nw_explosion: { id: 4, fields: ["int", "k", "gm", "rate", "ember"] },
+  nw_welding: { id: 5, fields: ["intMin", "intMax", "k", "gm", "rate"] },
+  nw_cct_flicker: { id: 6, fields: ["int", "k", "gm", "rate"] },
+  nw_cct_pulse: { id: 8, fields: ["int", "k", "gm", "rate"] },
+  nw_candle: { id: 11, fields: ["intMin", "intMax", "k", "gm", "rate", "ember"] },
+  nw_cct_loop: { id: 13, fields: ["int", "k", "kMax", "rate"] },
+  // Mode 0 (white), then the colour range the white mode ignores.
+  nw_intensity_loop: { id: 14, fields: ["zero", "intMin", "intMax", "zero", "zero", "k", "rate"] },
+  nw_tv: { id: 15, fields: ["intMin", "intMax", "k", "gm", "rate"] },
+  // Mode 0: the white kind, the only one the FS lights get.
+  nw_fireworks: { id: 16, fields: ["int", "zero", "rate", "ember"] },
+};
+
+/**
+ * A built-in effect (tag 0x91, subtag 0x8B, then the effect id and its fields): intensity 0..100,
+ * kelvin in hundreds, G/M 50 (the app hides it for these effects), speed and sparks 1..10. Ranges
+ * clamp to the light's 2700–6500 K. Stopping is a white-light frame again: there is no "effect off".
+ */
+export function effectFrame(address: string, effect: EffectId, intensity: number, s: EffectSettings): Uint8Array {
+  const l = NW_EFFECT_LAYOUT[effect];
+  if (!l) throw new Error(`NEEWER lights have no ${effect}`);
+  const pct = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 100);
+  const k = (v: number) => Math.round(Math.min(6500, Math.max(2700, v)) / 100);
+  const step = (v: number | undefined) => Math.min(10, Math.max(1, Math.round(v ?? 5)));
+  const value: Record<Field, number> = {
+    int: pct(intensity), intMin: pct(s.intensityMin ?? 0), intMax: pct(s.intensityMax ?? 0.5),
+    k: k(s.kelvin ?? 5500), kMax: k(s.kelvinMax ?? 5600), gm: 50, rate: step(s.frequency), ember: step(s.ember), zero: 0,
+  };
+  return frame(0x91, address, [0x8b, l.id, ...l.fields.map((f) => value[f])]);
+}
+
+const CURVE_OF: Record<number, Curve> = { 1: "exp", 2: "log", 3: "s", 4: "linear" };
+
+/** What the light says it shows (the reply to stateQuery, tag 0x04): power, then mode 1 (white) or 3 (an effect). */
+export interface NeewerState { power: boolean; intensity?: number; kelvin?: number; gm?: number; curve?: Curve; effect?: EffectId | null }
+
+export function parseState(n: Notice): NeewerState | null {
+  if (n.tag !== 0x04 || n.payload.length < 3) return null;
+  const [, power, mode, ...p] = n.payload;
+  const out: NeewerState = { power: power === 1 };
+  if (mode === 1 && p.length >= 4) {
+    Object.assign(out, { intensity: Math.min(100, p[0]) / 100, kelvin: p[1] * 100, gm: p[2] - 50, effect: null, ...(CURVE_OF[p[3]] ? { curve: CURVE_OF[p[3]] } : {}) });
+  } else if (mode === 3 && p.length >= 1) {
+    const id = (Object.entries(NW_EFFECT_LAYOUT) as [EffectId, { id: number }][]).find(([, l]) => l.id === p[0])?.[0];
+    if (id) out.effect = id;
+  }
+  return out;
 }

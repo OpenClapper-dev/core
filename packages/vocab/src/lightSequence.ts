@@ -189,6 +189,13 @@ export function commandsFor(prev: SequenceSample | null, next: SequenceSample): 
   return { commands: cmds, sent: n };
 }
 
+/** Whether `t` lies inside a fade tile (any kind): lights with switchable smoothing smooth there and jump elsewhere. */
+export function inFade(keyframes: readonly Keyframe[], t: number): boolean {
+  const ks = sorted(keyframes);
+  for (let i = 1; i < ks.length; i++) if (ks[i - 1].at <= t && t < ks[i].at) return !!fadeInto(ks, i);
+  return false;
+}
+
 /** A fade tile the light runs by itself (#289): the gap from one keyframe to the next. */
 export interface NativeFade { from: number; to: number; /** The keyframe it fades into. */ toId: string; curve: Curve }
 

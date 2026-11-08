@@ -127,7 +127,8 @@ export function parseBattery(p: Uint8Array): SidusBattery | null {
  */
 const EFFECT_CMD = 0x87;
 const EFFECT_STOP = 15;
-const GEN1: Record<EffectId, { code: number; fields: [number, number][]; intensityBit: 46 | 54 }> = {
+/** The MC's first-generation effects; other kinds' effects (NEEWER's nw_…) are not here. */
+const GEN1: Partial<Record<EffectId, { code: number; fields: [number, number][]; intensityBit: 46 | 54 }>> = {
   club_lights: { code: 0, fields: [[5, 50]], intensityBit: 54 },
   paparazzi: { code: 1, fields: [[10, 33], [560, 40], [5, 50]], intensityBit: 54 },
   lightning: { code: 2, fields: [[5, 27], [2, 31], [10, 33], [560, 40], [5, 50]], intensityBit: 54 },
@@ -229,16 +230,18 @@ const LAYOUTS: Partial<Record<EffectId, Layout>> = {
  * Sidus Link's defaults), or the app's preset. `trigger` fires one Lightning strike now.
  */
 export function effect(id: EffectId, i: number, settings?: EffectSettings, trigger = false) {
+  const gen1 = GEN1[id];
+  if (!gen1) throw new Error(`the MC has no ${id}`);
   const layout = LAYOUTS[id];
   if (layout) {
     const p = new Uint8Array(10);
     setBits(p, 8, 1, 1);
     layout.encode(p, effectSettingsOf(id, settings), trigger);
     setBits(p, layout.intensityBit, 10, Math.round(clamp(i, 0, 1) * 1000));
-    p[8] = GEN1[id].code;
+    p[8] = gen1.code;
     return finish(p, EFFECT_CMD);
   }
-  const e = GEN1[id];
+  const e = gen1;
   const p = new Uint8Array(10);
   for (const [value, bit] of e.fields) setBits(p, bit, bitLength(value), value);
   setBits(p, 8, 1, 1);
@@ -257,7 +260,7 @@ export function effectOff() { const p = new Uint8Array(10); p[8] = EFFECT_STOP; 
 export function parseEffect(p: Uint8Array): { effect: EffectId | null; on: boolean; intensity: number; settings?: EffectSettings } | null {
   if (p.length !== 10 || p[0] !== checksum(p) || (p[9] & 0x7f) !== (EFFECT_CMD & 0x7f)) return null;
   if (p[8] === EFFECT_STOP) return { effect: null, on: getBits(p, 8, 1) === 1, intensity: 0 };
-  const hit = (Object.entries(GEN1) as [EffectId, (typeof GEN1)[EffectId]][]).find(([, e]) => e.code === p[8]);
+  const hit = (Object.entries(GEN1) as [EffectId, { code: number; intensityBit: 46 | 54 }][]).find(([, e]) => e.code === p[8]);
   if (!hit) return null;
   const [id, e] = hit;
   const on = getBits(p, 8, 1) === 1;
