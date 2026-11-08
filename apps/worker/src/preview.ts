@@ -17,7 +17,8 @@ import type { Ctx, Env } from "./index.ts";
  *
  * The same room carries the light proxy (#307, packages/vocab/src/lightProxy.ts); nothing of it is stored:
  * Studio → phones: `lights.command` (validated here and again on the phone), `lights.hello` (report now;
- * also sent by the room when a Studio tab connects). Phone → Studio tabs: `lights.state`.
+ * also sent by the room when a Studio tab connects), `lights.sync`, `lights.scan`, `lights.provision`.
+ * Phone → Studio tabs: `lights.state`, `lights.scan.state`, `lights.provision.state`.
  * Room → phones: `{ type: "lights.studios", count }` on every change, so the proxy shows whether a Studio listens.
  */
 type Role = "phone" | "studio";
@@ -98,8 +99,11 @@ export class PreviewRoom extends DurableObject<Env> {
   /** Relays the light proxy's messages (#307); the room keeps nothing of them. */
   private lights(ws: WebSocket, msg: Record<string, unknown>) {
     if (this.ctx.getTags(ws)[0] === "studio") {
-      if (msg.type === "lights.hello") this.send("phone", { type: "lights.hello" });
-      else if (msg.type === "lights.command") {
+      if (msg.type === "lights.hello" || msg.type === "lights.sync") this.send("phone", { type: msg.type });
+      else if (msg.type === "lights.scan" && typeof msg.on === "boolean") this.send("phone", { type: "lights.scan", on: msg.on });
+      else if (msg.type === "lights.provision" && typeof msg.fixtureId === "string" && UUID.test(msg.fixtureId)) {
+        this.send("phone", { type: "lights.provision", fixtureId: msg.fixtureId, fresh: msg.fresh === true });
+      } else if (msg.type === "lights.command") {
         const command = parseLightCommand(msg.command);
         if (typeof msg.fixtureId !== "string" || !UUID.test(msg.fixtureId) || !command) return;
         this.send("phone", { type: "lights.command", fixtureId: msg.fixtureId, command });
@@ -107,6 +111,8 @@ export class PreviewRoom extends DurableObject<Env> {
     } else if (msg.type === "lights.state" && Array.isArray(msg.fixtures)) {
       this.send("studio", msg);
       ws.send(JSON.stringify({ type: "lights.studios", count: this.open("studio").length }));
+    } else if ((msg.type === "lights.scan.state" && Array.isArray(msg.found)) || (msg.type === "lights.provision.state" && typeof msg.fixtureId === "string")) {
+      this.send("studio", msg);
     }
   }
 

@@ -60,10 +60,53 @@ export interface ProxyState {
   fixtures: FixtureLive[];
 }
 
-/** Studio → phone. `lights.hello` asks the proxy for its state now (a Studio tab just opened). */
+/**
+ * Studio → phone. `lights.hello` asks the proxy for its state now (a Studio tab just opened);
+ * `lights.sync` makes it re-read the fixture list (the Studio added, renamed or deleted one through
+ * the API); `lights.scan` starts or stops a scan for nearby devices; `lights.provision` pairs a mesh
+ * fixture with the phone's network, or runs its setup again (`fresh`: after a reset, a new address).
+ */
 export type ProxyRequest =
   | { type: "lights.command"; fixtureId: string; command: LightCommand }
-  | { type: "lights.hello" };
+  | { type: "lights.hello" }
+  | { type: "lights.sync" }
+  | { type: "lights.scan"; on: boolean }
+  | { type: "lights.provision"; fixtureId: string; fresh?: boolean };
+
+/** A device the phone's scan found; `kinds` are the models it looks like (best first). */
+export interface ScannedDevice { address: string; name: string | null; rssi: number | null; kinds: string[] }
+
+/** Phone → Studio while scanning (10 s per scan), at most every few hundred ms. */
+export interface ScanState {
+  type: "lights.scan.state";
+  phase: "idle" | "scanning" | "done" | "error";
+  message?: string;
+  found: ScannedDevice[];
+}
+
+/** The steps of pairing a mesh light; a resume (provisioned earlier, not configured) runs only the last two. */
+export const PROVISION_STAGES = ["find", "invite", "keys", "confirm", "data", "reconnect", "configure"] as const;
+export type ProvisionStage = (typeof PROVISION_STAGES)[number];
+export const PROVISION_STAGE_LABELS: Record<ProvisionStage, string> = {
+  find: "Find the light",
+  invite: "Invite it",
+  keys: "Exchange keys",
+  confirm: "Confirm both sides",
+  data: "Send the network key and address",
+  reconnect: "Reconnect through its proxy",
+  configure: "Configure it",
+};
+
+/** Phone → Studio while pairing a mesh light. */
+export interface ProvisionState {
+  type: "lights.provision.state";
+  fixtureId: string;
+  phase: "running" | "done" | "error";
+  stage: ProvisionStage | null;
+  /** Only reconnect + configure: the light was provisioned before. */
+  resume: boolean;
+  error?: string;
+}
 
 const num = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
 const EFFECT_IDS = new Set<string>(EFFECTS.map((e) => e.id));
