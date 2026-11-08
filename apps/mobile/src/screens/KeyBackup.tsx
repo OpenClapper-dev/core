@@ -134,7 +134,7 @@ function NetworkRow({ n, passphraseSet, onChange }: { n: MeshNetwork; passphrase
             <PasswordInput value={pass} onChangeText={setPass} editable={!busy} placeholder="Recovery passphrase" autoComplete="current-password" textContentType="password" returnKeyType="go" onSubmitEditing={() => void restore()} />
             <Button icon="key-arrow-right" label="Restore keys" busy={busy} disabled={!pass || busy} onPress={() => void restore()} />
           </>
-        : <Hint>The keys are on another phone and there is no backup. Turn on key backup there, or reset the lights and pair them again here.</Hint>
+        : <Hint>The keys are on another phone and there is no backup. Turn on key backup there, or reset the lights and pair them again from the Studio.</Hint>
       )}
       {error && <ErrorText>{error}</ErrorText>}
     </Block>

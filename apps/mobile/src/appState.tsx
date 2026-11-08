@@ -22,13 +22,9 @@ export type Route =
   | { name: "step"; day: ShootingDay; shots: Shot[]; index: number }
   | { name: "rigs" }
   | { name: "rigEditor"; rigId: string | null }
-  | { name: "fixtures" }
   | { name: "livePicture" }
   | { name: "keyBackup" }
   | { name: "proxy" }
-  | { name: "fixtureEditor"; fixtureId: string | null }
-  | { name: "fixture"; fixtureId: string }
-  | { name: "fixtureProvision"; fixtureId: string; /** Pair again after a reset: a new address. */ fresh?: boolean }
   | { name: "viewfinderSettings" }
   | { name: "captureSettings" }
   | { name: "calibration" }

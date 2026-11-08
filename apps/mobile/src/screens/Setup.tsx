@@ -5,7 +5,9 @@ import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { API_URL, isConfigured } from "../config";
 import { isLogging, logCount } from "../log";
 import { offlineProject } from "../offline";
+import { hasPassphrase } from "../fixtures/keyBackup";
 import { useFixtures } from "../fixtures/library";
+import { getMeshNetworks } from "../fixtures/meshNetworks";
 import { useRigs } from "../rigs";
 import { useSync } from "../sync";
 import { AppHeader, Banner, Button, ListRow, makeStyles, num, SectionLabel, Seg, SyncCard, type } from "../ui";
@@ -57,8 +59,8 @@ export function Setup() {
           {!signedIn && isConfigured && <ListRow icon="cloud-upload-outline" title="Uploads" meta={sync.pending ? `${sync.pending} on the phone` : "Nothing waiting"} onPress={() => app.push({ name: "uploads" })} />}
           <ListRow icon="folder-outline" title="Project" meta={app.project?.name ?? "None picked"} onPress={app.openProjectSheet} />
           <ListRow icon="camera-control" title="Rigs & lenses" meta={rigs.length ? `${rigs.length} rig${rigs.length === 1 ? "" : "s"} · using ${active?.name ?? "none"}` : "No rig yet"} onPress={() => app.push({ name: "rigs" })} />
-          <ListRow icon="lightbulb-group-outline" title="Lights" meta={fixtures.length ? `${fixtures.length} paired` : "None paired"} onPress={() => app.push({ name: "fixtures" })} />
-          <ListRow icon="access-point" title="Proxy" meta="Lights controlled from the Studio · keep open" onPress={() => app.push({ name: "proxy" })} />
+          <ListRow icon="access-point" title="Lights proxy" meta={`${fixtures.length} paired · control and pairing in the Studio’s Devices`} onPress={() => app.push({ name: "proxy" })} />
+          {getMeshNetworks().length > 0 && <ListRow icon="key-outline" title="Key backup" meta={hasPassphrase() ? "On · Aputure keys sealed on the server" : "Off · a lost phone means resetting every Aputure light"} onPress={() => app.push({ name: "keyBackup" })} />}
           <ListRow icon="video-wireless-outline" title="Live picture" meta="Hollyland Mars 400S Pro" onPress={() => app.push({ name: "livePicture" })} />
           <ListRow icon="crop-free" title="Viewfinder" meta={`Frame ${colourName(st.borderColor).toLowerCase()} ${st.borderWidthPx} px · blackout ${st.blackoutEnabled ? "on" : "off"} · ${chipCount(st)} HUD chips`} onPress={() => app.push({ name: "viewfinderSettings" })} />
           <ListRow icon="camera-outline" title="Capture" meta={`GPS ${st.gpsMode} · direct upload ${st.directUpload ? "on" : "off"} · rig ${st.rigOrientation}`} onPress={() => app.push({ name: "captureSettings" })} />
