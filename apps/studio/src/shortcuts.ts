@@ -11,7 +11,7 @@
 
 export type ScopeId =
   | "global" | "wm" | "shots" | "shots.grid" | "shots.list" | "map" | "shot" | "framing" | "compose" | "draw" | "reframe"
-  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop" | "trash";
+  | "timeline" | "browser" | "clip" | "plan" | "metadata" | "rigs" | "rig" | "locations" | "fields" | "position" | "newshot" | "combobox" | "files" | "desktop" | "trash" | "sequences";
 
 export interface Scope {
   label: string;
@@ -50,6 +50,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   files: { label: "Files", with: [] },
   desktop: { label: "Desktop icons", with: [] },
   trash: { label: "Recycle bin", with: [] },
+  sequences: { label: "Sequences", with: [] },
 };
 
 export interface Shortcut {
@@ -258,6 +259,11 @@ export const SHORTCUTS = [
   { scope: "trash", action: "all", keys: ["Mod+a"], label: "Select everything listed" },
   { scope: "trash", action: "restore", keys: ["r"], label: "Restore the selected items (or double-click one)" },
   { scope: "trash", action: "purge", keys: ["Delete"], label: "Delete the selected items permanently" },
+  { scope: "sequences", action: "remove", keys: ["Delete", "Backspace"], label: "Delete the selected keyframes (the start keyframe stays)" },
+  { scope: "sequences", action: "all", keys: ["Mod+a"], label: "Select every keyframe" },
+  { scope: "sequences", action: "clear", keys: ["Escape"], label: "Clear the selection" },
+  { scope: "sequences", action: "play", keys: [" ", "Mod+Enter"], label: "Play from the playhead; again: stop and go back to where play started" },
+  { scope: "sequences", action: "stopHere", keys: ["k"], label: "Stop where it is" },
 
   // ---- Dialogs and controls
   { scope: "newshot", action: "undo", keys: ["Mod+z"], label: "Undo the last shape" },
