@@ -196,6 +196,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     { id: "a-map", group: "Open", icon: "map-outline", title: "Map", keys: "G M", run: app("gallery", { layout: "map" }) },
     { id: "a-lib", group: "Open", icon: "bookshelf", title: "Library: projects, fields, rigs, locations", keys: "G L", run: app("projects") },
     { id: "a-devices", group: "Open", icon: "access-point", title: "Devices", sub: "Lights through the phone proxy", run: app("devices") },
+    { id: "a-sequences", group: "Open", icon: "chart-timeline-variant", title: "Sequences", sub: "Keyframed light sequences", run: app("sequences") },
     { id: "a-settings", group: "Open", icon: "cog-outline", title: "Settings", sub: "Theme, frame mode, new shots", run: app("settings") },
     { id: "a-newshot", group: "Actions", icon: "image-plus", title: "New shot", sub: "Upload images or draw a sketch", run: () => openOverlay("newShot") },
     { id: "a-theme", group: "Actions", icon: "theme-light-dark", title: "Toggle theme", sub: `Now ${theme === "auto" ? "Auto" : theme === "sun" ? "Sun" : "Set"}`, run: () => setTheme(theme === "set" ? "sun" : "set") },
