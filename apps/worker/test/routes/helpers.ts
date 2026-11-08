@@ -85,7 +85,7 @@ export interface World {
   project: string; preset: string; location: string; spot: string; field: string; view: string; binnedView: string;
   shot: string; photo: string; shot2: string; photo2: string; step: string; day: string; framing: string; timeline: string; clip: string;
   layer: string; sketch: string; folder: string; desktop: string; device: string; layout: string;
-  meshNetwork: string; fixture: string;
+  meshNetwork: string; fixture: string; lightSequence: string;
 }
 
 const DEVICE_SPECS = { v: 1, model: "Test phone", viewport: { portrait: { width: 400, height: 800 }, landscape: null }, zoom: null, stops: [1], mainEquivalentMm: 24, calibration: "auto" };
@@ -125,7 +125,7 @@ export async function buildWorld(user: User): Promise<World> {
   const w = {
     user, mark, workspace: id(), project: id(), preset: id(), location: id(), spot: id(), field: id(), view: id(), binnedView: id(),
     shot: id(), photo: id(), shot2: id(), photo2: id(), step: id(), day: id(), framing: id(), timeline: id(), clip: id(), layer: id(), sketch: id(), folder: id(),
-    desktop: id(), device: id(), layout: id(), meshNetwork: id(), fixture: id(),
+    desktop: id(), device: id(), layout: id(), meshNetwork: id(), fixture: id(), lightSequence: id(),
   } as World;
   memberUser ??= await newUser({ signIn: false });
   w.member = memberUser.id;
@@ -157,6 +157,7 @@ export async function buildWorld(user: User): Promise<World> {
   await ok(api(t, "PUT", `/api/viewfinder-layouts/${w.layout}`, { ...layoutBody(`${mark} layout`), device_id: w.device }));
   await ok(api(t, "PUT", `/api/mesh-networks/${w.meshNetwork}`, { name: `${mark} mesh`, workspace_id: w.workspace }));
   await ok(api(t, "PUT", `/api/fixtures/${w.fixture}`, fixtureBody(`${mark} light`, { mesh_network_id: w.meshNetwork, mesh_unicast: 2, workspace_id: w.workspace })));
+  await ok(api(t, "PUT", `/api/light-sequences/${w.lightSequence}`, sequenceBody(w.project, `${mark} sequence`, w.fixture)));
   return w;
 }
 
@@ -184,3 +185,9 @@ export async function snapshot(): Promise<string> {
   out.r2 = objects.sort();
   return JSON.stringify(out);
 }
+
+/** A light sequence with one MC track (driving `fixtureId`, if given) and its start keyframe. */
+export const sequenceBody = (projectId: string, name: string, fixtureId: string | null = null) => ({
+  project_id: projectId, name, duration_ms: 10_000, loop: false,
+  tracks: [{ id: "t1", name: "MC 1", kindId: "aputure-mc", fixtureId, keyframes: [{ id: "start", at: 0, power: true, intensity: 0.5, kelvin: 4900, gm: 0 }, { id: "k1", at: 2000, intensity: 1, fadeIn: "s" }] }],
+});

@@ -62,6 +62,7 @@ const WORKSPACE_OF = {
   preset: "SELECT workspace_id AS ws FROM presets WHERE id = ?1",
   fixture: "SELECT workspace_id AS ws FROM fixtures WHERE id = ?1",
   mesh_network: "SELECT workspace_id AS ws FROM mesh_networks WHERE id = ?1",
+  light_sequence: "SELECT p.workspace_id AS ws FROM light_sequences q JOIN projects p ON p.id = q.project_id WHERE q.id = ?1",
 } as const;
 export type Owned = keyof typeof WORKSPACE_OF;
 

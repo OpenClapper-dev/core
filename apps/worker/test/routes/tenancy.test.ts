@@ -13,7 +13,7 @@
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
 import { publicRouter, router } from "../../src/routes.ts";
-import { api, buildWorld, deviceBody, fixtureBody, FRAME, idsOf, layerBody, layoutBody, newUser, ok, bakeForm, photoMeta, sketchBody, snapshot, uploadForm, uuid, type User, type World } from "./helpers.ts";
+import { api, buildWorld, deviceBody, fixtureBody, sequenceBody, FRAME, idsOf, layerBody, layoutBody, newUser, ok, bakeForm, photoMeta, sketchBody, snapshot, uploadForm, uuid, type User, type World } from "./helpers.ts";
 
 interface IdCase {
   kind: "id";
@@ -133,6 +133,9 @@ const ROUTES: Record<string, Case> = {
   "GET /api/timelines/:id": { kind: "id", path: (a) => `/api/timelines/${a.timeline}` },
   "PUT /api/timelines/:id": { kind: "id", path: (a) => `/api/timelines/${a.timeline}`, body: (a, actor) => ({ project_id: actor.project, name: named(a, "timeline"), clips: [] }) },
   "DELETE /api/timelines/:id": { kind: "id", path: (a) => `/api/timelines/${a.timeline}` },
+  "GET /api/light-sequences": { kind: "list", paths: (a) => ["/api/light-sequences", `/api/light-sequences?project_id=${a.project}`] },
+  "PUT /api/light-sequences/:id": { kind: "id", path: (a) => `/api/light-sequences/${a.lightSequence}`, body: (a, actor) => sequenceBody(actor.project, named(a, "sequence")) },
+  "DELETE /api/light-sequences/:id": { kind: "id", path: (a) => `/api/light-sequences/${a.lightSequence}` },
   "POST /api/timelines/:id/clips/:clip/promote": { kind: "id", path: (a) => `/api/timelines/${a.timeline}/clips/${a.clip}/promote`, body: () => ({ what: "framing" }) },
 
   "PUT /api/framings/:id": { kind: "id", path: (a) => `/api/framings/${a.framing}`, body: (a, actor) => ({ photo_id: actor.photo, name: named(a, "framing"), lens_mm: 85, frame: FRAME }) },
@@ -224,7 +227,7 @@ describe("another workspace's resources", () => {
 
   test("lists do show the owner's own resources (the leak check can fail)", async () => {
     // /api/shots pages (100 by default) and every case above adds a world of A's with the same capture time: ask for all.
-    for (const path of ["/api/projects", "/api/presets", "/api/fixtures", "/api/mesh-networks", "/api/locations", "/api/spots", "/api/fields", "/api/views", "/api/days", "/api/timelines", "/api/shots?limit=500", "/api/devices", "/api/viewfinder-layouts", "/api/workspaces"]) {
+    for (const path of ["/api/projects", "/api/presets", "/api/fixtures", "/api/mesh-networks", "/api/locations", "/api/spots", "/api/fields", "/api/views", "/api/days", "/api/timelines", "/api/light-sequences", "/api/shots?limit=500", "/api/devices", "/api/viewfinder-layouts", "/api/workspaces"]) {
       const text = await (await api(a.token, "GET", path)).text();
       expect(text, path).toContain(listWorld.mark);
     }
