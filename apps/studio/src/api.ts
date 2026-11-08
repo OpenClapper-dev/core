@@ -438,3 +438,12 @@ export interface DeviceRecord { id: string; name: string; specs: DeviceSpecs; cr
 export const fetchDevices = () => get<{ devices: DeviceRecord[] }>("/api/devices").then((r) => r.devices);
 export const putDevice = (d: { id: string; name: string; specs: DeviceSpecs }) => send<{ device: DeviceRecord }>("PUT", `/api/devices/${d.id}`, { name: d.name, specs: d.specs }).then((r) => r.device);
 export const deleteDevice = (id: string) => send<{ deleted: string }>("DELETE", `/api/devices/${id}`).then(() => undefined);
+
+// ---------------------------------------------------------------- lights (epic #206, #307)
+
+/** A paired light or battery, as the phone synced it; controlled through the phone (lightProxy.ts). */
+export interface ServerFixture {
+  id: string; workspace_id: string; label: string; kind_id: string; address: string;
+  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; created_at: string; updated_at: string | null;
+}
+export const fetchFixtures = () => get<{ fixtures: ServerFixture[] }>("/api/fixtures").then((r) => r.fixtures);

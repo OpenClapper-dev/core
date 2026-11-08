@@ -22,6 +22,9 @@ function commit(next: Fixture[]) {
 
 export const getFixtures = () => fixtures;
 
+/** Called after every change of the list (the proxy holds every fixture, #307). */
+export function onFixturesChange(cb: () => void): () => void { listeners.add(cb); return () => { listeners.delete(cb); }; }
+
 export function useFixtures(): Fixture[] {
   const [v, setV] = useState(getFixtures);
   useEffect(() => { const cb = () => setV(getFixtures()); listeners.add(cb); cb(); return () => { listeners.delete(cb); }; }, []);

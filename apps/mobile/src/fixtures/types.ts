@@ -1,4 +1,3 @@
-import type { Curve, EffectId, EffectSettings, LightState } from "@openclapper/vocab";
 
 /**
  * Lights (epic #206): the phone's side. "Fixture" because "device" already means this phone
@@ -18,34 +17,9 @@ export interface Fixture {
   synced: boolean;
 }
 
-/** One change to a fixture, in normalised units: intensity, saturation 0..1, hue 0..360, kelvin. */
-export type Command =
-  | { op: "power"; on: boolean }
-  | { op: "intensity"; value: number }
-  | { op: "cct"; kelvin: number; gm: number }
-  | { op: "hsi"; h: number; s: number; i: number }
-  | { op: "curve"; curve: Curve }
-  /** Run a built-in effect at the current intensity, or stop it (null). */
-  | { op: "effect"; effect: EffectId | null; settings?: EffectSettings }
-  /** Fire the running effect once now (Lightning's strike). */
-  | { op: "trigger" }
-  | { op: "status" };
-
-/** What a fixture reported last; `state` is what a light says it shows. */
-export interface Telemetry {
-  at: number;
-  battery?: number;
-  volts?: number;
-  /** Current drawn; the battery reports this, watts are volts × amps. */
-  amps?: number;
-  watts?: number;
-  minutesLeft?: number;
-  /** A battery feeding a load. */
-  discharging?: boolean;
-  /** A light with a built-in battery runs on an external supply. */
-  plugged?: boolean;
-  state?: LightState;
-}
+/** One change to a fixture, and what it reports: shared with the Studio, which controls the lights through the proxy (#307). */
+import type { LightCommand as Command, Telemetry } from "@openclapper/vocab";
+export type { Command, Telemetry };
 
 /** One open Bluetooth connection, as ble/link.ts gives it to a driver (a fake one in tests). */
 export interface Link {

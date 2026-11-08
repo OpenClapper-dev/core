@@ -32,6 +32,7 @@ import { RigEditor, RigList } from "./src/screens/Rigs";
 import { FixtureControl, FixtureEditor, FixtureList, FixtureProvision } from "./src/screens/Lights";
 import { LivePicture } from "./src/screens/LivePicture";
 import { KeyBackup } from "./src/screens/KeyBackup";
+import { Proxy } from "./src/screens/Proxy";
 import { Setup } from "./src/screens/Setup";
 import { Account, Calibration, CaptureSettings, ChangePassword, DebugLog, ViewfinderSettings } from "./src/screens/SetupScreens";
 import { CorrectPosition, MapFocus, ShotDetails } from "./src/screens/ShotDetails";
@@ -264,6 +265,7 @@ function Screen({ route }: { route: Route }) {
     case "fixtures": return <FixtureList />;
     case "livePicture": return <LivePicture />;
     case "keyBackup": return <KeyBackup />;
+    case "proxy": return <Proxy />;
     case "fixtureEditor": return <FixtureEditor key={route.fixtureId ?? "new"} fixtureId={route.fixtureId} />;
     case "fixture": return <FixtureControl key={route.fixtureId} fixtureId={route.fixtureId} />;
     case "fixtureProvision": return <FixtureProvision key={`${route.fixtureId}:${route.fresh ? 1 : 0}`} fixtureId={route.fixtureId} fresh={route.fresh} />;

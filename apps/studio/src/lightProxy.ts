@@ -1,0 +1,80 @@
+import { useEffect, useRef, useState } from "preact/hooks";
+import type { LightCommand, ProxyState } from "@openclapper/vocab";
+
+/**
+ * The Studio's end of the light proxy (#307): the same per-user phone room as the layout preview
+ * (worker/src/preview.ts). The phone running its Proxy screen reports its fixtures; commands go back
+ * through the room. A slider drag is thinned here (one command per op every SEND_EVERY_MS, the last
+ * value always sent) and again on the phone, which sends only what a light can take.
+ */
+const RETRY_MS = [1000, 3000, 10_000, 30_000];
+const SEND_EVERY_MS = 60;
+
+export interface LightProxy {
+  /** The room's socket is open. */
+  connected: boolean;
+  /** Phones with the app in the foreground (whether or not their proxy is on). */
+  phones: { id: string | null; model: string | null }[];
+  /** The phone whose proxy is on, with its fixtures; null when none is. */
+  proxy: ProxyState | null;
+  send: (fixtureId: string, command: LightCommand) => void;
+}
+
+export function useLightProxy(): LightProxy {
+  const [connected, setConnected] = useState(false);
+  const [phones, setPhones] = useState<{ id: string | null; model: string | null }[]>([]);
+  const [states, setStates] = useState<Record<string, ProxyState>>({});
+  const ws = useRef<WebSocket | null>(null);
+  const pending = useRef(new Map<string, { at: number; timer: ReturnType<typeof setTimeout> | null; msg: unknown }>());
+
+  useEffect(() => {
+    let closed = false, tries = 0, timer: ReturnType<typeof setTimeout> | undefined;
+    const connect = () => {
+      const w = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/preview/socket?role=studio`);
+      ws.current = w;
+      w.onopen = () => { tries = 0; setConnected(true); w.send(JSON.stringify({ type: "lights.hello" })); };
+      w.onmessage = (e) => {
+        try {
+          const m = JSON.parse(String(e.data)) as { type?: string; phones?: { id: string | null; model: string | null }[] } & Partial<Omit<ProxyState, "type">>;
+          if (m.type === "presence") {
+            const list = Array.isArray(m.phones) ? m.phones : [];
+            setPhones(list);
+            // A phone that left takes its proxy with it.
+            setStates((cur) => Object.fromEntries(Object.entries(cur).filter(([id]) => list.some((p) => p.id === id))));
+          } else if (m.type === "lights.state" && m.phone && typeof m.phone.id === "string" && Array.isArray(m.fixtures)) {
+            const s = m as ProxyState;
+            setStates((cur) => ({ ...cur, [s.phone.id]: s }));
+          }
+        } catch { /* not ours */ }
+      };
+      w.onclose = () => {
+        ws.current = null;
+        setConnected(false);
+        setPhones([]);
+        setStates({});
+        if (!closed) timer = setTimeout(connect, RETRY_MS[Math.min(tries++, RETRY_MS.length - 1)]);
+      };
+    };
+    connect();
+    return () => { closed = true; clearTimeout(timer); ws.current?.close(); for (const p of pending.current.values()) if (p.timer) clearTimeout(p.timer); };
+  }, []);
+
+  const send = (fixtureId: string, command: LightCommand) => {
+    const key = `${fixtureId}:${command.op}`;
+    const msg = { type: "lights.command", fixtureId, command };
+    const out = () => {
+      const p = pending.current.get(key);
+      if (p) { p.at = Date.now(); p.timer = null; }
+      if (ws.current?.readyState === WebSocket.OPEN) ws.current.send(JSON.stringify(p?.msg ?? msg));
+    };
+    const p = pending.current.get(key);
+    if (!p) { pending.current.set(key, { at: 0, timer: null, msg }); out(); return; }
+    p.msg = msg;
+    if (p.timer) return;
+    const wait = p.at + SEND_EVERY_MS - Date.now();
+    if (wait <= 0) out(); else p.timer = setTimeout(out, wait);
+  };
+
+  const proxy = Object.values(states).find((s) => s.proxy) ?? null;
+  return { connected, phones, proxy, send };
+}

@@ -10,6 +10,7 @@ export * from "./viewfinder.ts";
 export * from "./devices.ts";
 export * from "./files.ts";
 export * from "./lighting.ts";
+export * from "./lightProxy.ts";
 export * from "./vignetting.ts";
 export * from "./steps.ts";
 export * from "./layers.ts";

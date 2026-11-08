@@ -18,6 +18,25 @@ import { store } from "./storage";
 export interface LivePreview { layout: ViewfinderLayout; orientation: "portrait" | "landscape" }
 
 const RETRY_MS = [2000, 5000, 15_000, 30_000];
+
+/**
+ * The same socket carries the light proxy (#307, fixtures/proxy.ts): `lights.*` messages go to these
+ * listeners, and the proxy sends through `sendOnLink`. Module state, because the socket lives in a hook.
+ */
+let link: WebSocket | null = null;
+const lightsListeners = new Set<(m: { type: string } & Record<string, unknown>) => void>();
+const openListeners = new Set<() => void>();
+const closedListeners = new Set<() => void>();
+export function onLinkClosed(cb: () => void): () => void { closedListeners.add(cb); return () => { closedListeners.delete(cb); }; }
+export const linkOpen = () => link?.readyState === WebSocket.OPEN;
+export function onLinkMessage(cb: (m: { type: string } & Record<string, unknown>) => void): () => void { lightsListeners.add(cb); return () => { lightsListeners.delete(cb); }; }
+export function onLinkOpen(cb: () => void): () => void { openListeners.add(cb); return () => { openListeners.delete(cb); }; }
+/** False when the socket is not open (offline, background, signed out); the message is dropped. */
+export function sendOnLink(msg: unknown): boolean {
+  if (link?.readyState !== WebSocket.OPEN) return false;
+  link.send(JSON.stringify(msg));
+  return true;
+}
 const NativeWebSocket = WebSocket as unknown as new (url: string, protocols: null, options: { headers: Record<string, string> }) => WebSocket;
 
 /** `enabled` is off in offline mode: no socket then either. */
@@ -39,12 +58,15 @@ export function useLivePreview(enabled: boolean): { preview: LivePreview | null;
       ws.current = w;
       w.onopen = () => {
         tries = 0;
+        link = w;
         w.send(JSON.stringify({ type: "hello", device: { id: deviceId(), model: deviceModel() } }));
         sendSpecs();
+        for (const cb of openListeners) cb();
       };
       w.onmessage = (e) => {
         try {
           const m = JSON.parse(String(e.data)) as { type?: string; layout?: unknown; orientation?: unknown };
+          if (typeof m.type === "string" && m.type.startsWith("lights.")) { for (const cb of lightsListeners) cb(m as { type: string }); return; }
           if (m.type === "preview" && !validateViewfinderLayout(m.layout) && (m.orientation === "portrait" || m.orientation === "landscape")) {
             setPreview({ layout: m.layout as ViewfinderLayout, orientation: m.orientation });
           } else if (m.type === "stop") setPreview(null);
@@ -53,6 +75,7 @@ export function useLivePreview(enabled: boolean): { preview: LivePreview | null;
       };
       w.onclose = (e) => {
         ws.current = null;
+        if (link === w) { link = null; for (const cb of closedListeners) cb(); }
         if (closed) return;
         log("info", "preview link closed", { code: e.code });
         timer = setTimeout(connect, RETRY_MS[Math.min(tries++, RETRY_MS.length - 1)]);
@@ -67,7 +90,7 @@ export function useLivePreview(enabled: boolean): { preview: LivePreview | null;
     const offDevice = onDeviceChange(sendSpecs);
     connect();
     // Backgrounded or signed out: close; the preview ends with it (the Studio sees the phone leave).
-    return () => { closed = true; offDevice(); clearTimeout(timer); ws.current?.close(); ws.current = null; setPreview(null); };
+    return () => { closed = true; offDevice(); clearTimeout(timer); ws.current?.close(); ws.current = null; link = null; setPreview(null); };
   }, [enabled, active, signedIn]);
 
   const exit = () => {

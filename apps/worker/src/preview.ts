@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { validateDeviceSpecs, validateViewfinderLayout } from "@openclapper/vocab";
+import { parseLightCommand, validateDeviceSpecs, validateViewfinderLayout } from "@openclapper/vocab";
 import { HttpError, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
 
@@ -14,6 +14,11 @@ import type { Ctx, Env } from "./index.ts";
  * Phone → room: `{ type: "hello", device: { id, model } }` on connect (kept on the socket for presence).
  * Phone → Studio: `{ type: "exit" }` (left the preview on the phone), `{ type: "specs", id, specs }`.
  * Room → Studio tabs: `{ type: "presence", phones: [{ id, model }], previewing }` on every change.
+ *
+ * The same room carries the light proxy (#307, packages/vocab/src/lightProxy.ts); nothing of it is stored:
+ * Studio → phones: `lights.command` (validated here and again on the phone), `lights.hello` (report now;
+ * also sent by the room when a Studio tab connects). Phone → Studio tabs: `lights.state`.
+ * Room → phones: `{ type: "lights.studios", count }` on every change, so the proxy shows whether a Studio listens.
  */
 type Role = "phone" | "studio";
 interface Preview { type: "preview"; layout: unknown; orientation: "portrait" | "landscape" }
@@ -45,6 +50,8 @@ export class PreviewRoom extends DurableObject<Env> {
     this.ctx.acceptWebSocket(server, [role]);
     const current = await this.ctx.storage.get<Preview>("preview");
     if (role === "phone" && current) server.send(JSON.stringify(current));
+    // A new Studio tab wants the proxy's state at once, not at the next change.
+    if (role === "studio") this.send("phone", { type: "lights.hello" });
     await this.presence();
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -53,6 +60,7 @@ export class PreviewRoom extends DurableObject<Env> {
     if (tooLarge(raw)) return;
     let msg: { type?: unknown; layout?: unknown; orientation?: unknown; device?: { id?: unknown; model?: unknown }; id?: unknown; specs?: unknown };
     try { msg = JSON.parse(typeof raw === "string" ? raw : new TextDecoder().decode(raw)) as typeof msg; } catch { return; }
+    if (typeof msg.type === "string" && msg.type.startsWith("lights.")) { this.lights(ws, msg as Record<string, unknown>); return; }
     if (this.ctx.getTags(ws)[0] === "studio") {
       if (msg.type === "preview") {
         if (validateViewfinderLayout(msg.layout) || (msg.orientation !== "portrait" && msg.orientation !== "landscape")) return;
@@ -87,6 +95,21 @@ export class PreviewRoom extends DurableObject<Env> {
     await this.webSocketClose(ws, 1011);
   }
 
+  /** Relays the light proxy's messages (#307); the room keeps nothing of them. */
+  private lights(ws: WebSocket, msg: Record<string, unknown>) {
+    if (this.ctx.getTags(ws)[0] === "studio") {
+      if (msg.type === "lights.hello") this.send("phone", { type: "lights.hello" });
+      else if (msg.type === "lights.command") {
+        const command = parseLightCommand(msg.command);
+        if (typeof msg.fixtureId !== "string" || !UUID.test(msg.fixtureId) || !command) return;
+        this.send("phone", { type: "lights.command", fixtureId: msg.fixtureId, command });
+      }
+    } else if (msg.type === "lights.state" && Array.isArray(msg.fixtures)) {
+      this.send("studio", msg);
+      ws.send(JSON.stringify({ type: "lights.studios", count: this.open("studio").length }));
+    }
+  }
+
   private async stop() {
     if (!(await this.ctx.storage.get("preview"))) return;
     await this.ctx.storage.delete("preview");
@@ -108,5 +131,6 @@ export class PreviewRoom extends DurableObject<Env> {
     // A phone that has not said hello yet (just connected) shows without an id.
     const phones = this.open("phone", closing).map((w) => (w.deserializeAttachment() as PhoneHello | null) ?? { id: null, model: null });
     this.send("studio", { type: "presence", phones, previewing }, closing);
+    this.send("phone", { type: "lights.studios", count: this.open("studio", closing).length }, closing);
   }
 }

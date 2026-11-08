@@ -12,6 +12,15 @@ First fixtures:
 
 **Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213), with their battery (#293), effects (#291) and dimming curve (#289), are built. The MC's device-side fade (Program Continue, see below) is not used yet.
 
+## The phone as proxy, Studio Devices (#307)
+
+The phone keeps the Bluetooth connections and runs the drivers; the controls live in the Studio. Controlling lights on a phone is awkward, and the sequence editor (#304) will use the same path.
+
+- **Phone, Setup → Proxy** (`screens/Proxy.tsx`, `fixtures/proxy.ts`): while this screen is open (screen kept on; Android stops Bluetooth in the background), the phone holds every paired fixture (hub holder `proxy`) and runs what the Studio sends. It reports every fixture's link, state and telemetry, at most every 200 ms, and shows read-only whether a Studio tab is attached and what it is connected to.
+- **Transport**: the per-user phone room of the layout preview (`apps/worker/src/preview.ts`) relays `lights.*` messages; nothing is stored. The wire format is in `packages/vocab/src/lightProxy.ts`: `LightCommand`, `FixtureLive`, `ProxyState`, and `parseLightCommand`, which the room and the phone both apply. Expect the relay to add roughly 50–150 ms to a light's own reaction time.
+- **Studio, Devices app** (`apps/studio/src/apps/DevicesApp.tsx`, `lightProxy.ts`): the integrations by brand (Aputure, NEEWER, and Hollyland as phone-only), each paired fixture with its live link and battery, and a panel with every control its kind has: power, intensity, white + G/M, colour, dimming curve, effects with their options and Lightning's strike, and the battery readout. Slider drags are thinned to one command per op every 60 ms (the last value always goes), then coalesced again by the phone's queue. After a change made here, the light's reports are ignored for 1.5 s, like on the phone.
+- **One proxy at a time**: the phone holding the mesh keys (#303). Pairing still happens on the phone (Setup → Lights) until it moves to the Studio; the phone's control screens go after that.
+
 ## Kinds (`packages/vocab/src/lighting.ts`)
 
 `FIXTURE_KINDS` lists every supported model with its transport, its driver id and its capabilities (power, intensity, white range with green/magenta, colour, dimming curves, telemetry). Hardcoded on purpose: a new model is one entry there and, when its protocol is new, one driver on the phone. Kind ids are stored with each fixture and never change. `CURVES` are the four dimming curves both makers' apps offer (linear, exponential, logarithmic, S); the sequence editor will use them as easing too.
