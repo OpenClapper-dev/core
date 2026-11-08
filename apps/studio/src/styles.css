@@ -662,3 +662,4 @@ button { font: inherit; }
 .seq-add { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
 .seq-empty { padding: var(--space-3) 0; }
 .seq-noproxy { position: absolute; bottom: var(--space-3); left: var(--space-4); }
+.seq-fade { position: absolute; top: 50%; height: 6px; margin-top: -3px; background: var(--accent); opacity: 0.35; border-radius: 3px; pointer-events: none; }

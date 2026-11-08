@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  commandsFor, CURVES, effectName, fixtureKind, sampleTrack, SEQUENCE_MAX_MS, SEQUENCE_TICK_MS,
+  commandsFor, CURVES, effectName, fixtureKind, nativeFades, nativeStep, sampleTrack, SEQUENCE_MAX_MS, SEQUENCE_TICK_MS,
   type Curve, type EffectId, type Keyframe, type LightSequence, type SequenceSample, type SequenceTrack,
 } from "@openclapper/vocab";
 import { Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { fetchFixtures, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { useLightProxy } from "../lightProxy";
+import { setPlayingFixtures } from "../sequencePlayback";
 import { deleteSequence, getSequences, upsertSequence, useSequences } from "../sequences";
 import type { AppProps } from "./registry";
 
@@ -40,6 +41,12 @@ export function SequencesApp(_p: AppProps) {
 
   // What was last sent per light, so only changes go out (reset on play: the first tick sends all).
   const sent = useRef(new Map<string, SequenceSample | null>());
+  /** Per light that fades by itself (#289): the native fade chunk it is running. */
+  const fadeKeys = useRef(new Map<string, string | null>());
+  const fixturesRef = useRef(fixtures);
+  fixturesRef.current = fixtures;
+  /** A light that fades by itself: its intensity ramps are native fades, white and colour switch at keyframes. */
+  const native = (fixtureId: string) => !!fixtureKind(fixturesRef.current.find((f) => f.id === fixtureId)?.kind_id ?? "")?.caps.fade;
   const seqRef = useRef(seq);
   seqRef.current = seq;
 
@@ -49,14 +56,22 @@ export function SequencesApp(_p: AppProps) {
   const patch = (fn: (s: LightSequence) => LightSequence) => { const cur = current(); if (cur) save(fn(cur)); };
   const patchTrack = (fixtureId: string, fn: (t: SequenceTrack) => SequenceTrack) => patch((s) => ({ ...s, tracks: s.tracks.map((t) => (t.fixtureId === fixtureId ? fn(t) : t)) }));
 
-  /** Samples every track at t and sends the difference to what each light last got. */
-  const emit = (t: number) => {
+  /**
+   * Samples every track at t and sends the difference to what each light last got. While playing, a
+   * light that fades by itself gets one native fade per stretch and nothing in between.
+   */
+  const emit = (t: number, playback: boolean) => {
     const s = seqRef.current;
     if (!s || !proxy.proxy) return;
     for (const tr of s.tracks) {
-      const { commands, sent: now } = commandsFor(sent.current.get(tr.fixtureId) ?? null, sampleTrack(tr.keyframes, t));
-      sent.current.set(tr.fixtureId, now);
-      for (const c of commands) proxy.send(tr.fixtureId, c);
+      const prev = sent.current.get(tr.fixtureId) ?? null;
+      const nat = native(tr.fixtureId);
+      const step = playback && nat
+        ? nativeStep(tr.keyframes, t, prev, fadeKeys.current.get(tr.fixtureId) ?? null)
+        : { ...commandsFor(prev, sampleTrack(tr.keyframes, t, { native: nat })), key: null };
+      sent.current.set(tr.fixtureId, step.sent);
+      fadeKeys.current.set(tr.fixtureId, step.key);
+      for (const c of step.commands) proxy.send(tr.fixtureId, c);
     }
   };
 
@@ -64,24 +79,26 @@ export function SequencesApp(_p: AppProps) {
   useEffect(() => {
     if (!playing || !seq) return;
     sent.current.clear();
+    fadeKeys.current.clear();
+    setPlayingFixtures(seq.tracks.map((t) => t.fixtureId));
     let start = performance.now() - playhead;
     const h = setInterval(() => {
       const s = seqRef.current;
       if (!s) return;
       let t = performance.now() - start;
       if (t >= s.durationMs) {
-        if (s.loop) { start += s.durationMs; t -= s.durationMs; sent.current.clear(); }
-        else { emit(s.durationMs); setPlayhead(s.durationMs); setPlaying(false); return; }
+        if (s.loop) { start += s.durationMs; t -= s.durationMs; sent.current.clear(); fadeKeys.current.clear(); }
+        else { emit(s.durationMs, true); setPlayhead(s.durationMs); setPlaying(false); return; }
       }
-      emit(t);
+      emit(t, true);
       setPlayhead(t);
     }, SEQUENCE_TICK_MS);
-    return () => clearInterval(h);
+    return () => { clearInterval(h); setPlayingFixtures([]); };
   }, [playing, selId]);
 
   // Live: while stopped, the lights follow the playhead and every edit.
   const seqKey = seq ? JSON.stringify(seq.tracks) : "";
-  useEffect(() => { if (!playing && live) emit(playhead); }, [playhead, seqKey, live, playing, !!proxy.proxy]);
+  useEffect(() => { if (!playing && live) emit(playhead, false); }, [playhead, seqKey, live, playing, !!proxy.proxy]);
 
   const play = () => {
     if (!seq) return;
@@ -127,7 +144,7 @@ export function SequencesApp(_p: AppProps) {
               <Button size="sm" icon={playing ? "stop" : "play"} disabled={!proxy.proxy && !playing} onClick={play}>{playing ? "Stop" : "Play"}</Button>
               <IconButton icon="delete-outline" label="Delete the sequence" onClick={() => void remove()} />
             </div>
-            <Lanes seq={seq} fixtures={fixtures} playhead={playhead} selKf={selKf}
+            <Lanes seq={seq} fixtures={fixtures} native={native} playhead={playhead} selKf={selKf}
               onSeek={(t) => { if (!playing) setPlayhead(t); }}
               onAdd={(fixtureId, at) => {
                 const tr = current()?.tracks.find((t) => t.fixtureId === fixtureId);
@@ -163,8 +180,8 @@ export function SequencesApp(_p: AppProps) {
 }
 
 /** The ruler and one lane per track, positions in % of the sequence length. */
-function Lanes({ seq, fixtures, playhead, selKf, onSeek, onAdd, onSelect, onMove, onRemoveTrack }: {
-  seq: LightSequence; fixtures: ServerFixture[]; playhead: number; selKf: { fixtureId: string; id: string } | null;
+function Lanes({ seq, fixtures, native, playhead, selKf, onSeek, onAdd, onSelect, onMove, onRemoveTrack }: {
+  seq: LightSequence; fixtures: ServerFixture[]; native: (fixtureId: string) => boolean; playhead: number; selKf: { fixtureId: string; id: string } | null;
   onSeek: (t: number) => void; onAdd: (fixtureId: string, at: number) => void; onSelect: (fixtureId: string, k: Keyframe) => void;
   onMove: (fixtureId: string, id: string, at: number) => void; onRemoveTrack: (fixtureId: string) => void;
 }) {
@@ -192,10 +209,13 @@ function Lanes({ seq, fixtures, playhead, selKf, onSeek, onAdd, onSelect, onMove
         return (
           <div key={tr.fixtureId} class="seq-row">
             <div class="seq-label"><span class="seq-name">{f?.label ?? "Removed light"}</span><IconButton icon="close" label="Remove the track" onClick={() => onRemoveTrack(tr.fixtureId)} /></div>
-            <div class="seq-lane"
+            <div class={cx("seq-lane", native(tr.fixtureId) && "is-native")}
               onClick={(e) => { if ((e.target as HTMLElement).classList.contains("seq-lane")) onAdd(tr.fixtureId, timeAt(e, e.currentTarget as HTMLElement)); }}
               onPointerMove={(e) => { const d = drag.current; if (d && d.fixtureId === tr.fixtureId) { d.moved = true; onMove(d.fixtureId, d.id, timeAt(e, d.lane)); } }}
               onPointerUp={() => { drag.current = null; }}>
+              {native(tr.fixtureId) && nativeFades(tr.keyframes).map((nf) => (
+                <span key={`${nf.from}-${nf.to}`} class="seq-fade" style={{ left: pct(nf.from), width: pct(nf.to - nf.from) }} title={`Native fade ${fmt(nf.from)}–${fmt(nf.to)} to ${Math.round(nf.target * 100)} %: the light runs it, nothing else is sent meanwhile`} />
+              ))}
               {tr.keyframes.map((k) => (
                 <button key={k.id} type="button" class={cx("seq-kf", selKf?.id === k.id && "is-selected", k.hue !== undefined && "is-colour", k.effect?.id && "is-effect")}
                   style={{ left: pct(k.at) }} title={`${fmt(k.at)} · ${summary(k)}`}
@@ -287,6 +307,7 @@ function KeyframePanel({ kf, fixture, durationMs, onChange, onDelete, onClose }:
           </Channel>
         )}
         <p class="meta">Unchecked channels keep what the keyframes before set. Effects run with their default options.</p>
+        {caps?.fade && <p class="meta">This light fades by itself: the intensity ramp up to this keyframe runs inside the light as one smooth fade (the bar on the lane), and nothing else is sent to it meanwhile. White and colour switch here, at the keyframe; effects stop a fade.</p>}
         <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={onDelete}>Delete keyframe</Button></div>
       </PanelBody>
     </Panel>

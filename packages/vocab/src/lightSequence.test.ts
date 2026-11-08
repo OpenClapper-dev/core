@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { commandsFor, ease, sampleTrack, type Keyframe } from "./lightSequence.ts";
+import { commandsFor, ease, nativeFades, nativeStep, sampleTrack, type Keyframe } from "./lightSequence.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at" | "ease"> & { ease?: Keyframe["ease"] }): Keyframe => ({ id: `k${at}`, at, ease: "linear", ...x });
 
@@ -42,4 +42,35 @@ test("commands: only what changed; colour as one hsi; effects keep white/colour 
   // Stopping the effect brings the colour back.
   const off = commandsFor(fx.sent, { power: true, mode: "colour", hue: 200, sat: 0.8, intensity: 0.6, effect: { id: null } });
   assert.deepEqual(off.commands, [{ op: "effect", effect: null }, { op: "hsi", h: 200, s: 0.8, i: 0.6 }]);
+});
+
+test("native fades (#289): one fade per stretch, nothing in between, any keyframe splits", () => {
+  const k = [
+    kf(0, { power: true, intensity: 0.2, kelvin: 3200 }),
+    kf(4000, { intensity: 1, ease: "s" }),
+    kf(6000, { kelvin: 5600 }),
+    kf(8000, { intensity: 0.5 }),
+  ];
+  assert.deepEqual(nativeFades(k).map((f) => [f.from, f.to, f.target]), [[0, 4000, 1], [4000, 6000, 0.75], [6000, 8000, 0.5]]);
+  const a = nativeStep(k, 0, null, null);
+  assert.deepEqual(a.commands, [
+    { op: "power", on: true }, { op: "cct", kelvin: 3200, gm: 0 }, { op: "intensity", value: 0.2 },
+    { op: "fade", ms: 4000, curve: "s", intensity: 1, white: { kelvin: 3200, gm: 0 } },
+  ]);
+  // The light fades by itself: nothing until the stretch ends.
+  assert.deepEqual(nativeStep(k, 2000, a.sent, a.key).commands, []);
+  const b = nativeStep(k, 4000, a.sent, a.key);
+  assert.deepEqual(b.commands, [{ op: "fade", ms: 2000, curve: "linear", intensity: 0.75, white: { kelvin: 3200, gm: 0 } }]);
+  // The white keyframe at 6 s ends that fade; the next one carries the new white.
+  const c = nativeStep(k, 6000, b.sent, b.key);
+  assert.deepEqual(c.commands, [{ op: "cct", kelvin: 5600, gm: 0 }, { op: "fade", ms: 2000, curve: "linear", intensity: 0.5, white: { kelvin: 5600, gm: 0 } }]);
+});
+
+test("native fades: long stretches chain 25.5 s chunks; starting mid-fade jumps first", () => {
+  const k = [kf(0, { intensity: 0 }), kf(60_000, { intensity: 1 })];
+  const a = nativeStep(k, 0, null, null);
+  assert.deepEqual(a.commands.at(-1), { op: "fade", ms: 25_500, curve: "linear", intensity: 0.425 });
+  assert.deepEqual(nativeStep(k, 25_500, a.sent, a.key).commands, [{ op: "fade", ms: 25_500, curve: "linear", intensity: 0.85 }]);
+  const mid = nativeStep(k, 30_000, null, null);
+  assert.deepEqual(mid.commands, [{ op: "intensity", value: 0.5 }, { op: "fade", ms: 21_000, curve: "linear", intensity: 0.85 }]);
 });

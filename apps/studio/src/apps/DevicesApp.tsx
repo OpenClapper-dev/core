@@ -7,6 +7,7 @@ import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconB
 import { deleteFixture, fetchFixtures, putFixture, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { useLightProxy, type LightProxy } from "../lightProxy";
+import { usePlayingFixtures } from "../sequencePlayback";
 import type { AppProps } from "./registry";
 
 /**
@@ -137,10 +138,12 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
   const touched = useRef(0);
   const reported = JSON.stringify(live?.state ?? {});
   useEffect(() => { if (Date.now() - touched.current > HOLD_MS) setV((cur) => ({ ...cur, ...live?.state })); }, [reported]);
+  // A sequence is playing this light: hands off, a manual change would fight its fades (#289).
+  const inSequence = usePlayingFixtures().has(f.id);
   const [mode, setMode] = useState<"cct" | "hsi">(() => (live?.state.hsi && !live.state.cct ? "hsi" : "cct"));
   if (!kind) return <Panel label="Device"><PanelHead title={f.label}><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead><PanelBody><ErrorLine>{`Unknown kind ${f.kind_id}`}</ErrorLine></PanelBody></Panel>;
   const caps = kind.caps;
-  const ready = live?.link === "ready";
+  const ready = live?.link === "ready" && !inSequence;
   const send = (patch: LightState, cmd: LightCommand) => { touched.current = Date.now(); setV((cur) => ({ ...cur, ...patch })); proxy.send(f.id, cmd); };
   const cct = v.cct ?? { kelvin: 5600, gm: 0 };
   const col = v.hsi ?? { h: 0, s: 1, i: v.intensity ?? 0.5 };
@@ -152,6 +155,7 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
       <PanelBody>
         <p class="meta">{`${kind.brand} ${kind.model} · ${f.address}${f.mesh_unicast != null ? ` · mesh ${f.mesh_unicast}` : ""}`}</p>
         <Banner kind={ready ? "ok" : live?.link === "failed" ? "warn" : "info"} icon="bluetooth" title={linkText(live, !!proxy.proxy)} />
+        {inSequence && <Banner kind="info" icon="chart-timeline-variant" title="Playing in a sequence" meta="The controls are locked until the sequence stops." />}
         <fieldset class="devices-controls" disabled={!ready}>
           {controllable && caps.power && (
             <Seg label="Power" value={v.power === undefined ? "" as "on" : v.power ? "on" : "off"} onChange={(x) => send({ power: x === "on" }, { op: "power", on: x === "on" })}
