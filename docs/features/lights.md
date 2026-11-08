@@ -22,6 +22,14 @@ The phone keeps the Bluetooth connections and runs the drivers; the controls liv
 - **Pairing from the Studio**: Devices → **Add device** asks the proxy to scan (10 s; `lights.scan`), and the phone's results show live (`lights.scan.state`). Pick one, confirm the model (the likely ones first), name it. The Studio stores the fixture through `/api/fixtures` and tells the phone to re-read the list (`lights.sync`). A NEEWER device needs nothing more: the proxy connects. An Aputure light is then provisioned by the phone (`lights.provision`, the same flow as on the phone, #212), with each step reported (`lights.provision.state`). Meanwhile the proxy lets go of every connection, because the light needs the radio to itself, and takes them back after. A light's panel offers **Pair with OpenClapper**, **Run setup again** and **Pair again** (after a reset), plus rename and delete.
 - **One proxy at a time**: the phone holding the mesh keys (#303). The phone's own control and pairing screens are gone (step 3).
 
+## Power (#294)
+
+Studio first: where each light's power comes from and how much is left, from the phone proxy's readings (`apps/studio/src/power.tsx`).
+
+- **Sources**: the MC and the PS099S report their own battery; a NEEWER COB runs on a socket or on a V-mount battery (a PS099S), which it cannot report. So a COB is **given its battery** in Devices → the light → **Power** (Socket, or one of the batteries). A battery powers one light at a time: giving it to COB B takes it from COB A, which falls back to Socket. Stored as `fixtures.powered_by` (migration 0034, `PUT /api/fixtures/:id/power`); deleting a battery unassigns it. A battery's panel says which light it powers.
+- **Devices → At a glance** (the default view; the list by brand is the other): a tile per device with its connection, battery level as a number and a bar (amber under 25 %, red under 10 %), time left where known, the battery a COB runs on or "Socket", the light a battery powers.
+- **Sequences**: next to every assigned track, the chip of its light's power: own battery, assigned battery, or a plug for a socket; "–" without a reading.
+
 ## Sequences (#304)
 
 Keyframed light sequences, edited and played in the Studio (app **Sequences**, `apps/studio/src/apps/SequencesApp.tsx`) through the phone proxy. The model is in `packages/vocab/src/lightSequence.ts` (tested).

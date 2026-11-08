@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import {
   commandsFor, CURVES, effectName, FIXTURE_KINDS, fixtureKind, inFade, nativeStep, sampleTrack, SEQUENCE_MAX_MS, SEQUENCE_TICK_MS, START_KEYFRAME, startKeyframe,
-  type Curve, type EffectId, type Keyframe, type LightSequence, type SequenceSample, type SequenceTrack,
+  type Curve, type EffectId, type FixtureLive, type Keyframe, type LightSequence, type SequenceSample, type SequenceTrack,
 } from "@openclapper/vocab";
 import { Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { fetchFixtures, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { bind, useKeys } from "../keys";
 import { useLightProxy } from "../lightProxy";
+import { BatteryChip, powerOf } from "../power";
 import { setPlayingFixtures } from "../sequencePlayback";
 import { useProjectId } from "../project";
 import { deleteSequence, getSequences, upsertSequence, useSequences } from "../sequences";
@@ -197,7 +198,7 @@ export function SequencesApp(_p: AppProps) {
               <Button size="sm" icon={playing ? "stop" : "play"} disabled={!proxy.proxy && !playing} title={playing ? "Stop and go back (Space); K stops here" : "Play from the playhead (Space)"} onClick={play}>{playing ? "Stop" : "Play"}</Button>
               <IconButton icon="delete-outline" label="Delete the sequence" onClick={() => void remove()} />
             </div>
-            <Lanes seq={seq} fixtures={fixtures} playhead={playhead} playing={playing} sel={sel} tile={tile}
+            <Lanes seq={seq} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={playhead} playing={playing} sel={sel} tile={tile}
               onSeek={(t) => { if (!playing) setPlayhead(t); }}
               onAdd={(trackId, at) => {
                 const tr = current()?.tracks.find((t) => t.id === trackId);
@@ -259,7 +260,7 @@ export function SequencesApp(_p: AppProps) {
 }
 
 interface LanesProps {
-  seq: LightSequence; fixtures: ServerFixture[]; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
+  seq: LightSequence; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
   onSeek: (t: number) => void; onAdd: (trackId: string, at: number) => void;
   onSelect: (keys: string[], add: boolean) => void; onToggle: (key: string) => void;
   onMoveAll: (moves: Map<string, number>) => void; onTile: (trackId: string, toId: string) => void;
@@ -373,11 +374,16 @@ function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => strin
   const taken = new Set(seq.tracks.filter((t) => t.id !== tr.id && t.fixtureId).map((t) => t.fixtureId!));
   const options = p.fixtures.filter((f) => f.kind_id === tr.kindId && !taken.has(f.id)).map((f) => ({ value: f.id, label: f.label }));
   const missing = tr.fixtureId && !options.some((o) => o.value === tr.fixtureId) ? [{ value: tr.fixtureId, label: "Removed light" }] : [];
+  const assigned = tr.fixtureId ? p.fixtures.find((f) => f.id === tr.fixtureId) : undefined;
   return (
     <div class="seq-row">
       <div class="seq-label">
         <div class="seq-label__text">
-          <input class="seq-name" value={tr.name} aria-label="Track name" onChange={(e) => { const name = (e.target as HTMLInputElement).value.trim(); if (name) p.onTrack(tr.id, (t) => ({ ...t, name })); }} />
+          <div class="seq-label__top">
+            <input class="seq-name" value={tr.name} aria-label="Track name" onChange={(e) => { const name = (e.target as HTMLInputElement).value.trim(); if (name) p.onTrack(tr.id, (t) => ({ ...t, name })); }} />
+            {/* The assigned light's power (#294): its own battery, the battery it is given, or its socket. */}
+            {assigned && <BatteryChip power={powerOf(assigned, p.fixtures, p.liveOf)} />}
+          </div>
           <Select label={`Light for ${tr.name}`} value={tr.fixtureId ?? ""} width="100%"
             onChange={(id) => p.onTrack(tr.id, (t) => ({ ...t, fixtureId: id || null }))}
             options={[{ value: "", label: kind ? `No ${kind.model} assigned` : "Not assigned" }, ...missing, ...options]} />

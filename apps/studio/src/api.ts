@@ -444,12 +444,22 @@ export const deleteDevice = (id: string) => send<{ deleted: string }>("DELETE", 
 /** A paired light or battery, as the phone synced it; controlled through the phone (lightProxy.ts). */
 export interface ServerFixture {
   id: string; workspace_id: string; label: string; kind_id: string; address: string;
-  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; created_at: string; updated_at: string | null;
+  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null;
+  /** The battery fixture a light without its own runs on (#294); null: a socket or not set. */
+  powered_by: string | null;
+  created_at: string; updated_at: string | null;
 }
 export const fetchFixtures = () => get<{ fixtures: ServerFixture[] }>("/api/fixtures").then((r) => r.fixtures);
 /** Creates or edits a fixture; the phone picks it up on `lights.sync` (#307). */
-export const putFixture = (f: { id: string; label: string; kind_id: string; address: string }) =>
-  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${f.id}`, { label: f.label, kind_id: f.kind_id, address: f.address }).then((r) => r.fixture);
+/** The whole record, mesh fields included: the PUT replaces them, and an MC without them would lose its pairing. */
+export const putFixture = (f: { id: string; label: string; kind_id: string; address: string; mesh_network_id?: string | null; mesh_unicast?: number | null; mesh_elements?: number | null }) =>
+  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${f.id}`, {
+    label: f.label, kind_id: f.kind_id, address: f.address,
+    mesh_network_id: f.mesh_network_id ?? null, mesh_unicast: f.mesh_unicast ?? null, mesh_elements: f.mesh_elements ?? null,
+  }).then((r) => r.fixture);
+/** The battery a light runs on (#294), or null for a socket. */
+export const setFixturePower = (id: string, poweredBy: string | null) =>
+  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${id}/power`, { powered_by: poweredBy }).then((r) => r.fixture);
 export const deleteFixture = (id: string) => send<{ deleted: string }>("DELETE", `/api/fixtures/${id}`).then(() => undefined);
 
 /** Light sequences (#304), per project; the editor's model (vocab LightSequence) with snake-case envelope fields. */

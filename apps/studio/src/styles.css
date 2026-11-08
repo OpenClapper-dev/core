@@ -680,3 +680,22 @@ button { font: inherit; }
 .seq-label__actions { display: flex; flex-direction: column; }
 .seq-lane.is-muted { opacity: 0.35; background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--border-subtle) 6px 7px); }
 .seq-gap.is-fade.is-stepped { border-style: dashed; }
+
+/* Power (#294): battery chips and the Devices overview. */
+.power-chip { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-caption); color: var(--text-dim); white-space: nowrap; }
+.power-chip.is-low { color: var(--warn-ink); }
+.power-chip.is-critical { color: var(--danger); font-weight: var(--weight-semibold); }
+.power-chip.is-unknown { opacity: 0.6; }
+.power-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: var(--space-3); }
+.power-tile { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: var(--bw) solid var(--border); border-radius: var(--radius-md, 8px); background: var(--surface); text-align: left; cursor: pointer; font: inherit; color: var(--text); }
+.power-tile:hover { border-color: var(--border-strong); }
+.power-tile.is-selected { border-color: var(--accent); outline: var(--bw) solid var(--accent); }
+.power-tile__head { display: flex; align-items: center; gap: var(--space-2); }
+.power-tile__name { font-weight: var(--weight-semibold); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.power-bar { height: 8px; border-radius: 4px; background: var(--surface-sunken); overflow: hidden; }
+.power-bar > span { display: block; height: 100%; background: var(--ok); }
+.power-bar.is-low > span { background: var(--warn); }
+.power-bar.is-critical > span { background: var(--danger); }
+.power-tile__big { font-size: var(--text-title, 20px); font-weight: var(--weight-bold); }
+.seq-label__top { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
+.seq-label__top .seq-name { flex: 1; min-width: 0; }

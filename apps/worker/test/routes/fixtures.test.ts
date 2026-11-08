@@ -99,3 +99,32 @@ describe("fixtures", () => {
     await ok(api(u.token, "DELETE", `/api/fixtures/${a}`), 404);
   });
 });
+
+describe("power (#294)", () => {
+  test("a battery powers one light at a time; sockets are null; only lights without a battery take one", async () => {
+    const u2 = await newUser();
+    const put = (id: string, label: string, kind: string, mac: string) => ok(api(u2.token, "PUT", `/api/fixtures/${id}`, { label, kind_id: kind, address: mac }));
+    const [a, b, bat, mc] = [uuid(), uuid(), uuid(), uuid()];
+    await put(a, "COB A", "neewer-fs230b", "C8:47:8C:00:33:01");
+    await put(b, "COB B", "neewer-fs300b", "C8:47:8C:00:33:02");
+    await put(bat, "Battery 1", "neewer-ps099s", "C8:47:8C:00:33:03");
+    await put(mc, "MC", "aputure-mc", "DC:2C:26:00:33:04");
+    type F = { id: string; powered_by: string | null };
+    expect((await ok<{ fixture: F }>(api(u2.token, "PUT", `/api/fixtures/${a}/power`, { powered_by: bat }))).fixture.powered_by).toBe(bat);
+    // The battery moves to B: A is left without.
+    await ok(api(u2.token, "PUT", `/api/fixtures/${b}/power`, { powered_by: bat }));
+    const list = (await ok<{ fixtures: F[] }>(api(u2.token, "GET", "/api/fixtures"))).fixtures;
+    expect(list.find((f) => f.id === a)?.powered_by).toBeNull();
+    expect(list.find((f) => f.id === b)?.powered_by).toBe(bat);
+    // A rename (the full PUT) keeps the assignment.
+    await put(b, "COB B renamed", "neewer-fs300b", "C8:47:8C:00:33:02");
+    expect((await ok<{ fixtures: F[] }>(api(u2.token, "GET", "/api/fixtures"))).fixtures.find((f) => f.id === b)?.powered_by).toBe(bat);
+    await ok(api(u2.token, "PUT", `/api/fixtures/${mc}/power`, { powered_by: bat }), 400);
+    await ok(api(u2.token, "PUT", `/api/fixtures/${a}/power`, { powered_by: b }), 400);
+    await ok(api(u2.token, "PUT", `/api/fixtures/${b}/power`, { powered_by: null }));
+    // Deleting a battery unassigns it.
+    await ok(api(u2.token, "PUT", `/api/fixtures/${a}/power`, { powered_by: bat }));
+    await ok(api(u2.token, "DELETE", `/api/fixtures/${bat}`));
+    expect((await ok<{ fixtures: F[] }>(api(u2.token, "GET", "/api/fixtures"))).fixtures.find((f) => f.id === a)?.powered_by).toBeNull();
+  });
+});

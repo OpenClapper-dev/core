@@ -54,6 +54,7 @@ const ROUTES: Record<string, Case> = {
   "POST /api/mesh-networks/:id/claim": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}/claim`, body: () => ({ holder: uuid() }) },
   "GET /api/fixtures": { kind: "list", paths: () => ["/api/fixtures"] },
   // B names A's network as well: the realistic attack on the upsert.
+  "PUT /api/fixtures/:id/power": { kind: "id", path: (a) => `/api/fixtures/${a.cob}/power`, body: (a, actor) => ({ powered_by: actor.battery }), refused: [400, 403, 404] },
   "PUT /api/fixtures/:id": { kind: "id", path: (a) => `/api/fixtures/${a.fixture}`, body: (a) => fixtureBody(named(a, "light"), { mesh_network_id: a.meshNetwork, mesh_unicast: 2 }) },
   "DELETE /api/fixtures/:id": { kind: "id", path: (a) => `/api/fixtures/${a.fixture}` },
 

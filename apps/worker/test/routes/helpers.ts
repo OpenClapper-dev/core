@@ -85,7 +85,7 @@ export interface World {
   project: string; preset: string; location: string; spot: string; field: string; view: string; binnedView: string;
   shot: string; photo: string; shot2: string; photo2: string; step: string; day: string; framing: string; timeline: string; clip: string;
   layer: string; sketch: string; folder: string; desktop: string; device: string; layout: string;
-  meshNetwork: string; fixture: string; lightSequence: string;
+  meshNetwork: string; fixture: string; lightSequence: string; cob: string; battery: string;
 }
 
 const DEVICE_SPECS = { v: 1, model: "Test phone", viewport: { portrait: { width: 400, height: 800 }, landscape: null }, zoom: null, stops: [1], mainEquivalentMm: 24, calibration: "auto" };
@@ -125,7 +125,7 @@ export async function buildWorld(user: User): Promise<World> {
   const w = {
     user, mark, workspace: id(), project: id(), preset: id(), location: id(), spot: id(), field: id(), view: id(), binnedView: id(),
     shot: id(), photo: id(), shot2: id(), photo2: id(), step: id(), day: id(), framing: id(), timeline: id(), clip: id(), layer: id(), sketch: id(), folder: id(),
-    desktop: id(), device: id(), layout: id(), meshNetwork: id(), fixture: id(), lightSequence: id(),
+    desktop: id(), device: id(), layout: id(), meshNetwork: id(), fixture: id(), lightSequence: id(), cob: id(), battery: id(),
   } as World;
   memberUser ??= await newUser({ signIn: false });
   w.member = memberUser.id;
@@ -158,6 +158,8 @@ export async function buildWorld(user: User): Promise<World> {
   await ok(api(t, "PUT", `/api/mesh-networks/${w.meshNetwork}`, { name: `${mark} mesh`, workspace_id: w.workspace }));
   await ok(api(t, "PUT", `/api/fixtures/${w.fixture}`, fixtureBody(`${mark} light`, { mesh_network_id: w.meshNetwork, mesh_unicast: 2, workspace_id: w.workspace })));
   await ok(api(t, "PUT", `/api/light-sequences/${w.lightSequence}`, sequenceBody(w.project, `${mark} sequence`, w.fixture)));
+  await ok(api(t, "PUT", `/api/fixtures/${w.cob}`, { label: `${mark} cob`, kind_id: "neewer-fs230b", address: "C8:47:8C:00:22:01", workspace_id: w.workspace }));
+  await ok(api(t, "PUT", `/api/fixtures/${w.battery}`, { label: `${mark} battery`, kind_id: "neewer-ps099s", address: "C8:47:8C:00:22:02", workspace_id: w.workspace }));
   return w;
 }
 
