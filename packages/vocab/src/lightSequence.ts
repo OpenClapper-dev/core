@@ -2,21 +2,26 @@ import type { Curve, EffectId, EffectSettings } from "./lighting.ts";
 import { FADE_MAX_MS, type LightCommand } from "./lightProxy.ts";
 
 /**
- * Light sequences (#304), first version: a track per fixture, keyframes on it. A keyframe sets any
- * of the channels; numbers ease from the previous keyframe that set the same channel, with the
- * keyframe's curve (the lights' four dimming curves). Power, colour mode, effect and dimming curve
- * switch at their keyframe. Played by sampling every SEQUENCE_TICK_MS and sending what changed.
+ * Light sequences (#304). A sequence has tracks; a track has a type (a fixture kind) and, as a
+ * separate step, the light it drives. Its keyframes hold values: between two keyframes the light
+ * keeps the first one's values and jumps at the second, unless a fade connects them (the second
+ * keyframe's `fadeIn`, a tile on the gap in the editor): then every value that differs fades over
+ * the gap with the fade's curve. Every track starts with a fixed start keyframe at 0 holding a
+ * complete state, so a sequence never inherits what a light happened to show. Played by sampling
+ * every SEQUENCE_TICK_MS; lights that fade by themselves (#289) get one native fade per fade tile.
  */
 
 export const SEQUENCE_TICK_MS = 100;
 export const SEQUENCE_MAX_MS = 60 * 60_000;
+/** The start keyframe's id on every track. */
+export const START_KEYFRAME = "start";
 
 export interface Keyframe {
   id: string;
-  /** ms from the start of the sequence. */
+  /** ms from the start of the sequence; the start keyframe is always at 0. */
   at: number;
-  /** Easing into this keyframe's numbers from the previous ones. */
-  ease: Curve;
+  /** A fade from the previous keyframe into this one, with this curve; absent: jump here. */
+  fadeIn?: Curve;
   power?: boolean;
   /** 0..1 */
   intensity?: number;
@@ -33,7 +38,15 @@ export interface Keyframe {
   curve?: Curve;
 }
 
-export interface SequenceTrack { fixtureId: string; keyframes: Keyframe[] }
+export interface SequenceTrack {
+  id: string;
+  name: string;
+  /** FIXTURE_KINDS id: which lights it can drive. */
+  kindId: string;
+  /** The light it drives; null until assigned (an unassigned track does not play). */
+  fixtureId: string | null;
+  keyframes: Keyframe[];
+}
 
 export interface LightSequence {
   id: string;
@@ -44,7 +57,7 @@ export interface LightSequence {
   updatedAt: string;
 }
 
-/** What a track says at one moment; undefined: no keyframe has set it yet. */
+/** What a track says at one moment; undefined: no keyframe has set it. */
 export interface SequenceSample {
   power?: boolean;
   intensity?: number;
@@ -57,7 +70,16 @@ export interface SequenceSample {
   curve?: Curve;
 }
 
-/** 0..1 → 0..1 for each dimming curve, used as easing. */
+/** A start keyframe: on, half intensity, white in the middle of the kind's range (or colour without white). */
+export function startKeyframe(kind: { caps: { cct: { min: number; max: number } | null; hsi: boolean } } | undefined): Keyframe {
+  const cct = kind?.caps.cct;
+  return {
+    id: START_KEYFRAME, at: 0, power: true, intensity: 0.5,
+    ...(cct ? { kelvin: Math.round((cct.min + cct.max) / 200) * 100, gm: 0 } : kind?.caps.hsi ? { hue: 0, sat: 1 } : {}),
+  };
+}
+
+/** 0..1 → 0..1 for each dimming curve, used as the shape of a fade. */
 export function ease(curve: Curve, t: number): number {
   const x = Math.min(1, Math.max(0, t));
   switch (curve) {
@@ -68,49 +90,59 @@ export function ease(curve: Curve, t: number): number {
   }
 }
 
-type Numeric = "intensity" | "kelvin" | "gm" | "hue" | "sat";
-const NUMERIC: readonly Numeric[] = ["intensity", "kelvin", "gm", "hue", "sat"];
+const sorted = (k: readonly Keyframe[]) => [...k].sort((a, b) => a.at - b.at || (a.id === START_KEYFRAME ? -1 : b.id === START_KEYFRAME ? 1 : 0));
 
-/** Keyframes by time; a track is short, so sorting on every sample is fine. */
-const sorted = (k: readonly Keyframe[]) => [...k].sort((a, b) => a.at - b.at);
-
-/**
- * The state of a track at `t` ms. Hue takes the short way round the colour wheel. With `native`
- * (a light that fades by itself, #289) only intensity eases: white and colour switch at their
- * keyframe, as the light's own fade keeps them.
- */
-export function sampleTrack(keyframes: readonly Keyframe[], t: number, opts: { native?: boolean } = {}): SequenceSample {
-  const kfs = sorted(keyframes);
+/** Values held after every keyframe up to and including index `i`. */
+function heldAt(ks: readonly Keyframe[], i: number): SequenceSample {
   const out: SequenceSample = {};
-  for (const ch of opts.native ? (["intensity"] as const) : NUMERIC) {
-    let prev: Keyframe | undefined, next: Keyframe | undefined;
-    for (const k of kfs) {
-      if (k[ch] === undefined) continue;
-      if (k.at <= t) prev = k;
-      else { next = k; break; }
-    }
-    if (!prev) continue;
-    const a = prev[ch]!;
-    if (!next) { out[ch] = a; continue; }
-    let b = next[ch]!;
-    if (ch === "hue" && Math.abs(b - a) > 180) b += b > a ? -360 : 360;
-    const v = a + (b - a) * ease(next.ease, (t - prev.at) / (next.at - prev.at));
-    out[ch] = ch === "hue" ? ((v % 360) + 360) % 360 : v;
-  }
-  // Switched channels: the last keyframe at or before t that sets them.
-  for (const k of kfs) {
-    if (k.at > t) break;
+  for (let j = 0; j <= i; j++) {
+    const k = ks[j];
     if (k.power !== undefined) out.power = k.power;
-    if (opts.native) for (const ch of ["kelvin", "gm", "hue", "sat"] as const) if (k[ch] !== undefined) out[ch] = k[ch];
-    if (k.kelvin !== undefined) out.mode = "white";
-    if (k.hue !== undefined || k.sat !== undefined) out.mode = "colour";
+    if (k.intensity !== undefined) out.intensity = k.intensity;
+    if (k.kelvin !== undefined) { out.mode = "white"; out.kelvin = k.kelvin; out.gm = k.gm ?? out.gm ?? 0; }
+    if (k.hue !== undefined || k.sat !== undefined) { out.mode = "colour"; if (k.hue !== undefined) out.hue = k.hue; if (k.sat !== undefined) out.sat = k.sat; }
     if (k.effect !== undefined) out.effect = k.effect;
     if (k.curve !== undefined) out.curve = k.curve;
   }
   return out;
 }
 
-/** Rounded to what a light can show, so a slow ramp does not send a command every tick for nothing. */
+/** The fade into keyframe `i` (from i − 1), if one is set and the gap is long enough to fade. */
+const fadeInto = (ks: readonly Keyframe[], i: number) => (i > 0 && ks[i].fadeIn && ks[i].at - ks[i - 1].at >= 1 ? ks[i].fadeIn! : null);
+
+/**
+ * The state of a track at `t` ms: what the last keyframe at or before `t` left, or, inside a fade, every
+ * number that differs between the two ends eased with the fade's curve (hue the short way round).
+ * White ↔ colour cannot be blended: across such a fade the mode switches at its end.
+ */
+export function sampleTrack(keyframes: readonly Keyframe[], t: number): SequenceSample {
+  const ks = sorted(keyframes);
+  let i = -1;
+  while (i + 1 < ks.length && ks[i + 1].at <= t) i++;
+  if (i < 0) return {};
+  const a = heldAt(ks, i);
+  const next = i + 1 < ks.length ? i + 1 : -1;
+  const curve = next >= 0 ? fadeInto(ks, next) : null;
+  if (!curve) return a;
+  const b = heldAt(ks, next);
+  const x = ease(curve, (t - ks[i].at) / (ks[next].at - ks[i].at));
+  const out = { ...a };
+  const mix = (p: number | undefined, q: number | undefined) => (p === undefined || q === undefined ? p : p + (q - p) * x);
+  out.intensity = mix(a.intensity, b.intensity);
+  if (a.mode === b.mode) {
+    if (a.mode === "white") { out.kelvin = mix(a.kelvin, b.kelvin); out.gm = mix(a.gm, b.gm); }
+    if (a.mode === "colour") {
+      let h = b.hue;
+      if (a.hue !== undefined && h !== undefined && Math.abs(h - a.hue) > 180) h += h > a.hue ? -360 : 360;
+      const v = mix(a.hue, h);
+      out.hue = v === undefined ? v : ((v % 360) + 360) % 360;
+      out.sat = mix(a.sat, b.sat);
+    }
+  }
+  return out;
+}
+
+/** Rounded to what a light can show, so a slow fade does not send a command every tick for nothing. */
 function quantize(s: SequenceSample): SequenceSample {
   const q = { ...s };
   if (q.intensity !== undefined) q.intensity = Math.round(q.intensity * 1000) / 1000;
@@ -153,49 +185,43 @@ export function commandsFor(prev: SequenceSample | null, next: SequenceSample): 
   return { commands: cmds, sent: n };
 }
 
-/** A stretch the light fades by itself (#289): between two neighbouring keyframes, to `target`. */
-export interface NativeFade { from: number; to: number; /** The keyframe it ends on. */ toId: string; curve: Curve; target: number }
+/** A fade tile the light runs by itself (#289): the gap from one keyframe to the next. */
+export interface NativeFade { from: number; to: number; /** The keyframe it fades into. */ toId: string; curve: Curve }
 
-/**
- * The native fades of a track: every pair of neighbouring keyframes over which the intensity
- * changes, at least 0.2 s apart, without a running effect (effects do not fade). Any keyframe ends a
- * fade, so a white or colour switch on it happens on time. The curve is the one of the keyframe that
- * sets the intensity being faded to.
- */
+/** The fade tiles of a track a light can run by itself: no effect running at their start, something to fade. */
 export function nativeFades(keyframes: readonly Keyframe[]): NativeFade[] {
   const ks = sorted(keyframes);
   const out: NativeFade[] = [];
   for (let i = 1; i < ks.length; i++) {
-    const from = ks[i - 1], to = ks[i];
-    if (to.at - from.at < 200) continue;
-    const a = sampleTrack(ks, from.at, { native: true }), b = sampleTrack(ks, to.at, { native: true });
-    if (a.intensity === undefined || b.intensity === undefined || Math.abs(a.intensity - b.intensity) < 0.001 || a.effect?.id) continue;
-    const governing = ks.find((k) => k.at >= to.at && k.intensity !== undefined) ?? to;
-    out.push({ from: from.at, to: to.at, toId: to.id, curve: governing.ease, target: b.intensity });
+    const curve = fadeInto(ks, i);
+    if (!curve) continue;
+    const a = heldAt(ks, i - 1);
+    if (a.effect?.id) continue;
+    out.push({ from: ks[i - 1].at, to: ks[i].at, toId: ks[i].id, curve });
   }
   return out;
 }
 
 /**
- * One playback tick for a light that fades by itself (#289). Inside a native fade the light gets one
- * `fade` command when the stretch (or a 25.5 s chunk of a longer one) begins, and nothing else
- * until it ends: `key` names the running chunk, the runner keeps it and passes it back. Outside a
- * fade it is the ordinary stepped playback.
+ * One playback tick for a light that fades by itself (#289). Inside a fade tile the light gets one
+ * `fade` command to the far keyframe's values when the tile (or a 25.5 s chunk of a longer one)
+ * begins, and nothing else until it ends: `key` names the running chunk; the runner keeps it and
+ * passes it back. Outside fades: the values, jumping at keyframes.
  */
 export function nativeStep(keyframes: readonly Keyframe[], t: number, prev: SequenceSample | null, prevKey: string | null): { commands: LightCommand[]; sent: SequenceSample; key: string | null } {
-  const s = sampleTrack(keyframes, t, { native: true });
+  const s = sampleTrack(keyframes, t);
   const fade = nativeFades(keyframes).find((f) => f.from <= t && t < f.to);
-  if (!fade || s.effect?.id) return { ...commandsFor(prev, s), key: null };
+  if (!fade) return { ...commandsFor(prev, s), key: null };
   const idx = Math.floor((t - fade.from) / FADE_MAX_MS);
   const key = `${fade.toId}:${idx}`;
   if (key === prevKey && prev) return { commands: [], sent: prev, key };
   const end = Math.min(fade.to, fade.from + (idx + 1) * FADE_MAX_MS);
-  // Switches and white/colour first; intensity only if the light is not where the fade starts (a start mid-fade).
+  // Where the light is now (a start mid-fade jumps there first), then one fade to where the chunk ends.
   const base = commandsFor(prev, s);
-  const target = Math.round((sampleTrack(keyframes, end, { native: true }).intensity ?? 0) * 1000) / 1000;
-  const fadeCmd: LightCommand = {
-    op: "fade", ms: end - t, curve: fade.curve, intensity: target,
-    ...(s.mode === "colour" ? { colour: { h: s.hue ?? 0, s: s.sat ?? 1 } } : s.mode === "white" && s.kelvin !== undefined ? { white: { kelvin: s.kelvin, gm: s.gm ?? 0 } } : {}),
+  const target = quantize(end === fade.to ? heldAt(sorted(keyframes), sorted(keyframes).findIndex((k) => k.id === fade.toId)) : sampleTrack(keyframes, end));
+  const cmd: LightCommand = {
+    op: "fade", ms: end - t, curve: fade.curve, intensity: target.intensity ?? s.intensity ?? 0.5,
+    ...(target.mode === "colour" ? { colour: { h: target.hue ?? 0, s: target.sat ?? 1 } } : target.mode === "white" && target.kelvin !== undefined ? { white: { kelvin: target.kelvin, gm: target.gm ?? 0 } } : {}),
   };
-  return { commands: [...base.commands, fadeCmd], sent: { ...base.sent, intensity: target }, key };
+  return { commands: [...base.commands, cmd], sent: { ...base.sent, ...target, power: base.sent.power }, key };
 }

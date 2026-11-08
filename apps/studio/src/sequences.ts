@@ -6,7 +6,8 @@ import type { LightSequence } from "@openclapper/vocab";
  * still being tried; they move to the Worker once it settles. Every reader and write goes through
  * here, so that move touches one file.
  */
-const KEY = "openclapper.sequences.v1";
+/** v2: tracks with a type and an optional light, start keyframes, fades as tiles (the v1 test data is not carried over). */
+const KEY = "openclapper.sequences.v2";
 const listeners = new Set<() => void>();
 
 function read(): LightSequence[] {

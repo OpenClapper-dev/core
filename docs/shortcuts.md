@@ -302,3 +302,12 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | R | Restore the selected items (or double-click one) |
 | Del | Delete the selected items permanently |
 
+## Sequences
+
+| Keys | What |
+| --- | --- |
+| Del / ⌫ | Delete the selected keyframes (the start keyframe stays) |
+| ⌘A | Select every keyframe |
+| Esc | Clear the selection |
+| ⌘↵ | Play or stop |
+
