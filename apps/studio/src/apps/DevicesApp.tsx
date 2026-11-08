@@ -140,6 +140,8 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
   useEffect(() => { if (Date.now() - touched.current > HOLD_MS) setV((cur) => ({ ...cur, ...live?.state })); }, [reported]);
   // A sequence is playing this light: hands off, a manual change would fight its fades (#289).
   const inSequence = usePlayingFixtures().has(f.id);
+  /** NEEWER smoothing as last set here; the phone switches it on (smooth) when it connects. */
+  const [smooth, setSmooth] = useState(true);
   const [mode, setMode] = useState<"cct" | "hsi">(() => (live?.state.hsi && !live.state.cct ? "hsi" : "cct"));
   if (!kind) return <Panel label="Device"><PanelHead title={f.label}><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead><PanelBody><ErrorLine>{`Unknown kind ${f.kind_id}`}</ErrorLine></PanelBody></Panel>;
   const caps = kind.caps;
@@ -188,6 +190,12 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
             <Range label="Green / magenta" value={cct.gm} min={caps.cct.gm.min} max={caps.cct.gm.max} step={1} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")}
               onChange={(x) => send({ cct: { ...cct, gm: x } }, { op: "cct", kelvin: cct.kelvin, gm: x })} />
           )}
+          {caps.smoothing && (
+            <div class="devices-field"><span class="section-title">Changes</span>
+              <Seg label="Smooth or instant changes" value={smooth ? "smooth" : "instant"} onChange={(x) => { setSmooth(x === "smooth"); proxy.send(f.id, { op: "smooth", on: x === "smooth" }); }}
+                options={[{ id: "smooth", label: "Smooth" }, { id: "instant", label: "Instant" }]} />
+            </div>
+          )}
           {caps.curves && !hsiMode && (
             <div class="devices-field"><span class="section-title">Dimming curve</span>
               <Seg label="Dimming curve" value={v.curve ?? ("" as Curve)} onChange={(x) => send({ curve: x }, { op: "curve", curve: x })} options={CURVES.map((c) => ({ id: c, label: CURVE_LABELS[c] }))} />
@@ -228,6 +236,22 @@ function EffectControls({ effects, v, cct, send, trigger }: { effects: readonly 
             return <Range key={opt.key} label={opt.label} value={o[opt.key] ?? 5} min={1} max={opt.max} step={1} format={(x) => stepLabel(x, opt.max, opt.cycles)} onChange={(x) => set({ ...o, [opt.key]: x })} />;
           case "kelvin":
             return kelvin(`Effect ${opt.label.toLowerCase()}`, o.kelvin ?? mid, (k) => set({ ...o, kelvin: k }));
+          case "ember":
+            return <Range key={opt.key} label={opt.label} value={o.ember ?? 5} min={1} max={10} step={1} onChange={(x) => set({ ...o, ember: x })} />;
+          case "intensityRange":
+            return (
+              <div key={opt.key} class="devices-field">
+                <Range label={`${opt.label}: from`} value={Math.round((o.intensityMin ?? 0) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ ...o, intensityMin: x / 100, intensityMax: Math.max(x / 100, o.intensityMax ?? 0.5) })} />
+                <Range label={`${opt.label}: to`} value={Math.round((o.intensityMax ?? 0.5) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ ...o, intensityMax: x / 100, intensityMin: Math.min(x / 100, o.intensityMin ?? 0) })} />
+              </div>
+            );
+          case "kelvinRange":
+            return cct ? (
+              <div key={opt.key} class="devices-field">
+                <Range label={`${opt.label}: from`} value={o.kelvin ?? cct.min} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ ...o, kelvin: x, kelvinMax: Math.max(x, o.kelvinMax ?? cct.max) })} />
+                <Range label={`${opt.label}: to`} value={o.kelvinMax ?? cct.max} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ ...o, kelvinMax: x, kelvin: Math.min(x, o.kelvin ?? cct.min) })} />
+              </div>
+            ) : null;
           case "saturation":
             return <Range key={opt.key} label={opt.label} value={Math.round((o.saturation ?? 1) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ ...o, saturation: x / 100 })} />;
           case "choice":

@@ -19,6 +19,11 @@ export const EFFECTS = [
   { id: "explosion", name: "Explosion" }, { id: "faulty_bulb", name: "Faulty bulb" }, { id: "pulsing", name: "Pulsing" },
   { id: "welding", name: "Welding" }, { id: "cop_car", name: "Cop car" }, { id: "color_chase", name: "Color chase" },
   { id: "party_lights", name: "Party lights" }, { id: "fireworks", name: "Fireworks" },
+  // NEEWER's FS series (scene class 5 in NEEWER 5.8.0; #206): their own set, ids prefixed nw_.
+  { id: "nw_flash", name: "Flash" }, { id: "nw_paparazzi", name: "Paparazzi" }, { id: "nw_bad_bulb", name: "Defective bulb" },
+  { id: "nw_explosion", name: "Explosion" }, { id: "nw_welding", name: "Welding" }, { id: "nw_cct_flicker", name: "White flicker" },
+  { id: "nw_cct_pulse", name: "White pulse" }, { id: "nw_candle", name: "Candle" }, { id: "nw_cct_loop", name: "White loop" },
+  { id: "nw_intensity_loop", name: "Brightness loop" }, { id: "nw_tv", name: "TV screen" }, { id: "nw_fireworks", name: "Fireworks" },
 ] as const;
 export type EffectId = (typeof EFFECTS)[number]["id"];
 export const effectName = (id: EffectId) => EFFECTS.find((e) => e.id === id)?.name ?? id;
@@ -29,6 +34,13 @@ export const effectName = (id: EffectId) => EFFECTS.find((e) => e.id === id)?.na
  */
 export interface EffectSettings {
   frequency?: number;
+  /** Sparks 1..10: NEEWER Explosion, Candle, Fireworks. */
+  ember?: number;
+  /** An intensity range 0..1: NEEWER Welding, Candle, TV, Brightness loop (the light's own intensity is ignored). */
+  intensityMin?: number;
+  intensityMax?: number;
+  /** The upper end of a white range, with `kelvin` as the lower: NEEWER White loop. */
+  kelvinMax?: number;
   speed?: number;
   /** White at a colour temperature, or a colour (hue 0..360, saturation 0..1): Faulty bulb, Pulsing. */
   color?: { kelvin: number } | { h: number; s: number };
@@ -44,6 +56,8 @@ export const EFFECT_RANDOM = 11;
 
 /** One option on an effect's screen; `max` 11 adds Random. Cop car's flash shows 6..10 as cycles. */
 export type EffectOptionSpec =
+  | { key: "ember"; label: string; max: 10 }
+  | { key: "intensityRange" | "kelvinRange"; label: string }
   | { key: "frequency" | "speed"; label: string; max: 10 | 11; cycles?: boolean }
   | { key: "color" | "kelvin" | "saturation"; label: string }
   | { key: "choice"; label: string; values: readonly string[] };
@@ -63,6 +77,27 @@ export const EFFECT_OPTIONS: Partial<Record<EffectId, { options: readonly Effect
   party_lights: { options: [{ key: "saturation", label: "Saturation" }, { key: "frequency", label: "Speed", max: 11 }], defaults: { saturation: 1, frequency: 5 } },
   fireworks: { options: [{ key: "choice", label: "Kind", values: ["White", "Colour", "Multi"] }, { key: "frequency", label: "Frequency", max: 11 }], defaults: { choice: 0, frequency: 5 } },
 };
+const NW_RATE = { key: "frequency", label: "Speed", max: 10 } as const;
+const NW_WHITE = { key: "kelvin", label: "White" } as const;
+const NW_SPARKS = { key: "ember", label: "Sparks", max: 10 } as const;
+const NW_RANGE = { key: "intensityRange", label: "Intensity range" } as const;
+/** NEEWER 5.8.0's defaults (SceneDataBean): white 5500 K, speed 5, sparks 5, intensity range 0–50 %, white range 3200–5600 K. */
+const NW_DEFAULTS = { kelvin: 5500, frequency: 5, ember: 5, intensityMin: 0, intensityMax: 0.5, kelvinMax: 5600 } as const;
+Object.assign(EFFECT_OPTIONS, {
+  nw_flash: { options: [NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_paparazzi: { options: [NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_bad_bulb: { options: [NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_explosion: { options: [NW_WHITE, NW_RATE, NW_SPARKS], defaults: NW_DEFAULTS },
+  nw_welding: { options: [NW_RANGE, NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_cct_flicker: { options: [NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_cct_pulse: { options: [NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_candle: { options: [NW_RANGE, NW_WHITE, NW_RATE, NW_SPARKS], defaults: NW_DEFAULTS },
+  nw_cct_loop: { options: [{ key: "kelvinRange", label: "White range" }, NW_RATE], defaults: { ...NW_DEFAULTS, kelvin: 3200 } },
+  nw_intensity_loop: { options: [NW_RANGE, NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_tv: { options: [NW_RANGE, NW_WHITE, NW_RATE], defaults: NW_DEFAULTS },
+  nw_fireworks: { options: [NW_RATE, NW_SPARKS], defaults: NW_DEFAULTS },
+} satisfies Partial<Record<EffectId, { options: readonly EffectOptionSpec[]; defaults: EffectSettings }>>);
+
 /** Effects with options on the screen. */
 export const EFFECTS_WITH_OPTIONS = Object.keys(EFFECT_OPTIONS) as EffectId[];
 /** An effect's options with its defaults filled in. */
@@ -75,6 +110,8 @@ export const TRIGGER_EFFECTS: readonly EffectId[] = ["lightning"];
  * not on it. Kept in the order of EFFECTS.
  */
 const MC_EFFECTS: readonly EffectId[] = ["paparazzi", "lightning", "tv", "fire", "pulsing", "faulty_bulb", "cop_car", "party_lights", "fireworks"];
+/** The FS series' twelve, in NEEWER's order. */
+const NW_EFFECTS: readonly EffectId[] = ["nw_flash", "nw_paparazzi", "nw_bad_bulb", "nw_explosion", "nw_welding", "nw_cct_flicker", "nw_cct_pulse", "nw_candle", "nw_cct_loop", "nw_intensity_loop", "nw_tv", "nw_fireworks"];
 
 /** Read-only values a fixture reports (the battery). */
 export const TELEMETRY_FIELDS = ["battery", "volts", "amps", "watts", "minutesLeft"] as const;
@@ -97,6 +134,8 @@ export interface Capabilities {
   capacityWh?: number;
   /** Fades to a target by itself over a duration, with a curve (#289; up to FADE_MAX_MS). */
   fade?: boolean;
+  /** Smooths changes by itself, or takes them at once, as switched (NEEWER's D3 setting). */
+  smoothing?: boolean;
 }
 
 /** "gatt": the phone talks to the fixture itself; "mesh": through a Bluetooth Mesh network the phone provisions. */
@@ -120,9 +159,9 @@ const LIGHT = { power: true, intensity: true, hsi: false, curves: true, telemetr
  */
 export const FIXTURE_KINDS: readonly FixtureKind[] = [
   // Bi-colour COB lights of NEEWER's "Infinity" app (#209).
-  { id: "neewer-fs230b", brand: "NEEWER", model: "FS230B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: null } } },
+  { id: "neewer-fs230b", brand: "NEEWER", model: "FS230B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: null }, effects: NW_EFFECTS, smoothing: true } },
   // Green/magenta in the frame's own steps (−50..+50, sent as +50); the FS230B's app has no control for it.
-  { id: "neewer-fs300b", brand: "NEEWER", model: "FS300B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: { min: -50, max: 50 } } } },
+  { id: "neewer-fs300b", brand: "NEEWER", model: "FS300B", transport: "gatt", driver: "neewer-infinity", caps: { ...LIGHT, cct: { min: 2700, max: 6500, gm: { min: -50, max: 50 } }, effects: NW_EFFECTS, smoothing: true } },
   // V-mount battery in the same app: telemetry only (#210). It reports no time left: the phone estimates it from capacityWh.
   {
     id: "neewer-ps099s", brand: "NEEWER", model: "PS099S", transport: "gatt", driver: "neewer-battery",

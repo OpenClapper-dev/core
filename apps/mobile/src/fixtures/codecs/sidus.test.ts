@@ -79,8 +79,10 @@ function reference(id: string, i1000: number): string {
 }
 
 test("effects: all 15 match the reference table, decode back, and stop as the reference's packet", () => {
-  assert.equal(EFFECTS.length, 15);
-  for (const { id } of EFFECTS) {
+  // The MC's own first-generation set; NEEWER's (nw_…) are its own codec's.
+  const MC = EFFECTS.filter((e) => !e.id.startsWith("nw_"));
+  assert.equal(MC.length, 15);
+  for (const { id } of MC) {
     for (const [i, i1000] of [[1, 1000], [0.5, 500], [0.05, 50]] as const) {
       assert.equal(hex(effect(id, i)), reference(id, i1000), `${id} at ${i1000}`);
       const back = parseEffect(effect(id, i))!;
