@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { connect } from "../ble/link";
 import { log } from "../log";
-import { Hub, type FixtureStatus, type Holder } from "./hubCore";
+import { Hub, type FixtureStatus } from "./hubCore";
 import { getFixtures } from "./library";
 import { driverFor, setDriverLog, setMeshAccess } from "./registry";
 import { getMeshNetworks, networkKeys, saveMeshNetwork, seqFor } from "./meshNetworks";
-import type { Command } from "./types";
 
 setDriverLog(log);
 setMeshAccess({
@@ -38,28 +36,6 @@ export function watchAppState() {
     else if (s === "background") hub.suspend();
   });
 }
-
-/** Keep the fixtures connected while the calling screen is shown. */
-export function useFixtureLease(ids: string[], holder: Holder = "screen") {
-  const key = ids.join(",");
-  useEffect(() => {
-    watchAppState();
-    return hub.acquire(key ? key.split(",") : [], holder);
-  }, [key, holder]);
-}
-
-export function useFixtureStatus(id: string): FixtureStatus {
-  const [s, setS] = useState(() => hub.status(id));
-  useEffect(() => {
-    const cb = () => setS(hub.status(id));
-    cb();
-    return hub.subscribe(cb);
-  }, [id]);
-  return s;
-}
-
-/** Queued and coalesced; rejects when the fixture is not connected. */
-export const sendToFixture = (id: string, cmd: Command) => hub.send(id, cmd);
 
 export function linkLabel(s: FixtureStatus): string {
   switch (s.link) {
