@@ -108,27 +108,15 @@ test("the light's state reply moves the controls (and the values the next white 
   assert.equal(writes[0].bytes, toHex(whiteFrame(MAC, { intensity: 0.5, kelvin: 4000, curve: "log", gm: 0 })));
 });
 
-test("instant changes send Music FX's short white frame; smooth goes back to the full one", async () => {
+test("instant changes (#206): white goes as a constant White loop, smooth back to the white frame", async () => {
   const { writes, link, driver } = setup();
   const s = await driver.open(link, [light], () => {});
   await s.send(light, { op: "smooth", on: false });
   writes.length = 0;
   await s.send(light, { op: "intensity", value: 0.8 });
-  assert.equal(writes[0].bytes.slice(0, 8), "78 90 0a");
+  assert.equal(writes[0].bytes, toHex(effectFrame(MAC, "nw_cct_loop", 0.8, { kelvin: 4600, kelvinMax: 4600, frequency: 10 })));
   await s.send(light, { op: "smooth", on: true });
   writes.length = 0;
   await s.send(light, { op: "intensity", value: 0.2 });
   assert.equal(writes[0].bytes.slice(0, 8), "78 90 0c");
-});
-
-test("instant methods (experiment): the one chosen in Devices stays for a sequence's plain 'instant'", async () => {
-  const { writes, link, driver } = setup();
-  const s = await driver.open(link, [light], () => {});
-  await s.send(light, { op: "smooth", on: false, method: "whiteLoop" });
-  await s.send(light, { op: "smooth", on: true });
-  await s.send(light, { op: "smooth", on: false });
-  writes.length = 0;
-  await s.send(light, { op: "intensity", value: 0.6 });
-  assert.equal(writes[0].bytes.slice(0, 5), "78 91");
-  assert.equal(writes[0].bytes.slice(27, 32), "8b 0d");
 });

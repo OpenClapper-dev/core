@@ -42,26 +42,6 @@ export function whiteFrame(address: string, w: { intensity: number; kelvin: numb
   return frame(0x90, address, [0x87, bri, cct, gm, CURVE_BYTE[w.curve], 0x00]);
 }
 
-/**
- * The short white frame NEEWER 5.8.0's Music FX streams after `d3 01` (smoothing off): intensity,
- * kelvin/100 and G/M + 50, without the curve and decimal bytes. Music must follow the beat at once,
- * so this is the app's only white command meant to land instantly (#206).
- */
-export function quickWhiteFrame(address: string, w: { intensity: number; kelvin: number; gm?: number }): Uint8Array {
-  const bri = Math.round(Math.min(1, Math.max(0, w.intensity)) * 100);
-  return frame(0x90, address, [0x87, bri, Math.round(w.kelvin / 100), Math.round(Math.min(50, Math.max(-50, w.gm ?? 0))) + 50]);
-}
-
-/** Tag a4 (`87 <intensity> <K/100> 00 <curve>`): built by NEEWER 5.8.0's sendCurveType but never sent there; tried as an instant setter. */
-export function a4WhiteFrame(address: string, w: { intensity: number; kelvin: number; curve: Curve }): Uint8Array {
-  return frame(0xa4, address, [0x87, Math.round(Math.min(1, Math.max(0, w.intensity)) * 100), Math.round(w.kelvin / 100), 0x00, CURVE_BYTE[w.curve]]);
-}
-
-/** The FS300B's Effect Picker live command (tag a1, `00 <intensity> 00 <K/100> <G/M + 50>`). */
-export function pickerWhiteFrame(address: string, w: { intensity: number; kelvin: number; gm?: number }): Uint8Array {
-  return frame(0xa1, address, [0x00, Math.round(Math.min(1, Math.max(0, w.intensity)) * 100), 0x00, Math.round(w.kelvin / 100), Math.round(Math.min(50, Math.max(-50, w.gm ?? 0))) + 50]);
-}
-
 /** What the app sends right after connecting: a hello and five queries. Replayed so the light sees the same start. */
 export const helloFrames = (address: string): Uint8Array[] => [
   frame(0x9f, address, [0x01, 0x00, 0xff, 0xff, 0xff, 0xff]),
@@ -93,7 +73,8 @@ export function modelOf(n: Notice): string | null {
 
 /**
  * Smooth or instant changes (tag D3; NEEWER 5.8.0 sends 00 for its gradient modes and while idle, 01
- * while it streams music or blink effects): 00 = the light eases between values, 01 = it jumps.
+ * while it streams music or blink effects). On the FS series the white frame fades either way; the
+ * driver makes instant white with instantWhiteFrame instead and sends this along for the light's sake.
  */
 export const smoothFrame = (address: string, smooth: boolean) => frame(0xd3, address, [smooth ? 0x00 : 0x01]);
 
@@ -136,6 +117,15 @@ export function effectFrame(address: string, effect: EffectId, intensity: number
   };
   return frame(0x91, address, [0x8b, l.id, ...l.fields.map((f) => value[f])]);
 }
+
+/**
+ * Instant white on the FS series (#206): the White loop effect from K to K at full speed shows a
+ * constant light, and effects switch hard where the white frame always fades (owner's test on the
+ * FS230B and FS300B, 2026-11-08; the FS300B's Effect Picker live command did too, but only it has
+ * one). The effect has no green/magenta field.
+ */
+export const instantWhiteFrame = (address: string, w: { intensity: number; kelvin: number }) =>
+  effectFrame(address, "nw_cct_loop", w.intensity, { kelvin: w.kelvin, kelvinMax: w.kelvin, frequency: 10 });
 
 const CURVE_OF: Record<number, Curve> = { 1: "exp", 2: "log", 3: "s", 4: "linear" };
 

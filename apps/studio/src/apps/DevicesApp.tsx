@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  CURVES, EFFECT_OPTIONS, INSTANT_METHODS, type InstantMethod, EFFECT_RANDOM, effectName, effectSettingsOf, FIXTURE_KINDS, FIXTURE_LABEL_MAX, fixtureKind, PROVISION_STAGE_LABELS, PROVISION_STAGES, startState, TRIGGER_EFFECTS,
+  CURVES, EFFECT_OPTIONS, EFFECT_RANDOM, effectName, effectSettingsOf, FIXTURE_KINDS, FIXTURE_LABEL_MAX, fixtureKind, PROVISION_STAGE_LABELS, PROVISION_STAGES, startState, TRIGGER_EFFECTS,
   type Curve, type EffectId, type EffectSettings, type FixtureKind, type FixtureLive, type LightCommand, type LightState, type ProvisionStage, type ProvisionState, type ScannedDevice,
 } from "@openclapper/vocab";
 import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, ListRow, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, Spinner, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
@@ -23,9 +23,6 @@ const BRANDS = [...new Set(FIXTURE_KINDS.map((k) => k.brand))];
 /** After a change here, the light's reports are ignored this long, or a late one would pull the control back (the phone's REPORT_HOLD_MS). */
 const HOLD_MS = 1500;
 
-const INSTANT_LABELS: Record<InstantMethod, string> = {
-  short: "Short white frame (Music FX)", whiteLoop: "Constant White loop effect", brightnessLoop: "Constant Brightness loop effect", a4: "Tag a4 frame", picker: "Effect Picker live (FS300B)",
-};
 const CURVE_LABELS: Record<Curve, string> = { linear: "Linear", exp: "Expo", log: "Log", s: "S-curve" };
 
 function linkText(l: FixtureLive | undefined, proxyOn: boolean): string {
@@ -145,7 +142,6 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
   const inSequence = usePlayingFixtures().has(f.id);
   /** NEEWER smoothing as last set here; the phone switches it on (smooth) when it connects. */
   const [smooth, setSmooth] = useState(true);
-  const [method, setMethod] = useState<InstantMethod>("short");
   const [mode, setMode] = useState<"cct" | "hsi">(() => (live?.state.hsi && !live.state.cct ? "hsi" : "cct"));
   if (!kind) return <Panel label="Device"><PanelHead title={f.label}><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead><PanelBody><ErrorLine>{`Unknown kind ${f.kind_id}`}</ErrorLine></PanelBody></Panel>;
   const caps = kind.caps;
@@ -196,14 +192,8 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
           )}
           {caps.smoothing && (
             <div class="devices-field"><span class="section-title">Changes</span>
-              <Seg label="Smooth or instant changes" value={smooth ? "smooth" : "instant"} onChange={(x) => { setSmooth(x === "smooth"); proxy.send(f.id, { op: "smooth", on: x === "smooth", method }); }}
+              <Seg label="Smooth or instant changes" value={smooth ? "smooth" : "instant"} onChange={(x) => { setSmooth(x === "smooth"); proxy.send(f.id, { op: "smooth", on: x === "smooth" }); }}
                 options={[{ id: "smooth", label: "Smooth" }, { id: "instant", label: "Instant" }]} />
-              {!smooth && (
-                <Field as="div" label="Instant method (experiment)" help="How the white is sent while Instant is on. Sequences use the last one chosen here.">
-                  <Select label="Instant method" value={method} onChange={(m) => { setMethod(m as InstantMethod); proxy.send(f.id, { op: "smooth", on: false, method: m as InstantMethod }); }}
-                    options={INSTANT_METHODS.filter((m) => m !== "picker" || f.kind_id === "neewer-fs300b").map((m) => ({ value: m, label: INSTANT_LABELS[m] }))} />
-                </Field>
-              )}
             </div>
           )}
           {caps.curves && !hsiMode && (
