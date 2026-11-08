@@ -75,3 +75,11 @@ test("native fades: long tiles chain 25.5 s chunks; starting mid-fade jumps firs
   const mid = nativeStep(k, 30_000, null, null);
   assert.deepEqual(mid.commands, [{ op: "cct", kelvin: 5600, gm: 0 }, { op: "intensity", value: 0.5 }, { op: "fade", ms: 21_000, curve: "linear", intensity: 0.85, white: { kelvin: 5600, gm: 0 } }]);
 });
+
+test("a fade set to stepped is sent in steps even on a light that fades by itself", () => {
+  const k = [start({ power: true, intensity: 0, kelvin: 5600 }), kf(1000, { intensity: 1, fadeIn: "linear", fadeStepped: true })];
+  assert.deepEqual(nativeFades(k), []);
+  const a = nativeStep(k, 0, null, null);
+  assert.ok(!a.commands.some((c) => c.op === "fade"));
+  assert.deepEqual(nativeStep(k, 500, a.sent, a.key).commands, [{ op: "intensity", value: 0.5 }]);
+});

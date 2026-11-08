@@ -231,7 +231,8 @@ export function SequencesApp(_p: AppProps) {
           )}
           {tile && tileKf && tileTrack && (
             <FadePanel kf={tileKf} track={tileTrack}
-              onChange={(curve) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (curve) n.fadeIn = curve; else delete n.fadeIn; return n; }) }))}
+              onStepped={(stepped) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (stepped) n.fadeStepped = true; else delete n.fadeStepped; return n; }) }))}
+              onChange={(curve) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (curve) n.fadeIn = curve; else { delete n.fadeIn; delete n.fadeStepped; } return n; }) }))}
               onClose={() => setTile(null)} />
           )}
           {!(selKf && selTrack) && sel.size <= 1 && !(tile && tileKf && tileTrack) && (
@@ -381,10 +382,10 @@ function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => strin
           const from = ks[i];
           const on = p.tile?.trackId === tr.id && p.tile.toId === k.id;
           return (
-            <button key={`gap-${k.id}`} type="button" class={cx("seq-gap", k.fadeIn && "is-fade", on && "is-selected")} style={{ left: pct(from.at), width: pct(k.at - from.at) }}
-              title={k.fadeIn ? `Fade ${fmt(from.at)}–${fmt(k.at)} (${CURVE_LABELS[k.fadeIn]})${kind?.caps.fade ? ": the light runs it by itself" : ""}` : "Jump here; click to fade instead"}
+            <button key={`gap-${k.id}`} type="button" class={cx("seq-gap", k.fadeIn && "is-fade", k.fadeIn && kind?.caps.fade && k.fadeStepped && "is-stepped", on && "is-selected")} style={{ left: pct(from.at), width: pct(k.at - from.at) }}
+              title={k.fadeIn ? `Fade ${fmt(from.at)}–${fmt(k.at)} (${CURVE_LABELS[k.fadeIn]})${kind?.caps.fade ? (k.fadeStepped ? ": in steps every 0.1 s" : ": the light runs it by itself") : ""}` : "Jump here; click to fade instead"}
               onPointerDown={(e) => e.stopPropagation()} onClick={() => p.onTile(tr.id, k.id)}>
-              {k.fadeIn ? <span class="seq-gap__label">{CURVE_LABELS[k.fadeIn]}</span> : <span class="seq-gap__add">+ Fade</span>}
+              {k.fadeIn ? <span class="seq-gap__label">{CURVE_LABELS[k.fadeIn]}{kind?.caps.fade && k.fadeStepped ? " · steps" : ""}</span> : <span class="seq-gap__add">+ Fade</span>}
             </button>
           );
         })}
@@ -486,7 +487,7 @@ function KeyframePanel({ kf, track, durationMs, onChange, onDelete, onClose }: {
 }
 
 /** The gap before a keyframe: jump at the keyframe, or fade into it with a curve. */
-function FadePanel({ kf, track, onChange, onClose }: { kf: Keyframe; track: SequenceTrack; onChange: (curve: Curve | null) => void; onClose: () => void }) {
+function FadePanel({ kf, track, onChange, onStepped, onClose }: { kf: Keyframe; track: SequenceTrack; onChange: (curve: Curve | null) => void; onStepped: (stepped: boolean) => void; onClose: () => void }) {
   const nativeFade = !!fixtureKind(track.kindId)?.caps.fade;
   return (
     <Panel label="Fade" width={INSPECTOR_W}>
@@ -499,8 +500,15 @@ function FadePanel({ kf, track, onChange, onClose }: { kf: Keyframe; track: Sequ
             <Seg label="Fade curve" value={kf.fadeIn} onChange={(c) => onChange(c)} options={CURVES.map((c) => ({ id: c, label: CURVE_LABELS[c] }))} />
           </div>
         )}
+        {kf.fadeIn && nativeFade && (
+          <div class="devices-field">
+            <span class="section-title">Run by</span>
+            <Seg label="How the fade runs" value={kf.fadeStepped ? "steps" : "light"} onChange={(v) => onStepped(v === "steps")}
+              options={[{ id: "light", label: "The light (smooth)" }, { id: "steps", label: "Steps every 0.1 s" }]} />
+          </div>
+        )}
         <p class="meta">{kf.fadeIn
-          ? `Everything that differs between the two keyframes blends over the gap (white ↔ colour switches at the end).${nativeFade ? " This light runs the fade by itself, smoothly; nothing else is sent to it meanwhile." : " Sent in steps every 0.1 s."}`
+          ? `Everything that differs between the two keyframes blends over the gap (white ↔ colour switches at the end).${nativeFade && !kf.fadeStepped ? " This light runs the fade by itself, smoothly; nothing else is sent to it meanwhile." : " Sent in steps every 0.1 s."}`
           : "The light keeps the earlier values and jumps to these at the keyframe."}</p>
       </PanelBody>
     </Panel>

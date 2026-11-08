@@ -22,6 +22,8 @@ export interface Keyframe {
   at: number;
   /** A fade from the previous keyframe into this one, with this curve; absent: jump here. */
   fadeIn?: Curve;
+  /** On a light that fades by itself (#289): send this fade in steps every 0.1 s instead, to compare. */
+  fadeStepped?: boolean;
   power?: boolean;
   /** 0..1 */
   intensity?: number;
@@ -190,13 +192,13 @@ export function commandsFor(prev: SequenceSample | null, next: SequenceSample): 
 /** A fade tile the light runs by itself (#289): the gap from one keyframe to the next. */
 export interface NativeFade { from: number; to: number; /** The keyframe it fades into. */ toId: string; curve: Curve }
 
-/** The fade tiles of a track a light can run by itself: no effect running at their start, something to fade. */
+/** The fade tiles of a track a light can run by itself: no effect running at their start, not set to stepped. */
 export function nativeFades(keyframes: readonly Keyframe[]): NativeFade[] {
   const ks = sorted(keyframes);
   const out: NativeFade[] = [];
   for (let i = 1; i < ks.length; i++) {
     const curve = fadeInto(ks, i);
-    if (!curve) continue;
+    if (!curve || ks[i].fadeStepped) continue;
     const a = heldAt(ks, i - 1);
     if (a.effect?.id) continue;
     out.push({ from: ks[i - 1].at, to: ks[i].at, toId: ks[i].id, curve });
