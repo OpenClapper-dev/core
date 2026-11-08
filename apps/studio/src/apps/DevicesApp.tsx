@@ -4,7 +4,7 @@ import {
   type Curve, type EffectId, type EffectSettings, type FixtureKind, type FixtureLive, type LightCommand, type LightState, type ProvisionStage, type ProvisionState, type ScannedDevice,
 } from "@openclapper/vocab";
 import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, ListRow, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, Spinner, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
-import { deleteFixture, fetchFixtures, putFixture, setFixturePower, type ServerFixture } from "../api";
+import { deleteFixture, fetchFixtures, putFixture, setFixturePower, setFixtureSleep, type ServerFixture } from "../api";
 import { BatteryChip, isBattery, minutesText, powerOf, takesBattery } from "../power";
 import { CameraPanel } from "./CameraPanel";
 import { Range } from "../compose/editor";
@@ -27,7 +27,8 @@ const HOLD_MS = 1500;
 
 const CURVE_LABELS: Record<Curve, string> = { linear: "Linear", exp: "Expo", log: "Log", s: "S-curve" };
 
-function linkText(l: FixtureLive | undefined, proxyOn: boolean): string {
+function linkText(l: FixtureLive | undefined, proxyOn: boolean, asleep = false): string {
+  if (asleep) return "Asleep";
   if (!proxyOn) return "No proxy";
   if (!l) return "Not on the proxy phone";
   switch (l.link) {
@@ -89,7 +90,7 @@ export function DevicesApp(_p: AppProps) {
                   return (
                     <ListRow key={f.id} selected={f.id === sel} onClick={() => setSel(f.id)}
                       thumb={<span class={cx("devices-dot", l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} />}
-                      title={f.label} meta={[k?.model, linkText(l, !!proxy.proxy), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")} />
+                      title={f.label} meta={[k?.model, linkText(l, !!proxy.proxy, f.asleep === 1), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")} />
                   );
                 })}
               </section>
@@ -462,7 +463,12 @@ function Manage({ f, onChanged }: { f: ServerFixture; onChanged: (selectId: stri
       <span class="section-title">Device</span>
       <Field label="Name"><Input sm value={label} maxLength={FIXTURE_LABEL_MAX} onInput={(e) => setLabel((e.target as HTMLInputElement).value)} onBlur={() => void rename()} onKeyDown={(e) => { if (e.key === "Enter") void rename(); }} /></Field>
       {error && <ErrorLine>{error}</ErrorLine>}
-      <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={() => void remove()}>Delete</Button></div>
+      <div class="btn-row">
+        <Button size="sm" kind="secondary" icon={f.asleep === 1 ? "weather-sunny" : "sleep"} title="A sleeping device gets no connection attempts from the phone"
+          onClick={() => void setFixtureSleep(f.id, f.asleep !== 1).then(() => onChanged(f.id)).catch((e) => setError((e as Error).message))}>{f.asleep === 1 ? "Wake" : "Sleep"}</Button>
+        <Button size="sm" kind="danger" icon="delete-outline" onClick={() => void remove()}>Delete</Button>
+      </div>
+      {f.asleep === 1 && <p class="meta">Asleep: the phone makes no connection attempts until it is woken.</p>}
     </div>
   );
 }
@@ -502,9 +508,9 @@ function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: Server
         const powers = isBattery(f) ? fixtures.find((x) => x.powered_by === f.id) : undefined;
         const level = pw.pct === null ? null : pw.pct < 10 ? "is-critical" : pw.pct < 25 ? "is-low" : "";
         return (
-          <button key={f.id} type="button" class={cx("power-tile", f.id === sel && "is-selected")} onClick={() => onSelect(f.id)}>
+          <button key={f.id} type="button" class={cx("power-tile", f.id === sel && "is-selected", f.asleep === 1 && "is-asleep")} onClick={() => onSelect(f.id)}>
             <span class="power-tile__head">
-              <span class={cx("devices-dot", l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} title={linkText(l, proxyOn)} />
+              <span class={cx("devices-dot", l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} title={linkText(l, proxyOn, f.asleep === 1)} />
               <span class="power-tile__name">{f.label}</span>
               <span class="meta">{k?.model}</span>
             </span>
@@ -520,7 +526,8 @@ function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: Server
               pw.source === "battery" && pw.battery ? `on ${pw.battery.label}` : null,
               powers ? `powers ${powers.label}` : null,
               pw.minutesLeft !== undefined ? `about ${minutesText(pw.minutesLeft)} left` : null,
-              k?.caps.camera ? (l?.link === "ready" ? "camera · timecode" : proxyOn ? "camera, not connected" : "proxy off") : null,
+              f.asleep === 1 ? "asleep" : null,
+              k?.caps.camera && f.asleep !== 1 ? (l?.link === "ready" ? "camera · timecode" : proxyOn ? "camera, not connected" : "proxy off") : null,
               !k?.caps.camera && pw.pct === null && pw.source !== "socket" ? (proxyOn ? "no reading yet" : "proxy off") : null,
             ].filter(Boolean).join(" · ") || "\u00a0"}</span>
           </button>

@@ -15,6 +15,8 @@ export interface Fixture {
   createdAt: string;
   /** false until the Worker has acknowledged the PUT. */
   synced: boolean;
+  /** Put to sleep in the Studio (#318): the proxy leaves it alone, no connection attempts. */
+  asleep?: boolean;
 }
 
 /** One change to a fixture, and what it reports: shared with the Studio, which controls the lights through the proxy (#307). */

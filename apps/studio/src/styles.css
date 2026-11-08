@@ -706,3 +706,4 @@ button { font: inherit; }
 .camera-outputs { border-collapse: collapse; width: 100%; font-size: var(--text-caption); }
 .camera-outputs th, .camera-outputs td { padding: 4px; text-align: left; }
 .camera-outputs th:not(:first-child), .camera-outputs td:not(:first-child) { text-align: center; width: 70px; }
+.power-tile.is-asleep { opacity: 0.55; border-style: dashed; }

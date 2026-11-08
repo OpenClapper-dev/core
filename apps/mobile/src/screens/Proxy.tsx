@@ -42,7 +42,7 @@ export function Proxy() {
           const battery = s.telemetry?.battery;
           return (
             <ListRow key={f.id} icon={s.link === "ready" ? "check-circle-outline" : s.link === "failed" ? "alert-circle-outline" : "progress-clock"}
-              title={f.label} meta={[k ? fixtureKindName(k) : f.kindId, linkLabel(s), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")} />
+              title={f.label} meta={[k ? fixtureKindName(k) : f.kindId, f.asleep ? "Asleep (wake it in the Studio)" : linkLabel(s), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")} />
           );
         })}
       </Block>

@@ -128,3 +128,18 @@ describe("power (#294)", () => {
     expect((await ok<{ fixtures: F[] }>(api(u2.token, "GET", "/api/fixtures"))).fixtures.find((f) => f.id === a)?.powered_by).toBeNull();
   });
 });
+
+describe("sleep (#318)", () => {
+  test("a device can be put to sleep and woken; a full PUT leaves it as it is", async () => {
+    const u3 = await newUser();
+    const id = uuid();
+    const body = { label: "Cam", kind_id: "bmd-pocket-6k", address: "C8:47:8C:00:44:01" };
+    type F = { id: string; asleep: number };
+    expect((await ok<{ fixture: F }>(api(u3.token, "PUT", `/api/fixtures/${id}`, body))).fixture.asleep).toBe(0);
+    expect((await ok<{ fixture: F }>(api(u3.token, "PUT", `/api/fixtures/${id}/sleep`, { asleep: true }))).fixture.asleep).toBe(1);
+    await ok(api(u3.token, "PUT", `/api/fixtures/${id}`, { ...body, label: "Cam A" }));
+    expect((await ok<{ fixtures: F[] }>(api(u3.token, "GET", "/api/fixtures"))).fixtures.find((f) => f.id === id)?.asleep).toBe(1);
+    await ok(api(u3.token, "PUT", `/api/fixtures/${id}/sleep`, { asleep: "yes" }), 400);
+    expect((await ok<{ fixture: F }>(api(u3.token, "PUT", `/api/fixtures/${id}/sleep`, { asleep: false }))).fixture.asleep).toBe(0);
+  });
+});

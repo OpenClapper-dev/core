@@ -20,7 +20,8 @@ let running = false;
 let release: (() => void) | null = null;
 let paused = false;
 /** (Re)takes a lease on every paired fixture, letting go of the previous one after. */
-function lease() { const prev = release; release = hub.acquire(getFixtures().map((f) => f.id), "proxy"); prev?.(); }
+/** Sleeping devices are left out (#318): no connection attempts crowding the phone's Bluetooth. */
+function lease() { const prev = release; release = hub.acquire(getFixtures().filter((f) => !f.asleep).map((f) => f.id), "proxy"); prev?.(); }
 function pause() { paused = true; release?.(); release = null; }
 function resumeLeases() { paused = false; if (running) lease(); }
 let stopFns: (() => void)[] = [];
