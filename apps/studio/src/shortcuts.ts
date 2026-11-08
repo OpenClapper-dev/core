@@ -262,7 +262,8 @@ export const SHORTCUTS = [
   { scope: "sequences", action: "remove", keys: ["Delete", "Backspace"], label: "Delete the selected keyframes (the start keyframe stays)" },
   { scope: "sequences", action: "all", keys: ["Mod+a"], label: "Select every keyframe" },
   { scope: "sequences", action: "clear", keys: ["Escape"], label: "Clear the selection" },
-  { scope: "sequences", action: "play", keys: ["Mod+Enter"], label: "Play or stop" },
+  { scope: "sequences", action: "play", keys: [" ", "Mod+Enter"], label: "Play from the playhead; again: stop and go back to where play started" },
+  { scope: "sequences", action: "stopHere", keys: ["k"], label: "Stop where it is" },
 
   // ---- Dialogs and controls
   { scope: "newshot", action: "undo", keys: ["Mod+z"], label: "Undo the last shape" },

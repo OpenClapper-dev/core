@@ -47,6 +47,8 @@ export function SequencesApp(_p: AppProps) {
   useEffect(() => { void fetchFixtures().then((f) => setFixtures(f.sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })))).catch(() => {}); }, []);
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
+  /** Where the last play started: stopping goes back there, as in a video editor. */
+  const playFrom = useRef(0);
   const [live, setLive] = useState(true);
   const [sel, setSel] = useState<ReadonlySet<string>>(new Set());
   const [tile, setTile] = useState<{ trackId: string; toId: string } | null>(null);
@@ -107,13 +109,18 @@ export function SequencesApp(_p: AppProps) {
   const seqKey = seq ? JSON.stringify(seq.tracks) : "";
   useEffect(() => { if (!playing && live) emit(playhead, false); }, [playhead, seqKey, live, playing, !!proxy.proxy]);
 
+  /** Play from the playhead; while playing: stop and return to where play started (Space, as in DaVinci Resolve). */
   const play = () => {
     if (!seq) return;
-    if (playing) { setPlaying(false); return; }
+    if (playing) { setPlaying(false); setPlayhead(playFrom.current); return; }
     if (!proxy.proxy) return;
-    if (playhead >= seq.durationMs) setPlayhead(0);
+    const from = playhead >= seq.durationMs ? 0 : playhead;
+    playFrom.current = from;
+    setPlayhead(from);
     setPlaying(true);
   };
+  /** Stop and leave the playhead where it is (K). */
+  const stopHere = () => { if (!playing) return false; setPlaying(false); };
   const create = () => { const s = newSequence(sequences.length + 1); save(s); setSelId(s.id); setPlayhead(0); setSel(new Set()); };
   const remove = async () => {
     if (!seq) return;
@@ -135,6 +142,7 @@ export function SequencesApp(_p: AppProps) {
     all: () => { if (!seq) return false; select(seq.tracks.flatMap((t) => t.keyframes.map((k) => keyOf(t.id, k.id)))); },
     clear: () => { if (!sel.size && !tile) return false; setSel(new Set()); setTile(null); },
     play: () => play(),
+    stopHere: () => stopHere(),
   }), !!seq);
 
   const addTrack = (kindId: string) => {
@@ -175,7 +183,7 @@ export function SequencesApp(_p: AppProps) {
               <ToolbarSpacer />
               <span class="num seq-time">{fmt(playhead)} / {fmt(seq.durationMs)}</span>
               <IconButton icon="skip-previous" label="To the start" onClick={() => { setPlaying(false); setPlayhead(0); }} />
-              <Button size="sm" icon={playing ? "stop" : "play"} disabled={!proxy.proxy && !playing} onClick={play}>{playing ? "Stop" : "Play"}</Button>
+              <Button size="sm" icon={playing ? "stop" : "play"} disabled={!proxy.proxy && !playing} title={playing ? "Stop and go back (Space); K stops here" : "Play from the playhead (Space)"} onClick={play}>{playing ? "Stop" : "Play"}</Button>
               <IconButton icon="delete-outline" label="Delete the sequence" onClick={() => void remove()} />
             </div>
             <Lanes seq={seq} fixtures={fixtures} playhead={playhead} playing={playing} sel={sel} tile={tile}

@@ -309,5 +309,6 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | Del / ⌫ | Delete the selected keyframes (the start keyframe stays) |
 | ⌘A | Select every keyframe |
 | Esc | Clear the selection |
-| ⌘↵ | Play or stop |
+| Space / ⌘↵ | Play from the playhead; again: stop and go back to where play started |
+| K | Stop where it is |
 
