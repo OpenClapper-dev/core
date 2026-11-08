@@ -244,6 +244,15 @@ export const imageUri = (photo: Photo) => `${API_URL}${photo.image_url}`;
 /** Absolute URL of a sketch render or a bake; null before the Studio saved one. */
 export const renderUri = (item: { render_url: string | null }) => (item.render_url ? `${API_URL}${item.render_url}` : null);
 
+interface ServerMeshNetwork {
+  id: string; name: string; iv_index: number; next_unicast: number;
+  holder: string | null; seq_floor: number; key_backup_at: string | null; created_at: string;
+}
+const meshNetworkFromServer = (n: ServerMeshNetwork): MeshNetwork => ({
+  id: n.id, name: n.name, ivIndex: n.iv_index, nextUnicast: n.next_unicast,
+  holder: n.holder ?? null, seqFloor: n.seq_floor ?? 0, backupAt: n.key_backup_at ?? null, createdAt: n.created_at, synced: true,
+});
+
 export const api = {
   /** Every shot of one project, newest first. */
   listShots: async (projectId: string): Promise<Shot[]> => {
@@ -351,13 +360,23 @@ export const api = {
     }),
   deleteFixture: (id: string) => call<{ deleted: string }>(`/api/fixtures/${id}`, { method: "DELETE" }),
 
-  /** Mesh networks the phone provisions (#212): no keys, those stay on the phone. */
-  listMeshNetworks: () => call<{ mesh_networks: { id: string; name: string; iv_index: number; next_unicast: number; created_at: string }[] }>("/api/mesh-networks")
-    .then((r) => r.mesh_networks.map((n): MeshNetwork => ({ id: n.id, name: n.name, ivIndex: n.iv_index, nextUnicast: n.next_unicast, createdAt: n.created_at, synced: true }))),
-  putMeshNetwork: (n: MeshNetwork) => call<unknown>(`/api/mesh-networks/${n.id}`, {
+  /** Mesh networks the phone provisions (#212): no keys; those stay on the phone, or sealed in the key backup (#303). */
+  listMeshNetworks: () => call<{ mesh_networks: ServerMeshNetwork[] }>("/api/mesh-networks").then((r) => r.mesh_networks.map(meshNetworkFromServer)),
+  /** `holder`: this phone's device id when it has the keys; 409 when another phone holds the network. */
+  putMeshNetwork: (n: MeshNetwork, holder: string | null) => call<unknown>(`/api/mesh-networks/${n.id}`, {
     method: "PUT", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: n.name, iv_index: n.ivIndex, next_unicast: n.nextUnicast }),
+    body: JSON.stringify({ name: n.name, iv_index: n.ivIndex, next_unicast: n.nextUnicast, holder, seq_floor: n.seqFloor }),
   }),
+  getKeyBackup: (id: string) => call<{ key_backup: string | null }>(`/api/mesh-networks/${id}/key-backup`).then((r) => r.key_backup),
+  putKeyBackup: (id: string, blob: string, holder: string) =>
+    call<{ mesh_network: ServerMeshNetwork }>(`/api/mesh-networks/${id}/key-backup`, {
+      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key_backup: blob, holder }),
+    }).then((r) => meshNetworkFromServer(r.mesh_network)),
+  /** This phone takes the network over; the answer carries the sequence floor to start above. */
+  claimMeshNetwork: (id: string, holder: string) =>
+    call<{ mesh_network: ServerMeshNetwork }>(`/api/mesh-networks/${id}/claim`, {
+      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ holder }),
+    }).then((r) => meshNetworkFromServer(r.mesh_network)),
 
   deletePreset: (id: string) => call<{ deleted: string }>(`/api/presets/${id}`, { method: "DELETE" }),
 

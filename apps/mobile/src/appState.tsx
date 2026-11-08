@@ -24,6 +24,7 @@ export type Route =
   | { name: "rigEditor"; rigId: string | null }
   | { name: "fixtures" }
   | { name: "livePicture" }
+  | { name: "keyBackup" }
   | { name: "fixtureEditor"; fixtureId: string | null }
   | { name: "fixture"; fixtureId: string }
   | { name: "fixtureProvision"; fixtureId: string; /** Pair again after a reset: a new address. */ fresh?: boolean }

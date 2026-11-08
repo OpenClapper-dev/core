@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { log } from "../log";
 import { store } from "../storage";
+import { backupAll } from "./keyBackup";
 import { syncMeshNetworks } from "./meshNetworks";
 import type { Fixture } from "./types";
 
@@ -51,6 +52,8 @@ export function syncFixtures(): Promise<void> {
   syncing ??= (async () => {
     // Networks first: a fixture names its network.
     await syncMeshNetworks();
+    // Keys changed while offline (a light paired on set) go up now, sealed (#303).
+    await backupAll();
     try {
       // One refused fixture must not block the others; it stays unsynced and is logged.
       for (const f of fixtures.filter((x) => !x.synced)) {

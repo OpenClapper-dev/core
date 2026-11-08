@@ -80,6 +80,16 @@ The phone is the provisioner of its own mesh network, so a light paired here lea
 - **What an MC is made of** (composition data, company 0x0131, product 0x300b): element 0 with the configuration and health servers, generic on/off, level, power on/off and default transition time, scenes, scheduler, time, light lightness and CTL, plus a vendor model 0x03F4:0x1000; elements 1 and 2 with generic level and the CTL temperature and HSL hue/saturation servers. Not every MC is the same: one of the owner's MCs reports a single element (other firmware), so a light's element count comes from its own data, never from the model. The Telink light commands (0x26) go to the primary element (#213).
 - If provisioning breaks off after the network key went out but before the light confirmed, the light may hold the keys while the phone has no device key for it: reset it and pair again.
 
+## Key backup and one phone at a time (`fixtures/keyBackup.ts`, `fixtures/keySeal.ts`, #303)
+
+Without the keys, a lost or reset phone (or a reinstall) means resetting every Aputure light by hand. Setup → Lights → **Key backup**:
+
+- **Recovery passphrase** (at least 12 characters), set once. The phone keeps only the key derived from it (scrypt, 2^15 × 8, in the secure store), never the passphrase. Every change to a network's keys (a new network, a paired light) is sealed with it (AES-GCM, the network id as associated data) and stored on the server (`/api/mesh-networks/:id/key-backup`), right away or on the next sync when offline. The server cannot open it.
+- **Restore**: a phone without a network's keys but with a backup asks for the passphrase, opens the backup, and **claims** the network: it becomes the network's `holder`.
+- **One phone at a time**: every phone sends from the same mesh address `0x0001` (the lights report to it), so two phones at once would collide on sequence numbers and the lights would drop one of them. The server refuses writes naming another holder (409); a phone that learns this on its next sync keeps its keys but stops controlling the network ("In use on another phone"), until it takes it back with **Use this phone again** (a claim the other way).
+- **Sequence numbers**: the holder pushes how far it has counted (`seq_floor`) every 4096 numbers while online. A claim starts 2^20 above the higher of that floor and its own counter, to cover what the old phone used offline since. A network has 2^24 numbers before it needs an IV index update, which is not built (see #304).
+- No transfer between installs: each app (Dev, staging, production) has its own network; a light belongs to one and is reset and paired again to move (owner's decision on #303).
+
 ## Aputure lights (`drivers/sidusMesh.ts`, `codecs/sidus.ts`, #213)
 
 - **One connection per network**: the hub's link for every paired MC of a network is the same mesh session, through whichever light it reaches first; that light relays to the others. Unpaired MCs cannot be the proxy.

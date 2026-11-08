@@ -1,0 +1,28 @@
+-- Merging decision tree log ---
+manifest
+ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:1:1-6:12
+INJECTED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:1:1-6:12
+	package
+		INJECTED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml
+	xmlns:android
+		ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:1:11-69
+uses-permission#android.permission.ACCESS_NETWORK_STATE
+ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:3:3-77
+	android:name
+		ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:3:20-74
+uses-permission#android.permission.ACCESS_WIFI_STATE
+ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:4:3-74
+	android:name
+		ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:4:20-71
+uses-permission#android.permission.INTERNET
+ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:5:3-65
+	android:name
+		ADDED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml:5:20-62
+uses-sdk
+INJECTED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml reason: use-sdk injection requested
+INJECTED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml
+INJECTED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml
+	android:targetSdkVersion
+		INJECTED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml
+	android:minSdkVersion
+		INJECTED from /work/apps/mobile/modules/video-link/android/src/main/AndroidManifest.xml

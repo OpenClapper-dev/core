@@ -127,3 +127,14 @@ test("sequence numbers: saved before use, resumed past the block after a restart
   assert.ok(b.take() > used + 2);
   assert.throws(() => new SeqAllocator({ load: () => ({ next: 0, reserved: 0xffffff }), save: () => {} }).take(2), /used up/);
 });
+
+test("sequence numbers: a restore skips ahead, saved first, never back", () => {
+  const { s, store } = memStore({ next: 0, reserved: 1000 });
+  const a = new SeqAllocator(store);
+  a.skipTo(500); // behind: nothing changes
+  assert.equal(a.reserved, 1000);
+  a.skipTo(1 << 20);
+  assert.deepEqual(s.saved, { next: 1 << 20, reserved: 1 << 20 });
+  assert.equal(a.take(), 1 << 20);
+  assert.throws(() => a.skipTo(0x1000000), /used up/);
+});

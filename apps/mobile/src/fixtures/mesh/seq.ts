@@ -25,6 +25,20 @@ export class SeqAllocator {
     this.state = saved ? { next: saved.reserved, reserved: saved.reserved } : { next: 0, reserved: 0 };
   }
 
+  /** How far numbers may have been used: the end of the reserved block. */
+  get reserved(): number { return this.state.reserved; }
+
+  /**
+   * Jumps past numbers another phone may have used (a restore, #303): the next number is at least
+   * `n`, saved before it is handed out. Never goes back.
+   */
+  skipTo(n: number) {
+    if (n > SEQ_MAX) throw new Error("mesh sequence numbers used up: the network needs an IV index update");
+    if (n <= this.state.next) return;
+    this.state = { next: n, reserved: n };
+    this.store.save({ ...this.state });
+  }
+
   /** `count` consecutive numbers (a segmented message uses one per segment); returns the first. */
   take(count = 1): number {
     const first = this.state.next;

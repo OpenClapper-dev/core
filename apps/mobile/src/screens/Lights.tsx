@@ -8,7 +8,8 @@ import { askBluetooth } from "../ble/permissions";
 import { linkLabel, sendToFixture, useFixtureLease, useFixtureStatus } from "../fixtures/hub";
 import { deleteFixture, getFixtures, saveFixture, syncFixtures, useFixtures } from "../fixtures/library";
 import { formatMinutes } from "../fixtures/batteryEstimate";
-import { hasKeys, nodeState } from "../fixtures/meshNetworks";
+import { hasPassphrase } from "../fixtures/keyBackup";
+import { getMeshNetworks, hasKeys, heldElsewhere, nodeState } from "../fixtures/meshNetworks";
 import { overlapping } from "../fixtures/meshAddress";
 import { provisionFixture, STAGES, type Stage } from "../fixtures/provisionFlow";
 import { ALL_KINDS, suggestKinds } from "../fixtures/registry";
@@ -51,6 +52,10 @@ export function FixtureList() {
     <PushScreen title="Lights" sub={`${fixtures.length} paired · stored on the server`}
       footer={<Button style={{ flex: 1 }} icon="plus" label="Add light" onPress={() => app.push({ name: "fixtureEditor", fixtureId: null })} />}>
       {fixtures.length === 0 && <Empty icon="lightbulb-outline" title="No light yet" body="Pair NEEWER and Aputure lights and the NEEWER battery to control them from the phone." />}
+      {getMeshNetworks().length > 0 && (
+        <ListRow icon="key-outline" title="Key backup" meta={hasPassphrase() ? "On · Aputure keys sealed on the server" : "Off · a lost phone means resetting every Aputure light"}
+          onPress={() => app.push({ name: "keyBackup" })} />
+      )}
       {fixtures.map((f) => (
         <ListRow key={f.id} icon={f.synced ? kindIcon(fixtureKind(f.kindId)) : "cloud-off-outline"} title={f.label} meta={fixtureMeta(f)}
           onPress={() => app.push({ name: "fixture", fixtureId: f.id })} onLongPress={() => app.push({ name: "fixtureEditor", fixtureId: f.id })} />
@@ -210,7 +215,13 @@ function MeshPairing({ f }: { f: Fixture }) {
       <Button icon="link-variant" label="Pair with OpenClapper" onPress={() => open()} />
     </>
   );
-  if (!hasKeys(f.mesh.networkId)) return <Hint>Paired on another phone: this light's network keys are not on this one.</Hint>;
+  const network = getMeshNetworks().find((n) => n.id === f.mesh!.networkId);
+  if (!hasKeys(f.mesh.networkId) || (network && heldElsewhere(network))) return (
+    <>
+      <Hint>{hasKeys(f.mesh.networkId) ? "In use on another phone, which restored the keys." : "Paired on another phone: this light's network keys are not on this one."}</Hint>
+      <Button kind="secondary" icon="key-outline" label="Key backup" onPress={() => app.push({ name: "keyBackup" })} />
+    </>
+  );
   const node = nodeState(f.mesh.networkId, f.mesh.unicast);
   if (!node?.configured) return (
     <>

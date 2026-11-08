@@ -48,7 +48,7 @@ export function sidusMesh(o: SidusOptions): Driver {
     async open(link: Link, fixtures: Fixture[], sink: (id: string, t: Telemetry) => void): Promise<Session> {
       const networkId = fixtures.find((f) => f.mesh)?.mesh?.networkId;
       const net = networkId ? o.access()?.keysFor(networkId) : null;
-      if (!networkId || !net) throw new Error("this light's network keys are not on this phone");
+      if (!networkId || !net) throw new Error("this light's network keys are not on this phone, or another phone controls it (Setup → Lights → Key backup)");
       const session = new MeshSession(link, net.keys, net.seq, { log: o.log, onIvIndex: net.onIvIndex, setupWaitMs: o.setupWaitMs });
       await session.start();
       const byUnicast = new Map(fixtures.filter((f) => f.mesh).map((f) => [f.mesh!.unicast, f]));
