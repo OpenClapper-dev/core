@@ -66,6 +66,32 @@ describe("fixtures", () => {
     await ok(api(u.token, "PUT", `/api/mesh-networks/${n}`, { name: "Set B", iv_index: -1 }), 400);
   });
 
+  test("key backup (#303): opaque blob, not in the list, one holder at a time, the floor only rises", async () => {
+    const n = uuid(), phoneA = uuid(), phoneB = uuid();
+    type Net = { holder: string | null; seq_floor: number; key_backup_at: string | null };
+    const made = await ok<{ mesh_network: Net }>(api(u.token, "PUT", `/api/mesh-networks/${n}`, { name: "Set C", holder: phoneA, seq_floor: 4096 }));
+    expect(made.mesh_network).toMatchObject({ holder: phoneA, seq_floor: 4096, key_backup_at: null });
+    expect(await ok<{ key_backup: string | null }>(api(u.token, "GET", `/api/mesh-networks/${n}/key-backup`))).toMatchObject({ key_backup: null });
+
+    const saved = await ok<{ mesh_network: Net }>(api(u.token, "PUT", `/api/mesh-networks/${n}/key-backup`, { key_backup: "v1.sealed", holder: phoneA }));
+    expect(saved.mesh_network.key_backup_at).not.toBeNull();
+    const list = await ok<{ mesh_networks: Record<string, unknown>[] }>(api(u.token, "GET", "/api/mesh-networks"));
+    expect(list.mesh_networks.find((x) => x.id === n)).not.toHaveProperty("key_backup");
+    expect(await ok<{ key_backup: string }>(api(u.token, "GET", `/api/mesh-networks/${n}/key-backup`))).toMatchObject({ key_backup: "v1.sealed" });
+
+    // Another phone may not write while A holds the network; it claims it first, and then A is refused.
+    await ok(api(u.token, "PUT", `/api/mesh-networks/${n}/key-backup`, { key_backup: "v2", holder: phoneB }), 409);
+    await ok(api(u.token, "PUT", `/api/mesh-networks/${n}`, { name: "Set C", holder: phoneB }), 409);
+    const claimed = await ok<{ mesh_network: Net }>(api(u.token, "POST", `/api/mesh-networks/${n}/claim`, { holder: phoneB }));
+    expect(claimed.mesh_network).toMatchObject({ holder: phoneB, seq_floor: 4096 });
+    await ok(api(u.token, "PUT", `/api/mesh-networks/${n}`, { name: "Set C", holder: phoneA, seq_floor: 9000 }), 409);
+    const lower = await ok<{ mesh_network: Net }>(api(u.token, "PUT", `/api/mesh-networks/${n}`, { name: "Set C", holder: phoneB, seq_floor: 100 }));
+    expect(lower.mesh_network.seq_floor).toBe(4096);
+
+    await ok(api(u.token, "PUT", `/api/mesh-networks/${n}/key-backup`, { key_backup: "x".repeat(64 * 1024 + 1), holder: phoneB }), 400);
+    await ok(api(u.token, "POST", `/api/mesh-networks/${n}/claim`, { holder: "not-a-uuid" }), 400);
+  });
+
   test("deleting a fixture", async () => {
     const a = uuid();
     await ok(api(u.token, "PUT", `/api/fixtures/${a}`, fixtureBody("gone")));

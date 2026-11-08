@@ -4,7 +4,24 @@ import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces, workspaceOf } from "./tenancy.ts";
 
 export interface MeshNetworkRow {
-  id: string; workspace_id: string; name: string; iv_index: number; next_unicast: number; created_at: string; updated_at: string | null;
+  id: string; workspace_id: string; name: string; iv_index: number; next_unicast: number;
+  holder: string | null; seq_floor: number; key_backup_at: string | null; created_at: string; updated_at: string | null;
+}
+
+/** Everything of a network but its key backup, which only the backup route hands out. */
+const NETWORK_COLUMNS = "id, workspace_id, name, iv_index, next_unicast, holder, seq_floor, key_backup_at, created_at, updated_at";
+/** A network's encrypted keys are small (a few hundred bytes per light); this bounds a stray upload. */
+const KEY_BACKUP_MAX = 64 * 1024;
+const SEQ_MAX = 0xffffff;
+
+const networkRow = (env: Ctx["env"], id: string) =>
+  env.DB.prepare(`SELECT ${NETWORK_COLUMNS} FROM mesh_networks WHERE id = ?1`).bind(id).first<MeshNetworkRow>();
+
+/** One phone at a time (#303): a write naming another holder than the network's is refused, so a phone that lost the network learns it. */
+async function assertHolder(env: Ctx["env"], id: string, holder: string | null) {
+  if (holder == null) return;
+  const cur = await env.DB.prepare("SELECT holder FROM mesh_networks WHERE id = ?1").bind(id).first<{ holder: string | null }>();
+  if (cur?.holder && cur.holder !== holder) throw new HttpError(409, "the network is in use on another phone");
 }
 export interface FixtureRow {
   id: string; workspace_id: string; label: string; kind_id: string; address: string;
@@ -25,16 +42,20 @@ const targetWorkspace = async (ctx: Ctx, kind: "fixture" | "mesh_network", id: s
 /**
  * Lights (epic #206): fixtures and the Bluetooth Mesh networks the phone provisions for them. Both
  * belong to a workspace and are shared by its projects, like rigs. Client-owned ids, upsert. Mesh
- * keys never reach the server; the phone keeps them.
+ * keys reach the server only encrypted on the phone (#303), as a backup it cannot read.
  */
 export function registerFixtureRoutes(r: Router<Ctx>) {
   r.on("GET", "/api/mesh-networks", async ({ env, tenant }) => {
-    const { results } = await env.DB.prepare(`SELECT * FROM mesh_networks WHERE ${inWorkspaces("workspace_id", 1)} ORDER BY name COLLATE NOCASE`)
+    const { results } = await env.DB.prepare(`SELECT ${NETWORK_COLUMNS} FROM mesh_networks WHERE ${inWorkspaces("workspace_id", 1)} ORDER BY name COLLATE NOCASE`)
       .bind(tenant.wsList).all<MeshNetworkRow>();
     return json({ mesh_networks: results });
   });
 
-  /** JSON { name, iv_index?, next_unicast?, workspace_id? }. The phone is the provisioner, so its counters win. */
+  /**
+   * JSON { name, iv_index?, next_unicast?, holder?, seq_floor?, workspace_id? }. The phone is the provisioner, so its
+   * counters win; the sequence floor only rises. `holder` (the phone's device id) is taken when the network has none,
+   * and a different one is refused with 409 (#303).
+   */
   r.on("PUT", "/api/mesh-networks/:id", async (ctx, { id }) => {
     const { env, request } = ctx;
     const nid = assertUuid(id, "id");
@@ -43,11 +64,53 @@ export function registerFixtureRoutes(r: Router<Ctx>) {
     const name = assertString(b.name, "name", FIXTURE_LABEL_MAX);
     const iv = assertInt(b.iv_index ?? 0, "iv_index", 0, 0xffffffff);
     const next = assertInt(b.next_unicast ?? 2, "next_unicast", 1, MESH_UNICAST_MAX + 1);
+    const holder = b.holder == null ? null : assertUuid(b.holder, "holder");
+    const floor = assertInt(b.seq_floor ?? 0, "seq_floor", 0, SEQ_MAX + 1);
+    await assertHolder(env, nid, holder);
     await env.DB.prepare(
-      `INSERT INTO mesh_networks (id, workspace_id, name, iv_index, next_unicast, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-       ON CONFLICT(id) DO UPDATE SET name = ?3, iv_index = ?4, next_unicast = ?5, updated_at = ?6`,
-    ).bind(nid, ws, name, iv, next, new Date().toISOString()).run();
-    return json({ mesh_network: await env.DB.prepare("SELECT * FROM mesh_networks WHERE id = ?1").bind(nid).first<MeshNetworkRow>() });
+      `INSERT INTO mesh_networks (id, workspace_id, name, iv_index, next_unicast, holder, seq_floor, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+       ON CONFLICT(id) DO UPDATE SET name = ?3, iv_index = ?4, next_unicast = ?5, holder = COALESCE(mesh_networks.holder, ?6),
+         seq_floor = MAX(mesh_networks.seq_floor, ?7), updated_at = ?8`,
+    ).bind(nid, ws, name, iv, next, holder, floor, new Date().toISOString()).run();
+    return json({ mesh_network: await networkRow(env, nid) });
+  });
+
+  /** The network's encrypted keys (#303), for a phone restoring them. */
+  r.on("GET", "/api/mesh-networks/:id/key-backup", async (ctx, { id }) => {
+    const nid = assertUuid(id, "id");
+    await assertAccess(ctx, "mesh_network", nid, "editor");
+    const row = await ctx.env.DB.prepare("SELECT key_backup, key_backup_at FROM mesh_networks WHERE id = ?1").bind(nid)
+      .first<{ key_backup: string | null; key_backup_at: string | null }>();
+    return json({ key_backup: row?.key_backup ?? null, key_backup_at: row?.key_backup_at ?? null });
+  });
+
+  /** JSON { key_backup, holder }: the phone holding the network replaces its encrypted keys. Opaque to the server. */
+  r.on("PUT", "/api/mesh-networks/:id/key-backup", async (ctx, { id }) => {
+    const { env, request } = ctx;
+    const nid = assertUuid(id, "id");
+    await assertAccess(ctx, "mesh_network", nid, "editor");
+    const b = await readJson<Record<string, unknown>>(request);
+    const blob = assertString(b.key_backup, "key_backup", KEY_BACKUP_MAX);
+    const holder = assertUuid(b.holder, "holder");
+    await assertHolder(env, nid, holder);
+    const now = new Date().toISOString();
+    await env.DB.prepare("UPDATE mesh_networks SET key_backup = ?2, key_backup_at = ?3, holder = COALESCE(holder, ?4), updated_at = ?3 WHERE id = ?1")
+      .bind(nid, blob, now, holder).run();
+    return json({ mesh_network: await networkRow(env, nid) });
+  });
+
+  /**
+   * JSON { holder }: this phone takes the network over (a restore, or taking it back). The previous holder is
+   * refused from then on; the answer's seq_floor tells the new holder where to start counting.
+   */
+  r.on("POST", "/api/mesh-networks/:id/claim", async (ctx, { id }) => {
+    const { env, request } = ctx;
+    const nid = assertUuid(id, "id");
+    await assertAccess(ctx, "mesh_network", nid, "editor");
+    const b = await readJson<Record<string, unknown>>(request);
+    const holder = assertUuid(b.holder, "holder");
+    await env.DB.prepare("UPDATE mesh_networks SET holder = ?2, updated_at = ?3 WHERE id = ?1").bind(nid, holder, new Date().toISOString()).run();
+    return json({ mesh_network: await networkRow(env, nid) });
   });
 
   /** Its fixtures stay, unprovisioned: the lights still hold the old keys until they are reset. */

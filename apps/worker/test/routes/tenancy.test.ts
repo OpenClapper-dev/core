@@ -49,6 +49,9 @@ const ROUTES: Record<string, Case> = {
   "GET /api/mesh-networks": { kind: "list", paths: () => ["/api/mesh-networks"] },
   "PUT /api/mesh-networks/:id": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}`, body: (a) => ({ name: named(a, "mesh"), next_unicast: 3 }) },
   "DELETE /api/mesh-networks/:id": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}` },
+  "GET /api/mesh-networks/:id/key-backup": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}/key-backup` },
+  "PUT /api/mesh-networks/:id/key-backup": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}/key-backup`, body: () => ({ key_backup: "opaque", holder: uuid() }) },
+  "POST /api/mesh-networks/:id/claim": { kind: "id", path: (a) => `/api/mesh-networks/${a.meshNetwork}/claim`, body: () => ({ holder: uuid() }) },
   "GET /api/fixtures": { kind: "list", paths: () => ["/api/fixtures"] },
   // B names A's network as well: the realistic attack on the upsert.
   "PUT /api/fixtures/:id": { kind: "id", path: (a) => `/api/fixtures/${a.fixture}`, body: (a) => fixtureBody(named(a, "light"), { mesh_network_id: a.meshNetwork, mesh_unicast: 2 }) },
