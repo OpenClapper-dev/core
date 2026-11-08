@@ -25,6 +25,7 @@ export function routeToLaunch(r: Route): LaunchIntent {
     case "files": return { app: "files", state: { folderId: r.folderId } };
     case "trash": return { app: "trash" };
     case "devices": return { app: "devices" };
+    case "sequences": return { app: "sequences" };
   }
 }
 
@@ -41,6 +42,7 @@ export function defaultRoute(w: Pick<Win, "app" | "resource">): Route | null {
     case "files": return { page: "files", folderId: null };
     case "trash": return { page: "trash" };
     case "devices": return { page: "devices" };
+    case "sequences": return { page: "sequences" };
     case "projects": case "fields": case "rigs": case "locations": case "viewfinder": return { page: "library", section: w.app as "projects", id: null };
     default: return null;
   }

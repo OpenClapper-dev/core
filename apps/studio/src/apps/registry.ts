@@ -4,6 +4,7 @@ import type { Route } from "../router";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
 import { DevicesApp } from "./DevicesApp";
+import { SequencesApp } from "./SequencesApp";
 import { FilesApp } from "./FilesApp";
 import { GalleryApp } from "./GalleryApp";
 import { FieldsApp, LocationsApp, ProjectsApp, RigsApp, ViewfinderApp } from "./LibraryApps";
@@ -60,6 +61,7 @@ export const APPS: Record<AppId, AppDef> = {
   locations: def("locations", "Locations", "map-marker-outline", true, { w: 1100, h: 700 }, { w: 640, h: 420 }, LocationsApp, ["location"]),
   viewfinder: def("viewfinder", "Viewfinder layouts", "cellphone", true, { w: 1180, h: 760 }, { w: 720, h: 480 }, ViewfinderApp),
   devices: def("devices", "Devices", "access-point", true, { w: 1040, h: 700 }, { w: 640, h: 420 }, DevicesApp),
+  sequences: def("sequences", "Sequences", "chart-timeline-variant", true, { w: 1240, h: 720 }, { w: 720, h: 420 }, SequencesApp),
   settings: def("settings", "Settings", "cog-outline", true, { w: 820, h: 620 }, { w: 480, h: 360 }, SettingsApp),
   trash: def("trash", "Recycle bin", "delete-outline", true, { w: 900, h: 600 }, { w: 520, h: 340 }, TrashApp),
 };

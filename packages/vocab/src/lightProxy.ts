@@ -18,7 +18,15 @@ export type LightCommand =
   | { op: "effect"; effect: EffectId | null; settings?: EffectSettings }
   /** Fire the running effect once now (Lightning's strike). */
   | { op: "trigger" }
+  /**
+   * The light fades by itself to the target over `ms` with `curve`, then holds it (#289; kinds with
+   * `caps.fade`). White or colour optional: without them it keeps its light and fades only intensity.
+   */
+  | { op: "fade"; ms: number; curve: Curve; intensity: number; white?: { kelvin: number; gm: number }; colour?: { h: number; s: number } }
   | { op: "status" };
+
+/** The longest native fade: the MC counts tenths of a second in 8 bits. */
+export const FADE_MAX_MS = 25_500;
 
 /** What a fixture reported last; `state` is what a light says it shows. */
 export interface Telemetry {
@@ -147,6 +155,14 @@ export function parseLightCommand(v: unknown): LightCommand | null {
       return settings ? { op: "effect", effect: c.effect as EffectId, settings } : null;
     }
     case "trigger": return { op: "trigger" };
+    case "fade": {
+      if (!num(c.ms, 0, FADE_MAX_MS) || !(CURVES as readonly unknown[]).includes(c.curve) || !num(c.intensity, 0, 1)) return null;
+      const out: LightCommand = { op: "fade", ms: c.ms, curve: c.curve as Curve, intensity: c.intensity };
+      const w = c.white as Record<string, unknown> | undefined, col = c.colour as Record<string, unknown> | undefined;
+      if (w != null) { if (typeof w !== "object" || !num(w.kelvin, 1000, 20000) || !num(w.gm, -50, 50)) return null; out.white = { kelvin: w.kelvin, gm: w.gm }; }
+      if (col != null) { if (typeof col !== "object" || !num(col.h, 0, 360) || !num(col.s, 0, 1)) return null; out.colour = { h: col.h, s: col.s }; }
+      return out;
+    }
     case "status": return { op: "status" };
     default: return null;
   }

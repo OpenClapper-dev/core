@@ -7,6 +7,7 @@ import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconB
 import { deleteFixture, fetchFixtures, putFixture, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { useLightProxy, type LightProxy } from "../lightProxy";
+import { usePlayingFixtures } from "../sequencePlayback";
 import type { AppProps } from "./registry";
 
 /**
@@ -137,10 +138,12 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
   const touched = useRef(0);
   const reported = JSON.stringify(live?.state ?? {});
   useEffect(() => { if (Date.now() - touched.current > HOLD_MS) setV((cur) => ({ ...cur, ...live?.state })); }, [reported]);
+  // A sequence is playing this light: hands off, a manual change would fight its fades (#289).
+  const inSequence = usePlayingFixtures().has(f.id);
   const [mode, setMode] = useState<"cct" | "hsi">(() => (live?.state.hsi && !live.state.cct ? "hsi" : "cct"));
   if (!kind) return <Panel label="Device"><PanelHead title={f.label}><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead><PanelBody><ErrorLine>{`Unknown kind ${f.kind_id}`}</ErrorLine></PanelBody></Panel>;
   const caps = kind.caps;
-  const ready = live?.link === "ready";
+  const ready = live?.link === "ready" && !inSequence;
   const send = (patch: LightState, cmd: LightCommand) => { touched.current = Date.now(); setV((cur) => ({ ...cur, ...patch })); proxy.send(f.id, cmd); };
   const cct = v.cct ?? { kelvin: 5600, gm: 0 };
   const col = v.hsi ?? { h: 0, s: 1, i: v.intensity ?? 0.5 };
@@ -152,6 +155,7 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
       <PanelBody>
         <p class="meta">{`${kind.brand} ${kind.model} · ${f.address}${f.mesh_unicast != null ? ` · mesh ${f.mesh_unicast}` : ""}`}</p>
         <Banner kind={ready ? "ok" : live?.link === "failed" ? "warn" : "info"} icon="bluetooth" title={linkText(live, !!proxy.proxy)} />
+        {inSequence && <Banner kind="info" icon="chart-timeline-variant" title="Playing in a sequence" meta="The controls are locked until the sequence stops." />}
         <fieldset class="devices-controls" disabled={!ready}>
           {controllable && caps.power && (
             <Seg label="Power" value={v.power === undefined ? "" as "on" : v.power ? "on" : "off"} onChange={(x) => send({ power: x === "on" }, { op: "power", on: x === "on" })}
@@ -190,6 +194,9 @@ function FixturePanel({ f, live, proxy, onClose, onChanged }: { f: ServerFixture
             </div>
           )}
         </fieldset>
+        {caps.fade && (
+          <FadeTest disabled={!ready} onFade={(intensity, ms, curve) => send({ intensity, effect: null }, { op: "fade", ms, curve, intensity, ...(hsiMode ? { colour: { h: col.h, s: col.s } } : { white: { kelvin: cct.kelvin, gm: cct.gm } }) })} />
+        )}
         {caps.telemetry.length > 0 && <Readings live={live} estimated={!!caps.capacityWh} />}
         {!proxy.proxy && <p class="meta">Controls work once the phone's proxy is on.</p>}
         {kind.transport === "mesh" && <MeshSection f={f} proxy={proxy} />}
@@ -422,6 +429,26 @@ function Manage({ f, onChanged }: { f: ServerFixture; onChanged: (selectId: stri
       <Field label="Name"><Input sm value={label} maxLength={FIXTURE_LABEL_MAX} onInput={(e) => setLabel((e.target as HTMLInputElement).value)} onBlur={() => void rename()} onKeyDown={(e) => { if (e.key === "Enter") void rename(); }} /></Field>
       {error && <ErrorLine>{error}</ErrorLine>}
       <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={() => void remove()}>Delete</Button></div>
+    </div>
+  );
+}
+
+/**
+ * The light's own fade (#289), to try before sequences use it: the light fades to the target by
+ * itself over the time, with the curve, in the current white or colour, then holds it.
+ */
+function FadeTest({ disabled, onFade }: { disabled: boolean; onFade: (intensity: number, ms: number, curve: Curve) => void }) {
+  const [to, setTo] = useState(100);
+  const [secs, setSecs] = useState(5);
+  const [curve, setCurve] = useState<Curve>("linear");
+  return (
+    <div class="devices-field devices-manage">
+      <span class="section-title">Native fade (test)</span>
+      <p class="meta">The light fades by itself, without stepping, up to 25.5 s. Watch where it starts from and whether it holds the target.</p>
+      <Range label="To" value={to} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={setTo} />
+      <Range label="Over" value={secs} min={0.5} max={25.5} step={0.5} format={(x) => `${x.toFixed(1)} s`} onChange={setSecs} />
+      <Seg label="Fade curve" value={curve} onChange={setCurve} options={CURVES.map((c) => ({ id: c, label: CURVE_LABELS[c] }))} />
+      <div class="btn-row"><Button size="sm" icon="transition" disabled={disabled} onClick={() => onFade(to / 100, Math.round(secs * 1000), curve)}>Fade</Button></div>
     </div>
   );
 }

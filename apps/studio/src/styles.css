@@ -640,3 +640,26 @@ button { font: inherit; }
 .devices-steps li.is-now { font-weight: var(--weight-semibold); }
 .devices-steps li.is-failed { color: var(--danger); }
 .devices-manage { padding-top: var(--space-3); border-top: var(--bw) solid var(--border-subtle); }
+
+/* Sequences (#304): ruler, a lane per light, keyframe diamonds, positions in % of the length. */
+.seq-main { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: auto; }
+.seq-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); padding: var(--space-2) var(--space-4); border-bottom: var(--bw) solid var(--border-subtle); }
+.seq-bar .f-field { flex-direction: row; align-items: center; gap: var(--space-2); }
+.seq-time { color: var(--text-dim); font-size: var(--text-caption); }
+.seq-lanes { display: flex; flex-direction: column; padding: var(--space-2) var(--space-4); }
+.seq-row { display: grid; grid-template-columns: 160px 1fr; align-items: stretch; min-height: 36px; border-bottom: var(--bw) solid var(--border-subtle); }
+.seq-label { display: flex; align-items: center; justify-content: space-between; gap: var(--space-1); padding-right: var(--space-2); min-width: 0; }
+.seq-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-semibold); }
+.seq-ruler, .seq-lane { position: relative; cursor: pointer; }
+.seq-ruler { height: 28px; }
+.seq-lane { background: var(--surface-sunken); }
+.seq-tick { position: absolute; top: 6px; transform: translateX(-50%); font-size: var(--text-micro); color: var(--text-dim); pointer-events: none; }
+.seq-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
+.seq-kf { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; transform: rotate(45deg); border: var(--bw-strong) solid var(--border-strong); background: var(--surface); cursor: grab; padding: 0; touch-action: none; }
+.seq-kf.is-colour { background: var(--accent-tint); }
+.seq-kf.is-effect { border-style: dashed; }
+.seq-kf.is-selected { background: var(--accent); border-color: var(--accent); }
+.seq-add { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
+.seq-empty { padding: var(--space-3) 0; }
+.seq-noproxy { position: absolute; bottom: var(--space-3); left: var(--space-4); }
+.seq-fade { position: absolute; top: 50%; height: 6px; margin-top: -3px; background: var(--accent); opacity: 0.35; border-radius: 3px; pointer-events: none; }
