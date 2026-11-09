@@ -10,7 +10,7 @@ First fixtures:
 | NEEWER PS099S (V-mount battery) | Bluetooth LE, its own connection | Charge, volts, current, watts, estimated time left (read-only) |
 | Aputure MC | Bluetooth Mesh the phone provisions (one connection per network) | Power, intensity, white 3200–6500 K, colour; reports its state and its built-in battery; dimming curve; 9 built-in effects |
 
-**Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213), with their battery (#293), effects (#291) and dimming curve (#289), are built. The MC's device-side fade (Program Continue, see below) is not used yet.
+**Status:** pairing, the synced list and the connection manager (#208), control of the NEEWER FS230B and FS300B (#209), the PS099S battery readout (#210), and Aputure MCs over the phone's own mesh (#211–#213), with their battery (#293), effects (#291) dimming curve and device-side fade (Program Continue, #289: a fade test in the Studio, and sequences play MC ramps as native fades), are built.
 
 ## The phone as proxy, Studio Devices (#307)
 
