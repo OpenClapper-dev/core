@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import {
-  CURVES, effectName, effectSettingsOf, FIXTURE_KINDS, fixtureKind, inFade, sampleTrack, SEQUENCE_MAX_MS, SequencePlayer, START_KEYFRAME, startKeyframe,
-  type Curve, type EffectId, type FixtureLive, type Keyframe, type LightSequence, type SendLight, type SequenceTrack,
+  CURVES, effectName, effectSettingsOf, FIXTURE_KINDS, MARKER_NAME_MAX, TRACK_COLORS, fixtureKind, inFade, sampleTrack, SEQUENCE_MAX_MS, SequencePlayer, START_KEYFRAME, startKeyframe,
+  type Curve, type EffectId, type FixtureLive, type Keyframe, type LightSequence, type SendLight, type SequenceMarker, type SequenceTrack,
 } from "@openclapper/vocab";
-import { Banner, Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
+import { Banner, Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Popover, Seg, Select, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { fetchFixtures, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { bind, useKeys } from "../keys";
@@ -15,6 +15,7 @@ import { useProjectId } from "../project";
 import { deleteSequence, flushSequence, getSequences, upsertSequence, useSequences } from "../sequences";
 import { updateSettings, useSettings } from "../settings";
 import { EffectOptionFields } from "./EffectOptions";
+import { graphPoints, keyframeLevel, lightColour, SEQ_VIEW_LABELS, shortLabel, useSeqView, type SeqView } from "./sequenceView";
 import type { AppProps } from "./registry";
 
 /**
@@ -61,6 +62,12 @@ export function SequencesApp(_p: AppProps) {
   /** Select (default): clicks never add; Insert: a click on a lane adds a keyframe (#321). Alt+click adds in either. */
   const [mode, setMode] = useState<"select" | "insert">("select");
   const kfSize = useSettings().keyframeSize;
+  const [view, setView] = useSeqView();
+  const [viewMenu, setViewMenu] = useState(false);
+  /** The selected marker (#323): its inspector replaces the keyframe's. */
+  const [selMarker, setSelMarker] = useState<string | null>(null);
+  /** Shift+M's first press: the range's in point, waiting for its out point. */
+  const rangeIn = useRef<number | null>(null);
 
   const seqRef = useRef(seq);
   seqRef.current = seq;
@@ -148,7 +155,31 @@ export function SequencesApp(_p: AppProps) {
     setSelId(sequences.find((s) => s.id !== seq.id)?.id ?? null);
   };
 
-  const select = (keys: Iterable<string>, add = false) => { setTile(null); setSel(new Set([...(add ? sel : []), ...keys])); };
+  const select = (keys: Iterable<string>, add = false) => { setTile(null); setSelMarker(null); setSel(new Set([...(add ? sel : []), ...keys])); };
+
+  const addMarker = (at: number, end?: number, trackId?: string) => {
+    const cur = current();
+    if (!cur || lockedRef.current) return;
+    const n = (cur.markers ?? []).length + 1;
+    const m: SequenceMarker = { id: newId(), at: snap(at), name: end !== undefined ? `Section ${n}` : `Marker ${n}`, ...(end !== undefined && snap(end) > snap(at) ? { end: snap(end) } : {}), ...(trackId ? { trackId } : {}) };
+    patch((s) => ({ ...s, markers: [...(s.markers ?? []), m] }));
+    pickMarker(m.id);
+  };
+  const pickMarker = (id: string) => {
+    const m = current()?.markers?.find((x) => x.id === id);
+    setSel(new Set()); setTile(null); setSelMarker(id);
+    if (m && !playing && !lockedRef.current) setPlayhead(m.at);
+  };
+  const patchMarker = (id: string, fn: (m: SequenceMarker) => SequenceMarker) => patch((s) => ({ ...s, markers: (s.markers ?? []).map((m) => (m.id === id ? fn(m) : m)) }));
+  const deleteMarker = (id: string) => { patch((s) => ({ ...s, markers: (s.markers ?? []).filter((m) => m.id !== id) })); setSelMarker(null); };
+  /** Shift+M: in point, then out point (#323). */
+  const markRange = () => {
+    if (rangeIn.current === null) { rangeIn.current = playhead; toast(`In at ${fmt(playhead)}: move the playhead, Shift+M again for the out point`, "info"); return; }
+    const a = Math.min(rangeIn.current, playhead), b = Math.max(rangeIn.current, playhead);
+    rangeIn.current = null;
+    if (b - a < SNAP_MS) { toast("A range needs an out point after its in point", "info"); return; }
+    addMarker(a, b);
+  };
   const deleteSelected = () => {
     if (!sel.size || lockedRef.current) return false;
     const drop = new Set([...sel].filter((k) => splitKey(k)[1] !== START_KEYFRAME));
@@ -157,9 +188,11 @@ export function SequencesApp(_p: AppProps) {
     setSel(new Set());
   };
   useKeys(bind("sequences", {
-    remove: () => deleteSelected(),
+    remove: () => { if (selMarker && !lockedRef.current) { deleteMarker(selMarker); return; } return deleteSelected(); },
+    marker: () => addMarker(playhead),
+    markerRange: () => markRange(),
     all: () => { if (!seq) return false; select(seq.tracks.flatMap((t) => t.keyframes.map((k) => keyOf(t.id, k.id)))); },
-    clear: () => { if (!sel.size && !tile) return false; setSel(new Set()); setTile(null); },
+    clear: () => { if (!sel.size && !tile && !selMarker) return false; setSel(new Set()); setTile(null); setSelMarker(null); },
     play: () => play(),
     stopHere: () => stopHere(),
     selectMode: () => setMode("select"),
@@ -171,7 +204,10 @@ export function SequencesApp(_p: AppProps) {
     if (!kind) return;
     patch((s) => {
       const n = s.tracks.filter((t) => t.kindId === kindId).length + 1;
-      return { ...s, tracks: [...s.tracks, { id: newId(), name: `${kind.model} ${n}`, kindId, fixtureId: null, keyframes: [startKeyframe(kind)] }] };
+      // The next colour no track has yet (#323), else round again.
+      const used = new Set(s.tracks.map((t) => t.color));
+      const color = Array.from({ length: TRACK_COLORS }, (_, i) => i).find((i) => !used.has(i)) ?? s.tracks.length % TRACK_COLORS;
+      return { ...s, tracks: [...s.tracks, { id: newId(), name: `${kind.model} ${n}`, kindId, fixtureId: null, color, keyframes: [startKeyframe(kind)] }] };
     });
   };
 
@@ -202,6 +238,17 @@ export function SequencesApp(_p: AppProps) {
               <Switch on={seq.loop} onClick={() => patch((s) => ({ ...s, loop: !s.loop }))}>Loop</Switch>
               <Switch on={live} onClick={() => setLive(!live)}>Live</Switch>
               <Seg label="Click on a lane" value={mode} onChange={setMode} options={[{ id: "select", icon: "cursor-default-outline", label: "Select", title: "Select (V): clicks select, never add" }, { id: "insert", icon: "plus", label: "Insert", title: "Insert (I): a click on a lane adds a keyframe; Alt+click adds in Select too" }]} />
+              <span class="menu-anchor">
+                <Button size="sm" kind="secondary" icon="eye-outline" aria-expanded={viewMenu} onClick={() => setViewMenu((x) => !x)}>View</Button>
+                {viewMenu && (
+                  <Popover onClose={() => setViewMenu(false)}>
+                    <div class="seq-viewmenu">
+                      {(Object.keys(SEQ_VIEW_LABELS) as (keyof SeqView)[]).map((k) => <Switch key={k} on={view[k]} onClick={() => setView({ [k]: !view[k] })}>{SEQ_VIEW_LABELS[k]}</Switch>)}
+                    </div>
+                  </Popover>
+                )}
+              </span>
+              <Button size="sm" kind="secondary" icon="map-marker-outline" disabled={locked} title="A marker at the playhead (M); Shift+M twice for a range" onClick={() => addMarker(playhead)}>Marker</Button>
               <Seg label="Keyframe size" value={kfSize} onChange={(v) => updateSettings({ keyframeSize: v })} options={[{ id: "s", label: "S" }, { id: "m", label: "M" }, { id: "l", label: "L" }]} />
               <ToolbarSpacer />
               <span class="num seq-time">{fmt(locked ? runAt : playhead)} / {fmt(seq.durationMs)}</span>
@@ -220,7 +267,7 @@ export function SequencesApp(_p: AppProps) {
             )}
             {run?.phase === "error" && run.sequenceId === seq.id && <div class="seq-run"><ErrorLine>{run.error ?? "Not started on the phone"}</ErrorLine></div>}
             <div class={cx("seq-lock", locked && "is-locked")}>
-            <Lanes seq={seq} mode={mode} kfSize={kfSize} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={locked ? runAt : playhead} playing={playing || locked} sel={sel} tile={tile}
+            <Lanes seq={seq} mode={mode} kfSize={kfSize} view={view} selMarker={selMarker} onMarkerAdd={addMarker} onMarkerPick={pickMarker} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={locked ? runAt : playhead} playing={playing || locked} sel={sel} tile={tile}
               onSeek={(t) => { if (!playing) setPlayhead(t); }}
               onAdd={(trackId, at) => {
                 const tr = current()?.tracks.find((t) => t.id === trackId);
@@ -247,9 +294,13 @@ export function SequencesApp(_p: AppProps) {
             <div class="seq-add">
               <Select label="Add a track" prefix="Add track" value="" onChange={(id) => id && addTrack(id)}
                 options={[{ value: "", label: "Pick a light type…" }, ...TRACK_KINDS.map((k) => ({ value: k.id, label: `${k.brand} ${k.model}` }))]} />
-              <p class="meta">In Insert mode (I) a click on a lane adds a keyframe; in Select mode (V) Alt+click does. Shift-click to add to the selection, or drag a box over the lanes. Drag a selected keyframe to move them all (0.1 s steps); Delete removes them. Click the strip between two keyframes to fade from one to the other. Drag the playhead's thumb to scrub.</p>
+              <p class="meta">Markers: M at the playhead, Shift+M twice for a range, or click (point) or drag (range) in the marker strip under the ruler, or in a lane's top strip for that track only. In Insert mode (I) a click on a lane adds a keyframe; in Select mode (V) Alt+click does. Shift-click to add to the selection, or drag a box over the lanes. Drag a selected keyframe to move them all (0.1 s steps); Delete removes them. Click the strip between two keyframes to fade from one to the other. Drag the playhead's thumb to scrub.</p>
             </div>
           </div>
+          {selMarker && seq.markers?.some((m) => m.id === selMarker) && (
+            <MarkerPanel key={selMarker} m={seq.markers.find((m) => m.id === selMarker)!} seq={seq}
+              onChange={(fn) => patchMarker(selMarker, fn)} onDelete={() => deleteMarker(selMarker)} onClose={() => setSelMarker(null)} />
+          )}
           {selKf && selTrack && (
             <KeyframePanel key={selKf.id} kf={selKf} track={selTrack} durationMs={seq.durationMs}
               onChange={(next) => patchTrack(selTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => (k.id === selKf.id ? next : k)) }))}
@@ -270,7 +321,7 @@ export function SequencesApp(_p: AppProps) {
               onChange={(curve) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (curve) n.fadeIn = curve; else { delete n.fadeIn; delete n.fadeStepped; } return n; }) }))}
               onClose={() => setTile(null)} />
           )}
-          {!(selKf && selTrack) && sel.size <= 1 && !(tile && tileKf && tileTrack) && (
+          {!(selKf && selTrack) && sel.size <= 1 && !(tile && tileKf && tileTrack) && !(selMarker && seq.markers?.some((m) => m.id === selMarker)) && (
             <Panel label="Inspector" width={INSPECTOR_W}>
               <PanelBody><Empty icon="cursor-default-click-outline" title="Nothing selected">Select a keyframe to edit its values, or click the strip between two keyframes for a fade.</Empty></PanelBody>
             </Panel>
@@ -283,7 +334,8 @@ export function SequencesApp(_p: AppProps) {
 }
 
 interface LanesProps {
-  seq: LightSequence; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
+  seq: LightSequence; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; view: SeqView; selMarker: string | null;
+  onMarkerAdd: (at: number, end?: number, trackId?: string) => void; onMarkerPick: (id: string) => void; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
   onSeek: (t: number) => void; onAdd: (trackId: string, at: number) => void;
   onSelect: (keys: string[], add: boolean) => void; onToggle: (key: string) => void;
   onMoveAll: (moves: Map<string, number>) => void; onTile: (trackId: string, toId: string) => void;
@@ -372,7 +424,7 @@ function Lanes(p: LanesProps) {
   };
 
   return (
-    <div class={cx("seq-lanes", `kf-${p.kfSize}`, p.mode === "insert" && "is-insert")} ref={lanesRef} onPointerDown={pressLanes}>
+    <div class={cx("seq-lanes", `kf-${p.kfSize}`, p.mode === "insert" && "is-insert", p.view.graph && "view-graph", p.view.fill && "view-fill", p.view.badges && "view-badges")} ref={lanesRef} onPointerDown={pressLanes}>
       <div class="seq-row">
         <div class="seq-label" />
         <div class="seq-ruler" ref={rulerRef} onPointerDown={scrub}>
@@ -383,15 +435,56 @@ function Lanes(p: LanesProps) {
           <span class="seq-playhead" style={{ left: pct(p.playhead) }} />
         </div>
       </div>
-      {seq.tracks.map((tr) => <TrackRow key={tr.id} {...p} tr={tr} pct={pct} pressKf={pressKf} />)}
+      <div class="seq-row seq-row--marks">
+        <div class="seq-label"><span class="meta">Markers</span></div>
+        <MarkStrip {...p} markers={(seq.markers ?? []).filter((m) => !m.trackId)} pct={pct} timeAt={timeAt} gesture={gesture} />
+      </div>
+      {seq.tracks.map((tr) => <TrackRow key={tr.id} {...p} tr={tr} pct={pct} pressKf={pressKf} timeAt={timeAt} gesture={gesture} />)}
       {seq.tracks.length === 0 && <p class="meta seq-empty">Add a track below: pick the type of light it is for, then assign a light to it.</p>}
       {box && <div class="seq-box" style={{ left: `${Math.min(box.x0, box.x1)}px`, top: `${Math.min(box.y0, box.y1)}px`, width: `${Math.abs(box.x1 - box.x0)}px`, height: `${Math.abs(box.y1 - box.y0)}px` }} />}
     </div>
   );
 }
 
-function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => string; pressKf: (e: PointerEvent, key: string) => void }) {
+type Gesture = (move: (e: PointerEvent) => void, up?: (e: PointerEvent) => void) => void;
+
+/**
+ * A strip of markers (#323): across the sequence under the ruler, or a lane's top strip for that
+ * track. A click adds a point, a drag a range; a marker's click selects it and moves the playhead.
+ */
+function MarkStrip(p: LanesProps & { markers: SequenceMarker[]; trackId?: string; pct: (t: number) => string; timeAt: (x: number) => number; gesture: Gesture }) {
+  const [draft, setDraft] = useState<{ a: number; b: number } | null>(null);
+  const press = (e: PointerEvent) => {
+    e.stopPropagation();
+    if (e.button !== 0 || (e.target as HTMLElement).closest(".seq-mark")) return;
+    const x0 = e.clientX, a = p.timeAt(x0);
+    let moved = false;
+    p.gesture((ev) => { if (!moved && Math.abs(ev.clientX - x0) < 4) return; moved = true; setDraft({ a, b: p.timeAt(ev.clientX) }); }, (ev) => {
+      setDraft(null);
+      const b = p.timeAt(ev.clientX);
+      if (moved && Math.abs(b - a) >= SNAP_MS) p.onMarkerAdd(Math.min(a, b), Math.max(a, b), p.trackId);
+      else p.onMarkerAdd(a, undefined, p.trackId);
+    });
+  };
+  return (
+    <div class={cx(p.trackId ? "seq-lane__marks" : "seq-marks")} onPointerDown={press} title={p.trackId ? "This track's markers: click for a point, drag for a range" : "Markers: click for a point, drag for a range (M, Shift+M)"}>
+      {p.markers.map((m) => (
+        <button key={m.id} type="button" class={cx("seq-mark", m.end !== undefined ? "is-range" : "is-point", p.selMarker === m.id && "is-selected")}
+          style={{ left: p.pct(m.at), ...(m.end !== undefined ? { width: p.pct(m.end - m.at) } : {}) }}
+          title={`${m.name || "Marker"} · ${fmt(m.at)}${m.end !== undefined ? `–${fmt(m.end)}` : ""}`}
+          onPointerDown={(e) => e.stopPropagation()} onClick={() => p.onMarkerPick(m.id)}>
+          <span class="seq-mark__name">{m.name || "Marker"}</span>
+        </button>
+      ))}
+      {draft && <span class="seq-mark is-range is-draft" style={{ left: p.pct(Math.min(draft.a, draft.b)), width: p.pct(Math.abs(draft.b - draft.a)) }} />}
+    </div>
+  );
+}
+
+function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => string; pressKf: (e: PointerEvent, key: string) => void; timeAt: (x: number) => number; gesture: Gesture }) {
   const { tr, seq, pct } = p;
+  const [colours, setColours] = useState(false);
+  const global = (seq.markers ?? []).filter((m) => !m.trackId);
   const kind = fixtureKind(tr.kindId);
   const ks = [...tr.keyframes].sort((a, b) => a.at - b.at);
   // A light drives at most one track of a sequence.
@@ -400,8 +493,8 @@ function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => strin
   const missing = tr.fixtureId && !options.some((o) => o.value === tr.fixtureId) ? [{ value: tr.fixtureId, label: "Removed light" }] : [];
   const assigned = tr.fixtureId ? p.fixtures.find((f) => f.id === tr.fixtureId) : undefined;
   return (
-    <div class="seq-row">
-      <div class="seq-label">
+    <div class="seq-row" style={tr.color !== undefined ? { "--track-c": `var(--track-${tr.color + 1})` } : undefined}>
+      <div class={cx("seq-label", tr.color !== undefined && "has-colour")}>
         <div class="seq-label__text">
           <div class="seq-label__top">
             <input class="seq-name" value={tr.name} aria-label="Track name" onChange={(e) => { const name = (e.target as HTMLInputElement).value.trim(); if (name) p.onTrack(tr.id, (t) => ({ ...t, name })); }} />
@@ -415,10 +508,31 @@ function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => strin
         <div class="seq-label__actions">
           <IconButton icon={tr.muted ? "lightbulb-off-outline" : "lightbulb-on-outline"} label={tr.muted ? "Unmute the track" : "Mute the track (left out of playback and Live)"} kind={tr.muted ? "secondary" : "ghost"}
             onClick={() => p.onTrack(tr.id, (t) => ({ ...t, muted: !t.muted }))} />
+          <span class="menu-anchor">
+            <IconButton icon="palette-outline" label="Track colour" onClick={() => setColours((x) => !x)} />
+            {colours && (
+              <Popover onClose={() => setColours(false)}>
+                <div class="seq-swatches" role="radiogroup" aria-label="Track colour">
+                  {Array.from({ length: TRACK_COLORS }, (_, i) => (
+                    <button key={i} type="button" role="radio" aria-checked={tr.color === i} aria-label={`Colour ${i + 1}`} class={cx("seq-swatch", tr.color === i && "is-on")} style={{ background: `var(--track-${i + 1})` }}
+                      onClick={() => { setColours(false); p.onTrack(tr.id, (t) => ({ ...t, color: i })); }} />
+                  ))}
+                  <button type="button" class="seq-swatch is-none" aria-label="No colour" onClick={() => { setColours(false); p.onTrack(tr.id, (t) => { const n = { ...t }; delete n.color; return n; }); }} />
+                </div>
+              </Popover>
+            )}
+          </span>
           <IconButton icon="close" label="Remove the track" onClick={() => p.onRemoveTrack(tr.id)} />
         </div>
       </div>
       <div class={cx("seq-lane", !tr.fixtureId && "is-unassigned", tr.muted && "is-muted")} data-track={tr.id}>
+        {global.map((m) => <span key={m.id} class={cx(m.end !== undefined ? "seq-mband" : "seq-mline")} style={{ left: pct(m.at), ...(m.end !== undefined ? { width: pct(m.end - m.at) } : {}) }} />)}
+        <MarkStrip {...p} markers={(seq.markers ?? []).filter((m) => m.trackId === tr.id)} trackId={tr.id} pct={pct} timeAt={p.timeAt} gesture={p.gesture} />
+        {p.view.graph && (
+          <svg class="seq-graph" viewBox={`0 0 ${seq.durationMs} 1`} preserveAspectRatio="none" aria-hidden="true">
+            <polyline points={graphPoints(tr.keyframes, seq.durationMs)} vector-effect="non-scaling-stroke" />
+          </svg>
+        )}
         {ks.slice(1).map((k, i) => {
           const from = ks[i];
           const on = p.tile?.trackId === tr.id && p.tile.toId === k.id;
@@ -432,15 +546,45 @@ function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => strin
         })}
         {ks.map((k) => {
           const key = keyOf(tr.id, k.id);
-          return (
-            <button key={k.id} type="button" data-key={key} class={cx("seq-kf", k.id === START_KEYFRAME && "is-start", p.sel.has(key) && "is-selected", k.hue !== undefined && "is-colour", k.effect?.id && "is-effect")}
-              style={{ left: pct(k.at) }} title={`${k.id === START_KEYFRAME ? "Start · " : ""}${fmt(k.at)} · ${summary(k)}`}
-              onPointerDown={(e) => p.pressKf(e, key)} />
-          );
+          // Graph: the keyframe sits at its level (#323); otherwise in the middle of the lane.
+          const top = p.view.graph ? `calc(var(--g-top) + ${(1 - keyframeLevel(ks, k)).toFixed(4)} * var(--g-h))` : undefined;
+          const fill = p.view.fill ? lightColour(sampleTrack(ks, k.at)) : null;
+          const off = k.power === false;
+          const label = p.view.labels ? shortLabel(k, !p.view.badges) : "";
+          return [
+            <button key={k.id} type="button" data-key={key} class={cx("seq-kf", k.id === START_KEYFRAME && "is-start", p.sel.has(key) && "is-selected", k.hue !== undefined && "is-colour", k.effect?.id && "is-effect", fill && "has-fill", p.view.badges && off && "is-off")}
+              style={{ left: pct(k.at), ...(top ? { top } : {}), ...(fill ? { "--kf-fill": fill } : {}) }} title={`${k.id === START_KEYFRAME ? "Start · " : ""}${fmt(k.at)} · ${summary(k)}`}
+              onPointerDown={(e) => p.pressKf(e, key)} />,
+            label ? <span key={`l-${k.id}`} class="seq-kf-label" style={{ left: pct(k.at), ...(top ? { top } : {}) }}>{label}</span> : null,
+            p.view.badges && k.effect?.id ? <span key={`b-${k.id}`} class="seq-kf-badge" style={{ left: pct(k.at), ...(top ? { top } : {}) }}>{effectName(k.effect.id)}</span> : null,
+          ];
         })}
         <span class="seq-playhead" style={{ left: pct(p.playhead) }} />
       </div>
     </div>
+  );
+}
+
+/** One marker (#323): name, where, a point or a range, the whole sequence or one track. */
+function MarkerPanel({ m, seq, onChange, onDelete, onClose }: { m: SequenceMarker; seq: LightSequence; onChange: (fn: (m: SequenceMarker) => SequenceMarker) => void; onDelete: () => void; onClose: () => void }) {
+  const secs = (v: string) => { const n = Number(v); return Number.isFinite(n) ? Math.min(seq.durationMs, Math.max(0, snap(n * 1000))) : null; };
+  return (
+    <Panel label="Marker" width={INSPECTOR_W}>
+      <PanelHead title={m.end !== undefined ? "Range" : "Marker"}><IconButton icon="close" label="Close" onClick={onClose} /></PanelHead>
+      <PanelBody>
+        <Field label="Name"><Input sm value={m.name} maxLength={MARKER_NAME_MAX} onInput={(e) => { const name = (e.target as HTMLInputElement).value; onChange((x) => ({ ...x, name })); }} /></Field>
+        <Field label={m.end !== undefined ? "In" : "At"}><Input sm unit="s" inputMode="decimal" value={String(m.at / 1000)}
+          onChange={(e) => { const at = secs((e.target as HTMLInputElement).value); if (at !== null && (m.end === undefined || at < m.end)) onChange((x) => ({ ...x, at })); }} /></Field>
+        <Checkbox checked={m.end !== undefined} onClick={() => onChange((x) => { const n = { ...x }; if (n.end !== undefined) delete n.end; else n.end = Math.min(seq.durationMs, n.at + 1000); return n.end === n.at ? x : n; })}>Range (in and out)</Checkbox>
+        {m.end !== undefined && <Field label="Out"><Input sm unit="s" inputMode="decimal" value={String(m.end / 1000)}
+          onChange={(e) => { const end = secs((e.target as HTMLInputElement).value); if (end !== null && end > m.at) onChange((x) => ({ ...x, end })); }} /></Field>}
+        <Field as="div" label="On"><Select label="Marker scope" value={m.trackId ?? ""} width="100%"
+          onChange={(v) => onChange((x) => { const n = { ...x }; if (v) n.trackId = v; else delete n.trackId; return n; })}
+          options={[{ value: "", label: "The whole sequence" }, ...seq.tracks.map((t) => ({ value: t.id, label: t.name }))]} /></Field>
+        <p class="meta">Markers only help you find your way; playback ignores them.</p>
+        <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={onDelete}>Delete marker</Button></div>
+      </PanelBody>
+    </Panel>
   );
 }
 

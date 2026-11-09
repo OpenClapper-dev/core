@@ -143,6 +143,10 @@ Some look-alikes are kept apart on purpose because they differ by a few dp or a 
 
 To update the design system: re-export from Claude Design, copy the changed CSS over `packages/ui/src/design/`, carry colour changes into the palettes in `apps/mobile/src/ui/theme.tsx`, and check the screens that use them.
 
+## Track colours (#323)
+
+`--track-1` … `--track-8` in `colors.css`, for Sun and Set: the Sequences editor's track colours (label stripe, lane tint, keyframe border, graph line, a track's markers), each at least 3:1 on `--surface` and `--surface-sunken`. A keyframe's **light colour** fill (View → Light colour) is the light's real colour computed from kelvin or hue (`sequenceView.tsx`): content, like a photo, not a theme colour.
+
 ## Desktop v2 tokens (epic #90)
 
 Defined for Sun and Set in `packages/ui/src/design/colors.css`: `--marquee-bg` / `--marquee-border` (the desktop's rubber band, the accent at low alpha and full), `--taskview-text` (text on the task view's scrim, which is near-black in both themes), `--split-grip` (the side-by-side grip's thumb, `--border-strong`). The recycle bin's drop highlight uses `--danger-tint` and `--danger`.

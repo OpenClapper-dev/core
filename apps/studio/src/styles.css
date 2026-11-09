@@ -666,7 +666,7 @@ button { font: inherit; }
 .seq-tick { position: absolute; top: 4px; transform: translateX(-50%); font-size: var(--text-micro); color: var(--text-dim); pointer-events: none; }
 .seq-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
 .seq-thumb { position: absolute; bottom: 0; width: 14px; height: 14px; margin-left: -7px; border-radius: 3px 3px 7px 7px; background: var(--accent); cursor: grab; }
-.seq-kf { position: absolute; top: 40%; width: var(--kf); height: var(--kf); margin: calc(var(--kf) / -2) 0 0 calc(var(--kf) / -2); transform: rotate(45deg); border: var(--bw-strong) solid var(--border-strong); background: var(--surface); cursor: grab; padding: 0; touch-action: none; z-index: 2; }
+.seq-kf { position: absolute; top: calc(50% - 2px); width: var(--kf); height: var(--kf); margin: calc(var(--kf) / -2) 0 0 calc(var(--kf) / -2); transform: rotate(45deg); border: var(--bw-strong) solid var(--border-strong); background: var(--surface); cursor: grab; padding: 0; touch-action: none; z-index: 2; }
 .seq-kf.is-start { transform: none; border-radius: 2px; background: var(--border-strong); }
 .seq-kf.is-colour { background: var(--accent-tint); }
 .seq-kf.is-effect { border-style: dashed; }
@@ -686,6 +686,39 @@ button { font: inherit; }
 .seq-lock.is-locked { pointer-events: none; opacity: 0.7; }
 .seq-noproxy { position: absolute; bottom: var(--space-3); left: var(--space-4); }
 .seq-label__actions { display: flex; flex-direction: column; }
+/* #323: track colours, markers, view options. */
+.seq-row { --track-c: initial; }
+.seq-label.has-colour { box-shadow: inset 4px 0 0 var(--track-c); padding-left: var(--space-2); }
+.seq-row[style] .seq-lane { background: color-mix(in srgb, var(--track-c) 9%, var(--surface-sunken)); }
+.seq-row[style] .seq-kf:not(.is-selected) { border-color: var(--track-c); }
+.seq-swatches { display: grid; grid-template-columns: repeat(3, 28px); gap: var(--space-2); padding: var(--space-2); }
+.seq-swatch { width: 28px; height: 28px; border-radius: 50%; border: var(--bw) solid var(--border); cursor: pointer; padding: 0; }
+.seq-swatch.is-on { outline: var(--bw-strong) solid var(--focus); outline-offset: 2px; }
+.seq-swatch.is-none { background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--border-subtle) 4px 6px); }
+.seq-viewmenu { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3); min-width: 220px; }
+.seq-row--marks { min-height: 24px; }
+.seq-marks, .seq-lane__marks { position: relative; cursor: copy; }
+.seq-marks { height: 24px; border-bottom: var(--bw) dashed var(--border-subtle); }
+.seq-lane__marks { position: absolute; left: 0; right: 0; top: 0; height: 14px; z-index: 3; }
+.seq-mark { position: absolute; top: 2px; bottom: 2px; padding: 0 4px 0 6px; border: 0; border-left: var(--bw-strong) solid var(--track-c, var(--text)); background: transparent; color: var(--text); font: var(--weight-semibold) var(--text-micro)/1 var(--font-sans); white-space: nowrap; cursor: pointer; display: flex; align-items: center; overflow: visible; }
+.seq-mark.is-range { background: color-mix(in srgb, var(--track-c, var(--text)) 16%, transparent); border-right: var(--bw) solid var(--track-c, var(--text)); overflow: hidden; }
+.seq-mark.is-selected { outline: var(--bw-strong) solid var(--accent); }
+.seq-mark.is-draft { pointer-events: none; border-style: dashed; }
+.seq-lane__marks .seq-mark { top: 0; bottom: 0; }
+.seq-mline { position: absolute; top: 0; bottom: 0; width: 0; border-left: var(--bw) dashed var(--text-dim); pointer-events: none; }
+.seq-mband { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--text) 6%, transparent); pointer-events: none; }
+/* Intensity graph: keyframes at their level between the track's marker strip and the fade strip. */
+.seq-lanes.view-graph .seq-row:not(:first-child):not(.seq-row--marks) { min-height: calc(var(--lane-h) + 48px); }
+.seq-lane { --g-top: calc(16px + var(--kf, 14px) / 2); --g-h: calc(100% - var(--g-top) - 20px - var(--kf, 14px) / 2); }
+.seq-graph { position: absolute; left: 0; width: 100%; top: var(--g-top); height: var(--g-h); overflow: visible; pointer-events: none; }
+.seq-graph polyline { fill: none; stroke: var(--track-c, var(--accent)); stroke-width: 2; }
+.seq-kf.has-fill { background: var(--kf-fill); }
+.seq-kf.is-selected.has-fill { background: var(--kf-fill); outline: var(--bw-strong) solid var(--accent); outline-offset: 2px; }
+.seq-kf.is-off { background: var(--surface); }
+.seq-kf.is-off::after { content: ""; position: absolute; left: -15%; right: -15%; top: calc(50% - 1px); height: 2px; background: var(--danger); transform: rotate(-90deg); }
+.seq-kf-label, .seq-kf-badge { position: absolute; top: calc(50% - 2px); font: var(--weight-semibold) var(--text-micro)/1 var(--font-sans); white-space: nowrap; pointer-events: none; z-index: 2; }
+.seq-kf-label { margin-left: calc(var(--kf) / 2 + 6px); transform: translateY(-50%); padding: 1px 3px; border-radius: var(--radius-xs, 3px); background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--text-dim); }
+.seq-kf-badge { transform: translate(-50%, calc(-100% - var(--kf) / 2 - 3px)); padding: 1px 4px; border-radius: var(--radius-xs, 3px); background: var(--surface); border: var(--bw) solid var(--border); color: var(--text); }
 .seq-lane.is-muted { opacity: 0.35; background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--border-subtle) 6px 7px); }
 .seq-gap.is-fade.is-stepped { border-style: dashed; }
 

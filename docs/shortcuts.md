@@ -311,6 +311,8 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | Esc | Clear the selection |
 | Space / ⌘↵ | Play from the playhead; again: stop and go back to where play started |
 | K | Stop where it is |
+| M | A marker at the playhead |
+| ⇧M | A range: in point, then again for the out point |
 | V | Select mode: clicks select, never add |
 | I | Insert mode: a click on a lane adds a keyframe |
 
