@@ -35,8 +35,10 @@ export interface Settings {
   stageBg: string | null;
   /** Per app (registry id): its own stage background, overriding `stageBg` inside its windows. */
   stageBgApps: Record<string, string>;
+  /** Keyframe size in the Sequences editor (#321): S is 14 px, M 20, L 28. */
+  keyframeSize: "s" | "m" | "l";
 }
-export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true, taskbarPosition: "bottom", taskbarAlign: "start", stageBg: null, stageBgApps: {} };
+export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true, taskbarPosition: "bottom", taskbarAlign: "start", stageBg: null, stageBgApps: {}, keyframeSize: "s" };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 /** A stored colour, or null when it is not #rrggbb (hand-edited storage never reaches the CSS). */
@@ -54,6 +56,7 @@ function read(): Settings {
       taskbarPosition: raw.taskbarPosition === "top" || raw.taskbarPosition === "left" || raw.taskbarPosition === "right" ? raw.taskbarPosition : "bottom",
       taskbarAlign: raw.taskbarAlign === "center" ? "center" : "start",
       stageBg: hexOrNull(raw.stageBg),
+      keyframeSize: raw.keyframeSize === "m" || raw.keyframeSize === "l" ? raw.keyframeSize : "s",
       stageBgApps: Object.fromEntries(Object.entries(raw.stageBgApps && typeof raw.stageBgApps === "object" ? raw.stageBgApps : {}).flatMap(([k, v]) => { const h = hexOrNull(v); return h ? [[k, h]] : []; })),
     };
   } catch { return { ...DEFAULT_SETTINGS }; }

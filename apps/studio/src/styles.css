@@ -648,7 +648,7 @@ button { font: inherit; }
 .seq-bar .f-field { flex-direction: row; align-items: center; gap: var(--space-2); }
 .seq-time { color: var(--text-dim); font-size: var(--text-caption); }
 .seq-lanes { display: flex; flex-direction: column; padding: var(--space-2) var(--space-4); user-select: none; }
-.seq-row { display: grid; grid-template-columns: 220px 1fr; align-items: stretch; min-height: 56px; border-bottom: var(--bw) solid var(--border-subtle); }
+.seq-row { display: grid; grid-template-columns: 220px 1fr; align-items: stretch; min-height: var(--lane-h, 56px); border-bottom: var(--bw) solid var(--border-subtle); }
 .seq-row:first-child { min-height: 32px; }
 .seq-label { display: flex; align-items: center; gap: var(--space-1); padding-right: var(--space-2); min-width: 0; }
 .seq-label__text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -656,12 +656,17 @@ button { font: inherit; }
 .seq-name:hover, .seq-name:focus { border-color: var(--border); outline: none; }
 .seq-ruler, .seq-lane { position: relative; }
 .seq-ruler { height: 32px; cursor: ew-resize; }
-.seq-lane { background: var(--surface-sunken); cursor: crosshair; }
+.seq-lane { background: var(--surface-sunken); cursor: default; }
+.seq-lanes.is-insert .seq-lane { cursor: crosshair; }
+/* Keyframe sizes (#321): S, M, L; the lanes grow with them. */
+.seq-lanes { --kf: 14px; --lane-h: 56px; }
+.seq-lanes.kf-m { --kf: 20px; --lane-h: 68px; }
+.seq-lanes.kf-l { --kf: 28px; --lane-h: 84px; }
 .seq-lane.is-unassigned { opacity: 0.6; }
 .seq-tick { position: absolute; top: 4px; transform: translateX(-50%); font-size: var(--text-micro); color: var(--text-dim); pointer-events: none; }
 .seq-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; }
 .seq-thumb { position: absolute; bottom: 0; width: 14px; height: 14px; margin-left: -7px; border-radius: 3px 3px 7px 7px; background: var(--accent); cursor: grab; }
-.seq-kf { position: absolute; top: 40%; width: 14px; height: 14px; margin: -7px 0 0 -7px; transform: rotate(45deg); border: var(--bw-strong) solid var(--border-strong); background: var(--surface); cursor: grab; padding: 0; touch-action: none; z-index: 2; }
+.seq-kf { position: absolute; top: 40%; width: var(--kf); height: var(--kf); margin: calc(var(--kf) / -2) 0 0 calc(var(--kf) / -2); transform: rotate(45deg); border: var(--bw-strong) solid var(--border-strong); background: var(--surface); cursor: grab; padding: 0; touch-action: none; z-index: 2; }
 .seq-kf.is-start { transform: none; border-radius: 2px; background: var(--border-strong); }
 .seq-kf.is-colour { background: var(--accent-tint); }
 .seq-kf.is-effect { border-style: dashed; }

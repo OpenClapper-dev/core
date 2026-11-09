@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import {
-  commandsFor, CURVES, effectName, FIXTURE_KINDS, fixtureKind, inFade, nativeStep, sampleTrack, SEQUENCE_MAX_MS, SEQUENCE_TICK_MS, START_KEYFRAME, startKeyframe,
-  type Curve, type EffectId, type FixtureLive, type Keyframe, type LightSequence, type SequenceSample, type SequenceTrack,
+  CURVES, effectName, FIXTURE_KINDS, fixtureKind, sampleTrack, SEQUENCE_MAX_MS, SequencePlayer, START_KEYFRAME, startKeyframe,
+  type Curve, type EffectId, type FixtureLive, type Keyframe, type LightSequence, type SendLight, type SequenceTrack,
 } from "@openclapper/vocab";
 import { Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { fetchFixtures, type ServerFixture } from "../api";
@@ -13,6 +13,7 @@ import { BatteryChip, powerOf } from "../power";
 import { setPlayingFixtures } from "../sequencePlayback";
 import { useProjectId } from "../project";
 import { deleteSequence, getSequences, upsertSequence, useSequences } from "../sequences";
+import { updateSettings, useSettings } from "../settings";
 import type { AppProps } from "./registry";
 
 /**
@@ -56,70 +57,42 @@ export function SequencesApp(_p: AppProps) {
   const [live, setLive] = useState(true);
   const [sel, setSel] = useState<ReadonlySet<string>>(new Set());
   const [tile, setTile] = useState<{ trackId: string; toId: string } | null>(null);
+  /** Select (default): clicks never add; Insert: a click on a lane adds a keyframe (#321). Alt+click adds in either. */
+  const [mode, setMode] = useState<"select" | "insert">("select");
+  const kfSize = useSettings().keyframeSize;
 
-  const sent = useRef(new Map<string, SequenceSample | null>());
-  const fadeKeys = useRef(new Map<string, string | null>());
-  /** Per light with switchable smoothing (NEEWER): what it was last told; null after a reset. */
-  const smoothSent = useRef(new Map<string, boolean>());
   const seqRef = useRef(seq);
   seqRef.current = seq;
+  const proxyRef = useRef(proxy);
+  proxyRef.current = proxy;
+  /** Commands go through the proxy; nothing without one. */
+  const sendLight: SendLight = (id, cmd) => { if (proxyRef.current.proxy) proxyRef.current.send(id, cmd); };
+  /** Live (scrubbing, edits) and Play share what was sent, so a play starts from what the lights show. */
+  const player = useRef<SequencePlayer | null>(null);
+  player.current ??= new SequencePlayer(() => seqRef.current, sendLight, { now: () => performance.now(), setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>) }, {
+    tick: (t) => setPlayhead(t),
+    end: (t) => { setPlayhead(t); setPlaying(false); },
+  });
 
   const save = (s: LightSequence) => { upsertSequence(s); };
   /** Edits start from the stored sequence, not this render's copy: quick clicks and drags must not undo each other. */
   const current = () => getSequences().find((s) => s.id === selId) ?? null;
   const patch = (fn: (s: LightSequence) => LightSequence) => { const cur = current(); if (cur) save(fn(cur)); };
   const patchTrack = (trackId: string, fn: (t: SequenceTrack) => SequenceTrack) => patch((s) => ({ ...s, tracks: s.tracks.map((t) => (t.id === trackId ? fn(t) : t)) }));
-  const native = (t: SequenceTrack) => !!fixtureKind(t.kindId)?.caps.fade;
 
-  /**
-   * Samples every assigned track at t and sends the difference to what its light last got. While
-   * playing, a light that fades by itself gets one native fade per tile and nothing in between.
-   */
-  const emit = (t: number, playback: boolean) => {
-    const s = seqRef.current;
-    if (!s || !proxy.proxy) return;
-    for (const tr of s.tracks) {
-      if (!tr.fixtureId || tr.muted) continue;
-      const prev = sent.current.get(tr.id) ?? null;
-      const step = playback && native(tr)
-        ? nativeStep(tr.keyframes, t, prev, fadeKeys.current.get(tr.id) ?? null)
-        : { ...commandsFor(prev, sampleTrack(tr.keyframes, t)), key: null };
-      // Lights that can switch smoothing: instant at jumps, smooth inside fades (and while scrubbing).
-      if (fixtureKind(tr.kindId)?.caps.smoothing) {
-        const smooth = !playback || inFade(tr.keyframes, t);
-        if (smoothSent.current.get(tr.id) !== smooth) { smoothSent.current.set(tr.id, smooth); proxy.send(tr.fixtureId, { op: "smooth", on: smooth }); }
-      }
-      sent.current.set(tr.id, step.sent);
-      fadeKeys.current.set(tr.id, step.key);
-      for (const c of step.commands) proxy.send(tr.fixtureId, c);
-    }
-  };
+  const emit = (t: number) => { const sq = seqRef.current; if (sq && proxy.proxy) player.current!.emitter.emit(sq, t, false, sendLight); };
 
-  // The runner: a 100 ms tick while playing.
+  // The runner (shared with the phone, vocab/sequencePlayer.ts): a tick every SEQUENCE_TICK_MS while playing.
   useEffect(() => {
     if (!playing || !seq) return;
-    sent.current.clear();
-    fadeKeys.current.clear();
-    smoothSent.current.clear();
     setPlayingFixtures(seq.tracks.flatMap((t) => (t.fixtureId && !t.muted ? [t.fixtureId] : [])));
-    let start = performance.now() - playhead;
-    const h = setInterval(() => {
-      const s = seqRef.current;
-      if (!s) return;
-      let t = performance.now() - start;
-      if (t >= s.durationMs) {
-        if (s.loop) { start += s.durationMs; t -= s.durationMs; sent.current.clear(); fadeKeys.current.clear(); }
-        else { emit(s.durationMs, true); setPlayhead(s.durationMs); setPlaying(false); return; }
-      }
-      emit(t, true);
-      setPlayhead(t);
-    }, SEQUENCE_TICK_MS);
-    return () => { clearInterval(h); setPlayingFixtures([]); };
+    player.current!.play(playhead);
+    return () => { player.current!.stop(); setPlayingFixtures([]); };
   }, [playing, selId]);
 
   // Live: while stopped, the lights follow the playhead and every edit.
   const seqKey = seq ? JSON.stringify(seq.tracks) : "";
-  useEffect(() => { if (!playing && live) emit(playhead, false); }, [playhead, seqKey, live, playing, !!proxy.proxy]);
+  useEffect(() => { if (!playing && live) emit(playhead); }, [playhead, seqKey, live, playing, !!proxy.proxy]);
 
   /** Play from the playhead; while playing: stop and return to where play started (Space, as in DaVinci Resolve). */
   const play = () => {
@@ -155,6 +128,8 @@ export function SequencesApp(_p: AppProps) {
     clear: () => { if (!sel.size && !tile) return false; setSel(new Set()); setTile(null); },
     play: () => play(),
     stopHere: () => stopHere(),
+    selectMode: () => setMode("select"),
+    insertMode: () => setMode("insert"),
   }), !!seq);
 
   const addTrack = (kindId: string) => {
@@ -192,13 +167,15 @@ export function SequencesApp(_p: AppProps) {
                 onChange={(e) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) patch((s) => ({ ...s, durationMs: Math.min(SEQUENCE_MAX_MS, snap(v * 1000)) })); }} /></Field>
               <Switch on={seq.loop} onClick={() => patch((s) => ({ ...s, loop: !s.loop }))}>Loop</Switch>
               <Switch on={live} onClick={() => setLive(!live)}>Live</Switch>
+              <Seg label="Click on a lane" value={mode} onChange={setMode} options={[{ id: "select", icon: "cursor-default-outline", label: "Select", title: "Select (V): clicks select, never add" }, { id: "insert", icon: "plus", label: "Insert", title: "Insert (I): a click on a lane adds a keyframe; Alt+click adds in Select too" }]} />
+              <Seg label="Keyframe size" value={kfSize} onChange={(v) => updateSettings({ keyframeSize: v })} options={[{ id: "s", label: "S" }, { id: "m", label: "M" }, { id: "l", label: "L" }]} />
               <ToolbarSpacer />
               <span class="num seq-time">{fmt(playhead)} / {fmt(seq.durationMs)}</span>
               <IconButton icon="skip-previous" label="To the start" onClick={() => { setPlaying(false); setPlayhead(0); }} />
               <Button size="sm" icon={playing ? "stop" : "play"} disabled={!proxy.proxy && !playing} title={playing ? "Stop and go back (Space); K stops here" : "Play from the playhead (Space)"} onClick={play}>{playing ? "Stop" : "Play"}</Button>
               <IconButton icon="delete-outline" label="Delete the sequence" onClick={() => void remove()} />
             </div>
-            <Lanes seq={seq} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={playhead} playing={playing} sel={sel} tile={tile}
+            <Lanes seq={seq} mode={mode} kfSize={kfSize} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={playhead} playing={playing} sel={sel} tile={tile}
               onSeek={(t) => { if (!playing) setPlayhead(t); }}
               onAdd={(trackId, at) => {
                 const tr = current()?.tracks.find((t) => t.id === trackId);
@@ -224,7 +201,7 @@ export function SequencesApp(_p: AppProps) {
             <div class="seq-add">
               <Select label="Add a track" prefix="Add track" value="" onChange={(id) => id && addTrack(id)}
                 options={[{ value: "", label: "Pick a light type…" }, ...TRACK_KINDS.map((k) => ({ value: k.id, label: `${k.brand} ${k.model}` }))]} />
-              <p class="meta">Click a lane to add a keyframe; Shift-click to add to the selection, or drag a box over the lanes. Drag a selected keyframe to move them all (0.1 s steps); Delete removes them. Click the strip between two keyframes to fade from one to the other. Drag the playhead's thumb to scrub.</p>
+              <p class="meta">In Insert mode (I) a click on a lane adds a keyframe; in Select mode (V) Alt+click does. Shift-click to add to the selection, or drag a box over the lanes. Drag a selected keyframe to move them all (0.1 s steps); Delete removes them. Click the strip between two keyframes to fade from one to the other. Drag the playhead's thumb to scrub.</p>
             </div>
           </div>
           {selKf && selTrack && (
@@ -260,7 +237,7 @@ export function SequencesApp(_p: AppProps) {
 }
 
 interface LanesProps {
-  seq: LightSequence; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
+  seq: LightSequence; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
   onSeek: (t: number) => void; onAdd: (trackId: string, at: number) => void;
   onSelect: (keys: string[], add: boolean) => void; onToggle: (key: string) => void;
   onMoveAll: (moves: Map<string, number>) => void; onTile: (trackId: string, toId: string) => void;
@@ -305,7 +282,7 @@ function Lanes(p: LanesProps) {
   const pressLanes = (e: PointerEvent) => {
     const target = e.target as HTMLElement;
     if (e.button !== 0 || target.closest(".seq-kf, .seq-gap, .seq-label, .seq-ruler")) return;
-    const x0 = e.clientX, y0 = e.clientY, add = e.shiftKey;
+    const x0 = e.clientX, y0 = e.clientY, add = e.shiftKey, insert = p.mode === "insert" || e.altKey;
     const lane = target.closest<HTMLElement>(".seq-lane");
     let moved = false;
     gesture((ev) => {
@@ -314,7 +291,8 @@ function Lanes(p: LanesProps) {
       setBox({ x0, y0, x1: ev.clientX, y1: ev.clientY });
     }, (ev) => {
       setBox(null);
-      if (!moved) { if (lane?.dataset.track) p.onAdd(lane.dataset.track, timeAt(ev.clientX)); return; }
+      // A plain click: adds in Insert mode (or with Alt); in Select mode it clears the selection.
+      if (!moved) { if (insert && lane?.dataset.track) p.onAdd(lane.dataset.track, timeAt(ev.clientX)); else if (!add) p.onSelect([], false); return; }
       const [l, r] = [Math.min(x0, ev.clientX), Math.max(x0, ev.clientX)], [t, b] = [Math.min(y0, ev.clientY), Math.max(y0, ev.clientY)];
       const hit = [...(lanesRef.current?.querySelectorAll<HTMLElement>(".seq-kf") ?? [])].filter((el) => {
         const q = el.getBoundingClientRect(), cx = q.left + q.width / 2, cy = q.top + q.height / 2;
@@ -348,7 +326,7 @@ function Lanes(p: LanesProps) {
   };
 
   return (
-    <div class="seq-lanes" ref={lanesRef} onPointerDown={pressLanes}>
+    <div class={cx("seq-lanes", `kf-${p.kfSize}`, p.mode === "insert" && "is-insert")} ref={lanesRef} onPointerDown={pressLanes}>
       <div class="seq-row">
         <div class="seq-label" />
         <div class="seq-ruler" ref={rulerRef} onPointerDown={scrub}>

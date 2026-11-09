@@ -264,6 +264,8 @@ export const SHORTCUTS = [
   { scope: "sequences", action: "clear", keys: ["Escape"], label: "Clear the selection" },
   { scope: "sequences", action: "play", keys: [" ", "Mod+Enter"], label: "Play from the playhead; again: stop and go back to where play started" },
   { scope: "sequences", action: "stopHere", keys: ["k"], label: "Stop where it is" },
+  { scope: "sequences", action: "selectMode", keys: ["v"], label: "Select mode: clicks select, never add" },
+  { scope: "sequences", action: "insertMode", keys: ["i"], label: "Insert mode: a click on a lane adds a keyframe" },
 
   // ---- Dialogs and controls
   { scope: "newshot", action: "undo", keys: ["Mod+z"], label: "Undo the last shape" },
