@@ -283,3 +283,24 @@ test("reconnect all (#318): every link closes, presence is forgotten, held links
   await settle();
   assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "ready"]);
 });
+
+test("a readout is only shown while connected: a dropped link clears it (#318)", async () => {
+  const time = fakeTime();
+  let sink: ((id: string, t: { at: number; battery?: number }) => void) | null = null;
+  const driver: Driver = { id: "fake", linkKey: (f) => f.address, rate: { minIntervalMs: 0 }, addressesFor: (k) => [k], open: async (_l, _f, s) => { sink = s; return { send: async () => {}, close: async () => {} }; } };
+  const links: FakeLink[] = [];
+  const hub = new Hub({
+    fixtures: () => [fixture("a", "AA:00:00:00:00:01")],
+    driverFor: () => driver,
+    connect: async (address) => { const l = new FakeLink(address); links.push(l); return l; },
+    timers: time,
+    clock: { now: () => time.now, wait: async () => {} },
+    log: () => {},
+  });
+  hub.acquire(["a"], "proxy");
+  await settle();
+  sink!("a", { at: 0, battery: 76 });
+  assert.equal(hub.status("a").telemetry?.battery, 76);
+  links[0].lose();
+  assert.equal(hub.status("a").telemetry, null);
+});

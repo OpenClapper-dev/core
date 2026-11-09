@@ -62,3 +62,19 @@ test("commands are camera control messages, written with response; light command
   assert.deepEqual(writes, [{ chr: BMD_OUTGOING, bytes: toHex(encodeCcu({ ...m, data: [...m.data] })), withResponse: true }]);
   await assert.rejects(s.send(cam, { op: "intensity", value: 1 }));
 });
+
+test("per-output tools and overlays set through the phone are reported per target, and kept across a reconnect", async () => {
+  const b: Fixture = { ...cam, id: "c-outputs" };
+  const { link, driver, tick } = setup();
+  let seen: CameraTelemetry | undefined;
+  const s = await driver.open(link, [b], (_id, t) => { if (t.camera) seen = t.camera; });
+  await s.send(b, { op: "ccu", message: { category: 4, parameter: 1, type: 2, operation: 0, data: [0x6, 0x2] } });
+  await s.send(b, { op: "ccu", message: { category: 3, parameter: 0, type: 2, operation: 0, data: [0x1, 0x3] } });
+  tick();
+  assert.deepEqual(seen?.outputs, { "4.1": { 2: 0x6 }, "3.0": { 1: 0x1, 2: 0x1 } });
+  await s.close();
+  const again = setup();
+  seen = undefined;
+  await again.driver.open(again.link, [b], (_id, t) => { if (t.camera) seen = t.camera; });
+  assert.deepEqual(seen?.outputs?.["4.1"], { 2: 0x6 });
+});

@@ -1,7 +1,6 @@
-import { useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import { BMD_STATUS_FLAGS, CCU_PARAMS, TARGET_DISPLAYS, TOOL_BITS, type CcuMessage, type CcuType, type FixtureLive } from "@openclapper/vocab";
-import { Banner, Button, Checkbox, Field, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select } from "@openclapper/ui";
+import { Banner, Button, Checkbox, Field, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch } from "@openclapper/ui";
 import type { ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import type { LightProxy } from "../lightProxy";
@@ -42,19 +41,18 @@ export function CameraPanel({ f, live, proxy, onClose, children }: { f: ServerFi
   const str = (key: string): string | null => (typeof cam?.params[key] === "string" ? (cam!.params[key] as string) : null);
   const n0 = (key: string, fallback: number) => nums(key)?.[0] ?? fallback;
 
-  // The camera does not report the per-output tools (4.1) or overlays (3.0): the panel keeps what it set.
-  const [tools, setTools] = useState<Record<Output, number>>({ lcd: 0, hdmi: 0 });
-  const [overlays, setOverlays] = useState<Record<Output, number>>({ lcd: 0, hdmi: 0 });
-  const tool = (out: Output, bit: number, on: boolean) => {
-    const bits = on ? tools[out] | bit : tools[out] & ~bit;
-    setTools({ ...tools, [out]: bits });
-    send(4, 1, 2, [bits, TARGET_DISPLAYS[out]]);
+  // The camera does not report the per-output tools (4.1) or overlays (3.0): the phone keeps what was
+  // set through it (CameraTelemetry.outputs); undefined: not set since the phone app started.
+  const outBits = (key: string, out: Output): number | undefined => cam?.outputs?.[key]?.[TARGET_DISPLAYS[out]];
+  const flip = (key: "4.1" | "3.0", out: Output, bit: number) => {
+    const bits = (outBits(key, out) ?? 0) ^ bit;
+    send(key === "4.1" ? 4 : 3, key === "4.1" ? 1 : 0, 2, [bits, TARGET_DISPLAYS[out]]);
   };
-  const overlay = (out: Output, bit: number, on: boolean) => {
-    const bits = on ? overlays[out] | bit : overlays[out] & ~bit;
-    setOverlays({ ...overlays, [out]: bits });
-    send(3, 0, 2, [bits, TARGET_DISPLAYS[out]]);
-  };
+  const rows: { label: string; key: "4.1" | "3.0"; bit: number }[] = [
+    { label: "Zebra", key: "4.1", bit: TOOL_BITS.zebra }, { label: "Focus assist", key: "4.1", bit: TOOL_BITS.focusAssist }, { label: "False colour", key: "4.1", bit: TOOL_BITS.falseColor },
+    { label: "Status overlay", key: "3.0", bit: 0x1 }, { label: "Frame guides", key: "3.0", bit: 0x2 },
+  ];
+  const unknownOutputs = OUTPUTS.some((o) => outBits("4.1", o.id) === undefined || outBits("3.0", o.id) === undefined);
 
   const status = cam?.status ?? 0;
   const flags = (Object.entries(BMD_STATUS_FLAGS) as [string, number][]).filter(([, bit]) => status & bit).map(([k]) => k);
@@ -126,15 +124,15 @@ export function CameraPanel({ f, live, proxy, onClose, children }: { f: ServerFi
             <table class="camera-outputs">
               <thead><tr><th /> {OUTPUTS.map((o) => <th key={o.id}>{o.label}</th>)}</tr></thead>
               <tbody>
-                {([["Zebra", TOOL_BITS.zebra], ["Focus assist", TOOL_BITS.focusAssist], ["False colour", TOOL_BITS.falseColor]] as const).map(([label, bit]) => (
-                  <tr key={label}><td>{label}</td>{OUTPUTS.map((o) => <td key={o.id}><Checkbox checked={!!(tools[o.id] & bit)} onClick={() => tool(o.id, bit, !(tools[o.id] & bit))}>{""}</Checkbox></td>)}</tr>
-                ))}
-                {([["Status overlay", 0x1], ["Frame guides", 0x2]] as const).map(([label, bit]) => (
-                  <tr key={label}><td>{label}</td>{OUTPUTS.map((o) => <td key={o.id}><Checkbox checked={!!(overlays[o.id] & bit)} onClick={() => overlay(o.id, bit, !(overlays[o.id] & bit))}>{""}</Checkbox></td>)}</tr>
+                {rows.map((r) => (
+                  <tr key={r.label}><td>{r.label}</td>{OUTPUTS.map((o) => {
+                    const bits = outBits(r.key, o.id);
+                    return <td key={o.id} class={bits === undefined ? "is-unknown" : undefined} title={bits === undefined ? "Unknown: not set from here since the phone app started" : undefined}><Switch on={!!((bits ?? 0) & r.bit)} onClick={() => flip(r.key, o.id, r.bit)}>{""}</Switch></td>;
+                  })}</tr>
                 ))}
               </tbody>
             </table>
-            <p class="meta">The camera does not report these, so the ticks show what was set from here (all off at first).</p>
+            <p class="meta">{unknownOutputs ? "The camera does not report these: dimmed ones are unknown until set from here. Switching one also sets the dimmed ones of its group on that output to off." : "The camera does not report these: they show what was set from here. A change on the camera itself is not seen."}</p>
             <Range label="Zebra level" value={n0("4.2", 0.95)} min={0} max={1} step={0.01} format={(x) => `${Math.round(x * 100)} %`} onChange={(x) => send(4, 2, 128, [x])} />
             <Range label="Peaking level" value={n0("4.3", 0.5)} min={0} max={1} step={0.01} format={(x) => `${Math.round(x * 100)} %`} onChange={(x) => send(4, 3, 128, [x])} />
             <div class="two-col">

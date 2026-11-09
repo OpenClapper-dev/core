@@ -9,6 +9,10 @@ import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../type
 export const REPORT_EVERY_MS = 250;
 /** Incoming messages kept for the Studio's probe log. */
 const LOG_SIZE = 40;
+/** Per-output values set through the phone, per fixture; kept across reconnects (CameraTelemetry.outputs). */
+const OUTPUTS = new Map<string, Record<string, Record<number, number>>>();
+const PER_OUTPUT = new Set(["4.1", "3.0"]);
+
 /** The name the camera lists in its Bluetooth menu. */
 export const DEVICE_NAME = "OpenClapper";
 
@@ -38,12 +42,22 @@ export function bmdCamera(o: BmdOptions = {}): Driver {
     addressesFor: (key) => [key],
     async open(link: Link, fixtures: Fixture[], sink: (id: string, t: Telemetry) => void): Promise<Session> {
       const f = fixtures.find((x) => x.address === link.address) ?? fixtures[0];
-      const cam: CameraTelemetry = { params: {}, log: [] };
+      const outputs = f ? OUTPUTS.get(f.id) ?? {} : {};
+      if (f) OUTPUTS.set(f.id, outputs);
+      const cam: CameraTelemetry = { params: {}, log: [], outputs };
+      /** [bits, targets]: every target display bit in targets takes bits. */
+      const setOutputs = (key: string, data: number[]) => {
+        const [bits, targets] = data;
+        if (bits == null || targets == null) return;
+        const byTarget = (outputs[key] ??= {});
+        for (let bit = 1; bit <= 0x10; bit <<= 1) if (targets & bit) byTarget[bit] = bits;
+        dirty = true;
+      };
       let dirty = true;
       const report = () => {
         if (!dirty || !f) return;
         dirty = false;
-        sink(f.id, { at: now(), camera: { ...cam, params: { ...cam.params }, log: [...cam.log] } });
+        sink(f.id, { at: now(), camera: { ...cam, params: { ...cam.params }, log: [...cam.log], outputs: structuredClone(outputs) } });
       };
       try {
         const v = await link.read?.(BMD_SERVICE, BMD_PROTOCOL_VERSION);
@@ -57,7 +71,10 @@ export function bmdCamera(o: BmdOptions = {}): Driver {
         await link.notify(BMD_SERVICE, BMD_INCOMING, (b) => {
           const msgs = decodeCcu(b);
           for (const m of msgs) {
-            cam.params[ccuKey(m.category, m.parameter)] = m.data;
+            const key = ccuKey(m.category, m.parameter);
+            cam.params[key] = m.data;
+            // Should a firmware report them with a target after all, that is the truth.
+            if (PER_OUTPUT.has(key) && Array.isArray(m.data)) setOutputs(key, m.data);
             cam.log.unshift(`${m.category}.${m.parameter} t${m.type} op${m.operation}: ${typeof m.data === "string" ? JSON.stringify(m.data) : `[${m.data.join(", ")}]`}`);
           }
           if (!msgs.length) cam.log.unshift(`? ${toHex(b)}`);
@@ -77,6 +94,8 @@ export function bmdCamera(o: BmdOptions = {}): Driver {
           const bytes = encodeCcu(cmd.message);
           log("debug", "bmd: write", { bytes: toHex(bytes) });
           await link.write(BMD_SERVICE, BMD_OUTGOING, bytes, true);
+          const key = ccuKey(cmd.message.category, cmd.message.parameter);
+          if (PER_OUTPUT.has(key) && cmd.message.operation === 0 && Array.isArray(cmd.message.data)) setOutputs(key, cmd.message.data);
         },
         async close() { stopEvery(timer); for (const off of offs) off(); },
       };

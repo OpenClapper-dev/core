@@ -133,6 +133,12 @@ export interface CameraTelemetry {
   /** Camera Status flags (BMD_STATUS_FLAGS). */
   status?: number;
   protocolVersion?: string;
+  /**
+   * Per-output tools (4.1) and overlays (3.0): the camera does not report them, so the phone keeps
+   * what was last set through it, by ccuKey then target display bit (TARGET_DISPLAYS). Missing:
+   * not set since the phone app started, the camera's state is unknown.
+   */
+  outputs?: Record<string, Record<number, number>>;
   /** The latest incoming messages, newest first, as "c.p type op: data" with the raw bytes (the probe of #318). */
   log: string[];
 }

@@ -45,7 +45,7 @@ Devices → the camera: connection, status flags, timecode, then every control, 
   - zebra, focus assist and false colour: `4.1` with the target value, which the 6K honours;
   - status overlay and frame guides: `3.0`, also with a target.
 
-  The camera does not report `4.1`/`3.0`, so the ticks are what the Studio set. Also here: zebra and peaking level, focus assist method and colour, frame guide style/opacity/safe area/grid `3.3`, display brightness, colour bars (30 s).
+  The camera does not report `4.1`/`3.0`, and the protocol has no way to ask, so the switches show what was set through the phone. The phone keeps that per camera and output across reconnects and Studio reloads, until the app restarts (`CameraTelemetry.outputs`); an output not set since then is dimmed as unknown. A change made on the camera itself is not seen. Everything else the camera reports on connecting (its initial payload) and on every change. Also here: zebra and peaking level, focus assist method and colour, frame guide style/opacity/safe area/grid `3.3`, display brightness, colour bars (30 s).
 - **Colour correction**: lift, gamma, gain, offset (RGB + luma), contrast, hue/saturation, luma mix, reset (group 8).
 - **Audio**: input type, input levels, headphone and speaker levels, phantom power (group 2).
 - **Slate**: scene, take, reel, shot tag, INT/EXT, day/night, good take, camera id, operator, director, project (group 12).

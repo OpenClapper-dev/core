@@ -339,6 +339,8 @@ export class Hub {
   }
 
   private teardown(rec: LinkRec, reason: Error) {
+    // A battery or camera readout is only true while connected: none is kept across a drop.
+    for (const f of this.onLinkFixtures(rec)) this.telemetry.delete(f.id);
     rec.queue?.close(reason);
     rec.offDisconnect?.();
     const { session, link } = rec;
