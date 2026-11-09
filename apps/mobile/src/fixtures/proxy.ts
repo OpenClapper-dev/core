@@ -7,6 +7,7 @@ import { onLinkClosed, onLinkMessage, onLinkOpen, sendOnLink } from "../preview"
 import { hub, watchAppState } from "./hub";
 import { getFixtures, onFixturesChange, syncFixtures } from "./library";
 import { provisionFixture } from "./provisionFlow";
+import { onRunChange, runSequence, runState, stopRun } from "./sequenceRun";
 import { suggestKinds } from "./registry";
 
 /**
@@ -59,7 +60,12 @@ function report() {
 function onMessage(m: { type: string } & Record<string, unknown>) {
   if (m.type === "lights.studios") { studios = typeof m.count === "number" ? m.count : null; changed(); return; }
   if (!running) return;
-  if (m.type === "lights.hello") { sendNow(); return; }
+  if (m.type === "lights.hello") { sendNow(); sendOnLink(runState()); return; }
+  if (m.type === "lights.run") {
+    if (typeof m.sequenceId === "string" && typeof m.revision === "string" && typeof m.fromMs === "number") void runSequence(m.sequenceId, m.revision, m.fromMs);
+    return;
+  }
+  if (m.type === "lights.run.stop") { stopRun(); return; }
   if (m.type === "lights.sync") { void syncFixtures().then(sendNow); return; }
   if (m.type === "lights.reconnect") { reconnectAll(); return; }
   if (m.type === "lights.scan") { if (m.on === true) void startScan(); else stopScan("idle"); return; }
@@ -135,6 +141,8 @@ async function provision(fixtureId: string, fresh: boolean) {
   const f = getFixtures().find((x) => x.id === fixtureId);
   const resume = !!f?.mesh && !fresh;
   if (!f) { provisioning = false; state({ phase: "error", stage: null, resume, error: "The phone does not know this light yet; try again." }); return; }
+  // Pairing takes the radio: a sequence running on the phone stops.
+  stopRun();
   pause();
   let stage: ProvisionState["stage"] = null;
   try {
@@ -169,6 +177,7 @@ export function startProxy(): () => void {
     onLinkMessage(onMessage),
     onLinkOpen(sendNow),
     onLinkClosed(() => { studios = null; changed(); }),
+    onRunChange((s) => { sendOnLink(s); changed(); }),
   ];
   log("info", "proxy on", { fixtures: getFixtures().length });
   sendNow();
@@ -181,6 +190,8 @@ export function stopProxy() {
   for (const fn of stopFns) fn();
   stopFns = [];
   scanStop?.(); scanStop = null;
+  // The run needs the proxy's connections (and its screen kept on).
+  stopRun();
   if (timer) { clearTimeout(timer); timer = null; }
   log("info", "proxy off");
   sendNow(); // tells the Studio: proxy off

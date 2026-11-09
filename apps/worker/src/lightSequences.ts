@@ -26,6 +26,13 @@ export function registerLightSequenceRoutes(r: Router<Ctx>) {
     return json({ light_sequences: (await stmt.all<Row>()).results.map(toApi) });
   });
 
+  // One sequence: the phone fetches what it is asked to run (#321).
+  r.on("GET", "/api/light-sequences/:id", async (ctx, { id }) => {
+    const sid = assertUuid(id, "id");
+    await assertAccess(ctx, "light_sequence", sid, "viewer");
+    return json({ light_sequence: toApi((await ctx.env.DB.prepare("SELECT * FROM light_sequences WHERE id = ?1").bind(sid).first<Row>())!) });
+  });
+
   /** JSON { project_id, name, duration_ms, loop, tracks } — the whole sequence. */
   r.on("PUT", "/api/light-sequences/:id", async (ctx, { id }) => {
     const { env, request } = ctx;

@@ -16,6 +16,8 @@ describe("light sequences", () => {
     const made = await ok<{ light_sequence: Seq }>(api(u.token, "PUT", `/api/light-sequences/${id}`, { ...sequenceBody(w.project, "Dusk", w.fixture), loop: true }));
     expect(made.light_sequence).toMatchObject({ id, project_id: w.project, name: "Dusk", duration_ms: 10_000, loop: true });
     expect(made.light_sequence.tracks[0]).toMatchObject({ fixtureId: w.fixture, keyframes: [{ id: "start" }, { id: "k1", fadeIn: "s" }] });
+    const one = await ok<{ light_sequence: Seq }>(api(u.token, "GET", `/api/light-sequences/${id}`));
+    expect(one.light_sequence).toMatchObject({ id, name: "Dusk", loop: true });
     const list = await ok<{ light_sequences: Seq[] }>(api(u.token, "GET", `/api/light-sequences?project_id=${w.project}`));
     expect(list.light_sequences.map((s) => s.id)).toContain(id);
     await ok(api(u.token, "DELETE", `/api/light-sequences/${id}`));

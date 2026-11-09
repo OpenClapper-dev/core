@@ -681,6 +681,9 @@ button { font: inherit; }
 .seq-box { position: fixed; border: var(--bw) solid var(--accent); background: var(--accent-tint); opacity: 0.5; pointer-events: none; z-index: 10; }
 .seq-add { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4); }
 .seq-empty { padding: var(--space-3) 0; }
+/* Running on the phone (#321): the sequence is locked, the lanes only show the phone's playhead. */
+.seq-run { padding: var(--space-2) var(--space-4) 0; }
+.seq-lock.is-locked { pointer-events: none; opacity: 0.7; }
 .seq-noproxy { position: absolute; bottom: var(--space-3); left: var(--space-4); }
 .seq-label__actions { display: flex; flex-direction: column; }
 .seq-lane.is-muted { opacity: 0.35; background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--border-subtle) 6px 7px); }

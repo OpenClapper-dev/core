@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import {
-  CURVES, effectName, FIXTURE_KINDS, fixtureKind, sampleTrack, SEQUENCE_MAX_MS, SequencePlayer, START_KEYFRAME, startKeyframe,
+  CURVES, effectName, FIXTURE_KINDS, fixtureKind, inFade, sampleTrack, SEQUENCE_MAX_MS, SequencePlayer, START_KEYFRAME, startKeyframe,
   type Curve, type EffectId, type FixtureLive, type Keyframe, type LightSequence, type SendLight, type SequenceTrack,
 } from "@openclapper/vocab";
-import { Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
+import { Banner, Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { fetchFixtures, type ServerFixture } from "../api";
 import { Range } from "../compose/editor";
 import { bind, useKeys } from "../keys";
@@ -12,7 +12,7 @@ import { useLightProxy } from "../lightProxy";
 import { BatteryChip, powerOf } from "../power";
 import { setPlayingFixtures } from "../sequencePlayback";
 import { useProjectId } from "../project";
-import { deleteSequence, getSequences, upsertSequence, useSequences } from "../sequences";
+import { deleteSequence, flushSequence, getSequences, upsertSequence, useSequences } from "../sequences";
 import { updateSettings, useSettings } from "../settings";
 import type { AppProps } from "./registry";
 
@@ -74,7 +74,38 @@ export function SequencesApp(_p: AppProps) {
     end: (t) => { setPlayhead(t); setPlaying(false); },
   });
 
-  const save = (s: LightSequence) => { upsertSequence(s); };
+  // Running on the phone (#321): the phone plays, the Studio watches. That sequence is locked, and
+  // nothing here plays or follows the playhead meanwhile (it would fight the phone for the lights).
+  const run = proxy.run;
+  const runActive = run?.phase === "playing" || run?.phase === "loading";
+  const locked = runActive && run?.sequenceId === seq?.id;
+  const lockedRef = useRef(locked);
+  lockedRef.current = locked;
+  const [, setRunTick] = useState(0);
+  useEffect(() => { if (!locked) return; const h = setInterval(() => setRunTick((n) => n + 1), 100); return () => clearInterval(h); }, [locked]);
+  // The phone's position, carried on between its reports.
+  const runAt = (() => {
+    if (!locked || !run || run.phase !== "playing" || !run.durationMs) return run?.atMs ?? 0;
+    const t = run.atMs + (performance.now() - run.receivedAt);
+    return run.loop ? t % run.durationMs : Math.min(run.durationMs, t);
+  })();
+  // After a run, Live sends everything again: the lights show what the phone left them at.
+  useEffect(() => { if (!runActive) player.current?.emitter.reset(); }, [runActive]);
+  useEffect(() => { if (runActive) setPlaying(false); }, [runActive]);
+  useEffect(() => { if (locked) { setSel(new Set()); setTile(null); } }, [locked]);
+
+  const runOnPhone = async (from: number) => {
+    if (!seq || !proxy.proxy) return;
+    const fading = seq.tracks.filter((t) => t.fixtureId && !t.muted && inFade(t.keyframes, from)).length;
+    if (from > 0 && fading) toast(`${fading} track${fading === 1 ? " starts" : "s start"} inside a fade: ${fading === 1 ? "its light jumps" : "their lights jump"} to the value there, then ${fading === 1 ? "fades" : "fade"} the rest`, "info");
+    try {
+      const revision = await flushSequence(seq.id);
+      proxy.request({ type: "lights.run", sequenceId: seq.id, revision, fromMs: from });
+    } catch (e) { toast(`Not started on the phone: ${(e as Error).message}`, "danger"); }
+  };
+  const stopRun = () => proxy.request({ type: "lights.run.stop" });
+
+  const save = (s: LightSequence) => { if (!lockedRef.current) upsertSequence(s); };
   /** Edits start from the stored sequence, not this render's copy: quick clicks and drags must not undo each other. */
   const current = () => getSequences().find((s) => s.id === selId) ?? null;
   const patch = (fn: (s: LightSequence) => LightSequence) => { const cur = current(); if (cur) save(fn(cur)); };
@@ -92,11 +123,13 @@ export function SequencesApp(_p: AppProps) {
 
   // Live: while stopped, the lights follow the playhead and every edit.
   const seqKey = seq ? JSON.stringify(seq.tracks) : "";
-  useEffect(() => { if (!playing && live) emit(playhead); }, [playhead, seqKey, live, playing, !!proxy.proxy]);
+  useEffect(() => { if (!playing && live && !runActive) emit(playhead); }, [playhead, seqKey, live, playing, !!proxy.proxy, runActive]);
 
   /** Play from the playhead; while playing: stop and return to where play started (Space, as in DaVinci Resolve). */
   const play = () => {
     if (!seq) return;
+    // Space stops a run on the phone.
+    if (runActive) { stopRun(); return; }
     if (playing) { setPlaying(false); setPlayhead(playFrom.current); return; }
     if (!proxy.proxy) return;
     const from = playhead >= seq.durationMs ? 0 : playhead;
@@ -116,7 +149,7 @@ export function SequencesApp(_p: AppProps) {
 
   const select = (keys: Iterable<string>, add = false) => { setTile(null); setSel(new Set([...(add ? sel : []), ...keys])); };
   const deleteSelected = () => {
-    if (!sel.size) return false;
+    if (!sel.size || lockedRef.current) return false;
     const drop = new Set([...sel].filter((k) => splitKey(k)[1] !== START_KEYFRAME));
     if (!drop.size) return false;
     patch((s) => ({ ...s, tracks: s.tracks.map((t) => ({ ...t, keyframes: t.keyframes.filter((k) => !drop.has(keyOf(t.id, k.id))) })) }));
@@ -162,20 +195,31 @@ export function SequencesApp(_p: AppProps) {
         <div class="f-app__body">
           <div class="seq-main">
             <div class="seq-bar">
-              <Input sm value={seq.name} aria-label="Name" boxStyle={{ width: "200px" }} onInput={(e) => { const name = (e.target as HTMLInputElement).value; patch((s) => ({ ...s, name })); }} />
-              <Field label="Length"><Input sm unit="s" inputMode="decimal" boxStyle={{ width: "90px" }} value={String(seq.durationMs / 1000)}
+              <Input sm value={seq.name} aria-label="Name" disabled={locked} boxStyle={{ width: "200px" }} onInput={(e) => { const name = (e.target as HTMLInputElement).value; patch((s) => ({ ...s, name })); }} />
+              <Field label="Length"><Input sm unit="s" disabled={locked} inputMode="decimal" boxStyle={{ width: "90px" }} value={String(seq.durationMs / 1000)}
                 onChange={(e) => { const v = Number((e.target as HTMLInputElement).value); if (v > 0) patch((s) => ({ ...s, durationMs: Math.min(SEQUENCE_MAX_MS, snap(v * 1000)) })); }} /></Field>
               <Switch on={seq.loop} onClick={() => patch((s) => ({ ...s, loop: !s.loop }))}>Loop</Switch>
               <Switch on={live} onClick={() => setLive(!live)}>Live</Switch>
               <Seg label="Click on a lane" value={mode} onChange={setMode} options={[{ id: "select", icon: "cursor-default-outline", label: "Select", title: "Select (V): clicks select, never add" }, { id: "insert", icon: "plus", label: "Insert", title: "Insert (I): a click on a lane adds a keyframe; Alt+click adds in Select too" }]} />
               <Seg label="Keyframe size" value={kfSize} onChange={(v) => updateSettings({ keyframeSize: v })} options={[{ id: "s", label: "S" }, { id: "m", label: "M" }, { id: "l", label: "L" }]} />
               <ToolbarSpacer />
-              <span class="num seq-time">{fmt(playhead)} / {fmt(seq.durationMs)}</span>
+              <span class="num seq-time">{fmt(locked ? runAt : playhead)} / {fmt(seq.durationMs)}</span>
               <IconButton icon="skip-previous" label="To the start" onClick={() => { setPlaying(false); setPlayhead(0); }} />
-              <Button size="sm" icon={playing ? "stop" : "play"} disabled={!proxy.proxy && !playing} title={playing ? "Stop and go back (Space); K stops here" : "Play from the playhead (Space)"} onClick={play}>{playing ? "Stop" : "Play"}</Button>
+              <Button size="sm" kind="secondary" icon="cellphone-play" disabled={!proxy.proxy || runActive} title="Run on the phone from the start: it plays on its own, without the relay, as on set" onClick={() => void runOnPhone(0)}>Run on phone</Button>
+              <IconButton icon="ray-start-arrow" label="Run on the phone from the playhead" disabled={!proxy.proxy || runActive} onClick={() => void runOnPhone(playhead)} />
+              <Button size="sm" icon={playing ? "stop" : "play"} disabled={(!proxy.proxy && !playing) || runActive} title={playing ? "Stop and go back (Space); K stops here" : "Play from the playhead (Space)"} onClick={play}>{playing ? "Stop" : "Play"}</Button>
               <IconButton icon="delete-outline" label="Delete the sequence" onClick={() => void remove()} />
             </div>
-            <Lanes seq={seq} mode={mode} kfSize={kfSize} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={playhead} playing={playing} sel={sel} tile={tile}
+            {runActive && run && (
+              <div class="seq-run">
+                <Banner kind="info" icon="cellphone-play" title={run.phase === "loading" ? "Starting on the phone…" : `Running on the phone: ${run.name ?? "a sequence"}`}
+                  action={<Button size="sm" icon="stop" onClick={stopRun}>Stop</Button>}
+                  meta={locked ? "The phone plays it on its own; this sequence is locked until it stops (Space). The playhead follows the phone's reports." : "Play and Live are off while the phone runs a sequence."} />
+              </div>
+            )}
+            {run?.phase === "error" && run.sequenceId === seq.id && <div class="seq-run"><ErrorLine>{run.error ?? "Not started on the phone"}</ErrorLine></div>}
+            <div class={cx("seq-lock", locked && "is-locked")}>
+            <Lanes seq={seq} mode={mode} kfSize={kfSize} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={locked ? runAt : playhead} playing={playing || locked} sel={sel} tile={tile}
               onSeek={(t) => { if (!playing) setPlayhead(t); }}
               onAdd={(trackId, at) => {
                 const tr = current()?.tracks.find((t) => t.id === trackId);
@@ -198,6 +242,7 @@ export function SequencesApp(_p: AppProps) {
               }}
               onTrack={(trackId, fn) => patchTrack(trackId, fn)}
               onRemoveTrack={(trackId) => { patch((s) => ({ ...s, tracks: s.tracks.filter((t) => t.id !== trackId) })); setSel(new Set()); setTile(null); }} />
+            </div>
             <div class="seq-add">
               <Select label="Add a track" prefix="Add track" value="" onChange={(id) => id && addTrack(id)}
                 options={[{ value: "", label: "Pick a light type…" }, ...TRACK_KINDS.map((k) => ({ value: k.id, label: `${k.brand} ${k.model}` }))]} />

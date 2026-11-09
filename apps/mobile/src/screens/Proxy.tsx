@@ -4,6 +4,7 @@ import { fixtureKind, fixtureKindName } from "@openclapper/vocab";
 import { linkLabel, hub } from "../fixtures/hub";
 import { setFixtureAsleep, useFixtures } from "../fixtures/library";
 import { onProxyChange, reconnectAll, startProxy, studioTabs } from "../fixtures/proxy";
+import { runState, stopRun } from "../fixtures/sequenceRun";
 import type { Fixture } from "../fixtures/types";
 import { linkOpen } from "../preview";
 import { Banner, Block, Button, Empty, Hint, IconButton, ListRow, PushScreen, SectionLabel, toast, useTheme } from "../ui";
@@ -24,6 +25,7 @@ export function Proxy() {
     return () => { off(); stop(); };
   }, []);
   const studios = studioTabs();
+  const run = runState();
   const online = linkOpen();
   const [busy, setBusy] = useState<string | null>(null);
   const toggleSleep = (f: Fixture) => {
@@ -43,6 +45,17 @@ export function Proxy() {
             : <Banner kind="info" icon="monitor-off" title="No Studio open" meta="Open the Studio's Devices app on your computer." />}
         <Hint>Keep this screen open: the phone holds the lights only while it is shown, with the screen on.</Hint>
       </Block>
+      {/* A sequence the Studio started on the phone (#321): it keeps running without the Studio. */}
+      {(run.phase === "playing" || run.phase === "loading" || run.phase === "error") && (
+        <Block>
+          <SectionLabel>Sequence on this phone</SectionLabel>
+          {run.phase === "error"
+            ? <Banner kind="warn" icon="alert-circle-outline" title="Sequence not started" meta={run.error} />
+            : <Banner kind="ok" icon="play-circle-outline" title={run.phase === "loading" ? "Loading the sequence…" : `Playing ${run.name ?? "sequence"}`}
+              meta={run.phase === "playing" ? `${(run.atMs / 1000).toFixed(1)} / ${((run.durationMs ?? 0) / 1000).toFixed(1)} s${run.loop ? " · loop" : ""}` : undefined} />}
+          {run.phase !== "error" && <Button kind="secondary" icon="stop" label="Stop" onPress={stopRun} />}
+        </Block>
+      )}
       <Block>
         <SectionLabel>{`${fixtures.length} paired`}</SectionLabel>
         {fixtures.length === 0 && <Empty icon="lightbulb-outline" title="Nothing paired" body="Pair lights from the Studio's Devices app." />}
