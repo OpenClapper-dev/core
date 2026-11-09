@@ -75,6 +75,7 @@ export function watchAppState() {
 export function linkLabel(s: FixtureStatus): string {
   switch (s.link) {
     case "ready": return "Connected";
+    case "silent": return "In the mesh, not answering (off?)";
     case "waiting": return "Waiting to connect";
     case "absent": return "Not in range";
     case "connecting": return "Connecting…";

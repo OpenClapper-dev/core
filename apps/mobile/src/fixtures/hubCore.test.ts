@@ -304,3 +304,34 @@ test("a readout is only shown while connected: a dropped link clears it (#318)",
   links[0].lose();
   assert.equal(hub.status("a").telemetry, null);
 });
+
+test("a mesh light that does not answer shows as silent while the link is up, until it reports (#318)", async () => {
+  const time = fakeTime();
+  let sink: ((id: string, t: { at: number; battery?: number }) => void) | null = null;
+  const driver: Driver = {
+    id: "fake", linkKey: () => "mesh:n", rate: { minIntervalMs: 0 }, addressesFor: () => ["AA:00:00:00:00:01"], answers: { firstMs: 8000, staleMs: 150_000 },
+    open: async (_l, _f, s) => { sink = s; return { send: async () => {}, close: async () => {} }; },
+  };
+  let reports = 0;
+  const hub = new Hub({
+    fixtures: () => [fixture("a", "AA:00:00:00:00:01"), fixture("b", "AA:00:00:00:00:02")],
+    driverFor: () => driver,
+    connect: async (address) => new FakeLink(address),
+    timers: time,
+    clock: { now: () => time.now, wait: async () => {} },
+    log: () => {},
+  });
+  hub.subscribe(() => reports++);
+  hub.acquire(["a", "b"], "proxy");
+  await time.advance(0);
+  sink!("a", { at: 0, battery: 70 });
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "ready"]);
+  const before = reports;
+  await time.advance(8000);
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "silent"]);
+  assert.ok(reports > before, "the change is reported without another event");
+  sink!("b", { at: 0, battery: 76 });
+  assert.equal(hub.status("b").link, "ready");
+  await time.advance(150_000);
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["silent", "silent"]);
+});

@@ -55,4 +55,9 @@ export interface Driver {
   /** Addresses to try for a link, best first (a mesh link can use any node of its network). */
   addressesFor(linkKey: string, fixtures: Fixture[]): string[];
   open(link: Link, fixtures: Fixture[], sink: (fixtureId: string, t: Telemetry) => void): Promise<Session>;
+  /**
+   * Fixtures that report on their own (a mesh asks every light when it connects, and polls): one not
+   * heard within `firstMs` of the link coming up, or for `staleMs` since, shows as silent (#318).
+   */
+  answers?: { firstMs: number; staleMs: number };
 }

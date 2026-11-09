@@ -52,7 +52,8 @@ export interface Telemetry {
 }
 
 /** "waiting": queued behind another connection attempt; "absent": not seen advertising, so not tried (#318). */
-export type LinkState = "off" | "waiting" | "absent" | "connecting" | "ready" | "retrying" | "failed";
+/** `silent`: the link is up (a mesh, through another light) but this fixture does not answer: switched off, or out of the mesh's reach (#318). */
+export type LinkState = "off" | "waiting" | "absent" | "connecting" | "ready" | "silent" | "retrying" | "failed";
 
 /** One fixture as the proxy sees it. */
 export interface FixtureLive {

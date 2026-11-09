@@ -33,6 +33,7 @@ function linkText(l: FixtureLive | undefined, proxyOn: boolean, asleep = false):
   if (!l) return "Not on the proxy phone";
   switch (l.link) {
     case "ready": return "Connected";
+    case "silent": return "In the mesh, not answering (off?)";
     case "waiting": return "Waiting to connect";
     case "absent": return "Not in range";
     case "connecting": return "Connecting…";

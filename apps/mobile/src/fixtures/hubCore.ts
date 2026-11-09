@@ -71,7 +71,15 @@ interface LinkRec {
   timer: unknown;
   /** Bumped by every start and stop: an attempt that finishes after it was superseded is dropped. */
   gen: number;
+  /** When the link last came up (silent fixtures, Driver.answers). */
+  readyAt?: number;
+  /** Re-checks who is silent while ready, so a change is reported without any other event. */
+  silentTimer?: unknown;
+  silentSeen?: string;
 }
+
+/** How often a ready link with Driver.answers re-checks which of its fixtures are silent. */
+export const SILENT_CHECK_MS = 2000;
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -105,6 +113,8 @@ export function applyCommand(s: LightState, cmd: Command): LightState {
 export class Hub {
   private links = new Map<string, LinkRec>();
   private telemetry = new Map<string, Telemetry>();
+  /** When each fixture last reported, on the hub's clock. */
+  private heardAt = new Map<string, number>();
   private states = new Map<string, LightState>();
   /** When the phone last sent each fixture a command (see REPORT_HOLD_MS). */
   private sentAt = new Map<string, number>();
@@ -189,7 +199,29 @@ export class Hub {
     const r = this.resolve(fixtureId);
     if (!r) return { ...base, link: "failed", attempt: 0, error: "this kind cannot be controlled yet" };
     const rec = this.links.get(r.key);
-    return rec ? { ...base, link: rec.state, attempt: rec.attempt, error: rec.error } : { ...base, link: "off", attempt: 0, error: null };
+    if (!rec) return { ...base, link: "off", attempt: 0, error: null };
+    if (this.silent(rec, fixtureId)) return { ...base, link: "silent", attempt: 0, error: null };
+    return { ...base, link: rec.state, attempt: rec.attempt, error: rec.error };
+  }
+
+  /** Up, but this fixture has not answered in time (Driver.answers). */
+  private silent(rec: LinkRec, fixtureId: string): boolean {
+    const a = rec.driver.answers;
+    if (!a || rec.state !== "ready" || rec.readyAt == null) return false;
+    const now = this.d.clock.now();
+    const heard = this.heardAt.get(fixtureId);
+    return heard == null ? now - rec.readyAt >= a.firstMs : now - heard >= a.staleMs;
+  }
+
+  private watchSilent(rec: LinkRec, gen: number) {
+    if (!rec.driver.answers) return;
+    const check = () => {
+      if (gen !== rec.gen || rec.state !== "ready") return;
+      const seen = this.onLinkFixtures(rec).filter((f) => this.silent(rec, f.id)).map((f) => f.id).join(",");
+      if (seen !== rec.silentSeen) { rec.silentSeen = seen; this.notify(); }
+      rec.silentTimer = this.d.timers.setTimeout(check, SILENT_CHECK_MS);
+    };
+    rec.silentTimer = this.d.timers.setTimeout(check, SILENT_CHECK_MS);
   }
 
   /**
@@ -311,7 +343,10 @@ export class Hub {
         rec.queue = new CommandQueue(rec.driver.rate.minIntervalMs, this.d.clock);
         rec.offDisconnect = link.onDisconnect((e) => this.onDisconnect(rec, gen, e));
         this.d.log("info", "fixture link ready", { link: rec.key, address, mtu: link.mtu });
+        rec.readyAt = this.d.clock.now();
+        rec.silentSeen = "";
         this.set(rec, { state: "ready", attempt: 0, error: null });
+        this.watchSilent(rec, gen);
         return;
       } catch (e) {
         lastError = e;
@@ -340,7 +375,10 @@ export class Hub {
 
   private teardown(rec: LinkRec, reason: Error) {
     // A battery or camera readout is only true while connected: none is kept across a drop.
-    for (const f of this.onLinkFixtures(rec)) this.telemetry.delete(f.id);
+    for (const f of this.onLinkFixtures(rec)) { this.telemetry.delete(f.id); this.heardAt.delete(f.id); }
+    if (rec.silentTimer != null) this.d.timers.clearTimeout(rec.silentTimer);
+    rec.silentTimer = undefined;
+    rec.readyAt = undefined;
     rec.queue?.close(reason);
     rec.offDisconnect?.();
     const { session, link } = rec;
@@ -361,6 +399,7 @@ export class Hub {
 
   private onTelemetry(fixtureId: string, t: Telemetry) {
     this.telemetry.set(fixtureId, { ...this.telemetry.get(fixtureId), ...t });
+    this.heardAt.set(fixtureId, this.d.clock.now());
     const quiet = this.d.clock.now() - (this.sentAt.get(fixtureId) ?? Number.NEGATIVE_INFINITY) >= REPORT_HOLD_MS;
     if (t.state && quiet) this.states.set(fixtureId, { ...this.states.get(fixtureId), ...t.state });
     this.notify();
