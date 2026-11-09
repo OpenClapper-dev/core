@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import type { ComponentChildren } from "preact";
 import {
-  CURVES, effectName, FIXTURE_KINDS, fixtureKind, inFade, sampleTrack, SEQUENCE_MAX_MS, SequencePlayer, START_KEYFRAME, startKeyframe,
+  CURVES, effectName, effectSettingsOf, FIXTURE_KINDS, fixtureKind, inFade, sampleTrack, SEQUENCE_MAX_MS, SequencePlayer, START_KEYFRAME, startKeyframe,
   type Curve, type EffectId, type FixtureLive, type Keyframe, type LightSequence, type SendLight, type SequenceTrack,
 } from "@openclapper/vocab";
 import { Banner, Button, Checkbox, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, Panel, PanelBody, PanelHead, Seg, Select, Switch, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
@@ -14,6 +14,7 @@ import { setPlayingFixtures } from "../sequencePlayback";
 import { useProjectId } from "../project";
 import { deleteSequence, flushSequence, getSequences, upsertSequence, useSequences } from "../sequences";
 import { updateSettings, useSettings } from "../settings";
+import { EffectOptionFields } from "./EffectOptions";
 import type { AppProps } from "./registry";
 
 /**
@@ -509,9 +510,11 @@ function KeyframePanel({ kf, track, durationMs, onChange, onDelete, onClose }: {
           </div>
         )}
         {!!caps?.effects?.length && (
-          <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0] } }) : drop("effect"))}>
-            <Select label="Effect" value={kf.effect?.id ?? "off"} onChange={(v) => set({ effect: { id: v === "off" ? null : (v as EffectId) } })}
+          <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))}>
+            {/* A new effect starts from its own defaults (#321); its options are saved with the keyframe. */}
+            <Select label="Effect" value={kf.effect?.id ?? "off"} onChange={(v) => { const id = v === "off" ? null : (v as EffectId); set({ effect: id ? { id, settings: effectSettingsOf(id) } : { id: null } }); }}
               options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => ({ value: id, label: effectName(id) }))]} />
+            {kf.effect?.id && <EffectOptionFields fx={kf.effect.id} settings={effectSettingsOf(kf.effect.id, kf.effect.settings)} cct={caps.cct} onChange={(settings) => set({ effect: { id: kf.effect!.id, settings } })} />}
           </Channel>
         )}
         {caps?.curves && (
@@ -519,7 +522,7 @@ function KeyframePanel({ kf, track, durationMs, onChange, onDelete, onClose }: {
             <Select label="Dimming curve" value={kf.curve ?? "linear"} onChange={(v) => set({ curve: v as Curve })} options={CURVES.map((c) => ({ value: c, label: CURVE_LABELS[c] }))} />
           </Channel>
         )}
-        <p class="meta">Values jump at the keyframe; a fade on the strip before it blends into them instead. Effects run with their default options.</p>
+        <p class="meta">Values jump at the keyframe; a fade on the strip before it blends into them instead.</p>
         {!isStart && <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={onDelete}>Delete keyframe</Button></div>}
       </PanelBody>
     </Panel>

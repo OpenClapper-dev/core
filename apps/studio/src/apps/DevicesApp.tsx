@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  CURVES, EFFECT_OPTIONS, EFFECT_RANDOM, effectName, effectSettingsOf, FIXTURE_KINDS, FIXTURE_LABEL_MAX, fixtureKind, PROVISION_STAGE_LABELS, PROVISION_STAGES, startState, TRIGGER_EFFECTS,
+  CURVES, effectName, effectSettingsOf, FIXTURE_KINDS, FIXTURE_LABEL_MAX, fixtureKind, PROVISION_STAGE_LABELS, PROVISION_STAGES, startState, TRIGGER_EFFECTS,
   type Curve, type EffectId, type EffectSettings, type FixtureKind, type FixtureLive, type LightCommand, type LightState, type ProvisionStage, type ProvisionState, type ScannedDevice,
 } from "@openclapper/vocab";
 import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, ListRow, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, Spinner, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
 import { deleteFixture, fetchFixtures, putFixture, setFixturePower, setFixtureSleep, type ServerFixture } from "../api";
 import { BatteryChip, isBattery, minutesText, powerOf, takesBattery } from "../power";
 import { CameraPanel } from "./CameraPanel";
+import { EffectOptionFields } from "./EffectOptions";
 import { Range } from "../compose/editor";
 import { useLightProxy, type LightProxy } from "../lightProxy";
 import { usePlayingFixtures } from "../sequencePlayback";
@@ -147,7 +148,6 @@ function ProxyBanner({ proxy }: { proxy: LightProxy }) {
 }
 
 /** A frequency or speed step: 11 is Random; Cop car's flash shows 6..10 as cycles. */
-const stepLabel = (x: number, max: number, cycles?: boolean) => (max === 11 && x >= EFFECT_RANDOM ? "Random" : cycles && x > 5 ? `Cycle ${x - 5}` : String(x));
 const minutes = (m: number) => (m >= 24 * 60 ? "over 24 h" : m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`);
 
 /**
@@ -240,67 +240,15 @@ function FixturePanel({ f, fixtures, liveOf, live, proxy, onClose, onChanged }: 
 
 function EffectControls({ effects, v, cct, send, trigger }: { effects: readonly EffectId[]; v: LightState; cct: FixtureKind["caps"]["cct"]; send: (patch: LightState, cmd: LightCommand) => void; trigger: () => void }) {
   const fx = v.effect ?? null;
-  const spec = fx ? EFFECT_OPTIONS[fx] : undefined;
   const o = fx ? effectSettingsOf(fx, v.effectSettings) : {};
-  const mid = cct ? Math.round((cct.min + cct.max) / 200) * 100 : 5600;
   const set = (next: EffectSettings) => fx && send({ effectSettings: next }, { op: "effect", effect: fx, settings: next });
-  const kelvin = (label: string, value: number, on: (k: number) => void) => cct
-    ? <Range key={label} label={label} value={value} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={on} />
-    : null;
   return (
     <div class="devices-field">
       <span class="section-title">Effect</span>
       <Select label="Effect" value={fx ?? "off"} onChange={(id) => { const next = id === "off" ? null : (id as EffectId); send({ effect: next }, { op: "effect", effect: next }); }}
         options={[{ value: "off", label: "Off" }, ...effects.map((id) => ({ value: id, label: effectName(id) }))]} />
       {fx && <p class="meta">Intensity applies to the effect; choose White or Colour to stop it.</p>}
-      {fx && spec?.options.map((opt) => {
-        switch (opt.key) {
-          case "frequency":
-          case "speed":
-            return <Range key={opt.key} label={opt.label} value={o[opt.key] ?? 5} min={1} max={opt.max} step={1} format={(x) => stepLabel(x, opt.max, opt.cycles)} onChange={(x) => set({ ...o, [opt.key]: x })} />;
-          case "kelvin":
-            return kelvin(`Effect ${opt.label.toLowerCase()}`, o.kelvin ?? mid, (k) => set({ ...o, kelvin: k }));
-          case "ember":
-            return <Range key={opt.key} label={opt.label} value={o.ember ?? 5} min={1} max={10} step={1} onChange={(x) => set({ ...o, ember: x })} />;
-          case "intensityRange":
-            return (
-              <div key={opt.key} class="devices-field">
-                <Range label={`${opt.label}: from`} value={Math.round((o.intensityMin ?? 0) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ ...o, intensityMin: x / 100, intensityMax: Math.max(x / 100, o.intensityMax ?? 0.5) })} />
-                <Range label={`${opt.label}: to`} value={Math.round((o.intensityMax ?? 0.5) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ ...o, intensityMax: x / 100, intensityMin: Math.min(x / 100, o.intensityMin ?? 0) })} />
-              </div>
-            );
-          case "kelvinRange":
-            return cct ? (
-              <div key={opt.key} class="devices-field">
-                <Range label={`${opt.label}: from`} value={o.kelvin ?? cct.min} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ ...o, kelvin: x, kelvinMax: Math.max(x, o.kelvinMax ?? cct.max) })} />
-                <Range label={`${opt.label}: to`} value={o.kelvinMax ?? cct.max} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ ...o, kelvinMax: x, kelvin: Math.min(x, o.kelvin ?? cct.min) })} />
-              </div>
-            ) : null;
-          case "saturation":
-            return <Range key={opt.key} label={opt.label} value={Math.round((o.saturation ?? 1) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ ...o, saturation: x / 100 })} />;
-          case "choice":
-            return (
-              <Select key={opt.key} label={opt.label} prefix={opt.label} value={String(o.choice ?? 0)} onChange={(x) => set({ ...o, choice: Number(x) })}
-                options={opt.values.map((label, i) => ({ value: String(i), label }))} />
-            );
-          case "color": {
-            const color = o.color ?? { h: 0, s: 1 };
-            return (
-              <div key={opt.key} class="devices-field">
-                <Seg label="Effect colour" value={"kelvin" in color ? "white" : "colour"} options={[{ id: "white", label: "White" }, { id: "colour", label: "Colour" }]}
-                  onChange={(m) => set({ ...o, color: m === "white" ? { kelvin: mid } : { h: 0, s: 1 } })} />
-                {"kelvin" in color ? kelvin("Effect white", color.kelvin, (k) => set({ ...o, color: { kelvin: k } })) : (
-                  <>
-                    <Range label="Effect hue" value={Math.round(color.h)} min={0} max={360} step={1} format={(x) => `${x}°`} onChange={(x) => set({ ...o, color: { ...color, h: x } })} />
-                    <Range label="Effect saturation" value={Math.round(color.s * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ ...o, color: { ...color, s: x / 100 } })} />
-                  </>
-                )}
-              </div>
-            );
-          }
-          default: return null;
-        }
-      })}
+      {fx && <EffectOptionFields fx={fx} settings={o} cct={cct} onChange={set} />}
       {fx && TRIGGER_EFFECTS.includes(fx) && <Button kind="secondary" size="sm" icon="flash" onClick={trigger}>Strike now</Button>}
     </div>
   );
