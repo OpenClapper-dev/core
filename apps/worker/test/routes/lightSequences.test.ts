@@ -38,3 +38,22 @@ describe("light sequences", () => {
     await ok(put({ ...base, tracks: [{ ...base.tracks[0], keyframes: [...base.tracks[0].keyframes, { id: "late", at: 20_000 }] }] }), 400);
   });
 });
+
+describe("track colours and markers (#323)", () => {
+  test("saved and returned; a marker on a removed track goes across the sequence; checked strictly", async () => {
+    const base = sequenceBody(w.project, "Marked");
+    const id = uuid();
+    const body = {
+      ...base,
+      tracks: [{ ...base.tracks[0], color: 3 }],
+      markers: [{ id: "m1", at: 1000, name: "Intro" }, { id: "m2", at: 2000, end: 4000, name: "Storm", trackId: "t1" }, { id: "m3", at: 5000, name: "Gone", trackId: "nope", extra: 1 }],
+    };
+    const saved = await ok<{ light_sequence: Seq & { markers: unknown[]; tracks: { color?: number }[] } }>(api(u.token, "PUT", `/api/light-sequences/${id}`, body));
+    expect(saved.light_sequence.tracks[0].color).toBe(3);
+    expect(saved.light_sequence.markers).toEqual([{ id: "m1", at: 1000, name: "Intro" }, { id: "m2", at: 2000, end: 4000, name: "Storm", trackId: "t1" }, { id: "m3", at: 5000, name: "Gone" }]);
+    const put = (b: unknown) => api(u.token, "PUT", `/api/light-sequences/${uuid()}`, b);
+    await ok(put({ ...base, tracks: [{ ...base.tracks[0], color: 8 }] }), 400);
+    await ok(put({ ...base, markers: [{ id: "m", at: 3000, end: 2000, name: "Backwards" }] }), 400);
+    await ok(put({ ...base, markers: [{ id: "m", at: 20_000, name: "Late" }] }), 400);
+  });
+});
