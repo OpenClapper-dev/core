@@ -248,3 +248,38 @@ test("connecting (#318): one attempt at a time; devices not seen advertising wai
   assert.deepEqual(["a", "b", "c"].map((id) => hub.status(id).link), ["ready", "ready", "ready"]);
   assert.equal(watched.at(-1), false);
 });
+
+test("reconnect all (#318): every link closes, presence is forgotten, held links queue again one by one", async () => {
+  const time = fakeTime();
+  const pending: { address: string; resolve: (l: Link) => void }[] = [];
+  const near = new Set(["AA:00:00:00:00:01", "AA:00:00:00:00:02"]);
+  let forgotten = 0;
+  const driver: Driver = { id: "fake", linkKey: (f) => f.address, rate: { minIntervalMs: 0 }, addressesFor: (k) => [k], open: async () => ({ send: async () => {}, close: async () => {} }) };
+  const fixtures = [fixture("a", "AA:00:00:00:00:01"), fixture("b", "AA:00:00:00:00:02")];
+  const hub = new Hub({
+    fixtures: () => fixtures,
+    driverFor: () => driver,
+    connect: (address) => new Promise<Link>((resolve) => pending.push({ address, resolve })),
+    presence: { near: (as) => as.some((a) => near.has(a)), watch: () => {}, onSeen: () => () => {}, forget: () => { forgotten++; } },
+    timers: time,
+    clock: { now: () => time.now, wait: async () => {} },
+    log: () => {},
+  });
+  hub.acquire(["a", "b"], "proxy");
+  await settle();
+  pending[0].resolve(new FakeLink("AA:00:00:00:00:01"));
+  await settle();
+  pending[1].resolve(new FakeLink("AA:00:00:00:00:02"));
+  await settle();
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "ready"]);
+  hub.reconnectAll();
+  await settle();
+  assert.equal(forgotten, 1);
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["connecting", "waiting"]);
+  assert.equal(pending.length, 3);
+  pending[2].resolve(new FakeLink("AA:00:00:00:00:01"));
+  await settle();
+  pending[3].resolve(new FakeLink("AA:00:00:00:00:02"));
+  await settle();
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "ready"]);
+});

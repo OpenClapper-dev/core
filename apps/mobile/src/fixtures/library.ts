@@ -48,6 +48,15 @@ export async function deleteFixture(id: string) {
   try { await api.deleteFixture(id); } catch (err) { log("warn", "fixture delete failed", { fixture: id, error: err }); }
 }
 
+/**
+ * Sleep or wake from the phone (#318). Online only: the flag lives on the server, and an offline
+ * change would be undone by the next sync. Throws when the server refuses or is unreachable.
+ */
+export async function setFixtureAsleep(id: string, asleep: boolean) {
+  await api.setFixtureSleep(id, asleep);
+  commit(fixtures.map((x) => (x.id === id ? { ...x, asleep } : x)));
+}
+
 let syncing: Promise<void> | null = null;
 
 /** Push offline edits, then take the server list. Quiet when unreachable. */

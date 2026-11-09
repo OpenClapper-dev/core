@@ -33,6 +33,8 @@ export interface Presence {
   watch(on: boolean): void;
   /** An address seen that was not near before. */
   onSeen(cb: (address: string) => void): () => void;
+  /** Forget who was seen: the next scan decides afresh (Reconnect all). */
+  forget?(): void;
 }
 
 export interface HubDeps {
@@ -208,6 +210,17 @@ export class Hub {
     this.suspended = true;
     for (const rec of this.links.values()) void this.stop(rec);
     this.updateWatch();
+  }
+
+  /**
+   * Reconnect all (#318): drop every connection, forget presence and retry counts, then queue every
+   * held link again. Unsticks links waiting out a long retry, or open but no longer answering.
+   */
+  reconnectAll() {
+    this.d.log("info", "fixture links: reconnect all");
+    this.d.presence?.forget?.();
+    for (const rec of this.links.values()) void this.stop(rec);
+    if (!this.suspended) for (const rec of this.links.values()) if (rec.leases > 0) this.start(rec);
   }
 
   /** Back in the foreground: reopen what is still held. */

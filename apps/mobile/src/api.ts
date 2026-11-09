@@ -359,6 +359,9 @@ export const api = {
       }),
     }),
   deleteFixture: (id: string) => call<{ deleted: string }>(`/api/fixtures/${id}`, { method: "DELETE" }),
+  /** Sleep or wake a device (#318): the proxy stops or starts connecting to it. */
+  setFixtureSleep: (id: string, asleep: boolean) =>
+    call<{ fixture: ServerFixture }>(`/api/fixtures/${id}/sleep`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ asleep }) }),
 
   /** Mesh networks the phone provisions (#212): no keys; those stay on the phone, or sealed in the key backup (#303). */
   listMeshNetworks: () => call<{ mesh_networks: ServerMeshNetwork[] }>("/api/mesh-networks").then((r) => r.mesh_networks.map(meshNetworkFromServer)),

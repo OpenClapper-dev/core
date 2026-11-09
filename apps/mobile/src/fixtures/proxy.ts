@@ -38,7 +38,7 @@ export function onProxyChange(cb: () => void): () => void { listeners.add(cb); r
 const changed = () => { for (const cb of listeners) cb(); };
 
 export function proxySnapshot(): ProxyState {
-  const fixtures: FixtureLive[] = running ? getFixtures().map((f) => ({ id: f.id, ...hub.status(f.id) })) : [];
+  const fixtures: FixtureLive[] = running ? getFixtures().map((f) => ({ id: f.id, ...hub.status(f.id), asleep: !!f.asleep })) : [];
   return { type: "lights.state", phone: { id: deviceId(), model: deviceModel() }, proxy: running, fixtures };
 }
 
@@ -61,6 +61,7 @@ function onMessage(m: { type: string } & Record<string, unknown>) {
   if (!running) return;
   if (m.type === "lights.hello") { sendNow(); return; }
   if (m.type === "lights.sync") { void syncFixtures().then(sendNow); return; }
+  if (m.type === "lights.reconnect") { reconnectAll(); return; }
   if (m.type === "lights.scan") { if (m.on === true) void startScan(); else stopScan("idle"); return; }
   if (m.type === "lights.provision") { if (typeof m.fixtureId === "string") void provision(m.fixtureId, m.fresh === true); return; }
   if (m.type !== "lights.command") return;
@@ -147,6 +148,12 @@ async function provision(fixtureId: string, fresh: boolean) {
     provisioning = false;
     resumeLeases();
   }
+}
+
+/** Reconnect all (#318), from the Studio or the Proxy screen; not while a pairing has the radio. */
+export function reconnectAll() {
+  if (!running || paused) return;
+  hub.reconnectAll();
 }
 
 /** Holds every paired fixture until stopped; a new pairing or a removed one re-leases. */

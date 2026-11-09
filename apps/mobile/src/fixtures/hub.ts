@@ -47,6 +47,7 @@ const presence: Presence = {
     }
   },
   onSeen(cb) { seenListeners.add(cb); return () => { seenListeners.delete(cb); }; },
+  forget() { lastSeen.clear(); },
 };
 
 /** The app's one hub (fixtures/hubCore.ts) on the real Bluetooth stack and clock. */

@@ -62,6 +62,10 @@ export function DevicesApp(_p: AppProps) {
   const doneKey = Object.values(proxy.provisioning).filter((s) => s.phase === "done").map((s) => s.fixtureId).join(",");
   useEffect(() => { if (doneKey) void load(); }, [doneKey]);
   const changed = (selectId: string | null) => { proxy.request({ type: "lights.sync" }); void load(); setSel(selectId); };
+  // Sleep set on the phone (#318): its report changes, the list reloads.
+  const asleepKey = (proxy.proxy?.fixtures ?? []).filter((f) => f.asleep).map((f) => f.id).sort().join(",");
+  const firstAsleep = useRef(true);
+  useEffect(() => { if (firstAsleep.current) { firstAsleep.current = false; return; } void load(); }, [asleepKey]);
   /** Sleep or wake from a row or tile, without opening the device (#318). */
   const toggleSleep = (f: ServerFixture) => { void setFixtureSleep(f.id, f.asleep !== 1).then(() => { proxy.request({ type: "lights.sync" }); void load(); }).catch((e) => setError((e as Error).message)); };
   return (
@@ -71,6 +75,8 @@ export function DevicesApp(_p: AppProps) {
         <Seg label="View" value={view} onChange={setView} options={[{ id: "overview", icon: "view-dashboard-outline", title: "At a glance" }, { id: "list", icon: "format-list-bulleted", title: "By brand" }]} />
         <ToolbarSpacer />
         <ProxyChip proxy={proxy} />
+        <Button size="sm" kind="secondary" icon="refresh" disabled={!proxy.proxy} title={proxy.proxy ? "Drop every connection and connect again, one device at a time" : "Needs the phone's proxy"}
+          onClick={() => proxy.request({ type: "lights.reconnect" })}>Reconnect all</Button>
         <Button size="sm" icon="plus" disabled={!proxy.proxy} title={proxy.proxy ? undefined : "Needs the phone's proxy"} onClick={() => { setSel(null); setAdding(true); }}>Add device</Button>
         <IconButton icon="refresh" label="Reload the list" onClick={() => void load()} />
       </Toolbar>

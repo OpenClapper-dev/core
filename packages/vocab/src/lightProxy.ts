@@ -64,6 +64,8 @@ export interface FixtureLive {
   telemetry: Telemetry | null;
   /** What the phone last set or the fixture last reported. */
   state: LightState;
+  /** Asleep as the phone knows it: the Studio reloads its list when this changes (sleep set on the phone). */
+  asleep?: boolean;
 }
 
 /** Phone → Studio, on every change (at most a few times a second) and when asked. */
@@ -80,12 +82,14 @@ export interface ProxyState {
  * Studio → phone. `lights.hello` asks the proxy for its state now (a Studio tab just opened);
  * `lights.sync` makes it re-read the fixture list (the Studio added, renamed or deleted one through
  * the API); `lights.scan` starts or stops a scan for nearby devices; `lights.provision` pairs a mesh
- * fixture with the phone's network, or runs its setup again (`fresh`: after a reset, a new address).
+ * fixture with the phone's network, or runs its setup again (`fresh`: after a reset, a new address);
+ * `lights.reconnect` drops every connection and connects again, one by one (#318).
  */
 export type ProxyRequest =
   | { type: "lights.command"; fixtureId: string; command: LightCommand }
   | { type: "lights.hello" }
   | { type: "lights.sync" }
+  | { type: "lights.reconnect" }
   | { type: "lights.scan"; on: boolean }
   | { type: "lights.provision"; fixtureId: string; fresh?: boolean };
 
