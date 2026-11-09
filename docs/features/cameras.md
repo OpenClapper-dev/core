@@ -63,4 +63,4 @@ On the camera, LCD and HDMI have separate switches.
 
 Tried on the owner's 6K (2026-11-08):
 - **False colour per output works**: `4.1` with the target `HDMI` or `LCD` changes only that output. The camera does not report `4.1`.
-- **The Display LUT does not**: the camera reports `1.15` (`[3, 0]` / `[3, 1]`, the LCD's LUT switched on the camera) but ignored a plain write. The panel offers the remaining attempts: a target value like `4.1`'s, the toggle operation, and the write with the reported LUT. If none works, the Pocket takes no LUT over Bluetooth.
+- **The Display LUT does not**: the camera reports `1.15` (`[3, 0]` / `[3, 1]`, the LCD's LUT switched on the camera) but ignored every write tried (2026-11-09): a plain write with the reported LUT, a target value like `4.1`'s, and the toggle operation. So the Pocket takes no LUT over Bluetooth, and the panel has no LUT control; `1.15` still shows under the reported parameters.

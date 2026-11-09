@@ -10,8 +10,8 @@ import type { LightProxy } from "../lightProxy";
  * A Blackmagic camera in Devices (#318): every control of Blackmagic's camera control protocol that
  * the Pocket takes, grouped like the camera's menus, set from what the camera reports where it
  * reports it. Per output (LCD, HDMI): zebra, focus assist and false colour carry a target (the
- * camera honours protocol v1.6.2's target field, owner's test 2026-11-08). The camera reports the
- * Display LUT (1.15, the LCD's) but ignored a plain write; the panel offers the remaining attempts.
+ * camera honours protocol v1.6.2's target field, owner's test 2026-11-08). No Display LUT control:
+ * the Pocket reports 1.15 but ignored every write tried (docs/features/cameras.md).
  */
 
 const ISO = [100, 125, 160, 200, 250, 320, 400, 500, 640, 800, 1000, 1250, 1600, 2000, 2500, 3200, 4000, 5000, 6400, 8000, 10000, 12800, 16000, 20000, 25600];
@@ -24,7 +24,6 @@ const CODECS: { label: string; v: [number, number] }[] = [
   ...[["Q0", 0], ["Q1", 7], ["Q3", 8], ["Q5", 1], ["3:1", 2], ["5:1", 3], ["8:1", 4], ["12:1", 5]].map(([n, v]) => ({ label: `Blackmagic RAW ${n}`, v: [3, v as number] as [number, number] })),
   ...[["HQ", 0], ["422", 1], ["LT", 2], ["Proxy", 3]].map(([n, v]) => ({ label: `ProRes ${n}`, v: [2, v as number] as [number, number] })),
 ];
-const LUTS = ["None", "Custom", "Film to video", "Film to extended video"];
 const GUIDES = ["Off", "2.4:1", "2.39:1", "2.35:1", "1.85:1", "16:9", "14:9", "4:3", "2:1", "4:5", "1:1"];
 const FOCUS_METHOD = ["Peak", "Coloured lines"];
 const FOCUS_COLOUR = ["Red", "Green", "Blue", "White", "Black"];
@@ -62,7 +61,6 @@ export function CameraPanel({ f, live, proxy, onClose, children }: { f: ServerFi
   const recording = nums("10.1")?.[0] === 2;
   const wb = nums("1.2") ?? [5600, 0];
   const codec = nums("10.0");
-  const lut = nums("1.15");
   const guides = nums("3.3") ?? [0, 100, 0, 0];
   const focusAssist = nums("4.5") ?? [0, 0];
   const take = nums("12.3") ?? [1, -1];
@@ -156,18 +154,6 @@ export function CameraPanel({ f, live, proxy, onClose, children }: { f: ServerFi
             <Range label="Display brightness" value={n0("4.0", 0.5)} min={0} max={1} step={0.01} format={(x) => `${Math.round(x * 100)} %`} onChange={(x) => send(4, 0, 128, [x])} />
             <div class="btn-row">
               <Button size="sm" kind="secondary" onClick={() => send(4, 4, 1, [n0("4.4", 0) ? 0 : 30])}>{n0("4.4", 0) ? "Colour bars off" : "Colour bars (30 s)"}</Button>
-            </div>
-          </Section>
-
-          <Section title="Display LUT (not taken by the camera yet)">
-            <p class="meta">{`The camera reports ${lut ? `[${lut.join(", ")}] (${LUTS[lut[0]] ?? lut[0]}, ${lut[1] ? "on" : "off"})` : "nothing"}: the LCD's setting. A plain write was ignored on 2026-11-08; these are the remaining attempts. Watch the LCD and HDMI.`}</p>
-            <div class="btn-row">
-              <Button size="sm" kind="secondary" onClick={() => send(1, 15, 1, [lut?.[0] ?? 3, 1, TARGET_DISPLAYS.hdmi])}>On, HDMI target</Button>
-              <Button size="sm" kind="secondary" onClick={() => send(1, 15, 1, [lut?.[0] ?? 3, 0, TARGET_DISPLAYS.hdmi])}>Off, HDMI target</Button>
-            </div>
-            <div class="btn-row">
-              <Button size="sm" kind="secondary" onClick={() => send(1, 15, 1, [0, 1], 1)}>Toggle (offset)</Button>
-              <Button size="sm" kind="secondary" onClick={() => send(1, 15, 1, [lut?.[0] ?? 3, lut?.[1] ? 0 : 1])}>{`Plain write ${lut?.[1] ? "off" : "on"}`}</Button>
             </div>
           </Section>
 
