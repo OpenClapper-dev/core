@@ -699,3 +699,15 @@ button { font: inherit; }
 .power-tile__big { font-size: var(--text-title, 20px); font-weight: var(--weight-bold); }
 .seq-label__top { display: flex; align-items: center; gap: var(--space-1); min-width: 0; }
 .seq-label__top .seq-name { flex: 1; min-width: 0; }
+.camera-log { margin: 0; max-height: 220px; overflow: auto; font: var(--text-micro)/1.4 var(--font-mono, monospace); color: var(--text-dim); background: var(--surface-sunken); padding: var(--space-2); border-radius: var(--radius-sm, 4px); white-space: pre-wrap; }
+.camera-section { border-top: var(--bw) solid var(--border-subtle); padding-top: var(--space-2); }
+.camera-section > summary { cursor: pointer; list-style: revert; padding: var(--space-1) 0; }
+.camera-section[open] > summary { margin-bottom: var(--space-2); }
+.camera-outputs { border-collapse: collapse; width: 100%; font-size: var(--text-caption); }
+.camera-outputs th, .camera-outputs td { padding: 4px; text-align: left; }
+.camera-outputs th:not(:first-child), .camera-outputs td:not(:first-child) { text-align: center; width: 70px; }
+.camera-outputs td.is-unknown .f-switch { opacity: .45; }
+.power-tile.is-asleep { opacity: 0.55; border-style: dashed; }
+.devices-dot.is-asleep { background: transparent; border-style: dashed; }
+.sleep-badge { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--text); }
+.f-row.is-asleep { opacity: 0.6; }

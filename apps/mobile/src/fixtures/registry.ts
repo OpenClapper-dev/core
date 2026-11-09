@@ -1,4 +1,5 @@
 import { FIXTURE_KINDS, fixtureKind } from "@openclapper/vocab";
+import { bmdCamera } from "./drivers/bmdCamera.ts";
 import { neewerBattery } from "./drivers/neewerBattery.ts";
 import { neewerInfinity } from "./drivers/neewerInfinity.ts";
 import { sidusMesh, type MeshAccess } from "./drivers/sidusMesh.ts";
@@ -12,6 +13,7 @@ import type { Driver } from "./types.ts";
 const DRIVERS: Record<string, Driver> = {
   "neewer-infinity": neewerInfinity({ log: (level, event, data) => logSink(level, event, data) }),
   "neewer-battery": neewerBattery({ log: (level, event, data) => logSink(level, event, data) }),
+  "bmd-camera": bmdCamera({ log: (level, event, data) => logSink(level, event, data) }),
   "sidus-mesh": sidusMesh({ access: () => meshAccess, log: (level, event, data) => logSink(level, event, data) }),
 };
 
@@ -35,6 +37,7 @@ export interface Advert { name: string | null; serviceUUIDs: string[] | null }
 const MESH_PROVISIONING = "00001827-0000-1000-8000-00805f9b34fb";
 const MESH_PROXY = "00001828-0000-1000-8000-00805f9b34fb";
 const NEEWER_SERVICE = "69400001-b5a3-f393-e0a9-e50e24dcca99";
+const BMD_SERVICE = "291d567a-6d75-11e6-8b77-86f30ca893d3";
 
 const NEEWER_LIGHTS = ["neewer-fs230b", "neewer-fs300b"];
 
@@ -48,6 +51,8 @@ const NEEWER_CODES: Record<string, string> = { "20230051": "neewer-fs230b" };
 export function suggestKinds(a: Advert): string[] {
   const name = a.name ?? "";
   const services = (a.serviceUUIDs ?? []).map((s) => s.toLowerCase());
+  // Blackmagic cameras advertise their camera service (#318); the model name comes from the camera.
+  if (services.includes(BMD_SERVICE) || /pocket cinema|blackmagic/i.test(name)) return ["bmd-pocket-6k"];
   if (services.includes(MESH_PROVISIONING) || services.includes(MESH_PROXY) || /aputure|sidus/i.test(name)) return ["aputure-mc"];
   if (services.includes(NEEWER_SERVICE) || /neewer|^nw[-_ ]/i.test(name)) {
     const code = /^nw[-_ ]?(\d{8})/i.exec(name)?.[1];

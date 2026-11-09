@@ -447,6 +447,8 @@ export interface ServerFixture {
   mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null;
   /** The battery fixture a light without its own runs on (#294); null: a socket or not set. */
   powered_by: string | null;
+  /** 1 while put to sleep (#318): the proxy makes no connection attempts. */
+  asleep: number;
   created_at: string; updated_at: string | null;
 }
 export const fetchFixtures = () => get<{ fixtures: ServerFixture[] }>("/api/fixtures").then((r) => r.fixtures);
@@ -457,6 +459,9 @@ export const putFixture = (f: { id: string; label: string; kind_id: string; addr
     label: f.label, kind_id: f.kind_id, address: f.address,
     mesh_network_id: f.mesh_network_id ?? null, mesh_unicast: f.mesh_unicast ?? null, mesh_elements: f.mesh_elements ?? null,
   }).then((r) => r.fixture);
+/** Puts a device to sleep or wakes it (#318); the phone takes it on `lights.sync`. */
+export const setFixtureSleep = (id: string, asleep: boolean) =>
+  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${id}/sleep`, { asleep }).then((r) => r.fixture);
 /** The battery a light runs on (#294), or null for a socket. */
 export const setFixturePower = (id: string, poweredBy: string | null) =>
   send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${id}/power`, { powered_by: poweredBy }).then((r) => r.fixture);

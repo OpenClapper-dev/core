@@ -22,7 +22,23 @@ export interface Timers {
   clearTimeout(handle: unknown): void;
 }
 
+/**
+ * Who is advertising nearby (#318): the hub tries only devices it has seen, so one switched off or
+ * out of range does not hold up the others. Without it (tests), every device counts as near.
+ */
+export interface Presence {
+  /** One of these addresses advertised recently. */
+  near(addresses: string[]): boolean;
+  /** Scan while true: the hub asks for it while a held link is missing. */
+  watch(on: boolean): void;
+  /** An address seen that was not near before. */
+  onSeen(cb: (address: string) => void): () => void;
+  /** Forget who was seen: the next scan decides afresh (Reconnect all). */
+  forget?(): void;
+}
+
 export interface HubDeps {
+  presence?: Presence;
   fixtures: () => Fixture[];
   driverFor: (kindId: string) => Driver | undefined;
   connect: (address: string) => Promise<Link>;
@@ -55,7 +71,15 @@ interface LinkRec {
   timer: unknown;
   /** Bumped by every start and stop: an attempt that finishes after it was superseded is dropped. */
   gen: number;
+  /** When the link last came up (silent fixtures, Driver.answers). */
+  readyAt?: number;
+  /** Re-checks who is silent while ready, so a change is reported without any other event. */
+  silentTimer?: unknown;
+  silentSeen?: string;
 }
+
+/** How often a ready link with Driver.answers re-checks which of its fixtures are silent. */
+export const SILENT_CHECK_MS = 2000;
 
 const message = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -82,20 +106,36 @@ export function applyCommand(s: LightState, cmd: Command): LightState {
  * reconnect with backoff while held, close a little after the last lease, and close all while the
  * app is in the background (Android stops Bluetooth work there anyway). Writes go through one
  * queue per link. Free of React Native so it runs under `node --test`; hub.ts wires it up.
+ * Connecting (#318): one attempt at a time (Android handles them one after another anyway, and an
+ * attempt at a missing device blocks for its whole timeout), and only to devices seen advertising;
+ * the rest wait as "absent" until the scan sees them.
  */
 export class Hub {
   private links = new Map<string, LinkRec>();
   private telemetry = new Map<string, Telemetry>();
+  /** When each fixture last reported, on the hub's clock. */
+  private heardAt = new Map<string, number>();
   private states = new Map<string, LightState>();
   /** When the phone last sent each fixture a command (see REPORT_HOLD_MS). */
   private sentAt = new Map<string, number>();
   private listeners = new Set<() => void>();
   private suspended = false;
+  /** The one link being connected right now. */
+  private connecting: LinkRec | null = null;
+  private watching = false;
 
   private readonly d: HubDeps;
 
   constructor(deps: HubDeps) {
     this.d = deps;
+    deps.presence?.onSeen((address) => {
+      const a = address.toUpperCase();
+      for (const rec of this.links.values()) {
+        if (rec.state !== "absent" || rec.leases === 0) continue;
+        if (rec.driver.addressesFor(rec.key, this.onLinkFixtures(rec)).some((x) => x.toUpperCase() === a)) this.set(rec, { state: "waiting" });
+      }
+      this.pump();
+    });
   }
 
   subscribe(cb: () => void): () => void {
@@ -117,9 +157,9 @@ export class Hub {
       if (keys.includes(r.key)) continue;
       keys.push(r.key);
       rec.leases++;
-      // Open or opening: only cancel a pending close. Otherwise (off, failed, waiting to retry) try now.
-      if (rec.state === "ready" || rec.state === "connecting") this.clearTimer(rec);
-      else if (!this.suspended) void this.start(rec);
+      // Open, opening or queued: only cancel a pending close. Otherwise (off, failed, waiting to retry) queue it now.
+      if (rec.state === "ready" || rec.state === "connecting" || rec.state === "waiting" || rec.state === "absent") this.clearTimer(rec);
+      else if (!this.suspended) this.start(rec);
     }
     this.d.log("debug", "fixture lease", { holder, links: keys });
     let released = false;
@@ -142,7 +182,9 @@ export class Hub {
     const rec = r ? this.links.get(r.key) : undefined;
     if (!f || !rec || rec.state !== "ready" || !rec.queue) return Promise.reject(new Error("not connected"));
     if (cmd.op !== "status") this.sentAt.set(fixtureId, this.d.clock.now());
-    return rec.queue.push(`${fixtureId}:${cmd.op}`, async () => {
+    // Camera messages coalesce per parameter, not per op: a zebra change must not replace a queued ISO (#318).
+    const key = cmd.op === "ccu" ? `${fixtureId}:ccu:${cmd.message.category}.${cmd.message.parameter}` : `${fixtureId}:${cmd.op}`;
+    return rec.queue.push(key, async () => {
       if (!rec.session) throw new Error("not connected");
       await rec.session.send(f, cmd);
       this.states.set(fixtureId, applyCommand(this.states.get(fixtureId) ?? {}, cmd));
@@ -157,7 +199,29 @@ export class Hub {
     const r = this.resolve(fixtureId);
     if (!r) return { ...base, link: "failed", attempt: 0, error: "this kind cannot be controlled yet" };
     const rec = this.links.get(r.key);
-    return rec ? { ...base, link: rec.state, attempt: rec.attempt, error: rec.error } : { ...base, link: "off", attempt: 0, error: null };
+    if (!rec) return { ...base, link: "off", attempt: 0, error: null };
+    if (this.silent(rec, fixtureId)) return { ...base, link: "silent", attempt: 0, error: null };
+    return { ...base, link: rec.state, attempt: rec.attempt, error: rec.error };
+  }
+
+  /** Up, but this fixture has not answered in time (Driver.answers). */
+  private silent(rec: LinkRec, fixtureId: string): boolean {
+    const a = rec.driver.answers;
+    if (!a || rec.state !== "ready" || rec.readyAt == null) return false;
+    const now = this.d.clock.now();
+    const heard = this.heardAt.get(fixtureId);
+    return heard == null ? now - rec.readyAt >= a.firstMs : now - heard >= a.staleMs;
+  }
+
+  private watchSilent(rec: LinkRec, gen: number) {
+    if (!rec.driver.answers) return;
+    const check = () => {
+      if (gen !== rec.gen || rec.state !== "ready") return;
+      const seen = this.onLinkFixtures(rec).filter((f) => this.silent(rec, f.id)).map((f) => f.id).join(",");
+      if (seen !== rec.silentSeen) { rec.silentSeen = seen; this.notify(); }
+      rec.silentTimer = this.d.timers.setTimeout(check, SILENT_CHECK_MS);
+    };
+    rec.silentTimer = this.d.timers.setTimeout(check, SILENT_CHECK_MS);
   }
 
   /**
@@ -177,12 +241,24 @@ export class Hub {
   suspend() {
     this.suspended = true;
     for (const rec of this.links.values()) void this.stop(rec);
+    this.updateWatch();
+  }
+
+  /**
+   * Reconnect all (#318): drop every connection, forget presence and retry counts, then queue every
+   * held link again. Unsticks links waiting out a long retry, or open but no longer answering.
+   */
+  reconnectAll() {
+    this.d.log("info", "fixture links: reconnect all");
+    this.d.presence?.forget?.();
+    for (const rec of this.links.values()) void this.stop(rec);
+    if (!this.suspended) for (const rec of this.links.values()) if (rec.leases > 0) this.start(rec);
   }
 
   /** Back in the foreground: reopen what is still held. */
   resume() {
     this.suspended = false;
-    for (const rec of this.links.values()) if (rec.leases > 0) void this.start(rec);
+    for (const rec of this.links.values()) if (rec.leases > 0) this.start(rec);
   }
 
   private fixture(id: string) { return this.d.fixtures().find((f) => f.id === id); }
@@ -197,7 +273,44 @@ export class Hub {
 
   private set(rec: LinkRec, patch: Partial<Pick<LinkRec, "state" | "attempt" | "error">>) {
     Object.assign(rec, patch);
+    this.updateWatch();
     this.notify();
+  }
+
+  /** Scan while a held link is not up (and only then: scanning costs battery and radio time). */
+  private updateWatch() {
+    const want = !this.suspended && [...this.links.values()].some((r) => r.leases > 0 && r.state !== "ready");
+    if (want === this.watching) return;
+    this.watching = want;
+    this.d.presence?.watch(want);
+  }
+
+  private near(addresses: string[]) { return !this.d.presence || this.d.presence.near(addresses); }
+
+  /** Queue a link for connecting. */
+  private start(rec: LinkRec) {
+    rec.gen++;
+    this.clearTimer(rec);
+    if (this.suspended || rec.leases === 0) return;
+    this.set(rec, { state: "waiting" });
+    this.pump();
+  }
+
+  /** Starts the next queued link when none is connecting; links not seen advertising wait as absent. */
+  private pump() {
+    if (this.suspended) return;
+    const queued = [...this.links.values()].filter((r) => r.state === "waiting" && r.leases > 0);
+    for (const rec of queued) if (!this.near(rec.driver.addressesFor(rec.key, this.onLinkFixtures(rec)))) this.set(rec, { state: "absent" });
+    if (this.connecting) return;
+    for (const rec of queued) {
+      if (rec.state !== "waiting") continue;
+      this.connecting = rec;
+      void this.connectNow(rec).finally(() => {
+        if (this.connecting === rec) this.connecting = null;
+        this.pump();
+      });
+      return;
+    }
   }
 
   private clearTimer(rec: LinkRec) {
@@ -209,11 +322,12 @@ export class Hub {
     return this.d.fixtures().filter((f) => { const d = this.d.driverFor(f.kindId); return d === rec.driver && d.linkKey(f) === rec.key; });
   }
 
-  private async start(rec: LinkRec) {
+  private async connectNow(rec: LinkRec) {
     const gen = ++rec.gen;
     this.clearTimer(rec);
     const fixtures = this.onLinkFixtures(rec);
-    const addresses = rec.driver.addressesFor(rec.key, fixtures);
+    // Near addresses only (a mesh can be reached through any of its lights).
+    const addresses = rec.driver.addressesFor(rec.key, fixtures).filter((a) => this.near([a]));
     if (!addresses.length) { this.set(rec, { state: "failed", error: "no address to connect to" }); return; }
     this.set(rec, { state: "connecting" });
     let lastError: unknown = null;
@@ -229,7 +343,10 @@ export class Hub {
         rec.queue = new CommandQueue(rec.driver.rate.minIntervalMs, this.d.clock);
         rec.offDisconnect = link.onDisconnect((e) => this.onDisconnect(rec, gen, e));
         this.d.log("info", "fixture link ready", { link: rec.key, address, mtu: link.mtu });
+        rec.readyAt = this.d.clock.now();
+        rec.silentSeen = "";
         this.set(rec, { state: "ready", attempt: 0, error: null });
+        this.watchSilent(rec, gen);
         return;
       } catch (e) {
         lastError = e;
@@ -246,7 +363,7 @@ export class Hub {
     if (rec.leases === 0 || this.suspended) { this.set(rec, { state: "off", attempt, error: message(error) }); return; }
     this.set(rec, { state: "retrying", attempt, error: message(error) });
     const gen = rec.gen;
-    rec.timer = this.d.timers.setTimeout(() => { if (gen === rec.gen) void this.start(rec); }, RETRY_MS[Math.min(attempt - 1, RETRY_MS.length - 1)]);
+    rec.timer = this.d.timers.setTimeout(() => { if (gen === rec.gen) this.start(rec); }, RETRY_MS[Math.min(attempt - 1, RETRY_MS.length - 1)]);
   }
 
   private onDisconnect(rec: LinkRec, gen: number, error: unknown) {
@@ -257,6 +374,11 @@ export class Hub {
   }
 
   private teardown(rec: LinkRec, reason: Error) {
+    // A battery or camera readout is only true while connected: none is kept across a drop.
+    for (const f of this.onLinkFixtures(rec)) { this.telemetry.delete(f.id); this.heardAt.delete(f.id); }
+    if (rec.silentTimer != null) this.d.timers.clearTimeout(rec.silentTimer);
+    rec.silentTimer = undefined;
+    rec.readyAt = undefined;
     rec.queue?.close(reason);
     rec.offDisconnect?.();
     const { session, link } = rec;
@@ -277,6 +399,7 @@ export class Hub {
 
   private onTelemetry(fixtureId: string, t: Telemetry) {
     this.telemetry.set(fixtureId, { ...this.telemetry.get(fixtureId), ...t });
+    this.heardAt.set(fixtureId, this.d.clock.now());
     const quiet = this.d.clock.now() - (this.sentAt.get(fixtureId) ?? Number.NEGATIVE_INFINITY) >= REPORT_HOLD_MS;
     if (t.state && quiet) this.states.set(fixtureId, { ...this.states.get(fixtureId), ...t.state });
     this.notify();

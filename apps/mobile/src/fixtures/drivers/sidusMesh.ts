@@ -30,6 +30,9 @@ export interface SidusOptions {
 /** Intensity is part of white and colour commands: what the phone last set or the light last said. */
 interface Last { intensity: number; kelvin: number; gm: number }
 
+/** A light not heard for this long is asked for its status this often. */
+const SILENT_ASK_MS = 10_000;
+
 /**
  * Aputure lights over the phone's mesh (#213): one session per network through whichever light is
  * reached first, which relays for the others. Commands are Telink 0x26 messages to the light's
@@ -43,6 +46,8 @@ export function sidusMesh(o: SidusOptions): Driver {
     id: "sidus-mesh",
     linkKey: (f) => (f.mesh ? `mesh:${f.mesh.networkId}` : `unpaired:${f.id}`),
     rate: { minIntervalMs: 120 },
+    // Every light is asked at once and its battery every minute: one that never answers is off (#318).
+    answers: { firstMs: 8000, staleMs: 150_000 },
     // Any light of the network can be the proxy; unpaired ones cannot.
     addressesFor: (_key, fixtures) => fixtures.filter((f) => f.mesh).map((f) => f.address),
     async open(link: Link, fixtures: Fixture[], sink: (id: string, t: Telemetry) => void): Promise<Session> {
@@ -53,6 +58,7 @@ export function sidusMesh(o: SidusOptions): Driver {
       await session.start();
       const byUnicast = new Map(fixtures.filter((f) => f.mesh).map((f) => [f.mesh!.unicast, f]));
       const last = new Map<string, Last>();
+      const heard = new Map<string, number>();
       /** The effect each light runs (#291): intensity changes re-send it rather than a plain intensity. */
       const running = new Map<string, { id: EffectId; settings?: EffectSettings } | null>();
       const lastOf = (f: Fixture) => last.get(f.id) ?? { intensity: 0.5, kelvin: 5600, gm: 0 };
@@ -61,6 +67,7 @@ export function sidusMesh(o: SidusOptions): Driver {
       const stopListening = session.onMessage((r) => {
         const f = byUnicast.get(r.src);
         if (!f || r.access.opcode !== TELINK_OPCODE) return;
+        heard.set(f.id, Date.now());
         const bat = parseBattery(r.access.params);
         if (bat) { sink(f.id, { at: Date.now(), battery: bat.charge, volts: bat.volts, minutesLeft: bat.minutesLeft, plugged: bat.plugged }); return; }
         const fx = parseEffect(r.access.params);
@@ -95,6 +102,11 @@ export function sidusMesh(o: SidusOptions): Driver {
       const every = o.setInterval ?? ((fn: () => void, ms: number) => setInterval(fn, ms));
       const stopEvery = o.clearInterval ?? ((h: unknown) => clearInterval(h as ReturnType<typeof setInterval>));
       const timer = every(() => { void askBatteries(); }, o.batteryPollMs ?? 60_000);
+      // A light that has not answered for a while (switched off) is asked again more often, so it shows up soon after it is switched on.
+      const askSilent = async () => {
+        for (const f of byUnicast.values()) if (Date.now() - (heard.get(f.id) ?? 0) >= SILENT_ASK_MS) await toLight(f, statusRequest(), 1).catch(() => {});
+      };
+      const silentTimer = every(() => { void askSilent(); }, SILENT_ASK_MS);
 
       return {
         async send(f: Fixture, cmd: Command) {
@@ -132,7 +144,7 @@ export function sidusMesh(o: SidusOptions): Driver {
             default: throw new Error("unknown command");
           }
         },
-        async close() { stopEvery(timer); stopListening(); await session.close(); },
+        async close() { stopEvery(timer); stopEvery(silentTimer); stopListening(); await session.close(); },
       };
     },
   };

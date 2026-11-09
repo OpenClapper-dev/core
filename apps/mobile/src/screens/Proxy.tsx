@@ -2,19 +2,21 @@ import { useEffect, useState } from "react";
 import { useKeepAwake } from "expo-keep-awake";
 import { fixtureKind, fixtureKindName } from "@openclapper/vocab";
 import { linkLabel, hub } from "../fixtures/hub";
-import { useFixtures } from "../fixtures/library";
-import { onProxyChange, startProxy, studioTabs } from "../fixtures/proxy";
+import { setFixtureAsleep, useFixtures } from "../fixtures/library";
+import { onProxyChange, reconnectAll, startProxy, studioTabs } from "../fixtures/proxy";
+import type { Fixture } from "../fixtures/types";
 import { linkOpen } from "../preview";
-import { Banner, Block, Empty, Hint, ListRow, PushScreen, SectionLabel } from "../ui";
+import { Banner, Block, Button, Empty, Hint, IconButton, ListRow, PushScreen, SectionLabel, toast, useTheme } from "../ui";
 
 /**
  * Setup → Proxy (#307): while this screen is open the phone holds every paired light and battery and
- * runs what the Studio's Devices app sends. Read-only; the screen stays on (Android stops Bluetooth in
- * the background).
+ * runs what the Studio's Devices app sends. Sleep, wake and Reconnect all only (#318); the screen stays
+ * on (Android stops Bluetooth in the background).
  */
 export function Proxy() {
   useKeepAwake();
   const fixtures = useFixtures();
+  const { c } = useTheme();
   const [, setTick] = useState(0);
   useEffect(() => {
     const off = onProxyChange(() => setTick((t) => t + 1));
@@ -23,6 +25,14 @@ export function Proxy() {
   }, []);
   const studios = studioTabs();
   const online = linkOpen();
+  const [busy, setBusy] = useState<string | null>(null);
+  const toggleSleep = (f: Fixture) => {
+    setBusy(f.id);
+    setFixtureAsleep(f.id, !f.asleep)
+      .then(() => toast(f.asleep ? `${f.label} woken` : `${f.label} asleep`))
+      .catch(() => toast("Could not change sleep: the server is not reachable", "danger"))
+      .finally(() => setBusy(null));
+  };
   return (
     <PushScreen title="Proxy" sub="Lights controlled from the Studio">
       <Block>
@@ -41,10 +51,18 @@ export function Proxy() {
           const k = fixtureKind(f.kindId);
           const battery = s.telemetry?.battery;
           return (
-            <ListRow key={f.id} icon={s.link === "ready" ? "check-circle-outline" : s.link === "failed" ? "alert-circle-outline" : "progress-clock"}
-              title={f.label} meta={[k ? fixtureKindName(k) : f.kindId, linkLabel(s), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")} />
+            <ListRow key={f.id} icon={f.asleep ? "sleep" : s.link === "ready" ? "check-circle-outline" : s.link === "failed" ? "alert-circle-outline" : "progress-clock"}
+              title={f.label} meta={[k ? fixtureKindName(k) : f.kindId, f.asleep ? "Asleep · not connecting" : linkLabel(s), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")}
+              iconColor={f.asleep ? c.textDisabled : undefined} titleColor={f.asleep ? c.textDim : undefined}
+              trailing={<IconButton icon={f.asleep ? "weather-sunny" : "sleep"} label={f.asleep ? `Wake ${f.label}` : `Put ${f.label} to sleep`} disabled={busy === f.id || !online} onPress={() => toggleSleep(f)} />} />
           );
         })}
+        {fixtures.some((f) => !f.asleep) && (
+          <>
+            <Button kind="secondary" icon="refresh" label="Reconnect all" onPress={() => { reconnectAll(); toast("Reconnecting, one device at a time"); }} />
+            <Hint>Drops every connection and connects again. The lights keep their state.</Hint>
+          </>
+        )}
       </Block>
     </PushScreen>
   );

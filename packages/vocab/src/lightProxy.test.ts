@@ -18,6 +18,13 @@ describe("parseLightCommand", () => {
     assert.equal(parseLightCommand({ op: "fade", ms: 1000, curve: "s", intensity: 1, colour: { h: 400, s: 1 } }), null);
   });
 
+  test("camera control messages (#318): known types, values in range", () => {
+    const m = { category: 4, parameter: 1, type: 2, operation: 0, data: [4, 2] };
+    assert.deepEqual(parseLightCommand({ op: "ccu", message: m }), { op: "ccu", message: m });
+    assert.deepEqual(parseLightCommand({ op: "ccu", message: { category: 12, parameter: 2, type: 5, operation: 0, data: "12A" } }), { op: "ccu", message: { category: 12, parameter: 2, type: 5, operation: 0, data: "12A" } });
+    for (const bad of [{ ...m, type: 7 }, { ...m, operation: 2 }, { ...m, data: [70000] }, { ...m, category: 300 }, { ...m, data: "x" }]) assert.equal(parseLightCommand({ op: "ccu", message: bad }), null);
+  });
+
   test("drops anything malformed or out of range, and unknown fields", () => {
     for (const bad of [null, "x", {}, { op: "power" }, { op: "intensity", value: 1.5 }, { op: "intensity", value: Number.NaN }, { op: "cct", kelvin: 5600, gm: 99 },
       { op: "hsi", h: -1, s: 0, i: 0 }, { op: "curve", curve: "bezier" }, { op: "effect", effect: "disco" }, { op: "effect", effect: "fire", settings: { frequency: 12 } }, { op: "reboot" }]) {

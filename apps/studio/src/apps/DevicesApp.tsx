@@ -4,8 +4,9 @@ import {
   type Curve, type EffectId, type EffectSettings, type FixtureKind, type FixtureLive, type LightCommand, type LightState, type ProvisionStage, type ProvisionState, type ScannedDevice,
 } from "@openclapper/vocab";
 import { Banner, Button, confirmDialog, cx, Empty, ErrorLine, Field, Icon, IconButton, Input, ListRow, Panel, PanelBody, PanelFoot, PanelHead, Seg, Select, Spinner, toast, Toolbar, ToolbarSpacer, ToolbarTitle } from "@openclapper/ui";
-import { deleteFixture, fetchFixtures, putFixture, setFixturePower, type ServerFixture } from "../api";
+import { deleteFixture, fetchFixtures, putFixture, setFixturePower, setFixtureSleep, type ServerFixture } from "../api";
 import { BatteryChip, isBattery, minutesText, powerOf, takesBattery } from "../power";
+import { CameraPanel } from "./CameraPanel";
 import { Range } from "../compose/editor";
 import { useLightProxy, type LightProxy } from "../lightProxy";
 import { usePlayingFixtures } from "../sequencePlayback";
@@ -26,11 +27,15 @@ const HOLD_MS = 1500;
 
 const CURVE_LABELS: Record<Curve, string> = { linear: "Linear", exp: "Expo", log: "Log", s: "S-curve" };
 
-function linkText(l: FixtureLive | undefined, proxyOn: boolean): string {
+function linkText(l: FixtureLive | undefined, proxyOn: boolean, asleep = false): string {
+  if (asleep) return "Asleep";
   if (!proxyOn) return "No proxy";
   if (!l) return "Not on the proxy phone";
   switch (l.link) {
     case "ready": return "Connected";
+    case "silent": return "In the mesh, not answering (off?)";
+    case "waiting": return "Waiting to connect";
+    case "absent": return "Not in range";
     case "connecting": return "Connecting…";
     case "retrying": return `Reconnecting (try ${l.attempt + 1})`;
     case "failed": return l.error ?? "Cannot connect";
@@ -58,6 +63,12 @@ export function DevicesApp(_p: AppProps) {
   const doneKey = Object.values(proxy.provisioning).filter((s) => s.phase === "done").map((s) => s.fixtureId).join(",");
   useEffect(() => { if (doneKey) void load(); }, [doneKey]);
   const changed = (selectId: string | null) => { proxy.request({ type: "lights.sync" }); void load(); setSel(selectId); };
+  // Sleep set on the phone (#318): its report changes, the list reloads.
+  const asleepKey = (proxy.proxy?.fixtures ?? []).filter((f) => f.asleep).map((f) => f.id).sort().join(",");
+  const firstAsleep = useRef(true);
+  useEffect(() => { if (firstAsleep.current) { firstAsleep.current = false; return; } void load(); }, [asleepKey]);
+  /** Sleep or wake from a row or tile, without opening the device (#318). */
+  const toggleSleep = (f: ServerFixture) => { void setFixtureSleep(f.id, f.asleep !== 1).then(() => { proxy.request({ type: "lights.sync" }); void load(); }).catch((e) => setError((e as Error).message)); };
   return (
     <>
       <Toolbar>
@@ -65,6 +76,8 @@ export function DevicesApp(_p: AppProps) {
         <Seg label="View" value={view} onChange={setView} options={[{ id: "overview", icon: "view-dashboard-outline", title: "At a glance" }, { id: "list", icon: "format-list-bulleted", title: "By brand" }]} />
         <ToolbarSpacer />
         <ProxyChip proxy={proxy} />
+        <Button size="sm" kind="secondary" icon="refresh" disabled={!proxy.proxy} title={proxy.proxy ? "Drop every connection and connect again, one device at a time" : "Needs the phone's proxy"}
+          onClick={() => proxy.request({ type: "lights.reconnect" })}>Reconnect all</Button>
         <Button size="sm" icon="plus" disabled={!proxy.proxy} title={proxy.proxy ? undefined : "Needs the phone's proxy"} onClick={() => { setSel(null); setAdding(true); }}>Add device</Button>
         <IconButton icon="refresh" label="Reload the list" onClick={() => void load()} />
       </Toolbar>
@@ -72,7 +85,7 @@ export function DevicesApp(_p: AppProps) {
         <div class="f-scroll devices-list">
           {!proxy.proxy && <div class="devices-banner"><ProxyBanner proxy={proxy} /></div>}
           {error && <ErrorLine>{error}</ErrorLine>}
-          {view === "overview" && fixtures && <Overview fixtures={fixtures} live={live} proxyOn={!!proxy.proxy} sel={sel} onSelect={setSel} />}
+          {view === "overview" && fixtures && <Overview fixtures={fixtures} live={live} proxyOn={!!proxy.proxy} sel={sel} onSelect={setSel} onSleep={toggleSleep} />}
           {view === "list" && BRANDS.map((brand) => {
             const kinds = FIXTURE_KINDS.filter((k) => k.brand === brand);
             const mine = (fixtures ?? []).filter((f) => fixtureKind(f.kind_id)?.brand === brand);
@@ -86,9 +99,11 @@ export function DevicesApp(_p: AppProps) {
                   const k = fixtureKind(f.kind_id);
                   const battery = l?.telemetry?.battery;
                   return (
-                    <ListRow key={f.id} selected={f.id === sel} onClick={() => setSel(f.id)}
-                      thumb={<span class={cx("devices-dot", l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} />}
-                      title={f.label} meta={[k?.model, linkText(l, !!proxy.proxy), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")} />
+                    <ListRow key={f.id} as="div" role="button" tabIndex={0} selected={f.id === sel} class={f.asleep === 1 ? "is-asleep" : undefined} onClick={() => setSel(f.id)}
+                      onKeyDown={(e) => { if (e.key === "Enter") setSel(f.id); }}
+                      trailing={<SleepToggle f={f} onToggle={toggleSleep} />}
+                      thumb={<span class={cx("devices-dot", f.asleep === 1 ? "is-asleep" : l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} />}
+                      title={f.label} meta={[k?.model, linkText(l, !!proxy.proxy, f.asleep === 1), battery != null ? `${Math.round(battery)} %` : null].filter(Boolean).join(" · ")} />
                   );
                 })}
               </section>
@@ -107,7 +122,9 @@ export function DevicesApp(_p: AppProps) {
           <AddDevicePanel fixtures={fixtures} proxy={proxy} onClose={() => setAdding(false)} onPaired={(id) => { setAdding(false); changed(id); }} />
         )}
         {selected && fixtures && (
-          <FixturePanel key={selected.id} f={selected} fixtures={fixtures} liveOf={live} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} onChanged={changed} />
+          fixtureKind(selected.kind_id)?.caps.camera
+            ? <CameraPanel key={selected.id} f={selected} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)}><Manage f={selected} onChanged={changed} /></CameraPanel>
+            : <FixturePanel key={selected.id} f={selected} fixtures={fixtures} liveOf={live} live={live(selected.id)} proxy={proxy} onClose={() => setSel(null)} onChanged={changed} />
         )}
         {!selected && !adding && fixtures && fixtures.length > 0 && (
           <Panel label="Device"><PanelBody><Empty icon="gesture-tap" title="Pick a device">Its controls and readings show here.</Empty></PanelBody></Panel>
@@ -459,7 +476,12 @@ function Manage({ f, onChanged }: { f: ServerFixture; onChanged: (selectId: stri
       <span class="section-title">Device</span>
       <Field label="Name"><Input sm value={label} maxLength={FIXTURE_LABEL_MAX} onInput={(e) => setLabel((e.target as HTMLInputElement).value)} onBlur={() => void rename()} onKeyDown={(e) => { if (e.key === "Enter") void rename(); }} /></Field>
       {error && <ErrorLine>{error}</ErrorLine>}
-      <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={() => void remove()}>Delete</Button></div>
+      <div class="btn-row">
+        <Button size="sm" kind="secondary" icon={f.asleep === 1 ? "weather-sunny" : "sleep"} title="A sleeping device gets no connection attempts from the phone"
+          onClick={() => void setFixtureSleep(f.id, f.asleep !== 1).then(() => onChanged(f.id)).catch((e) => setError((e as Error).message))}>{f.asleep === 1 ? "Wake" : "Sleep"}</Button>
+        <Button size="sm" kind="danger" icon="delete-outline" onClick={() => void remove()}>Delete</Button>
+      </div>
+      {f.asleep === 1 && <p class="meta">Asleep: the phone makes no connection attempts until it is woken.</p>}
     </div>
   );
 }
@@ -488,7 +510,7 @@ function FadeTest({ disabled, onFade }: { disabled: boolean; onFade: (intensity:
  * At a glance (#294): a tile per device with its connection and power. A COB shows the battery it is
  * assigned (or its socket), a battery the light it powers.
  */
-function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: ServerFixture[]; live: (id: string) => FixtureLive | undefined; proxyOn: boolean; sel: string | null; onSelect: (id: string) => void }) {
+function Overview({ fixtures, live, proxyOn, sel, onSelect, onSleep }: { fixtures: ServerFixture[]; live: (id: string) => FixtureLive | undefined; proxyOn: boolean; sel: string | null; onSelect: (id: string) => void; onSleep: (f: ServerFixture) => void }) {
   if (fixtures.length === 0) return <Empty icon="lightbulb-outline" title="No devices yet">Add one with Add device (the phone's proxy must be on).</Empty>;
   return (
     <div class="power-grid">
@@ -499,13 +521,17 @@ function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: Server
         const powers = isBattery(f) ? fixtures.find((x) => x.powered_by === f.id) : undefined;
         const level = pw.pct === null ? null : pw.pct < 10 ? "is-critical" : pw.pct < 25 ? "is-low" : "";
         return (
-          <button key={f.id} type="button" class={cx("power-tile", f.id === sel && "is-selected")} onClick={() => onSelect(f.id)}>
+          <div key={f.id} role="button" tabIndex={0} class={cx("power-tile", f.id === sel && "is-selected", f.asleep === 1 && "is-asleep")} onClick={() => onSelect(f.id)} onKeyDown={(e) => { if (e.key === "Enter") onSelect(f.id); }}>
             <span class="power-tile__head">
-              <span class={cx("devices-dot", l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} title={linkText(l, proxyOn)} />
+              <span class={cx("devices-dot", f.asleep === 1 ? "is-asleep" : l?.link === "ready" ? "is-ok" : l?.link === "failed" ? "is-bad" : "is-off")} title={linkText(l, proxyOn, f.asleep === 1)} />
               <span class="power-tile__name">{f.label}</span>
               <span class="meta">{k?.model}</span>
+              <SleepToggle f={f} onToggle={onSleep} />
             </span>
-            {pw.source === "socket"
+            {f.asleep === 1 && <span class="sleep-badge"><Icon name="sleep" />Asleep · not connecting</span>}
+            {k?.caps.camera
+              ? <span class="power-tile__big num">{l?.telemetry?.camera?.timecode ?? "–"}</span>
+              : pw.source === "socket"
               ? <span class="power-tile__big"><BatteryChip power={pw} /></span>
               : <>
                   <span class="power-tile__big num">{pw.pct === null ? "–" : `${pw.pct} %`}</span>
@@ -515,9 +541,11 @@ function Overview({ fixtures, live, proxyOn, sel, onSelect }: { fixtures: Server
               pw.source === "battery" && pw.battery ? `on ${pw.battery.label}` : null,
               powers ? `powers ${powers.label}` : null,
               pw.minutesLeft !== undefined ? `about ${minutesText(pw.minutesLeft)} left` : null,
-              pw.pct === null && pw.source !== "socket" ? (proxyOn ? "no reading yet" : "proxy off") : null,
+              f.asleep === 1 ? "asleep" : null,
+              k?.caps.camera && f.asleep !== 1 ? (l?.link === "ready" ? "camera · timecode" : proxyOn ? "camera, not connected" : "proxy off") : null,
+              !k?.caps.camera && pw.pct === null && pw.source !== "socket" ? (proxyOn ? "no reading yet" : "proxy off") : null,
             ].filter(Boolean).join(" · ") || "\u00a0"}</span>
-          </button>
+          </div>
         );
       })}
     </div>
@@ -544,5 +572,15 @@ function PowerSource({ f, fixtures, liveOf, onChanged }: { f: ServerFixture; fix
       <p class="meta">The light cannot tell which battery feeds it: pick it here. A battery taken from another light leaves that one on Socket. Sequences show this battery next to the light's track.</p>
       {error && <ErrorLine>{error}</ErrorLine>}
     </div>
+  );
+}
+
+/** Sleep or wake right on a row or tile (#318): a moon while awake, a sun to wake it. */
+function SleepToggle({ f, onToggle }: { f: ServerFixture; onToggle: (f: ServerFixture) => void }) {
+  const asleep = f.asleep === 1;
+  return (
+    <IconButton icon={asleep ? "weather-sunny" : "sleep"} kind={asleep ? "secondary" : "ghost"}
+      label={asleep ? `Wake ${f.label}: the phone connects to it again` : `Put ${f.label} to sleep: the phone stops connecting to it`}
+      onClick={(e) => { e.stopPropagation(); onToggle(f); }} onKeyDown={(e) => e.stopPropagation()} />
   );
 }

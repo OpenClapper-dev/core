@@ -25,7 +25,7 @@ async function assertHolder(env: Ctx["env"], id: string, holder: string | null) 
 }
 export interface FixtureRow {
   id: string; workspace_id: string; label: string; kind_id: string; address: string;
-  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; powered_by: string | null; created_at: string; updated_at: string | null;
+  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; powered_by: string | null; asleep: number; created_at: string; updated_at: string | null;
 }
 
 const assertInt = (v: unknown, field: string, min: number, max: number): number => {
@@ -192,6 +192,17 @@ export function registerFixtureRoutes(r: Router<Ctx>) {
       ...(battery ? [env.DB.prepare("UPDATE fixtures SET powered_by = NULL, updated_at = ?3 WHERE powered_by = ?1 AND id != ?2").bind(battery, fid, now)] : []),
       env.DB.prepare("UPDATE fixtures SET powered_by = ?2, updated_at = ?3 WHERE id = ?1").bind(fid, battery, now),
     ]);
+    return json({ fixture: await env.DB.prepare("SELECT * FROM fixtures WHERE id = ?1").bind(fid).first<FixtureRow>() });
+  });
+
+  /** JSON { asleep }: the phone proxy leaves a sleeping device alone (no connection attempts) until it is woken (#318). */
+  r.on("PUT", "/api/fixtures/:id/sleep", async (ctx, { id }) => {
+    const { env, request } = ctx;
+    const fid = assertUuid(id, "id");
+    await assertAccess(ctx, "fixture", fid, "editor");
+    const b = await readJson<Record<string, unknown>>(request);
+    if (typeof b.asleep !== "boolean") throw new HttpError(400, "asleep must be true or false");
+    await env.DB.prepare("UPDATE fixtures SET asleep = ?2, updated_at = ?3 WHERE id = ?1").bind(fid, b.asleep ? 1 : 0, new Date().toISOString()).run();
     return json({ fixture: await env.DB.prepare("SELECT * FROM fixtures WHERE id = ?1").bind(fid).first<FixtureRow>() });
   });
 

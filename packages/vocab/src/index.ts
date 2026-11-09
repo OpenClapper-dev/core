@@ -15,3 +15,4 @@ export * from "./vignetting.ts";
 export * from "./steps.ts";
 export * from "./layers.ts";
 export * from "./lightSequence.ts";
+export * from "./cameraControl.ts";

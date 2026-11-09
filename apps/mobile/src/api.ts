@@ -120,12 +120,12 @@ function fromServer(s: ServerPreset): Preset {
 
 interface ServerFixture {
   id: string; label: string; kind_id: string; address: string;
-  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; created_at: string;
+  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; asleep?: number; created_at: string;
 }
 
 function fixtureFromServer(s: ServerFixture): Fixture {
   return {
-    id: s.id, label: s.label, kindId: s.kind_id, address: s.address, createdAt: s.created_at, synced: true,
+    id: s.id, label: s.label, kindId: s.kind_id, address: s.address, createdAt: s.created_at, synced: true, asleep: s.asleep === 1,
     mesh: s.mesh_network_id && s.mesh_unicast != null ? { networkId: s.mesh_network_id, unicast: s.mesh_unicast, elements: s.mesh_elements ?? 1 } : null,
   };
 }
@@ -359,6 +359,9 @@ export const api = {
       }),
     }),
   deleteFixture: (id: string) => call<{ deleted: string }>(`/api/fixtures/${id}`, { method: "DELETE" }),
+  /** Sleep or wake a device (#318): the proxy stops or starts connecting to it. */
+  setFixtureSleep: (id: string, asleep: boolean) =>
+    call<{ fixture: ServerFixture }>(`/api/fixtures/${id}/sleep`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ asleep }) }),
 
   /** Mesh networks the phone provisions (#212): no keys; those stay on the phone, or sealed in the key backup (#303). */
   listMeshNetworks: () => call<{ mesh_networks: ServerMeshNetwork[] }>("/api/mesh-networks").then((r) => r.mesh_networks.map(meshNetworkFromServer)),

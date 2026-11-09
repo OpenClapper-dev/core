@@ -1,3 +1,4 @@
+import { CCU_TYPE, type CameraTelemetry, type CcuMessage } from "./cameraControl.ts";
 import { CURVES, EFFECTS, type Curve, type EffectId, type EffectSettings, type LightState } from "./lighting.ts";
 
 /**
@@ -25,6 +26,8 @@ export type LightCommand =
    * `caps.fade`). White or colour optional: without them it keeps its light and fades only intensity.
    */
   | { op: "fade"; ms: number; curve: Curve; intensity: number; white?: { kelvin: number; gm: number }; colour?: { h: number; s: number } }
+  /** A camera control message (#318), for kinds with `caps.camera`. */
+  | { op: "ccu"; message: CcuMessage }
   | { op: "status" };
 
 /** The longest native fade: the MC counts tenths of a second in 8 bits. */
@@ -44,9 +47,13 @@ export interface Telemetry {
   /** A light with a built-in battery runs on an external supply. */
   plugged?: boolean;
   state?: LightState;
+  /** A camera's reported parameters, timecode and status (#318). */
+  camera?: CameraTelemetry;
 }
 
-export type LinkState = "off" | "connecting" | "ready" | "retrying" | "failed";
+/** "waiting": queued behind another connection attempt; "absent": not seen advertising, so not tried (#318). */
+/** `silent`: the link is up (a mesh, through another light) but this fixture does not answer: switched off, or out of the mesh's reach (#318). */
+export type LinkState = "off" | "waiting" | "absent" | "connecting" | "ready" | "silent" | "retrying" | "failed";
 
 /** One fixture as the proxy sees it. */
 export interface FixtureLive {
@@ -58,6 +65,8 @@ export interface FixtureLive {
   telemetry: Telemetry | null;
   /** What the phone last set or the fixture last reported. */
   state: LightState;
+  /** Asleep as the phone knows it: the Studio reloads its list when this changes (sleep set on the phone). */
+  asleep?: boolean;
 }
 
 /** Phone → Studio, on every change (at most a few times a second) and when asked. */
@@ -74,12 +83,14 @@ export interface ProxyState {
  * Studio → phone. `lights.hello` asks the proxy for its state now (a Studio tab just opened);
  * `lights.sync` makes it re-read the fixture list (the Studio added, renamed or deleted one through
  * the API); `lights.scan` starts or stops a scan for nearby devices; `lights.provision` pairs a mesh
- * fixture with the phone's network, or runs its setup again (`fresh`: after a reset, a new address).
+ * fixture with the phone's network, or runs its setup again (`fresh`: after a reset, a new address);
+ * `lights.reconnect` drops every connection and connects again, one by one (#318).
  */
 export type ProxyRequest =
   | { type: "lights.command"; fixtureId: string; command: LightCommand }
   | { type: "lights.hello" }
   | { type: "lights.sync" }
+  | { type: "lights.reconnect" }
   | { type: "lights.scan"; on: boolean }
   | { type: "lights.provision"; fixtureId: string; fresh?: boolean };
 
@@ -160,6 +171,7 @@ export function parseLightCommand(v: unknown): LightCommand | null {
       return settings ? { op: "effect", effect: c.effect as EffectId, settings } : null;
     }
     case "trigger": return { op: "trigger" };
+    case "ccu": { const m = parseCcu(c.message); return m ? { op: "ccu", message: m } : null; }
     case "smooth": return typeof c.on === "boolean" ? { op: "smooth", on: c.on } : null;
     case "fade": {
       if (!num(c.ms, 0, FADE_MAX_MS) || !(CURVES as readonly unknown[]).includes(c.curve) || !num(c.intensity, 0, 1)) return null;
@@ -172,4 +184,20 @@ export function parseLightCommand(v: unknown): LightCommand | null {
     case "status": return { op: "status" };
     default: return null;
   }
+}
+
+const CCU_TYPES = new Set<number>(Object.values(CCU_TYPE));
+const INT_RANGE: Record<number, [number, number]> = { 0: [0, 1], 1: [-128, 127], 2: [-32768, 32767], 3: [-2147483648, 2147483647], 4: [Number.MIN_SAFE_INTEGER, Number.MAX_SAFE_INTEGER], 128: [-16, 15.9995] };
+
+/** A camera control message from the wire (#318): known type, values in the type's range, at most 16 values or 60 characters. */
+function parseCcu(v: unknown): CcuMessage | null {
+  if (!v || typeof v !== "object") return null;
+  const m = v as Record<string, unknown>;
+  if (!num(m.category, 0, 255) || !num(m.parameter, 0, 255) || !Number.isInteger(m.category) || !Number.isInteger(m.parameter)) return null;
+  if (typeof m.type !== "number" || !CCU_TYPES.has(m.type) || (m.operation !== 0 && m.operation !== 1)) return null;
+  if (typeof m.data === "string") return m.type === CCU_TYPE.string && m.data.length <= 60 ? { category: m.category, parameter: m.parameter, type: m.type as CcuMessage["type"], operation: m.operation, data: m.data } : null;
+  if (!Array.isArray(m.data) || m.data.length > 16 || m.type === CCU_TYPE.string) return null;
+  const [lo, hi] = INT_RANGE[m.type];
+  if (!m.data.every((x) => num(x, lo, hi))) return null;
+  return { category: m.category, parameter: m.parameter, type: m.type as CcuMessage["type"], operation: m.operation, data: m.data as number[] };
 }

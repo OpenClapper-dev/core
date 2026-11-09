@@ -208,3 +208,130 @@ test("a light's late report does not pull the control back while the phone is st
   sink!("a", { at: time.now, state: { intensity: 0.85 } }); // the light changed on its own later
   assert.equal(hub.status("a").state.intensity, 0.85);
 });
+
+test("connecting (#318): one attempt at a time; devices not seen advertising wait as absent until the scan sees them", async () => {
+  const time = fakeTime();
+  const pending: { address: string; resolve: (l: Link) => void }[] = [];
+  const near = new Set(["AA:00:00:00:00:01", "AA:00:00:00:00:02"]);
+  let seenCb: ((a: string) => void) | null = null;
+  const watched: boolean[] = [];
+  const driver: Driver = { id: "fake", linkKey: (f) => f.address, rate: { minIntervalMs: 0 }, addressesFor: (k) => [k], open: async () => ({ send: async () => {}, close: async () => {} }) };
+  const fixtures = [fixture("a", "AA:00:00:00:00:01"), fixture("b", "AA:00:00:00:00:02"), fixture("c", "AA:00:00:00:00:03")];
+  const hub = new Hub({
+    fixtures: () => fixtures,
+    driverFor: () => driver,
+    connect: (address) => new Promise<Link>((resolve) => pending.push({ address, resolve })),
+    presence: { near: (as) => as.some((a) => near.has(a)), watch: (on) => watched.push(on), onSeen: (cb) => { seenCb = cb; return () => {}; } },
+    timers: time,
+    clock: { now: () => time.now, wait: async () => {} },
+    log: () => {},
+  });
+  hub.acquire(["a", "b", "c"], "proxy");
+  await settle();
+  // Only a is being connected; b waits its turn; c is not around and is not tried.
+  assert.deepEqual(pending.map((p) => p.address), ["AA:00:00:00:00:01"]);
+  assert.deepEqual(["a", "b", "c"].map((id) => hub.status(id).link), ["connecting", "waiting", "absent"]);
+  assert.equal(watched.at(-1), true);
+  pending[0].resolve(new FakeLink("AA:00:00:00:00:01"));
+  await settle();
+  assert.equal(hub.status("a").link, "ready");
+  assert.deepEqual(pending.map((p) => p.address), ["AA:00:00:00:00:01", "AA:00:00:00:00:02"]);
+  pending[1].resolve(new FakeLink("AA:00:00:00:00:02"));
+  await settle();
+  // c shows up in the scan: it is tried now; once everything is up, scanning stops.
+  near.add("AA:00:00:00:00:03");
+  seenCb!("aa:00:00:00:00:03");
+  await settle();
+  assert.equal(pending[2]?.address, "AA:00:00:00:00:03");
+  pending[2].resolve(new FakeLink("AA:00:00:00:00:03"));
+  await settle();
+  assert.deepEqual(["a", "b", "c"].map((id) => hub.status(id).link), ["ready", "ready", "ready"]);
+  assert.equal(watched.at(-1), false);
+});
+
+test("reconnect all (#318): every link closes, presence is forgotten, held links queue again one by one", async () => {
+  const time = fakeTime();
+  const pending: { address: string; resolve: (l: Link) => void }[] = [];
+  const near = new Set(["AA:00:00:00:00:01", "AA:00:00:00:00:02"]);
+  let forgotten = 0;
+  const driver: Driver = { id: "fake", linkKey: (f) => f.address, rate: { minIntervalMs: 0 }, addressesFor: (k) => [k], open: async () => ({ send: async () => {}, close: async () => {} }) };
+  const fixtures = [fixture("a", "AA:00:00:00:00:01"), fixture("b", "AA:00:00:00:00:02")];
+  const hub = new Hub({
+    fixtures: () => fixtures,
+    driverFor: () => driver,
+    connect: (address) => new Promise<Link>((resolve) => pending.push({ address, resolve })),
+    presence: { near: (as) => as.some((a) => near.has(a)), watch: () => {}, onSeen: () => () => {}, forget: () => { forgotten++; } },
+    timers: time,
+    clock: { now: () => time.now, wait: async () => {} },
+    log: () => {},
+  });
+  hub.acquire(["a", "b"], "proxy");
+  await settle();
+  pending[0].resolve(new FakeLink("AA:00:00:00:00:01"));
+  await settle();
+  pending[1].resolve(new FakeLink("AA:00:00:00:00:02"));
+  await settle();
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "ready"]);
+  hub.reconnectAll();
+  await settle();
+  assert.equal(forgotten, 1);
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["connecting", "waiting"]);
+  assert.equal(pending.length, 3);
+  pending[2].resolve(new FakeLink("AA:00:00:00:00:01"));
+  await settle();
+  pending[3].resolve(new FakeLink("AA:00:00:00:00:02"));
+  await settle();
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "ready"]);
+});
+
+test("a readout is only shown while connected: a dropped link clears it (#318)", async () => {
+  const time = fakeTime();
+  let sink: ((id: string, t: { at: number; battery?: number }) => void) | null = null;
+  const driver: Driver = { id: "fake", linkKey: (f) => f.address, rate: { minIntervalMs: 0 }, addressesFor: (k) => [k], open: async (_l, _f, s) => { sink = s; return { send: async () => {}, close: async () => {} }; } };
+  const links: FakeLink[] = [];
+  const hub = new Hub({
+    fixtures: () => [fixture("a", "AA:00:00:00:00:01")],
+    driverFor: () => driver,
+    connect: async (address) => { const l = new FakeLink(address); links.push(l); return l; },
+    timers: time,
+    clock: { now: () => time.now, wait: async () => {} },
+    log: () => {},
+  });
+  hub.acquire(["a"], "proxy");
+  await settle();
+  sink!("a", { at: 0, battery: 76 });
+  assert.equal(hub.status("a").telemetry?.battery, 76);
+  links[0].lose();
+  assert.equal(hub.status("a").telemetry, null);
+});
+
+test("a mesh light that does not answer shows as silent while the link is up, until it reports (#318)", async () => {
+  const time = fakeTime();
+  let sink: ((id: string, t: { at: number; battery?: number }) => void) | null = null;
+  const driver: Driver = {
+    id: "fake", linkKey: () => "mesh:n", rate: { minIntervalMs: 0 }, addressesFor: () => ["AA:00:00:00:00:01"], answers: { firstMs: 8000, staleMs: 150_000 },
+    open: async (_l, _f, s) => { sink = s; return { send: async () => {}, close: async () => {} }; },
+  };
+  let reports = 0;
+  const hub = new Hub({
+    fixtures: () => [fixture("a", "AA:00:00:00:00:01"), fixture("b", "AA:00:00:00:00:02")],
+    driverFor: () => driver,
+    connect: async (address) => new FakeLink(address),
+    timers: time,
+    clock: { now: () => time.now, wait: async () => {} },
+    log: () => {},
+  });
+  hub.subscribe(() => reports++);
+  hub.acquire(["a", "b"], "proxy");
+  await time.advance(0);
+  sink!("a", { at: 0, battery: 70 });
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "ready"]);
+  const before = reports;
+  await time.advance(8000);
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["ready", "silent"]);
+  assert.ok(reports > before, "the change is reported without another event");
+  sink!("b", { at: 0, battery: 76 });
+  assert.equal(hub.status("b").link, "ready");
+  await time.advance(150_000);
+  assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["silent", "silent"]);
+});

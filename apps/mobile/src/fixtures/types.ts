@@ -15,6 +15,8 @@ export interface Fixture {
   createdAt: string;
   /** false until the Worker has acknowledged the PUT. */
   synced: boolean;
+  /** Put to sleep in the Studio (#318): the proxy leaves it alone, no connection attempts. */
+  asleep?: boolean;
 }
 
 /** One change to a fixture, and what it reports: shared with the Studio, which controls the lights through the proxy (#307). */
@@ -29,6 +31,8 @@ export interface Link {
   /** Resolves once notifications are on; the function turns them off. */
   notify(service: string, characteristic: string, cb: (bytes: Uint8Array) => void): Promise<() => void>;
   onDisconnect(cb: (error: unknown) => void): () => void;
+  /** A characteristic's value (the camera's protocol version, #318); fake links in tests may leave it out. */
+  read?(service: string, characteristic: string): Promise<Uint8Array>;
   close(): Promise<void>;
 }
 
@@ -51,4 +55,9 @@ export interface Driver {
   /** Addresses to try for a link, best first (a mesh link can use any node of its network). */
   addressesFor(linkKey: string, fixtures: Fixture[]): string[];
   open(link: Link, fixtures: Fixture[], sink: (fixtureId: string, t: Telemetry) => void): Promise<Session>;
+  /**
+   * Fixtures that report on their own (a mesh asks every light when it connects, and polls): one not
+   * heard within `firstMs` of the link coming up, or for `staleMs` since, shows as silent (#318).
+   */
+  answers?: { firstMs: number; staleMs: number };
 }
