@@ -20,15 +20,30 @@ export async function adapterState(): Promise<Adapter> {
 
 export interface Seen { address: string; name: string | null; rssi: number | null; serviceUUIDs: string[] | null }
 
-/** Report every advertising device (repeats included) until the returned function is called. */
+interface Scanner { onSeen: (d: Seen) => void; onError: (e: unknown) => void }
+const scanners = new Set<Scanner>();
+let scanning = false;
+
+/**
+ * Report every advertising device (repeats included) until the returned function is called. The
+ * library runs one scan at a time (a second start replaces the first), so every caller (pairing,
+ * the proxy's presence check) shares one: it runs while anyone listens.
+ */
 export function scan(onSeen: (d: Seen) => void, onError: (e: unknown) => void): () => void {
-  let stopped = false;
-  ble().startDeviceScan(null, { allowDuplicates: false }, (err, d) => {
-    if (stopped) return;
-    if (err) { onError(err); return; }
-    if (d) onSeen({ address: d.id, name: d.localName ?? d.name, rssi: d.rssi, serviceUUIDs: d.serviceUUIDs });
-  }).catch(onError);
-  return () => { stopped = true; void ble().stopDeviceScan().catch(() => {}); };
+  const s: Scanner = { onSeen, onError };
+  scanners.add(s);
+  if (!scanning) {
+    scanning = true;
+    ble().startDeviceScan(null, { allowDuplicates: true }, (err, d) => {
+      if (err) { scanning = false; for (const x of [...scanners]) x.onError(err); return; }
+      if (d) { const seen = { address: d.id, name: d.localName ?? d.name, rssi: d.rssi, serviceUUIDs: d.serviceUUIDs }; for (const x of [...scanners]) x.onSeen(seen); }
+    }).catch((e) => { scanning = false; for (const x of [...scanners]) x.onError(e); });
+  }
+  return () => {
+    if (!scanners.delete(s) || scanners.size) return;
+    scanning = false;
+    void ble().stopDeviceScan().catch(() => {});
+  };
 }
 
 /** MTU asked for on connect: room for a NEEWER frame or a mesh proxy PDU in one write. */

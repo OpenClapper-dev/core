@@ -51,7 +51,8 @@ export interface Telemetry {
   camera?: CameraTelemetry;
 }
 
-export type LinkState = "off" | "connecting" | "ready" | "retrying" | "failed";
+/** "waiting": queued behind another connection attempt; "absent": not seen advertising, so not tried (#318). */
+export type LinkState = "off" | "waiting" | "absent" | "connecting" | "ready" | "retrying" | "failed";
 
 /** One fixture as the proxy sees it. */
 export interface FixtureLive {

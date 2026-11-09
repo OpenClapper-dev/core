@@ -707,3 +707,6 @@ button { font: inherit; }
 .camera-outputs th, .camera-outputs td { padding: 4px; text-align: left; }
 .camera-outputs th:not(:first-child), .camera-outputs td:not(:first-child) { text-align: center; width: 70px; }
 .power-tile.is-asleep { opacity: 0.55; border-style: dashed; }
+.devices-dot.is-asleep { background: transparent; border-style: dashed; }
+.sleep-badge { display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-caption); font-weight: var(--weight-semibold); color: var(--text); }
+.f-row.is-asleep { opacity: 0.6; }
