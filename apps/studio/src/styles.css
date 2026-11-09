@@ -704,6 +704,11 @@ button { font: inherit; }
 .seq-mark.is-range { background: color-mix(in srgb, var(--track-c, var(--text)) 16%, transparent); border-right: var(--bw) solid var(--track-c, var(--text)); overflow: hidden; }
 .seq-mark.is-selected { outline: var(--bw-strong) solid var(--accent); }
 .seq-mark.is-draft { pointer-events: none; border-style: dashed; }
+.seq-mark { cursor: grab; touch-action: none; }
+.seq-mark__edge { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.seq-mark__edge.is-in { left: -3px; }
+.seq-mark__edge.is-out { right: -3px; }
+.seq-lanes:not(.is-insert) .seq-marks, .seq-lanes:not(.is-insert) .seq-lane__marks { cursor: default; }
 .seq-lane__marks .seq-mark { top: 0; bottom: 0; }
 .seq-mline { position: absolute; top: 0; bottom: 0; width: 0; border-left: var(--bw) dashed var(--text-dim); pointer-events: none; }
 .seq-mband { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--text) 6%, transparent); pointer-events: none; }

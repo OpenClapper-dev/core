@@ -38,6 +38,9 @@ const INSPECTOR_W = "360px";
 /** A selected keyframe: track id and keyframe id. */
 const keyOf = (trackId: string, kfId: string) => `${trackId}/${kfId}`;
 const splitKey = (k: string) => { const i = k.indexOf("/"); return [k.slice(0, i), k.slice(i + 1)] as const; };
+/** A selected marker (#323) shares the selection with keyframes: box, Shift-click, drag and Delete treat both alike. */
+const markKey = (id: string) => `@m/${id}`;
+const markOf = (k: string) => (k.startsWith("@m/") ? k.slice(3) : null);
 
 function newSequence(n: number): LightSequence {
   return { id: newId(), name: `Sequence ${n}`, durationMs: 10_000, loop: false, tracks: [], updatedAt: new Date().toISOString() };
@@ -64,8 +67,6 @@ export function SequencesApp(_p: AppProps) {
   const kfSize = useSettings().keyframeSize;
   const [view, setView] = useSeqView();
   const [viewMenu, setViewMenu] = useState(false);
-  /** The selected marker (#323): its inspector replaces the keyframe's. */
-  const [selMarker, setSelMarker] = useState<string | null>(null);
   /** Shift+M's first press: the range's in point, waiting for its out point. */
   const rangeIn = useRef<number | null>(null);
 
@@ -155,7 +156,9 @@ export function SequencesApp(_p: AppProps) {
     setSelId(sequences.find((s) => s.id !== seq.id)?.id ?? null);
   };
 
-  const select = (keys: Iterable<string>, add = false) => { setTile(null); setSelMarker(null); setSel(new Set([...(add ? sel : []), ...keys])); };
+  const select = (keys: Iterable<string>, add = false) => { setTile(null); setSel(new Set([...(add ? sel : []), ...keys])); };
+  /** The one selected marker: its inspector replaces the keyframe's. */
+  const selMarker = sel.size === 1 ? markOf([...sel][0]) : null;
 
   const addMarker = (at: number, end?: number, trackId?: string) => {
     const cur = current();
@@ -167,11 +170,11 @@ export function SequencesApp(_p: AppProps) {
   };
   const pickMarker = (id: string) => {
     const m = current()?.markers?.find((x) => x.id === id);
-    setSel(new Set()); setTile(null); setSelMarker(id);
+    setTile(null); setSel(new Set([markKey(id)]));
     if (m && !playing && !lockedRef.current) setPlayhead(m.at);
   };
   const patchMarker = (id: string, fn: (m: SequenceMarker) => SequenceMarker) => patch((s) => ({ ...s, markers: (s.markers ?? []).map((m) => (m.id === id ? fn(m) : m)) }));
-  const deleteMarker = (id: string) => { patch((s) => ({ ...s, markers: (s.markers ?? []).filter((m) => m.id !== id) })); setSelMarker(null); };
+  const deleteMarker = (id: string) => { patch((s) => ({ ...s, markers: (s.markers ?? []).filter((m) => m.id !== id) })); setSel(new Set()); };
   /** Shift+M: in point, then out point (#323). */
   const markRange = () => {
     if (rangeIn.current === null) { rangeIn.current = playhead; toast(`In at ${fmt(playhead)}: move the playhead, Shift+M again for the out point`, "info"); return; }
@@ -184,15 +187,15 @@ export function SequencesApp(_p: AppProps) {
     if (!sel.size || lockedRef.current) return false;
     const drop = new Set([...sel].filter((k) => splitKey(k)[1] !== START_KEYFRAME));
     if (!drop.size) return false;
-    patch((s) => ({ ...s, tracks: s.tracks.map((t) => ({ ...t, keyframes: t.keyframes.filter((k) => !drop.has(keyOf(t.id, k.id))) })) }));
+    patch((s) => ({ ...s, markers: (s.markers ?? []).filter((m) => !drop.has(markKey(m.id))), tracks: s.tracks.map((t) => ({ ...t, keyframes: t.keyframes.filter((k) => !drop.has(keyOf(t.id, k.id))) })) }));
     setSel(new Set());
   };
   useKeys(bind("sequences", {
-    remove: () => { if (selMarker && !lockedRef.current) { deleteMarker(selMarker); return; } return deleteSelected(); },
+    remove: () => deleteSelected(),
     marker: () => addMarker(playhead),
     markerRange: () => markRange(),
-    all: () => { if (!seq) return false; select(seq.tracks.flatMap((t) => t.keyframes.map((k) => keyOf(t.id, k.id)))); },
-    clear: () => { if (!sel.size && !tile && !selMarker) return false; setSel(new Set()); setTile(null); setSelMarker(null); },
+    all: () => { if (!seq) return false; select([...seq.tracks.flatMap((t) => t.keyframes.map((k) => keyOf(t.id, k.id))), ...(seq.markers ?? []).map((m) => markKey(m.id))]); },
+    clear: () => { if (!sel.size && !tile) return false; setSel(new Set()); setTile(null); },
     play: () => play(),
     stopHere: () => stopHere(),
     selectMode: () => setMode("select"),
@@ -267,7 +270,7 @@ export function SequencesApp(_p: AppProps) {
             )}
             {run?.phase === "error" && run.sequenceId === seq.id && <div class="seq-run"><ErrorLine>{run.error ?? "Not started on the phone"}</ErrorLine></div>}
             <div class={cx("seq-lock", locked && "is-locked")}>
-            <Lanes seq={seq} mode={mode} kfSize={kfSize} view={view} selMarker={selMarker} onMarkerAdd={addMarker} onMarkerPick={pickMarker} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={locked ? runAt : playhead} playing={playing || locked} sel={sel} tile={tile}
+            <Lanes seq={seq} mode={mode} kfSize={kfSize} view={view} onMarkerAdd={addMarker} onMarkerPick={pickMarker} onMarkerResize={(id, edge, at) => patchMarker(id, (m) => ({ ...m, [edge]: at }))} fixtures={fixtures} liveOf={(id) => proxy.proxy?.fixtures.find((l) => l.id === id)} playhead={locked ? runAt : playhead} playing={playing || locked} sel={sel} tile={tile}
               onSeek={(t) => { if (!playing) setPlayhead(t); }}
               onAdd={(trackId, at) => {
                 const tr = current()?.tracks.find((t) => t.id === trackId);
@@ -280,7 +283,11 @@ export function SequencesApp(_p: AppProps) {
               }}
               onSelect={(keys, add) => select(keys, add)}
               onToggle={(key) => { const n = new Set(sel); if (n.has(key)) n.delete(key); else n.add(key); setTile(null); setSel(n); }}
-              onMoveAll={(moves) => patch((s) => ({ ...s, tracks: s.tracks.map((t) => ({ ...t, keyframes: t.keyframes.map((k) => { const at = moves.get(keyOf(t.id, k.id)); return at === undefined ? k : { ...k, at }; }) })) }))}
+              onMoveAll={(moves) => patch((s) => ({
+                ...s,
+                // A marker keeps its length when moved with the selection.
+                markers: (s.markers ?? []).map((m) => { const at = moves.get(markKey(m.id)); return at === undefined ? m : { ...m, at, ...(m.end !== undefined ? { end: m.end + at - m.at } : {}) }; }),
+                tracks: s.tracks.map((t) => ({ ...t, keyframes: t.keyframes.map((k) => { const at = moves.get(keyOf(t.id, k.id)); return at === undefined ? k : { ...k, at }; }) })) }))}
               onTile={(trackId, toId) => {
                 const tr = current()?.tracks.find((t) => t.id === trackId);
                 const k = tr?.keyframes.find((x) => x.id === toId);
@@ -294,12 +301,12 @@ export function SequencesApp(_p: AppProps) {
             <div class="seq-add">
               <Select label="Add a track" prefix="Add track" value="" onChange={(id) => id && addTrack(id)}
                 options={[{ value: "", label: "Pick a light type…" }, ...TRACK_KINDS.map((k) => ({ value: k.id, label: `${k.brand} ${k.model}` }))]} />
-              <p class="meta">Markers: M at the playhead, Shift+M twice for a range, or click (point) or drag (range) in the marker strip under the ruler, or in a lane's top strip for that track only. In Insert mode (I) a click on a lane adds a keyframe; in Select mode (V) Alt+click does. Shift-click to add to the selection, or drag a box over the lanes. Drag a selected keyframe to move them all (0.1 s steps); Delete removes them. Click the strip between two keyframes to fade from one to the other. Drag the playhead's thumb to scrub.</p>
+              <p class="meta">Markers: M at the playhead, Shift+M twice for a range, or in Insert mode click (point) or drag (range) in the marker strip under the ruler, or in a lane's top strip for that track only. Markers select, move and delete like keyframes; drag a range's edges to resize it. In Insert mode (I) a click on a lane adds a keyframe; in Select mode (V) Alt+click does. Shift-click to add to the selection, or drag a box over the lanes. Drag a selected keyframe to move them all (0.1 s steps); Delete removes them. Click the strip between two keyframes to fade from one to the other. Drag the playhead's thumb to scrub.</p>
             </div>
           </div>
           {selMarker && seq.markers?.some((m) => m.id === selMarker) && (
             <MarkerPanel key={selMarker} m={seq.markers.find((m) => m.id === selMarker)!} seq={seq}
-              onChange={(fn) => patchMarker(selMarker, fn)} onDelete={() => deleteMarker(selMarker)} onClose={() => setSelMarker(null)} />
+              onChange={(fn) => patchMarker(selMarker, fn)} onDelete={() => deleteMarker(selMarker)} onClose={() => setSel(new Set())} />
           )}
           {selKf && selTrack && (
             <KeyframePanel key={selKf.id} kf={selKf} track={selTrack} durationMs={seq.durationMs}
@@ -308,9 +315,9 @@ export function SequencesApp(_p: AppProps) {
           )}
           {sel.size > 1 && (
             <Panel label="Selection" width={INSPECTOR_W}>
-              <PanelHead title={`${sel.size} keyframes`}><IconButton icon="close" label="Clear the selection" onClick={() => setSel(new Set())} /></PanelHead>
+              <PanelHead title={`${sel.size} selected`}><IconButton icon="close" label="Clear the selection" onClick={() => setSel(new Set())} /></PanelHead>
               <PanelBody>
-                <p class="meta">Drag one of them to move them all. Start keyframes stay where they are.</p>
+                <p class="meta">Keyframes and markers: drag one of them to move them all; Delete removes them. Start keyframes stay where they are.</p>
                 <div class="btn-row"><Button size="sm" kind="danger" icon="delete-outline" onClick={() => deleteSelected()}>Delete</Button></div>
               </PanelBody>
             </Panel>
@@ -334,8 +341,8 @@ export function SequencesApp(_p: AppProps) {
 }
 
 interface LanesProps {
-  seq: LightSequence; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; view: SeqView; selMarker: string | null;
-  onMarkerAdd: (at: number, end?: number, trackId?: string) => void; onMarkerPick: (id: string) => void; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
+  seq: LightSequence; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; view: SeqView;
+  onMarkerAdd: (at: number, end?: number, trackId?: string) => void; onMarkerPick: (id: string) => void; onMarkerResize: (id: string, edge: "at" | "end", at: number) => void; fixtures: ServerFixture[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
   onSeek: (t: number) => void; onAdd: (trackId: string, at: number) => void;
   onSelect: (keys: string[], add: boolean) => void; onToggle: (key: string) => void;
   onMoveAll: (moves: Map<string, number>) => void; onTile: (trackId: string, toId: string) => void;
@@ -379,7 +386,7 @@ function Lanes(p: LanesProps) {
   // A press on empty lane space: a click adds a keyframe, a drag draws a selection box.
   const pressLanes = (e: PointerEvent) => {
     const target = e.target as HTMLElement;
-    if (e.button !== 0 || target.closest(".seq-kf, .seq-gap, .seq-label, .seq-ruler")) return;
+    if (e.button !== 0 || target.closest(".seq-kf, .seq-gap, .seq-label, .seq-ruler, .seq-mark")) return;
     const x0 = e.clientX, y0 = e.clientY, add = e.shiftKey, insert = p.mode === "insert" || e.altKey;
     const lane = target.closest<HTMLElement>(".seq-lane");
     let moved = false;
@@ -392,7 +399,7 @@ function Lanes(p: LanesProps) {
       // A plain click: adds in Insert mode (or with Alt); in Select mode it clears the selection.
       if (!moved) { if (insert && lane?.dataset.track) p.onAdd(lane.dataset.track, timeAt(ev.clientX)); else if (!add) p.onSelect([], false); return; }
       const [l, r] = [Math.min(x0, ev.clientX), Math.max(x0, ev.clientX)], [t, b] = [Math.min(y0, ev.clientY), Math.max(y0, ev.clientY)];
-      const hit = [...(lanesRef.current?.querySelectorAll<HTMLElement>(".seq-kf") ?? [])].filter((el) => {
+      const hit = [...(lanesRef.current?.querySelectorAll<HTMLElement>(".seq-kf, .seq-mark[data-key]") ?? [])].filter((el) => {
         const q = el.getBoundingClientRect(), cx = q.left + q.width / 2, cy = q.top + q.height / 2;
         return cx >= l && cx <= r && cy >= t && cy <= b;
       }).map((el) => el.dataset.key!);
@@ -400,27 +407,34 @@ function Lanes(p: LanesProps) {
     });
   };
 
-  // A press on a keyframe: Shift toggles it; otherwise it (and the rest of the selection) can be dragged.
+  // A press on a keyframe or marker: Shift toggles it; otherwise it (and the rest of the selection) can
+  // be dragged. A marker clicked without moving also moves the playhead to it.
   const pressKf = (e: PointerEvent, key: string) => {
     e.stopPropagation();
     if (e.button !== 0) return;
     if (e.shiftKey) { p.onToggle(key); return; }
     const group = p.sel.has(key) ? [...p.sel] : [key];
     if (!p.sel.has(key)) p.onSelect([key], false);
-    const origin = new Map<string, number>();
+    // Where each item is, how far it reaches (a range's end), and how early it may go (keyframes never onto 0).
+    const origin = new Map<string, { at: number; reach: number; min: number }>();
     for (const k of group) {
+      const mid = markOf(k);
+      if (mid) { const m = seq.markers?.find((x) => x.id === mid); if (m) origin.set(k, { at: m.at, reach: m.end ?? m.at, min: 0 }); continue; }
       const [tid, kid] = splitKey(k);
       const kf = seq.tracks.find((t) => t.id === tid)?.keyframes.find((x) => x.id === kid);
-      if (kf && kf.id !== START_KEYFRAME) origin.set(k, kf.at);
+      if (kf && kf.id !== START_KEYFRAME) origin.set(k, { at: kf.at, reach: kf.at, min: SNAP_MS });
     }
+    const picked = markOf(key);
     if (!origin.size) return;
     const x0 = e.clientX, perPx = msPerPx();
-    const lo = Math.min(...origin.values()), hi = Math.max(...origin.values());
+    const dMin = Math.max(...[...origin.values()].map((o) => o.min - o.at)), dMax = Math.min(...[...origin.values()].map((o) => seq.durationMs - o.reach));
+    let moved = false;
     gesture((ev) => {
-      // The group moves together and stays inside the sequence (never onto 0, the start keyframe's place).
-      const d = Math.min(seq.durationMs - hi, Math.max(SNAP_MS - lo, snap((ev.clientX - x0) * perPx)));
-      p.onMoveAll(new Map([...origin].map(([k, at]) => [k, at + d])));
-    });
+      if (!moved && Math.abs(ev.clientX - x0) < 4) return;
+      moved = true;
+      const d = Math.min(dMax, Math.max(dMin, snap((ev.clientX - x0) * perPx)));
+      p.onMoveAll(new Map([...origin].map(([k, o]) => [k, o.at + d])));
+    }, () => { if (!moved && picked) p.onMarkerPick(picked); });
   };
 
   return (
@@ -437,7 +451,7 @@ function Lanes(p: LanesProps) {
       </div>
       <div class="seq-row seq-row--marks">
         <div class="seq-label"><span class="meta">Markers</span></div>
-        <MarkStrip {...p} markers={(seq.markers ?? []).filter((m) => !m.trackId)} pct={pct} timeAt={timeAt} gesture={gesture} />
+        <MarkStrip {...p} markers={(seq.markers ?? []).filter((m) => !m.trackId)} pct={pct} timeAt={timeAt} gesture={gesture} pressKf={pressKf} />
       </div>
       {seq.tracks.map((tr) => <TrackRow key={tr.id} {...p} tr={tr} pct={pct} pressKf={pressKf} timeAt={timeAt} gesture={gesture} />)}
       {seq.tracks.length === 0 && <p class="meta seq-empty">Add a track below: pick the type of light it is for, then assign a light to it.</p>}
@@ -450,13 +464,16 @@ type Gesture = (move: (e: PointerEvent) => void, up?: (e: PointerEvent) => void)
 
 /**
  * A strip of markers (#323): across the sequence under the ruler, or a lane's top strip for that
- * track. A click adds a point, a drag a range; a marker's click selects it and moves the playhead.
+ * track. In Insert mode (or with Alt) a click adds a point and a drag a range; in Select mode the
+ * strip selects like the lanes. Markers select, move and delete like keyframes; a range's edges drag.
  */
-function MarkStrip(p: LanesProps & { markers: SequenceMarker[]; trackId?: string; pct: (t: number) => string; timeAt: (x: number) => number; gesture: Gesture }) {
+function MarkStrip(p: LanesProps & { markers: SequenceMarker[]; trackId?: string; pct: (t: number) => string; timeAt: (x: number) => number; gesture: Gesture; pressKf: (e: PointerEvent, key: string) => void }) {
   const [draft, setDraft] = useState<{ a: number; b: number } | null>(null);
   const press = (e: PointerEvent) => {
-    e.stopPropagation();
     if (e.button !== 0 || (e.target as HTMLElement).closest(".seq-mark")) return;
+    // Select mode: the lanes' own press (box selection, a click clears).
+    if (p.mode !== "insert" && !e.altKey) return;
+    e.stopPropagation();
     const x0 = e.clientX, a = p.timeAt(x0);
     let moved = false;
     p.gesture((ev) => { if (!moved && Math.abs(ev.clientX - x0) < 4) return; moved = true; setDraft({ a, b: p.timeAt(ev.clientX) }); }, (ev) => {
@@ -467,15 +484,27 @@ function MarkStrip(p: LanesProps & { markers: SequenceMarker[]; trackId?: string
     });
   };
   return (
-    <div class={cx(p.trackId ? "seq-lane__marks" : "seq-marks")} onPointerDown={press} title={p.trackId ? "This track's markers: click for a point, drag for a range" : "Markers: click for a point, drag for a range (M, Shift+M)"}>
-      {p.markers.map((m) => (
-        <button key={m.id} type="button" class={cx("seq-mark", m.end !== undefined ? "is-range" : "is-point", p.selMarker === m.id && "is-selected")}
-          style={{ left: p.pct(m.at), ...(m.end !== undefined ? { width: p.pct(m.end - m.at) } : {}) }}
-          title={`${m.name || "Marker"} · ${fmt(m.at)}${m.end !== undefined ? `–${fmt(m.end)}` : ""}`}
-          onPointerDown={(e) => e.stopPropagation()} onClick={() => p.onMarkerPick(m.id)}>
-          <span class="seq-mark__name">{m.name || "Marker"}</span>
-        </button>
-      ))}
+    <div class={cx(p.trackId ? "seq-lane__marks" : "seq-marks")} onPointerDown={press} title={p.trackId ? "This track's markers (Insert mode or Alt: click for a point, drag for a range)" : "Markers (Insert mode or Alt: click for a point, drag for a range; M, Shift+M)"}>
+      {p.markers.map((m) => {
+        const edge = (e: PointerEvent, which: "at" | "end") => {
+          e.stopPropagation();
+          if (e.button !== 0) return;
+          p.gesture((ev) => {
+            const t = p.timeAt(ev.clientX);
+            if (which === "at") p.onMarkerResize(m.id, "at", Math.min(t, (m.end ?? t) - SNAP_MS));
+            else p.onMarkerResize(m.id, "end", Math.max(t, m.at + SNAP_MS));
+          });
+        };
+        return (
+          <button key={m.id} type="button" data-key={markKey(m.id)} class={cx("seq-mark", m.end !== undefined ? "is-range" : "is-point", p.sel.has(markKey(m.id)) && "is-selected")}
+            style={{ left: p.pct(m.at), ...(m.end !== undefined ? { width: p.pct(m.end - m.at) } : {}) }}
+            title={`${m.name || "Marker"} · ${fmt(m.at)}${m.end !== undefined ? `–${fmt(m.end)}` : ""} (drag to move)`}
+            onPointerDown={(e) => p.pressKf(e, markKey(m.id))}>
+            <span class="seq-mark__name">{m.name || "Marker"}</span>
+            {m.end !== undefined && <><span class="seq-mark__edge is-in" title="Drag the in point" onPointerDown={(e) => edge(e, "at")} /><span class="seq-mark__edge is-out" title="Drag the out point" onPointerDown={(e) => edge(e, "end")} /></>}
+          </button>
+        );
+      })}
       {draft && <span class="seq-mark is-range is-draft" style={{ left: p.pct(Math.min(draft.a, draft.b)), width: p.pct(Math.abs(draft.b - draft.a)) }} />}
     </div>
   );
@@ -527,7 +556,7 @@ function TrackRow(p: LanesProps & { tr: SequenceTrack; pct: (t: number) => strin
       </div>
       <div class={cx("seq-lane", !tr.fixtureId && "is-unassigned", tr.muted && "is-muted")} data-track={tr.id}>
         {global.map((m) => <span key={m.id} class={cx(m.end !== undefined ? "seq-mband" : "seq-mline")} style={{ left: pct(m.at), ...(m.end !== undefined ? { width: pct(m.end - m.at) } : {}) }} />)}
-        <MarkStrip {...p} markers={(seq.markers ?? []).filter((m) => m.trackId === tr.id)} trackId={tr.id} pct={pct} timeAt={p.timeAt} gesture={p.gesture} />
+        <MarkStrip {...p} markers={(seq.markers ?? []).filter((m) => m.trackId === tr.id)} trackId={tr.id} pct={pct} timeAt={p.timeAt} gesture={p.gesture} pressKf={p.pressKf} />
         {p.view.graph && (
           <svg class="seq-graph" viewBox={`0 0 ${seq.durationMs} 1`} preserveAspectRatio="none" aria-hidden="true">
             <polyline points={graphPoints(tr.keyframes, seq.durationMs)} vector-effect="non-scaling-stroke" />
