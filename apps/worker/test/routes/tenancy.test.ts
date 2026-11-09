@@ -136,6 +136,7 @@ const ROUTES: Record<string, Case> = {
   "PUT /api/timelines/:id": { kind: "id", path: (a) => `/api/timelines/${a.timeline}`, body: (a, actor) => ({ project_id: actor.project, name: named(a, "timeline"), clips: [] }) },
   "DELETE /api/timelines/:id": { kind: "id", path: (a) => `/api/timelines/${a.timeline}` },
   "GET /api/light-sequences": { kind: "list", paths: (a) => ["/api/light-sequences", `/api/light-sequences?project_id=${a.project}`] },
+  "GET /api/light-sequences/:id": { kind: "id", path: (a) => `/api/light-sequences/${a.lightSequence}` },
   "PUT /api/light-sequences/:id": { kind: "id", path: (a) => `/api/light-sequences/${a.lightSequence}`, body: (a, actor) => sequenceBody(actor.project, named(a, "sequence")) },
   "DELETE /api/light-sequences/:id": { kind: "id", path: (a) => `/api/light-sequences/${a.lightSequence}` },
   "POST /api/timelines/:id/clips/:clip/promote": { kind: "id", path: (a) => `/api/timelines/${a.timeline}/clips/${a.clip}/promote`, body: () => ({ what: "framing" }) },

@@ -1,5 +1,5 @@
 /** Same-origin API; the session cookie is sent automatically. */
-import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint, Layer, LayerInput, StepBake, LightSequence, SequenceTrack } from "@openclapper/vocab";
+import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint, Layer, LayerInput, StepBake, LightSequence, SequenceMarker, SequenceTrack } from "@openclapper/vocab";
 export type { Layer, LayerInput, ShotStep, StepBake, StepInput } from "@openclapper/vocab";
 export type { ClipGroup } from "@openclapper/vocab";
 export type { FieldDefinition };
@@ -468,11 +468,11 @@ export const setFixturePower = (id: string, poweredBy: string | null) =>
 export const deleteFixture = (id: string) => send<{ deleted: string }>("DELETE", `/api/fixtures/${id}`).then(() => undefined);
 
 /** Light sequences (#304), per project; the editor's model (vocab LightSequence) with snake-case envelope fields. */
-interface ServerLightSequence { id: string; project_id: string; name: string; duration_ms: number; loop: boolean; tracks: SequenceTrack[]; updated_at: string | null; created_at: string }
-const sequenceFromServer = (s: ServerLightSequence): LightSequence => ({ id: s.id, name: s.name, durationMs: s.duration_ms, loop: s.loop, tracks: s.tracks, updatedAt: s.updated_at ?? s.created_at });
+interface ServerLightSequence { id: string; project_id: string; name: string; duration_ms: number; loop: boolean; tracks: SequenceTrack[]; markers?: SequenceMarker[]; updated_at: string | null; created_at: string }
+const sequenceFromServer = (s: ServerLightSequence): LightSequence => ({ id: s.id, name: s.name, durationMs: s.duration_ms, loop: s.loop, tracks: s.tracks, markers: s.markers ?? [], updatedAt: s.updated_at ?? s.created_at });
 export const fetchLightSequences = (projectId: string) =>
   get<{ light_sequences: ServerLightSequence[] }>(`/api/light-sequences?project_id=${encodeURIComponent(projectId)}`).then((r) => r.light_sequences.map(sequenceFromServer));
 export const putLightSequence = (projectId: string, s: LightSequence) =>
-  send<{ light_sequence: ServerLightSequence }>("PUT", `/api/light-sequences/${s.id}`, { project_id: projectId, name: s.name, duration_ms: s.durationMs, loop: s.loop, tracks: s.tracks })
+  send<{ light_sequence: ServerLightSequence }>("PUT", `/api/light-sequences/${s.id}`, { project_id: projectId, name: s.name, duration_ms: s.durationMs, loop: s.loop, tracks: s.tracks, markers: s.markers ?? [] })
     .then((r) => sequenceFromServer(r.light_sequence));
 export const deleteLightSequence = (id: string) => send<{ deleted: string }>("DELETE", `/api/light-sequences/${id}`).then(() => undefined);

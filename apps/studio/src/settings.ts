@@ -35,8 +35,28 @@ export interface Settings {
   stageBg: string | null;
   /** Per app (registry id): its own stage background, overriding `stageBg` inside its windows. */
   stageBgApps: Record<string, string>;
+  /** Keyframe size in the Sequences editor (#321): S is 14 px, M 20, L 28. */
+  keyframeSize: "s" | "m" | "l";
+  /** What the Sequences editor draws on keyframes (#323). */
+  seqView: SeqView;
 }
-export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true, taskbarPosition: "bottom", taskbarAlign: "start", stageBg: null, stageBgApps: {} };
+/**
+ * How the Sequences editor draws keyframes (#323): which extras are on, kept per browser. Each one
+ * makes a long sequence readable without opening every keyframe.
+ */
+export interface SeqView {
+  /** Keyframes at their intensity's height, a line through keyframes and fades (like automation). */
+  graph: boolean;
+  /** Keyframes filled with the light's colour there (white by kelvin, or the hue). */
+  fill: boolean;
+  /** What each keyframe sets, next to it. */
+  labels: boolean;
+  /** The effect's name over its keyframe; a power-off keyframe hollow and crossed. */
+  badges: boolean;
+}
+export const DEFAULT_SEQ_VIEW: SeqView = { graph: false, fill: true, labels: false, badges: true };
+
+export const DEFAULT_SETTINGS: Settings = { newShotState: "approved", inlinePlayhead: "pin", seqRemove: "photo", autoOverlay: false, binOnDesktop: true, taskbarPosition: "bottom", taskbarAlign: "start", stageBg: null, stageBgApps: {}, keyframeSize: "s", seqView: DEFAULT_SEQ_VIEW };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 /** A stored colour, or null when it is not #rrggbb (hand-edited storage never reaches the CSS). */
@@ -54,6 +74,8 @@ function read(): Settings {
       taskbarPosition: raw.taskbarPosition === "top" || raw.taskbarPosition === "left" || raw.taskbarPosition === "right" ? raw.taskbarPosition : "bottom",
       taskbarAlign: raw.taskbarAlign === "center" ? "center" : "start",
       stageBg: hexOrNull(raw.stageBg),
+      keyframeSize: raw.keyframeSize === "m" || raw.keyframeSize === "l" ? raw.keyframeSize : "s",
+      seqView: Object.fromEntries(Object.entries(DEFAULT_SEQ_VIEW).map(([k, d]) => { const v = (raw.seqView as Record<string, unknown> | undefined)?.[k]; return [k, typeof v === "boolean" ? v : d]; })) as unknown as SeqView,
       stageBgApps: Object.fromEntries(Object.entries(raw.stageBgApps && typeof raw.stageBgApps === "object" ? raw.stageBgApps : {}).flatMap(([k, v]) => { const h = hexOrNull(v); return h ? [[k, h]] : []; })),
     };
   } catch { return { ...DEFAULT_SETTINGS }; }

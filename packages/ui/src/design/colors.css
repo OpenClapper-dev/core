@@ -67,6 +67,9 @@
   --marquee-bg: rgba(0,64,216,0.10); /* @kind other */
   --marquee-border: #0040D8;
   --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
+  /* Track colours (#323): the Sequences editor's 8 track colours, each at least 3:1 on --surface and --surface-sunken. */
+  --track-1: #0040D8; --track-2: #B0121A; --track-3: #0A6630; --track-4: #8A4B00;
+  --track-5: #6B21A8; --track-6: #00707A; --track-7: #A3006B; --track-8: #4B5563;
   --split-grip: var(--border-strong);
   color-scheme: light;
 }
@@ -128,6 +131,9 @@
   --marquee-bg: rgba(0,64,216,0.10); /* @kind other */
   --marquee-border: #0040D8;
   --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
+  /* Track colours (#323): the Sequences editor's 8 track colours, each at least 3:1 on --surface and --surface-sunken. */
+  --track-1: #0040D8; --track-2: #B0121A; --track-3: #0A6630; --track-4: #8A4B00;
+  --track-5: #6B21A8; --track-6: #00707A; --track-7: #A3006B; --track-8: #4B5563;
   --split-grip: var(--border-strong);
   color-scheme: light;
 }
@@ -189,6 +195,9 @@
   --marquee-bg: rgba(111,162,255,0.14); /* @kind other */
   --marquee-border: #6FA2FF;
   --taskview-text: #FFFFFF; /* on the scrim: the scrim is near-black in both themes */
+  /* Track colours (#323), light on the dark surfaces. */
+  --track-1: #6FA2FF; --track-2: #FF7A7A; --track-3: #5FD38A; --track-4: #FFB454;
+  --track-5: #C69CFF; --track-6: #4FD1DB; --track-7: #FF7AC8; --track-8: #B8BEC8;
   --split-grip: var(--border-strong);
   color-scheme: dark;
 }

@@ -104,3 +104,11 @@ test("stored tracks are checked strictly and cleaned", () => {
   assert.ok("error" in bad({}, { effect: { id: "disco" } }));
   assert.ok("error" in parseSequenceTracks([{ ...good[0], keyframes: [{ id: "k", at: 0 }] }], 1000, isKind, isEffect));
 });
+
+test("markers (#323): points and ranges, a removed track's marker goes across the sequence", async () => {
+  const { parseSequenceMarkers } = await import("./lightSequence.ts");
+  const r = parseSequenceMarkers([{ id: "a", at: 100.4, name: " In " }, { id: "b", at: 200, end: 900, name: "", trackId: "t" }, { id: "c", at: 0, name: "x", trackId: "gone" }], 1000, new Set(["t"]));
+  assert.deepEqual(r, { markers: [{ id: "a", at: 100, name: "In" }, { id: "b", at: 200, end: 900, name: "", trackId: "t" }, { id: "c", at: 0, name: "x" }] });
+  assert.ok("error" in parseSequenceMarkers([{ id: "a", at: 500, end: 400, name: "" }], 1000, new Set()));
+  assert.deepEqual(parseSequenceMarkers(undefined, 1000, new Set()), { markers: [] });
+});

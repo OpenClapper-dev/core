@@ -47,6 +47,21 @@ async function moveBrowserSequences(projectId: string) {
   changed();
 }
 
+/**
+ * Saves a sequence now, waiting for the server (#321): before the phone runs it, so it fetches
+ * exactly what the editor shows. Returns the server's revision (updated_at).
+ */
+export async function flushSequence(id: string): Promise<string> {
+  clearTimeout(pending.get(id));
+  pending.delete(id);
+  const latest = cache.find((x) => x.id === id);
+  if (!latest || !project) throw new Error("the sequence is not loaded");
+  const saved = await putLightSequence(project, latest);
+  cache = cache.map((x) => (x.id === id ? saved : x));
+  changed();
+  return saved.updatedAt;
+}
+
 /** Saves `s` (debounced); the editor sees the change at once, a failed save shows a toast. */
 export function upsertSequence(s: LightSequence) {
   const stamped = { ...s, updatedAt: new Date().toISOString() };

@@ -4,7 +4,7 @@ import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
 import type { DeviceSpecs, Extra, FieldDefinition, Framing } from "@openclapper/vocab";
-import type { VignettePoint } from "@openclapper/vocab";
+import type { LightSequence, SequenceTrack, VignettePoint } from "@openclapper/vocab";
 import { bakeHash, freshBake, stepsOf, type Layer, type ResolvedStep, type ShotStep, type StepBake } from "@openclapper/vocab";
 import type { Fixture } from "./fixtures/types";
 import type { MeshNetwork } from "./fixtures/meshNetworks";
@@ -359,6 +359,10 @@ export const api = {
       }),
     }),
   deleteFixture: (id: string) => call<{ deleted: string }>(`/api/fixtures/${id}`, { method: "DELETE" }),
+  /** One light sequence, to run it on the phone (#321); `updatedAt` is the revision the Studio named. */
+  getLightSequence: (id: string) =>
+    call<{ light_sequence: { id: string; name: string; duration_ms: number; loop: boolean; tracks: SequenceTrack[]; updated_at: string | null; created_at: string } }>(`/api/light-sequences/${id}`)
+      .then(({ light_sequence: s }): LightSequence => ({ id: s.id, name: s.name, durationMs: s.duration_ms, loop: s.loop, tracks: s.tracks, updatedAt: s.updated_at ?? s.created_at })),
   /** Sleep or wake a device (#318): the proxy stops or starts connecting to it. */
   setFixtureSleep: (id: string, asleep: boolean) =>
     call<{ fixture: ServerFixture }>(`/api/fixtures/${id}/sleep`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ asleep }) }),

@@ -91,8 +91,28 @@ export type ProxyRequest =
   | { type: "lights.hello" }
   | { type: "lights.sync" }
   | { type: "lights.reconnect" }
+  /** Run a sequence on the phone itself (#321): it fetches exactly this revision (updatedAt) and plays it on its own clock. */
+  | { type: "lights.run"; sequenceId: string; revision: string; fromMs: number }
+  | { type: "lights.run.stop" }
   | { type: "lights.scan"; on: boolean }
   | { type: "lights.provision"; fixtureId: string; fresh?: boolean };
+
+/**
+ * Phone → Studio (#321): a sequence running on the phone. Sent on every change, every RUN_REPORT_MS
+ * while playing, and on `lights.hello`. `atMs` is the position when sent.
+ */
+export interface RunState {
+  type: "lights.run.state";
+  phase: "idle" | "loading" | "playing" | "error";
+  sequenceId: string | null;
+  name?: string;
+  revision?: string;
+  atMs: number;
+  durationMs?: number;
+  loop?: boolean;
+  error?: string;
+}
+export const RUN_REPORT_MS = 250;
 
 /** A device the phone's scan found; `kinds` are the models it looks like (best first). */
 export interface ScannedDevice { address: string; name: string | null; rssi: number | null; kinds: string[] }

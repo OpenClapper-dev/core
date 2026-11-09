@@ -17,7 +17,7 @@ import type { Ctx, Env } from "./index.ts";
  *
  * The same room carries the light proxy (#307, packages/vocab/src/lightProxy.ts); nothing of it is stored:
  * Studio → phones: `lights.command` (validated here and again on the phone), `lights.hello` (report now;
- * also sent by the room when a Studio tab connects), `lights.sync`, `lights.reconnect`, `lights.scan`, `lights.provision`.
+ * also sent by the room when a Studio tab connects), `lights.sync`, `lights.reconnect`, `lights.scan`, `lights.provision`, `lights.run` / `lights.run.stop` (#321).
  * Phone → Studio tabs: `lights.state`, `lights.scan.state`, `lights.provision.state`.
  * Room → phones: `{ type: "lights.studios", count }` on every change, so the proxy shows whether a Studio listens.
  */
@@ -100,6 +100,9 @@ export class PreviewRoom extends DurableObject<Env> {
   private lights(ws: WebSocket, msg: Record<string, unknown>) {
     if (this.ctx.getTags(ws)[0] === "studio") {
       if (msg.type === "lights.hello" || msg.type === "lights.sync" || msg.type === "lights.reconnect") this.send("phone", { type: msg.type });
+      else if (msg.type === "lights.run" && typeof msg.sequenceId === "string" && UUID.test(msg.sequenceId) && typeof msg.revision === "string" && msg.revision.length <= 64 && typeof msg.fromMs === "number" && msg.fromMs >= 0) {
+        this.send("phone", { type: "lights.run", sequenceId: msg.sequenceId, revision: msg.revision, fromMs: Math.round(msg.fromMs) });
+      } else if (msg.type === "lights.run.stop") this.send("phone", { type: "lights.run.stop" });
       else if (msg.type === "lights.scan" && typeof msg.on === "boolean") this.send("phone", { type: "lights.scan", on: msg.on });
       else if (msg.type === "lights.provision" && typeof msg.fixtureId === "string" && UUID.test(msg.fixtureId)) {
         this.send("phone", { type: "lights.provision", fixtureId: msg.fixtureId, fresh: msg.fresh === true });
@@ -111,7 +114,7 @@ export class PreviewRoom extends DurableObject<Env> {
     } else if (msg.type === "lights.state" && Array.isArray(msg.fixtures)) {
       this.send("studio", msg);
       ws.send(JSON.stringify({ type: "lights.studios", count: this.open("studio").length }));
-    } else if ((msg.type === "lights.scan.state" && Array.isArray(msg.found)) || (msg.type === "lights.provision.state" && typeof msg.fixtureId === "string")) {
+    } else if ((msg.type === "lights.scan.state" && Array.isArray(msg.found)) || (msg.type === "lights.provision.state" && typeof msg.fixtureId === "string") || (msg.type === "lights.run.state" && typeof msg.phase === "string")) {
       this.send("studio", msg);
     }
   }

@@ -49,6 +49,8 @@ export interface SequenceTrack {
   fixtureId: string | null;
   /** Temporarily left out of playback and Live, like a muted track in an audio editor. */
   muted?: boolean;
+  /** One of TRACK_COLORS (#323): the label's stripe, the lane's tint, the keyframes' border. */
+  color?: number;
   keyframes: Keyframe[];
 }
 
@@ -58,8 +60,27 @@ export interface LightSequence {
   durationMs: number;
   loop: boolean;
   tracks: SequenceTrack[];
+  /** Named checkpoints and ranges (#323); absent on sequences saved before them. */
+  markers?: SequenceMarker[];
   updatedAt: string;
 }
+
+/** How many track colours there are (the Studio's --track-1 … --track-8). */
+export const TRACK_COLORS = 8;
+
+/**
+ * A marker (#323): a named point (`end` absent) or range (`at` to `end`), across the whole
+ * sequence or on one track (`trackId`). Only for finding your way: playback ignores markers.
+ */
+export interface SequenceMarker {
+  id: string;
+  at: number;
+  end?: number;
+  name: string;
+  trackId?: string;
+}
+export const SEQUENCE_MARKERS_MAX = 200;
+export const MARKER_NAME_MAX = 60;
 
 /** What a track says at one moment; undefined: no keyframe has set it. */
 export interface SequenceSample {
@@ -287,7 +308,30 @@ export function parseSequenceTracks(v: unknown, durationMs: number, isKind: (id:
       keyframes.push(out);
     }
     if (!keyframes.some((k) => k.id === START_KEYFRAME && k.at === 0)) return { error: `${where} has no start keyframe at 0` };
-    tracks.push({ id: t.id, name: t.name.trim(), kindId: t.kindId, fixtureId: (t.fixtureId as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), keyframes });
+    if (t.color != null && (!Number.isInteger(t.color) || !isNum(t.color, 0, TRACK_COLORS - 1))) return { error: `${where}.color is not a track colour` };
+    tracks.push({ id: t.id, name: t.name.trim(), kindId: t.kindId, fixtureId: (t.fixtureId as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), ...(t.color != null ? { color: t.color as number } : {}), keyframes });
   }
   return { tracks };
+}
+
+/**
+ * A sequence's markers as the Worker stores them (#323): checked strictly, unknown fields dropped.
+ * A marker on a track that is not in the sequence (removed) becomes one across the sequence.
+ */
+export function parseSequenceMarkers(v: unknown, durationMs: number, trackIds: ReadonlySet<string>): { markers: SequenceMarker[] } | { error: string } {
+  if (v == null) return { markers: [] };
+  if (!Array.isArray(v)) return { error: "markers must be an array" };
+  if (v.length > SEQUENCE_MARKERS_MAX) return { error: `at most ${SEQUENCE_MARKERS_MAX} markers` };
+  const markers: SequenceMarker[] = [];
+  for (const [i, raw] of v.entries()) {
+    const m = (raw ?? {}) as Record<string, unknown>;
+    const where = `markers[${i}]`;
+    if (typeof m.id !== "string" || !m.id || m.id.length > 64) return { error: `${where}.id is missing` };
+    if (typeof m.name !== "string" || m.name.length > MARKER_NAME_MAX) return { error: `${where}.name must be at most ${MARKER_NAME_MAX} characters` };
+    if (!isNum(m.at, 0, durationMs)) return { error: `${where}.at must be within the sequence` };
+    if (m.end != null && (!isNum(m.end, 0, durationMs) || m.end <= m.at)) return { error: `${where}.end must be after at, within the sequence` };
+    if (m.trackId != null && typeof m.trackId !== "string") return { error: `${where}.trackId is not an id` };
+    markers.push({ id: m.id, at: Math.round(m.at), name: m.name.trim(), ...(m.end != null ? { end: Math.round(m.end as number) } : {}), ...(typeof m.trackId === "string" && trackIds.has(m.trackId) ? { trackId: m.trackId } : {}) });
+  }
+  return { markers };
 }

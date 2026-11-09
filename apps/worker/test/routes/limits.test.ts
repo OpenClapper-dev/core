@@ -154,6 +154,14 @@ describe("preview room", () => {
     phone.ws.send(JSON.stringify({ type: "lights.scan.state", phase: "scanning", found: [] }));
     phone.ws.send(JSON.stringify({ type: "lights.provision.state", fixtureId, phase: "running", stage: "find", resume: false }));
     await until(() => studio.got.some((m) => m.type === "lights.provision.state") && studio.got.some((m) => m.type === "lights.scan.state"));
+    // Running a sequence on the phone (#321): validated on the way there, state relayed back.
+    studio.ws.send(JSON.stringify({ type: "lights.run", sequenceId: "nope", revision: "r", fromMs: 0 }));
+    studio.ws.send(JSON.stringify({ type: "lights.run", sequenceId: fixtureId, revision: "2026-11-09T10:00:00.000Z", fromMs: 1500.4, extra: 1 }));
+    studio.ws.send(JSON.stringify({ type: "lights.run.stop" }));
+    await until(() => phone.got.some((m) => m.type === "lights.run.stop"));
+    expect(phone.got.filter((m) => m.type === "lights.run")).toEqual([{ type: "lights.run", sequenceId: fixtureId, revision: "2026-11-09T10:00:00.000Z", fromMs: 1500 }]);
+    phone.ws.send(JSON.stringify({ type: "lights.run.state", phase: "playing", sequenceId: fixtureId, atMs: 100 }));
+    await until(() => studio.got.some((m) => m.type === "lights.run.state" && m.phase === "playing"));
     phone.ws.send(JSON.stringify({ type: "lights.state", phone: { id: fixtureId, model: "x" }, proxy: true, fixtures: [] }));
     await until(() => studio.got.some((m) => m.type === "lights.state" && m.proxy === true));
     studio.ws.close();
