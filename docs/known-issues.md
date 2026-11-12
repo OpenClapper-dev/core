@@ -89,3 +89,7 @@ The picture works on the owner's phone (docs/features/live-picture.md). Not trie
 - Wi-Fi drops mid-stream.
 
 The dev client loads its JavaScript from Metro, which the transmitter's Wi-Fi cannot reach: open the app on another network first, then switch.
+
+## The dev client on Google Play is a release build (deploy#22)
+
+Play rejects debuggable bundles, so "OpenClapper Dev" from the internal track is a release build that keeps expo-dev-client's launcher and menu (`expo.devlauncher.configureInRelease`, `expo.devmenu.configureInRelease`, set by `app.config.ts`). Expo supports that switch, but this app has not run that way yet: whether the launcher opens the tunnel URL, Fast Refresh and the dev menu work, and debug-only behaviour (`__DEV__`, LogBox) matches the debug build is still to be checked on the phone. `make dev-build` (OpenClapper Dev Local, a debug build) stays the fallback.

@@ -4,7 +4,7 @@ Designed in Claude Design (2026-09-28). The IA is organised around what happens 
 
 ## Builds
 
-One app, four installs side by side, each with its own package id, storage and icon colour (`APP_VARIANT`, `app.config.ts`): **OpenClapper** (production, blue), **OpenClapper Staging** (`org.openclapper.staging`, clay, for a staging instance; built by Build phone app, same signing key), **OpenClapper Dev** (the dev client, moss, JavaScript from Metro) and **OpenClapper Local** (`org.openclapper.local`, moss, debug-signed, `make apk-local`). Each talks to the server built into it; the Setup footer names it ([development](../development.md#apk-builds), [self-hosting](../self-hosting.md#the-phone)).
+One app, five installs side by side, each with its own package id, storage and icon colour (`APP_VARIANT`, `app.config.ts`): **OpenClapper** (production, blue), **OpenClapper Staging** (`org.openclapper.staging`, clay, for a staging instance; built by Build phone app, same signing key), **OpenClapper Dev** (`org.openclapper.dev`, the dev client from Google Play, moss, JavaScript from Metro), **OpenClapper Dev Local** (`org.openclapper.dev.local`, the same dev client debug-signed, `make dev-build`) and **OpenClapper Local** (`org.openclapper.local`, moss, debug-signed, `make apk-local`). Each talks to the server built into it; the Setup footer names it ([development](../development.md#apk-builds), [self-hosting](../self-hosting.md#the-phone)).
 
 ## Shell (`apps/mobile/App.tsx`, `src/appState.tsx`)
 
