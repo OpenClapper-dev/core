@@ -1,8 +1,8 @@
-# 00 · Principles, personas, glossary
+# 00 · Principles, layers, glossary
 
-Workshop [#327](https://github.com/OpenClapper-dev/core/issues/327). Status: **four naming and tier questions decided; principles, personas and the remaining glossary await the owner's read**.
+Workshop [#327](https://github.com/OpenClapper-dev/core/issues/327). Status: **decided 2026-11-12**.
 
-This page sets the rules every later workshop is checked against, names who the app is for, and gives each concept one name.
+This page sets the rules every later workshop is checked against, separates the base layer from the business logic on top of it, and gives each concept one name.
 
 ## As-is
 
@@ -57,6 +57,7 @@ What that means in the code today:
 8. **The Studio is an operating system.** Objects the user makes are files; features are apps that open file types. The phone is a companion that offers some of those apps.
 9. **Never lose a capture.** Unchanged from today: idempotent uploads, lenient upload validation, persistent drafts, rejected uploads stay queued.
 10. **No compatibility code.** The rebuild carries nothing for old data or old clients.
+11. **The base layer has no opinion about roles.** No primitive assumes a persona, a department or a workflow. Anything of that kind is expressed on top of the base layer (see [Two layers](#two-layers)).
 
 ### Tiers
 
@@ -66,17 +67,18 @@ What that means in the code today:
 | Standard apps | Shipped and visible by default, each removable from the desktop; built only on core | Optics and framing, composition, timeline, camera layouts |
 | Extensions | Off by default, enabled deliberately; own data and transport | Lights, flows, Blackmagic camera control, live picture; later: custom fields, automations |
 
-### Personas
+### Two layers
 
-| Persona | Needs first | Blocks used | Does not need |
-| --- | --- | --- | --- |
-| Location scout | Photos fast, a position on each, assigned to a location and spot, notes | Media, capture (plain camera with position and location modules), organisation | Optics, frames, composition, timeline |
-| DP | The frame of a given sensor and lens, on the phone and on stored photos; comparing optics; planning shots | Capture with the frame overlay, optics, shots, composition, timeline | — |
-| Gaffer / electrician | Reference photos of a place; controlling fixtures; light programmes | Media, capture (plain camera), extensions: lights and flows | Optics, timeline |
-| Director | A shot list and a rough cut made of photos and sketches | Shots, composition (sketches), timeline, media | Device and rig detail |
-| Line producer (later) | Structured data on objects, hand-offs between departments | Organisation, future custom fields and automations | Capture detail |
+The app is thought of in two realms:
 
-The owner is all of these at once; the app must not assume that of anyone else.
+| Layer | What it is | Examples |
+| --- | --- | --- |
+| **Base layer** | Flexible primitives without an opinion about who uses them or how work is divided: objects, facets, links, apps, devices | A photo, optics, a frame, a shot, a camera layout, a capture profile, a folder |
+| **Business-logic layer** | Opinions laid over the base layer, as a layer of its own: roles and personas, the distribution of responsibilities, team workflows, automations | "A location scout's camera", an approval process, a hand-off between departments |
+
+The rewrite builds the **base layer**. It does not design for personas: a persona is already an opinion about roles, and it belongs to the business-logic layer, which comes later and is modelled *with* the base primitives, not baked into them.
+
+Roles such as DP, location scout or gaffer are used in the workshops only as **test cases**: a base layer is good when the experience each of them needs can be assembled from the same primitives without changing them. A scout's camera (position and location assignment matter, no frame) and a DP's camera (frame overlay, optics recorded) are two configurations of one capture block, not two features.
 
 ### Glossary
 
@@ -116,15 +118,16 @@ Dropped words: *preset* (as a table name), *overlay* (as stored data), *day* (Da
 
 ## Open questions
 
-1. **Personas**: is anyone missing who should shape the first rebuild (script supervisor, production designer, 1st AD)?
+None. The principles and the glossary are a starting point; each workshop details the ones it touches and records changes here.
 
 ## Decided
 
 2026-11-12, by the owner:
 
+- The **principles** stand as a start and are detailed during the workshops.
+- **Two layers, no personas.** The rewrite builds a base layer of primitives; personas, roles and team workflows are business logic modelled on top of it later. Roles appear in the workshops only as test cases for the primitives.
+- The **glossary** stands as a beginning.
 - **Series** is the name for several photos taken as one capture. A series stays grouped in the media library and can be linked to a shot as a whole.
 - **Device** and **Fixture** are two concepts. A device is registered capture hardware with specs (phone, camera) and belongs to the core. A fixture is controllable equipment (light, battery) inside the lights extension. Flows drive fixtures.
 - **View modes** are Mask, Outline, Crop and Full. The viewfinder control is "Zoom to frame". "Frame" means only the rectangle.
 - **Three tiers**: core, standard apps (shipped and visible, removable, built only on core), extensions (off until enabled). Which block sits in which tier is decided in that block's workshop.
-
-Not yet confirmed: the ten principles, the persona table and the rest of the glossary stand as proposed until the owner has read this page.

@@ -21,7 +21,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 
 | # | Topic | Issue | Page | Status |
 | --- | --- | --- | --- | --- |
-| 00 | Principles, personas, glossary | [#327](https://github.com/OpenClapper-dev/core/issues/327) | [00-principles.md](00-principles.md) | open |
+| 00 | Principles, layers, glossary | [#327](https://github.com/OpenClapper-dev/core/issues/327) | [00-principles.md](00-principles.md) | decided |
 | 01 | Media library | [#328](https://github.com/OpenClapper-dev/core/issues/328) | 01-media.md | not started |
 | 02 | Optics and frames | [#329](https://github.com/OpenClapper-dev/core/issues/329) | 02-optics.md | not started |
 | 03 | Capture on the phone | [#330](https://github.com/OpenClapper-dev/core/issues/330) | 03-capture.md | not started |
@@ -52,3 +52,4 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 - Production data is dropped; staging first.
 - Day planning is deleted. Extra fields are removed for now and parked as a future extension mechanism.
 - Themes are called Light and Dark.
+- The rewrite builds a base layer of primitives without personas; roles and workflows are business logic on top, later ([00](00-principles.md)).
