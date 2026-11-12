@@ -41,7 +41,7 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 
 | # | Step | Issue | Status |
 | --- | --- | --- | --- |
-| D1 | Design brief (master prompt), `design-brief.md` | [#338](https://github.com/OpenClapper-dev/core/issues/338) | not started |
+| D1 | Design brief (master prompt), [design-brief.md](design-brief.md) | [#338](https://github.com/OpenClapper-dev/core/issues/338) | open |
 | D2 | Design the foundation | [#339](https://github.com/OpenClapper-dev/core/issues/339) | not started |
 | D3 | Adopt the foundation | [#340](https://github.com/OpenClapper-dev/core/issues/340) | not started |
 | D4 | Feature-level patterns | [#341](https://github.com/OpenClapper-dev/core/issues/341) | not started |
