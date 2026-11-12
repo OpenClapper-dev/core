@@ -79,15 +79,61 @@ const withUncappedLocation = (config: ExpoConfig): ExpoConfig =>
  * expo-dev-launcher and expo-dev-menu compile themselves out of release builds unless these Gradle
  * properties say otherwise (their android/build.gradle). The dev client on Google Play must be a release
  * build (Play rejects debuggable bundles), so it keeps them in.
+ * With the property, expo-dev-launcher's release build takes its debug code and resources but not its
+ * debug manifest (src/debug/AndroidManifest.xml, SDK 57), so the launcher's activities were undeclared
+ * and the app crashed on start (ActivityNotFoundException, DevLauncherActivity). The app's manifest
+ * declares them, and what else that manifest holds, instead; keep it in step with the library's.
  */
+const DEV_LAUNCHER = "expo.modules.devlauncher";
 const withDevClientInRelease = (config: ExpoConfig): ExpoConfig =>
-  withGradleProperties(config, (c) => {
-    for (const key of ["expo.devlauncher.configureInRelease", "expo.devmenu.configureInRelease"]) {
-      c.modResults = c.modResults.filter((p) => !(p.type === "property" && p.key === key));
-      c.modResults.push({ type: "property", key, value: "true" });
-    }
-    return c;
-  }) as ExpoConfig;
+  withAndroidManifest(
+    withGradleProperties(config, (c) => {
+      for (const key of ["expo.devlauncher.configureInRelease", "expo.devmenu.configureInRelease"]) {
+        c.modResults = c.modResults.filter((p) => !(p.type === "property" && p.key === key));
+        c.modResults.push({ type: "property", key, value: "true" });
+      }
+      return c;
+    }) as ExpoConfig,
+    (c) => {
+      type Node = { $: Record<string, string>; [child: string]: unknown };
+      const m = c.modResults.manifest as unknown as {
+        "uses-permission"?: Node[];
+        queries?: { package?: Node[] }[];
+        application?: { activity?: Node[]; "meta-data"?: Node[] }[];
+      };
+      const app = m.application?.[0];
+      if (!app) throw new Error("withDevClientInRelease: AndroidManifest.xml has no <application>");
+      const add = (list: Node[], node: Node) => {
+        if (!list.some((n) => n.$["android:name"] === node.$["android:name"])) list.push(node);
+      };
+      const activities = (app.activity ??= []);
+      const plain = { "android:exported": "true", "android:launchMode": "singleTask", "android:theme": "@style/Theme.AppCompat.DayNight.NoActionBar" };
+      add(activities, { $: { "android:name": `${DEV_LAUNCHER}.launcher.DevLauncherActivity`, ...plain } });
+      add(activities, {
+        $: { "android:name": `${DEV_LAUNCHER}.compose.AuthActivity`, ...plain },
+        "intent-filter": [
+          {
+            action: [{ $: { "android:name": "android.intent.action.VIEW" } }],
+            category: [{ $: { "android:name": "android.intent.category.DEFAULT" } }, { $: { "android:name": "android.intent.category.BROWSABLE" } }],
+            data: [{ $: { "android:scheme": "expo-dev-launcher" } }],
+          },
+        ],
+      });
+      add(activities, {
+        $: {
+          "android:name": `${DEV_LAUNCHER}.launcher.errors.DevLauncherErrorActivity`,
+          "android:screenOrientation": "portrait",
+          "android:theme": "@style/Theme.DevLauncher.ErrorActivity",
+        },
+      });
+      add((app["meta-data"] ??= []), { $: { "android:name": "com.google.mlkit.vision.DEPENDENCIES", "android:value": "barcode_ui" } });
+      add((m["uses-permission"] ??= []), { $: { "android:name": "android.permission.CHANGE_WIFI_MULTICAST_STATE" } });
+      const queries = (m.queries ??= [{}]);
+      const packages = (queries[0].package ??= []);
+      add(packages, { $: { "android:name": "host.exp.exponent" } });
+      return c;
+    },
+  ) as ExpoConfig;
 
 /** Every build's config plugins of our own. */
 const withOwnPlugins = (config: ExpoConfig): ExpoConfig => withUncappedLocation(withReleaseSigning(config));
