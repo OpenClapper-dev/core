@@ -1,6 +1,6 @@
 # 00 · Principles, personas, glossary
 
-Workshop [#327](https://github.com/OpenClapper-dev/core/issues/327). Status: **proposal, nothing decided yet**.
+Workshop [#327](https://github.com/OpenClapper-dev/core/issues/327). Status: **four naming and tier questions decided; principles, personas and the remaining glossary await the owner's read**.
 
 This page sets the rules every later workshop is checked against, names who the app is for, and gives each concept one name.
 
@@ -116,12 +116,15 @@ Dropped words: *preset* (as a table name), *overlay* (as stored data), *day* (Da
 
 ## Open questions
 
-1. **Series** for a multi-photo capture: or keep it nameless (a capture simply yields n photos, and grouping is whatever the user links them to)?
-2. **Device vs. fixture**: two words as proposed, or one word "device" with kinds (capture device, light, battery, camera body), so that flows "drive devices"?
-3. **View mode names**: Mask / Outline / Crop / Full, or keep Mask / Frame / Fit / Raw and rename only the viewfinder button?
-4. **Tiers**: three as proposed, or two (core and extensions), with optics, composition and timeline counted as core?
-5. **Personas**: is anyone missing who should shape the first rebuild (script supervisor, production designer, 1st AD)?
+1. **Personas**: is anyone missing who should shape the first rebuild (script supervisor, production designer, 1st AD)?
 
 ## Decided
 
-Nothing yet.
+2026-11-12, by the owner:
+
+- **Series** is the name for several photos taken as one capture. A series stays grouped in the media library and can be linked to a shot as a whole.
+- **Device** and **Fixture** are two concepts. A device is registered capture hardware with specs (phone, camera) and belongs to the core. A fixture is controllable equipment (light, battery) inside the lights extension. Flows drive fixtures.
+- **View modes** are Mask, Outline, Crop and Full. The viewfinder control is "Zoom to frame". "Frame" means only the rectangle.
+- **Three tiers**: core, standard apps (shipped and visible, removable, built only on core), extensions (off until enabled). Which block sits in which tier is decided in that block's workshop.
+
+Not yet confirmed: the ten principles, the persona table and the rest of the glossary stand as proposed until the owner has read this page.
