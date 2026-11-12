@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Builds the Android app locally in a Docker container (expo prebuild + Gradle; no Expo account), then
 # copies the APK to the Windows Downloads folder. WSL + Docker Desktop (WSL integration on).
-#   VARIANT=dev      (make dev-build) the development build "OpenClapper Dev": debug-signed, no bundle
+#   VARIANT=dev      (make dev-build) the development build "OpenClapper Dev Local"
+#                    (org.openclapper.dev.local, next to OpenClapper Dev from Google Play): debug-signed, no bundle
 #                    inside; it loads the JavaScript, and with it the server's address, from Metro
 #                    (make mobile).
 #   VARIANT=local    (make apk-local) "OpenClapper Local": a complete app with the JavaScript inside,
@@ -34,7 +35,7 @@ case "$variant" in
   dev)
     task=assembleDebug; out_dir=debug; name="openclapper-dev-$commit.apk"
     # The development build takes its server from Metro, so the inlined one is never used.
-    run+=(-e APP_VARIANT=development -e EXPO_PUBLIC_API_URL="${API_URL:-http://localhost:8787}")
+    run+=(-e APP_VARIANT=development-local -e EXPO_PUBLIC_API_URL="${API_URL:-http://localhost:8787}")
     ;;
   local)
     # A release build without ANDROID_KEYSTORE signs with the debug key (app.config.ts withReleaseSigning).

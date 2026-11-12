@@ -5,8 +5,9 @@
 # repository can call it with this one as a submodule (`path`). Setup: docs/self-hosting.md#the-phone.
 # variant=staging builds "OpenClapper Staging" (its own package id and clay icon, so it sits next to the
 # production app; signed with the same key) for a staging instance's APP_URL. variant=dev builds the
-# development client "OpenClapper Dev" instead (debug-signed, its own package id, loads the JavaScript
-# from Metro: make mobile), on the same runner setup.
+# development client instead (its own package id, loads the JavaScript from Metro: make mobile), on the
+# same runner setup: with the environment's key "OpenClapper Dev", a release build for Google Play's
+# internal track (deploy#22); without a key "OpenClapper Dev Local", debug-signed like make dev-build.
 # `environment` and `ref` work as in deploy-server.yml: the GitHub environment whose variables (APP_URL) and
 # secrets (the signing key) to use, and another version of this repository to build than the pinned one.
 # The Android SDK, build-tools and NDK are the runner's; local builds (scripts/apk-local.sh) pin theirs in
@@ -22,7 +23,7 @@ on:
         options: [release, staging, dev]
         default: release
       track:
-        description: Upload the bundle to this Google Play track (release and staging; needs PLAY_SERVICE_ACCOUNT_JSON)
+        description: Upload the bundle to this Google Play track (needs PLAY_SERVICE_ACCOUNT_JSON, and for dev the key)
         type: choice
         options: [none, internal]
         default: none
@@ -41,7 +42,7 @@ on:
         type: string
         default: release
       track:
-        description: Upload the bundle to this Google Play track (none, internal); release and staging only
+        description: Upload the bundle to this Google Play track (none, internal); dev only with the key
         type: string
         default: none
       path:
@@ -57,7 +58,7 @@ on:
         type: string
         default: ""
     secrets:
-      # Only the release and staging variants use them.
+      # The release and staging variants need them; the dev variant is signed with them when they are set.
       ANDROID_KEYSTORE_BASE64:
         required: false
       ANDROID_KEYSTORE_PASSWORD:
@@ -103,11 +104,18 @@ jobs:
         run: |
           case "$VARIANT" in release|staging|dev) ;; *) echo "::error::variant must be release, staging or dev"; exit 1 ;; esac
           case "$TRACK" in none) ;; internal)
-            [ "$VARIANT" != dev ] || { echo "::error::The dev client does not go to Google Play"; exit 1; }
             [ -n "$PLAY_SERVICE_ACCOUNT_JSON" ] || { echo "::error::Set the PLAY_SERVICE_ACCOUNT_JSON secret to upload to Google Play (docs/self-hosting.md)"; exit 1; } ;;
             *) echo "::error::track must be none or internal"; exit 1 ;; esac
-          [ "$VARIANT" != dev ] || exit 0 # the development client needs neither a server nor the key
-          [ -n "$EXPO_PUBLIC_API_URL" ] || { echo "::error::Set the APP_URL variable to your server, e.g. https://openclapper-api.<subdomain>.workers.dev"; exit 1; }
+          if [ "$VARIANT" = dev ]; then
+            # The development client needs no server (Metro gives it one); without the key it is the
+            # debug-signed OpenClapper Dev Local, which Google Play does not take.
+            if [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+              [ "$TRACK" = none ] || { echo "::error::The dev client goes to Google Play signed: set the ANDROID_KEYSTORE_BASE64 secret and the other three (scripts/keystore.sh)"; exit 1; }
+              exit 0
+            fi
+          else
+            [ -n "$EXPO_PUBLIC_API_URL" ] || { echo "::error::Set the APP_URL variable to your server, e.g. https://openclapper-api.<subdomain>.workers.dev"; exit 1; }
+          fi
           for v in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
             [ -n "${!v}" ] || { echo "::error::Set the $v secret (scripts/keystore.sh prints all four)"; exit 1; }
           done
@@ -178,23 +186,29 @@ jobs:
         run: |
           export GIT_COMMIT=$(git rev-parse --short HEAD)
           version=$(node -p 'require("../../package.json").version')
-          if [ "$VARIANT" = dev ]; then
-            # The development client: its own name, package id and icon (app.config.ts), debug-signed with
-            # the template's fixed debug key (so one dev build updates the last), no bundle inside.
-            export APP_VARIANT=development
-            task=assembleDebug out=debug name="openclapper-dev-$version-$GIT_COMMIT.apk"
+          if [ "$VARIANT" = dev ] && [ -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            # The development client without a key, OpenClapper Dev Local: its own name, package id and icon
+            # (app.config.ts), debug-signed with the template's fixed debug key (so it installs over a
+            # make dev-build and the other way round), no bundle inside.
+            export APP_VARIANT=development-local
+            task=assembleDebug out=debug name="openclapper-dev-local-$version-$GIT_COMMIT.apk"
           else
             echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
             export ANDROID_KEYSTORE="$RUNNER_TEMP/release.jks"
             task=assembleRelease out=release name="openclapper-$version-$GIT_COMMIT.apk"
-            # The staging app: its own name, package id and icon (app.config.ts). Its version code is the
-            # build time, minutes since 2020-01-01 UTC: every build is higher than the one before, whatever
-            # ref it comes from, so Play installs an older tag as an ordinary update (a rollback keeps the
-            # phone's data). Builds in the same minute share a code; Play then keeps the first.
-            if [ "$VARIANT" = staging ]; then
-              export APP_VARIANT=staging name="openclapper-staging-$version-$GIT_COMMIT.apk"
-              export STAGING_VERSION_CODE=$(( ($(date -u +%s) - $(date -u -d 2020-01-01 +%s)) / 60 ))
-              echo "Version code: $STAGING_VERSION_CODE (minutes since 2020-01-01 UTC)"
+            # The staging app and the dev client for Play: their own name, package id and icon
+            # (app.config.ts). Their version code is the build time, minutes since 2020-01-01 UTC: every
+            # build is higher than the one before, whatever ref it comes from, so Play installs an older
+            # one as an ordinary update (a rollback keeps the phone's data). Builds in the same minute
+            # share a code; Play then keeps the first. The dev client keeps its launcher and menu in this
+            # release build (app.config.ts, withDevClientInRelease).
+            case "$VARIANT" in
+              staging) export APP_VARIANT=staging name="openclapper-staging-$version-$GIT_COMMIT.apk" ;;
+              dev) export APP_VARIANT=development name="openclapper-dev-$version-$GIT_COMMIT.apk" ;;
+            esac
+            if [ "$VARIANT" != release ]; then
+              export BUILD_TIME_VERSION_CODE=$(( ($(date -u +%s) - $(date -u -d 2020-01-01 +%s)) / 60 ))
+              echo "Version code: $BUILD_TIME_VERSION_CODE (minutes since 2020-01-01 UTC)"
             fi
             # The App Bundle for Play next to the APK for sideloading, from the same build and key.
             task="$task bundleRelease"
@@ -202,7 +216,7 @@ jobs:
           pnpm exec expo prebuild --platform android --no-install
           (cd android && ./gradlew $task --no-daemon -PreactNativeArchitectures="$ANDROID_ABIS")
           mv "android/app/build/outputs/apk/$out/app-$out.apk" "$RUNNER_TEMP/$name"
-          if [ "$VARIANT" != dev ]; then
+          if [ "$out" = release ]; then
             aab="${name%.apk}.aab"
             mv android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/$aab"
             # Never hand out a release signed with the debug key (it would not update a real install).
@@ -267,7 +281,7 @@ jobs:
           retention-days: 3
           compression-level: 0
 
-      # The App Bundle (release and staging): what goes to Google Play (scripts/play-upload.mjs, deploy#11).
+      # The App Bundle (every signed build): what goes to Google Play (scripts/play-upload.mjs, deploy#11).
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: env.AAB_NAME != ''
         with:

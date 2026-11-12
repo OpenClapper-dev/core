@@ -37,7 +37,7 @@ admin: ## Admin board -> http://localhost:5174 with its Worker on :8788 (local D
 mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (OpenClapper Dev); LOCAL data
 	pnpm dev:mobile
 
-dev-build: ## Development build (OpenClapper Dev) in Docker, to the Windows Downloads folder; rebuild after native changes
+dev-build: ## Development build (OpenClapper Dev Local) in Docker, to the Windows Downloads folder; rebuild after native changes
 	VARIANT=dev bash scripts/apk-local.sh
 
 apk-local: ## OpenClapper Local in Docker, a complete app for one server, no secrets: API_URL=https://… make apk-local

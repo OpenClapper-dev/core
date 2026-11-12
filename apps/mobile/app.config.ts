@@ -1,5 +1,5 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
-import { withAndroidManifest, withAppBuildGradle } from "expo/config-plugins";
+import { withAndroidManifest, withAppBuildGradle, withGradleProperties } from "expo/config-plugins";
 import { version } from "../../package.json";
 
 /**
@@ -12,13 +12,13 @@ function versionCode(v: string): number {
 }
 
 /**
- * The staging app is built from any ref between releases, and Android only installs a higher version
- * code, so it uses the build time instead (STAGING_VERSION_CODE, minutes since 2020, set by the Build
- * phone app workflow): a build of an older tag still installs as an update. Without it (a local config
- * run) it falls back to the release scheme.
+ * The staging app and the dev client on Google Play are built from any ref between releases, and Android
+ * only installs a higher version code, so they use the build time instead (BUILD_TIME_VERSION_CODE,
+ * minutes since 2020, set by the Build phone app workflow): a build of an older ref still installs as an
+ * update. Without it (a local config run) it falls back to the release scheme.
  */
-function stagingVersionCode(): number {
-  const code = Number.parseInt(process.env.STAGING_VERSION_CODE ?? "", 10);
+function buildTimeVersionCode(): number {
+  const code = Number.parseInt(process.env.BUILD_TIME_VERSION_CODE ?? "", 10);
   return code > 0 ? code : versionCode(version);
 }
 
@@ -75,6 +75,20 @@ const withUncappedLocation = (config: ExpoConfig): ExpoConfig =>
     return c;
   }) as ExpoConfig;
 
+/**
+ * expo-dev-launcher and expo-dev-menu compile themselves out of release builds unless these Gradle
+ * properties say otherwise (their android/build.gradle). The dev client on Google Play must be a release
+ * build (Play rejects debuggable bundles), so it keeps them in.
+ */
+const withDevClientInRelease = (config: ExpoConfig): ExpoConfig =>
+  withGradleProperties(config, (c) => {
+    for (const key of ["expo.devlauncher.configureInRelease", "expo.devmenu.configureInRelease"]) {
+      c.modResults = c.modResults.filter((p) => !(p.type === "property" && p.key === key));
+      c.modResults.push({ type: "property", key, value: "true" });
+    }
+    return c;
+  }) as ExpoConfig;
+
 /** Every build's config plugins of our own. */
 const withOwnPlugins = (config: ExpoConfig): ExpoConfig => withUncappedLocation(withReleaseSigning(config));
 
@@ -82,7 +96,11 @@ const withOwnPlugins = (config: ExpoConfig): ExpoConfig => withUncappedLocation(
  * The builds besides production (app.json), by APP_VARIANT. Each has its own package id, so it sits next
  * to the production app with its own storage instead of replacing it, and its own icon colour tells them
  * apart in the drawer (assets/icons, #249):
- * - development: the dev client "OpenClapper Dev" (make dev-build, make mobile), loads the JavaScript from Metro.
+ * - development: the dev client "OpenClapper Dev", loads the JavaScript from Metro (make mobile). A release
+ *   build signed with the deployment's key, from Google Play's internal track (Build phone app, variant dev).
+ * - development-local: the same dev client built without a key (make dev-build, or Build phone app with
+ *   variant dev and no key), debug-signed. Android installs no update signed with another key, so it has
+ *   its own package id and sits next to the Play one; both share the scheme, so Metro opens either.
  * - staging: "OpenClapper Staging" for a staging instance, built by the Build phone app workflow and signed
  *   with the deployment's key like production.
  * - local: "OpenClapper Local" (make apk-local), the JavaScript inside and signed with the template's
@@ -90,6 +108,7 @@ const withOwnPlugins = (config: ExpoConfig): ExpoConfig => withUncappedLocation(
  */
 const VARIANTS: Record<string, { name: string; slug: string; package: string; icons: string; background: string }> = {
   development: { name: "OpenClapper Dev", slug: "dev", package: "org.openclapper.dev", icons: "dev", background: "#3B7A1A" },
+  "development-local": { name: "OpenClapper Dev Local", slug: "dev", package: "org.openclapper.dev.local", icons: "dev", background: "#3B7A1A" },
   staging: { name: "OpenClapper Staging", slug: "staging", package: "org.openclapper.staging", icons: "staging", background: "#B8471F" },
   local: { name: "OpenClapper Local", slug: "local", package: "org.openclapper.local", icons: "dev", background: "#3B7A1A" },
 };
@@ -112,14 +131,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   // A typo must not silently build the production app.
   if (!v) throw new Error(`APP_VARIANT=${name}: expected one of ${Object.keys(VARIANTS).join(", ")}, or unset for production`);
   const icons = `./assets/icons/${v.icons}`;
-  return withOwnPlugins({
+  const variant = withOwnPlugins({
     ...app,
     name: v.name,
     scheme: `openclapper-${v.slug}`,
     icon: `${icons}/app-icon-1024.png`,
     android: {
       ...app.android,
-      ...(name === "staging" ? { versionCode: stagingVersionCode() } : {}),
+      ...(name === "staging" || name === "development" ? { versionCode: buildTimeVersionCode() } : {}),
       package: v.package,
       adaptiveIcon: {
         backgroundColor: v.background,
@@ -128,4 +147,5 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
     },
   });
+  return name === "development" ? withDevClientInRelease(variant) : variant;
 };
