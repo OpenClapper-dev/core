@@ -22,7 +22,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | # | Topic | Issue | Page | Status |
 | --- | --- | --- | --- | --- |
 | 00 | Principles, layers, glossary | [#327](https://github.com/OpenClapper-dev/core/issues/327) | [00-principles.md](00-principles.md) | decided |
-| 01 | Media library | [#328](https://github.com/OpenClapper-dev/core/issues/328) | 01-media.md | not started |
+| 01 | Media library | [#328](https://github.com/OpenClapper-dev/core/issues/328) | [01-media.md](01-media.md) | open |
 | 02 | Optics and frames | [#329](https://github.com/OpenClapper-dev/core/issues/329) | 02-optics.md | not started |
 | 03 | Capture on the phone | [#330](https://github.com/OpenClapper-dev/core/issues/330) | 03-capture.md | not started |
 | 04 | Shots and planning | [#331](https://github.com/OpenClapper-dev/core/issues/331) | 04-shots.md | not started |
