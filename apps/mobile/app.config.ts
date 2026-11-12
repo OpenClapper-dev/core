@@ -1,5 +1,5 @@
 import type { ConfigContext, ExpoConfig } from "expo/config";
-import { withAndroidManifest, withAppBuildGradle, withGradleProperties } from "expo/config-plugins";
+import { withAndroidManifest, withAppBuildGradle, withGradleProperties, withMainApplication } from "expo/config-plugins";
 import { version } from "../../package.json";
 
 /**
@@ -83,11 +83,26 @@ const withUncappedLocation = (config: ExpoConfig): ExpoConfig =>
  * debug manifest (src/debug/AndroidManifest.xml, SDK 57), so the launcher's activities were undeclared
  * and the app crashed on start (ActivityNotFoundException, DevLauncherActivity). The app's manifest
  * declares them, and what else that manifest holds, instead; keep it in step with the library's.
+ * React Native's dev support (loading the bundle from Metro, Fast Refresh, the dev menu's reload) follows
+ * ReactBuildConfig.DEBUG unless MainApplication says otherwise; in a release build it is off, and the
+ * launcher could not load from Metro (ReleaseDevSupportManager). So MainApplication turns it on, and the
+ * manifest allows cleartext HTTP for Metro on the LAN, as the debug build's manifest does.
  */
 const DEV_LAUNCHER = "expo.modules.devlauncher";
+const withDevSupportInRelease = (config: ExpoConfig): ExpoConfig =>
+  withMainApplication(config, (c) => {
+    let src = c.modResults.contents;
+    if (src.includes("useDevSupport = true")) return c;
+    const re = /(ExpoReactHostFactory\.getDefaultReactHost\(\s*\n(\s*)context = applicationContext,)/;
+    // A template that no longer matches must fail the build, not ship a dev client that cannot load.
+    if (!re.test(src)) throw new Error(`withDevSupportInRelease: MainApplication has no match for ${re}`);
+    src = src.replace(re, "$1\n$2useDevSupport = true,");
+    c.modResults.contents = src;
+    return c;
+  }) as ExpoConfig;
 const withDevClientInRelease = (config: ExpoConfig): ExpoConfig =>
   withAndroidManifest(
-    withGradleProperties(config, (c) => {
+    withGradleProperties(withDevSupportInRelease(config), (c) => {
       for (const key of ["expo.devlauncher.configureInRelease", "expo.devmenu.configureInRelease"]) {
         c.modResults = c.modResults.filter((p) => !(p.type === "property" && p.key === key));
         c.modResults.push({ type: "property", key, value: "true" });
@@ -103,6 +118,7 @@ const withDevClientInRelease = (config: ExpoConfig): ExpoConfig =>
       };
       const app = m.application?.[0];
       if (!app) throw new Error("withDevClientInRelease: AndroidManifest.xml has no <application>");
+      (app as unknown as Node).$["android:usesCleartextTraffic"] = "true";
       const add = (list: Node[], node: Node) => {
         if (!list.some((n) => n.$["android:name"] === node.$["android:name"])) list.push(node);
       };
