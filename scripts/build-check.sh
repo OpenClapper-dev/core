@@ -10,6 +10,7 @@ trap 'rm -rf "$out"' EXIT
 
 (cd apps/studio && npx vite build)
 (cd apps/admin && npx vite build)
+(cd apps/specimen && npx vite build)
 node scripts/csp-hash.mjs --check   # the CSP in each public/_headers still allows the inline script
 (cd apps/worker && npx wrangler deploy --dry-run --outdir "$out/worker")
 (cd apps/admin && npx wrangler deploy --dry-run --outdir "$out/admin")

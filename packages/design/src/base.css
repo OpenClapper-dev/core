@@ -1,0 +1,8 @@
+body{margin:0;background:var(--surface);color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-ui) var(--font-sans);-webkit-font-smoothing:antialiased}
+a{color:var(--accent)}a:hover{color:var(--accent-hover)}
+.oc-num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.oc-tnum{font-family:var(--font-sans);font-variant-numeric:tabular-nums}
+.oc-meta{color:var(--text-secondary);font-size:var(--font-size-sm)}
+@keyframes oc-spin{to{rotate:360deg}}
+@keyframes oc-pulse{50%{opacity:.45}}
+@keyframes oc-slide{from{translate:-100% 0}to{translate:250% 0}}

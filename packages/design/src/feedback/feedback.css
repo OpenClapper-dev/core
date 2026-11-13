@@ -1,0 +1,20 @@
+.oc-tip-host{position:relative;display:inline-flex}
+.oc-tip{position:absolute;left:50%;bottom:calc(100% + var(--space-3));z-index:var(--z-tooltip);translate:-50% 0;display:none;align-items:center;gap:var(--space-4);height:28px;padding:0 var(--space-5);border-radius:var(--radius-sm);background:var(--surface-inverse);color:var(--text-inverse);font:var(--weight-medium) var(--font-size-2xs)/1 var(--font-sans);white-space:nowrap;pointer-events:none}
+.oc-tip--bottom{bottom:auto;top:calc(100% + var(--space-3))}
+.oc-tip-host:hover>.oc-tip,.oc-tip-host:focus-within>.oc-tip,.oc-tip.is-open{display:inline-flex}
+.oc-tip .oc-kbd{color:inherit}
+.oc-tip .oc-kbd__key{border-color:currentColor;background:transparent}
+.oc-spinner{flex:none;display:inline-block;animation:oc-spin .8s linear infinite}
+.oc-progress{position:relative;width:100%;height:6px;box-sizing:border-box;overflow:hidden;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-pill);background:var(--field)}
+.oc-progress__bar{height:100%;background:var(--accent);transition:width var(--dur) var(--ease)}
+.oc-progress--indeterminate .oc-progress__bar{width:40%;animation:oc-slide 1.2s linear infinite}
+.oc-progress-row{display:flex;align-items:center;gap:var(--space-4);font:var(--font-size-sm)/1 var(--font-mono);color:var(--text-secondary)}
+.oc-progress-row>.oc-progress{flex:1;min-width:0}
+.oc-progress-row>span{flex:none;white-space:nowrap}
+.oc-skeleton{display:block;flex:none;border-radius:var(--radius-xs);background:var(--surface-pressed);animation:oc-pulse calc(var(--dur-slow) * 6) ease-in-out infinite}
+.oc-skeleton--circle{border-radius:var(--radius-pill)}
+.oc-skeleton--heading{height:14px;margin:4px 0}
+.oc-skeleton--control{height:var(--control-h);border-radius:var(--radius-control)}
+.oc-skeleton--thumb{width:100%;aspect-ratio:3/2;border-radius:2px}
+.oc-skeleton-lines{display:grid;min-width:0}
+.oc-skeleton--text{height:10px;margin:5px 0}
