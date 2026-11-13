@@ -6,7 +6,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 
 ## Rules of this phase
 
-- **Planning only.** No product code until workshop 10 is approved. The one exception is the design track's step D3 (a new UI package, proven on a specimen app and the desktop shell).
+- **Planning only.** No product code until workshop 10 is approved. The one exception is the design track's step D3 (a new UI package, `packages/design`, proven on a specimen app, `apps/specimen`; the current Studio is not touched because both systems share token names).
 - **Zero backwards compatibility** in the rebuild. Production data is dropped; the rebuild goes to staging first. Before the production buckets are deleted, the owner downloads `/photos` from the production media bucket.
 - This branch, `rewrite/plan`, is long-lived. Each workshop is a PR into it.
 
@@ -41,9 +41,9 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 
 | # | Step | Issue | Status |
 | --- | --- | --- | --- |
-| D1 | Design brief (master prompt), `design-brief.md` | [#338](https://github.com/OpenClapper-dev/core/issues/338) | not started |
-| D2 | Design the foundation | [#339](https://github.com/OpenClapper-dev/core/issues/339) | not started |
-| D3 | Adopt the foundation | [#340](https://github.com/OpenClapper-dev/core/issues/340) | not started |
+| D1 | Design brief (master prompt), [design-brief.md](design-brief.md) | [#338](https://github.com/OpenClapper-dev/core/issues/338) | done |
+| D2 | Design the foundation | [#339](https://github.com/OpenClapper-dev/core/issues/339) | done: designer export "Graphite" round 2 (2026-11-13) |
+| D3 | Adopt the foundation | [#340](https://github.com/OpenClapper-dev/core/issues/340) | done: `packages/design` + `apps/specimen` (`make specimen`) |
 | D4 | Feature-level patterns | [#341](https://github.com/OpenClapper-dev/core/issues/341) | not started |
 
 ## Decided so far (2026-11-12)

@@ -1,7 +1,7 @@
 # The local development stack: thin wrappers around the pnpm scripts in package.json, which stay the
 # source of truth. Everything runs in the foreground; stop a server with Ctrl-C. Deploying is not
 # here: it runs from a deployment repository (docs/self-hosting.md).
-.PHONY: help init check all all-down all-restart dev worker studio admin mobile dev-build apk-local
+.PHONY: help init check all all-down all-restart dev worker studio admin specimen mobile dev-build apk-local
 
 help: ## Show this list
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) \
@@ -33,6 +33,9 @@ studio: ## Studio only -> http://localhost:5173 (needs `make worker` for /api)
 
 admin: ## Admin board -> http://localhost:5174 with its Worker on :8788 (local D1, no Access: admin@localhost)
 	pnpm dev:admin
+
+specimen: ## Design system specimens (rewrite, packages/design) -> http://localhost:5175, no Worker needed
+	pnpm -C apps/specimen dev
 
 mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (OpenClapper Dev); LOCAL data
 	pnpm dev:mobile

@@ -1,0 +1,18 @@
+.oc-chart{position:relative;width:100%;color:var(--text);font:var(--weight-regular) var(--font-size-2xs)/1 var(--font-sans)}
+.oc-chart svg{display:block;overflow:visible}
+.oc-chart__grid{stroke:var(--border-divider);stroke-width:1}
+.oc-chart__tick{fill:var(--text-secondary);font:var(--weight-regular) var(--font-size-2xs)/1 var(--font-sans)}
+.oc-chart__tick--num{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+.oc-chart__cursor{fill:var(--surface-hover)}
+.oc-chart__cursor-line{stroke:var(--border-control);stroke-width:1;stroke-dasharray:3 3}
+.oc-chart__dot{stroke:var(--surface);stroke-width:2}
+.oc-chart__tip{position:absolute;z-index:var(--z-tooltip);display:grid;gap:var(--space-2);min-width:132px;padding:var(--space-3) var(--space-4);box-sizing:border-box;border:var(--border-w) solid var(--border-window);border-radius:var(--radius-control);background:var(--surface-raised);box-shadow:var(--shadow-menu);pointer-events:none;white-space:nowrap}
+.oc-chart__tip-label{font-weight:var(--weight-bold);color:var(--text)}
+.oc-chart__tip-row{display:flex;align-items:center;gap:var(--space-3)}
+.oc-chart__tip-name{flex:1;color:var(--text-secondary)}
+.oc-chart__tip-val{font-family:var(--font-mono);font-variant-numeric:tabular-nums;font-weight:var(--weight-medium)}
+.oc-chart__sw{flex:none;width:10px;height:10px;border-radius:2px}
+.oc-chart__legend{display:flex;flex-wrap:wrap;justify-content:center;gap:var(--space-3) var(--space-6);padding-top:var(--space-5);color:var(--text-secondary)}
+.oc-chart__legend span{display:inline-flex;align-items:center;gap:var(--space-3)}
+.oc-chart__center{fill:var(--text);font:var(--weight-bold) var(--font-size-2xl)/1 var(--font-mono)}
+.oc-chart__center-sub{fill:var(--text-secondary);font:var(--weight-regular) var(--font-size-2xs)/1 var(--font-sans)}
