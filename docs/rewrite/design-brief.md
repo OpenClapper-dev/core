@@ -1,6 +1,8 @@
 # Design brief: the OpenClapper design system, from scratch
 
-Design track step D1 ([#338](https://github.com/OpenClapper-dev/core/issues/338)). Status: **draft for the owner's review**.
+Design track step D1 ([#338](https://github.com/OpenClapper-dev/core/issues/338)). Status: **done; superseded by the result**.
+
+**What the design was actually made from (2026-11-13).** The owner ran the first version of this brief (commit ea22d02: high contrast, Light/Dark, three directions to choose from, own icon set) with the designer and chose direction "Graphite". A trial round with the version below (shadcn/ui look, Tabler Icons, two directions) was used only as inspiration: the owner then nudged the Graphite project toward shadcn's dense control proportions and switched it to Tabler Icons, for UI glyphs and for app and file icons alike (a Tabler glyph on a coloured tile, no own icon family). One review round followed (docs vs. tokens, overflow rules, numbers in tabular sans, outlined wordmark, eight custom film glyphs). The result keeps the cobalt accent, Atkinson Hyperlegible Next + Mono and the high-contrast floors (7:1 text, 4.5:1 secondary, 3:1 control edges). It lives in `packages/design` (step D3, [#340](https://github.com/OpenClapper-dev/core/issues/340)); its `README.md` and `GUIDELINES.md` are now the reference, not this brief.
 
 This page is the master prompt for the designer. Everything below the line is meant to be handed over as it stands. It asks for the **foundation** only: tokens, atoms, composites, the OS chrome, the icon language and the marks. Feature screens are not part of it; they are designed later, on this foundation, one workshop at a time.
 
