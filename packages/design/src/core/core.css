@@ -1,0 +1,16 @@
+.oc-icon{flex:none;display:inline-block}
+.oc-divider{flex:none;margin:0;border:0;background:var(--border-divider)}
+.oc-divider--h{width:100%;height:var(--border-w)}
+.oc-divider--v{align-self:stretch;width:var(--border-w);min-height:var(--space-6)}
+.oc-kbd{display:inline-flex;align-items:center;gap:var(--space-1);color:var(--text-secondary);font:var(--weight-medium) var(--font-size-2xs)/1 var(--font-mono)}
+.oc-kbd__key{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 var(--space-2);box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-bottom-width:var(--border-w-strong);border-radius:var(--radius-xs);background:var(--surface)}
+.oc-avatar{flex:none;display:inline-grid;place-items:center;width:24px;height:24px;overflow:hidden;box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-pill);background:var(--surface-pressed);color:var(--text);font:var(--weight-bold) var(--font-size-2xs)/1 var(--font-sans)}
+.oc-avatar--sm{width:20px;height:20px;font-size:9px}
+.oc-avatar--lg{width:32px;height:32px;font-size:var(--font-size-md)}
+.oc-avatar img{width:100%;height:100%;object-fit:cover}
+.oc-badge{display:inline-flex;align-items:center;gap:var(--space-2);height:22px;padding:0 var(--space-4);box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font:var(--weight-medium) var(--font-size-2xs)/1 var(--font-sans);white-space:nowrap}
+.oc-badge--accent{border-color:var(--accent);background:var(--accent-tint)}.oc-badge--accent .oc-icon{color:var(--accent)}
+.oc-badge--success{border-color:var(--success);background:var(--success-tint)}.oc-badge--success .oc-icon{color:var(--success)}
+.oc-badge--warning{border-color:var(--warning);background:var(--warning-tint)}.oc-badge--warning .oc-icon{color:var(--warning)}
+.oc-badge--danger{border-color:var(--danger);background:var(--danger-tint)}.oc-badge--danger .oc-icon{color:var(--danger)}
+.oc-badge--count{min-width:22px;padding:0 var(--space-3);justify-content:center;border-radius:var(--radius-pill);font-family:var(--font-mono)}
