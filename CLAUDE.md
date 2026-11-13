@@ -25,6 +25,7 @@ The owner talks to you in English.
 | `packages/vocab` | Shared vocabularies, filters, extra-field definitions, daylight math: anything both the Worker and a client must agree on |
 | `packages/fov-math` | Camera/lens/FOV/overlay/reframe math |
 | `packages/ui` | The web design system (`@openclapper/ui`): components, tokens and component CSS, theme switch; used by the Studio and the admin board |
+| `packages/design` + `apps/specimen` | The rewrite's design system (`@openclapper/design`, `docs/rewrite/`) and its specimen app (`make specimen`); not used by the current apps, never on the same page as `@openclapper/ui` |
 | `packages/service-kit` | What both Workers share: `http.ts` router + `assert*` helpers, Access verification, password hashing |
 
 ## Core model in one paragraph
