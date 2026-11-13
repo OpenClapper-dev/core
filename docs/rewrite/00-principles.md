@@ -49,7 +49,7 @@ What that means in the code today:
 
 1. **A block works alone.** Each building block (media, optics, capture, shot, composition, timeline, organisation) is usable with every other block absent or empty. Test: can a user who never opens the other apps get value from this one?
 2. **Links are optional references.** Blocks are connected by references the user makes (or an automation makes for them) and can remove. A missing or removed link degrades what is shown; it never blocks an action or makes an object invalid.
-3. **Facets, not required fields.** Extra knowledge about an object (position, capture device, optics, review state, tags) is an optional facet that can be added at any time, by hand, in bulk, or at capture. An object without a facet is complete.
+3. **Facets, not required fields.** Extra knowledge about an object (capture device, optics, review state, tags) is an optional facet that can be added at any time, by hand, in bulk, or at capture. An object without a facet is complete.
 4. **Automation is a shortcut, never the only way.** Everything a capture profile or device registration fills in automatically can also be added by hand later, and the result is the same data.
 5. **Generic first, bundles on top.** The base is the generic statement (sensor size, focal length); the convenient bundle (a rig with its lenses and vignetting) is a saved shortcut that resolves to the generic statement.
 6. **Core does not know extensions.** An extension can be switched off and the core runs unchanged: own tables, own sync, own transport, own apps. Core code never imports extension code.
@@ -88,7 +88,7 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | --- | --- | --- |
 | **Photo** | A still image in the media library, from the phone or uploaded. Complete on its own | photo as part of a shot |
 | **Media library** | All photos of a project | — |
-| **Facet** | An optional group of data on an object (position, capture device, optics, …) | mandatory `framing` / `device` snapshots |
+| **Facet** | An optional group of data on an object (capture device, optics, …) | mandatory `framing` / `device` snapshots |
 | **Optics** | The generic statement that defines a field of view: sensor size, focal length, reducer, orientation | rig snapshot, `lens_mm` |
 | **Rig** | A saved bundle that resolves to optics: body or sensor, lenses, reducer, vignetting | `presets` |
 | **Frame** | A rectangle on a photo: what a given optics sees, or a free crop | framing fractions |
@@ -98,7 +98,6 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Camera layout** | The arrangement of controls on the phone's camera screen | viewfinder layout |
 | **Capture profile** | Which modules are on when taking photos, and which facets are filled automatically | Setup → Capture / Viewfinder settings, the forced rig |
 | **Viewfinder** | The capture module that draws a frame over the live picture | the whole Shoot screen |
-| **Series** | Several photos taken as one capture | capture "sequence" |
 | **Shot** | A planned picture in a film: described by a sketch, by one or more photos, or by nothing yet | shot as container of photos |
 | **Step** | One stage in a shot's progression | same |
 | **Layer**, **Sketch** | As today; ownership and spaces are decided in workshop 05 | — |
@@ -114,7 +113,7 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Extension** | A package of apps, data and transport that is off until enabled | — |
 | **Light**, **Dark** | The two themes | Sun, Set |
 
-Dropped words: *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (parked).
+Dropped words: *series* and capture *sequence* (no grouping in the base, [01](01-media.md)), *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (parked).
 
 ## Open questions
 
@@ -127,7 +126,7 @@ None. The principles and the glossary are a starting point; each workshop detail
 - The **principles** stand as a start and are detailed during the workshops.
 - **Two layers, no personas.** The rewrite builds a base layer of primitives; personas, roles and team workflows are business logic modelled on top of it later. Roles appear in the workshops only as test cases for the primitives.
 - The **glossary** stands as a beginning.
-- **Series** is the name for several photos taken as one capture. A series stays grouped in the media library and can be linked to a shot as a whole.
+- ~~**Series** is the name for several photos taken as one capture. A series stays grouped in the media library and can be linked to a shot as a whole.~~ Reopened by [01](01-media.md) on 2026-11-13: there is no series in the base; a multi-photo capture produces several photos, and grouping belongs to a layer above.
 - **Device** and **Fixture** are two concepts. A device is registered capture hardware with specs (phone, camera) and belongs to the core. A fixture is controllable equipment (light, battery) inside the lights extension. Flows drive fixtures.
 - **View modes** are Mask, Outline, Crop and Full. The viewfinder control is "Zoom to frame". "Frame" means only the rectangle.
 - **Three tiers**: core, standard apps (shipped and visible, removable, built only on core), extensions (off until enabled). Which block sits in which tier is decided in that block's workshop.
