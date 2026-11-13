@@ -22,7 +22,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | # | Topic | Issue | Page | Status |
 | --- | --- | --- | --- | --- |
 | 00 | Principles, layers, glossary | [#327](https://github.com/OpenClapper-dev/core/issues/327) | [00-principles.md](00-principles.md) | decided |
-| 01 | Media library | [#328](https://github.com/OpenClapper-dev/core/issues/328) | 01-media.md | not started |
+| 01 | Media library | [#328](https://github.com/OpenClapper-dev/core/issues/328) | [01-media.md](01-media.md) | decided |
 | 02 | Optics and frames | [#329](https://github.com/OpenClapper-dev/core/issues/329) | 02-optics.md | not started |
 | 03 | Capture on the phone | [#330](https://github.com/OpenClapper-dev/core/issues/330) | 03-capture.md | not started |
 | 04 | Shots and planning | [#331](https://github.com/OpenClapper-dev/core/issues/331) | 04-shots.md | not started |
@@ -46,10 +46,11 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 | D3 | Adopt the foundation | [#340](https://github.com/OpenClapper-dev/core/issues/340) | done: `packages/design` + `apps/specimen` (`make specimen`) |
 | D4 | Feature-level patterns | [#341](https://github.com/OpenClapper-dev/core/issues/341) | not started |
 
-## Decided so far (2026-11-12)
+## Decided so far
 
 - Design system: foundation now, patterns later.
 - Production data is dropped; staging first.
 - Day planning is deleted. Extra fields are removed for now and parked as a future extension mechanism.
 - Themes are called Light and Dark.
 - The rewrite builds a base layer of primitives without personas; roles and workflows are business logic on top, later ([00](00-principles.md)).
+- A photo is a standalone primitive of one project: untouched original plus client-made preview and thumbnail, stills only, facets (capture device, optics, EXIF) instead of ownership. No GPS or place on photos and no series in the base; locations are re-thought in 07 ([01](01-media.md)).
