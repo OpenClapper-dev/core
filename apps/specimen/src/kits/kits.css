@@ -1,0 +1,15 @@
+/* Page-level styles of the export's ui_kits index.html files, scoped to each kit's root so they stay out of the card pages.
+   Each kit root carries its own data-theme (where the export set it on <html>) and therefore its own surface and text colour. */
+
+/* ui_kits/studio: #root{position:relative;min-width:960px;min-height:600px} */
+.kit-desktop { position: absolute; inset: 0; min-width: 960px; min-height: 600px; background: var(--surface); color: var(--text); }
+
+/* ui_kits/layouts: body{background:var(--bg-desktop)} #root{padding:24px;display:grid;gap:16px} */
+.kit-layouts { box-sizing: border-box; height: 100%; overflow: auto; padding: 24px; display: grid; gap: 16px; align-content: start; background: var(--bg-desktop); color: var(--text); }
+.kit-layouts .bar { display: flex; align-items: center; gap: 12px; color: var(--text); }
+.kit-layouts .grid { display: grid; grid-template-columns: repeat(2, 600px); gap: 24px; }
+
+/* ui_kits/phone: a fixed neutral backdrop behind the device frames, the same in both themes (as in the export). */
+.kit-phone { box-sizing: border-box; height: 100%; overflow: auto; padding: 32px; display: flex; flex-wrap: wrap; gap: 40px; align-items: flex-start; align-content: flex-start; background: #cfcfcd; color: var(--text); }
+.kit-phone .dev { display: grid; gap: 10px; font: 500 13px/1 var(--font-mono); color: #141414; }
+.kit-phone .fill { height: 100%; display: flex; flex-direction: column; }
