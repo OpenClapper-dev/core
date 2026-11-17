@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Workshop 02 · optics graph</title>
+<!-- Mockup for docs/rewrite/02-optics.md, round 2. Self-contained: the token block is a copy of
+     packages/design/src/tokens.css, pasted in when this file was made. -->
+<style>
+:root {
+  --grey-0: #FFFFFF;
+  --grey-50: #F4F4F2;
+  --grey-100: #EDEDEA;
+  --grey-150: #E2E2DE;
+  --grey-175: #DFDFDB;
+  --grey-200: #D9D9D6;
+  --grey-300: #B5B5B1;
+  --grey-350: #ADADA9;
+  --grey-400: #8C8C8E;
+  --grey-450: #7D7D7A;
+  --grey-475: #78787A;
+  --grey-500: #6E6E6B;
+  --grey-600: #52524F;
+  --grey-650: #3C3C3E;
+  --grey-700: #303032;
+  --grey-750: #2A2A2C;
+  --grey-800: #262628;
+  --grey-850: #1B1B1C;
+  --grey-900: #141415;
+  --grey-925: #121213;
+  --grey-950: #0A0A0A;
+  --cobalt-100: #DCE4FA;
+  --cobalt-300: #9DB8FF;
+  --cobalt-400: #82A4FF;
+  --cobalt-450: #6B8FF0;
+  --cobalt-600: #0B45D9;
+  --cobalt-700: #0938B3;
+  --cobalt-800: #072C8C;
+  --cobalt-900: #1F2E58;
+  --cobalt-950: #08142F;
+  --red-100: #FBE4E2;
+  --red-400: #FF8A80;
+  --red-600: #A31B14;
+  --red-900: #4A1512;
+  --green-100: #E0F0E2;
+  --green-400: #7BD88A;
+  --green-600: #176023;
+  --green-900: #12361A;
+  --amber-100: #FBEFD0;
+  --amber-400: #F2B33D;
+  --amber-600: #7A4E00;
+  --amber-900: #3D2C05;
+  --photo-bg: #000000;
+  --over-ink: #000000;
+  --over-paper: #FFFFFF;
+  --over-mask: rgba(0,0,0,.62);
+  --over-frame: #FFFFFF;
+  --over-frame-outline: #000000;
+  --over-human: #00E5FF;
+  --over-rec: #FF2D2D;
+  --over-pin: #FFFFFF;
+  --over-pin-ink: #000000;
+  --env-production: #1E3FBF;
+  --env-staging: #B8471F;
+  --env-development: #3B7A1A;
+  --on-env: #FFFFFF;
+  --font-sans: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
+  --font-mono: 'Atkinson Hyperlegible Mono', ui-monospace, monospace;
+  --font-size-2xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 24px;
+  --font-size-3xl: 30px;
+  --font-size-m-sm: 14px;
+  --font-size-m-md: 16px;
+  --font-size-m-lg: 20px;
+  --font-size-m-xl: 24px;
+  --leading-tight: 1.15;
+  --leading-ui: 1.3;
+  --leading-body: 1.45;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 12px;
+  --space-6: 16px;
+  --space-7: 24px;
+  --space-8: 32px;
+  --space-9: 48px;
+  --control-h-sm: 24px;
+  --control-h: 28px;
+  --control-h-lg: 36px;
+  --touch: 48px;
+  --row-h: 28px;
+  --row-h-lg: 32px;
+  --titlebar-h: 32px;
+  --toolbar-h: 40px;
+  --taskbar-h: 40px;
+  --statusbar-h: 24px;
+  --icon-sm: 12px;
+  --icon: 16px;
+  --icon-lg: 20px;
+  --m-header-h: 56px;
+  --m-tabs-h: 64px;
+  --m-actionbar-h: 64px;
+  --m-shutter: 72px;
+  --track-lane-h: 40px;
+  --track-ruler-h: 24px;
+  --track-head-w: 132px;
+  --toolrail-w: 40px;
+  --radius-xs: 4px;
+  --radius-sm: 4px;
+  --radius-control: 6px;
+  --radius-card: 10px;
+  --radius-window: 10px;
+  --radius-pill: 999px;
+  --border-w: 1px;
+  --border-w-strong: 2px;
+  --focus-w: 2px;
+  --focus-offset: 1px;
+  --dur-fast: 90ms;
+  --dur: 160ms;
+  --dur-slow: 240ms;
+  --ease: cubic-bezier(.2,0,0,1);
+  --ease-in: cubic-bezier(.4,0,1,1);
+  --z-desktop: 0;
+  --z-window: 100;
+  --z-taskbar: 500;
+  --z-launcher: 600;
+  --z-menu: 700;
+  --z-modal: 800;
+  --z-toast: 900;
+  --z-tooltip: 1000;
+  --bg-desktop: var(--grey-200);
+  --surface: var(--grey-0);
+  --surface-sunken: var(--grey-50);
+  --surface-raised: var(--grey-0);
+  --surface-bar: var(--grey-100);
+  --surface-hover: var(--grey-100);
+  --surface-pressed: var(--grey-150);
+  --surface-inverse: var(--grey-900);
+  --field: var(--grey-0);
+  --text: var(--grey-900);
+  --text-secondary: var(--grey-600);
+  --text-disabled: var(--grey-500);
+  --text-inverse: var(--grey-50);
+  --text-on-accent: var(--grey-0);
+  --border-control: var(--grey-450);
+  --border-divider: var(--grey-175);
+  --border-window: var(--grey-300);
+  --border-window-focused: var(--grey-600);
+  --accent: var(--cobalt-600);
+  --accent-hover: var(--cobalt-700);
+  --accent-pressed: var(--cobalt-800);
+  --accent-tint: var(--cobalt-100);
+  --selection: var(--cobalt-100);
+  --selection-border: var(--cobalt-600);
+  --focus: var(--cobalt-600);
+  --success: var(--green-600);
+  --success-tint: var(--green-100);
+  --danger: var(--red-600);
+  --danger-tint: var(--red-100);
+  --warning: var(--amber-600);
+  --warning-tint: var(--amber-100);
+  --scrim: rgba(0,0,0,.5);
+  --marquee: rgba(11,69,217,.12);
+  --cat-1: #C2410C;
+  --cat-2: #96690A;
+  --cat-3: #4D7C0F;
+  --cat-4: #0F766E;
+  --cat-5: #0369A1;
+  --cat-6: #4338CA;
+  --cat-7: #A21CAF;
+  --cat-8: #BE123C;
+  --focus-ring: rgba(11,69,217,.28);
+  --chart-1: var(--cobalt-600);
+  --chart-2: #0F766E;
+  --chart-3: #96690A;
+  --chart-4: #BE123C;
+  --chart-5: #4338CA;
+  --knob: var(--grey-0);
+  --shadow-window: 0 2px 6px rgba(0,0,0,.10);
+  --shadow-window-focused: 0 8px 24px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12);
+  --shadow-menu: 0 6px 16px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
+  --shadow-toast: 0 8px 20px rgba(0,0,0,.20);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.05);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+  color-scheme: light;
+}
+/* Auto: follow the OS. The explicit scopes below come later, so they win. */
+@media (prefers-color-scheme: dark) {
+:root {
+  --bg-desktop: var(--grey-950);
+  --surface: var(--grey-850);
+  --surface-sunken: var(--grey-900);
+  --surface-raised: var(--grey-750);
+  --surface-bar: var(--grey-750);
+  --surface-hover: var(--grey-800);
+  --surface-pressed: var(--grey-700);
+  --surface-inverse: var(--grey-50);
+  --field: var(--grey-925);
+  --text: var(--grey-50);
+  --text-secondary: var(--grey-350);
+  --text-disabled: var(--grey-400);
+  --text-inverse: var(--grey-900);
+  --text-on-accent: var(--cobalt-950);
+  --border-control: var(--grey-475);
+  --border-divider: var(--grey-700);
+  --border-window: var(--grey-650);
+  --border-window-focused: var(--grey-400);
+  --accent: var(--cobalt-400);
+  --accent-hover: var(--cobalt-300);
+  --accent-pressed: var(--cobalt-450);
+  --accent-tint: var(--cobalt-900);
+  --selection: var(--cobalt-900);
+  --selection-border: var(--cobalt-400);
+  --focus: var(--cobalt-400);
+  --success: var(--green-400);
+  --success-tint: var(--green-900);
+  --danger: var(--red-400);
+  --danger-tint: var(--red-900);
+  --warning: var(--amber-400);
+  --warning-tint: var(--amber-900);
+  --scrim: rgba(0,0,0,.65);
+  --marquee: rgba(130,164,255,.14);
+  --cat-1: #F08A5D;
+  --cat-2: #E0B050;
+  --cat-3: #9CCB5A;
+  --cat-4: #4FC9BB;
+  --cat-5: #5BB8F0;
+  --cat-6: #9A9BFF;
+  --cat-7: #E580EE;
+  --cat-8: #FF7F9E;
+  --focus-ring: rgba(130,164,255,.38);
+  --chart-1: var(--cobalt-400);
+  --chart-2: #4FC9BB;
+  --chart-3: #E0B050;
+  --chart-4: #FF7F9E;
+  --chart-5: #9A9BFF;
+  --knob: var(--grey-50);
+  --shadow-window: 0 2px 8px rgba(0,0,0,.5);
+  --shadow-window-focused: 0 10px 30px rgba(0,0,0,.7);
+  --shadow-menu: 0 8px 20px rgba(0,0,0,.6);
+  --shadow-toast: 0 8px 24px rgba(0,0,0,.7);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.5);
+  color-scheme: dark;
+}
+}
+[data-theme="light"] {
+  --bg-desktop: var(--grey-200);
+  --surface: var(--grey-0);
+  --surface-sunken: var(--grey-50);
+  --surface-raised: var(--grey-0);
+  --surface-bar: var(--grey-100);
+  --surface-hover: var(--grey-100);
+  --surface-pressed: var(--grey-150);
+  --surface-inverse: var(--grey-900);
+  --field: var(--grey-0);
+  --text: var(--grey-900);
+  --text-secondary: var(--grey-600);
+  --text-disabled: var(--grey-500);
+  --text-inverse: var(--grey-50);
+  --text-on-accent: var(--grey-0);
+  --border-control: var(--grey-450);
+  --border-divider: var(--grey-175);
+  --border-window: var(--grey-300);
+  --border-window-focused: var(--grey-600);
+  --accent: var(--cobalt-600);
+  --accent-hover: var(--cobalt-700);
+  --accent-pressed: var(--cobalt-800);
+  --accent-tint: var(--cobalt-100);
+  --selection: var(--cobalt-100);
+  --selection-border: var(--cobalt-600);
+  --focus: var(--cobalt-600);
+  --success: var(--green-600);
+  --success-tint: var(--green-100);
+  --danger: var(--red-600);
+  --danger-tint: var(--red-100);
+  --warning: var(--amber-600);
+  --warning-tint: var(--amber-100);
+  --scrim: rgba(0,0,0,.5);
+  --marquee: rgba(11,69,217,.12);
+  --cat-1: #C2410C;
+  --cat-2: #96690A;
+  --cat-3: #4D7C0F;
+  --cat-4: #0F766E;
+  --cat-5: #0369A1;
+  --cat-6: #4338CA;
+  --cat-7: #A21CAF;
+  --cat-8: #BE123C;
+  --focus-ring: rgba(11,69,217,.28);
+  --chart-1: var(--cobalt-600);
+  --chart-2: #0F766E;
+  --chart-3: #96690A;
+  --chart-4: #BE123C;
+  --chart-5: #4338CA;
+  --knob: var(--grey-0);
+  --shadow-window: 0 2px 6px rgba(0,0,0,.10);
+  --shadow-window-focused: 0 8px 24px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12);
+  --shadow-menu: 0 6px 16px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
+  --shadow-toast: 0 8px 20px rgba(0,0,0,.20);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.05);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.07), 0 1px 2px rgba(0,0,0,.04);
+  color-scheme: light;
+}
+[data-theme="dark"] {
+  --bg-desktop: var(--grey-950);
+  --surface: var(--grey-850);
+  --surface-sunken: var(--grey-900);
+  --surface-raised: var(--grey-750);
+  --surface-bar: var(--grey-750);
+  --surface-hover: var(--grey-800);
+  --surface-pressed: var(--grey-700);
+  --surface-inverse: var(--grey-50);
+  --field: var(--grey-925);
+  --text: var(--grey-50);
+  --text-secondary: var(--grey-350);
+  --text-disabled: var(--grey-400);
+  --text-inverse: var(--grey-900);
+  --text-on-accent: var(--cobalt-950);
+  --border-control: var(--grey-475);
+  --border-divider: var(--grey-700);
+  --border-window: var(--grey-650);
+  --border-window-focused: var(--grey-400);
+  --accent: var(--cobalt-400);
+  --accent-hover: var(--cobalt-300);
+  --accent-pressed: var(--cobalt-450);
+  --accent-tint: var(--cobalt-900);
+  --selection: var(--cobalt-900);
+  --selection-border: var(--cobalt-400);
+  --focus: var(--cobalt-400);
+  --success: var(--green-400);
+  --success-tint: var(--green-900);
+  --danger: var(--red-400);
+  --danger-tint: var(--red-900);
+  --warning: var(--amber-400);
+  --warning-tint: var(--amber-900);
+  --scrim: rgba(0,0,0,.65);
+  --marquee: rgba(130,164,255,.14);
+  --cat-1: #F08A5D;
+  --cat-2: #E0B050;
+  --cat-3: #9CCB5A;
+  --cat-4: #4FC9BB;
+  --cat-5: #5BB8F0;
+  --cat-6: #9A9BFF;
+  --cat-7: #E580EE;
+  --cat-8: #FF7F9E;
+  --focus-ring: rgba(130,164,255,.38);
+  --chart-1: var(--cobalt-400);
+  --chart-2: #4FC9BB;
+  --chart-3: #E0B050;
+  --chart-4: #FF7F9E;
+  --chart-5: #9A9BFF;
+  --knob: var(--grey-50);
+  --shadow-window: 0 2px 8px rgba(0,0,0,.5);
+  --shadow-window-focused: 0 10px 30px rgba(0,0,0,.7);
+  --shadow-menu: 0 8px 20px rgba(0,0,0,.6);
+  --shadow-toast: 0 8px 24px rgba(0,0,0,.7);
+  --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.5);
+  color-scheme: dark;
+}
+@media (prefers-reduced-motion: reduce) {
+:root {
+  --dur-fast: 0ms;
+  --dur: 0ms;
+  --dur-slow: 0ms;
+}
+}
+body { margin: 0; padding: 24px 16px 48px; background: var(--surface); color: var(--text); font: 14px/1.45 var(--font-sans); }
+main { max-width: 1120px; margin: 0 auto; }
+h1 { font-size: 24px; margin: 0 0 4px; }
+h2 { font-size: 16px; margin: 32px 0 8px; }
+p { margin: 0 0 8px; max-width: 75ch; }
+.meta { color: var(--text-secondary); }
+.graph { overflow-x: auto; border: 1px solid var(--border-divider); border-radius: 10px; margin-top: 16px; }
+svg { display: block; min-width: 1000px; width: 100%; height: auto; }
+.n rect { fill: var(--surface); stroke: var(--border-control); stroke-width: 1; }
+.n.calc rect { fill: var(--surface-sunken); }
+.n.later rect { stroke-dasharray: 5 4; }
+.n.out rect { stroke: var(--accent); stroke-width: 2; }
+.t { fill: var(--text); font: 600 14px var(--font-sans); }
+.s { fill: var(--text-secondary); font: 12px var(--font-sans); }
+.e { fill: none; stroke: var(--text-secondary); stroke-width: 1.5; }
+.e.later { stroke-dasharray: 5 4; }
+.el { fill: var(--text-secondary); font: 11px var(--font-mono); }
+.head { fill: var(--text); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 12px 0 0; padding: 0; list-style: none; color: var(--text-secondary); font-size: 13px; }
+.legend i { display: inline-block; width: 22px; height: 14px; margin-right: 6px; vertical-align: -2px; border: 1px solid var(--border-control); border-radius: 3px; background: var(--surface); }
+.legend .calc { background: var(--surface-sunken); }
+.legend .later { border-style: dashed; }
+.legend .out { border: 2px solid var(--accent); }
+table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+th, td { text-align: left; vertical-align: top; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--border-divider); }
+th { color: var(--text-secondary); font-weight: 600; font-size: 13px; }
+.scroll { overflow-x: auto; }
+ol { margin: 0; padding-left: 20px; max-width: 75ch; }
+li { margin-bottom: 6px; }
+</style>
+</head>
+<body>
+<main>
+<h1>Optics and frames as a graph</h1>
+<p class="meta">Workshop 02, round 2 · 2026-11-17 · proposal, nothing here is decided except "both kinds of frames"</p>
+
+<div class="graph">
+<svg viewBox="0 0 1120 640" role="img" aria-label="Graph: a photo's capture facts give its angle of view; optics give the camera's angle of view; both give an optics frame. An aspect ratio gives an aspect frame. A frame saved on a photo is a framing.">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="head"/></marker></defs>
+
+  <!-- edges -->
+  <path class="e" marker-end="url(#a)" d="M220 82H280"/><text class="el" x="226" y="74">read once</text>
+  <path class="e" marker-end="url(#a)" d="M520 82H590"/><text class="el" x="528" y="74">compute</text>
+  <path class="e" marker-end="url(#a)" d="M220 282H280"/><text class="el" x="232" y="274">fills</text>
+  <path class="e" marker-end="url(#a)" d="M520 282H590"/><text class="el" x="528" y="274">compute</text>
+  <path class="e" marker-end="url(#a)" d="M790 82C840 82 820 165 860 165"/>
+  <path class="e" marker-end="url(#a)" d="M790 282C840 282 820 200 860 200"/>
+  <text class="el" x="800" y="187">ratio</text>
+  <path class="e" marker-end="url(#a)" d="M520 452H860"/><text class="el" x="640" y="444">any photo, no angle needed</text>
+  <path class="e" marker-end="url(#a)" d="M1080 182C1112 182 1112 582 1080 582"/>
+  <path class="e" marker-end="url(#a)" d="M970 494V540"/><text class="el" x="978" y="522">save</text>
+  <path class="e" marker-end="url(#a)" d="M770 582H860"/><text class="el" x="778" y="574">reference</text>
+  <path class="e later" marker-end="url(#a)" d="M520 175C560 175 555 112 590 108"/>
+  <path class="e later" marker-end="url(#a)" d="M120 390V324"/>
+
+  <!-- row 1: the photo side -->
+  <g class="n"><rect x="20" y="40" width="200" height="84" rx="6"/><text class="t" x="32" y="64">Photo</text><text class="s" x="32" y="84">file + raw EXIF, kept as is</text><text class="s" x="32" y="102">workshop 01</text></g>
+  <g class="n"><rect x="280" y="40" width="240" height="84" rx="6"/><text class="t" x="292" y="64">Capture facts</text><text class="s" x="292" y="84">one number per photo:</text><text class="s" x="292" y="102">35 mm-equivalent focal length</text></g>
+  <g class="n calc"><rect x="590" y="40" width="200" height="84" rx="6"/><text class="t" x="602" y="64">Photo's angle of view</text><text class="s" x="602" y="84">what the image spans</text><text class="s" x="602" y="102">computed, not stored</text></g>
+  <g class="n later"><rect x="280" y="150" width="240" height="50" rx="6"/><text class="t" x="292" y="172">Typed in by hand</text><text class="s" x="292" y="190">second way in, later (or now?)</text></g>
+
+  <!-- row 2: the camera side -->
+  <g class="n"><rect x="20" y="240" width="200" height="84" rx="6"/><text class="t" x="32" y="264">Combination</text><text class="s" x="32" y="284">a named set of factors</text><text class="s" x="32" y="302">optional · name is open</text></g>
+  <g class="n"><rect x="280" y="240" width="240" height="84" rx="6"/><text class="t" x="292" y="264">Optics</text><text class="s" x="292" y="284">format · focal length ·</text><text class="s" x="292" y="302">multiplier · squeeze · orientation</text></g>
+  <g class="n calc"><rect x="590" y="240" width="200" height="84" rx="6"/><text class="t" x="602" y="264">Camera's angle of view</text><text class="s" x="602" y="284">what that camera would see</text><text class="s" x="602" y="302">computed, not stored</text></g>
+  <g class="n later"><rect x="20" y="390" width="200" height="50" rx="6"/><text class="t" x="32" y="412">Equipment, inventory</text><text class="s" x="32" y="430">later, builds combinations</text></g>
+
+  <!-- frames -->
+  <g class="n calc"><rect x="860" y="140" width="220" height="84" rx="6"/><text class="t" x="872" y="164">Optics frame</text><text class="s" x="872" y="184">size from the two angles</text><text class="s" x="872" y="202">can be larger than the photo</text></g>
+  <g class="n"><rect x="280" y="420" width="240" height="64" rx="6"/><text class="t" x="292" y="444">Aspect ratio</text><text class="s" x="292" y="464">2.39:1 · 1.85:1 · 16:9 · custom</text></g>
+  <g class="n"><rect x="860" y="410" width="220" height="84" rx="6"/><text class="t" x="872" y="434">Aspect frame</text><text class="s" x="872" y="454">a ratio at a free size</text><text class="s" x="872" y="472">never larger than the photo</text></g>
+  <g class="n out"><rect x="860" y="540" width="220" height="84" rx="6"/><text class="t" x="872" y="564">Framing</text><text class="s" x="872" y="584">a named frame on one photo:</text><text class="s" x="872" y="602">what it is made of + its centre</text></g>
+  <g class="n later"><rect x="530" y="550" width="240" height="64" rx="6"/><text class="t" x="542" y="574">Shot · step · layer · clip</text><text class="s" x="542" y="594">pick a framing · workshops 04–06</text></g>
+</svg>
+</div>
+<ul class="legend">
+  <li><i></i>stored</li>
+  <li><i class="calc"></i>computed on demand</li>
+  <li><i class="out"></i>the result other blocks use</li>
+  <li><i class="later"></i>later or another workshop</li>
+</ul>
+
+<h2>How to read it</h2>
+<p><strong>Top row, the photo.</strong> At import (or at capture in the app) one number is read into the photo's capture facts: the 35 mm-equivalent focal length. With the image's own width and height that gives the photo's angle of view by one formula, on demand. The raw EXIF stays on the photo, so nothing is lost by keeping only one number next to it.</p>
+<p><strong>Middle row, the camera you want to see.</strong> Optics is five plain factors. They can be typed in, or filled from a saved combination. No equipment, no lens sets, no vignetting.</p>
+<p><strong>Frames.</strong> Two angles give an optics frame. A ratio gives an aspect frame on any photo, with or without capture facts. A framing is either of them saved on a photo with a name and a centre. A framing made from a combination follows that combination: editing it changes those framings, after a notice that says how many.</p>
+<p><strong>Not in the graph:</strong> the phone's viewfinder (workshop 03). It needs the live picture's angle of view from the phone itself, then uses the same optics and the same ratio.</p>
+
+<h2>What EXIF gives, case by case</h2>
+<div class="scroll">
+<table>
+<tr><th>The file has</th><th>Capture facts</th><th>Typical for</th></tr>
+<tr><td>35 mm-equivalent focal length (<code>FocalLengthIn35mmFilm</code>)</td><td>Read directly</td><td>Phones almost always; many cameras</td></tr>
+<tr><td>Focal length + sensor size derivable from the focal-plane resolution tags</td><td>Converted to the 35 mm equivalent</td><td>Many cameras; the tags are not always trustworthy</td></tr>
+<tr><td>Focal length only</td><td>None: the sensor is unknown</td><td>Some cameras; adapted lenses on bodies that fill in a default</td></tr>
+<tr><td>No focal length, or no EXIF at all</td><td>None</td><td>Manual and cine lenses, screenshots, pictures sent through messengers, exports that strip metadata</td></tr>
+<tr><td>A photo taken in the app</td><td>Written by the app at capture, from what the phone reports</td><td>Every capture</td></tr>
+</table>
+</div>
+<p style="margin-top:8px">A photo without capture facts can only get aspect frames, until the "typed in by hand" way exists. A known limit: a photo that was cropped in another program usually keeps its EXIF, so its capture facts describe the uncropped picture and optics frames on it come out wrong without any warning.</p>
+
+<h2>Points to decide</h2>
+<ol>
+  <li>Capture facts as one number (35 mm-equivalent focal length), or focal length and sensor size kept separately?</li>
+  <li>Typing the number in by hand: part of the first version, or later?</li>
+  <li>The saved combination: what is it called, and does it belong to a project or to the workspace?</li>
+  <li>Does a photo have a default framing ("root"), or does each user of the photo pick its own?</li>
+</ol>
+</main>
+</body>
+</html>

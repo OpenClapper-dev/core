@@ -86,6 +86,20 @@ A **rig** is a saved bundle for people who shoot with known kit: a name, a forma
 
 `photos.framing` snapshot, `photos.root_framing_id`, `phoneViewFromFrame` as the way to get a photo's FOV, `framings.rig_id` as the only size source, `OVERLAY_DEFAULTS` in `fov-math`, the rig as a precondition for capture and framing.
 
+## Round 2 (2026-11-17): the owner's direction, not yet decided
+
+Graph of this round: [mockups/02/optics-graph.html](mockups/02/optics-graph.html). It replaces the Proposal above where they differ.
+
+- **Keep inputs, derive the angle.** A photo stores what gave it its angle of view, not the angle; the angle is computed on demand (one formula). A stored column is a later optimisation if ever needed.
+- **EXIF is the one way in, for now.** Anything built on a photo's angle of view works on photos whose EXIF has the needed data, whatever their source (taken in the app or imported). No device registry is needed for this; a photo taken in the app gets the same data written at capture. Another way in (typed by hand, a registered device) can be added later as a second edge.
+- **Proposed interface:** the photo's **capture facts** are one number, the 35 mm-equivalent focal length, read at import (directly, or converted from focal length + sensor size where the file allows). Without it a photo gets aspect frames only. Known limit: a photo cropped elsewhere keeps its EXIF and frames wrongly.
+- **No rigs, no equipment, no vignetting for now.** Optics is the generic factors only: format, focal length, multiplier (reducer or teleconverter), squeeze, orientation. Inventory may come back later and build combinations.
+- **A saved combination of factors** probably exists (name open: "rig" redefined, or a new word).
+- **Live, with a notice.** A framing made from a combination follows it; editing the combination says that framings change.
+- The phone's viewfinder needs the live picture's angle from the phone itself; that is workshop 03.
+
+Still to decide: capture facts as one number or as focal length + sensor size; typing it by hand now or later; the combination's name and scope; whether a photo has a default (root) framing.
+
 ## Open questions
 
 1. **Optics facet**: store the photo's angle of view as proposed, or the capturing camera's format + focal length (and compute the angle)?
@@ -97,4 +111,6 @@ A **rig** is a saved bundle for people who shoot with known kit: a name, a forma
 
 ## Decided
 
-Nothing yet.
+2026-11-13, by the owner:
+
+- **Both kinds of frames:** optics frames where a photo has an angle of view, aspect-ratio frames on every photo.
