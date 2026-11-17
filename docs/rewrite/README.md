@@ -23,7 +23,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | --- | --- | --- | --- | --- |
 | 00 | Principles, layers, glossary | [#327](https://github.com/OpenClapper-dev/core/issues/327) | [00-principles.md](00-principles.md) | decided |
 | 01 | Media library | [#328](https://github.com/OpenClapper-dev/core/issues/328) | [01-media.md](01-media.md) | decided |
-| 02 | Optics and frames | [#329](https://github.com/OpenClapper-dev/core/issues/329) | [02-optics.md](02-optics.md) | open |
+| 02 | Optics and frames | [#329](https://github.com/OpenClapper-dev/core/issues/329) | [02-optics.md](02-optics.md) | decided |
 | 03 | Capture on the phone | [#330](https://github.com/OpenClapper-dev/core/issues/330) | 03-capture.md | not started |
 | 04 | Shots and planning | [#331](https://github.com/OpenClapper-dev/core/issues/331) | 04-shots.md | not started |
 | 05 | Composition | [#332](https://github.com/OpenClapper-dev/core/issues/332) | 05-composition.md | not started |
@@ -53,4 +53,5 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 - Day planning is deleted. Extra fields are removed for now and parked as a future extension mechanism.
 - Themes are called Light and Dark.
 - The rewrite builds a base layer of primitives without personas; roles and workflows are business logic on top, later ([00](00-principles.md)).
-- A photo is a standalone primitive of one project: untouched original plus client-made preview and thumbnail, stills only, facets (capture device, optics, EXIF) instead of ownership. No GPS or place on photos and no series in the base; locations are re-thought in 07 ([01](01-media.md)).
+- A photo is a standalone primitive of one project (hard-scoped, no move or copy): untouched original plus client-made preview and thumbnail, stills only, facets (capture device, optics, EXIF) instead of ownership. No GPS or place on photos and no series in the base; locations are re-thought in 07 ([01](01-media.md)).
+- Optics is generic factors (format, multiplier, squeeze, focal length, orientation); a photo's angle of view is computed once from EXIF; framings are free-form or made from a project's optics preset, which changes additively only. No rigs, equipment or vignetting for now ([02](02-optics.md)).

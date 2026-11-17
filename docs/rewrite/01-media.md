@@ -39,7 +39,7 @@ A **photo** is a still image with the minimum needed to store and show it. It be
 | Field | Meaning |
 | --- | --- |
 | `id` | Client-generated UUID, as today |
-| `project_id` | The project it belongs to. A photo can be moved or copied to another project |
+| `project_id` | The project it belongs to, for good: media is hard-scoped to one project, with no move or copy between projects for now |
 | `origin` | How it entered: `capture` (the phone's camera) or `import` (a file from the phone or the Studio) |
 | `type` | The media type of the original. Only still images in the rebuild (JPEG, PNG, HEIC, WebP); the field leaves room for other file types later |
 | `taken_at` | When the picture was taken: capture time, or EXIF time of an import, else the import time |
@@ -62,7 +62,7 @@ Optional groups of data about the photo itself. Each can be absent, filled at ca
 | Facet | Content | Filled by |
 | --- | --- | --- |
 | **Capture device** | A reference to a registered device, plus the readout at that moment (model, lens used, zoom, native focal length) | Capture; matched from EXIF make and model on import; chosen by hand |
-| **Optics** | What field of view the picture has (defined in [workshop 02](02-optics.md)) | Derived from the capture device where known; stated by hand |
+| **Optics** | The picture's angle of view (defined in [workshop 02](02-optics.md)) | Computed once from EXIF when the photo is added; typed in by hand later |
 | **EXIF** | The raw tags of the original, kept as they are for later use | Capture and import |
 
 Opinions about a photo's role (review state, shot size, light requirements) are not facets; where they live is [workshop 04](04-shots.md). Position is not a facet (see Decided).
@@ -107,7 +107,7 @@ Mockups follow with workshop 03 (capture) and 07 (the filesystem), where the til
 
 - **A photo is a standalone primitive** as described above: project, origin, type, time, size, optional name and note; facets and links instead of ownership.
 - **Original resolution:** the untouched original is stored, never re-encoded. The adding client also uploads a preview (about 2048 px) and a thumbnail (about 400 px), which go first; the phone may hold the original back for Wi-Fi, and it stays queued until stored.
-- **Scope:** a photo belongs to exactly one project; it can be moved or copied to another.
+- **Scope:** a photo belongs to exactly one project and stays there. No move or copy between projects for now, so that projects have no dependencies on each other (clarified by the owner on 2026-11-17; the first record wrongly allowed moving and copying).
 - **Media types:** still images only in the rebuild; the `type` field leaves room for other file types later.
 - **No position, no place on photos.** GPS, position facets and the photo → location/spot link are removed entirely for now; they were opinionated and served one past workflow. EXIF is kept raw, so positions inside it are not lost, but nothing uses them. Locations, spots and positions are re-thought in workshop 07.
 - **No series in the base.** Every photo is a single item; a multi-photo capture produces several photos. Grouping, progression and linking are a generic responsibility of another layer. This reopens workshop 00, where "Series" was named; it is removed from the glossary there.

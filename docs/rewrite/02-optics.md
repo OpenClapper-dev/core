@@ -1,8 +1,8 @@
 # 02 · Optics and frames
 
-Workshop [#329](https://github.com/OpenClapper-dev/core/issues/329). Status: **proposal, nothing decided yet**.
+Workshop [#329](https://github.com/OpenClapper-dev/core/issues/329). Status: **decided** (2026-11-17).
 
-What field of view a picture has, and what part of a photo a camera would see. Optics is the base; a rig becomes an optional saved bundle on top of it.
+What field of view a picture has, and what part of a photo a camera would see. Optics is a set of generic factors; an optics preset is a saved, fixed set of them.
 
 ## As-is
 
@@ -33,84 +33,153 @@ What field of view a picture has, and what part of a photo a camera would see. O
 5. **The root framing is a global opinion.** One framing decides how a photo looks everywhere, although different shots or clips may want different frames of the same photo.
 6. **Display concerns in the math package** (overlay colours), and the rig carries capture behaviour (the phone refuses to shoot without one).
 
-## Proposal
+## The model
 
-### Optics (base)
+Graph from the discussion: [mockups/02/optics-graph.html](mockups/02/optics-graph.html). It predates the final names: its "capture facts" became the photo's angle of view, its "combination" the optics preset.
 
-**Optics** is a plain value: what a camera with a given lens sees.
+### Optics
 
-| Field | Meaning |
+**Optics** is a set of generic factors: what a camera with a given lens sees. No equipment, no rigs, no vignetting.
+
+| Factor | Meaning |
 | --- | --- |
-| Format | Sensor area width × height in mm, from the built-in catalogue (body + recording format) or entered by hand |
-| Focal length | mm |
-| Reducer | Focal reducer factor; 1 = none |
-| Squeeze | Anamorphic squeeze factor; 1 = spherical (open question 5) |
+| Format | Sensor area, width × height in mm: picked from the generic format list or typed in |
+| Multiplier | Focal reducer or teleconverter factor; 1 = none |
+| Squeeze | Anamorphic squeeze; 1 = spherical. Widens the horizontal view only (front anamorphics); rear adapters are out of scope. Picks: 1.25, 1.33, 1.5, 1.6, 1.8, 2, plus free entry |
+| Focal length | Whole mm |
 | Orientation | Landscape or portrait |
+| Delivery aspect | Optional: an aspect ratio cropped centred inside the camera's view (2.39:1 out of a 16:9 or desqueezed picture) |
 
-From it `fov-math` derives the field of view (horizontal, vertical, diagonal), the full-frame equivalent and the crop factor, as today. Optics needs no saved object: it can be typed in anywhere a value is asked for.
+`fov-math` derives the angle of view from these, as today.
 
-### The photo's optics facet
+### The photo's angle of view
 
-The **optics facet** of a photo (workshop 01) states the field of view of the image itself: horizontal and vertical angle of view, plus where it came from (`device` from the capture device and zoom, `exif` from an import's focal length and 35 mm equivalent or make/model, `manual`). It is stored directly, never reconstructed from a rig. A photo with this facet can be framed with any optics; a photo without it can only get an aspect frame (below).
+A photo row carries its **angle of view** (horizontal and vertical, in degrees) and the source it came from. It is computed once when the photo is added, the same way for every photo, taken in the app or imported:
 
-### Frames
+1. EXIF `FocalLengthIn35mmFilm` with the picture's aspect ratio and orientation.
+2. Else EXIF `FocalLength` with the sensor size from `FocalPlaneXResolution` / `FocalPlaneYResolution` / `FocalPlaneResolutionUnit` and the pixel dimensions.
+3. Else the photo has no angle of view.
 
-A **frame** is a rectangle on a photo: a size and a centre, in fractions of the photo, as today (`Frame` in `packages/vocab/src/framing.ts`). Its size comes from one of two sources:
+The raw EXIF is kept (workshop 01), so the angle can be recomputed if the rule changes. No device registry is involved. What the phone reports about its camera serves the live viewfinder only (workshop 03).
 
-- **Optics frame**: the size follows from target optics against the photo's optics facet (the existing `overlayRect`). Can exceed the photo (the camera sees more than the photo has).
-- **Aspect frame**: a free rectangle of a chosen aspect ratio (2.39:1, 1.85:1, 16:9, 4:3, 1:1, custom), any size up to the photo. Works on every photo (open question 2).
+Later, as further sources on the same columns: typing in the inputs of 1 or 2, or the angle itself.
 
-A **framing** is a saved, named frame on a photo. It stores its frame and, for an optics frame, the optics values it was made with, so it stays correct whatever happens to a rig later (open question 4).
+Known limit: a photo cropped in another program keeps its EXIF, so its angle of view is wrong without warning.
 
-### Who chooses the frame
+### Frames and framings
 
-The photo shows itself whole. A user of a photo (a shot, a step, a layer, a timeline clip) references the framing it wants, or none. There is no root framing on the photo (open question 6).
+A **frame** is a rectangle on a photo (size and centre in fractions of the photo, as today). Two kinds:
 
-### Rig (optional layer)
+- **Optics frame**: what given optics see, against the photo's angle of view (`overlayRect`). Needs a photo with an angle of view; can exceed the photo. With a delivery aspect, the picture is the inner rectangle of that aspect.
+- **Aspect frame**: a free rectangle of a chosen aspect ratio, on any photo.
 
-A **rig** is a saved bundle for people who shoot with known kit: a name, a format, a reducer, a lens set (focal lengths or a zoom range), and vignetting per focal length. It is a **template** that fills optics in one pick, and the place where lens character (vignetting) lives. Nothing requires a rig: the phone shoots without one (workshop 03), and every optics field can be typed in by hand. Whether a framing or the viewfinder follows later edits of the rig is open question 4.
+A **framing** is a saved, named frame on a photo. An optics framing is one of:
+
+| Kind | Where its values come from |
+| --- | --- |
+| **Free-form** | It owns all its values. Any combination can be explored; nothing else can change it |
+| **Preset** | Format, multiplier, squeeze and delivery aspect come from an optics preset; the focal length is one the preset offers. Position and orientation are the framing's own |
+
+"Create preset from current framing" turns a free-form exploration into a preset.
+
+A photo has no default (root) framing. A user of a photo (shot, step, layer, clip: workshops 04–06) references the framing it wants, or none.
+
+### Optics preset
+
+An **optics preset** is a named, complete description of a camera with its lenses. It belongs to one project.
+
+| Part | Content | After creation |
+| --- | --- | --- |
+| Name | Free text | Editable |
+| Format, multiplier, squeeze, delivery aspect | As above | Fixed |
+| Lenses (mandatory) | A set of primes (one or more focal lengths), or one zoom (from–to, whole mm) | Additive only |
+
+- **Additive only:** a prime can always be added; a zoom range can always be widened. A prime can be removed, and a zoom narrowed, only as far as no framing uses the focal lengths that would go; a prime in use is shown greyed with the note that it is used.
+- **Deleting:** a preset no framing uses can be deleted. One in use can only be archived: it leaves the pickers and its framings keep working.
+- **Duplicate** is the way to a changed preset (another format, another zoom). Moving framings from one preset to another is a later feature.
+- Because nothing that shapes the picture can change, a framing never changes behind the user's back, and a phone that was offline still shows the preset's current values.
+
+### Pickers
+
+| Where | Focal lengths offered |
+| --- | --- |
+| Free-form | The built-in prime list as stops, plus any whole mm typed in |
+| Preset with primes | That set |
+| Preset with a zoom | From–to in whole mm |
+
+Built-in prime list (cine and photo series merged), also the tick list when defining a preset's primes, where own values can be added:
+
+`12 14 16 18 20 21 24 25 27 28 32 35 40 50 65 75 85 90 100 135`
+
+Zooms have no defaults.
+
+### Generic formats
+
+No camera bodies. Dimensions are from memory and must be checked against the standards before they are built in.
+
+| Group | Format | Width × height (mm) |
+| --- | --- | --- |
+| Small sensors | 1/2.3" | 6.17 × 4.55 |
+| | 1/1.7" | 7.6 × 5.7 |
+| | 1" | 13.2 × 8.8 |
+| Small film | Super 8 | 5.79 × 4.01 |
+| | 16 mm | 10.26 × 7.49 |
+| | Super 16 | 12.52 × 7.41 |
+| Mid-size | Micro Four Thirds | 17.3 × 13.0 |
+| | APS-C (Canon) | 22.3 × 14.9 |
+| | APS-C (Sony, Nikon, Fuji) | 23.5 × 15.6 |
+| 35 mm cine | Academy 35 | 21.95 × 16.0 |
+| | Super 35, 3-perf | 24.89 × 14.0 |
+| | Super 35, 4-perf | 24.89 × 18.66 |
+| Full frame | Full frame (135) | 36 × 24 |
+| | VistaVision, 8-perf | 37.72 × 24.92 |
+| Medium and large | Medium format 44 × 33 | 43.8 × 32.9 |
+| | Medium format 645 digital | 53.4 × 40.0 |
+| | 65 mm, 5-perf | 52.63 × 23.01 |
+| | IMAX, 15-perf | 70.41 × 52.63 |
+
+### Creating a preset: preview on example photos
+
+The create flow shows what the preset sees on real pictures. The app ships a small set of example photos with a known angle of view:
+
+- several scenes (for example an interior, a street, a landscape, a person at a known distance);
+- per scene two or three photos from one tripod position at different focal lengths on full frame, so every focal length can be shown as a correct crop without enlarging too far.
+
+The photos must be ones the project may ship; the plan is that the owner shoots them (shot list to follow). A project's own photos with an angle of view can be used in the same preview.
 
 ### Package boundaries
 
-- `fov-math`: optics → FOV, frame fractions, reframing. No colours, no rigs, no photos.
-- `vocab`: frame and framing shapes, validation, the camera catalogue's shape.
-- Overlay colours move to the design system (`--over-*`), view modes to workshop 05.
+- `fov-math`: optics → angle of view, EXIF values → angle of view, frame fractions. No colours, no presets, no photos.
+- `vocab`: frame, framing and preset shapes, the additive-edit rules, the format and prime lists.
+- Overlay colours move to the design system (`--over-*`); view modes are workshop 05.
 
-### Apps and tiers (proposal)
+### Tiers
 
-- **Optics** calculator and the optics facet editor: core (they are how a photo gets a field of view).
-- **Framing** (saving frames on photos, compare, stacked frames): standard app.
-- **Rigs** (library of rigs, vignetting): standard app.
+- Core: the photo's angle of view and the optics math.
+- Standard apps: Framing (saving frames on photos, compare) and Optics presets.
 
-### What goes
+## What goes
 
-`photos.framing` snapshot, `photos.root_framing_id`, `phoneViewFromFrame` as the way to get a photo's FOV, `framings.rig_id` as the only size source, `OVERLAY_DEFAULTS` in `fov-math`, the rig as a precondition for capture and framing.
+Rigs (`presets` as body + lens range + vignetting), the camera body catalogue, vignetting, `photos.framing` (rig snapshot), `photos.root_framing_id`, `phoneViewFromFrame` and `reframe` as the way to a photo's field of view, `framings.rig_id`, `OVERLAY_DEFAULTS` in `fov-math`, the rig as a precondition for capture and framing. Equipment and inventory may return later as their own block that builds presets.
 
-## Round 2 (2026-11-17): the owner's direction, not yet decided
+## Handed to other workshops
 
-Graph of this round: [mockups/02/optics-graph.html](mockups/02/optics-graph.html). It replaces the Proposal above where they differ.
-
-- **Keep inputs, derive the angle.** A photo stores what gave it its angle of view, not the angle; the angle is computed on demand (one formula). A stored column is a later optimisation if ever needed.
-- **EXIF is the one way in, for now.** Anything built on a photo's angle of view works on photos whose EXIF has the needed data, whatever their source (taken in the app or imported). No device registry is needed for this; a photo taken in the app gets the same data written at capture. Another way in (typed by hand, a registered device) can be added later as a second edge.
-- **Proposed interface:** the photo's **capture facts** are one number, the 35 mm-equivalent focal length, read at import (directly, or converted from focal length + sensor size where the file allows). Without it a photo gets aspect frames only. Known limit: a photo cropped elsewhere keeps its EXIF and frames wrongly.
-- **No rigs, no equipment, no vignetting for now.** Optics is the generic factors only: format, focal length, multiplier (reducer or teleconverter), squeeze, orientation. Inventory may come back later and build combinations.
-- **A saved combination of factors** probably exists (name open: "rig" redefined, or a new word).
-- **Live, with a notice.** A framing made from a combination follows it; editing the combination says that framings change.
-- The phone's viewfinder needs the live picture's angle from the phone itself; that is workshop 03.
-
-Still to decide: capture facts as one number or as focal length + sensor size; typing it by hand now or later; the combination's name and scope; whether a photo has a default (root) framing.
-
-## Open questions
-
-1. **Optics facet**: store the photo's angle of view as proposed, or the capturing camera's format + focal length (and compute the angle)?
-2. **Aspect frames**: allow free aspect-ratio frames next to optics frames, or keep frames optics-only?
-3. **Rigs**: keep rigs as optional templates with lens sets and vignetting, or drop them and keep only the format catalogue plus typed-in values?
-4. **Snapshot or live**: does a framing keep the optics values it was made with, or follow later edits of its rig?
-5. **Anamorphic**: include a squeeze factor in the base optics now?
-6. **Root framing**: no default frame on the photo (users pick their framing), or keep one default per photo?
+- **03 (capture):** the live picture's angle of view from the phone itself, failing gracefully where a phone reports nothing; whether the app's own JPEGs carry the EXIF fields on every device, and whether they stay correct under digital zoom and a cropped output aspect; a photo taken with an optics frame on screen gets a framing.
+- **04–06:** how shots, steps, layers and clips reference a framing.
+- **Design track D4:** the framing picker, the preset create flow with its preview, the "in use" states.
 
 ## Decided
 
-2026-11-13, by the owner:
+2026-11-13 and 2026-11-17, by the owner:
 
-- **Both kinds of frames:** optics frames where a photo has an angle of view, aspect-ratio frames on every photo.
+- **Both kinds of frames:** optics frames where a photo has an angle of view, aspect frames on every photo. An optics frame can carry a delivery aspect, cropped centred inside the camera's view.
+- **Optics is generic factors only:** format, multiplier, squeeze, focal length, orientation. No rigs, no equipment or inventory, no vignetting for now.
+- **The photo's angle of view** is computed once when the photo is added and stored on the photo row with its source: first from the EXIF 35 mm equivalent, else from EXIF focal length and sensor size, else none. Same path for photos taken in the app and imports; no device registry. Raw EXIF stays.
+- **Typing in the inputs or the angle by hand** is deferred; it is a further source on the same columns.
+- **Framings are free-form or made from a preset.** Free-form framings own their values. There is no default (root) framing on a photo.
+- **Optics preset** (the name): format, multiplier, squeeze, delivery aspect, and mandatory lenses (a set of primes, or one zoom). Scoped to one project, no sharing between projects.
+- **Presets change additively only:** the name is always editable; format, multiplier, squeeze and delivery aspect are fixed; lenses can be added, and removed only where no framing uses them. A preset in use is archived, not deleted; duplicating gives a changed one.
+- **Built-in prime list** of 20 focal lengths, own values can be added; no defaults for zooms; focal lengths are whole mm.
+- **Formats:** a generic list from small sensors to IMAX, no camera bodies.
+- **Preset creation previews on example photos** shipped with the app.
+- **Tiers:** angle of view and math are core; Framing and Optics presets are standard apps.
