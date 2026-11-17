@@ -13,7 +13,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 ## How a workshop runs
 
 1. A page `NN-<topic>.md` is prepared with four parts: **As-is** (what exists, with file paths), **Problems and leaks**, **Proposal** (target concepts, data shape, boundaries to neighbouring blocks, what is deleted) and **Open questions**.
-2. Mockups, where UX is at stake, are static HTML in `mockups/NN/`: low-fidelity until the design foundation exists, then built on it.
+2. A workshop specifies features: concepts, rules, data shape. It does not prototype the interface, because a screen depends on blocks that later workshops still change. Where a workshop sees UX at stake it notes it under "Handed to other workshops".
 3. The owner decides. The decisions go into the page's **Decided** section and into the sub-issue, and the PR is merged.
 4. The **Decided** section is the spec for the rebuild. A later workshop reopens an earlier decision only by editing that section.
 
@@ -33,11 +33,13 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | 09-shells.md | not started |
 | 10 | Conclusion: target model and build plan | [#337](https://github.com/OpenClapper-dev/core/issues/337) | 10-conclusion.md | not started |
 
-Workshops 01–03 are the root of the entanglement and come first; 04–06 build on them; 07–09 depend on a stable block list. Workshop 10 maps every current table, route group, Studio app and phone screen to "kept as", "replaced by" or "deleted".
+Workshops 01–03 are the root of the entanglement and come first; 04–06 build on them; 07–09 depend on a stable block list. After 01–09 a second series of **UX workshops** follows, split along the feature set that came out of them rather than along these topics. They prototype the interface on the design system (static HTML in `mockups/`), feed the design track’s D4 and may reopen a decision. Workshop 10 comes after them.
+
+Workshop 10 maps every current table, route group, Studio app and phone screen to "kept as", "replaced by" or "deleted".
 
 ## Design track
 
-Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS chrome, icons, marks) is designed now; feature-level patterns follow each workshop. The current feature pages are not restyled.
+Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS chrome, icons, marks) is designed now; feature-level patterns follow the UX workshops. The current feature pages are not restyled.
 
 | # | Step | Issue | Status |
 | --- | --- | --- | --- |
@@ -52,6 +54,7 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 - Production data is dropped; staging first.
 - Day planning is deleted. Extra fields are removed for now and parked as a future extension mechanism.
 - Themes are called Light and Dark.
+- Workshops 01–09 are specification only; UX and UI are prototyped afterwards in a second series of workshops split by the resulting feature set (2026-11-17).
 - The rewrite builds a base layer of primitives without personas; roles and workflows are business logic on top, later ([00](00-principles.md)).
 - A photo is a standalone primitive of one project (hard-scoped, no move or copy): untouched original plus client-made preview and thumbnail, stills only, facets (capture device, optics, EXIF) instead of ownership. No GPS or place on photos and no series in the base; locations are re-thought in 07 ([01](01-media.md)).
 - Optics is generic factors (format, multiplier, squeeze, focal length, orientation); a photo's angle of view is computed once from EXIF; framings are free-form or made from a project's optics preset, which changes additively only. No rigs, equipment or vignetting for now ([02](02-optics.md)).
