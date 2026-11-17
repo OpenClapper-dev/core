@@ -35,8 +35,6 @@ What field of view a picture has, and what part of a photo a camera would see. O
 
 ## The model
 
-Graph from the discussion: [mockups/02/optics-graph.html](mockups/02/optics-graph.html). It predates the final names: its "capture facts" became the photo's angle of view, its "combination" the optics preset.
-
 ### Optics
 
 **Optics** is a set of generic factors: what a camera with a given lens sees. No equipment, no rigs, no vignetting.
