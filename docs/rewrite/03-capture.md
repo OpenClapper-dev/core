@@ -1,6 +1,6 @@
 # 03 · Capture on the phone
 
-Workshop [#330](https://github.com/OpenClapper-dev/core/issues/330). Status: **in discussion**: the four questions are answered (2026-11-18), the rest of the proposal awaits the owner's confirmation.
+Workshop [#330](https://github.com/OpenClapper-dev/core/issues/330). Status: **decided** (2026-11-18).
 
 The phone takes photos. Everything else on the capture screen (frames, presets, reference frames) is an optional control on top.
 
@@ -73,18 +73,13 @@ Fit enlarges the picture on the screen only; it never changes the photo.
 
 The lens menu offers the phone's physical lenses and nothing else: no digital zoom, neither in the menu nor in a photo. A longer view is what a longer focal length in the optics frame is for. Every photo is therefore the full picture of one real lens, and its EXIF describes it; that is why the photo's angle of view can come from EXIF alone (workshop 02), also for photos taken in the app.
 
-The camera library lists the physical lenses with their focal lengths. What it does not give on Android today is the zoom value at which the logical camera switches to each lens (`apps/mobile/src/zoom.ts`). Finding those points reliably is a build task, tested on real phones. A phone that cannot tell its lenses apart offers its main lens only.
+The camera library lists the physical lenses and documents the zoom values at which the logical camera switches between them (`zoomLensSwitchFactors`); a comment in today's code says Android did not deliver them (`apps/mobile/src/zoom.ts`). Both are already written to the debug log. Getting the switch points reliably is a build task, tested on real phones. A phone that cannot tell its lenses apart offers its main lens only.
 
 ### The live picture's angle of view
 
-The optics frame needs to know what the phone sees right now, per real lens. A cascade, like the photo's in workshop 02:
+The optics frame needs to know what the phone sees right now. There is one source: what the camera reports for the real lens in use, its 35 mm-equivalent focal length (the camera library documents this value per physical lens, `CameraDevice.focalLength`). The angle follows from it the same way as from a photo's EXIF (workshop 02).
 
-1. What the camera reports for the lens in use, if it is usable (focal lengths per lens are reported; whether a sensor size or field of view comes with it, and how reliable it is across phones, is not verified).
-2. Else what the phone's own photos say: the angle of view of a photo taken with that lens, remembered per lens on the device record.
-3. Else a value typed in by the user.
-4. Else there is no optics frame on this lens: the control says why, and the camera, aspect frames and everything else still work.
-
-No assumed default (today's 25 mm) and no "equivalent times zoom" across different lenses.
+No fallbacks: no learning from the phone's photos, no typed value, no assumed default (today's 25 mm), no "equivalent times zoom". A lens without a reported value gets no optics frame, the control says why, and it is treated as a bug to fix; the camera, aspect frames and everything else keep working.
 
 ### Camera layouts
 
@@ -98,18 +93,30 @@ A **device** is a piece of capture hardware in a generic registry. For now the o
 
 | Rule | Detail |
 | --- | --- |
-| Registered automatically | On first use the app creates the record and keeps it current: model, real lenses with their angle of view, screen size per orientation. Named after the model; can be renamed |
+| Registered automatically | On first use the app creates the record and keeps it current: model, real lenses with their reported focal lengths, screen size per orientation. Named after the model; can be renamed |
 | One record per piece of hardware | The record is tied to a fingerprint of the hardware, not to its name or model, so two phones of the same model are two devices and a reinstall finds its record again. On Android the candidate is the system's `ANDROID_ID` (stable across reinstalls, new after a factory reset, different per signing key, so each build variant sees its own); what else can serve, and what tablets and later iOS offer, is a build task |
 | Owned by the account | A device belongs to the person using it and follows them across projects |
 | Photos reference it | The photo's **capture device** facet (workshop 01) references the device and keeps its own readout (make, model, lens used), so the photo reads correctly for other members and after the device is removed. An imported photo carries a readout from its EXIF and no device |
 
 ### Import on the phone
 
-The phone's library can import pictures from the phone's gallery (workshop 01). They take the same path as a capture: original untouched, derivatives made on the phone, EXIF read, angle of view computed, queued. Whether Android's photo picker hands over the unmodified file with its EXIF is not verified.
+The phone's library can import pictures from the phone's gallery (workshop 01). It is the same pipeline as a capture, not a second one:
+
+| Step | Capture | Import |
+| --- | --- | --- |
+| Original kept untouched | Yes | Yes |
+| Preview and thumbnail made on the phone | Yes | Yes |
+| EXIF read, angle of view computed | Yes | Yes |
+| Queued and uploaded | Yes | Yes |
+| Time taken | Now | From EXIF, else the import time |
+| Device | This phone | None; make and model from EXIF as a readout |
+| Framing | If an optics frame was on screen | None |
+
+Whether Android's photo picker hands over the unmodified file with its EXIF is not verified.
 
 ### Upload queue
 
-The guarantees stay, per photo instead of per shot:
+The guarantees stay. The unit in the queue is one photo with its three files, where today it is a shot with its photos and tags:
 
 - A photo is stored on the phone before anything else happens and is never deleted for a rejection.
 - Uploads are idempotent; network errors retry; repeated rejections park the photo as stuck with the server's error, to retry or discard by hand.
@@ -129,15 +136,6 @@ The rig as a precondition, the Tag screen and remembered tags, drafts, Seq mode,
 - **UX workshops:** the capture screen, pickers and the layout editor.
 - **Build:** check on real phones what the camera reports per lens, what EXIF the app's JPEGs carry at each phone lens and under digital zoom, and what the photo picker returns.
 
-## Still to confirm
-
-Taken from the proposal without a question so far:
-
-1. The base as described: only a project is needed; no Tag screen, no drafts, no Seq mode; a capture is one photo.
-2. The live angle of view as a cascade per real lens, with no optics frame where nothing is known.
-3. Import from the phone's gallery through the same path as a capture.
-4. The upload queue's guarantees, per photo.
-
 ## Decided
 
 2026-11-18, by the owner:
@@ -148,3 +146,8 @@ Taken from the proposal without a question so far:
 - **Framing at capture:** a photo taken with an optics frame on screen automatically gets a framing.
 - **Devices are a generic registry.** Phones and tablets register themselves automatically, tied to a hardware fingerprint, one record per piece of hardware. Other kinds of cameras may follow later.
 - **Devices belong to the account;** a photo references its device and keeps its own readout.
+- **The base is a camera:** only a project is needed to shoot. No Tag screen, no drafts, no Seq mode; a capture is one photo.
+- **No collections either.** A generic "photos taken together" group was considered as a replacement for Seq mode and dropped; workshop 01's decision stands (grouping is a layer above the base).
+- **The live angle of view comes only from what the camera reports** for the real lens in use. No learned, typed or assumed values; a lens without a report gets no optics frame and counts as a bug.
+- **Import on the phone** runs through the same pipeline as a capture.
+- **The upload queue keeps its guarantees,** with one photo as its unit.
