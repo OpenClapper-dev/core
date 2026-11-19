@@ -1,6 +1,6 @@
 # 01 · Media library
 
-Workshop [#328](https://github.com/OpenClapper-dev/core/issues/328). Status: **decided** (2026-11-13).
+Workshop [#328](https://github.com/OpenClapper-dev/core/issues/328). Status: **decided** (2026-11-13; collections and wording updated in the [interjection](i1-interjection.md), 2026-11-19).
 
 The first base primitive: a photo that exists on its own. Everything else in the rewrite (optics, capture, shots, composition, timeline) links to it instead of owning it.
 
@@ -44,10 +44,10 @@ A **photo** is a still image with the minimum needed to store and show it. It be
 | `type` | The media type of the original. Only still images in the rebuild (JPEG, PNG, HEIC, WebP); the field leaves room for other file types later |
 | `taken_at` | When the picture was taken: capture time, or EXIF time of an import, else the import time |
 | `width`, `height`, `size_bytes` | Of the stored original |
-| `name`, `note` | Optional, free text |
+| `name` | Generated when the photo is added, editable ([04](04-shots.md)) |
 | `created_by`, `created_at` | Who added it and when |
 
-Everything else is a facet or a link.
+Everything else is a property, a collection or a link. There is no built-in note.
 
 ## Stored images
 
@@ -55,17 +55,29 @@ Everything else is a facet or a link.
 - Two **derivatives** per photo for display: a preview (about 2048 px) and a thumbnail (about 400 px). The client that adds the photo makes them and uploads them with the original; the server stores what it gets. The Worker has no image processing today, and this keeps it that way.
 - On the phone, the thumbnail and preview upload first and the original follows (on Wi-Fi only, if the user wants). A photo is usable everywhere as soon as its preview is there. "Never lose a capture" extends to the original: it stays queued until stored.
 
-## Facets
+## Facts about a photo
 
-Optional groups of data about the photo itself. Each can be absent, filled at capture, read from EXIF on import, or added and edited by hand later, alone or in bulk.
+What is known about a photo is shown as **properties** ([04](04-shots.md)), of the kind "facts of the file type": in the same list as the project's own properties, searchable, and read-only. The word "facet" from the first version of this page is retired.
 
-| Facet | Content | Filled by |
+| Fact | Content | Filled by |
 | --- | --- | --- |
-| **Capture device** | A reference to a registered device, plus the readout at that moment (model, lens used, zoom, native focal length) | Capture; matched from EXIF make and model on import; chosen by hand |
-| **Optics** | The picture's angle of view (defined in [workshop 02](02-optics.md)) | Computed once from EXIF when the photo is added; typed in by hand later |
-| **EXIF** | The raw tags of the original, kept as they are for later use | Capture and import |
+| **Capture device** | A reference to the registered device ([03](03-capture.md)) and a readout: make, model, lens used | Capture. An import carries only the readout from its EXIF |
+| **Angle of view** | Horizontal and vertical, with its source ([02](02-optics.md)) | Computed once from EXIF when the photo is added |
+| **Frame on screen** | The optics values, preset name and focal length that were on the camera screen, copied ([03](03-capture.md), [05](05-composition.md)) | Capture, when an optics frame was on |
+| **EXIF** | The raw tags of the original, kept as they are | Capture and import |
 
-Opinions about a photo's role (review state, shot size, light requirements) are not facets; where they live is [workshop 04](04-shots.md). Position is not a facet (see Decided).
+Opinions about a photo's role (a status, a category) are properties the project defines. Position is not recorded (see Decided).
+
+## Collections
+
+A **collection** is a set of photos of one project that belong together. It has no opinion and imposes nothing on other files.
+
+- A photo is in at most one collection. It can be taken out again; ungrouping a collection deletes nothing.
+- A collection is made on the camera (collection mode, [03](03-capture.md)) or in the media library: group selected photos, add to an existing one.
+- To have the same picture in two collections, the photo is duplicated: a new photo with its own identity. The stored image can be shared, so a duplicate costs no storage.
+- Its order is by time taken, or set by hand, and matters only in the media library.
+- Nothing references a collection. Dropping one into a progression or a timeline adds the photos chosen from it as separate items.
+- Whether a collection is simply a folder of photos that the camera can create is checked in workshop 07.
 
 ## Links
 
@@ -73,24 +85,24 @@ Other blocks point at photos; a photo points at nothing.
 
 | Link | Meaning | Decided in |
 | --- | --- | --- |
-| Shot → photo(s) | A shot references photos; a photo can be referenced by any number of shots, or none | 04 |
-| Framing → photo | A saved frame on a photo | 02 |
-| Layer / clip → photo | Composition and timeline reference photos | 05, 06 |
+| Shot → photo | In a shot's content list or as an item of its progression; a photo can be used by any number of shots, or none | 04 |
+| Canvas → photo | As the base photo or as a placed picture | 05 |
+| Clip → photo | A timeline clip shows the photo | 06 |
 | Folder → photo | A photo is a file | 07 |
 
 Removing a photo removes these links; the linking objects stay and show a missing reference (principle 2).
 
 ## What is not media
 
-- A **sketch** is not a photo. It is its own file type (workshop 05), and a shot can reference a sketch directly, so no rendered image has to pretend to be a photo.
-- **Bakes and renders** are derived images of other blocks, not library items.
+- A drawing is not a photo. It is a **canvas** ([05](05-composition.md)), and a shot can reference a canvas directly, so no rendered image has to pretend to be a photo.
+- **Renders** of canvases are derived images, not library items.
 
 ## Apps
 
-- Studio: a **Media** app (grid and list; import by drop or file picker; facets in a side panel; bulk editing of facets).
+- Studio: a **Media** app (grid and list; import by drop or file picker; collections shown as one tile or spread out; properties in a side panel, editable in bulk).
 - Phone: a library screen for what was taken or imported, and import from the phone's gallery.
 
-Mockups follow with workshop 03 (capture) and 07 (the filesystem), where the tile, the side panel and the phone library meet their neighbours.
+The screens are designed in the UX workshops.
 
 ## What goes
 
@@ -99,16 +111,17 @@ Mockups follow with workshop 03 (capture) and 07 (the filesystem), where the til
 ## Handed to other workshops
 
 - **07 (organisation):** locations and spots, positions and the map start from nothing. The owner's observation for that workshop: in film work a location is usually a place from the screenplay found during a breakdown, and each different place is its own location, not a child of another. "Spot under location" came from one setup where several script locations share one address; in general several locations may share a physical address, which is a different relation from parent and child.
-- **Grouping and linking** of photos (progressions, sets, "these belong together") is the responsibility of a layer above the base, not of the photo. Workshops 04 (shots) and 07 (folders) say where it lives.
+- **Grouping and linking:** answered since. Photos that belong together are a collection (above); what a shot uses and in which order is the shot's content list and progression ([04](04-shots.md)); folders are workshop 07.
 
 ## Decided
 
 2026-11-13, by the owner:
 
-- **A photo is a standalone primitive** as described above: project, origin, type, time, size, optional name and note; facets and links instead of ownership.
+- **A photo is a standalone primitive** as described above: project, origin, type, time, size, name; properties and links instead of ownership.
 - **Original resolution:** the untouched original is stored, never re-encoded. The adding client also uploads a preview (about 2048 px) and a thumbnail (about 400 px), which go first; the phone may hold the original back for Wi-Fi, and it stays queued until stored.
 - **Scope:** a photo belongs to exactly one project and stays there. No move or copy between projects for now, so that projects have no dependencies on each other (clarified by the owner on 2026-11-17; the first record wrongly allowed moving and copying).
 - **Media types:** still images only in the rebuild; the `type` field leaves room for other file types later.
-- **No position, no place on photos.** GPS, position facets and the photo → location/spot link are removed entirely for now; they were opinionated and served one past workflow. EXIF is kept raw, so positions inside it are not lost, but nothing uses them. Locations, spots and positions are re-thought in workshop 07.
-- **No series in the base.** Every photo is a single item; a multi-photo capture produces several photos. Grouping, progression and linking are a generic responsibility of another layer. This reopens workshop 00, where "Series" was named; it is removed from the glossary there.
-- **Facets** in the base: capture device, optics, EXIF.
+- **No position, no place on photos.** GPS, position data and the photo → location/spot link are removed entirely for now; they were opinionated and served one past workflow. EXIF is kept raw, so positions inside it are not lost, but nothing uses them. Locations, spots and positions are re-thought in workshop 07.
+- ~~**No series in the base.** Every photo is a single item; grouping is the responsibility of another layer.~~ Reopened in the [interjection](i1-interjection.md) on 2026-11-19: every photo is still a single item, and photos that belong together can be put in a **collection**, at most one per photo, made on the camera or in the media library. A collection is never referenced; its photos are.
+- **Facts** about a photo in the base: capture device, angle of view, the frame on screen at capture, EXIF. They are read-only properties.
+- **No built-in note** (interjection, 2026-11-19).

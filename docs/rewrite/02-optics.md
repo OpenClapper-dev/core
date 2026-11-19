@@ -1,6 +1,6 @@
 # 02 · Optics and frames
 
-Workshop [#329](https://github.com/OpenClapper-dev/core/issues/329). Status: **decided** (2026-11-17).
+Workshop [#329](https://github.com/OpenClapper-dev/core/issues/329). Status: **decided** (2026-11-17; frames moved into the canvas by [05](05-composition.md), wording updated in the [interjection](i1-interjection.md), 2026-11-19).
 
 What field of view a picture has, and what part of a photo a camera would see. Optics is a set of generic factors; an optics preset is a saved, fixed set of them.
 
@@ -64,23 +64,23 @@ Later, as further sources on the same columns: typing in the inputs of 1 or 2, o
 
 Known limit: a photo cropped in another program keeps its EXIF, so its angle of view is wrong without warning.
 
-### Frames and framings
+### Frames
 
 A **frame** is a rectangle on a photo (size and centre in fractions of the photo, as today). Two kinds:
 
 - **Optics frame**: what given optics see, against the photo's angle of view (`overlayRect`). Needs a photo with an angle of view; can exceed the photo. With a delivery aspect, the picture is the inner rectangle of that aspect.
 - **Aspect frame**: a free rectangle of a chosen aspect ratio, on any photo.
 
-Since [workshop 05](05-composition.md) a frame is saved as an object inside a canvas that has the photo as its base; there is no framing as a separate saved object on a photo. Where this page says "framing", read "a frame in a canvas". An optics frame is one of:
+A frame is saved as an object inside a canvas that has the photo as its base ([05](05-composition.md)). There is no "framing" as a separate saved object on a photo. An optics frame is one of:
 
 | Kind | Where its values come from |
 | --- | --- |
 | **Free-form** | It owns all its values. Any combination can be explored; nothing else can change it |
-| **Preset** | Format, multiplier, squeeze and delivery aspect come from an optics preset; the focal length is one the preset offers. Position and orientation are the framing's own |
+| **Preset** | Format, multiplier, squeeze and delivery aspect come from an optics preset; the focal length is one the preset offers. Position and orientation are the frame's own |
 
-"Create preset from current framing" turns a free-form exploration into a preset.
+"Create preset from this frame" turns a free-form exploration into a preset.
 
-A photo has no default (root) framing. A user of a photo (shot, step, layer, clip: workshops 04–06) references the framing it wants, or none.
+A photo has no default frame. A canvas marks which of its frames is the picture it stands for; a reference can also point at one particular frame of a canvas ([05](05-composition.md)).
 
 ### Optics preset
 
@@ -92,10 +92,11 @@ An **optics preset** is a named, complete description of a camera with its lense
 | Format, multiplier, squeeze, delivery aspect | As above | Fixed |
 | Lenses (mandatory) | A set of primes (one or more focal lengths), or one zoom (from–to, whole mm) | Additive only |
 
-- **Additive only:** a prime can always be added; a zoom range can always be widened. A prime can be removed, and a zoom narrowed, only as far as no framing uses the focal lengths that would go; a prime in use is shown greyed with the note that it is used.
-- **Deleting:** a preset no framing uses can be deleted. One in use can only be archived: it leaves the pickers and its framings keep working.
-- **Duplicate** is the way to a changed preset (another format, another zoom). Moving framings from one preset to another is a later feature.
-- Because nothing that shapes the picture can change, a framing never changes behind the user's back, and a phone that was offline still shows the preset's current values.
+- **Additive only:** a prime can always be added; a zoom range can always be widened. A prime can be removed, and a zoom narrowed, only as far as no frame uses the focal lengths that would go; a prime in use is shown greyed with the note that it is used.
+- **In use** means used by a frame in any canvas of the project, internal canvases included ([I1](i1-interjection.md)), or by a progression's default frame ([04](04-shots.md)). The frame recorded at capture is a copy and does not count.
+- **Deleting:** a preset no frame uses can be deleted. One in use can only be archived: it leaves the pickers and its frames keep working.
+- **Duplicate** is the way to a changed preset (another format, another zoom). Moving frames from one preset to another is a later feature.
+- Because nothing that shapes the picture can change, a frame never changes behind the user's back, and a phone that was offline still shows the preset's current values.
 
 ### Pickers
 
@@ -148,23 +149,24 @@ The photos must be ones the project may ship; the plan is that the owner shoots 
 ### Package boundaries
 
 - `fov-math`: optics → angle of view, EXIF values → angle of view, frame fractions. No colours, no presets, no photos.
-- `vocab`: frame, framing and preset shapes, the additive-edit rules, the format and prime lists.
+- `vocab`: frame and preset shapes, the additive-edit rules, the format and prime lists.
 - Overlay colours move to the design system (`--over-*`); view modes are workshop 05.
 
 ### Tiers
 
 - Core: the photo's angle of view and the optics math.
-- Standard apps: Framing (saving frames on photos, compare) and Optics presets.
+- Standard app: Optics presets. Frames are made in the canvas tool, which is core ([05](05-composition.md)).
 
 ## What goes
 
-Rigs (`presets` as body + lens range + vignetting), the camera body catalogue, vignetting, `photos.framing` (rig snapshot), `photos.root_framing_id`, `phoneViewFromFrame` and `reframe` as the way to a photo's field of view, `framings.rig_id`, `OVERLAY_DEFAULTS` in `fov-math`, the rig as a precondition for capture and framing. Equipment and inventory may return later as their own block that builds presets.
+Rigs (`presets` as body + lens range + vignetting), the camera body catalogue, vignetting, `photos.framing` (rig snapshot), `photos.root_framing_id`, `phoneViewFromFrame` and `reframe` as the way to a photo's field of view, `framings` as saved objects on a photo, `OVERLAY_DEFAULTS` in `fov-math`, the rig as a precondition for capture and framing. Equipment and inventory may return later as their own block that builds presets.
 
 ## Handed to other workshops
 
-- **03 (capture):** the live picture's angle of view from the phone itself, failing gracefully where a phone reports nothing; whether the app's own JPEGs carry the EXIF fields on every device, and whether they stay correct under digital zoom and a cropped output aspect; a photo taken with an optics frame on screen gets a framing.
-- **04–06:** how shots, steps, layers and clips reference a framing.
-- **Design track D4:** the framing picker, the preset create flow with its preview, the "in use" states.
+Answered since: the live picture's angle of view and the frame at capture ([03](03-capture.md)); how frames are saved and referenced ([05](05-composition.md)).
+
+- **UX workshops:** the frame picker, the preset create flow with its preview, the "in use" states.
+- **Build:** verifying the format dimensions.
 
 ## Decided
 
@@ -174,12 +176,12 @@ Rigs (`presets` as body + lens range + vignetting), the camera body catalogue, v
 - **Optics is generic factors only:** format, multiplier, squeeze, focal length, orientation. No rigs, no equipment or inventory, no vignetting for now.
 - **The photo's angle of view** is computed once when the photo is added and stored on the photo row with its source: first from the EXIF 35 mm equivalent, else from EXIF focal length and sensor size, else none. Same path for photos taken in the app and imports; no device registry. Raw EXIF stays.
 - **Typing in the inputs or the angle by hand** is deferred; it is a further source on the same columns.
-- **Framings are free-form or made from a preset.** Free-form framings own their values. There is no default (root) framing on a photo.
+- **Frames are free-form or made from a preset.** A free-form frame owns its values. There is no default frame on a photo.
 - **Optics preset** (the name): format, multiplier, squeeze, delivery aspect, and mandatory lenses (a set of primes, or one zoom). Scoped to one project, no sharing between projects.
-- **Presets change additively only:** the name is always editable; format, multiplier, squeeze and delivery aspect are fixed; lenses can be added, and removed only where no framing uses them. A preset in use is archived, not deleted; duplicating gives a changed one.
+- **Presets change additively only:** the name is always editable; format, multiplier, squeeze and delivery aspect are fixed; lenses can be added, and removed only where no frame uses them. A preset in use is archived, not deleted; duplicating gives a changed one.
 - **Built-in prime list** of 20 focal lengths, own values can be added; no defaults for zooms; focal lengths are whole mm.
 - **Formats:** a generic list from small sensors to IMAX, no camera bodies.
 - **Preset creation previews on example photos** shipped with the app.
-- **Tiers:** angle of view and math are core; Framing and Optics presets are standard apps.
+- **Tiers:** angle of view and math are core; Optics presets are a standard app.
 
-Reopened by [05](05-composition.md) on 2026-11-19: frames live inside a canvas only. A framing is no longer a saved object on a photo, and Framing is not an app of its own; free-form and preset frames, the optics preset and its additive rule stand, with "in use" meaning used by a frame in any canvas of the project.
+Changed by [05](05-composition.md) on 2026-11-19: frames live inside a canvas only. The first record of this page had "framings" as saved objects on a photo and a Framing app; both are gone, and the text above is updated. Free-form and preset frames, the optics preset and its additive rule stand.

@@ -31,6 +31,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 07 | Organisation and filesystem | [#334](https://github.com/OpenClapper-dev/core/issues/334) | 07-organisation.md | not started |
 | 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | 08-extensions.md | not started |
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | 09-shells.md | not started |
+| I1 | Interjection after 06: collections, progression, internal files, master timeline | — | [i1-interjection.md](i1-interjection.md) | decided |
 | 10 | Conclusion: target model and build plan | [#337](https://github.com/OpenClapper-dev/core/issues/337) | 10-conclusion.md | not started |
 
 Workshops 01–03 are the root of the entanglement and come first; 04–06 build on them; 07–09 depend on a stable block list. After 01–09 a second series of **UX workshops** follows, split along the feature set that came out of them rather than along these topics. They prototype the interface on the design system (static HTML in `mockups/`), feed the design track’s D4 and may reopen a decision. Workshop 10 comes after them.
@@ -50,15 +51,18 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 
 ## Decided so far
 
+[model.md](model.md) shows the model of workshops 00–06 in one picture.
+
 - Design system: foundation now, patterns later.
 - Production data is dropped; staging first.
 - Day planning is deleted. Extra fields return as generic properties (see 04).
 - Themes are called Light and Dark.
 - Workshops 01–09 are specification only; UX and UI are prototyped afterwards in a second series of workshops split by the resulting feature set (2026-11-17).
 - The rewrite builds a base layer of primitives without personas; roles and workflows are business logic on top, later ([00](00-principles.md)).
-- A photo is a standalone primitive of one project (hard-scoped, no move or copy): untouched original plus client-made preview and thumbnail, stills only, facets (capture device, optics, EXIF) instead of ownership. No GPS or place on photos and no series in the base; locations are re-thought in 07 ([01](01-media.md)).
+- A photo is a standalone primitive of one project (hard-scoped, no move or copy): untouched original plus client-made preview and thumbnail, stills only, properties instead of ownership. Photos that belong together form a collection, at most one per photo. No GPS or place on photos; locations are re-thought in 07 ([01](01-media.md)).
 - Optics is generic factors (format, multiplier, squeeze, focal length, orientation); a photo's angle of view is computed once from EXIF; framings are free-form or made from a project's optics preset, which changes additively only. No rigs, equipment or vignetting for now ([02](02-optics.md)).
 - The phone's base is a camera that needs only a project: a capture is one photo, with no tagging, drafts or sequences. Real lenses only, no digital zoom; the live angle of view comes from what the camera reports. Camera layouts stay customisable; devices are an account-owned registry that phones and tablets join automatically ([03](03-capture.md)).
-- A shot is an intent: properties plus an ordered, generic list of referenced files (photo, framing, canvas; later anything). No steps, no review state, no fixed tags. Properties are a per-project catalogue for all file types; files get generated names. Drawing, framing and floor plans become one canvas file type ([04](04-shots.md)).
+- A shot is an intent: properties plus an ordered, generic list of referenced files (photo, canvas; later anything). It can carry one progression, a timed order of pictures with an optional overlay and default frame. No review state, no fixed tags, no built-in note or description. Properties are a per-project catalogue for all file types; files get generated names. Drawing, framing and floor plans become one canvas file type ([04](04-shots.md)).
 - The canvas is one core file type and tool: a blank surface or a base photo, layers, placed pictures, and frames, which live only inside a canvas (no framing on a photo, no Framing app). A render of the whole surface replaces bakes; view modes are never stored; one editor at a time; the tablet uses the embedded editor if the test holds ([05](05-composition.md)).
-- A timeline is an ordered list of clips for deciding; a clip is a reference to any file with a picture (photo, canvas, shot) or a placeholder, plus a hold time, and carries nothing of its own. Files are edited in place by hosting their app (viewer, editor, inspector). No blocks, no review, no clip notes ([06](06-timeline.md)).
+- A timeline is an ordered list of clips for deciding; a clip is a reference to any file with a picture (photo, canvas, shot) or a placeholder, plus a hold time, and carries nothing of its own. Files are edited in place by hosting their app (viewer, editor, inspector). A shot with a progression plays it and shows spread or collapsed. Chapter markers organise a timeline, and one master timeline per project orders timelines. No review, no clip notes ([06](06-timeline.md)).
+- Internal files: a file created inside another (a shot's generated canvas, a progression's overlay) is hidden from the file browser and lives with its parent ([I1](i1-interjection.md)).
