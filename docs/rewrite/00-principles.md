@@ -1,6 +1,6 @@
 # 00 · Principles, layers, glossary
 
-Workshop [#327](https://github.com/OpenClapper-dev/core/issues/327). Status: **decided 2026-11-12**.
+Workshop [#327](https://github.com/OpenClapper-dev/core/issues/327). Status: **decided 2026-11-12**; principles, tiers and glossary brought in line with workshops 01–06 in the [interjection](i1-interjection.md) on 2026-11-19. [model.md](model.md) shows the current model in one picture.
 
 This page sets the rules every later workshop is checked against, separates the base layer from the business logic on top of it, and gives each concept one name.
 
@@ -49,13 +49,13 @@ What that means in the code today:
 
 1. **A block works alone.** Each building block (media, optics, capture, shot, composition, timeline, organisation) is usable with every other block absent or empty. Test: can a user who never opens the other apps get value from this one?
 2. **Links are optional references.** Blocks are connected by references the user makes (or an automation makes for them) and can remove. A missing or removed link degrades what is shown; it never blocks an action or makes an object invalid.
-3. **Facets, not required fields.** Extra knowledge about an object (capture device, optics, review state, tags) is an optional facet that can be added at any time, by hand, in bulk, or at capture. An object without a facet is complete.
-4. **Automation is a shortcut, never the only way.** Everything a capture profile or device registration fills in automatically can also be added by hand later, and the result is the same data.
-5. **Generic first, bundles on top.** The base is the generic statement (sensor size, focal length); the convenient bundle (a rig with its lenses and vignetting) is a saved shortcut that resolves to the generic statement.
+3. **Properties, not required fields.** Extra knowledge about a file is a property: a fact of its type (a photo's angle of view) or something the project defines (a status). A file without them is complete.
+4. **Automation is a shortcut, never the only way.** What the app does for the user (a collection made by the camera, a framing series made by a generator) can also be made by hand, and the result is the same data.
+5. **Generic first, bundles on top.** The base is the generic statement (format, focal length); the convenient bundle (an optics preset with its lenses) is a saved shortcut that resolves to the generic statement.
 6. **Core does not know extensions.** An extension can be switched off and the core runs unchanged: own tables, own sync, own transport, own apps. Core code never imports extension code.
 7. **One name per concept, one concept per name**, the same in UI, API, schema and docs.
 8. **The Studio is an operating system.** Objects the user makes are files; features are apps that open file types. The phone is a companion that offers some of those apps.
-9. **Never lose a capture.** Unchanged from today: idempotent uploads, lenient upload validation, persistent drafts, rejected uploads stay queued.
+9. **Never lose a capture.** Unchanged from today: idempotent uploads, lenient upload validation, rejected uploads stay queued.
 10. **No compatibility code.** The rebuild carries nothing for old data or old clients.
 11. **The base layer has no opinion about roles.** No primitive assumes a persona, a department or a workflow. Anything of that kind is expressed on top of the base layer (see [Two layers](#two-layers)).
 
@@ -63,8 +63,8 @@ What that means in the code today:
 
 | Tier | Meaning | Candidates (decided per block in workshops 01–09) |
 | --- | --- | --- |
-| Core | Always present; what "the app" is for anyone on a production | Media, capture, shots, organisation (projects, locations, files), the shells |
-| Standard apps | Shipped and visible by default, each removable from the desktop; built only on core | Optics and framing, composition, timeline, camera layouts |
+| Core | Always present; what "the app" is for anyone on a production | Media (photos, collections), capture, the angle of view and optics math, shots, properties, the canvas, organisation (projects, files), the shells |
+| Standard apps | Shipped and visible by default, each removable from the desktop; built only on core | Optics presets, timeline and master timeline, camera layouts |
 | Extensions | Off by default, enabled deliberately; own data and transport | Lights, flows, Blackmagic camera control, live picture; later: custom fields, automations |
 
 ### Two layers
@@ -73,12 +73,12 @@ The app is thought of in two realms:
 
 | Layer | What it is | Examples |
 | --- | --- | --- |
-| **Base layer** | Flexible primitives without an opinion about who uses them or how work is divided: objects, facets, links, apps, devices | A photo, optics, a frame, a shot, a camera layout, a capture profile, a folder |
+| **Base layer** | Flexible primitives without an opinion about who uses them or how work is divided: objects, facets, links, apps, devices | A photo, optics, a frame, a canvas, a shot, a camera layout, a folder |
 | **Business-logic layer** | Opinions laid over the base layer, as a layer of its own: roles and personas, the distribution of responsibilities, team workflows, automations | "A location scout's camera", an approval process, a hand-off between departments |
 
 The rewrite builds the **base layer**. It does not design for personas: a persona is already an opinion about roles, and it belongs to the business-logic layer, which comes later and is modelled *with* the base primitives, not baked into them.
 
-Roles such as DP, location scout or gaffer are used in the workshops only as **test cases**: a base layer is good when the experience each of them needs can be assembled from the same primitives without changing them. A scout's camera (position and location assignment matter, no frame) and a DP's camera (frame overlay, optics recorded) are two configurations of one capture block, not two features.
+Roles such as DP, location scout or gaffer are used in the workshops only as **test cases**: a base layer is good when the experience each of them needs can be assembled from the same primitives without changing them. A plain camera and a DP's camera with an optics frame are two camera layouts of one capture block, not two features.
 
 ### Glossary
 
@@ -86,34 +86,39 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 
 | Term | Meaning | Replaces |
 | --- | --- | --- |
-| **Photo** | A still image in the media library, from the phone or uploaded. Complete on its own | photo as part of a shot |
+| **File** | An object the user made, of one project, with properties | — |
+| **Property** | A piece of metadata on a file: a system property, a fact of its file type, or one the project defines ([04](04-shots.md)) | tags, extra fields, "facet" |
+| **Internal file** | A file created inside another file and bound to it ([I1](i1-interjection.md)) | — |
+| **Photo** | A still image in the media library, taken with the app or imported. Complete on its own ([01](01-media.md)) | photo as part of a shot |
 | **Media library** | All photos of a project | — |
-| **Facet** | An optional group of data on an object (capture device, optics, …) | mandatory `framing` / `device` snapshots |
-| **Optics** | The generic statement that defines a field of view: sensor size, focal length, reducer, orientation | rig snapshot, `lens_mm` |
-| **Rig** | A saved bundle that resolves to optics: body or sensor, lenses, reducer, vignetting | `presets` |
-| **Frame** | A rectangle on a photo: what a given optics sees, or a free crop | framing fractions |
-| **Framing** | A saved, named frame on a photo | same |
-| **Device** | A registered piece of capture hardware with its specs (a phone, a camera) | `devices` (phone specs only) |
+| **Collection** | Photos that belong together; a photo is in at most one ([01](01-media.md)) | capture sequence |
+| **Angle of view** | What a picture sees, horizontally and vertically ([02](02-optics.md)) | rig snapshot, FOV |
+| **Optics** | The generic factors that give an angle of view: format, multiplier, squeeze, focal length, orientation ([02](02-optics.md)) | rig snapshot, `lens_mm` |
+| **Optics preset** | A saved, fixed set of those factors with its lenses ([02](02-optics.md)) | rig, `presets` |
+| **Frame** | A rectangle on a photo inside a canvas: an optics frame or an aspect frame ([02](02-optics.md), [05](05-composition.md)) | framing fractions, saved framings |
+| **Canvas** | The file type for drawings, floor plans and photos with marks, looks and frames ([05](05-composition.md)) | sketch, layers on a shot, the Framing stage |
+| **Render** | The flattened image of a canvas ([05](05-composition.md)) | bake |
+| **Device** | A registered piece of capture hardware: a phone or tablet, later other cameras ([03](03-capture.md)) | `devices` (phone specs only) |
 | **Fixture** | A controllable piece of equipment in the lights extension (light, battery) | fixtures; the Studio app is no longer called "Devices" |
-| **Camera layout** | The arrangement of controls on the phone's camera screen | viewfinder layout |
-| **Capture profile** | Which modules are on when taking photos, and which facets are filled automatically | Setup → Capture / Viewfinder settings, the forced rig |
-| **Viewfinder** | The capture module that draws a frame over the live picture | the whole Shoot screen |
-| **Shot** | A planned picture in a film: an intent with properties and an ordered list of referenced files of any type ([04](04-shots.md)) | shot as container of photos |
-| **Property** | A piece of metadata on a file, defined once per project and attached to file types ([04](04-shots.md)) | tags, extra fields |
-| **Layer**, **Sketch** | As today; ownership and spaces are decided in workshop 05 | — |
-| **View mode** | How a photo with a frame is displayed: **Mask**, **Outline**, **Crop**, **Full** | mask / frame / fit / raw ("off") |
-| **Zoom to frame** | The viewfinder control that zooms the live picture to the frame | "Fit" button |
-| **Timeline**, **Clip** | As today | — |
-| **Block** | Adjacent clips treated as one unit on a timeline | timeline "sequence" / `groups` |
+| **Camera layout** | Which controls the phone's camera screen shows, and where; it doubles as the capture profile ([03](03-capture.md)) | viewfinder layout, capture settings |
+| **Viewfinder** | The built-in camera layout with an optics frame | the whole Shoot screen |
+| **Zoom to frame** | The camera control that enlarges the live picture to the frame | "Fit" button |
+| **Shot** | A planned picture in a film: an intent with properties, a content list and optionally a progression ([04](04-shots.md)) | shot as container of photos |
+| **Progression** | A shot's timed order of pictures ([04](04-shots.md)) | sequence, steps |
+| **View mode** | How something with a frame is displayed: **Mask**, **Outline**, **Crop**, **Full**; a window's choice | mask / frame / fit / raw ("off") |
+| **Timeline**, **Clip** | A rough cut; a reference with a hold time ([06](06-timeline.md)) | — |
+| **Placeholder** | A clip without a file | same |
+| **Chapter marker** | A title at the start of a clip that organises a timeline | — |
+| **Master timeline** | The project's one order of timelines ([06](06-timeline.md)) | — |
 | **Flow** | A timed programme that drives fixtures | light sequence |
-| **Filter** | A saved query over objects | `views` / "saved view" |
+| **Filter** | A saved query over files | `views` / "saved view" |
 | **Workspace** | The tenancy unit: members and roles | same |
 | **Desktop** | One virtual desktop in the Studio | desktop "workspace" |
-| **File**, **Folder**, **App** | An object the user made, shown in the filesystem; a container; a program that opens file types | — |
+| **Folder**, **App** | A container for files; a program that opens file types | — |
 | **Extension** | A package of apps, data and transport that is off until enabled | — |
 | **Light**, **Dark** | The two themes | Sun, Set |
 
-Dropped words: *step* (no steps, [04](04-shots.md)), *series* and capture *sequence* (no grouping in the base, [01](01-media.md)), *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (replaced by properties).
+Dropped words: *facet* (it is a property), *rig* and *vignetting* (no equipment for now), *framing* as a saved object (a frame lives in a canvas), *step*, *sequence* and *series* (a shot has a progression; photos have collections), *layer* and *sketch* as file types (parts and uses of a canvas), *block* (a shot with a progression, shown spread), *capture profile* (a camera layout), *bake* (a render), *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (replaced by properties).
 
 ## Open questions
 

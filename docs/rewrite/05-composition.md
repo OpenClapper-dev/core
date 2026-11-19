@@ -1,6 +1,6 @@
 # 05 · Canvas (was: composition)
 
-Workshop [#332](https://github.com/OpenClapper-dev/core/issues/332). Status: **decided** (2026-11-19).
+Workshop [#332](https://github.com/OpenClapper-dev/core/issues/332). Status: **decided** (2026-11-19; references to one frame and internal canvases added in the [interjection](i1-interjection.md)).
 
 One tool and one file type for everything drawn or arranged: a sketch, a floor plan, a photo with marks and a look, a photo explored through frames. The direction was set in [workshop 04](04-shots.md); this page fills it in.
 
@@ -51,6 +51,8 @@ A **canvas** is a file of a project. It stands alone; shots, timelines and folde
 
 Everything on a canvas is positioned on its surface. There is no frame space and no step range: with steps gone (workshop 04), a mark belongs to one picture. If the frame is changed later, the drawing stays on the photo.
 
+The one place where a drawing is laid over other pictures is a progression's overlay ([04](04-shots.md)): a canvas of its own, stretched over each item's picture. Inside any canvas there is still only one space.
+
 ### Frames on a canvas
 
 A frame exists only inside a canvas that has a base photo. There is no framing as a separate saved object on a photo any more (this reopens workshops 02 and 03).
@@ -66,12 +68,14 @@ A frame exists only inside a canvas that has a base photo. There is no framing a
 - A frame is moved by dragging and changed by picking a preset or values and a focal length.
 - An optics preset's lens counts as in use when a frame in any canvas of the project uses it (the additive rule of workshop 02 is unchanged). Frames are therefore stored where the server can find them, not buried in a drawing.
 - "A photo through a frame" is a canvas with that photo as its base and one frame. There is no Framing app.
+- **A reference can point at one frame of a canvas,** not only at the canvas. A shot's progression and a timeline can so show one canvas through several of its frames: a zoom, a pan or a tilt is one canvas with a frame per step ([04](04-shots.md)).
+- A canvas can be an **internal file** of a shot ([I1](i1-interjection.md)): the canvas a framing series is generated into, and a progression's overlay. It is an ordinary canvas that is hidden from the file browser and lives with its shot.
 
 **The frame from capture.** A photo taken with an optics frame on screen keeps that as a capture fact: the optics values, the preset's name and the focal length, copied, so it never blocks editing a preset. When such a photo becomes a canvas's base, the canvas starts with that frame. A user setting of the canvas tool, on by default, switches this off.
 
 ### View modes
 
-**Mask**, **Outline**, **Crop** and **Full** (workshop 00) are how a viewer shows something that has a frame. They are a choice of the window or screen looking at it, never stored in a file. One shared viewer component implements them for both clients. A thumbnail of a canvas with a frame is always Crop. Whether a timeline clip stores one is workshop 06.
+**Mask**, **Outline**, **Crop** and **Full** (workshop 00) are how a viewer shows something that has a frame. They are a choice of the window or screen looking at it, never stored in a file. One shared viewer component implements them for both clients. A thumbnail of a canvas with a frame is always Crop. A timeline clip stores none ([06](06-timeline.md)).
 
 ### Render instead of bakes
 
@@ -101,11 +105,10 @@ Core: a shot's content is often a canvas, and some pictures can only be drawn (w
 
 ### What goes
 
-Layers and sketches as children of a shot, frame space and step ranges, bakes and the bakery, clip-owned layers and their promotion (workshop 06 decides what a clip does instead), the Framing stage, the Zoom sequence dialog, the sketch's free-text kind (a property now), view modes as stored or global settings.
+Layers and sketches as children of a shot, frame space and step ranges, bakes and the bakery, clip-owned layers and their promotion (a clip carries nothing of its own, [06](06-timeline.md)), the Framing stage, the Zoom sequence dialog, the sketch's free-text kind (a property now), view modes as stored or global settings.
 
 ## Handed to other workshops
 
-- **06 (timeline):** what a clip references (a photo, a framing, a canvas) and whether it stores a view mode.
 - **07 (organisation):** the canvas as a file type; kinds such as "floor plan" as a property.
 - **UX workshops:** the tool itself (tools, panels, frame handling, tablet gestures).
 - **Build:** the research and the technical test for the tablet; the edit lock.
@@ -121,3 +124,8 @@ Layers and sketches as children of a shot, frame space and step ranges, bakes an
 - **One editor at a time:** others see the canvas read-only.
 
 Taken from the proposal with the above: a render of the whole surface replaces bakes; view modes are a viewer's choice and never stored in a file; the canvas is core and there is no Framing app.
+
+2026-11-19, in the [interjection](i1-interjection.md), by the owner:
+
+- **A reference can point at one frame of a canvas.**
+- **A canvas can be an internal file of a shot,** for a generated framing series and for a progression's overlay.

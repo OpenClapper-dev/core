@@ -1,6 +1,6 @@
 # 06 · Timeline
 
-Workshop [#333](https://github.com/OpenClapper-dev/core/issues/333). Status: **decided** (2026-11-19).
+Workshop [#333](https://github.com/OpenClapper-dev/core/issues/333). Status: **decided** (2026-11-19; hierarchy, markers and master timeline added in the [interjection](i1-interjection.md)).
 
 A rough cut out of pictures: clips in order, each held for a time, played back to see what carries a sequence. With shots, canvases and photos now separate files, a clip becomes a plain reference.
 
@@ -27,35 +27,52 @@ A rough cut out of pictures: clips in order, each held for a time, played back t
 4. **View mode is stored three times:** per clip, as a timeline lock, and as the browser's global setting.
 5. **Saving can overwrite:** the whole timeline is replaced on save, which forced the single-window rule.
 
-## Proposal
+## The model
+
+### The hierarchy
+
+Four levels, each holding only what is below it, so nothing can contain itself:
+
+```
+Master timeline   an order of timelines
+  Timeline        clips and chapter markers
+    Shot          with or without a progression
+      Picture     a photo, a canvas, or one frame of a canvas
+```
+
+A timeline's clips can also be pictures directly, or placeholders.
 
 ### The timeline
 
-A **timeline** is a file of a project: a name, properties (workshop 04) and an ordered list of clips. It stays a tool for deciding: hold times and playback, no audio, transitions or export.
+A **timeline** is a file of a project: a name, properties ([04](04-shots.md)), an ordered list of clips and chapter markers. It stays a tool for deciding: hold times and playback, no audio, transitions or export.
 
 ### The clip
 
 A clip is a reference and a time, nothing more:
 
-| Part | Meaning |
-| --- | --- |
-| Reference | A file with a picture, or nothing |
-| Hold time | 100 ms to 1 h |
-| Title | Only on a clip without a file |
-
-What a clip can reference:
-
-| Reference | What plays |
-| --- | --- |
-| A photo | The photo |
-| A canvas | Its picture: the frame marked as the picture, else the whole surface ([05](05-composition.md)) |
-| A shot | The shot's thumbnail, its first visual entry ([04](04-shots.md)); the clip follows when the shot's content changes |
-| Nothing | A **placeholder**: a place in the cut where something is missing, with a title and a hold time, filled later by dropping a file onto it |
+| Reference | What plays | Length |
+| --- | --- | --- |
+| A photo | The photo | The clip's hold time (100 ms to 1 h) |
+| A canvas | Its picture: the frame marked as the picture, else the whole surface ([05](05-composition.md)) | The clip's hold time |
+| One frame of a canvas | The canvas seen through that frame | The clip's hold time |
+| A shot without a progression | The shot's thumbnail; the clip follows when the shot's content changes | The clip's hold time |
+| A shot with a progression | The progression, at its own timing ([04](04-shots.md)) | The progression's length; the clip has no hold time of its own |
+| Nothing | A **placeholder**: a place in the cut where something is missing, with a title | The clip's hold time |
 
 - The same file can be in a timeline any number of times.
 - A removed file leaves the clip in place, showing a missing reference (principle 2).
 - A timeline cannot be a clip of a timeline.
 - Clips have no notes.
+- A collection ([01](01-media.md)) is never a clip: dropping one into a timeline adds the photos chosen from it as separate clips.
+
+### Spread and collapsed
+
+A shot with a progression can be shown in the track in two ways, a view setting of the timeline window:
+
+- **Spread:** one clip per picture of the progression, kept together.
+- **Collapsed:** one clip showing the progression's first picture.
+
+This is display only. Playback always runs the whole progression, and the clip is as long as the progression in both views. The pictures and their timing are changed in the shot, not in the timeline.
 
 ### No clip-owned edits
 
@@ -65,7 +82,7 @@ View modes are a choice of the window ([05](05-composition.md)); the timeline's 
 
 ### Editing a file without leaving the timeline
 
-Not owning the picture must not mean leaving the cut for every change. The timeline **hosts** the file's app in place. This is a general mechanism of the Studio, not a timeline feature; the shot window can use it the same way.
+Not owning the picture must not mean leaving the cut for every change. The timeline **hosts** the file's app in place. This is a general mechanism of the Studio, not a timeline feature; the shot window uses it the same way.
 
 A file type's app offers up to three parts that a host can mount:
 
@@ -93,14 +110,19 @@ As in any editor, the timeline has two panels beside the cut:
 - **The project's files:** the same file browser as everywhere in the Studio (workshop 07), to drag files into the cut.
 - **In this timeline:** the files the cut uses, with how often.
 
-### Blocks
+### Chapter markers
 
-None for now. Several clips are moved by selecting them, and each clip has its own hold time. Blocks existed to keep one shot's steps together; steps are gone. A generic block can return later.
+A **chapter marker** organises a cut: a title, and optionally a colour, at the start of a clip. A chapter runs from one marker to the next. A marker is attached to its clip, not to a time, so it stays in place when hold times change. Markers do not affect playback.
+
+### The master timeline
+
+Every project has one **master timeline**: an ordered list of timelines chosen from the project, played end to end. Timelines that are not in it (alternatives, experiments) stay outside. Only membership and order are edited there; a timeline's clips are edited in the timeline. Several people can each work on their own timeline while the master strings them together.
 
 ### What the timeline no longer does
 
 - **Reviewing.** There is no review state ([04](04-shots.md)).
-- **Restructuring shots.** "Make a sequence" and "Extract as own shot" go; a shot's content is edited on the shot.
+- **Restructuring shots.** "Make a sequence" and "Extract as own shot" go; a shot's content and progression are edited on the shot.
+- **Blocks as timeline data.** Today's sequence block (a shot's clips kept together with a shared length) is now a shot with a progression, shown spread.
 
 ### Editing
 
@@ -112,13 +134,13 @@ A standard app, as in workshop 00. Made in the Studio; whether the phone or tabl
 
 ### What goes
 
-`timeline_clips.photo_id`, `step_id` and `presentation`, clip-owned layers and sketches with promotion, `lock_mode`, sequence blocks and their length split, merge and extract, the review controls and the shot browser's state filters, sketch clips (a canvas clip now), clip notes.
+`timeline_clips.photo_id`, `step_id` and `presentation`, clip-owned layers and sketches with promotion, `lock_mode`, sequence blocks as stored groups, merge and extract, the review controls and the shot browser's state filters, sketch clips (a canvas clip now), clip notes.
 
 ## Handed to other workshops
 
-- **07 (organisation):** the timeline as a file type.
+- **07 (organisation):** the timeline and the master timeline in the filesystem.
 - **09 (shells):** the hosting mechanism (viewer, editor, inspector per app) as part of what an app is; playback on the phone or tablet.
-- **UX workshops:** the strip, the preview, the two file panels, and per app whether editing in the timeline goes through the inspector, the stage, or both.
+- **UX workshops:** the strip, the preview, the two file panels, spread and collapsed, markers, the master timeline, and per app whether editing in the timeline goes through the inspector, the stage, or both.
 
 ## Decided
 
@@ -128,8 +150,12 @@ A standard app, as in workshop 00. Made in the Studio; whether the phone or tabl
 - **A clip references any file with a picture** (photo, canvas, shot), or nothing.
 - **A clip carries nothing of its own** beyond its reference and hold time: no frame, layers, sketch, view mode or notes. Responsibility lies with the file and its app.
 - **Placeholders stay:** a clip without a file, with a title and a hold time.
-- **No blocks for now.**
-- **Files are edited from within the timeline** by hosting their app in place, through an inspector panel, the stage, or both, depending on the app. The mechanism is general and is detailed in workshop 09 and the UX workshops.
+- **Files are edited from within the timeline** by hosting their app in place, through an inspector panel, the stage, or both, depending on the app.
 - **Two file panels:** the project's files, and the files in this timeline.
+- No reviewing and no restructuring of shots in the timeline; one editor at a time; a standard app.
 
-Taken from the proposal with the above: no reviewing and no restructuring of shots in the timeline; one editor at a time; a standard app.
+2026-11-19, in the [interjection](i1-interjection.md), by the owner:
+
+- **A shot with a progression plays its progression,** at the progression's timing; the clip has no hold time of its own. This replaces "no blocks": the track shows such a shot **spread** or **collapsed**, a view setting that does not change playback.
+- **Chapter markers** organise a timeline.
+- **One master timeline per project:** a chosen order of timelines. A timeline still cannot be a clip of a timeline.

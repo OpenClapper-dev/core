@@ -1,6 +1,6 @@
 # 03 · Capture on the phone
 
-Workshop [#330](https://github.com/OpenClapper-dev/core/issues/330). Status: **decided** (2026-11-18).
+Workshop [#330](https://github.com/OpenClapper-dev/core/issues/330). Status: **decided** (2026-11-18; frame at capture changed by [05](05-composition.md), collection mode added in the [interjection](i1-interjection.md), 2026-11-19).
 
 The phone takes photos. Everything else on the capture screen (frames, presets, reference frames) is an optional control on top.
 
@@ -48,7 +48,7 @@ The capture screen works with nothing set up except a project (a photo belongs t
 | Queue | The photo is queued and visible in the phone's library at once |
 | Upload | Thumbnail and preview first, the original after (on Wi-Fi only, if the user wants) |
 
-There is no Tag screen, no draft and no Seq mode: several captures are several photos. Name and note can be added in the library. Whether a capture can be aimed at a shot ("take the photo for this planned shot") is workshop 04.
+There is no Tag screen, no draft and no Seq mode: several captures are several photos. A photo gets a generated name ([04](04-shots.md)). Aiming the camera at a shot is deferred ([04](04-shots.md)).
 
 ### Controls on top
 
@@ -58,16 +58,17 @@ Everything beyond the base is a control that can be on the screen or not:
 | --- | --- | --- |
 | Optics frame | Draws what an optics preset, or free-form values, see; with a focal length picker | The live picture's angle of view |
 | Aspect frame | Draws a frame of an aspect ratio | Nothing |
-| Fit | Zooms so the frame fills the screen | A frame |
+| Zoom to frame | Enlarges the live picture so the frame fills the screen | A frame |
 | Blackout | Darkens outside the frame | A frame |
 | Orientation | Turns the optics frame to portrait | An optics frame |
 | Reference frame | A second frame for comparison (today "Human": full frame at 35 / 43 / 50 mm) | The live angle of view |
 | Phone lenses | Switches between the phone's real lenses (below) | More than one real lens |
+| Collection | While it is on, the photos taken go into one collection ([01](01-media.md)) | Nothing |
 | Torch, uploads | As today | Nothing |
 
-With an optics frame on screen, the photo gets a framing from it automatically: the preset or the free-form values, the focal length, centred. It can be renamed, changed or deleted later. Without a frame on screen there is no framing.
+With an optics frame on screen, the photo keeps it as a fact: the optics values, the preset's name and the focal length, copied. No file is made. A canvas that takes the photo as its base starts with that frame, unless the user switched that off ([05](05-composition.md)).
 
-Fit enlarges the picture on the screen only; it never changes the photo.
+Zoom to frame enlarges the picture on the screen only; it never changes the photo.
 
 ### Real lenses only
 
@@ -85,7 +86,7 @@ No fallbacks: no learning from the phone's photos, no typed value, no assumed de
 
 A **camera layout** says which controls are on the screen and where, per orientation, with its look (frame colour, blackout, HUD). A control that is not in the layout is off, so a layout is also the "capture profile": a plain camera, a viewfinder with presets, and so on.
 
-Layouts stay customisable as today: made in the Studio's layout editor, previewed live on the phone, picked on the phone. Built in and read-only: **Camera** (shutter, phone lenses, torch, uploads) and **Viewfinder** (plus optics frame, focal lengths, fit, reference frame). A layout belongs to the account, like the devices it is designed for.
+Layouts stay customisable as today: made in the Studio's layout editor, previewed live on the phone, picked on the phone. Built in and read-only: **Camera** (shutter, phone lenses, torch, uploads) and **Viewfinder** (plus optics frame, focal lengths, zoom to frame, reference frame). A layout belongs to the account, like the devices it is designed for.
 
 ### Devices
 
@@ -96,7 +97,7 @@ A **device** is a piece of capture hardware in a generic registry. For now the o
 | Registered automatically | On first use the app creates the record and keeps it current: model, real lenses with their reported focal lengths, screen size per orientation. Named after the model; can be renamed |
 | One record per piece of hardware | The record is tied to a fingerprint of the hardware, not to its name or model, so two phones of the same model are two devices and a reinstall finds its record again. On Android the candidate is the system's `ANDROID_ID` (stable across reinstalls, new after a factory reset, different per signing key, so each build variant sees its own); what else can serve, and what tablets and later iOS offer, is a build task |
 | Owned by the account | A device belongs to the person using it and follows them across projects |
-| Photos reference it | The photo's **capture device** facet (workshop 01) references the device and keeps its own readout (make, model, lens used), so the photo reads correctly for other members and after the device is removed. An imported photo carries a readout from its EXIF and no device |
+| Photos reference it | The photo's capture device ([01](01-media.md)) references the device and keeps its own readout (make, model, lens used), so the photo reads correctly for other members and after the device is removed. An imported photo carries a readout from its EXIF and no device |
 
 ### Import on the phone
 
@@ -110,7 +111,8 @@ The phone's library can import pictures from the phone's gallery (workshop 01). 
 | Queued and uploaded | Yes | Yes |
 | Time taken | Now | From EXIF, else the import time |
 | Device | This phone | None; make and model from EXIF as a readout |
-| Framing | If an optics frame was on screen | None |
+| Frame on screen | Kept as a fact, if an optics frame was on | None |
+| Collection | If collection mode was on | Can be put in one afterwards |
 
 Whether Android's photo picker hands over the unmodified file with its EXIF is not verified.
 
@@ -122,15 +124,14 @@ The guarantees stay. The unit in the queue is one photo with its three files, wh
 - Uploads are idempotent; network errors retry; repeated rejections park the photo as stuck with the server's error, to retry or discard by hand.
 - Thumbnail and preview go first; the original stays queued until stored, also across app restarts and offline mode.
 - The phone removes its copy of an original once the server has it.
-- Queued photos are visible and editable (name, note) while they wait.
+- Queued photos are visible and editable (name, properties, collection) while they wait. A photo carries its collection with it, so the queue's unit stays one photo.
 
 ### What goes
 
-The rig as a precondition, the Tag screen and remembered tags, drafts, Seq mode, Direct upload as a setting, GPS on capture and its HUD chip, the 1280 px copy, the assumed 25 mm, phone calibration as a Setup screen (replaced by the cascade), digital zoom and the fixed zoom stops, fixtures and layouts riding on `flush()`.
+The rig as a precondition, the Tag screen and remembered tags, drafts, Seq mode, Direct upload as a setting, GPS on capture and its HUD chip, the 1280 px copy, the assumed 25 mm, phone calibration as a Setup screen (the camera's report replaces it), digital zoom and the fixed zoom stops, fixtures and layouts riding on `flush()`.
 
 ## Handed to other workshops
 
-- **04 (shots):** capturing for a shot; where the old tags live.
 - **08 (extensions):** lights, live picture, camera control leave the capture screen's core.
 - **09 (shells):** the phone's tabs, gates and Setup.
 - **UX workshops:** the capture screen, pickers and the layout editor.
@@ -143,13 +144,11 @@ The rig as a precondition, the Tag screen and remembered tags, drafts, Seq mode,
 - **Camera layouts stay customisable as today:** Studio editor, live preview on the phone, generalised to the new controls.
 - **A photo taken in the app gets its angle of view from EXIF only,** like every photo (workshop 02).
 - **Real lenses only:** the phone offers its physical lenses and no digital zoom; if they cannot be told apart, the main lens only.
-- **Framing at capture:** a photo taken with an optics frame on screen automatically gets a framing.
+- **The frame at capture is a fact on the photo** (first decided as an automatically created framing; changed by [05](05-composition.md) on 2026-11-19): the optics values, preset name and focal length are copied, and a canvas on that photo starts with that frame unless the user switched that off.
 - **Devices are a generic registry.** Phones and tablets register themselves automatically, tied to a hardware fingerprint, one record per piece of hardware. Other kinds of cameras may follow later.
 - **Devices belong to the account;** a photo references its device and keeps its own readout.
 - **The base is a camera:** only a project is needed to shoot. No Tag screen, no drafts, no Seq mode; a capture is one photo.
-- **No collections either.** A generic "photos taken together" group was considered as a replacement for Seq mode and dropped; workshop 01's decision stands (grouping is a layer above the base).
+- ~~**No collections.**~~ Reopened in the [interjection](i1-interjection.md) on 2026-11-19: the camera has a **collection mode**; photos taken while it is on go into one collection ([01](01-media.md)). A capture is still one photo each.
 - **The live angle of view comes only from what the camera reports** for the real lens in use. No learned, typed or assumed values; a lens without a report gets no optics frame and counts as a bug.
 - **Import on the phone** runs through the same pipeline as a capture.
 - **The upload queue keeps its guarantees,** with one photo as its unit.
-
-Reopened by [05](05-composition.md) on 2026-11-19: a capture no longer creates a framing. A photo taken with an optics frame on screen keeps it as a capture fact (optics values, preset name, focal length, copied); a canvas on that photo starts with that frame unless the user switched that off.
