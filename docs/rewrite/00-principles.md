@@ -131,3 +131,4 @@ None. The principles and the glossary are a starting point; each workshop detail
 - **View modes** are Mask, Outline, Crop and Full. The viewfinder control is "Zoom to frame". "Frame" means only the rectangle.
 - **Three tiers**: core, standard apps (shipped and visible, removable, built only on core), extensions (off until enabled). Which block sits in which tier is decided in that block's workshop.
 - Reopened by [04](04-shots.md) on 2026-11-19: **Step** is dropped; **Sketch** and layers become one canvas file type (named in 05); extra fields are no longer parked but return as generic **properties** on every file.
+- Changed by [05](05-composition.md) on 2026-11-19: **Canvas** is the one file type for drawings, floor plans and photos with marks, looks and frames; it replaces Sketch and Layer as separate concepts. **Framing** as a saved object on a photo is dropped: a frame lives in a canvas. Composition is core, not a standard app.

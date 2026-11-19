@@ -1,6 +1,6 @@
 # 05 · Canvas (was: composition)
 
-Workshop [#332](https://github.com/OpenClapper-dev/core/issues/332). Status: **proposal, nothing decided yet**.
+Workshop [#332](https://github.com/OpenClapper-dev/core/issues/332). Status: **decided** (2026-11-19).
 
 One tool and one file type for everything drawn or arranged: a sketch, a floor plan, a photo with marks and a look, a photo explored through frames. The direction was set in [workshop 04](04-shots.md); this page fills it in.
 
@@ -32,14 +32,14 @@ One tool and one file type for everything drawn or arranged: a sketch, a floor p
 
 ### The canvas file
 
-A **canvas** (working name, open question 2) is a file of a project. It stands alone; shots, timelines and folders reference it.
+A **canvas** is a file of a project. It stands alone; shots, timelines and folders reference it.
 
 | Part | Meaning |
 | --- | --- |
 | Surface | Either blank with an aspect ratio, or a **base photo** |
 | Layers | An ordered stack: drawing layers and adjustment layers, each with name, opacity, visibility, lock |
 | Objects | What a drawing layer holds: today's shapes, plus a **placed picture** (a reference to a photo of the project with position, size, rotation and crop) |
-| Frame | Only with a base photo, optional: the framing the canvas is seen through |
+| Frames | Only with a base photo, optional: any number of frames, one of which can be the picture the canvas stands for |
 | Render | A flattened image of the whole surface, and a thumbnail (below) |
 
 - **Blank:** a floor plan, a storyboard panel, a lighting diagram. Photos can be placed on it as objects.
@@ -53,12 +53,21 @@ Everything on a canvas is positioned on its surface. There is no frame space and
 
 ### Frames on a canvas
 
-Framings stay what workshop 02 made them: small saved objects on a photo, free-form or from an optics preset, also created at capture (workshop 03). The canvas tool is where they are made and explored (open question 1):
+A frame exists only inside a canvas that has a base photo. There is no framing as a separate saved object on a photo any more (this reopens workshops 02 and 03).
 
-- With a base photo, the tool lists the photo's framings. Each can be shown or hidden, in its own colour; that is today's Stacked. Two side by side is today's Compare.
-- A frame is moved by dragging and changed by picking a preset or values and a focal length; saving makes or updates a framing on the photo.
-- One framing can be chosen as the canvas's **frame**: the picture the canvas stands for. It is a reference and follows the framing's edits.
-- There is no separate Framing app: framing a photo is opening it in the canvas tool.
+| Part of a frame | Meaning |
+| --- | --- |
+| Values | Free-form (the frame owns format, multiplier, squeeze, focal length, delivery aspect), or an optics preset plus one of its focal lengths; or an aspect ratio for an aspect frame (workshop 02) |
+| Position, orientation | Where it sits on the photo |
+| Name, colour | For telling several apart |
+
+- A canvas can hold any number of frames. Showing several at once in their colours is today's Stacked; two side by side is today's Compare.
+- One frame can be marked as **the picture**: what the canvas stands for in a thumbnail, a shot or a clip. Without one, the canvas stands for its whole surface.
+- A frame is moved by dragging and changed by picking a preset or values and a focal length.
+- An optics preset's lens counts as in use when a frame in any canvas of the project uses it (the additive rule of workshop 02 is unchanged). Frames are therefore stored where the server can find them, not buried in a drawing.
+- "A photo through a frame" is a canvas with that photo as its base and one frame. There is no Framing app.
+
+**The frame from capture.** A photo taken with an optics frame on screen keeps that as a capture fact: the optics values, the preset's name and the focal length, copied, so it never blocks editing a preset. When such a photo becomes a canvas's base, the canvas starts with that frame. A user setting of the canvas tool, on by default, switches this off.
 
 ### View modes
 
@@ -76,19 +85,15 @@ Carried over: the shapes, stencils, eraser masks, the fixed palette, the look. A
 
 ### Browser and tablet
 
-The file format and all geometry are shared code without any dependency on a renderer, as `packages/vocab/src/compose.ts` is today. Which of the three ways draws it on a tablet is chosen by a technical test at the start of the build (open question 3):
+The file format and all geometry are shared code without any dependency on a renderer, as `packages/vocab/src/compose.ts` is today.
 
-| Way | What it means | Main risk |
-| --- | --- | --- |
-| A. The browser editor embedded in the tablet app | One editor; the app shows it in a web view, as it does the map | Stylus feel and speed inside a web view |
-| B. One model, two renderers | The app draws natively from the shared model | Two editors to build and keep in step |
-| C. The tablet opens the Studio in its browser | No second client for drawing | The whole Studio shell must work with touch |
+The first way to be tested is the embedded one: the tablet app shows the same editor the Studio uses, inside a web view, as it does the map today. The build starts with research into how established canvas tools (Figma, Miro and the like) get a fluid, interchangeable result on web and mobile, and into best practice for stylus feel and speed; the test then confirms or rejects the embedded way. The fallback is a native renderer on the shared model.
 
 The phone only views (the render).
 
-### Saving and editing together
+### One editor at a time
 
-Saving stays automatic and per layer, as today, so two people working on different layers do not overwrite each other. Live co-editing (seeing each other's strokes as they happen) is not part of the rebuild (open question 4).
+A canvas open for editing is read-only for everyone else, who see who has it. There is no merging and no live co-editing. The lock releases when the editor leaves or goes silent, so a tablet that crashed or lost its connection cannot block a file. Saving is automatic.
 
 ### Tier
 
@@ -103,15 +108,16 @@ Layers and sketches as children of a shot, frame space and step ranges, bakes an
 - **06 (timeline):** what a clip references (a photo, a framing, a canvas) and whether it stores a view mode.
 - **07 (organisation):** the canvas as a file type; kinds such as "floor plan" as a property.
 - **UX workshops:** the tool itself (tools, panels, frame handling, tablet gestures).
-- **Build:** the technical test for the tablet.
-
-## Open questions
-
-1. **Frames:** do framings stay saved objects on a photo that the canvas tool makes, shows and references, or do frames become objects inside a canvas only?
-2. **Name:** canvas, or another word?
-3. **Tablet:** which way is tested first?
-4. **Editing together:** is per-layer saving enough, or is live co-editing expected?
+- **Build:** the research and the technical test for the tablet; the edit lock.
 
 ## Decided
 
-Nothing yet.
+2026-11-19, by the owner (the direction of one file type and one tool was decided in [04](04-shots.md)):
+
+- **The file type is called canvas.** Its surface is blank or a base photo; it holds drawing and adjustment layers and placed pictures; everything sits in one space on the surface.
+- **Frames live inside a canvas only.** No framing as a saved object on a photo; a canvas holds any number of frames and one can be the picture. Workshops 02 and 03 are changed accordingly.
+- **The frame from capture is a fact on the photo,** and a canvas on that photo starts with it unless the user switched that off (a setting, on by default).
+- **Tablet:** the embedded editor is tested first, after research into how established tools achieve a fluid result on web and mobile.
+- **One editor at a time:** others see the canvas read-only.
+
+Taken from the proposal with the above: a render of the whole surface replaces bakes; view modes are a viewer's choice and never stored in a file; the canvas is core and there is no Framing app.
