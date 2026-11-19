@@ -27,7 +27,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 03 | Capture on the phone | [#330](https://github.com/OpenClapper-dev/core/issues/330) | [03-capture.md](03-capture.md) | decided |
 | 04 | Shots and planning | [#331](https://github.com/OpenClapper-dev/core/issues/331) | [04-shots.md](04-shots.md) | decided |
 | 05 | Canvas (was: composition) | [#332](https://github.com/OpenClapper-dev/core/issues/332) | [05-composition.md](05-composition.md) | decided |
-| 06 | Timeline | [#333](https://github.com/OpenClapper-dev/core/issues/333) | 06-timeline.md | not started |
+| 06 | Timeline | [#333](https://github.com/OpenClapper-dev/core/issues/333) | [06-timeline.md](06-timeline.md) | open |
 | 07 | Organisation and filesystem | [#334](https://github.com/OpenClapper-dev/core/issues/334) | 07-organisation.md | not started |
 | 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | 08-extensions.md | not started |
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | 09-shells.md | not started |
