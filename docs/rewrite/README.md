@@ -27,7 +27,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 03 | Capture on the phone | [#330](https://github.com/OpenClapper-dev/core/issues/330) | [03-capture.md](03-capture.md) | decided |
 | 04 | Shots and planning | [#331](https://github.com/OpenClapper-dev/core/issues/331) | [04-shots.md](04-shots.md) | decided |
 | 05 | Canvas (was: composition) | [#332](https://github.com/OpenClapper-dev/core/issues/332) | [05-composition.md](05-composition.md) | decided |
-| 06 | Timeline | [#333](https://github.com/OpenClapper-dev/core/issues/333) | 06-timeline.md | not started |
+| 06 | Timeline | [#333](https://github.com/OpenClapper-dev/core/issues/333) | [06-timeline.md](06-timeline.md) | decided |
 | 07 | Organisation and filesystem | [#334](https://github.com/OpenClapper-dev/core/issues/334) | 07-organisation.md | not started |
 | 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | 08-extensions.md | not started |
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | 09-shells.md | not started |
@@ -61,3 +61,4 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 - The phone's base is a camera that needs only a project: a capture is one photo, with no tagging, drafts or sequences. Real lenses only, no digital zoom; the live angle of view comes from what the camera reports. Camera layouts stay customisable; devices are an account-owned registry that phones and tablets join automatically ([03](03-capture.md)).
 - A shot is an intent: properties plus an ordered, generic list of referenced files (photo, framing, canvas; later anything). No steps, no review state, no fixed tags. Properties are a per-project catalogue for all file types; files get generated names. Drawing, framing and floor plans become one canvas file type ([04](04-shots.md)).
 - The canvas is one core file type and tool: a blank surface or a base photo, layers, placed pictures, and frames, which live only inside a canvas (no framing on a photo, no Framing app). A render of the whole surface replaces bakes; view modes are never stored; one editor at a time; the tablet uses the embedded editor if the test holds ([05](05-composition.md)).
+- A timeline is an ordered list of clips for deciding; a clip is a reference to any file with a picture (photo, canvas, shot) or a placeholder, plus a hold time, and carries nothing of its own. Files are edited in place by hosting their app (viewer, editor, inspector). No blocks, no review, no clip notes ([06](06-timeline.md)).
