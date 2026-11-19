@@ -151,3 +151,5 @@ The rig as a precondition, the Tag screen and remembered tags, drafts, Seq mode,
 - **The live angle of view comes only from what the camera reports** for the real lens in use. No learned, typed or assumed values; a lens without a report gets no optics frame and counts as a bug.
 - **Import on the phone** runs through the same pipeline as a capture.
 - **The upload queue keeps its guarantees,** with one photo as its unit.
+
+Reopened by [05](05-composition.md) on 2026-11-19: a capture no longer creates a framing. A photo taken with an optics frame on screen keeps it as a capture fact (optics values, preset name, focal length, copied); a canvas on that photo starts with that frame unless the user switched that off.

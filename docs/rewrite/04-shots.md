@@ -129,3 +129,5 @@ Shots and properties are core.
 - **No review state** in the base; it can be modelled as a property.
 - **Capturing for a shot** on the phone is deferred; the Studio is where shots are assembled.
 - **No shot-list object.**
+
+Changed by [05](05-composition.md) on 2026-11-19: a framing is not a file type any more. A shot references a photo or a canvas; "a photo through a frame" is a canvas with that photo as its base and one frame.

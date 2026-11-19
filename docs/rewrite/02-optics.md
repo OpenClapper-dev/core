@@ -71,7 +71,7 @@ A **frame** is a rectangle on a photo (size and centre in fractions of the photo
 - **Optics frame**: what given optics see, against the photo's angle of view (`overlayRect`). Needs a photo with an angle of view; can exceed the photo. With a delivery aspect, the picture is the inner rectangle of that aspect.
 - **Aspect frame**: a free rectangle of a chosen aspect ratio, on any photo.
 
-A **framing** is a saved, named frame on a photo. An optics framing is one of:
+Since [workshop 05](05-composition.md) a frame is saved as an object inside a canvas that has the photo as its base; there is no framing as a separate saved object on a photo. Where this page says "framing", read "a frame in a canvas". An optics frame is one of:
 
 | Kind | Where its values come from |
 | --- | --- |
@@ -181,3 +181,5 @@ Rigs (`presets` as body + lens range + vignetting), the camera body catalogue, v
 - **Formats:** a generic list from small sensors to IMAX, no camera bodies.
 - **Preset creation previews on example photos** shipped with the app.
 - **Tiers:** angle of view and math are core; Framing and Optics presets are standard apps.
+
+Reopened by [05](05-composition.md) on 2026-11-19: frames live inside a canvas only. A framing is no longer a saved object on a photo, and Framing is not an app of its own; free-form and preset frames, the optics preset and its additive rule stand, with "in use" meaning used by a frame in any canvas of the project.
