@@ -25,7 +25,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 01 | Media library | [#328](https://github.com/OpenClapper-dev/core/issues/328) | [01-media.md](01-media.md) | decided |
 | 02 | Optics and frames | [#329](https://github.com/OpenClapper-dev/core/issues/329) | [02-optics.md](02-optics.md) | decided |
 | 03 | Capture on the phone | [#330](https://github.com/OpenClapper-dev/core/issues/330) | [03-capture.md](03-capture.md) | decided |
-| 04 | Shots and planning | [#331](https://github.com/OpenClapper-dev/core/issues/331) | 04-shots.md | not started |
+| 04 | Shots and planning | [#331](https://github.com/OpenClapper-dev/core/issues/331) | [04-shots.md](04-shots.md) | decided |
 | 05 | Composition | [#332](https://github.com/OpenClapper-dev/core/issues/332) | 05-composition.md | not started |
 | 06 | Timeline | [#333](https://github.com/OpenClapper-dev/core/issues/333) | 06-timeline.md | not started |
 | 07 | Organisation and filesystem | [#334](https://github.com/OpenClapper-dev/core/issues/334) | 07-organisation.md | not started |
@@ -52,10 +52,11 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 
 - Design system: foundation now, patterns later.
 - Production data is dropped; staging first.
-- Day planning is deleted. Extra fields are removed for now and parked as a future extension mechanism.
+- Day planning is deleted. Extra fields return as generic properties (see 04).
 - Themes are called Light and Dark.
 - Workshops 01–09 are specification only; UX and UI are prototyped afterwards in a second series of workshops split by the resulting feature set (2026-11-17).
 - The rewrite builds a base layer of primitives without personas; roles and workflows are business logic on top, later ([00](00-principles.md)).
 - A photo is a standalone primitive of one project (hard-scoped, no move or copy): untouched original plus client-made preview and thumbnail, stills only, facets (capture device, optics, EXIF) instead of ownership. No GPS or place on photos and no series in the base; locations are re-thought in 07 ([01](01-media.md)).
 - Optics is generic factors (format, multiplier, squeeze, focal length, orientation); a photo's angle of view is computed once from EXIF; framings are free-form or made from a project's optics preset, which changes additively only. No rigs, equipment or vignetting for now ([02](02-optics.md)).
 - The phone's base is a camera that needs only a project: a capture is one photo, with no tagging, drafts or sequences. Real lenses only, no digital zoom; the live angle of view comes from what the camera reports. Camera layouts stay customisable; devices are an account-owned registry that phones and tablets join automatically ([03](03-capture.md)).
+- A shot is an intent: properties plus an ordered, generic list of referenced files (photo, framing, canvas; later anything). No steps, no review state, no fixed tags. Properties are a per-project catalogue for all file types; files get generated names. Drawing, framing and floor plans become one canvas file type ([04](04-shots.md)).

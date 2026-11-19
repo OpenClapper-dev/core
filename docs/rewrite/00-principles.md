@@ -98,8 +98,8 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Camera layout** | The arrangement of controls on the phone's camera screen | viewfinder layout |
 | **Capture profile** | Which modules are on when taking photos, and which facets are filled automatically | Setup → Capture / Viewfinder settings, the forced rig |
 | **Viewfinder** | The capture module that draws a frame over the live picture | the whole Shoot screen |
-| **Shot** | A planned picture in a film: described by a sketch, by one or more photos, or by nothing yet | shot as container of photos |
-| **Step** | One stage in a shot's progression | same |
+| **Shot** | A planned picture in a film: an intent with properties and an ordered list of referenced files of any type ([04](04-shots.md)) | shot as container of photos |
+| **Property** | A piece of metadata on a file, defined once per project and attached to file types ([04](04-shots.md)) | tags, extra fields |
 | **Layer**, **Sketch** | As today; ownership and spaces are decided in workshop 05 | — |
 | **View mode** | How a photo with a frame is displayed: **Mask**, **Outline**, **Crop**, **Full** | mask / frame / fit / raw ("off") |
 | **Zoom to frame** | The viewfinder control that zooms the live picture to the frame | "Fit" button |
@@ -113,7 +113,7 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Extension** | A package of apps, data and transport that is off until enabled | — |
 | **Light**, **Dark** | The two themes | Sun, Set |
 
-Dropped words: *series* and capture *sequence* (no grouping in the base, [01](01-media.md)), *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (parked).
+Dropped words: *step* (no steps, [04](04-shots.md)), *series* and capture *sequence* (no grouping in the base, [01](01-media.md)), *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (replaced by properties).
 
 ## Open questions
 
@@ -130,3 +130,4 @@ None. The principles and the glossary are a starting point; each workshop detail
 - **Device** and **Fixture** are two concepts. A device is registered capture hardware with specs (phone, camera) and belongs to the core. A fixture is controllable equipment (light, battery) inside the lights extension. Flows drive fixtures.
 - **View modes** are Mask, Outline, Crop and Full. The viewfinder control is "Zoom to frame". "Frame" means only the rectangle.
 - **Three tiers**: core, standard apps (shipped and visible, removable, built only on core), extensions (off until enabled). Which block sits in which tier is decided in that block's workshop.
+- Reopened by [04](04-shots.md) on 2026-11-19: **Step** is dropped; **Sketch** and layers become one canvas file type (named in 05); extra fields are no longer parked but return as generic **properties** on every file.
