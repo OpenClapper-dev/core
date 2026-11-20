@@ -18,7 +18,7 @@ export const TYPES: Record<FileType, { label: string; plural: string; glyph: Ico
   preset: { label: "Optics preset", plural: "Optics presets", glyph: "lens", color: 6, app: "Optics presets" },
 };
 
-export type FieldType = "text" | "choice" | "multi" | "reference" | "position" | "yesno";
+export type FieldType = "text" | "long" | "number" | "yesno" | "choice" | "multi" | "date" | "reference" | "position";
 export interface PropDef {
   id: string; name: string; type: FieldType; section?: string;
   options?: { value: string; color: number }[];

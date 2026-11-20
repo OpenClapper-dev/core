@@ -10,8 +10,9 @@ import {
 } from "@openclapper/design";
 import { FILES, PROPS, QUERIES, TYPES, type FileRec, type FileType, type PropDef } from "./data";
 import { picture } from "./pictures";
+import ProjectApp from "./Project";
 
-type Entry = "files" | "media" | "shots" | "sets" | "locations";
+type Entry = "files" | "media" | "shots" | "sets" | "locations" | "project";
 type View = "list" | "grid" | "board" | "map";
 const ENTRIES: { id: Entry; label: string; glyph: IconName; color: number; types: FileType[] }[] = [
   { id: "files", label: "Files", glyph: "folder", color: 5, types: [] },
@@ -19,6 +20,7 @@ const ENTRIES: { id: Entry; label: string; glyph: IconName; color: number; types
   { id: "shots", label: "Shots", glyph: "slate", color: 1, types: ["shot"] },
   { id: "sets", label: "Sets", glyph: "home", color: 7, types: ["set"] },
   { id: "locations", label: "Locations", glyph: "location", color: 3, types: ["location"] },
+  { id: "project", label: "Project", glyph: "settings", color: 0, types: [] },
 ];
 const CONTAINER: FileType[] = ["folder", "collection"];
 const PICTURE: FileType[] = ["photo", "canvas"];
@@ -201,7 +203,7 @@ export default function U1Browser() {
       {shown === "board" && by && <Select size="sm" value={by.id} onChange={setBoardBy} options={boardable.map((p) => ({ value: p.id, label: `By ${p.name.toLowerCase()}` }))} />}
       {shown !== "board" && shown !== "map" && <Select size="sm" value={sort} onChange={setSort} options={[{ value: "name", label: "Name" }, { value: "created", label: "Created" }, { value: "type", label: "Type" }]} />}
       <Segmented label="View" value={shown} onChange={(v) => setView(v as View)} options={views.map((v) => ({ value: v, icon: (v === "board" ? "columns" : v === "map" ? "map" : v) as IconName, title: v[0].toUpperCase() + v.slice(1) }))} />
-      {nav !== "bin" && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={entry === "files" ? [{ id: "folder", label: "Folder", icon: "folder-plus" }, { id: "shot", label: "Shot", icon: "slate" }, { id: "canvas", label: "Canvas", icon: "brush" }, { id: "set", label: "Set", icon: "home" }, { id: "location", label: "Location", icon: "location" }, { separator: true }, { id: "import", label: "Import photos…", icon: "upload" }] : entry === "media" ? [{ id: "import", label: "Import photos…", icon: "upload" }, { id: "collection", label: "Collection from selection", icon: "layers", disabled: sel.length < 2 }] : [{ id: here.types[0], label: TYPES[here.types[0]].label, icon: here.glyph }]} onSelect={(id) => say(id === "import" ? "Import: pick files or drop them here" : `New ${id}: named by the project’s pattern`)} />}
+      {nav !== "bin" && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={entry === "files" ? [{ id: "folder", label: "Folder", icon: "folder-plus" }, { id: "shot", label: "Shot", icon: "slate" }, { id: "canvas", label: "Canvas", icon: "brush" }, { id: "set", label: "Set", icon: "home" }, { id: "location", label: "Location", icon: "location" }, { separator: true }, { id: "import", label: "Import photos…", icon: "upload" }] : entry === "media" ? [{ id: "import", label: "Import photos…", icon: "upload" }, { id: "collection", label: "Collection from selection", icon: "layers", disabled: sel.length < 2 }] : here.types.length ? [{ id: here.types[0], label: TYPES[here.types[0]].label, icon: here.glyph }] : []} onSelect={(id) => say(id === "import" ? "Import: pick files or drop them here" : `New ${id}: named by the project’s pattern`)} />}
     </Toolbar>
   );
 
@@ -301,18 +303,18 @@ export default function U1Browser() {
           {ENTRIES.map((e) => <button type="button" key={e.id} role="tab" aria-selected={entry === e.id} className={cx(entry === e.id && "is-on")} onClick={() => go(e.id)}><AppIcon glyph={e.glyph} color={e.color} size={20} />{e.label}</button>)}
         </span>
         <span style={{ flex: 1 }} />
-        <label>Properties <Segmented label="Properties panel" value={panel} onChange={setPanel} options={[{ value: "right", label: "Right" }, { value: "bottom", label: "Bottom" }, { value: "off", label: "Off" }]} /></label>
+        {entry !== "project" && <><label>Properties <Segmented label="Properties panel" value={panel} onChange={setPanel} options={[{ value: "right", label: "Right" }, { value: "bottom", label: "Bottom" }, { value: "off", label: "Off" }]} /></label>
         <label>Collection mark <Segmented label="Collection mark" value={mark} onChange={setMark} options={[{ value: "bar", label: "Bar" }, { value: "dot", label: "Dot" }, { value: "frame", label: "Frame" }]} />{mark === "bar" && <Segmented label="Bar position" value={barAt} onChange={setBarAt} options={[{ value: "bottom", label: "Bottom" }, { value: "left", label: "Left" }]} />}</label>
-        <label>Board cards <Segmented label="Board cards" value={cards} onChange={setCards} options={[{ value: "picture", label: "Picture" }, { value: "compact", label: "Compact" }]} /></label>
+        <label>Board cards <Segmented label="Board cards" value={cards} onChange={setCards} options={[{ value: "picture", label: "Picture" }, { value: "compact", label: "Compact" }]} /></label></>}
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
-      <div className={cx("u1-body", `u1-body--${panel}`)}>
+      {entry === "project" ? <div className="u1-body"><ProjectApp say={say} /></div> : <div className={cx("u1-body", `u1-body--${panel}`)}>
         <BrowserLayout className="u1-browser" sidebarWidth={220} sidebarMin={180} sidebarMax={420} toolbar={toolbar} sidebar={sidebar}
           statusBar={<StatusBar>{items.length} items{sel.length > 0 && <> · <strong>{sel.length} ticked</strong> <Chip icon="close" onToggle={() => setSel([])}>Clear</Chip></>}{nav in QUERIES && <> · a saved filter: lists what matches now</>}</StatusBar>}>
           {main}
         </BrowserLayout>
         {panel !== "off" && info}
-      </div>
+      </div>}
       {toast && <Toast className="u1-toast" tone="info" onDismiss={() => setToast(null)}>{toast}</Toast>}
     </div>
   );

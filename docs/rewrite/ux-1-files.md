@@ -1,6 +1,6 @@
 # U1 · Files and properties
 
-UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 4 built**; decisions so far recorded below.
+UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 6 built** (the Project app); decisions so far recorded below.
 
 The file browser in its five entries, and how properties are shown and edited. Specified in [07](07-organisation.md), [09](09-shells.md), [09a](09a-places.md) and [04](04-shots.md).
 
@@ -67,19 +67,39 @@ Round 5, same day: the sidebar could not be dragged, because the browser layout'
 
 Three of these went into the design system (`packages/design`), not only the prototype: the scrollbar design (for every scrolling area), a panel that resizes along the bottom and resets on double-click, and a table whose rows have a current row apart from the ticked ones.
 
+## Round 6 (2026-11-20): the Project app
+
+"Project" in the top bar. Code: `apps/specimen/src/ux/u1/Project.tsx`. Its changes stay inside the Project app; the browser's files do not pick them up in this prototype.
+
+| Part | What to try |
+| --- | --- |
+| Properties: the catalogue | Every property of the project in its sections, with its field type and the file types that carry it as icons. The select at the top narrows to one file type and then also lists what is always there (the system properties) and the read-only facts of that type |
+| Editing a property | Click one: name, field type, options with a colour each (click a colour for the next, add and remove options), what a choice depends on, which file types carry it with an eye to hide it per type, its section, Delete |
+| A reference | "Set" or "Locations": the field type Reference, what it points at, one file or several |
+| New property | Starts as a text property on the file type the list is narrowed to |
+| Import with AI | The button opens three steps: copy the prompt, paste the answer ("Use a sample answer" fills one in), check what comes in, import |
+| Provided by apps and extensions | The reserved fourth kind: an empty group with its explanation |
+| Naming patterns | A pattern and a number of digits per file type, with the name the next file will get; the tokens are listed above the table |
+| Extensions | Hardware and Flows as switches; Flows needs Hardware; switching Hardware off switches Flows off too |
+| General | The project's name and its fixed folders |
+
 ## Stand-ins
 
 - **Pictures** are generated placeholders. Real example photos are still to come ([02](02-optics.md)).
 - **The icons for set and location** are existing glyphs standing in; both are to be drawn.
 - **File-type colours** are a first assignment from the eight categorical colours.
 
-## Not in round 1
+## Not built yet
 
-The Project app (property editor, AI import, naming patterns, extensions), creating and saving a filter, the "new" flows, context menus, drag and drop between folders, the account home as a second root, keyboard handling.
+Creating and saving a filter, the "new" flows, context menus, drag and drop between folders, the account home as a second root, keyboard handling.
 
 ## Questions for the owner
 
-1. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
+1. The catalogue as one list in sections, narrowed by file type: right, or would you rather start from a file type and see its properties?
+2. Options get their colour by clicking through the eight: enough, or the same chooser as for a collection's colour?
+3. Is the AI import in three steps clear?
+4. Naming: a pattern plus a number of digits. Anything missing?
+5. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
 
 ## Decided
 
