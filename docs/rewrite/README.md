@@ -31,7 +31,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 07 | Organisation and filesystem | [#334](https://github.com/OpenClapper-dev/core/issues/334) | [07-organisation.md](07-organisation.md) | decided |
 | 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | [08-extensions.md](08-extensions.md) | decided |
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | [09-shells.md](09-shells.md) | decided |
-| 09a | Places (Motiv, address, geography) | [#352](https://github.com/OpenClapper-dev/core/issues/352) | 09a-places.md | not started |
+| 09a | Places (Motiv, address, geography) | [#352](https://github.com/OpenClapper-dev/core/issues/352) | [09a-places.md](09a-places.md) | decided |
 | I1 | Interjection after 06: collections, progression, internal files, master timeline | — | [i1-interjection.md](i1-interjection.md) | decided |
 | 10 | Conclusion: target model and build plan | [#337](https://github.com/OpenClapper-dev/core/issues/337) | 10-conclusion.md | not started |
 
@@ -52,7 +52,7 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 
 ## Decided so far
 
-[model.md](model.md) shows the model of workshops 00–09 in one picture.
+[model.md](model.md) shows the model of workshops 00–09a in one picture.
 
 - Design system: foundation now, patterns later.
 - Production data is dropped; staging first.
@@ -69,4 +69,5 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 - Everything is a file: folders and collections, presets, property definitions, devices and camera layouts too. A file has one place in a project or in an account home. Properties are a flat list of typed fields with sections and dependent choices; one file browser offers search, saved filters and list, grid and board views. Places are postponed to workshop 09a ([07](07-organisation.md)).
 - Extensions are first-party, compiled in and enabled per project; they plug in at fixed points and share one phone link through channels. "Device" is the word for all registered hardware. Two extensions: Hardware (catalogue of brands, models and types; live picture is a transmitter's feed) and Flows ([08](08-extensions.md)).
 - Apps come from one catalogue and declare what they open and the parts others can mount. The Studio keeps its desktop shell; Files, Media and Shots share one browser. On phones and tablets the person chooses per device which apps are tabs. Preferences follow the account ([09](09-shells.md)).
+- Places are two file types: Set (the story place, Motiv) and Location (the real place, Drehort), related many-to-many through a new reference field type. A position field type and a map view of the file browser are part of the rebuild; photos still record no position ([09a](09a-places.md)).
 - Internal files: a file created inside another (a shot's generated canvas, a progression's overlay) is hidden from the file browser and lives with its parent ([I1](i1-interjection.md)).

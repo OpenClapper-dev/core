@@ -36,6 +36,7 @@ Every object a user makes is a **file**, in the sense Linux uses the word. A fil
 | Folder | Any files, including folders and collections | A project or an account home |
 | Collection | Photos only; cannot hold folders or collections | A project |
 | Photo, canvas, shot, timeline | See [01](01-media.md), [05](05-composition.md), [04](04-shots.md), [06](06-timeline.md) | A project |
+| Set, location | The story place and the real place ([09a](09a-places.md)) | A project |
 | Master timeline | An order of timelines; exactly one, cannot be created, moved or binned | A project |
 | Filter | A saved query over files (below) | A project |
 | Optics preset | See [02](02-optics.md) | A project |
@@ -88,7 +89,7 @@ The third kind is reserved: a feature that has to calculate with a property brin
 | Part | Meaning |
 | --- | --- |
 | Name | Free text |
-| Field type | Text, long text, number, yes/no, single choice, multiple choice, date |
+| Field type | Text, long text, number, yes/no, single choice, multiple choice, date; since [09a](09a-places.md) also reference (to files) and position (coordinates) |
 | Options | For choices: a label and a colour each |
 | Attached to | The file types that carry it |
 | Depends on | Optional, for a choice: its options depend on another choice's value (line → station); changing the parent clears a value that no longer fits |
@@ -96,10 +97,10 @@ The third kind is reserved: a feature that has to calculate with a property brin
 | Hidden | Per file type; values are kept |
 
 - **Structure is flat.** Sections are headings; there are no nested groups.
-- **Default template** of a new project: for shots a typical shot list (scene, shot number, shot size, angle, movement, support, lens, INT/EXT, day or night); for a canvas a "kind" (floor plan, lighting diagram, blocking, storyboard); none for other types. No location property: places have their own workshop.
+- **Default template** of a new project: for shots a typical shot list (scene, shot number, shot size, angle, movement, support, lens, INT/EXT, day or night); for a canvas a "kind" (floor plan, lighting diagram, blocking, storyboard); none for other types. The places workshop adds "Set" on shots ([09a](09a-places.md)).
 - **Deleting a definition** bins it with its values; a restore brings both back.
 - **AI import** as today: a prompt explains the format, the answer is imported as definitions.
-- A "reference to a file" field type may follow; it is a question of the places workshop.
+- The reference and position field types were added by the places workshop ([09a](09a-places.md)).
 
 ### Finding and bulk editing
 
@@ -107,12 +108,12 @@ One file browser serves every place files are listed (the Files app, the media l
 
 - **Search** over names and property values, across all file types.
 - **Filter:** a saved query over files (types, properties, container), itself a file. Opening it lists what matches now. It replaces saved views.
-- **Views of a list:** list, grid, and **board**: columns by one single-choice property; dragging a file to another column sets it. The board replaces the Metadata app and works on every file type.
+- **Views of a list:** list, grid, **map** (files that carry a position, [09a](09a-places.md)), and **board**: columns by one single-choice property; dragging a file to another column sets it. The board replaces the Metadata app and works on every file type.
 - **Bulk edit:** select files, set a property on all.
 
 ### Places
 
-Not in the base for now: no locations, spots, positions or maps. Places get a workshop of their own, [#352](https://github.com/OpenClapper-dev/core/issues/352), after workshop 09. Its starting note from the owner: in film a location is a place in the story (German: Motiv). A Motiv can have an address, but it is not in itself a geographic location.
+Decided in their own workshop, [09a](09a-places.md): two file types, Set and Location, with reference properties, a position field type and a map view. This page postponed them there. Its starting note from the owner: in film a location is a place in the story (German: Motiv). A Motiv can have an address, but it is not in itself a geographic location.
 
 ### Roles
 

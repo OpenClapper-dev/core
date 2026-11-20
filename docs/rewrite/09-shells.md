@@ -54,7 +54,9 @@ Viewer, editor and inspector are the hosting mechanism of [06](06-timeline.md). 
 | **Files** | Core | Folders, filters, both roots | The file browser: tree, search, list, grid and board views, bulk edit ([07](07-organisation.md)). Shows the project and the account home |
 | **Media** | Core | Photos, collections | The same browser, set to photos: import, collections as one tile or spread out |
 | **Shots** | Core | The list of shots | The same browser, set to shots; new shot |
+| **Sets**, **Locations** | Core | The lists of sets and of locations | The same browser, set to each type; new set, new location; Locations also in the map view ([09a](09a-places.md)) |
 | **Shot** | Core | A shot | Properties, content list, progression; hosts other apps' editors |
+| **Set**, **Location** | Core | A set; a location | Properties and content list; first-class types that will grow parts of their own ([09a](09a-places.md)) |
 | **Photo** | Core | A photo | View, properties, "make a canvas" |
 | **Canvas** | Core | A canvas | The tool of [05](05-composition.md) |
 | **Recycle bin** | Core | The bin | |
@@ -66,7 +68,7 @@ Viewer, editor and inspector are the hosting mechanism of [06](06-timeline.md). 
 | **Camera layouts** | Standard | Camera layouts | With live preview on the phone |
 | **Flows** | Extension | Flows | |
 
-Files, Media and Shots are three entries on one browser component.
+Files, Media, Shots, Sets and Locations are entries on one browser component.
 
 Gone or absorbed: Gallery (Shots and Media), Plan, Metadata (the board view), Fields (Project), Rigs (Optics presets), Locations (places workshop), Viewfinder layouts (Camera layouts), Sequences (Flows).
 

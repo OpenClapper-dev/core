@@ -1,6 +1,6 @@
 # The model so far
 
-The decisions of workshops 00–09 and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-20.
+The decisions of workshops 00–09a and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-20.
 
 ## How things reference each other
 
@@ -17,6 +17,9 @@ flowchart TD
   CV -->|frame may use| OP[Optics preset]
   PH -->|in at most one| CO[Collection]
   PH -->|taken by| DV[Device]
+  SH -->|plays in| ST[Set]
+  ST -->|filmed at, many to many| LO[Location]
+  LO -->|content| ANY
   CL[Camera layout] -.->|designed for| DV
 ```
 
@@ -33,6 +36,8 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 | Shot | An intent: a planned picture | A content list (any files) and optionally one progression | [04](04-shots.md) |
 | Timeline | A rough cut for deciding | Clips (picture, shot, placeholder) and chapter markers | [06](06-timeline.md) |
 | Master timeline | The project's one order of timelines | An ordered list of timelines | [06](06-timeline.md) |
+| Set | The place in the story where a scene plays | A content list; points at its locations | [09a](09a-places.md) |
+| Location | The real place where it is filmed | A content list; an address and a position | [09a](09a-places.md) |
 
 ## More file types
 
@@ -62,21 +67,21 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 - **Extensions plug in at fixed points** (file types, device types, apps, properties, camera controls, a channel on the one phone link, sync tasks); the core never imports them.
 - **Hard project scope.** No file moves or is shared between projects. Files in an account home follow the person.
 - **The bin** restores a file everywhere it was used.
-- **One file browser** with search, saved filters, and list, grid and board views.
+- **One file browser** with search, saved filters, and list, grid, map and board views.
+- **Relations between files are reference properties** (a shot's set, a set's locations).
 
 ## Tiers
 
 | Tier | What |
 | --- | --- |
-| Core | Media (photos, collections), capture, the angle of view and optics math, shots, properties, the canvas, the filesystem (folders, bin, filters), the shells |
+| Core | Media (photos, collections), capture, the angle of view and optics math, shots, sets and locations, properties, the canvas, the filesystem (folders, bin, filters), the shells |
 | Standard apps | Optics presets, timeline and master timeline, camera layouts |
 | Extensions | Hardware (a catalogue of brands, models and types; pairing; the phone as proxy; live picture as a feed) and Flows; enabled per project |
 
 ## Not in the base
 
-Locations, spots, maps, GPS and positions (places workshop, #352), review states, fixed tags, rigs and equipment, vignetting, steps, bakes, clip-owned edits, day planning, digital zoom, capturing into a shot (deferred).
+Spots, GPS on photos, review states, fixed tags, rigs and equipment, vignetting, steps, bakes, clip-owned edits, day planning, digital zoom, capturing into a shot (deferred).
 
 ## Still open
 
-- **09a:** places (Motiv, address, geography), [#352](https://github.com/OpenClapper-dev/core/issues/352).
 - **UX workshops**, then **10**.
