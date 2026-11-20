@@ -16,9 +16,11 @@
 .oc-input__steps{flex:none;display:flex;flex-direction:column;margin-right:calc(var(--space-2) * -1)}
 .oc-input__steps button{display:grid;place-items:center;width:16px;height:11px;padding:0;border:0;border-radius:2px;background:transparent;color:var(--text-secondary)}
 .oc-input__steps button:hover{background:var(--surface-hover);color:var(--text)}
-.oc-select{position:relative;min-width:120px}
-.oc-select .oc-input__el{appearance:none;cursor:default;position:absolute;inset:0;width:100%;height:100%;padding:0 32px 0 10px;border-radius:inherit}
+.oc-selectbox{position:relative;display:inline-flex;min-width:120px;vertical-align:middle}
+.oc-select{width:100%;color:var(--text);font:var(--weight-regular) var(--font-size-md)/1 var(--font-sans);text-align:left;cursor:default}
+.oc-select__value{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .oc-select>.oc-icon{margin-left:auto;pointer-events:none}
+.oc-listbox--up{top:auto;bottom:calc(100% + var(--space-1))}
 .oc-combo>.oc-input{cursor:text}
 .oc-combo>.oc-input>.oc-icon{cursor:default}
 .oc-textarea{display:block;width:100%;min-height:64px;padding:var(--space-3) var(--space-4);box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-control);background:var(--field);color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-body) var(--font-sans);resize:vertical}

@@ -139,7 +139,7 @@
 .u1p-names { display: grid; }
 .u1p-names__head, .u1p-names__row { display: grid; grid-template-columns: 150px minmax(220px, 1.2fr) 84px minmax(200px, 1fr); align-items: center; column-gap: var(--space-6); min-height: 40px; padding: 4px 0; box-sizing: border-box; border-bottom: var(--border-w) solid var(--border-divider); }
 .u1p-names__row > * { min-width: 0; }
-.u1p-names__row .oc-select { width: 100%; min-width: 0; box-sizing: border-box; }
+.u1p-names__row .oc-selectbox { width: 100%; min-width: 0; }
 .u1p-names__row > strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .u1p-names__off { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: var(--font-size-xs); }
 .u1p-names__problem { grid-column: 2 / -1; margin: 2px 0 2px; color: var(--danger); font-size: var(--font-size-xs); }

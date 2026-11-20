@@ -101,6 +101,8 @@ From the owner's reaction to round 6. Code: `AiEdit.tsx`, `catalogue.tsx`.
 
 Nothing is applied before "Apply n properties" in the last step.
 
+Afterwards: every dropdown now uses the design system's own list. The design system's Select had been the browser's native menu; it was rebuilt on the same listbox as the combobox, with the same keyboard handling, and opens upward when there is no room below. The one native control left is the picker behind "a colour of your own".
+
 ## Stand-ins
 
 - **Pictures** are generated placeholders. Real example photos are still to come ([02](02-optics.md)).
@@ -141,5 +143,6 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 - **The property catalogue** is one list in sections that can be narrowed by file type. A section is picked from the existing ones or typed new.
 - **Colours are always chosen the same way:** the predefined set plus a picker for any colour, for a collection and for an option alike.
 - **AI edits the catalogue in two modes,** adding only, or changing and adding. Each has its own review: new properties as the inputs they will be; changed ones as now and after, with what the change costs.
+- **Dropdowns never use the browser's menu;** they use the design system's list.
 - **Tokens in a naming pattern are shown as boxes and validated:** an unknown token, or one that does not apply to the file type, is marked with the reason, and the pattern is not used until it is fixed.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.
