@@ -1,6 +1,6 @@
 # The model so far
 
-The decisions of workshops 00–08 and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-20.
+The decisions of workshops 00–09 and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-20.
 
 ## How things reference each other
 
@@ -58,6 +58,7 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 - **A render per canvas** is what viewers without a drawing engine show; there are no bakes.
 - **One editor at a time** for a canvas and a timeline.
 - **Apps are hosted:** a file's app offers a viewer, an editor and an inspector that another app (a timeline, a shot window) mounts in place.
+- **Both shells are composed from one app catalogue** ([09](09-shells.md)): the Studio as a desktop with windows; the phone and tablet app with tabs the person chooses per device. Preferences follow the account.
 - **Extensions plug in at fixed points** (file types, device types, apps, properties, camera controls, a channel on the one phone link, sync tasks); the core never imports them.
 - **Hard project scope.** No file moves or is shared between projects. Files in an account home follow the person.
 - **The bin** restores a file everywhere it was used.
@@ -77,6 +78,5 @@ Locations, spots, maps, GPS and positions (places workshop, #352), review states
 
 ## Still open
 
-- **09:** the shells, the app catalogue, the hosting mechanism in detail, the phone's and tablet's screens.
 - **09a:** places (Motiv, address, geography), [#352](https://github.com/OpenClapper-dev/core/issues/352).
 - **UX workshops**, then **10**.
