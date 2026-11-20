@@ -2,34 +2,16 @@
 // (docs/rewrite/07-organisation.md, 04-shots.md, 08-extensions.md). A prototype on fake data: changes stay in this page.
 import { useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Banner, BrowserLayout, Button, Checkbox, Dialog, FormField, Icon, Select, SidebarNav, StatusBar, Switch, TextArea, TextInput, Toolbar, ToolbarSpacer, cx,
-  type IconName,
+  AppIcon, Badge, Banner, BrowserLayout, Button, Checkbox, Combobox, FormField, Icon, ResizablePanel, Select, SidebarNav, StatusBar, Switch, TextInput, Toolbar, ToolbarSpacer, cx,
 } from "@openclapper/design";
-import { PROPS, TYPES, type FieldType, type FileType, type PropDef } from "./data";
+import { PROPS, TYPES, type FieldType, type FileType } from "./data";
+import { ColourButton, FIELD, FILE_TYPES, OnIcons, type Def } from "./catalogue";
+import AiEdit from "./AiEdit";
 
-const FIELD: Record<FieldType, { label: string; icon: IconName }> = {
-  text: { label: "Text", icon: "note" }, long: { label: "Long text", icon: "notes" }, number: { label: "Number", icon: "ruler" }, yesno: { label: "Yes / no", icon: "check" },
-  choice: { label: "Single choice", icon: "tag" }, multi: { label: "Multiple choice", icon: "tag" }, date: { label: "Date", icon: "calendar" }, reference: { label: "Reference", icon: "link" }, position: { label: "Position", icon: "pin" },
-};
-const FILE_TYPES: FileType[] = ["photo", "collection", "canvas", "shot", "set", "location", "timeline", "preset", "folder"];
 /** Read-only properties every file has, and the facts each file type brings. Listed so the catalogue shows the whole picture. */
 const SYSTEM = ["Name", "Type", "Created", "Updated", "Created by"];
 const FACTS: Partial<Record<FileType, string[]>> = { photo: ["Size", "Taken", "Angle of view", "Lens", "Device", "Frame on screen", "EXIF"], canvas: ["Surface", "Frames", "Layers"], timeline: ["Clips", "Length"], preset: ["Format", "Lenses", "Delivery"], collection: ["Photos", "Colour"] };
 
-const PROMPT = `You write property definitions for a film project in OpenClapper.
-Answer with a JSON array only. Each entry:
-{ "name": string, "type": "text" | "long" | "number" | "yesno" | "choice" | "multi" | "date",
-  "options": [string]  (for choice and multi),
-  "on": ["shot" | "photo" | "canvas" | "set" | "location"],
-  "section": string (optional) }
-What I need: `;
-const SAMPLE = `[
-  { "name": "Cast", "type": "multi", "options": ["Joe", "Mara", "Conductor"], "on": ["shot"], "section": "Script" },
-  { "name": "Page count", "type": "number", "on": ["shot"], "section": "Script" },
-  { "name": "Permit needed", "type": "yesno", "on": ["location"] }
-]`;
-
-type Def = PropDef & { hidden?: FileType[]; parent?: string };
 type Section = "general" | "properties" | "names" | "extensions";
 const PATTERNS: Record<string, { pattern: string; digits: number; next: number }> = { photo: { pattern: "{type} {counter}", digits: 4, next: 145 }, shot: { pattern: "{type} {counter}", digits: 2, next: 11 }, canvas: { pattern: "{type} {counter}", digits: 2, next: 6 }, collection: { pattern: "{date} {type} {counter}", digits: 1, next: 3 }, set: { pattern: "{type} {counter}", digits: 1, next: 5 }, location: { pattern: "{type} {counter}", digits: 1, next: 5 }, timeline: { pattern: "Cut {counter}", digits: 1, next: 3 } };
 const nameFor = (t: FileType, p: { pattern: string; digits: number; next: number }) => p.pattern.replace("{type}", TYPES[t].label).replace("{counter}", String(p.next).padStart(p.digits, "0")).replace("{date}", "2026-11-20").replace("{time}", "14:32").replace("{device}", "Pixel 9 Pro").replace("{focal}", "24 mm");
@@ -62,7 +44,6 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
   const [open, setOpen] = useState<string | null>("status");
   const [scope, setScope] = useState("all");
   const [ai, setAi] = useState(false);
-  const [answer, setAnswer] = useState("");
   const [patterns, setPatterns] = useState(PATTERNS);
   const [ext, setExt] = useState({ hardware: true, flows: false });
   const [name, setName] = useState("Nachtzug");
@@ -79,21 +60,13 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
   const patch = (id: string, change: Partial<Def>) => setDefs(defs.map((d) => (d.id === id ? { ...d, ...change } : d)));
   const shown = defs.filter((d) => scope === "all" || d.on.includes(scope as FileType));
   const sections = [...new Set(shown.map((d) => d.section ?? "No section"))];
-  let parsed: { name: string; type: string; options?: string[]; on?: string[]; section?: string }[] | null = null, bad = "";
-  if (answer.trim()) { try { const j = JSON.parse(answer); if (!Array.isArray(j)) throw new Error("The answer is not a list"); parsed = j; } catch (e) { bad = (e as Error).message; } }
-  const importAll = () => {
-    if (!parsed) return;
-    const fresh: Def[] = parsed.map((p, i) => ({ id: `ai${Date.now()}${i}`, name: p.name, type: (p.type in FIELD ? p.type : "text") as FieldType, section: p.section, options: p.options?.map((o, n) => ({ value: o, color: (n % 8) + 1 })), on: (p.on ?? ["shot"]) as FileType[] }));
-    setDefs([...defs, ...fresh]); setAi(false); setAnswer(""); setOpen(fresh[0]?.id ?? open); say(`${fresh.length} properties imported`);
-  };
-
   const properties = (
     <div className="u1p-split">
       <div className="u1p-list">
         <div className="u1p-listhead">
           <Select size="sm" value={scope} onChange={setScope} options={[{ value: "all", label: "All file types" }, ...FILE_TYPES.map((t) => ({ value: t, label: `On ${TYPES[t].plural.toLowerCase()}` }))]} />
           <span style={{ flex: 1 }} />
-          <Button size="sm" icon="bulb" onClick={() => setAi(true)}>Import with AI…</Button>
+          <Button size="sm" icon="bulb" onClick={() => setAi(true)}>Edit with AI…</Button>
           <Button size="sm" variant="primary" icon="plus" onClick={() => { const id = `new${Date.now()}`; setDefs([...defs, { id, name: "New property", type: "text", on: scope === "all" ? ["shot"] : [scope as FileType] }]); setOpen(id); }}>New property</Button>
         </div>
         {scope !== "all" && (
@@ -111,7 +84,7 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
                 <Icon name={FIELD[d.type].icon} />
                 <span className="u1p-row__name">{d.name}</span>
                 <span className="u1p-row__type">{FIELD[d.type].label}{d.type === "reference" && ` → ${TYPES[d.target!].label}`}{d.options && ` · ${d.options.length}`}</span>
-                <span className="u1p-row__on">{d.on.map((t) => <AppIcon key={t} glyph={TYPES[t].glyph} color={TYPES[t].color} size={20} label={TYPES[t].plural} off={d.hidden?.includes(t)} />)}</span>
+                <OnIcons on={d.on} hidden={d.hidden} />
               </button>
             ))}
           </section>
@@ -119,7 +92,7 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
         <section className="u1p-group"><h3><Icon name="extension" size={12} /> Provided by apps and extensions</h3><p className="u1p-empty">None yet. An extension that calculates with a property brings it here, with a fixed meaning.</p></section>
       </div>
 
-      <aside className="u1p-edit" aria-label="Property">
+      <ResizablePanel side="right" defaultSize={360} min={300} max={560} className="u1p-editpanel" aria-label="Property"><div className="u1p-edit">
         {!def ? <p className="u1p-empty">Choose a property to edit it.</p> : (
           <>
             <FormField label="Name"><TextInput value={def.name} onInput={(e) => patch(def.id, { name: (e.target as HTMLInputElement).value })} /></FormField>
@@ -128,11 +101,11 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
             </FormField>
             {def.type === "reference" && <FormField label="Points at"><Select value={def.target ?? "set"} onChange={(v) => patch(def.id, { target: v as FileType })} options={(["set", "location", "shot", "photo", "canvas"] as FileType[]).map((t) => ({ value: t, label: TYPES[t].plural }))} /><Checkbox checked={!!def.many} onChange={(c) => patch(def.id, { many: c })}>Several files</Checkbox></FormField>}
             {def.options && (
-              <FormField label="Options" hint="A colour each; the order here is the order in menus and on the board.">
+              <FormField label="Options" hint="A colour each: click the dot for the predefined colours or one of your own. The order here is the order in menus and on the board.">
                 <div className="u1p-options">
                   {def.options.map((o, i) => (
                     <div key={i} className="u1p-option">
-                      <button type="button" className="u1p-swatch" style={{ background: o.color ? `var(--cat-${o.color})` : "var(--text-secondary)" }} aria-label={`Colour ${o.color}; click for the next`} onClick={() => patch(def.id, { options: def.options!.map((x, n) => (n === i ? { ...x, color: (x.color % 8) + 1 } : x)) })} />
+                      <ColourButton value={o.color} label={`Colour of ${o.value}`} onChange={(c) => patch(def.id, { options: def.options!.map((x, n) => (n === i ? { ...x, color: c } : x)) })} />
                       <TextInput size="sm" value={o.value} onInput={(e) => patch(def.id, { options: def.options!.map((x, n) => (n === i ? { ...x, value: (e.target as HTMLInputElement).value } : x)) })} />
                       <Button size="sm" variant="quiet" icon="close" label="Remove option" onClick={() => patch(def.id, { options: def.options!.filter((_, n) => n !== i) })} />
                     </div>
@@ -156,11 +129,13 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
                 ); })}
               </div>
             </FormField>
-            <FormField label="Section" hint="A heading in the properties list; visual only."><TextInput value={def.section ?? ""} placeholder="No section" onInput={(e) => patch(def.id, { section: (e.target as HTMLInputElement).value || undefined })} /></FormField>
+            <FormField label="Section" hint="A heading in the properties list; visual only. Pick one that exists, or type a new name.">
+              <Combobox value={def.section ?? ""} placeholder="No section" options={[{ value: "", label: "No section" }, ...[...new Set(defs.map((d) => d.section).filter((x): x is string => !!x))].map((x) => ({ value: x, label: x }))]} onChange={(v) => patch(def.id, { section: v || undefined })} onCreate={(v) => patch(def.id, { section: v })} />
+            </FormField>
             <div className="u1p-foot"><Button variant="danger" icon="trash" onClick={() => { setDefs(defs.filter((d) => d.id !== def.id)); setOpen(null); say(`“${def.name}” moved to the bin with its values; restoring it brings both back`); }}>Delete</Button></div>
           </>
         )}
-      </aside>
+      </div></ResizablePanel>
     </div>
   );
 
@@ -216,15 +191,7 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
         statusBar={<StatusBar>Stored in the project’s Settings folder · changes apply to everyone in the project</StatusBar>}>
         {section === "properties" ? properties : section === "names" ? names : section === "extensions" ? extensions : general}
       </BrowserLayout>
-      {ai && (
-        <Dialog fixed className="u1p-ai" title="Import properties with AI" onClose={() => setAi(false)} footer={<><Button onClick={() => setAi(false)}>Cancel</Button><Button variant="primary" disabled={!parsed?.length} onClick={importAll}>{parsed?.length ? `Import ${parsed.length} properties` : "Import"}</Button></>}>
-          <ol className="u1p-steps">
-            <li><strong>Copy the prompt</strong> and give it to an AI, with what you need added at the end.<TextArea readOnly rows={5} value={PROMPT} /><Button size="sm" icon="copy" onClick={() => say("Prompt copied")}>Copy prompt</Button></li>
-            <li><strong>Paste the answer.</strong><TextArea rows={7} value={answer} invalid={!!bad} placeholder="[ … ]" onInput={(e) => setAnswer((e.target as HTMLTextAreaElement).value)} /><Button size="sm" variant="quiet" onClick={() => setAnswer(SAMPLE)}>Use a sample answer</Button>{bad && <p className="u1p-bad"><Icon name="warning" size={12} /> Not readable: {bad}</p>}</li>
-            {parsed && <li><strong>Check what comes in.</strong><ul className="u1p-preview">{parsed.map((p, i) => <li key={i}><strong>{p.name}</strong> · {FIELD[p.type as keyof typeof FIELD]?.label ?? p.type}{p.options && ` · ${p.options.join(", ")}`} · on {(p.on ?? ["shot"]).join(", ")}</li>)}</ul></li>}
-          </ol>
-        </Dialog>
-      )}
+      {ai && <AiEdit defs={defs} say={say} onClose={() => setAi(false)} onApply={(next, summary) => { setDefs(next); setAi(false); say(`Properties: ${summary}`); }} />}
     </>
   );
 }

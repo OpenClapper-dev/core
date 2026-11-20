@@ -1,6 +1,6 @@
 # U1 · Files and properties
 
-UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 6 built** (the Project app); decisions so far recorded below.
+UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 7 built** (the Project app, Edit with AI); decisions so far recorded below.
 
 The file browser in its five entries, and how properties are shown and edited. Specified in [07](07-organisation.md), [09](09-shells.md), [09a](09a-places.md) and [04](04-shots.md).
 
@@ -77,11 +77,29 @@ Three of these went into the design system (`packages/design`), not only the pro
 | Editing a property | Click one: name, field type, options with a colour each (click a colour for the next, add and remove options), what a choice depends on, which file types carry it with an eye to hide it per type, its section, Delete |
 | A reference | "Set" or "Locations": the field type Reference, what it points at, one file or several |
 | New property | Starts as a text property on the file type the list is narrowed to |
-| Import with AI | The button opens three steps: copy the prompt, paste the answer ("Use a sample answer" fills one in), check what comes in, import |
+| Edit with AI | See round 7 below |
 | Provided by apps and extensions | The reserved fourth kind: an empty group with its explanation |
 | Naming patterns | A pattern and a number of digits per file type, with the name the next file will get. Every token in a pattern sits in a box: accent-coloured when it exists, red and underlined when it does not (type `{ddd}`) or does not apply to the file type (`{device}` on a shot), with the reason underneath; such a pattern is not in use until it is fixed. Clicking a token in the legend puts it into the pattern being edited, at the caret |
 | Extensions | Hardware and Flows as switches; Flows needs Hardware; switching Hardware off switches Flows off too |
 | General | The project's name and its fixed folders |
+
+## Round 7 (2026-11-20): Edit with AI, and three corrections
+
+From the owner's reaction to round 6. Code: `AiEdit.tsx`, `catalogue.tsx`.
+
+| Change | What to try |
+| --- | --- |
+| Section is a combobox | In a property's editor, Section lists the sections that exist; typing a new name offers "Create …". (The design system's combobox learned to create an entry) |
+| The property editor can be dragged | Its left edge is a grip, 300 to 560 px, like the other panels |
+| Options use the colour chooser | Click an option's dot: the eight predefined colours and "+" for one of your own, the same chooser as for a collection |
+| **Edit with AI**, not only import | The button in Properties. Two modes: **Add properties** (only new ones come in) and **Change and add** (existing ones may be renamed, retyped, re-attached or get other options; nothing is removed) |
+| Step 1 · Ask | Choose the mode and write what you need. The prompt on the right is built from it live: the task for the mode, your request, the project's properties as they are (so the AI knows what exists and can refer to them), and the answer format. It fills the dialog's height and "Copy the prompt" really copies it |
+| Step 2 · Paste the answer | "Use a sample answer" fills in one that fits the mode. The line underneath counts what was understood; an answer wrapped in a code fence is accepted |
+| Step 3 · Review, adding | Each new property is drawn as the input it will be in the properties panel, with its options, section and file types. Untick what you do not want |
+| Step 3 · Review, changing | Each changed property is shown **now and after**, side by side as inputs, and underneath what changes: name, field type, options added and removed, file types, section. Where a change costs something it says so with the number from the project: "6 files use 'Idea' and lose the value" |
+| What cannot be used | Entries with an unknown field type, a missing name, a choice without options, a change in "add" mode, or a name that exists are listed with the reason and left out |
+
+Nothing is applied before "Apply n properties" in the last step.
 
 ## Stand-ins
 
@@ -95,11 +113,10 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 
 ## Questions for the owner
 
-1. The catalogue as one list in sections, narrowed by file type: right, or would you rather start from a file type and see its properties?
-2. Options get their colour by clicking through the eight: enough, or the same chooser as for a collection's colour?
-3. Is the AI import in three steps clear?
-4. Naming: a pattern plus a number of digits, with tokens boxed and checked. Anything missing?
-5. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
+1. Edit with AI: are the two reviews what you had in mind?
+2. Should "Change and add" also be allowed to propose removing a property, shown as a third group that is unticked by default? Now it cannot.
+3. Naming: anything missing?
+4. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
 
 ## Decided
 
@@ -121,5 +138,8 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 - **Panels are resizable** by dragging, within a minimum and a maximum.
 - **Scrollbars have the app's own design.**
 - **Small file icons are 20 px,** with the glyph centred exactly.
+- **The property catalogue** is one list in sections that can be narrowed by file type. A section is picked from the existing ones or typed new.
+- **Colours are always chosen the same way:** the predefined set plus a picker for any colour, for a collection and for an option alike.
+- **AI edits the catalogue in two modes,** adding only, or changing and adding. Each has its own review: new properties as the inputs they will be; changed ones as now and after, with what the change costs.
 - **Tokens in a naming pattern are shown as boxes and validated:** an unknown token, or one that does not apply to the file type, is marked with the reason, and the pattern is not used until it is fixed.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.

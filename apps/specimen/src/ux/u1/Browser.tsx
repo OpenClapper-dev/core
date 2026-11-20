@@ -11,6 +11,7 @@ import {
 import { FILES, PROPS, QUERIES, TYPES, type FileRec, type FileType, type PropDef } from "./data";
 import { picture } from "./pictures";
 import ProjectApp from "./Project";
+import { Swatches } from "./catalogue";
 
 type Entry = "files" | "media" | "shots" | "sets" | "locations" | "project";
 type View = "list" | "grid" | "board" | "map";
@@ -278,10 +279,7 @@ export default function U1Browser() {
             {sections.map((s) => <PropertySection key={s} title={s} icon={s === "Camera" ? "camera" : s === "Script" ? "file-text" : "tag"}>{shared.filter((p) => (p.section ?? "Properties") === s).map((p) => <PropertyRow key={p.id} label={p.name}>{editor(p)}</PropertyRow>)}</PropertySection>)}
             {one?.type === "collection" && (
               <PropertySection title="Colour" icon="palette">
-                <div className="u1-swatches" role="radiogroup" aria-label="Collection colour">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <button type="button" key={n} role="radio" aria-checked={one.color === n} aria-label={`Colour ${n}`} className={cx(one.color === n && "is-on")} style={{ background: `var(--cat-${n})` }} onClick={() => setColor(one.id, n)} />)}
-                  <label className={cx("u1-swatches__own", typeof one.color === "string" && "is-on")} title="A colour of your own" style={{ background: typeof one.color === "string" ? one.color : undefined }}><Icon name="plus" size={12} /><input type="color" aria-label="A colour of your own" value={typeof one.color === "string" ? one.color : "#888888"} onInput={(e) => setColor(one.id, (e.target as HTMLInputElement).value)} /></label>
-                </div>
+                <Swatches value={one.color} label="Collection colour" onChange={(c) => setColor(one.id, c)} />
                 <p className="u1-hint">Given at random when the collection is made. Stored with the collection: everyone sees the same colour.</p>
               </PropertySection>
             )}
