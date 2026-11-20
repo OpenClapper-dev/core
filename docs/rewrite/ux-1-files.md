@@ -1,6 +1,6 @@
 # U1 · Files and properties
 
-UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 7 built** (the Project app, Edit with AI); decisions so far recorded below.
+UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **decided** (2026-11-20), after eight rounds.
 
 The file browser in its five entries, and how properties are shown and edited. Specified in [07](07-organisation.md), [09](09-shells.md), [09a](09a-places.md) and [04](04-shots.md).
 
@@ -123,13 +123,31 @@ Files that exist keep their names; a pattern applies to files made from then on.
 - **The icons for set and location** are existing glyphs standing in; both are to be drawn.
 - **File-type colours** are a first assignment from the eight categorical colours.
 
-## Not built yet
+## Not prototyped
 
 Creating and saving a filter, the "new" flows, context menus, drag and drop between folders, the account home as a second root, keyboard handling.
 
-## Questions for the owner
+## Into the design system
 
-1. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
+What held in this workshop and went into `packages/design` (design track D4):
+
+| Part | What |
+| --- | --- |
+| Scrollbars | One thin design in token colours for every scrolling area |
+| `ResizablePanel` | A `bottom` side; double-click on the grip resets the size |
+| `BrowserLayout` | The sidebar keeps its grip (it was hidden); its limits can be set |
+| `Table` | A current row (`onCursor`) apart from the ticked rows; `onOpen` on double-click |
+| `AppIcon` | The glyph is centred exactly at every size |
+| `Select` | The design system's own list in place of the browser's menu |
+| `Combobox` | `onCreate`: offer to create an entry from the typed text |
+| `ColorPicker` | New: saturation and brightness field, hue bar, hex value |
+| Dialog backdrop | A tall dialog stays centred |
+
+Still only in the prototype, to be turned into components when the apps are built: the file tile with its tick circle, the stacked and scrubbable collection tile, the collection mark, the board, the colour chooser (predefined colours plus the picker), the token field, the three-step AI dialog with its now-and-after review.
+
+## Changes to specification pages
+
+None were needed. Three details go beyond what the specifications say and are recorded here as decided: a collection has a colour; how its mark is drawn is a personal preference; click and tick are separate.
 
 ## Decided
 
