@@ -115,7 +115,7 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Filter** | A saved query over files | `views` / "saved view" |
 | **Workspace** | The tenancy unit: members and roles | same |
 | **Desktop** | One virtual desktop in the Studio | desktop "workspace" |
-| **App** | A program that opens file types | — |
+| **App** | A program that opens file types, with a window form, optionally a touch form, and a viewer, editor and inspector that other apps can mount ([09](09-shells.md)) | — |
 | **Extension** | A first-party package of features that is off until enabled per project: Hardware, Flows ([08](08-extensions.md)) | — |
 | **Light**, **Dark** | The two themes | Sun, Set |
 

@@ -1,6 +1,6 @@
 # 09 · Shells and app catalogue
 
-Workshop [#336](https://github.com/OpenClapper-dev/core/issues/336). Status: **proposal, nothing decided yet**.
+Workshop [#336](https://github.com/OpenClapper-dev/core/issues/336). Status: **decided** (2026-11-20).
 
 What an app is, which apps exist, and what the two shells (the Studio's desktop and the phone or tablet app) are made of. This is where the hand-overs of 03–08 land.
 
@@ -27,7 +27,7 @@ What an app is, which apps exist, and what the two shells (the Studio's desktop 
 4. **Preferences stay in one browser.**
 5. **Two meanings of "workspace"** ([00](00-principles.md)).
 
-## Proposal
+## The model
 
 ### What an app is
 
@@ -43,7 +43,7 @@ An **app** is a program that opens one or more file types. It declares:
 | Inspector | Settings in another app's side panel |
 | Thumbnail | How a file of its type looks small |
 | Shortcuts | Declared in the one registry, active while the app or its mounted editor has focus |
-| Clients | Where it runs: Studio, tablet, phone |
+| Forms | A window form for the Studio and, where it has one, a touch form for phones and tablets |
 
 Viewer, editor and inspector are the hosting mechanism of [06](06-timeline.md). A host (the timeline, the shot window, the file browser's preview pane) mounts them and gets the same edit lock, saving and key handling everywhere. Extensions register apps the same way ([08](08-extensions.md)).
 
@@ -66,9 +66,9 @@ Viewer, editor and inspector are the hosting mechanism of [06](06-timeline.md). 
 | **Camera layouts** | Standard | Camera layouts | With live preview on the phone |
 | **Flows** | Extension | Flows | |
 
-Gone or absorbed: Gallery (Shots and Media), Plan, Metadata (the board view), Fields (Project), Rigs (Optics presets), Locations (places workshop), Viewfinder layouts (Camera layouts), Sequences (Flows).
+Files, Media and Shots are three entries on one browser component.
 
-Open question 1.
+Gone or absorbed: Gallery (Shots and Media), Plan, Metadata (the board view), Fields (Project), Rigs (Optics presets), Locations (places workshop), Viewfinder layouts (Camera layouts), Sequences (Flows).
 
 ### The Studio's shell
 
@@ -81,36 +81,25 @@ Kept as it is: the desktop per project, windows with snapping and splits, the ta
 
 ### The phone and tablet shell
 
-One app for both; the tablet uses the same screens with more room.
+One app for phones and tablets. Its shell follows the same idea as the Studio's: the apps come from the one catalogue, and the person decides what is on a device.
 
-| Tab | Content |
-| --- | --- |
-| **Camera** | Capture with the chosen camera layout ([03](03-capture.md)) |
-| **Library** | The project's photos and collections; import from the gallery; what is queued |
-| **Shots** | The project's shots: properties, content, progression played back |
-| **Setup** | Project, account, devices and camera layouts, offline, uploads, extension screens |
+- **Tabs are chosen per device.** On each phone or tablet the person picks which apps are tabs and in which order. The choice is stored with the device ([03](03-capture.md), [08](08-extensions.md)), so two devices of one person can differ: a phone as a camera, a tablet for drawing.
+- **Any app with a touch form can be a tab,** on a phone as well as on a tablet. Nothing is withheld by device size; whether drawing on a small screen is comfortable is the person's call. Extensions add their apps to the choice.
+- **Apps are customisable in themselves** where it makes sense, as the camera already is through camera layouts ([03](03-capture.md)). Which other apps get layouts of their own is settled app by app in the UX workshops.
+- **Setup cannot be removed.** It is where tabs are chosen, so it is always reachable. It also holds project, account, devices, offline and uploads.
+- **A new device starts with a default set:** Camera, Media, Shots, Setup.
 
-Open question 2.
+What a device can do therefore follows from which apps have a touch form, not from a fixed table. Proposed first set, with the order of building decided in workshop 10: Camera, Media (photos, collections, import, the queue), Shots (view: properties, content, the progression played back), Canvas (through the embedded editor, [05](05-composition.md)), Devices.
 
-**What can be changed on which client** (open question 3):
+**Gates.** Signing in stays (or continuing without: photos stay on the phone). An app that works inside a project asks for one when none is chosen; Setup is always reachable. A new project can still be made offline.
 
-| | Phone | Tablet | Studio |
-| --- | --- | --- | --- |
-| Take and import photos, collections | Yes | Yes | Import |
-| Names and properties | Yes | Yes | Yes |
-| Shots: content and progression | View | View | Yes |
-| Canvas | View (the render) | Draw (the embedded editor, [05](05-composition.md)) | Yes |
-| Timelines | Later | Later | Yes |
-
-**Gates.** Signing in stays (or continuing without: photos stay on the phone). A project is needed for Camera, Library and Shots, which ask for one when none is chosen; Setup is always reachable. A new project can still be made offline.
-
-**Offline.** Both of today's switches stay: offline mode (no requests) and keeping a project on the phone (its previews and renders, not the originals). Photos taken offline queue as always.
+**Offline.** Both of today's switches stay: offline mode (no requests) and keeping a project on the device (its previews and renders, not the originals). Photos taken offline queue as always.
 
 **The phone link** ([08](08-extensions.md)) is up while the app is in the foreground and signed in.
 
 ### Preferences
 
-Proposed: personal preferences (theme, taskbar position, shortcut changes, stage background) belong to the account and follow it to every browser and device; they are a file in the account home. Window layouts stay per browser, because they depend on the screen (open question 4).
+Personal preferences (theme, taskbar position, changed shortcuts, stage background) belong to the account and follow it to every browser and device; they are a file in the account home ([07](07-organisation.md)). Window layouts stay per browser, because they depend on the screen. A device's tabs are stored with the device.
 
 ### Shortcuts
 
@@ -122,20 +111,19 @@ The admin plane stays separate and unchanged in purpose; its counts follow the n
 
 ### What goes
 
-The app-to-app wiring by hand, the old app names, the History and Day tabs, the project gate as a wall, "workspace" for a virtual desktop, preferences that live in one browser.
+The app-to-app wiring by hand, the old app names, the fixed five tabs with History and Day, the project gate as a wall, "workspace" for a virtual desktop, preferences that live in one browser.
 
 ## Handed to other workshops
 
 - **09a (places).**
 - **UX workshops:** every app and screen.
 
-## Open questions
-
-1. **Studio apps:** is the catalogue above right, with Files, Media and Shots as three entries on one browser?
-2. **Phone tabs:** Camera, Library, Shots, Setup?
-3. **Clients:** what can be changed on the phone and on the tablet?
-4. **Preferences:** per account, or per browser as today?
-
 ## Decided
 
-Nothing yet.
+2026-11-20, by the owner:
+
+- **Files, Media and Shots** are three apps on one file browser.
+- **The phone and tablet shell is composable:** each person chooses per device which apps are tabs, and apps offer their own customisation as the camera does. Nothing is fixed by device size; what can be done on a device follows from the apps chosen.
+- **Preferences belong to the account** and follow it; window layouts stay per browser.
+
+Taken from the proposal with the above: what an app declares (including viewer, editor and inspector); the Studio's catalogue and tiers; the Studio's shell kept, with "desktops" for virtual desktops; Setup always reachable and not removable; the default tabs of a new device; gates and offline as described; the admin plane and workspaces unchanged.
