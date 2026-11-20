@@ -3,6 +3,7 @@
 .u1 { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--text); font: var(--font-size-sm)/var(--leading-normal, 1.4) var(--font-sans); }
 .u1-proto { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-3) var(--space-5); background: var(--surface-bar, var(--surface-sunken)); border-bottom: var(--border-w) solid var(--border-divider); flex: none; }
 .u1-proto__note { color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); }
+.u1-proto > * { white-space: nowrap; flex: none; }
 .u1-proto label { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
 .u1-proto__apps { display: inline-flex; gap: 2px; margin-left: var(--space-5); }
 .u1-proto__apps button { display: inline-flex; align-items: center; gap: var(--space-3); height: var(--control-h); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
@@ -29,6 +30,13 @@
 .u1-tile__type { position: absolute; left: 4px; bottom: 4px; display: grid; }
 .u1-tile__count { position: absolute; right: 4px; bottom: 4px; padding: 1px 5px; border-radius: 8px; background: #000; color: #fff; font: 700 10px/1.4 var(--font-mono); }
 .u1-tile__check { position: absolute; right: 4px; top: 4px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--text-on-accent, #fff); }
+/* Scrubbing a collection: the photo under the pointer, a red line where the pointer is. */
+.u1-tile__scrub { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--over-rec, #e5484d); pointer-events: none; }
+/* A collection's colour on its tile and on its photos: three variants to choose from. */
+.u1-tile--bar .u1-tile__art::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; border-radius: 2px; background: var(--coll); }
+.u1-tile--bar .u1-tile__name { margin-top: 3px; }
+.u1-tile__dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--coll); }
+.u1-tile--frame .u1-tile__art { outline: 2px solid var(--coll); outline-offset: 1px; }
 .u1-tile__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium, 500); }
 .u1-tile__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: var(--font-size-xs); }
 

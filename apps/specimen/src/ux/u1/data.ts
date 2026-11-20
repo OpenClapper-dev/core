@@ -62,6 +62,8 @@ export interface FileRec {
   /** Fixed folders cannot be renamed, moved or binned. */
   fixed?: boolean;
   binned?: boolean;
+  /** A collection's colour (1 to 8), which marks its photos when collections are spread out. */
+  color?: number;
   /** A location's place on the fake map, in percent. */
   pos?: [number, number];
 }
@@ -80,8 +82,8 @@ export const FILES: FileRec[] = [
   { id: "f-flat", type: "folder", name: "Flat Weber", parent: "f-scout", created: day(5), by: "Ada", props: {} },
   { id: "f-boards", type: "folder", name: "Storyboards", created: day(6), by: "Ben", props: {} },
 
-  { id: "c-dusk", type: "collection", name: "Harbour at dusk", parent: "f-harbour", created: day(4, 17), by: "Ada", props: {} },
-  { id: "c-rooms", type: "collection", name: "Flat Weber, rooms", parent: "f-flat", created: day(5, 11), by: "Ada", props: {} },
+  { id: "c-dusk", type: "collection", name: "Harbour at dusk", parent: "f-harbour", created: day(4, 17), by: "Ada", props: {}, color: 2 },
+  { id: "c-rooms", type: "collection", name: "Flat Weber, rooms", parent: "f-flat", created: day(5, 11), by: "Ada", props: {}, color: 6 },
 
   photo(101, "c-dusk", 11, 24, 4), photo(102, "c-dusk", 12, 24, 4), photo(103, "c-dusk", 13, 13, 4), photo(104, "c-dusk", 14, 120, 4), photo(105, "c-dusk", 15, 24, 4), photo(106, "c-dusk", 16, 13, 4),
   photo(121, "c-rooms", 31, 13, 5), photo(122, "c-rooms", 32, 13, 5), photo(123, "c-rooms", 33, 24, 5), photo(124, "c-rooms", 34, 24, 5), photo(125, "c-rooms", 35, 13, 5),

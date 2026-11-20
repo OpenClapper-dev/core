@@ -42,20 +42,34 @@ function Value({ def, value, files }: { def: PropDef; value: string | string[] |
   return <>{vals.join(", ")}</>;
 }
 
-/** A file's tile in the grid: a picture where it has one, its type icon otherwise; a collection as a stack. */
-function Tile({ f, files, selected, onClick, onOpen }: { f: FileRec; files: FileRec[]; selected: boolean; onClick: (e: MouseEvent) => void; onOpen: () => void }) {
-  const src = thumbOf(f, files), t = TYPES[f.type];
-  const count = f.type === "collection" ? files.filter((c) => c.parent === f.id && !c.binned).length : f.type === "folder" ? files.filter((c) => c.parent === f.id && !c.binned).length : 0;
-  const meta = f.type === "collection" ? `${count} photos` : f.type === "folder" ? `${count} items` : f.type === "shot" ? [text(f.props.size), text(f.props.lens)].filter(Boolean).join(" · ") || "No picture yet" : f.type === "location" ? text(f.props.address) || "No address" : f.type === "set" ? [text(f.props.intext), text(f.props.daynight)].filter(Boolean).join(" · ") : t.label;
+/** The collection a photo sits in, if any. */
+const collOf = (f: FileRec, files: FileRec[]) => { const p = f.parent ? files.find((x) => x.id === f.parent) : undefined; return p?.type === "collection" ? p : undefined; };
+
+/**
+ * A file's tile in the grid: a picture where it has one, its type icon otherwise. A collection is a stack that can be
+ * scrubbed: moving the pointer across it shows each photo in turn under a red line, as on clips in an editor. A photo
+ * of a collection carries the collection's colour as a mark (bar, dot or frame: a variant to choose).
+ */
+function Tile({ f, files, selected, mark, onClick, onOpen }: { f: FileRec; files: FileRec[]; selected: boolean; mark: string; onClick: (e: MouseEvent) => void; onOpen: () => void }) {
+  const [scrub, setScrub] = useState<{ i: number; x: number } | null>(null);
+  const t = TYPES[f.type];
+  const kids = f.type === "collection" ? files.filter((c) => c.parent === f.id && !c.binned) : [];
+  const src = scrub && kids[scrub.i]?.pic != null ? picture(kids[scrub.i].pic!) : thumbOf(f, files);
+  const count = f.type === "collection" ? kids.length : f.type === "folder" ? files.filter((c) => c.parent === f.id && !c.binned).length : 0;
+  const coll = f.type === "collection" ? f : collOf(f, files);
+  const tint = coll?.color ? `var(--cat-${coll.color})` : undefined;
+  const meta = f.type === "collection" ? `${count} photos` : f.type === "folder" ? `${count} items` : f.type === "shot" ? [text(f.props.size), text(f.props.lens)].filter(Boolean).join(" · ") || "No picture yet" : f.type === "location" ? text(f.props.address) || "No address" : f.type === "set" ? [text(f.props.intext), text(f.props.daynight)].filter(Boolean).join(" · ") : f.type === "photo" && coll ? coll.name : t.label;
+  const move = (e: MouseEvent) => { if (!kids.length) return; const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), x = Math.min(Math.max(e.clientX - r.left, 0), r.width - 1); setScrub({ i: Math.floor((x / r.width) * kids.length), x }); };
   return (
-    <button type="button" className={cx("u1-tile", selected && "is-selected", f.type === "collection" && "is-stack")} aria-pressed={selected} onClick={onClick} onDblClick={onOpen} draggable>
-      <span className="u1-tile__art">
+    <button type="button" className={cx("u1-tile", selected && "is-selected", f.type === "collection" && "is-stack", tint && `u1-tile--${mark}`)} style={tint ? { "--coll": tint } : undefined} aria-pressed={selected} onClick={onClick} onDblClick={onOpen} draggable title={f.type === "photo" && coll ? `In the collection “${coll.name}”` : undefined}>
+      <span className="u1-tile__art" onMouseMove={move} onMouseLeave={() => setScrub(null)}>
         {src ? <img src={src} alt="" /> : <AppIcon glyph={t.glyph} color={t.color} size={48} />}
-        {src && f.type !== "photo" && <span className="u1-tile__type"><AppIcon glyph={t.glyph} color={t.color} size={16} /></span>}
-        {f.type === "collection" && <span className="u1-tile__count">{count}</span>}
+        {src && f.type !== "photo" && !scrub && <span className="u1-tile__type"><AppIcon glyph={t.glyph} color={t.color} size={16} /></span>}
+        {f.type === "collection" && <span className="u1-tile__count">{scrub ? `${scrub.i + 1} / ${count}` : count}</span>}
+        {scrub && <span className="u1-tile__scrub" style={{ left: scrub.x }} />}
         {selected && <span className="u1-tile__check"><Icon name="check" size={12} /></span>}
       </span>
-      <span className="u1-tile__name">{f.name}</span>
+      <span className="u1-tile__name">{tint && mark === "dot" && <i className="u1-tile__dot" />}{f.name}</span>
       <span className="u1-tile__meta">{meta}</span>
     </button>
   );
@@ -83,7 +97,7 @@ export default function U1Browser() {
   const [entry, setEntry] = useState<Entry>("files");
   const [folder, setFolder] = useState<string | undefined>(undefined);
   const [nav, setNav] = useState("all");
-  const [view, setView] = useState<View>("grid");
+  const [view, setView] = useState<View>("list");
   const [q, setQ] = useState("");
   const [types, setTypes] = useState<FileType[]>([]);
   const [sort, setSort] = useState("name");
@@ -91,6 +105,7 @@ export default function U1Browser() {
   const [spread, setSpread] = useState("stack");
   const [panel, setPanel] = useState("right");
   const [cards, setCards] = useState("picture");
+  const [mark, setMark] = useState("bar");
   const [theme, setTheme] = useState("light");
   const [sel, setSel] = useState<string[]>([]);
   const [toast, setToast] = useState<string | null>(null);
@@ -98,7 +113,7 @@ export default function U1Browser() {
 
   const map = useMemo(() => byId(files), [files]);
   const say = (m: string) => { setToast(m); setTimeout(() => setToast((t) => (t === m ? null : t)), 2600); };
-  const go = (e: Entry) => { setEntry(e); setNav("all"); setSel([]); setQ(""); setTypes([]); setFolder(undefined); setView(e === "locations" ? "map" : e === "shots" ? "board" : "grid"); setBoardBy(e === "sets" ? "daynight" : "status"); };
+  const go = (e: Entry) => { setEntry(e); setNav("all"); setSel([]); setQ(""); setTypes([]); setFolder(undefined); setView("list"); setBoardBy(e === "sets" ? "daynight" : "status"); };
   const live = files.filter((f) => !f.binned);
   const flat = entry !== "files" || nav !== "all" || q !== "" || types.length > 0;
 
@@ -159,7 +174,7 @@ export default function U1Browser() {
   const kinds = [...new Set(items.map((f) => f.type))];
   const boardable = PROPS.filter((p) => (p.type === "choice" || (p.type === "reference" && !p.many)) && kinds.some((k) => p.on.includes(k)));
   const views: View[] = nav === "bin" ? ["list"] : [...(["list", "grid"] as View[]), ...(boardable.length ? ["board" as View] : []), ...(entry === "locations" || (entry === "files" && items.some((f) => f.pos)) ? ["map" as View] : [])];
-  const shown: View = views.includes(view) ? view : "grid";
+  const shown: View = views.includes(view) ? view : "list";
   const by = boardable.find((p) => p.id === boardBy) ?? boardable[0];
   const toolbar = (
     <Toolbar>
@@ -177,6 +192,7 @@ export default function U1Browser() {
   );
 
   // Main area.
+  const collCell = (f: FileRec) => { const c = collOf(f, files); return c ? <span className="u1-tag"><i style={{ background: `var(--cat-${c.color ?? 0})` }} />{c.name}</span> : f.type === "collection" ? <span className="u1-tag"><i style={{ background: `var(--cat-${f.color ?? 0})` }} />{files.filter((x) => x.parent === f.id && !x.binned).length} photos</span> : <span className="u1-none">–</span>; };
   const cols = entry === "shots" ? ["scene", "no", "size", "set", "status"] : entry === "sets" ? ["intext", "daynight", "locations"] : entry === "locations" ? ["address"] : [];
   const listRows = items.map((f) => ({
     id: f.id,
@@ -184,15 +200,16 @@ export default function U1Browser() {
     type: TYPES[f.type].label,
     where: f.parent ? map.get(f.parent)?.name ?? "" : "Top level",
     created: f.created,
+    coll: collCell(f),
     ...Object.fromEntries(cols.map((c) => [c, <Value key={c} def={PROPS.find((p) => p.id === c)!} value={f.props[c]} files={files} />])),
     ...(nav === "bin" ? { act: <Button size="sm" variant="quiet" icon="history" onClick={() => { setFiles(files.map((x) => (x.id === f.id ? { ...x, binned: false } : x))); say(`Restored “${f.name}”, also everywhere it was used`); }}>Restore</Button> } : {}),
   }));
   const main = !items.length ? <EmptyState icon={q ? "search" : nav === "bin" ? "trash" : "folder-open"} title={q ? `Nothing matches “${q}”` : nav === "bin" ? "The bin is empty" : "Nothing here yet"}>{q ? "Search looks at names and at every property value." : nav === "bin" ? "" : "Drop files here, or use New."}</EmptyState>
     : shown === "list" ? (
       <Table selectable selected={sel} onSelect={setSel} sort={{ key: sort === "created" ? "created" : sort === "type" ? "type" : "name", dir: "asc" }} onSort={(s) => setSort(s.key === "created" ? "created" : s.key === "type" ? "type" : "name")}
-        columns={[{ key: "name", label: "Name", sortable: true }, ...(cols.length ? cols.map((c) => ({ key: c, label: PROPS.find((p) => p.id === c)!.name })) : [{ key: "type", label: "Type", sortable: true }, ...(flat ? [{ key: "where", label: "In" }] : [])]), { key: "created", label: "Created", sortable: true, mono: true }, ...(nav === "bin" ? [{ key: "act", label: "" }] : [])]} rows={listRows} />
+        columns={[{ key: "name", label: "Name", sortable: true }, ...(entry === "media" ? [{ key: "coll", label: "Collection" }] : cols.length ? cols.map((c) => ({ key: c, label: PROPS.find((p) => p.id === c)!.name })) : [{ key: "type", label: "Type", sortable: true }, ...(flat ? [{ key: "where", label: "In" }] : [])]), { key: "created", label: "Created", sortable: true, mono: true }, ...(nav === "bin" ? [{ key: "act", label: "" }] : [])]} rows={listRows} />
     ) : shown === "grid" ? (
-      <div className="u1-grid">{items.map((f) => <Tile key={f.id} f={f} files={files} selected={sel.includes(f.id)} onClick={(e) => pick(f.id, e)} onOpen={() => open(f)} />)}</div>
+      <div className="u1-grid">{items.map((f) => <Tile key={f.id} f={f} files={files} mark={mark} selected={sel.includes(f.id)} onClick={(e) => pick(f.id, e)} onOpen={() => open(f)} />)}</div>
     ) : shown === "map" ? <FakeMap items={items} sel={sel} pick={pick} />
       : by ? (
         <div className="u1-board">
@@ -255,12 +272,13 @@ export default function U1Browser() {
   return (
     <div className="u1" data-theme={theme}>
       <header className="u1-proto">
-        <strong>U1 · Files and properties</strong><span className="u1-proto__note">prototype, fake data</span>
+        <strong>U1</strong><span className="u1-proto__note">prototype</span>
         <span className="u1-proto__apps" role="tablist" aria-label="Open as">
           {ENTRIES.map((e) => <button type="button" key={e.id} role="tab" aria-selected={entry === e.id} className={cx(entry === e.id && "is-on")} onClick={() => go(e.id)}><AppIcon glyph={e.glyph} color={e.color} size={16} />{e.label}</button>)}
         </span>
         <span style={{ flex: 1 }} />
         <label>Properties <Segmented label="Properties panel" value={panel} onChange={setPanel} options={[{ value: "right", label: "Right" }, { value: "bottom", label: "Bottom" }, { value: "off", label: "Off" }]} /></label>
+        <label>Collection mark <Segmented label="Collection mark" value={mark} onChange={setMark} options={[{ value: "bar", label: "Bar" }, { value: "dot", label: "Dot" }, { value: "frame", label: "Frame" }]} /></label>
         <label>Board cards <Segmented label="Board cards" value={cards} onChange={setCards} options={[{ value: "picture", label: "Picture" }, { value: "compact", label: "Compact" }]} /></label>
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
