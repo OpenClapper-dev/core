@@ -63,6 +63,8 @@ From the owner's reaction to round 1:
 | Panels can be dragged | The sidebar (180 to 420 px, starts at 220), the properties panel on the right (260 to 560, starts at 320) and at the bottom (160 to 480 high, starts at 240). The grip lights up under the pointer; a double-click returns to the starting size; arrow keys move it when focused |
 | Own scrollbars | Thin, no track, in the theme's colours; the thumb darkens under the pointer and takes the accent while dragged |
 
+Round 5, same day: the sidebar could not be dragged, because the browser layout's styles hid its grip; that is fixed in the design system. File icons are a quarter larger where they were small (20 px tiles, was 16), and an icon's glyph now always sits exactly in the middle of its tile: the space around it is an even number of pixels at every size.
+
 Three of these went into the design system (`packages/design`), not only the prototype: the scrollbar design (for every scrolling area), a panel that resizes along the bottom and resets on double-click, and a table whose rows have a current row apart from the ticked ones.
 
 ## Stand-ins
@@ -98,4 +100,5 @@ The Project app (property editor, AI import, naming patterns, extensions), creat
 - **Click and tick are separate.** One click makes a file the current one; ticking selects, in the same way in the list, the grid and the board. A card shows a circle in its top left corner for it.
 - **Panels are resizable** by dragging, within a minimum and a maximum.
 - **Scrollbars have the app's own design.**
+- **Small file icons are 20 px,** with the glyph centred exactly.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.

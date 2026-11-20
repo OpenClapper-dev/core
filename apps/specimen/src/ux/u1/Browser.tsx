@@ -38,7 +38,7 @@ function Value({ def, value, files }: { def: PropDef; value: string | string[] |
   const vals = value == null || value === "" ? [] : Array.isArray(value) ? value : [value];
   if (!vals.length) return <span className="u1-none">–</span>;
   if (def.type === "choice" || def.type === "multi") return <span className="u1-tags">{vals.map((v) => <span key={v} className="u1-tag"><i style={{ background: `var(--cat-${def.options?.find((o) => o.value === v)?.color || 0}, var(--text-secondary))` }} />{v}</span>)}</span>;
-  if (def.type === "reference") { const m = byId(files); return <span className="u1-tags">{vals.map((v) => { const f = m.get(v); return <span key={v} className="u1-ref"><AppIcon glyph={TYPES[def.target!].glyph} color={TYPES[def.target!].color} size={16} />{f ? f.name : "Missing"}</span>; })}</span>; }
+  if (def.type === "reference") { const m = byId(files); return <span className="u1-tags">{vals.map((v) => { const f = m.get(v); return <span key={v} className="u1-ref"><AppIcon glyph={TYPES[def.target!].glyph} color={TYPES[def.target!].color} size={20} />{f ? f.name : "Missing"}</span>; })}</span>; }
   return <>{vals.join(", ")}</>;
 }
 
@@ -71,7 +71,7 @@ function Tile({ f, files, selected, current, mark, onClick, onTick, onOpen }: { 
     <button type="button" className={cx("u1-tile", selected && "is-selected", current && "is-current", f.type === "collection" && "is-stack", tint && `u1-tile--${mark}`)} style={tint ? { "--coll": tint } : undefined} aria-pressed={selected} onClick={onClick} onDblClick={onOpen} draggable title={f.type === "photo" && coll ? `In the collection “${coll.name}”` : undefined}>
       <span className="u1-tile__art" onMouseMove={move} onMouseLeave={() => setScrub(null)}>
         {src ? <img src={src} alt="" /> : <AppIcon glyph={t.glyph} color={t.color} size={48} />}
-        {src && f.type !== "photo" && !scrub && <span className="u1-tile__type"><AppIcon glyph={t.glyph} color={t.color} size={16} /></span>}
+        {src && f.type !== "photo" && !scrub && <span className="u1-tile__type"><AppIcon glyph={t.glyph} color={t.color} size={20} /></span>}
         {f.type === "collection" && <span className="u1-tile__count">{scrub ? `${scrub.i + 1} / ${count}` : count}</span>}
         {scrub && <span className="u1-tile__scrub" style={{ left: scrub.x }} />}
         <Tick on={selected} onTick={onTick} />
@@ -210,7 +210,7 @@ export default function U1Browser() {
   const cols = entry === "shots" ? ["scene", "no", "size", "set", "status"] : entry === "sets" ? ["intext", "daynight", "locations"] : entry === "locations" ? ["address"] : [];
   const listRows = items.map((f) => ({
     id: f.id,
-    name: <span className="u1-name">{thumbOf(f, files) && PICTURE.includes(f.type) ? <img className="u1-mini" src={thumbOf(f, files)} alt="" /> : <AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={16} />}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}</span>,
+    name: <span className="u1-name">{thumbOf(f, files) && PICTURE.includes(f.type) ? <img className="u1-mini" src={thumbOf(f, files)} alt="" /> : <AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={20} />}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}</span>,
     type: TYPES[f.type].label,
     where: f.parent ? map.get(f.parent)?.name ?? "" : "Top level",
     created: f.created,
@@ -237,7 +237,7 @@ export default function U1Browser() {
                   <button type="button" key={f.id} draggable className={cx("u1-card", sel.includes(f.id) && "is-selected", cur === f.id && "is-current", collOf(f, files) && `u1-card--${markClass}`)} style={collOf(f, files) ? { "--coll": tintOf(collOf(f, files)) } : undefined} title={collOf(f, files) ? `In the collection “${collOf(f, files)!.name}”` : undefined} onClick={(e) => pick(f.id, e)} onDblClick={() => open(f)} onDragStart={(e) => e.dataTransfer?.setData("text/plain", f.id)}>
                     <Tick on={sel.includes(f.id)} onTick={() => tick(f.id)} />
                     {cards === "picture" && (thumbOf(f, files) ? <span className="u1-card__art"><img src={thumbOf(f, files)} alt="" /></span> : <span className="u1-card__blank"><AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={24} /></span>)}
-                    <span className="u1-card__name">{collOf(f, files) && (markClass === "dot" || cards === "compact") ? <i className="u1-tile__dot" /> : <AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={16} />}{f.name}</span>
+                    <span className="u1-card__name">{collOf(f, files) && (markClass === "dot" || cards === "compact") ? <i className="u1-tile__dot" /> : <AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={20} />}{f.name}</span>
                     <span className="u1-card__meta">{[text(f.props.scene) && `Sc. ${text(f.props.scene)}`, text(f.props.size), text(f.props.lens)].filter(Boolean).join(" · ") || collOf(f, files)?.name || TYPES[f.type].label}</span>
                   </button>
                 ))}
@@ -269,7 +269,7 @@ export default function U1Browser() {
           <header className="u1-info__head">
             {one ? (thumbOf(one, files) ? <img src={thumbOf(one, files)} alt="" /> : <span className="u1-info__icon"><AppIcon glyph={TYPES[one.type].glyph} color={TYPES[one.type].color} size={48} /></span>) : <span className="u1-info__icon"><Icon name="files" size={20} /> <strong>{chosen.length} files ticked</strong></span>}
             {one && <TextInput value={one.name} disabled={one.fixed} aria-label="Name" onInput={(e) => rename(one.id, (e.target as HTMLInputElement).value)} />}
-            {one && <span className="u1-info__type"><AppIcon glyph={TYPES[one.type].glyph} color={TYPES[one.type].color} size={16} />{TYPES[one.type].label}{one.fixed && " · fixed folder"}<span style={{ flex: 1 }} /><Button size="sm" variant="quiet" onClick={() => open(one)}>Open</Button></span>}
+            {one && <span className="u1-info__type"><AppIcon glyph={TYPES[one.type].glyph} color={TYPES[one.type].color} size={20} />{TYPES[one.type].label}{one.fixed && " · fixed folder"}<span style={{ flex: 1 }} /><Button size="sm" variant="quiet" onClick={() => open(one)}>Open</Button></span>}
             {!one && <span className="u1-info__type">{[...new Set(chosen.map((f) => TYPES[f.type].plural))].join(", ")} · changes apply to all</span>}
           </header>
           <PropertyList>
@@ -298,7 +298,7 @@ export default function U1Browser() {
       <header className="u1-proto">
         <strong>U1</strong><span className="u1-proto__note">prototype</span>
         <span className="u1-proto__apps" role="tablist" aria-label="Open as">
-          {ENTRIES.map((e) => <button type="button" key={e.id} role="tab" aria-selected={entry === e.id} className={cx(entry === e.id && "is-on")} onClick={() => go(e.id)}><AppIcon glyph={e.glyph} color={e.color} size={16} />{e.label}</button>)}
+          {ENTRIES.map((e) => <button type="button" key={e.id} role="tab" aria-selected={entry === e.id} className={cx(entry === e.id && "is-on")} onClick={() => go(e.id)}><AppIcon glyph={e.glyph} color={e.color} size={20} />{e.label}</button>)}
         </span>
         <span style={{ flex: 1 }} />
         <label>Properties <Segmented label="Properties panel" value={panel} onChange={setPanel} options={[{ value: "right", label: "Right" }, { value: "bottom", label: "Bottom" }, { value: "off", label: "Off" }]} /></label>

@@ -19,7 +19,7 @@ export function BrowserLayout({ toolbar, sidebar, sidebarWidth = 168, sidebarMin
     <div className={cx("oc-app", className)} {...rest}>
       {toolbar}
       <div className="oc-app__body">
-        {sidebar && <ResizablePanel defaultSize={sidebarWidth} min={sidebarMin} max={sidebarMax} className="oc-app__side">{sidebar}</ResizablePanel>}
+        {sidebar && <ResizablePanel defaultSize={sidebarWidth} min={sidebarMin} max={sidebarMax} className="oc-app__sidepanel">{sidebar}</ResizablePanel>}
         <div className="oc-app__main">{children}</div>
       </div>
       {statusBar}
