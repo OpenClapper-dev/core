@@ -4,7 +4,7 @@ import "./u1.css";
 import type { ComponentChildren } from "preact";
 import { useMemo, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, BrowserLayout, Breadcrumb, Button, Chip, DropdownMenu, EmptyState, Icon, MapControl, MapPin, PropertyList, PropertyRow, PropertySection,
+  AppIcon, Badge, BrowserLayout, Breadcrumb, Button, Chip, DropdownMenu, EmptyState, Icon, MapControl, MapPin, PropertyList, PropertyRow, PropertySection, ResizablePanel,
   SearchInput, Segmented, Select, SidebarNav, StatusBar, Table, TextInput, Toast, Toolbar, ToolbarSpacer, Tree, cx,
   type IconName, type TreeNodeData,
 } from "@openclapper/design";
@@ -44,6 +44,11 @@ function Value({ def, value, files }: { def: PropDef; value: string | string[] |
 
 /** A collection's colour as CSS: a categorical token, or the user's own colour. */
 const tintOf = (c: FileRec | undefined) => (c?.color == null ? undefined : typeof c.color === "number" ? `var(--cat-${c.color})` : c.color);
+/** The circle in a card's corner that ticks it: shown on hover, and on every card once something is ticked. */
+function Tick({ on, onTick }: { on: boolean; onTick: () => void }) {
+  return <span role="checkbox" aria-checked={on} aria-label="Select" tabIndex={0} className={cx("u1-tick", on && "is-on")} onClick={(e) => { e.stopPropagation(); onTick(); }} onDblClick={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); onTick(); } }}>{on && <Icon name="check" size={12} />}</span>;
+}
+
 /** The collection a photo sits in, if any. */
 const collOf = (f: FileRec, files: FileRec[]) => { const p = f.parent ? files.find((x) => x.id === f.parent) : undefined; return p?.type === "collection" ? p : undefined; };
 
@@ -52,7 +57,7 @@ const collOf = (f: FileRec, files: FileRec[]) => { const p = f.parent ? files.fi
  * scrubbed: moving the pointer across it shows each photo in turn under a red line, as on clips in an editor. A photo
  * of a collection carries the collection's colour as a mark; how it is drawn (bar below or left, dot, frame) is a personal preference.
  */
-function Tile({ f, files, selected, mark, onClick, onOpen }: { f: FileRec; files: FileRec[]; selected: boolean; mark: string; onClick: (e: MouseEvent) => void; onOpen: () => void }) {
+function Tile({ f, files, selected, current, mark, onClick, onTick, onOpen }: { f: FileRec; files: FileRec[]; selected: boolean; current: boolean; mark: string; onClick: (e: MouseEvent) => void; onTick: () => void; onOpen: () => void }) {
   const [scrub, setScrub] = useState<{ i: number; x: number } | null>(null);
   const t = TYPES[f.type];
   const kids = f.type === "collection" ? files.filter((c) => c.parent === f.id && !c.binned) : [];
@@ -63,13 +68,13 @@ function Tile({ f, files, selected, mark, onClick, onOpen }: { f: FileRec; files
   const meta = f.type === "collection" ? `${count} photos` : f.type === "folder" ? `${count} items` : f.type === "shot" ? [text(f.props.size), text(f.props.lens)].filter(Boolean).join(" · ") || "No picture yet" : f.type === "location" ? text(f.props.address) || "No address" : f.type === "set" ? [text(f.props.intext), text(f.props.daynight)].filter(Boolean).join(" · ") : f.type === "photo" && coll ? coll.name : t.label;
   const move = (e: MouseEvent) => { if (!kids.length) return; const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), x = Math.min(Math.max(e.clientX - r.left, 0), r.width - 1); setScrub({ i: Math.floor((x / r.width) * kids.length), x }); };
   return (
-    <button type="button" className={cx("u1-tile", selected && "is-selected", f.type === "collection" && "is-stack", tint && `u1-tile--${mark}`)} style={tint ? { "--coll": tint } : undefined} aria-pressed={selected} onClick={onClick} onDblClick={onOpen} draggable title={f.type === "photo" && coll ? `In the collection “${coll.name}”` : undefined}>
+    <button type="button" className={cx("u1-tile", selected && "is-selected", current && "is-current", f.type === "collection" && "is-stack", tint && `u1-tile--${mark}`)} style={tint ? { "--coll": tint } : undefined} aria-pressed={selected} onClick={onClick} onDblClick={onOpen} draggable title={f.type === "photo" && coll ? `In the collection “${coll.name}”` : undefined}>
       <span className="u1-tile__art" onMouseMove={move} onMouseLeave={() => setScrub(null)}>
         {src ? <img src={src} alt="" /> : <AppIcon glyph={t.glyph} color={t.color} size={48} />}
         {src && f.type !== "photo" && !scrub && <span className="u1-tile__type"><AppIcon glyph={t.glyph} color={t.color} size={16} /></span>}
         {f.type === "collection" && <span className="u1-tile__count">{scrub ? `${scrub.i + 1} / ${count}` : count}</span>}
         {scrub && <span className="u1-tile__scrub" style={{ left: scrub.x }} />}
-        {selected && <span className="u1-tile__check"><Icon name="check" size={12} /></span>}
+        <Tick on={selected} onTick={onTick} />
       </span>
       <span className="u1-tile__name">{tint && mark === "dot" && <i className="u1-tile__dot" />}{f.name}</span>
       <span className="u1-tile__meta">{meta}</span>
@@ -78,7 +83,7 @@ function Tile({ f, files, selected, mark, onClick, onOpen }: { f: FileRec; files
 }
 
 /** A stand-in map: a river, a few roads. Real tiles come with the build. */
-function FakeMap({ items, sel, pick }: { items: FileRec[]; sel: string[]; pick: (id: string, e: MouseEvent) => void }) {
+function FakeMap({ items, sel, cur, pick }: { items: FileRec[]; sel: string[]; cur: string | null; pick: (id: string, e: MouseEvent) => void }) {
   const placed = items.filter((f) => f.pos), missing = items.length - placed.length;
   return (
     <div className="u1-map">
@@ -87,7 +92,7 @@ function FakeMap({ items, sel, pick }: { items: FileRec[]; sel: string[]; pick: 
         <path d="M0 78 C 20 70, 30 86, 52 74 S 86 60, 100 66 L100 100 L0 100Z" fill="var(--cat-6)" opacity=".28" />
         <path d="M0 40 L100 30 M30 0 L44 100 M0 62 L60 20 M62 0 L70 70 M10 10 L90 54" stroke="var(--border-control)" stroke-width="1" vector-effect="non-scaling-stroke" fill="none" />
       </svg>
-      {placed.map((f) => <span key={f.id} className="u1-map__pin" style={{ left: `${f.pos![0]}%`, top: `${f.pos![1]}%` }}><MapPin icon="location" label={f.name} selected={sel.includes(f.id)} onClick={(e) => pick(f.id, e)} /></span>)}
+      {placed.map((f) => <span key={f.id} className="u1-map__pin" style={{ left: `${f.pos![0]}%`, top: `${f.pos![1]}%` }}><MapPin icon="location" label={f.name} selected={sel.includes(f.id) || cur === f.id} onClick={(e) => pick(f.id, e)} /></span>)}
       <MapControl style={{ position: "absolute", right: 12, top: 12 }} />
       {missing > 0 && <span className="u1-map__note"><Icon name="info" size={12} /> {missing} without a position {missing === 1 ? "is" : "are"} not on the map</span>}
     </div>
@@ -111,13 +116,17 @@ export default function U1Browser() {
   const [barAt, setBarAt] = useState("bottom");
   const markClass = mark === "bar" && barAt === "left" ? "barleft" : mark;
   const [theme, setTheme] = useState("light");
+  // Two different things: the current file (one click; what the panel shows) and the ticked selection (for acting on several).
+  const [cur, setCur] = useState<string | null>(null);
   const [sel, setSel] = useState<string[]>([]);
+  const clear = () => { setSel([]); setCur(null); };
+  const tick = (id: string) => setSel((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
   const [toast, setToast] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
 
   const map = useMemo(() => byId(files), [files]);
   const say = (m: string) => { setToast(m); setTimeout(() => setToast((t) => (t === m ? null : t)), 2600); };
-  const go = (e: Entry) => { setEntry(e); setNav("all"); setSel([]); setQ(""); setTypes([]); setFolder(undefined); setView("list"); setBoardBy(e === "sets" ? "daynight" : "status"); };
+  const go = (e: Entry) => { setEntry(e); setNav("all"); clear(); setQ(""); setTypes([]); setFolder(undefined); setView("list"); setBoardBy(e === "sets" ? "daynight" : "status"); };
   const live = files.filter((f) => !f.binned);
   const flat = entry !== "files" || nav !== "all" || q !== "" || types.length > 0;
 
@@ -143,11 +152,11 @@ export default function U1Browser() {
   }, [files, entry, nav, folder, q, types, sort, spread, view]);
 
   const pick = (id: string, e: MouseEvent) => {
-    if (e.metaKey || e.ctrlKey) setSel(sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id]);
-    else if (e.shiftKey && sel.length) { const ids = items.map((f) => f.id), a = ids.indexOf(sel[sel.length - 1]), b = ids.indexOf(id); setSel(ids.slice(Math.min(a, b), Math.max(a, b) + 1)); }
-    else setSel([id]);
+    if (e.metaKey || e.ctrlKey) tick(id);
+    else if (e.shiftKey && (cur || sel.length)) { const ids = items.map((f) => f.id), a = ids.indexOf(cur ?? sel[sel.length - 1]), b = ids.indexOf(id); setSel([...new Set([...sel, ...ids.slice(Math.min(a, b), Math.max(a, b) + 1)])]); }
+    else setCur(id);
   };
-  const open = (f: FileRec) => { if (CONTAINER.includes(f.type) && entry === "files") { setFolder(f.id); setNav("all"); setQ(""); setSel([]); } else if (f.type === "collection") say(`“${f.name}” opens spread out in Media`); else say(`“${f.name}” opens in the ${TYPES[f.type].app} app`); };
+  const open = (f: FileRec) => { if (CONTAINER.includes(f.type) && entry === "files") { setFolder(f.id); setNav("all"); setQ(""); clear(); } else if (f.type === "collection") say(`“${f.name}” opens spread out in Media`); else say(`“${f.name}” opens in the ${TYPES[f.type].app} app`); };
   const setProp = (ids: string[], key: string, value: string | string[]) => { setFiles(files.map((f) => (ids.includes(f.id) ? { ...f, props: { ...f.props, [key]: value } } : f))); };
   const setColor = (id: string, color: number | string) => setFiles(files.map((f) => (f.id === id ? { ...f, color } : f)));
   const rename = (id: string, name: string) => setFiles(files.map((f) => (f.id === id ? { ...f, name } : f)));
@@ -157,15 +166,15 @@ export default function U1Browser() {
   const count = (t: FileType[]) => live.filter((f) => t.includes(f.type)).length;
   const sidebar = entry === "files" ? (
     <div className="u1-side">
-      <Tree nodes={[{ id: "root", label: "Nachtzug", icon: "film", children: tree(undefined) }]} defaultExpanded={["root", "f-scout"]} selected={nav === "all" ? folder ?? "root" : undefined} onSelect={(id) => { setFolder(id === "root" ? undefined : id); setNav("all"); setSel([]); setQ(""); setTypes([]); }} />
-      <SidebarNav value={nav} onChange={(id) => { if (id.startsWith("home")) return say("The account home: files that follow you into every project"); setNav(id); setSel([]); setView(id === "bin" ? "list" : view); }} sections={[
+      <Tree nodes={[{ id: "root", label: "Nachtzug", icon: "film", children: tree(undefined) }]} defaultExpanded={["root", "f-scout"]} selected={nav === "all" ? folder ?? "root" : undefined} onSelect={(id) => { setFolder(id === "root" ? undefined : id); setNav("all"); clear(); setQ(""); setTypes([]); }} />
+      <SidebarNav value={nav} onChange={(id) => { if (id.startsWith("home")) return say("The account home: files that follow you into every project"); setNav(id); clear(); setView(id === "bin" ? "list" : view); }} sections={[
         { label: "Filters", items: [{ id: "q1", label: "Night interiors", icon: "filter" }, { id: "q2", label: "Shots without a picture", icon: "filter" }] },
         { items: [{ id: "bin", label: "Recycle bin", icon: "trash", count: files.filter((f) => f.binned).length }] },
         { label: "Ada’s home", items: [{ id: "home-dev", label: "Devices", icon: "mobile", count: 2 }, { id: "home-lay", label: "Camera layouts", icon: "camera-layout", count: 3 }] },
       ]} />
     </div>
   ) : (
-    <SidebarNav value={nav} onChange={(id) => { setNav(id); setSel([]); }} sections={
+    <SidebarNav value={nav} onChange={(id) => { setNav(id); clear(); }} sections={
       entry === "media" ? [{ items: [{ id: "all", label: "All media", icon: "image", count: count(["photo"]) }, { id: "collections", label: "Collections", icon: "layers", count: count(["collection"]) }, { id: "loose", label: "Not in a collection", icon: "file" }] }]
         : entry === "shots" ? [{ items: [{ id: "all", label: "All shots", icon: "slate", count: count(["shot"]) }, { id: "empty", label: "Without a picture", icon: "ban" }] }, { label: "Filters", items: [{ id: "q1", label: "Night interiors", icon: "filter" }] }]
           : [{ items: [{ id: "all", label: entry === "sets" ? "All sets" : "All locations", icon: entry === "sets" ? "home" : "location", count: count([entry === "sets" ? "set" : "location"]) }] }]
@@ -183,7 +192,7 @@ export default function U1Browser() {
   const by = boardable.find((p) => p.id === boardBy) ?? boardable[0];
   const toolbar = (
     <Toolbar>
-      {entry === "files" && !title ? <Breadcrumb items={crumbs()} onNavigate={(id) => { setFolder(id === "root" ? undefined : id); setSel([]); }} /> : <strong className="u1-title">{title ?? here.label}</strong>}
+      {entry === "files" && !title ? <Breadcrumb items={crumbs()} onNavigate={(id) => { setFolder(id === "root" ? undefined : id); clear(); }} /> : <strong className="u1-title">{title ?? here.label}</strong>}
       {flat && entry === "files" && !title && <Badge>whole project</Badge>}
       <ToolbarSpacer />
       <SearchInput size="sm" value={q} onChange={setQ} placeholder="Names and properties" style={{ width: 190 }} />
@@ -201,7 +210,7 @@ export default function U1Browser() {
   const cols = entry === "shots" ? ["scene", "no", "size", "set", "status"] : entry === "sets" ? ["intext", "daynight", "locations"] : entry === "locations" ? ["address"] : [];
   const listRows = items.map((f) => ({
     id: f.id,
-    name: <span className="u1-name" onDblClick={() => open(f)}>{thumbOf(f, files) && PICTURE.includes(f.type) ? <img className="u1-mini" src={thumbOf(f, files)} alt="" /> : <AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={16} />}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}</span>,
+    name: <span className="u1-name">{thumbOf(f, files) && PICTURE.includes(f.type) ? <img className="u1-mini" src={thumbOf(f, files)} alt="" /> : <AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={16} />}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}</span>,
     type: TYPES[f.type].label,
     where: f.parent ? map.get(f.parent)?.name ?? "" : "Top level",
     created: f.created,
@@ -211,13 +220,13 @@ export default function U1Browser() {
   }));
   const main = !items.length ? <EmptyState icon={q ? "search" : nav === "bin" ? "trash" : "folder-open"} title={q ? `Nothing matches “${q}”` : nav === "bin" ? "The bin is empty" : "Nothing here yet"}>{q ? "Search looks at names and at every property value." : nav === "bin" ? "" : "Drop files here, or use New."}</EmptyState>
     : shown === "list" ? (
-      <Table selectable selected={sel} onSelect={setSel} sort={{ key: sort === "created" ? "created" : sort === "type" ? "type" : "name", dir: "asc" }} onSort={(s) => setSort(s.key === "created" ? "created" : s.key === "type" ? "type" : "name")}
+      <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={{ key: sort === "created" ? "created" : sort === "type" ? "type" : "name", dir: "asc" }} onSort={(s) => setSort(s.key === "created" ? "created" : s.key === "type" ? "type" : "name")}
         columns={[{ key: "name", label: "Name", sortable: true }, ...(entry === "media" ? [{ key: "coll", label: "Collection" }] : cols.length ? cols.map((c) => ({ key: c, label: PROPS.find((p) => p.id === c)!.name })) : [{ key: "type", label: "Type", sortable: true }, ...(flat ? [{ key: "where", label: "In" }] : [])]), { key: "created", label: "Created", sortable: true, mono: true }, ...(nav === "bin" ? [{ key: "act", label: "" }] : [])]} rows={listRows} />
     ) : shown === "grid" ? (
-      <div className="u1-grid">{items.map((f) => <Tile key={f.id} f={f} files={files} mark={markClass} selected={sel.includes(f.id)} onClick={(e) => pick(f.id, e)} onOpen={() => open(f)} />)}</div>
-    ) : shown === "map" ? <FakeMap items={items} sel={sel} pick={pick} />
+      <div className={cx("u1-grid", sel.length > 0 && "has-ticks")}>{items.map((f) => <Tile key={f.id} f={f} files={files} mark={markClass} selected={sel.includes(f.id)} current={cur === f.id} onClick={(e) => pick(f.id, e)} onTick={() => tick(f.id)} onOpen={() => open(f)} />)}</div>
+    ) : shown === "map" ? <FakeMap items={items} sel={sel} cur={cur} pick={pick} />
       : by ? (
-        <div className="u1-board">
+        <div className={cx("u1-board", sel.length > 0 && "has-ticks")}>
           {[...(by.type === "reference" ? live.filter((f) => f.type === by.target).map((f) => ({ value: f.id, label: f.name, color: 0 })) : by.options!.map((o) => ({ value: o.value, label: o.value, color: o.color }))), { value: "", label: `No ${by.name.toLowerCase()}`, color: 0 }].map((col) => {
             const inCol = items.filter((f) => by.on.includes(f.type) && text(f.props[by.id]) === col.value);
             return (
@@ -225,7 +234,8 @@ export default function U1Browser() {
                 onDrop={(e) => { e.preventDefault(); setOver(null); const id = e.dataTransfer?.getData("text/plain"); if (!id) return; const ids = sel.includes(id) ? sel : [id]; setProp(ids, by.id, col.value); say(`${by.name} set to ${col.label} on ${ids.length === 1 ? map.get(id)!.name : ids.length + " files"}`); }}>
                 <header><i style={{ background: col.color ? `var(--cat-${col.color})` : "var(--text-disabled)" }} />{col.label}<span className="oc-num">{inCol.length}</span></header>
                 {inCol.map((f) => (
-                  <button type="button" key={f.id} draggable className={cx("u1-card", sel.includes(f.id) && "is-selected", collOf(f, files) && `u1-card--${markClass}`)} style={collOf(f, files) ? { "--coll": tintOf(collOf(f, files)) } : undefined} title={collOf(f, files) ? `In the collection “${collOf(f, files)!.name}”` : undefined} onClick={(e) => pick(f.id, e)} onDblClick={() => open(f)} onDragStart={(e) => e.dataTransfer?.setData("text/plain", f.id)}>
+                  <button type="button" key={f.id} draggable className={cx("u1-card", sel.includes(f.id) && "is-selected", cur === f.id && "is-current", collOf(f, files) && `u1-card--${markClass}`)} style={collOf(f, files) ? { "--coll": tintOf(collOf(f, files)) } : undefined} title={collOf(f, files) ? `In the collection “${collOf(f, files)!.name}”` : undefined} onClick={(e) => pick(f.id, e)} onDblClick={() => open(f)} onDragStart={(e) => e.dataTransfer?.setData("text/plain", f.id)}>
+                    <Tick on={sel.includes(f.id)} onTick={() => tick(f.id)} />
                     {cards === "picture" && (thumbOf(f, files) ? <span className="u1-card__art"><img src={thumbOf(f, files)} alt="" /></span> : <span className="u1-card__blank"><AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={24} /></span>)}
                     <span className="u1-card__name">{collOf(f, files) && (markClass === "dot" || cards === "compact") ? <i className="u1-tile__dot" /> : <AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={16} />}{f.name}</span>
                     <span className="u1-card__meta">{[text(f.props.scene) && `Sc. ${text(f.props.scene)}`, text(f.props.size), text(f.props.lens)].filter(Boolean).join(" · ") || collOf(f, files)?.name || TYPES[f.type].label}</span>
@@ -238,7 +248,7 @@ export default function U1Browser() {
       ) : null;
 
   // Properties panel: nothing selected, one file, or several (bulk edit).
-  const chosen = sel.map((id) => map.get(id)).filter((f): f is FileRec => !!f);
+  const chosen = (sel.length ? sel : cur ? [cur] : []).map((id) => map.get(id)).filter((f): f is FileRec => !!f);
   const one = chosen.length === 1 ? chosen[0] : null;
   const shared = chosen.length ? PROPS.filter((p) => chosen.every((f) => p.on.includes(f.type))) : [];
   const usedIn = one ? live.filter((f) => (f.content ?? []).includes(one.id) || Object.values(f.props).some((v) => (Array.isArray(v) ? v : [v]).includes(one.id))) : [];
@@ -253,11 +263,11 @@ export default function U1Browser() {
   };
   const sections = [...new Set(shared.map((p) => p.section ?? "Properties"))];
   const info = (
-    <aside className={cx("u1-info", `u1-info--${panel}`)} aria-label="Properties">
-      {!chosen.length ? <EmptyState icon="info" title={title ?? (entry === "files" ? (folder ? map.get(folder)!.name : "Nachtzug") : here.label)}>{items.length} items. Select one to see its properties, or several to edit them together.</EmptyState> : (
+    <ResizablePanel key={panel} side={panel === "bottom" ? "bottom" : "right"} defaultSize={panel === "bottom" ? 240 : 320} min={panel === "bottom" ? 160 : 260} max={panel === "bottom" ? 480 : 560} className={cx("u1-info", `u1-info--${panel}`)} aria-label="Properties">
+      {!chosen.length ? <EmptyState icon="info" title={title ?? (entry === "files" ? (folder ? map.get(folder)!.name : "Nachtzug") : here.label)}>{items.length} items. Click one to see its properties. Tick several to edit them together.</EmptyState> : (
         <>
           <header className="u1-info__head">
-            {one ? (thumbOf(one, files) ? <img src={thumbOf(one, files)} alt="" /> : <span className="u1-info__icon"><AppIcon glyph={TYPES[one.type].glyph} color={TYPES[one.type].color} size={48} /></span>) : <span className="u1-info__icon"><Icon name="files" size={20} /> <strong>{chosen.length} files</strong></span>}
+            {one ? (thumbOf(one, files) ? <img src={thumbOf(one, files)} alt="" /> : <span className="u1-info__icon"><AppIcon glyph={TYPES[one.type].glyph} color={TYPES[one.type].color} size={48} /></span>) : <span className="u1-info__icon"><Icon name="files" size={20} /> <strong>{chosen.length} files ticked</strong></span>}
             {one && <TextInput value={one.name} disabled={one.fixed} aria-label="Name" onInput={(e) => rename(one.id, (e.target as HTMLInputElement).value)} />}
             {one && <span className="u1-info__type"><AppIcon glyph={TYPES[one.type].glyph} color={TYPES[one.type].color} size={16} />{TYPES[one.type].label}{one.fixed && " · fixed folder"}<span style={{ flex: 1 }} /><Button size="sm" variant="quiet" onClick={() => open(one)}>Open</Button></span>}
             {!one && <span className="u1-info__type">{[...new Set(chosen.map((f) => TYPES[f.type].plural))].join(", ")} · changes apply to all</span>}
@@ -280,7 +290,7 @@ export default function U1Browser() {
           </PropertyList>
         </>
       )}
-    </aside>
+    </ResizablePanel>
   );
 
   return (
@@ -297,8 +307,8 @@ export default function U1Browser() {
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
       <div className={cx("u1-body", `u1-body--${panel}`)}>
-        <BrowserLayout className="u1-browser" sidebarWidth={220} toolbar={toolbar} sidebar={sidebar}
-          statusBar={<StatusBar>{items.length} items{sel.length > 0 && <> · <strong>{sel.length} selected</strong></>}{nav in QUERIES && <> · a saved filter: lists what matches now</>}{sel.length > 1 && shown !== "board" && <> · <Chip icon="edit">Edit together in Properties</Chip></>}</StatusBar>}>
+        <BrowserLayout className="u1-browser" sidebarWidth={220} sidebarMin={180} sidebarMax={420} toolbar={toolbar} sidebar={sidebar}
+          statusBar={<StatusBar>{items.length} items{sel.length > 0 && <> · <strong>{sel.length} ticked</strong> <Chip icon="close" onToggle={() => setSel([])}>Clear</Chip></>}{nav in QUERIES && <> · a saved filter: lists what matches now</>}</StatusBar>}>
           {main}
         </BrowserLayout>
         {panel !== "off" && info}

@@ -7,16 +7,19 @@ export interface BrowserLayoutProps extends JSX.HTMLAttributes<HTMLDivElement> {
   toolbar?: ComponentChildren;
   sidebar?: ComponentChildren;
   sidebarWidth?: number;
+  /** How far the sidebar can be dragged. */
+  sidebarMin?: number;
+  sidebarMax?: number;
   statusBar?: ComponentChildren;
   children?: ComponentChildren;
 }
 
-export function BrowserLayout({ toolbar, sidebar, sidebarWidth = 168, statusBar, children, className, ...rest }: BrowserLayoutProps) {
+export function BrowserLayout({ toolbar, sidebar, sidebarWidth = 168, sidebarMin = 120, sidebarMax = 320, statusBar, children, className, ...rest }: BrowserLayoutProps) {
   return (
     <div className={cx("oc-app", className)} {...rest}>
       {toolbar}
       <div className="oc-app__body">
-        {sidebar && <ResizablePanel defaultSize={sidebarWidth} min={120} max={320} className="oc-app__side">{sidebar}</ResizablePanel>}
+        {sidebar && <ResizablePanel defaultSize={sidebarWidth} min={sidebarMin} max={sidebarMax} className="oc-app__side">{sidebar}</ResizablePanel>}
         <div className="oc-app__main">{children}</div>
       </div>
       {statusBar}

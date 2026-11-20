@@ -1,6 +1,6 @@
 # U1 · Files and properties
 
-UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 3 built**; decisions so far recorded below.
+UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 4 built**; decisions so far recorded below.
 
 The file browser in its five entries, and how properties are shown and edited. Specified in [07](07-organisation.md), [09](09-shells.md), [09a](09a-places.md) and [04](04-shots.md).
 
@@ -54,6 +54,17 @@ From the owner's reaction to round 1:
 | The mark on the board | Media → board: every photo of a collection carries its collection's mark and names the collection. The board always shows single photos, because a property is set per photo |
 | Choosing a collection's colour | Select a collection (Media, grid): the panel has a Colour section with the eight colours and a "+" for a colour of one's own. The change shows at once on the tile and on its photos |
 
+## Round 4 (2026-11-20)
+
+| Change | What to try |
+| --- | --- |
+| Clicking and ticking are two things | **Click** a file once: it becomes the current file, outlined, and the panel shows it. **Tick** files to select them for acting on several: the checkbox in the list, a circle in the top left corner of a card (it appears on hover, and on every card once something is ticked). Ticked files take the selection colour; the panel then edits them together and the status bar counts them, with Clear |
+| The same in every view | List, grid and board behave alike. Ctrl-click ticks, Shift-click ticks a range from the current file. Dragging a ticked card on the board moves all ticked cards |
+| Panels can be dragged | The sidebar (180 to 420 px, starts at 220), the properties panel on the right (260 to 560, starts at 320) and at the bottom (160 to 480 high, starts at 240). The grip lights up under the pointer; a double-click returns to the starting size; arrow keys move it when focused |
+| Own scrollbars | Thin, no track, in the theme's colours; the thumb darkens under the pointer and takes the accent while dragged |
+
+Three of these went into the design system (`packages/design`), not only the prototype: the scrollbar design (for every scrolling area), a panel that resizes along the bottom and resets on double-click, and a table whose rows have a current row apart from the ticked ones.
+
 ## Stand-ins
 
 - **Pictures** are generated placeholders. Real example photos are still to come ([02](02-optics.md)).
@@ -84,4 +95,7 @@ The Project app (property editor, AI import, naming patterns, extensions), creat
 - **The mark shows wherever photos of a collection appear singly,** also on the board.
 - **Scrubbing** a stacked collection stays as built.
 - **The frame mark is thin;** on a stacked collection the tiles behind it take the collection's colour.
+- **Click and tick are separate.** One click makes a file the current one; ticking selects, in the same way in the list, the grid and the board. A card shows a circle in its top left corner for it.
+- **Panels are resizable** by dragging, within a minimum and a maximum.
+- **Scrollbars have the app's own design.**
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.

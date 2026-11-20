@@ -10,10 +10,10 @@
 .u1-proto__apps button:hover { background: var(--surface-hover); }
 .u1-proto__apps button.is-on { background: var(--selection); font-weight: var(--weight-bold); }
 
-.u1-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr); }
-.u1-body--right { grid-template-columns: minmax(0, 1fr) 300px; }
-.u1-body--bottom { grid-template-rows: minmax(0, 1fr) 220px; }
-.u1-browser { min-width: 0; min-height: 0; height: 100%; }
+/* The browser and the properties panel: side by side or stacked; the panel's size comes from its grip. */
+.u1-body { flex: 1; min-height: 0; min-width: 0; display: flex; }
+.u1-body--bottom { flex-direction: column; }
+.u1-browser { flex: 1; min-width: 0; min-height: 0; }
 .u1-side { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-3); }
 .u1-title { padding: 0 var(--space-3); }
 
@@ -21,7 +21,13 @@
 .u1-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: var(--space-6); padding: var(--space-6); align-content: start; }
 .u1-tile { display: grid; gap: 3px; padding: var(--space-3); border: var(--border-w) solid transparent; border-radius: var(--radius-control); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; min-width: 0; }
 .u1-tile:hover { background: var(--surface-hover); }
-.u1-tile.is-selected { background: var(--selection); border-color: var(--selection-border); }
+/* Current (clicked once): an outline. Ticked: the selection colour and a filled circle. */
+.u1-tile.is-current { border-color: var(--selection-border); background: var(--surface-hover); }
+.u1-tile.is-selected { background: var(--selection); }
+.u1-tick { position: absolute; left: 5px; top: 5px; z-index: 2; display: grid; place-items: center; width: 18px; height: 18px; box-sizing: border-box; border: 2px solid #fff; border-radius: 50%; background: rgb(0 0 0 / .45); color: #fff; opacity: 0; cursor: pointer; }
+.u1-tile:hover .u1-tick, .u1-card:hover .u1-tick, .has-ticks .u1-tick, .u1-tick.is-on, .u1-tick:focus-visible { opacity: 1; }
+.u1-tick:hover { background: rgb(0 0 0 / .7); }
+.u1-tick.is-on { border-color: var(--accent); background: var(--accent); color: var(--text-on-accent, #fff); }
 .u1-tile__art { position: relative; display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: 3px; background: var(--photo-bg, #111); overflow: visible; }
 .u1-tile__art > img { width: 100%; height: 100%; object-fit: cover; border-radius: 3px; display: block; }
 .u1-tile__art > .oc-appicon { box-shadow: none; }
@@ -29,7 +35,6 @@
 .u1-tile.is-stack .u1-tile__art { margin: 6px 6px 0 0; box-shadow: 3px -3px 0 -1px var(--surface), 3px -3px 0 0 var(--border-control), 6px -6px 0 -1px var(--surface), 6px -6px 0 0 var(--border-control); }
 .u1-tile__type { position: absolute; left: 4px; bottom: 4px; display: grid; }
 .u1-tile__count { position: absolute; right: 4px; bottom: 4px; padding: 1px 5px; border-radius: 8px; background: #000; color: #fff; font: 700 10px/1.4 var(--font-mono); }
-.u1-tile__check { position: absolute; right: 4px; top: 4px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--accent); color: var(--text-on-accent, #fff); }
 /* Scrubbing a collection: the photo under the pointer, a red line where the pointer is. */
 .u1-tile__scrub { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--over-rec, #e5484d); pointer-events: none; }
 /* A collection's colour on its tile and on its photos: three variants to choose from. */
@@ -61,7 +66,9 @@
 .u1-col header i { width: 8px; height: 8px; border-radius: 50%; }
 .u1-col header .oc-num { margin-left: auto; color: var(--text-secondary); font-weight: 400; }
 .u1-card { display: grid; gap: 3px; padding: var(--space-3); border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: grab; }
-.u1-card.is-selected { border-color: var(--selection-border); box-shadow: inset 0 0 0 1px var(--selection-border); }
+.u1-card { position: relative; }
+.u1-card.is-current { border-color: var(--selection-border); box-shadow: inset 0 0 0 1px var(--selection-border); }
+.u1-card.is-selected { background: var(--selection); }
 /* The same collection mark on board cards. */
 .u1-card__art { position: relative; display: block; }
 .u1-card__art > img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 2px; }
@@ -88,10 +95,10 @@
 .u1-map__note { position: absolute; left: 12px; bottom: 12px; display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: var(--radius-control); background: var(--surface); border: var(--border-w) solid var(--border-divider); font-size: var(--font-size-xs); }
 
 /* Properties panel */
-.u1-info { min-width: 0; min-height: 0; overflow: auto; background: var(--surface); }
-.u1-info--right { border-left: var(--border-w) solid var(--border-divider); }
-.u1-info--bottom { border-top: var(--border-w) solid var(--border-divider); display: grid; grid-template-columns: 260px minmax(0, 1fr); align-items: start; }
-.u1-info--bottom .oc-proplist { columns: 3 220px; }
+.u1-info { min-width: 0; min-height: 0; }
+.u1-info--bottom > .oc-panel__body { display: grid; grid-template-columns: 260px minmax(0, 1fr); align-items: start; }
+.u1-info--bottom .oc-props { columns: 3 260px; column-gap: var(--space-6); }
+.u1-info--bottom .oc-props > * { break-inside: avoid; }
 .u1-info__head { display: grid; gap: var(--space-4); padding: var(--space-5); }
 .u1-info__head > img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 3px; background: var(--photo-bg, #111); }
 .u1-info--bottom .u1-info__head > img { aspect-ratio: 16 / 9; }
