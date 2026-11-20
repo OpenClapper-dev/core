@@ -77,9 +77,21 @@ In the default template of a new project: "Set" on shots (one set) and "Location
 - **No lookup for now.** Finding an address on the map automatically is added later; it would send addresses to an outside service.
 - **Photos still record no position** at capture ([01](01-media.md)).
 
-### Apps
+### First-class file types
 
-Sets and locations are listed by the file browser and open in a window like a shot's (properties, content list). Whether they share one app is a question for the UX workshops.
+Set and Location are built-in file types of the same standing as Shot, not something assembled from generic parts. Only the link between them (the reference field type) is generic.
+
+| A first-class file type has | For sets and locations |
+| --- | --- |
+| Its own icon and colour in the design system | One each, recognisable in every list, chip and tab |
+| An app that opens it | **Set** and **Location**: a window with properties and the content list, as the Shot app has |
+| An entry on the file browser | **Sets** and **Locations**, next to Files, Media and Shots ([09](09-shells.md)), for quick access and "new set", "new location" |
+| A touch form | So that Sets and Locations can be chosen as tabs on a phone or tablet ([09](09-shells.md)) |
+| Room to grow parts of its own | As a shot has its progression |
+
+**They are expected to grow.** A location will get parts that only a location has, for example its facilities (where the camera village, trucks, toilets and catering go), and a set will get its own. Both will matter for call sheets, which do not exist yet. Being built-in types is what allows that: such parts are added to the type, not modelled by each project.
+
+Tier: core.
 
 ## What goes
 
@@ -96,6 +108,8 @@ Locations and spots as today's tables, the location › spot hierarchy, pins "sy
 - **Two built-in file types: Set** (the story place, Motiv) **and Location** (the real place, Drehort), each with properties and a content list.
 - **The names** are Set and Location, the pair used in script breakdowns.
 - **A position field type and a map view are part of the rebuild.** A position is set by a pin or by coordinates; address lookup comes later.
+
+- **Set and Location are first-class file types,** like Shot: their own icons, apps, entries on the file browser and touch forms, and room for parts of their own later (a location's facilities; call sheets).
 
 Taken from the proposal with the above: the reference field type and the two relations (shot → set, set → locations, many-to-many); address as text; no spots.
 

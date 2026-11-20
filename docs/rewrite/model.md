@@ -74,7 +74,7 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 
 | Tier | What |
 | --- | --- |
-| Core | Media (photos, collections), capture, the angle of view and optics math, shots, properties, the canvas, the filesystem (folders, bin, filters), the shells |
+| Core | Media (photos, collections), capture, the angle of view and optics math, shots, sets and locations, properties, the canvas, the filesystem (folders, bin, filters), the shells |
 | Standard apps | Optics presets, timeline and master timeline, camera layouts |
 | Extensions | Hardware (a catalogue of brands, models and types; pairing; the phone as proxy; live picture as a feed) and Flows; enabled per project |
 
