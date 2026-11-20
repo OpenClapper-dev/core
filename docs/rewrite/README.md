@@ -29,7 +29,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 05 | Canvas (was: composition) | [#332](https://github.com/OpenClapper-dev/core/issues/332) | [05-composition.md](05-composition.md) | decided |
 | 06 | Timeline | [#333](https://github.com/OpenClapper-dev/core/issues/333) | [06-timeline.md](06-timeline.md) | decided |
 | 07 | Organisation and filesystem | [#334](https://github.com/OpenClapper-dev/core/issues/334) | [07-organisation.md](07-organisation.md) | decided |
-| 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | 08-extensions.md | not started |
+| 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | [08-extensions.md](08-extensions.md) | open |
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | 09-shells.md | not started |
 | 09a | Places (Motiv, address, geography) | [#352](https://github.com/OpenClapper-dev/core/issues/352) | 09a-places.md | not started |
 | I1 | Interjection after 06: collections, progression, internal files, master timeline | — | [i1-interjection.md](i1-interjection.md) | decided |
