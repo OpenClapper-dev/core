@@ -6,7 +6,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 
 ## Rules of this phase
 
-- **Planning only.** No product code until workshop 10 is approved. The one exception is the design track's step D3 (a new UI package, `packages/design`, proven on a specimen app, `apps/specimen`; the current Studio is not touched because both systems share token names).
+- **Planning only.** No product code until workshop 10 is approved. The exceptions are the design system (`packages/design`) and its specimen app (`apps/specimen`), where the design track's step D3 was built and where the UX workshops build their prototypes; the current Studio is not touched because both systems share token names.
 - **Zero backwards compatibility** in the rebuild. Production data is dropped; the rebuild goes to staging first. Before the production buckets are deleted, the owner downloads `/photos` from the production media bucket.
 - This branch, `rewrite/plan`, is long-lived. Each workshop is a PR into it.
 
@@ -35,7 +35,16 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | I1 | Interjection after 06: collections, progression, internal files, master timeline | — | [i1-interjection.md](i1-interjection.md) | decided |
 | 10 | Conclusion: target model and build plan | [#337](https://github.com/OpenClapper-dev/core/issues/337) | 10-conclusion.md | not started |
 
-Workshops 01–03 are the root of the entanglement and come first; 04–06 build on them; 07–09 depend on a stable block list. After 01–09 a second series of **UX workshops** follows, split along the feature set that came out of them rather than along these topics. They prototype the interface on the design system (static HTML in `mockups/`), feed the design track’s D4 and may reopen a decision. Workshop 10 comes after them.
+Workshops 01–03 are the root of the entanglement and come first; 04–06 build on them; 07–09 depend on a stable block list. After the specification workshops a second series of **UX workshops** follows ([ux-plan.md](ux-plan.md)). They prototype the interface in the specimen app, feed the design track’s D4 and may reopen a decision. Workshop 10 comes after them.
+
+| # | Topic | Issue | Status |
+| --- | --- | --- | --- |
+| U1 | Files and properties | [#357](https://github.com/OpenClapper-dev/core/issues/357) | not started |
+| U2 | Canvas | [#358](https://github.com/OpenClapper-dev/core/issues/358) | not started |
+| U3 | Shot, set, location | [#359](https://github.com/OpenClapper-dev/core/issues/359) | not started |
+| U4 | Timeline | [#360](https://github.com/OpenClapper-dev/core/issues/360) | not started |
+| U5 | Phone and tablet | [#361](https://github.com/OpenClapper-dev/core/issues/361) | not started |
+| U6 | Devices, layouts, extensions | [#362](https://github.com/OpenClapper-dev/core/issues/362) | not started |
 
 Workshop 10 maps every current table, route group, Studio app and phone screen to "kept as", "replaced by" or "deleted".
 
