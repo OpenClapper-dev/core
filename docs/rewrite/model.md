@@ -1,6 +1,6 @@
 # The model so far
 
-The decisions of workshops 00–07 and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-20.
+The decisions of workshops 00–08 and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-20.
 
 ## How things reference each other
 
@@ -44,7 +44,8 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 | Optics preset | Format, multiplier, squeeze, delivery aspect and lenses; changes additively only | Project | [02](02-optics.md) |
 | Property definition | A property defined once and attached to file types | Project, Settings folder | [04](04-shots.md), [07](07-organisation.md) |
 | Naming pattern | How new files of a type are named | Project, Settings folder | [04](04-shots.md) |
-| Device | A phone or tablet (later other cameras), registered automatically | Account home | [03](03-capture.md) |
+| Device | Any registered hardware, with a type: phone and tablet in the core; light, battery, camera, video transmitter from the Hardware extension | Account home | [03](03-capture.md), [08](08-extensions.md) |
+| Flow (extension) | A timed programme that drives the controls of devices | Project | [08](08-extensions.md) |
 | Camera layout | Which controls the camera screen shows, and where | Account home | [03](03-capture.md) |
 
 ## Rules that hold everywhere
@@ -57,6 +58,7 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 - **A render per canvas** is what viewers without a drawing engine show; there are no bakes.
 - **One editor at a time** for a canvas and a timeline.
 - **Apps are hosted:** a file's app offers a viewer, an editor and an inspector that another app (a timeline, a shot window) mounts in place.
+- **Extensions plug in at fixed points** (file types, device types, apps, properties, camera controls, a channel on the one phone link, sync tasks); the core never imports them.
 - **Hard project scope.** No file moves or is shared between projects. Files in an account home follow the person.
 - **The bin** restores a file everywhere it was used.
 - **One file browser** with search, saved filters, and list, grid and board views.
@@ -67,7 +69,7 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 | --- | --- |
 | Core | Media (photos, collections), capture, the angle of view and optics math, shots, properties, the canvas, the filesystem (folders, bin, filters), the shells |
 | Standard apps | Optics presets, timeline and master timeline, camera layouts |
-| Extensions | Lights, flows, camera control, live picture (workshop 08) |
+| Extensions | Hardware (a catalogue of brands, models and types; pairing; the phone as proxy; live picture as a feed) and Flows; enabled per project |
 
 ## Not in the base
 
@@ -75,7 +77,6 @@ Locations, spots, maps, GPS and positions (places workshop, #352), review states
 
 ## Still open
 
-- **08:** extensions.
 - **09:** the shells, the app catalogue, the hosting mechanism in detail, the phone's and tablet's screens.
 - **09a:** places (Motiv, address, geography), [#352](https://github.com/OpenClapper-dev/core/issues/352).
 - **UX workshops**, then **10**.

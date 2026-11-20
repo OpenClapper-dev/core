@@ -42,7 +42,7 @@ Every object a user makes is a **file**, in the sense Linux uses the word. A fil
 | Property definition, naming pattern | See Properties and [04](04-shots.md) | A project's settings folder |
 | Device, camera layout | See [03](03-capture.md) | An account home |
 
-Extensions bring file types of their own (workshop 08).
+Extensions bring file types of their own, such as a flow, and further device types ([08](08-extensions.md)).
 
 ### Two kinds of root
 
