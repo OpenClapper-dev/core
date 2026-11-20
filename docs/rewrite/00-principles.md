@@ -65,7 +65,7 @@ What that means in the code today:
 | --- | --- | --- |
 | Core | Always present; what "the app" is for anyone on a production | Media (photos, collections), capture, the angle of view and optics math, shots, properties, the canvas, organisation (projects, files), the shells |
 | Standard apps | Shipped and visible by default, each removable from the desktop; built only on core | Optics presets, timeline and master timeline, camera layouts |
-| Extensions | Off by default, enabled deliberately; own data and transport | Lights, flows, Blackmagic camera control, live picture; later: custom fields, automations |
+| Extensions | Off by default, enabled per project; own data, own channel on the phone link | Hardware (lights, batteries, cameras, video transmitters), Flows; later: scheduling, automations |
 
 ### Two layers
 
@@ -100,8 +100,7 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Frame** | A rectangle on a photo inside a canvas: an optics frame or an aspect frame ([02](02-optics.md), [05](05-composition.md)) | framing fractions, saved framings |
 | **Canvas** | The file type for drawings, floor plans and photos with marks, looks and frames ([05](05-composition.md)) | sketch, layers on a shot, the Framing stage |
 | **Render** | The flattened image of a canvas ([05](05-composition.md)) | bake |
-| **Device** | A registered piece of capture hardware: a phone or tablet, later other cameras ([03](03-capture.md)) | `devices` (phone specs only) |
-| **Fixture** | A controllable piece of equipment in the lights extension (light, battery) | fixtures; the Studio app is no longer called "Devices" |
+| **Device** | Any registered piece of hardware, with a type: phone and tablet in the core; light, battery, camera, video transmitter in the Hardware extension ([03](03-capture.md), [08](08-extensions.md)) | `devices` (phone specs only), fixtures |
 | **Camera layout** | Which controls the phone's camera screen shows, and where; it doubles as the capture profile ([03](03-capture.md)) | viewfinder layout, capture settings |
 | **Viewfinder** | The built-in camera layout with an optics frame | the whole Shoot screen |
 | **Zoom to frame** | The camera control that enlarges the live picture to the frame | "Fit" button |
@@ -112,15 +111,15 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Placeholder** | A clip without a file | same |
 | **Chapter marker** | A title at the start of a clip that organises a timeline | — |
 | **Master timeline** | The project's one order of timelines ([06](06-timeline.md)) | — |
-| **Flow** | A timed programme that drives fixtures | light sequence |
+| **Flow** | A timed programme that drives the controls of devices; the Flows extension ([08](08-extensions.md)) | light sequence |
 | **Filter** | A saved query over files | `views` / "saved view" |
 | **Workspace** | The tenancy unit: members and roles | same |
 | **Desktop** | One virtual desktop in the Studio | desktop "workspace" |
 | **App** | A program that opens file types | — |
-| **Extension** | A package of apps, data and transport that is off until enabled | — |
+| **Extension** | A first-party package of features that is off until enabled per project: Hardware, Flows ([08](08-extensions.md)) | — |
 | **Light**, **Dark** | The two themes | Sun, Set |
 
-Dropped words: *facet* (it is a property), *rig* and *vignetting* (no equipment for now), *framing* as a saved object (a frame lives in a canvas), *step*, *sequence* and *series* (a shot has a progression; photos have collections), *layer* and *sketch* as file types (parts and uses of a canvas), *block* (a shot with a progression, shown spread), *capture profile* (a camera layout), *bake* (a render), *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (replaced by properties).
+Dropped words: *fixture* (it is a device), *facet* (it is a property), *rig* and *vignetting* (no equipment for now), *framing* as a saved object (a frame lives in a canvas), *step*, *sequence* and *series* (a shot has a progression; photos have collections), *layer* and *sketch* as file types (parts and uses of a canvas), *block* (a shot with a progression, shown spread), *capture profile* (a camera layout), *bake* (a render), *preset* (as a table name), *overlay* (as stored data), *day* (Day planning is deleted), *extra field* (replaced by properties).
 
 ## Open questions
 
@@ -139,3 +138,4 @@ None. The principles and the glossary are a starting point; each workshop detail
 - **Three tiers**: core, standard apps (shipped and visible, removable, built only on core), extensions (off until enabled). Which block sits in which tier is decided in that block's workshop.
 - Reopened by [04](04-shots.md) on 2026-11-19: **Step** is dropped; **Sketch** and layers become one canvas file type (named in 05); extra fields are no longer parked but return as generic **properties** on every file.
 - Changed by [05](05-composition.md) on 2026-11-19: **Canvas** is the one file type for drawings, floor plans and photos with marks, looks and frames; it replaces Sketch and Layer as separate concepts. **Framing** as a saved object on a photo is dropped: a frame lives in a canvas. Composition is core, not a standard app.
+- Changed by [08](08-extensions.md) on 2026-11-20: **Device** is the one word for all registered hardware; **Fixture** is dropped. The earlier decision above (device in the core, fixture in the lights extension) is replaced: the core knows phones and tablets, the Hardware extension adds the other types to the same registry.

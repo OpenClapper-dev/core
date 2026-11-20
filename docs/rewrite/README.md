@@ -29,7 +29,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 05 | Canvas (was: composition) | [#332](https://github.com/OpenClapper-dev/core/issues/332) | [05-composition.md](05-composition.md) | decided |
 | 06 | Timeline | [#333](https://github.com/OpenClapper-dev/core/issues/333) | [06-timeline.md](06-timeline.md) | decided |
 | 07 | Organisation and filesystem | [#334](https://github.com/OpenClapper-dev/core/issues/334) | [07-organisation.md](07-organisation.md) | decided |
-| 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | 08-extensions.md | not started |
+| 08 | Extensions | [#335](https://github.com/OpenClapper-dev/core/issues/335) | [08-extensions.md](08-extensions.md) | decided |
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | 09-shells.md | not started |
 | 09a | Places (Motiv, address, geography) | [#352](https://github.com/OpenClapper-dev/core/issues/352) | 09a-places.md | not started |
 | I1 | Interjection after 06: collections, progression, internal files, master timeline | — | [i1-interjection.md](i1-interjection.md) | decided |
@@ -52,7 +52,7 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 
 ## Decided so far
 
-[model.md](model.md) shows the model of workshops 00–07 in one picture.
+[model.md](model.md) shows the model of workshops 00–08 in one picture.
 
 - Design system: foundation now, patterns later.
 - Production data is dropped; staging first.
@@ -67,4 +67,5 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 - The canvas is one core file type and tool: a blank surface or a base photo, layers, placed pictures, and frames, which live only inside a canvas (no framing on a photo, no Framing app). A render of the whole surface replaces bakes; view modes are never stored; one editor at a time; the tablet uses the embedded editor if the test holds ([05](05-composition.md)).
 - A timeline is an ordered list of clips for deciding; a clip is a reference to any file with a picture (photo, canvas, shot) or a placeholder, plus a hold time, and carries nothing of its own. Files are edited in place by hosting their app (viewer, editor, inspector). A shot with a progression plays it and shows spread or collapsed. Chapter markers organise a timeline, and one master timeline per project orders timelines. No review, no clip notes ([06](06-timeline.md)).
 - Everything is a file: folders and collections, presets, property definitions, devices and camera layouts too. A file has one place in a project or in an account home. Properties are a flat list of typed fields with sections and dependent choices; one file browser offers search, saved filters and list, grid and board views. Places are postponed to workshop 09a ([07](07-organisation.md)).
+- Extensions are first-party, compiled in and enabled per project; they plug in at fixed points and share one phone link through channels. "Device" is the word for all registered hardware. Two extensions: Hardware (catalogue of brands, models and types; live picture is a transmitter's feed) and Flows ([08](08-extensions.md)).
 - Internal files: a file created inside another (a shot's generated canvas, a progression's overlay) is hidden from the file browser and lives with its parent ([I1](i1-interjection.md)).

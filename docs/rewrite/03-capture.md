@@ -90,7 +90,7 @@ Layouts stay customisable as today: made in the Studio's layout editor, previewe
 
 ### Devices
 
-A **device** is a piece of capture hardware in a generic registry. For now the only devices are phones and tablets running the app; the shape leaves room for other cameras later (a DSLR, a 360° camera).
+A **device** is a registered piece of hardware in a generic registry. The core knows phones and tablets running the app; other types (lights, batteries, cameras, video transmitters) are added to the same registry by the Hardware extension ([08](08-extensions.md)), and the shape leaves room for further cameras later (a DSLR, a 360° camera).
 
 | Rule | Detail |
 | --- | --- |
