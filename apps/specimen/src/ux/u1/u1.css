@@ -82,7 +82,9 @@
 .u1-swatches > * { position: relative; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--text-secondary); }
 .u1-swatches > .is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
 .u1-swatches__own { border: var(--border-w) dashed var(--border-control) !important; }
-.u1-swatches__own input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.u1-chooser { display: grid; gap: var(--space-4); }
+.u1-chooser > .oc-color { margin: 0 var(--space-5) var(--space-4); }
+.oc-popover .u1-chooser > .oc-color { margin: 0; }
 .u1-hint { margin: 0; padding: 0 var(--space-5) var(--space-4); color: var(--text-secondary); font-size: var(--font-size-xs); }
 .u1-card > img, .u1-card__blank { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 2px; display: grid; place-items: center; background: var(--surface-sunken); }
 .u1-card__name { display: flex; align-items: center; gap: var(--space-3); font-weight: var(--weight-medium, 500); }
@@ -166,7 +168,7 @@
 .u1p-preview__control { min-width: 0; display: flex; align-items: center; }
 .u1p-preview__control textarea { width: 100%; box-sizing: border-box; }
 .u1p-preview__options { grid-column: 2; display: flex; flex-wrap: wrap; gap: 4px; }
-.oc-popover > .u1-swatches { padding: 0; width: 200px; }
+.oc-popover .u1-swatches { padding: 0; width: 200px; }
 
 /* Edit with AI (round 7) */
 .u1a { width: min(980px, calc(100% - 48px)); height: min(720px, calc(100% - 48px)); }
@@ -204,4 +206,5 @@
 .u1a-plus { background: var(--success-tint, var(--accent-tint)); box-shadow: 0 0 0 1px var(--success, var(--accent)); }
 .u1a-minus { background: var(--danger-tint); box-shadow: 0 0 0 1px var(--danger); text-decoration: line-through; }
 .u1a-cost { grid-column: 2; display: inline-flex; align-items: center; gap: 6px; color: var(--warning, var(--danger)); font-size: var(--font-size-xs); }
+.u1a-gone { margin: 0; color: var(--text-secondary); }
 .u1a-problems { margin: 0; padding-left: 18px; color: var(--danger); }

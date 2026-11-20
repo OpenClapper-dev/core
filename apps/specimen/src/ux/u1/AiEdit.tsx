@@ -8,8 +8,8 @@ import { FILES, TYPES, type FieldType, type FileType } from "./data";
 import { FIELD, FieldPreview, OnIcons, type Def } from "./catalogue";
 
 type Mode = "add" | "change";
-interface Entry { id?: string; name?: string; type?: string; options?: string[]; on?: string[]; section?: string; target?: string; many?: boolean }
-interface Item { key: string; kind: "new" | "changed"; before?: Def; after: Def; changes: Change[]; problems: string[] }
+interface Entry { remove?: boolean; id?: string; name?: string; type?: string; options?: string[]; on?: string[]; section?: string; target?: string; many?: boolean }
+interface Item { key: string; kind: "new" | "changed" | "removed"; before?: Def; after: Def; changes: Change[]; problems: string[] }
 interface Change { what: string; from?: string; to?: string; added?: string[]; removed?: string[]; cost?: string }
 
 const ON: FileType[] = ["shot", "photo", "canvas", "set", "location", "collection", "timeline"];
@@ -24,7 +24,7 @@ Properties are the metadata fields on the project's files: shots, photos, canvas
 TASK
 ${mode === "add"
     ? "Add new properties only. Do not change, rename or repeat a property that already exists."
-    : "Change existing properties where the request asks for it, and add new ones where needed.\nFor a property you change, keep its \"id\" exactly and give the whole property as it should be afterwards.\nLeave out properties you do not touch. Never remove a property; removing is done by hand."}
+    : "Change existing properties where the request asks for it, and add new ones where needed.\nFor a property you change, keep its \"id\" exactly and give the whole property as it should be afterwards.\nLeave out properties you do not touch.\nRemove a property only when the request clearly asks for it, with an entry { \"id\": \"…\", \"remove\": true }."}
 
 REQUEST
 ${request.trim() || "(write here what you need)"}
@@ -55,7 +55,8 @@ const SAMPLE: Record<Mode, string> = {
   change: `[
  { "id": "status", "name": "Status", "type": "choice", "options": ["Planned", "Approved", "On hold"], "on": ["shot", "photo", "canvas", "set"], "section": "This project" },
  { "id": "lens", "name": "Focal length", "type": "number", "on": ["shot"], "section": "Camera" },
- { "name": "Cast", "type": "multi", "options": ["Joe", "Mara", "Conductor"], "on": ["shot"], "section": "Script" }
+ { "name": "Cast", "type": "multi", "options": ["Joe", "Mara", "Conductor"], "on": ["shot"], "section": "Script" },
+ { "id": "angle", "remove": true }
 ]`,
 };
 
@@ -70,6 +71,11 @@ function read(answer: string, mode: Mode, defs: Def[]): { items: Item[]; error: 
   try { const j = JSON.parse(body); if (!Array.isArray(j)) return { items: [], error: "The answer is not a list. It has to start with [ and end with ]." }; list = j; } catch (e) { return { items: [], error: `The answer cannot be read as JSON: ${(e as Error).message}` }; }
   const items = list.map((e, i): Item => {
     const before = e.id ? defs.find((d) => d.id === e.id) : undefined;
+    if (e.remove) {
+      const gone: string[] = !before ? [`It asks to remove a property “${e.id ?? ""}” that does not exist.`] : mode === "add" ? ["It removes a property, but only adding was asked for."] : [];
+      const n = before ? uses(before.id) : 0;
+      return { key: `${i}`, kind: "removed", before, after: before ?? { id: `x-${i}`, name: e.id ?? "Unknown", type: "text", on: [] }, changes: [{ what: "Removed", cost: n ? `${n} ${n === 1 ? "file has" : "files have"} a value. The property goes to the bin with its values; restoring it brings both back.` : "No file has a value. The property goes to the bin and can be restored." }], problems: gone };
+    }
     const problems: string[] = [];
     if (!e.name || typeof e.name !== "string") problems.push("It has no name.");
     if (!e.type || !(e.type in FIELD)) problems.push(`“${e.type ?? ""}” is not a field type.`);
@@ -112,23 +118,24 @@ export default function AiEdit({ defs, onApply, onClose, say }: { defs: Def[]; o
   const { items, error } = read(answer, mode, defs);
   const good = items.filter((i) => !i.problems.length), bad = items.filter((i) => i.problems.length);
   const take = good.filter((i) => !skip.includes(i.key));
-  const changed = good.filter((i) => i.kind === "changed"), fresh = good.filter((i) => i.kind === "new");
+  const changed = good.filter((i) => i.kind === "changed"), fresh = good.filter((i) => i.kind === "new"), removed = good.filter((i) => i.kind === "removed");
   const copy = async () => {
     try { await navigator.clipboard.writeText(prompt); setCopied(true); setTimeout(() => setCopied(false), 2500); }
     catch { const el = document.querySelector<HTMLTextAreaElement>(".u1a-prompt"); el?.focus(); el?.select(); say("The browser did not allow copying: the prompt is selected, press Ctrl+C"); }
   };
   const apply = () => {
     const stamp = Date.now();
-    const next = defs.map((d) => take.find((i) => i.kind === "changed" && i.after.id === d.id)?.after ?? d).concat(take.filter((i) => i.kind === "new").map((i, n) => ({ ...i.after, id: `ai${stamp}${n}` })));
-    const c = take.filter((i) => i.kind === "changed").length, n = take.length - c;
-    onApply(next, [n && `${n} added`, c && `${c} changed`].filter(Boolean).join(", "));
+    const gone = take.filter((i) => i.kind === "removed").map((i) => i.after.id);
+    const next = defs.filter((d) => !gone.includes(d.id)).map((d) => take.find((i) => i.kind === "changed" && i.after.id === d.id)?.after ?? d).concat(take.filter((i) => i.kind === "new").map((i, n) => ({ ...i.after, id: `ai${stamp}${n}` })));
+    const c = take.filter((i) => i.kind === "changed").length, n = take.filter((i) => i.kind === "new").length;
+    onApply(next, [n && `${n} added`, c && `${c} changed`, gone.length && `${gone.length} removed`].filter(Boolean).join(", "));
   };
   const toggle = (key: string) => setSkip(skip.includes(key) ? skip.filter((k) => k !== key) : [...skip, key]);
 
   const card = (i: Item) => (
     <article key={i.key} className={cx("u1a-card", skip.includes(i.key) && "is-skipped")}>
-      <header><Checkbox checked={!skip.includes(i.key)} onChange={() => toggle(i.key)}>{i.kind === "new" ? "Add" : "Apply"}</Checkbox><strong>{i.after.name}</strong><span className="u1a-card__type"><Icon name={FIELD[i.after.type].icon} size={12} /> {FIELD[i.after.type].label}</span><span style={{ flex: 1 }} />{i.after.section && <Badge>{i.after.section}</Badge>}<OnIcons on={i.after.on} /></header>
-      {i.kind === "new" ? <div className="u1a-one"><span className="u1a-cap">As it will appear</span><FieldPreview def={i.after} /></div> : (
+      <header><Checkbox checked={!skip.includes(i.key)} onChange={() => toggle(i.key)}>{i.kind === "new" ? "Add" : i.kind === "removed" ? "Remove" : "Apply"}</Checkbox><strong>{i.after.name}</strong><span className="u1a-card__type"><Icon name={FIELD[i.after.type].icon} size={12} /> {FIELD[i.after.type].label}</span><span style={{ flex: 1 }} />{i.after.section && <Badge>{i.after.section}</Badge>}<OnIcons on={i.after.on} /></header>
+      {i.kind === "removed" ? <><div className="u1a-one"><span className="u1a-cap">Goes away</span><FieldPreview def={i.after} /></div><p className="u1a-cost"><Icon name="warning" size={12} /> {i.changes[0].cost}</p></> : i.kind === "new" ? <div className="u1a-one"><span className="u1a-cap">As it will appear</span><FieldPreview def={i.after} /></div> : (
         <>
           <div className="u1a-ab">
             <div><span className="u1a-cap">Now</span><FieldPreview def={i.before!} /></div>
@@ -156,7 +163,7 @@ export default function AiEdit({ defs, onApply, onClose, say }: { defs: Def[]; o
         <span style={{ flex: 1 }} />
         {step > 1 ? <Button onClick={() => setStep(step - 1)}>Back</Button> : <Button onClick={onClose}>Cancel</Button>}
         {step === 1 && <Button variant="primary" onClick={() => setStep(2)}>Next: paste the answer</Button>}
-        {step === 2 && <Button variant="primary" disabled={!good.length} onClick={() => { setSkip([]); setStep(3); }}>Next: review</Button>}
+        {step === 2 && <Button variant="primary" disabled={!good.length} onClick={() => { setSkip(removed.map((i) => i.key)); setStep(3); }}>Next: review</Button>}
         {step === 3 && <Button variant="primary" disabled={!take.length} onClick={apply}>{take.length ? `Apply ${take.length} ${take.length === 1 ? "property" : "properties"}` : "Nothing to apply"}</Button>}
       </>}>
       {step === 1 && (
@@ -164,7 +171,7 @@ export default function AiEdit({ defs, onApply, onClose, say }: { defs: Def[]; o
           <div className="u1a-col">
             <span className="u1a-cap">What should the AI do?</span>
             <Segmented label="Mode" value={mode} onChange={(v) => { setMode(v as Mode); setAnswer(""); }} options={[{ value: "add", label: "Add properties" }, { value: "change", label: "Change and add" }]} />
-            <p className="u1a-note">{mode === "add" ? "Only new properties come in. Existing ones stay as they are." : "Existing properties may be renamed, retyped, re-attached or get other options, and new ones may come in. You see every change before it happens. Nothing is removed."}</p>
+            <p className="u1a-note">{mode === "add" ? "Only new properties come in. Existing ones stay as they are." : "Existing properties may be renamed, retyped, re-attached or get other options, and new ones may come in. The AI may also propose removing one; a removal is never ticked for you. You see every change before it happens."}</p>
             <span className="u1a-cap">What do you need?</span>
             <TextArea rows={7} value={request} placeholder={mode === "add" ? "For example: fields for cast and page count on shots, and whether a location needs a permit." : "For example: status should also have “On hold” and apply to sets; the lens should be a number."} onInput={(e) => setRequest((e.target as HTMLTextAreaElement).value)} />
             <p className="u1a-note">Your words are put into the prompt on the right, together with the project's {defs.length} properties, so the AI knows what exists.</p>
@@ -182,15 +189,16 @@ export default function AiEdit({ defs, onApply, onClose, say }: { defs: Def[]; o
           <TextArea className="u1a-answer" value={answer} invalid={!!error} placeholder="[ … ]" spellcheck={false} onInput={(e) => setAnswer((e.target as HTMLTextAreaElement).value)} />
           <div className="u1a-row">
             <Button size="sm" variant="quiet" onClick={() => setAnswer(SAMPLE[mode])}>Use a sample answer</Button>
-            {error ? <span className="u1a-bad"><Icon name="warning" size={12} /> {error}</span> : items.length > 0 && <span className="u1a-note">{fresh.length} new{mode === "change" && `, ${changed.length} changed`}{bad.length > 0 && `, ${bad.length} cannot be used`}</span>}
+            {error ? <span className="u1a-bad"><Icon name="warning" size={12} /> {error}</span> : items.length > 0 && <span className="u1a-note">{fresh.length} new{mode === "change" && `, ${changed.length} changed, ${removed.length} to remove`}{bad.length > 0 && `, ${bad.length} cannot be used`}</span>}
           </div>
         </div>
       )}
       {step === 3 && (
         <div className="u1a-review">
-          <p className="u1a-summary"><strong>{mode === "add" ? "Adding" : "Changing and adding"}.</strong> {fresh.length} new{mode === "change" && <>, {changed.length} changed, {defs.length - changed.length} untouched</>}. Untick what you do not want.</p>
+          <p className="u1a-summary"><strong>{mode === "add" ? "Adding" : "Changing and adding"}.</strong> {fresh.length} new{mode === "change" && <>, {changed.length} changed, {removed.length} to remove, {defs.length - changed.length - removed.length} untouched</>}. Untick what you do not want.</p>
           {changed.length > 0 && <><h3>Changed · now and after</h3>{changed.map(card)}</>}
           {fresh.length > 0 && <><h3>New</h3>{fresh.map(card)}</>}
+          {removed.length > 0 && <><h3>Removal proposed · not ticked; tick to remove</h3>{removed.map(card)}</>}
           {bad.length > 0 && <><h3>Cannot be used</h3>{bad.map((i) => <article key={i.key} className="u1a-card is-bad"><header><Icon name="warning" /><strong>{i.after.name}</strong></header><ul className="u1a-problems">{i.problems.map((p) => <li key={p}>{p}</li>)}</ul></article>)}</>}
         </div>
       )}

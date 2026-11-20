@@ -101,7 +101,9 @@ From the owner's reaction to round 6. Code: `AiEdit.tsx`, `catalogue.tsx`.
 
 Nothing is applied before "Apply n properties" in the last step.
 
-Afterwards: every dropdown now uses the design system's own list. The design system's Select had been the browser's native menu; it was rebuilt on the same listbox as the combobox, with the same keyboard handling, and opens upward when there is no room below. The one native control left is the picker behind "a colour of your own".
+Afterwards: every dropdown now uses the design system's own list. The design system's Select had been the browser's native menu; it was rebuilt on the same listbox as the combobox, with the same keyboard handling, and opens upward when there is no room below. The picker behind "a colour of your own" was the last native control; it is now the design system's own colour picker (a field for saturation and brightness, a hue bar, the hex value), opened by the "+" next to the eight colours.
+
+"Change and add" can also propose removing a property. A removal is its own group in the review, never ticked for you, and says how many files have a value; the property would go to the bin with its values.
 
 ## Stand-ins
 
@@ -115,10 +117,7 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 
 ## Questions for the owner
 
-1. Edit with AI: are the two reviews what you had in mind?
-2. Should "Change and add" also be allowed to propose removing a property, shown as a third group that is unticked by default? Now it cannot.
-3. Naming: anything missing?
-4. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
+1. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
 
 ## Decided
 
@@ -142,7 +141,8 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 - **Small file icons are 20 px,** with the glyph centred exactly.
 - **The property catalogue** is one list in sections that can be narrowed by file type. A section is picked from the existing ones or typed new.
 - **Colours are always chosen the same way:** the predefined set plus a picker for any colour, for a collection and for an option alike.
-- **AI edits the catalogue in two modes,** adding only, or changing and adding. Each has its own review: new properties as the inputs they will be; changed ones as now and after, with what the change costs.
+- **AI edits the catalogue in two modes,** adding only, or changing and adding. Each has its own review: new properties as the inputs they will be; changed ones as now and after, with what the change costs. In the second mode the AI may propose removing a property; a removal is never ticked for the user.
+- **The colour picker is the app's own,** not the browser's.
 - **Dropdowns never use the browser's menu;** they use the design system's list.
 - **Tokens in a naming pattern are shown as boxes and validated:** an unknown token, or one that does not apply to the file type, is marked with the reason, and the pattern is not used until it is fixed.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.

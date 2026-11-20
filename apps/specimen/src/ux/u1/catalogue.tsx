@@ -1,6 +1,7 @@
 // Shared pieces of the property catalogue in the U1 prototype: field types, the colour chooser, and a property drawn
 // as the input it will be in the properties panel.
-import { AppIcon, Button, Checkbox, Icon, Popover, Select, TextArea, TextInput, cx, type IconName } from "@openclapper/design";
+import { useState } from "preact/hooks";
+import { AppIcon, Button, Checkbox, ColorPicker, Icon, Popover, Select, TextArea, TextInput, cx, type IconName } from "@openclapper/design";
 import { TYPES, type FieldType, type FileType, type PropDef } from "./data";
 
 export type Colour = number | string;
@@ -15,14 +16,17 @@ export const FIELD: Record<FieldType, { label: string; icon: IconName }> = {
 export const FILE_TYPES: FileType[] = ["photo", "collection", "canvas", "shot", "set", "location", "timeline", "preset", "folder"];
 export const css = (c: Colour | undefined) => (c == null || c === 0 ? "var(--text-secondary)" : typeof c === "number" ? `var(--cat-${c})` : c);
 
-/** The eight predefined colours and a picker for any other. Used for a collection's colour and for an option's. */
+/** The eight predefined colours and, behind "+", the design system's picker for any other. Used for a collection's colour and for an option's. */
 export function Swatches({ value, onChange, label }: { value: Colour | undefined; onChange: (c: Colour) => void; label: string }) {
+  const own = typeof value === "string";
+  const [open, setOpen] = useState(own);
   return (
-    <div className="u1-swatches" role="radiogroup" aria-label={label}>
-      {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <button type="button" key={n} role="radio" aria-checked={value === n} aria-label={`Colour ${n}`} className={cx(value === n && "is-on")} style={{ background: `var(--cat-${n})` }} onClick={() => onChange(n)} />)}
-      <label className={cx("u1-swatches__own", typeof value === "string" && "is-on")} title="A colour of your own" style={{ background: typeof value === "string" ? value : undefined }}>
-        <Icon name="plus" size={12} /><input type="color" aria-label="A colour of your own" value={typeof value === "string" ? value : "#888888"} onInput={(e) => onChange((e.target as HTMLInputElement).value)} />
-      </label>
+    <div className="u1-chooser">
+      <div className="u1-swatches" role="radiogroup" aria-label={label}>
+        {[1, 2, 3, 4, 5, 6, 7, 8].map((n) => <button type="button" key={n} role="radio" aria-checked={value === n} aria-label={`Colour ${n}`} className={cx(value === n && "is-on")} style={{ background: `var(--cat-${n})` }} onClick={() => { onChange(n); setOpen(false); }} />)}
+        <button type="button" role="radio" aria-checked={own} aria-expanded={open} aria-label="A colour of your own" title="A colour of your own" className={cx("u1-swatches__own", own && "is-on")} style={{ background: own ? value : undefined }} onClick={() => setOpen(!open)}>{!own && <Icon name="plus" size={12} />}</button>
+      </div>
+      {open && <ColorPicker value={own ? value : "#4f6bd8"} onChange={onChange} />}
     </div>
   );
 }
