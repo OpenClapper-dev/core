@@ -40,7 +40,7 @@ Workshops 01–03 are the root of the entanglement and come first; 04–06 build
 | # | Topic | Issue | Status |
 | --- | --- | --- | --- |
 | U1 | [Files and properties](ux-1-files.md) | [#357](https://github.com/OpenClapper-dev/core/issues/357) | decided |
-| U2 | Canvas | [#358](https://github.com/OpenClapper-dev/core/issues/358) | not started |
+| U2 | [Canvas](ux-2-canvas.md) | [#358](https://github.com/OpenClapper-dev/core/issues/358) | round 1 built |
 | U3 | Shot, set, location | [#359](https://github.com/OpenClapper-dev/core/issues/359) | not started |
 | U4 | Timeline | [#360](https://github.com/OpenClapper-dev/core/issues/360) | not started |
 | U5 | Phone and tablet | [#361](https://github.com/OpenClapper-dev/core/issues/361) | not started |

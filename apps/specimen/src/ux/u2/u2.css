@@ -1,0 +1,54 @@
+/* Page styles of the UX workshop U2 prototype (the canvas). Layout and prototype-specific pieces only. */
+.u2 { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--text); font: var(--font-size-sm)/1.4 var(--font-sans); }
+.u2-proto { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-3) var(--space-5); background: var(--surface-sunken); border-bottom: var(--border-w) solid var(--border-divider); flex: none; }
+.u2-proto__note { color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); }
+.u2-editor { flex: 1; min-height: 0; }
+.u2-title { padding: 0 var(--space-3); }
+.u2-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+
+/* The stage: the photo (or paper) fitted into the canvas area, frames and ink on top. */
+.u2-fit { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; box-sizing: border-box; container-type: size; }
+.u2-stage { position: relative; width: min(100cqw, 100cqh * 4 / 3); aspect-ratio: 4 / 3; background: var(--photo-bg, #111); touch-action: none; user-select: none; }
+.u2-stage.is-beyond { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
+.u2-stage.is-drawing { cursor: crosshair; }
+.u2-stage--blank { background: #f4f1ea; }
+.u2-photo, .u2-ink { position: absolute; left: 50%; top: 50%; translate: -50% -50%; display: block; }
+.u2-photo { object-fit: fill; pointer-events: none; }
+.u2-ink { pointer-events: none; overflow: visible; }
+.u2-paper { position: absolute; inset: 0; background: #f4f1ea; }
+/* Mask: everything outside the picture is dimmed. */
+.u2-mask { position: absolute; box-shadow: 0 0 0 9999px var(--over-mask, rgba(0, 0, 0, .62)); pointer-events: none; }
+.u2-stage--mask, .u2-stage--crop { overflow: hidden; }
+
+/* A frame: an outline in its colour with a dark edge so it reads on any picture. */
+.u2-frame { position: absolute; box-sizing: border-box; border: 2px solid var(--c); outline: 1px solid rgba(0, 0, 0, .7); cursor: grab; display: grid; place-items: center; }
+.u2-frame.is-current { border-width: 3px; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9); z-index: 2; }
+.u2-frame.is-beyond { border-style: dashed; cursor: default; }
+.u2-frame__label { position: absolute; left: -2px; top: -2px; translate: 0 -100%; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--c); color: #fff; font: 700 11px/1.5 var(--font-mono); white-space: nowrap; }
+.u2-frame__inner { box-sizing: border-box; border: 1px dashed var(--c); display: grid; place-items: end; pointer-events: none; }
+.u2-frame__inner > span { padding: 0 4px; background: var(--c); color: #fff; font: 700 10px/1.4 var(--font-mono); }
+.u2-stage--crop .u2-frame, .u2-stage--mask .u2-frame:not(.is-current) { border-color: transparent; outline-color: transparent; }
+.u2-stage--crop .u2-frame__label, .u2-stage--crop .u2-frame__inner { display: none; }
+
+/* Inspector pieces */
+.u2-frames { list-style: none; margin: 0; padding: 0 var(--space-3); display: grid; gap: 1px; }
+.u2-frames li { display: flex; align-items: center; gap: var(--space-3); min-height: 34px; padding: 2px var(--space-3); border: var(--border-w) solid transparent; border-radius: var(--radius-control); cursor: pointer; }
+.u2-frames li:hover { background: var(--surface-hover); }
+.u2-frames li.is-current { border-color: var(--selection-border); background: var(--selection); }
+.u2-frames li > i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.u2-frames__name { flex: 1; min-width: 0; display: grid; font-weight: var(--weight-medium, 500); }
+.u2-frames__name small { color: var(--text-secondary); font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u2-frames + .oc-menu-host { margin: var(--space-3) var(--space-5); }
+.u2-dots { display: inline-flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.u2-dots button { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(128, 128, 128, .6); }
+.u2-dots button.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.u2-chips { display: inline-flex; gap: 4px; }
+.u2-chips--wrap { flex-wrap: wrap; }
+.u2-chips button { min-width: 34px; height: 24px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.u2-chips button:hover { border-color: var(--text); }
+.u2-chips button.is-on { border-color: var(--accent); background: var(--accent); color: var(--text-on-accent, #fff); font-weight: 700; }
+.u2-zoom { display: flex; align-items: center; gap: var(--space-4); width: 100%; }
+.u2-zoom .oc-slider, .u2-zoom input { flex: 1; min-width: 0; }
+.u2-zoom b { flex: none; min-width: 52px; text-align: right; }
+.u2-layer { display: flex; align-items: center; gap: var(--space-4); min-height: 28px; padding: 0 var(--space-5); }
+.u2-layer .oc-meta { flex: 1; }

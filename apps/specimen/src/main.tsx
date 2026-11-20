@@ -7,6 +7,7 @@ import Desktop from "./kits/Desktop";
 import Layouts from "./kits/Layouts";
 import Phone from "./kits/Phone";
 import U1Browser from "./ux/u1/Browser";
+import U2Canvas from "./ux/u2/Canvas";
 
 const KITS = [
   { id: "desktop", name: "Assembled desktop", Component: Desktop },
@@ -16,6 +17,7 @@ const KITS = [
 // Prototypes of the rewrite's UX workshops (docs/rewrite/ux-plan.md): clickable, on fake data.
 const UX = [
   { id: "u1", name: "U1 · Files and properties", Component: U1Browser },
+  { id: "u2", name: "U2 · Canvas", Component: U2Canvas },
 ];
 const GROUPS = [...new Set(CARDS.map((c) => c.group))];
 
