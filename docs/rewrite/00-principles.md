@@ -86,12 +86,14 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 
 | Term | Meaning | Replaces |
 | --- | --- | --- |
-| **File** | An object the user made, of one project, with properties | — |
+| **File** | Every object a user makes: it has a type, properties, one place in a tree and an app that opens it ([07](07-organisation.md)) | "apps, not files" |
+| **Folder** | A file that contains any files and nests | — |
+| **Account home** | A person's own root, next to the project roots, for files that follow them (devices, camera layouts) | — |
 | **Property** | A piece of metadata on a file: a system property, a fact of its file type, or one the project defines ([04](04-shots.md)) | tags, extra fields, "facet" |
 | **Internal file** | A file created inside another file and bound to it ([I1](i1-interjection.md)) | — |
 | **Photo** | A still image in the media library, taken with the app or imported. Complete on its own ([01](01-media.md)) | photo as part of a shot |
 | **Media library** | All photos of a project | — |
-| **Collection** | Photos that belong together; a photo is in at most one ([01](01-media.md)) | capture sequence |
+| **Collection** | A file that contains only photos that belong together; a photo is in at most one ([01](01-media.md), [07](07-organisation.md)) | capture sequence |
 | **Angle of view** | What a picture sees, horizontally and vertically ([02](02-optics.md)) | rig snapshot, FOV |
 | **Optics** | The generic factors that give an angle of view: format, multiplier, squeeze, focal length, orientation ([02](02-optics.md)) | rig snapshot, `lens_mm` |
 | **Optics preset** | A saved, fixed set of those factors with its lenses ([02](02-optics.md)) | rig, `presets` |
@@ -114,7 +116,7 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Filter** | A saved query over files | `views` / "saved view" |
 | **Workspace** | The tenancy unit: members and roles | same |
 | **Desktop** | One virtual desktop in the Studio | desktop "workspace" |
-| **Folder**, **App** | A container for files; a program that opens file types | — |
+| **App** | A program that opens file types | — |
 | **Extension** | A package of apps, data and transport that is off until enabled | — |
 | **Light**, **Dark** | The two themes | Sun, Set |
 

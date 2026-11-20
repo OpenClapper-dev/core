@@ -84,7 +84,7 @@ A photo has no default frame. A canvas marks which of its frames is the picture 
 
 ### Optics preset
 
-An **optics preset** is a named, complete description of a camera with its lenses. It belongs to one project.
+An **optics preset** is a named, complete description of a camera with its lenses. It belongs to one project and is a file there ([07](07-organisation.md)).
 
 | Part | Content | After creation |
 | --- | --- | --- |

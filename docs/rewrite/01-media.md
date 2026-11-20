@@ -77,7 +77,7 @@ A **collection** is a set of photos of one project that belong together. It has 
 - To have the same picture in two collections, the photo is duplicated: a new photo with its own identity. The stored image can be shared, so a duplicate costs no storage.
 - Its order is by time taken, or set by hand, and matters only in the media library.
 - Nothing references a collection. Dropping one into a progression or a timeline adds the photos chosen from it as separate items.
-- Whether a collection is simply a folder of photos that the camera can create is checked in workshop 07.
+- A collection is a file, like a folder: a folder contains any files and nests, a collection contains only photos and does not nest ([07](07-organisation.md)).
 
 ## Links
 

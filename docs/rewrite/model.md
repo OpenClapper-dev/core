@@ -1,6 +1,6 @@
 # The model so far
 
-The decisions of workshops 00–06 and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-19.
+The decisions of workshops 00–07 and the [interjection](i1-interjection.md) in one picture. This page decides nothing; where it differs from a workshop page, the workshop page is right. Updated 2026-11-20.
 
 ## How things reference each other
 
@@ -24,7 +24,7 @@ An arrow means "points at". Nothing points at a collection, and a photo points a
 
 ## Files
 
-A file belongs to exactly one project and has properties: the fixed system ones (name, type, created, updated, created by), the facts of its type, and whatever the project defines.
+Everything a user makes is a file ([07](07-organisation.md)). A file belongs to one root (a project, or an account home), sits in one container (a folder or, for photos, a collection) and has properties: the fixed system ones (name, type, created, updated, created by), the facts of its type, those an app provides, and whatever the project defines.
 
 | File type | What it is | Holds | Decided in |
 | --- | --- | --- | --- |
@@ -34,18 +34,18 @@ A file belongs to exactly one project and has properties: the fixed system ones 
 | Timeline | A rough cut for deciding | Clips (picture, shot, placeholder) and chapter markers | [06](06-timeline.md) |
 | Master timeline | The project's one order of timelines | An ordered list of timelines | [06](06-timeline.md) |
 
-## Other objects
+## More file types
 
-| Object | What it is | Belongs to | Decided in |
+| File type | What it is | Root | Decided in |
 | --- | --- | --- | --- |
-| Collection | Photos that belong together; a photo is in at most one | Project | [I1](i1-interjection.md) |
+| Folder | Contains any files; nests | Project or account home | [07](07-organisation.md) |
+| Collection | Contains only photos; a photo is in at most one | Project | [I1](i1-interjection.md), [07](07-organisation.md) |
+| Filter | A saved query over files | Project | [07](07-organisation.md) |
 | Optics preset | Format, multiplier, squeeze, delivery aspect and lenses; changes additively only | Project | [02](02-optics.md) |
-| Property definition | A property defined once and attached to file types | Project | [04](04-shots.md) |
-| Naming pattern | How new files of a type are named | Project | [04](04-shots.md) |
-| Device | A phone or tablet (later other cameras), registered automatically | Account | [03](03-capture.md) |
-| Camera layout | Which controls the camera screen shows, and where | Account | [03](03-capture.md) |
-
-Whether these are files in the filesystem is workshop 07.
+| Property definition | A property defined once and attached to file types | Project, Settings folder | [04](04-shots.md), [07](07-organisation.md) |
+| Naming pattern | How new files of a type are named | Project, Settings folder | [04](04-shots.md) |
+| Device | A phone or tablet (later other cameras), registered automatically | Account home | [03](03-capture.md) |
+| Camera layout | Which controls the camera screen shows, and where | Account home | [03](03-capture.md) |
 
 ## Rules that hold everywhere
 
@@ -57,23 +57,25 @@ Whether these are files in the filesystem is workshop 07.
 - **A render per canvas** is what viewers without a drawing engine show; there are no bakes.
 - **One editor at a time** for a canvas and a timeline.
 - **Apps are hosted:** a file's app offers a viewer, an editor and an inspector that another app (a timeline, a shot window) mounts in place.
-- **Hard project scope.** No file moves or is shared between projects.
+- **Hard project scope.** No file moves or is shared between projects. Files in an account home follow the person.
+- **The bin** restores a file everywhere it was used.
+- **One file browser** with search, saved filters, and list, grid and board views.
 
 ## Tiers
 
 | Tier | What |
 | --- | --- |
-| Core | Media (photos, collections), capture, the angle of view and optics math, shots, properties, the canvas, the shells |
+| Core | Media (photos, collections), capture, the angle of view and optics math, shots, properties, the canvas, the filesystem (folders, bin, filters), the shells |
 | Standard apps | Optics presets, timeline and master timeline, camera layouts |
 | Extensions | Lights, flows, camera control, live picture (workshop 08) |
 
 ## Not in the base
 
-GPS and positions, review states, fixed tags, rigs and equipment, vignetting, steps, bakes, clip-owned edits, day planning, digital zoom, capturing into a shot (deferred).
+Locations, spots, maps, GPS and positions (places workshop, #352), review states, fixed tags, rigs and equipment, vignetting, steps, bakes, clip-owned edits, day planning, digital zoom, capturing into a shot (deferred).
 
 ## Still open
 
-- **07:** the filesystem (which objects are files, folders, the bin, internal files, collection versus folder), the property catalogue and default templates, naming patterns, locations, filters.
 - **08:** extensions.
 - **09:** the shells, the app catalogue, the hosting mechanism in detail, the phone's and tablet's screens.
+- **09a:** places (Motiv, address, geography), [#352](https://github.com/OpenClapper-dev/core/issues/352).
 - **UX workshops**, then **10**.

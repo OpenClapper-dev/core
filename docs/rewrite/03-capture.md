@@ -96,7 +96,7 @@ A **device** is a piece of capture hardware in a generic registry. For now the o
 | --- | --- |
 | Registered automatically | On first use the app creates the record and keeps it current: model, real lenses with their reported focal lengths, screen size per orientation. Named after the model; can be renamed |
 | One record per piece of hardware | The record is tied to a fingerprint of the hardware, not to its name or model, so two phones of the same model are two devices and a reinstall finds its record again. On Android the candidate is the system's `ANDROID_ID` (stable across reinstalls, new after a factory reset, different per signing key, so each build variant sees its own); what else can serve, and what tablets and later iOS offer, is a build task |
-| Owned by the account | A device belongs to the person using it and follows them across projects |
+| Owned by the account | A device belongs to the person using it and follows them across projects. It is a file in the account home, like camera layouts ([07](07-organisation.md)) |
 | Photos reference it | The photo's capture device ([01](01-media.md)) references the device and keeps its own readout (make, model, lens used), so the photo reads correctly for other members and after the device is removed. An imported photo carries a readout from its EXIF and no device |
 
 ### Import on the phone
