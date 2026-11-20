@@ -79,7 +79,7 @@ Three of these went into the design system (`packages/design`), not only the pro
 | New property | Starts as a text property on the file type the list is narrowed to |
 | Import with AI | The button opens three steps: copy the prompt, paste the answer ("Use a sample answer" fills one in), check what comes in, import |
 | Provided by apps and extensions | The reserved fourth kind: an empty group with its explanation |
-| Naming patterns | A pattern and a number of digits per file type, with the name the next file will get; the tokens are listed above the table |
+| Naming patterns | A pattern and a number of digits per file type, with the name the next file will get. Every token in a pattern sits in a box: accent-coloured when it exists, red and underlined when it does not (type `{ddd}`) or does not apply to the file type (`{device}` on a shot), with the reason underneath; such a pattern is not in use until it is fixed. Clicking a token in the legend puts it into the pattern being edited, at the caret |
 | Extensions | Hardware and Flows as switches; Flows needs Hardware; switching Hardware off switches Flows off too |
 | General | The project's name and its fixed folders |
 
@@ -98,7 +98,7 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 1. The catalogue as one list in sections, narrowed by file type: right, or would you rather start from a file type and see its properties?
 2. Options get their colour by clicking through the eight: enough, or the same chooser as for a collection's colour?
 3. Is the AI import in three steps clear?
-4. Naming: a pattern plus a number of digits. Anything missing?
+4. Naming: a pattern plus a number of digits, with tokens boxed and checked. Anything missing?
 5. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
 
 ## Decided
@@ -121,4 +121,5 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 - **Panels are resizable** by dragging, within a minimum and a maximum.
 - **Scrollbars have the app's own design.**
 - **Small file icons are 20 px,** with the glyph centred exactly.
+- **Tokens in a naming pattern are shown as boxes and validated:** an unknown token, or one that does not apply to the file type, is marked with the reason, and the pattern is not used until it is fixed.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.

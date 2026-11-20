@@ -34,6 +34,28 @@ type Section = "general" | "properties" | "names" | "extensions";
 const PATTERNS: Record<string, { pattern: string; digits: number; next: number }> = { photo: { pattern: "{type} {counter}", digits: 4, next: 145 }, shot: { pattern: "{type} {counter}", digits: 2, next: 11 }, canvas: { pattern: "{type} {counter}", digits: 2, next: 6 }, collection: { pattern: "{date} {type} {counter}", digits: 1, next: 3 }, set: { pattern: "{type} {counter}", digits: 1, next: 5 }, location: { pattern: "{type} {counter}", digits: 1, next: 5 }, timeline: { pattern: "Cut {counter}", digits: 1, next: 3 } };
 const nameFor = (t: FileType, p: { pattern: string; digits: number; next: number }) => p.pattern.replace("{type}", TYPES[t].label).replace("{counter}", String(p.next).padStart(p.digits, "0")).replace("{date}", "2026-11-20").replace("{time}", "14:32").replace("{device}", "Pixel 9 Pro").replace("{focal}", "24 mm");
 
+const TOKENS = ["type", "counter", "date", "time", "device", "focal"];
+const PHOTO_ONLY = ["device", "focal"];
+/** What is wrong with a token on a file type, or null when it is fine. */
+const tokenProblem = (token: string, t: FileType) => (!TOKENS.includes(token) ? `{${token}} is not a token.` : PHOTO_ONLY.includes(token) && t !== "photo" ? `{${token}} only works on photos.` : null);
+const check = (t: FileType, pattern: string) => [...new Set([...pattern.matchAll(/\{([^{}]*)\}/g)].map((m) => tokenProblem(m[1], t)).filter((m): m is string => !!m))];
+
+/**
+ * A pattern field that shows its tokens: each {token} sits in a box, in the accent colour when it exists and in the
+ * danger colour, underlined, when it does not (or does not apply to this file type). The boxes are drawn behind a
+ * transparent input, so typing and the caret behave as in any text field.
+ */
+function PatternInput({ value, type, label, onChange, onFocus }: { value: string; type: FileType; label: string; onChange: (v: string) => void; onFocus: () => void }) {
+  const parts = value.split(/(\{[^{}]*\})/g).filter((x) => x !== "");
+  const bad = check(type, value).length > 0;
+  return (
+    <span className={cx("u1p-pattern", bad && "is-bad")}>
+      <span className="u1p-pattern__back" aria-hidden="true">{parts.map((x, n) => (/^\{[^{}]*\}$/.test(x) ? <mark key={n} className={cx(tokenProblem(x.slice(1, -1), type) && "is-bad")}>{x}</mark> : <span key={n}>{x}</span>))}</span>
+      <input data-pattern={type} value={value} aria-label={label} aria-invalid={bad || undefined} spellcheck={false} onFocus={onFocus} onInput={(e) => onChange((e.target as HTMLInputElement).value)} />
+    </span>
+  );
+}
+
 export default function ProjectApp({ say }: { say: (m: string) => void }) {
   const [section, setSection] = useState<Section>("properties");
   const [defs, setDefs] = useState<Def[]>(PROPS);
@@ -44,6 +66,14 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
   const [patterns, setPatterns] = useState(PATTERNS);
   const [ext, setExt] = useState({ hardware: true, flows: false });
   const [name, setName] = useState("Nachtzug");
+  const [editing, setEditing] = useState<FileType>("photo");
+  /** Put a token into the pattern that was last edited, at the caret. */
+  const insert = (token: string) => {
+    const el = document.querySelector<HTMLInputElement>(`input[data-pattern="${editing}"]`), at = el?.selectionStart ?? patterns[editing].pattern.length, end = el?.selectionEnd ?? at;
+    const p = patterns[editing].pattern, text = `{${token}}`;
+    setPatterns({ ...patterns, [editing]: { ...patterns[editing], pattern: p.slice(0, at) + text + p.slice(end) } });
+    requestAnimationFrame(() => { el?.focus(); el?.setSelectionRange(at + text.length, at + text.length); });
+  };
 
   const def = defs.find((d) => d.id === open) ?? null;
   const patch = (id: string, change: Partial<Def>) => setDefs(defs.map((d) => (d.id === id ? { ...d, ...change } : d)));
@@ -135,19 +165,23 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
   );
 
   const names = (
-    <div className="u1p-page">
+    <div className="u1p-page u1p-page--wide">
       <p className="u1p-lead">Every new file gets a name from its type's pattern. Names can be changed afterwards and need not be unique.</p>
-      <div className="u1p-tokens">Tokens: {["{type}", "{counter}", "{date}", "{time}", "{device}", "{focal}"].map((t) => <code key={t}>{t}</code>)}<span>· device and focal length on photos only</span></div>
+      <div className="u1p-tokens">Tokens, click one to put it into the pattern you are editing: {TOKENS.map((t) => <button type="button" key={t} className="u1p-token" onMouseDown={(e) => e.preventDefault()} onClick={() => insert(t)}>{`{${t}}`}</button>)}<span>· device and focal only on photos</span></div>
       <div className="u1p-names">
         <div className="u1p-names__head"><span>File type</span><span>Pattern</span><span>Digits</span><span>Next file is named</span></div>
-        {(Object.keys(patterns) as FileType[]).map((t) => (
-          <div key={t} className="u1p-names__row">
-            <span className="u1p-names__type"><AppIcon glyph={TYPES[t].glyph} color={TYPES[t].color} size={20} />{TYPES[t].label}</span>
-            <TextInput size="sm" value={patterns[t].pattern} onInput={(e) => setPatterns({ ...patterns, [t]: { ...patterns[t], pattern: (e.target as HTMLInputElement).value } })} />
-            <Select size="sm" value={String(patterns[t].digits)} onChange={(v) => setPatterns({ ...patterns, [t]: { ...patterns[t], digits: Number(v) } })} options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))} />
-            <strong>{nameFor(t, patterns[t])}</strong>
-          </div>
-        ))}
+        {(Object.keys(patterns) as FileType[]).map((t) => {
+          const problems = check(t, patterns[t].pattern);
+          return (
+            <div key={t} className="u1p-names__row">
+              <span className="u1p-names__type"><AppIcon glyph={TYPES[t].glyph} color={TYPES[t].color} size={20} />{TYPES[t].label}</span>
+              <PatternInput value={patterns[t].pattern} type={t} label={`Pattern for ${TYPES[t].plural.toLowerCase()}`} onFocus={() => setEditing(t)} onChange={(v) => setPatterns({ ...patterns, [t]: { ...patterns[t], pattern: v } })} />
+              <Select size="sm" value={String(patterns[t].digits)} onChange={(v) => setPatterns({ ...patterns, [t]: { ...patterns[t], digits: Number(v) } })} options={[1, 2, 3, 4, 5].map((n) => ({ value: String(n), label: String(n) }))} />
+              {problems.length ? <span className="u1p-names__off"><Icon name="warning" size={12} /> Not in use until the pattern is fixed</span> : <strong>{nameFor(t, patterns[t])}</strong>}
+              {problems.map((m) => <p key={m} className="u1p-names__problem">{m}</p>)}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
