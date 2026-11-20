@@ -38,7 +38,9 @@
 .u1-tile__dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--coll); }
 .u1-tile--barleft .u1-tile__art::after { content: ""; position: absolute; top: 0; bottom: 0; left: -5px; width: 3px; border-radius: 2px; background: var(--coll); }
 .u1-tile--barleft .u1-tile__art { margin-left: 5px; }
-.u1-tile--frame .u1-tile__art { outline: 4px solid var(--coll); outline-offset: 1px; margin: 4px; }
+.u1-tile--frame .u1-tile__art { outline: 2px solid var(--coll); outline-offset: 1px; margin: 3px; }
+/* Frame on a stack: the tiles behind are drawn in the collection's colour too, so the stack reads as one coloured pile. */
+.u1-tile--frame.is-stack .u1-tile__art { margin: 12px 12px 3px 3px; box-shadow: 5px -5px 0 1px var(--surface), 5px -5px 0 3px var(--coll), 9px -9px 0 1px var(--surface), 9px -9px 0 3px var(--coll); }
 .u1-tile__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium, 500); }
 .u1-tile__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: var(--font-size-xs); }
 
@@ -67,7 +69,7 @@
 .u1-card--bar .u1-card__art::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; border-radius: 2px; background: var(--coll); }
 .u1-card--barleft .u1-card__art { margin-left: 5px; }
 .u1-card--barleft .u1-card__art::after { content: ""; position: absolute; top: 0; bottom: 0; left: -5px; width: 3px; border-radius: 2px; background: var(--coll); }
-.u1-card--frame .u1-card__art { outline: 4px solid var(--coll); outline-offset: 1px; margin: 5px; }
+.u1-card--frame .u1-card__art { outline: 2px solid var(--coll); outline-offset: 1px; margin: 3px; }
 /* Choosing a collection's colour: the eight categorical colours, or one of the user's own. */
 .u1-swatches { display: flex; flex-wrap: wrap; gap: 6px; padding: var(--space-3) var(--space-5); }
 .u1-swatches > * { position: relative; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--text-secondary); }

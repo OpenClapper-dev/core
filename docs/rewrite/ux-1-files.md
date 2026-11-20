@@ -50,7 +50,7 @@ From the owner's reaction to round 1:
 | --- | --- |
 | The mark is a personal preference | "Collection mark" in the top bar stands for a setting of the account: bar (the default), dot or frame |
 | The bar can sit below or to the left | With "Bar" chosen, a second switch: Bottom (the default) or Left |
-| A thicker frame | Choose "Frame" |
+| The frame | Choose "Frame": a thin coloured outline. On a stacked collection the tiles behind are drawn in the collection's colour too (round 4, the owner's idea, replacing the thicker frame tried first) |
 | The mark on the board | Media → board: every photo of a collection carries its collection's mark and names the collection. The board always shows single photos, because a property is set per photo |
 | Choosing a collection's colour | Select a collection (Media, grid): the panel has a Colour section with the eight colours and a "+" for a colour of one's own. The change shows at once on the tile and on its photos |
 
@@ -66,8 +66,7 @@ The Project app (property editor, AI import, naming patterns, extensions), creat
 
 ## Questions for the owner
 
-1. Does the scrubbing feel right?
-2. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
+1. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
 
 ## Decided
 
@@ -83,4 +82,6 @@ The Project app (property editor, AI import, naming patterns, extensions), creat
 
 - **How the mark is drawn is a personal preference** of the account ([09](09-shells.md)): a bar (the default), a dot or a frame. The bar sits below the picture (the default) or to its left.
 - **The mark shows wherever photos of a collection appear singly,** also on the board.
+- **Scrubbing** a stacked collection stays as built.
+- **The frame mark is thin;** on a stacked collection the tiles behind it take the collection's colour.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.
