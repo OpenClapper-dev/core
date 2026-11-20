@@ -208,3 +208,10 @@
 .u1a-cost { grid-column: 2; display: inline-flex; align-items: center; gap: 6px; color: var(--warning, var(--danger)); font-size: var(--font-size-xs); }
 .u1a-gone { margin: 0; color: var(--text-secondary); }
 .u1a-problems { margin: 0; padding-left: 18px; color: var(--danger); }
+/* Naming patterns in the AI review: a pattern shown with its boxed tokens, and the name it gives */
+.u1p-patternview { font: var(--font-size-sm)/1.9 var(--font-mono); white-space: pre-wrap; }
+.u1p-patternview mark { background: var(--accent-tint); color: inherit; border-radius: 3px; box-shadow: 0 0 0 1px var(--accent); }
+.u1p-patternview mark.is-bad { background: var(--danger-tint); box-shadow: 0 0 0 1px var(--danger); text-decoration: underline wavy var(--danger); text-underline-offset: 3px; }
+.u1a-name { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u1a-name strong { color: var(--text); font-size: var(--font-size-sm); }
+.u1a-problems--quiet { color: var(--text-secondary); }

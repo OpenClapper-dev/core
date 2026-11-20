@@ -105,6 +105,18 @@ Afterwards: every dropdown now uses the design system's own list. The design sys
 
 "Change and add" can also propose removing a property. A removal is its own group in the review, never ticked for you, and says how many files have a value; the property would go to the bin with its values.
 
+## Round 8 (2026-11-20): Edit with AI for naming patterns
+
+The same three steps as for properties, on the Naming patterns page ("Edit with AI…" next to the tokens). Code: `AiNames.tsx`, `naming.tsx`.
+
+| Step | What it does |
+| --- | --- |
+| Ask | The prompt is built from the request, the tokens that exist with what each stands for and which work on photos only, and the patterns as they are now |
+| Paste the answer | "Use a sample answer" fills in one with two usable changes and two that cannot be used |
+| Review | Each changed pattern **now and after**, with its tokens in boxes and the name the next file would get; a change of digits is listed. A pattern with a token that does not exist, or one that does not apply to the file type, is shown under "Cannot be used" with the reason and cannot be ticked. Unchanged patterns and unknown file types are listed as left out |
+
+Files that exist keep their names; a pattern applies to files made from then on.
+
 ## Stand-ins
 
 - **Pictures** are generated placeholders. Real example photos are still to come ([02](02-optics.md)).
@@ -143,6 +155,7 @@ Creating and saving a filter, the "new" flows, context menus, drag and drop betw
 - **Colours are always chosen the same way:** the predefined set plus a picker for any colour, for a collection and for an option alike.
 - **AI edits the catalogue in two modes,** adding only, or changing and adding. Each has its own review: new properties as the inputs they will be; changed ones as now and after, with what the change costs. In the second mode the AI may propose removing a property; a removal is never ticked for the user.
 - **The colour picker is the app's own,** not the browser's.
+- **Naming patterns can be edited with AI** in the same three steps, with a now-and-after review.
 - **Dropdowns never use the browser's menu;** they use the design system's list.
 - **Tokens in a naming pattern are shown as boxes and validated:** an unknown token, or one that does not apply to the file type, is marked with the reason, and the pattern is not used until it is fixed.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.

@@ -7,43 +7,21 @@ import {
 import { PROPS, TYPES, type FieldType, type FileType } from "./data";
 import { ColourButton, FIELD, FILE_TYPES, OnIcons, type Def } from "./catalogue";
 import AiEdit from "./AiEdit";
+import AiNames from "./AiNames";
+import { PATTERNS, PatternInput, TOKENS, check, nameFor } from "./naming";
 
 /** Read-only properties every file has, and the facts each file type brings. Listed so the catalogue shows the whole picture. */
 const SYSTEM = ["Name", "Type", "Created", "Updated", "Created by"];
 const FACTS: Partial<Record<FileType, string[]>> = { photo: ["Size", "Taken", "Angle of view", "Lens", "Device", "Frame on screen", "EXIF"], canvas: ["Surface", "Frames", "Layers"], timeline: ["Clips", "Length"], preset: ["Format", "Lenses", "Delivery"], collection: ["Photos", "Colour"] };
 
 type Section = "general" | "properties" | "names" | "extensions";
-const PATTERNS: Record<string, { pattern: string; digits: number; next: number }> = { photo: { pattern: "{type} {counter}", digits: 4, next: 145 }, shot: { pattern: "{type} {counter}", digits: 2, next: 11 }, canvas: { pattern: "{type} {counter}", digits: 2, next: 6 }, collection: { pattern: "{date} {type} {counter}", digits: 1, next: 3 }, set: { pattern: "{type} {counter}", digits: 1, next: 5 }, location: { pattern: "{type} {counter}", digits: 1, next: 5 }, timeline: { pattern: "Cut {counter}", digits: 1, next: 3 } };
-const nameFor = (t: FileType, p: { pattern: string; digits: number; next: number }) => p.pattern.replace("{type}", TYPES[t].label).replace("{counter}", String(p.next).padStart(p.digits, "0")).replace("{date}", "2026-11-20").replace("{time}", "14:32").replace("{device}", "Pixel 9 Pro").replace("{focal}", "24 mm");
-
-const TOKENS = ["type", "counter", "date", "time", "device", "focal"];
-const PHOTO_ONLY = ["device", "focal"];
-/** What is wrong with a token on a file type, or null when it is fine. */
-const tokenProblem = (token: string, t: FileType) => (!TOKENS.includes(token) ? `{${token}} is not a token.` : PHOTO_ONLY.includes(token) && t !== "photo" ? `{${token}} only works on photos.` : null);
-const check = (t: FileType, pattern: string) => [...new Set([...pattern.matchAll(/\{([^{}]*)\}/g)].map((m) => tokenProblem(m[1], t)).filter((m): m is string => !!m))];
-
-/**
- * A pattern field that shows its tokens: each {token} sits in a box, in the accent colour when it exists and in the
- * danger colour, underlined, when it does not (or does not apply to this file type). The boxes are drawn behind a
- * transparent input, so typing and the caret behave as in any text field.
- */
-function PatternInput({ value, type, label, onChange, onFocus }: { value: string; type: FileType; label: string; onChange: (v: string) => void; onFocus: () => void }) {
-  const parts = value.split(/(\{[^{}]*\})/g).filter((x) => x !== "");
-  const bad = check(type, value).length > 0;
-  return (
-    <span className={cx("u1p-pattern", bad && "is-bad")}>
-      <span className="u1p-pattern__back" aria-hidden="true">{parts.map((x, n) => (/^\{[^{}]*\}$/.test(x) ? <mark key={n} className={cx(tokenProblem(x.slice(1, -1), type) && "is-bad")}>{x}</mark> : <span key={n}>{x}</span>))}</span>
-      <input data-pattern={type} value={value} aria-label={label} aria-invalid={bad || undefined} spellcheck={false} onFocus={onFocus} onInput={(e) => onChange((e.target as HTMLInputElement).value)} />
-    </span>
-  );
-}
-
 export default function ProjectApp({ say }: { say: (m: string) => void }) {
   const [section, setSection] = useState<Section>("properties");
   const [defs, setDefs] = useState<Def[]>(PROPS);
   const [open, setOpen] = useState<string | null>("status");
   const [scope, setScope] = useState("all");
   const [ai, setAi] = useState(false);
+  const [aiNames, setAiNames] = useState(false);
   const [patterns, setPatterns] = useState(PATTERNS);
   const [ext, setExt] = useState({ hardware: true, flows: false });
   const [name, setName] = useState("Nachtzug");
@@ -142,7 +120,7 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
   const names = (
     <div className="u1p-page u1p-page--wide">
       <p className="u1p-lead">Every new file gets a name from its type's pattern. Names can be changed afterwards and need not be unique.</p>
-      <div className="u1p-tokens">Tokens, click one to put it into the pattern you are editing: {TOKENS.map((t) => <button type="button" key={t} className="u1p-token" onMouseDown={(e) => e.preventDefault()} onClick={() => insert(t)}>{`{${t}}`}</button>)}<span>· device and focal only on photos</span></div>
+      <div className="u1p-tokens">Tokens, click one to put it into the pattern you are editing: {TOKENS.map((t) => <button type="button" key={t} className="u1p-token" onMouseDown={(e) => e.preventDefault()} onClick={() => insert(t)}>{`{${t}}`}</button>)}<span>· device and focal only on photos</span><span style={{ flex: 1 }} /><Button size="sm" icon="bulb" onClick={() => setAiNames(true)}>Edit with AI…</Button></div>
       <div className="u1p-names">
         <div className="u1p-names__head"><span>File type</span><span>Pattern</span><span>Digits</span><span>Next file is named</span></div>
         {(Object.keys(patterns) as FileType[]).map((t) => {
@@ -191,6 +169,7 @@ export default function ProjectApp({ say }: { say: (m: string) => void }) {
         statusBar={<StatusBar>Stored in the project’s Settings folder · changes apply to everyone in the project</StatusBar>}>
         {section === "properties" ? properties : section === "names" ? names : section === "extensions" ? extensions : general}
       </BrowserLayout>
+      {aiNames && <AiNames patterns={patterns} say={say} onClose={() => setAiNames(false)} onApply={(next, summary) => { setPatterns(next); setAiNames(false); say(`Naming: ${summary}`); }} />}
       {ai && <AiEdit defs={defs} say={say} onClose={() => setAi(false)} onApply={(next, summary) => { setDefs(next); setAi(false); say(`Properties: ${summary}`); }} />}
     </>
   );
