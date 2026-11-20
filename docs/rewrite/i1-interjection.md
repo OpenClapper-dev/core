@@ -35,7 +35,7 @@ After workshops 01–06 the owner brought a set of connected features that cut a
 - To have "the same picture" in two collections, the photo is duplicated: a new photo with its own identity. The stored image can be shared, so a duplicate costs no storage.
 - Its order (by time taken, or set by hand) is only for the media library.
 - Nothing references a collection. Dropping one into a progression or a timeline adds the photos chosen from it as separate items, in whatever order the progression or timeline gives them.
-- Whether a collection is simply a folder of photos that the camera can create is checked in workshop 07.
+- Settled in [07](07-organisation.md): a collection is a file that contains only photos; a folder is a file that contains any files.
 
 ### Progression ([04](04-shots.md))
 

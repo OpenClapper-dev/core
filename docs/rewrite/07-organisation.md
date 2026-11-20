@@ -1,6 +1,6 @@
 # 07 · Organisation and filesystem
 
-Workshop [#334](https://github.com/OpenClapper-dev/core/issues/334). Status: **proposal, nothing decided yet**.
+Workshop [#334](https://github.com/OpenClapper-dev/core/issues/334). Status: **decided** (2026-11-20).
 
 Where files live, how they are found and described, and what happens to places. This workshop collects the hand-overs of 01–06 and the [interjection](i1-interjection.md).
 
@@ -25,96 +25,119 @@ Where files live, how they are found and described, and what happens to places. 
 3. **Places are a built-in hierarchy** (location › spot) with map positions, made for one way of working. Workshop 01 removed positions from photos and handed places here with the owner's note: a location is usually a place from the screenplay, each one its own, and several may share an address.
 4. **The bin forgets links.** Restoring a shot does not restore where it was used.
 
-## Proposal
+## The model
 
-### What is a file
+### Everything is a file
 
-A **file** is something a user makes in a project that has content of its own. Every file has properties, can sit in a folder, can be binned and is opened by an app.
+Every object a user makes is a **file**, in the sense Linux uses the word. A file has an id, a type, the system properties, whatever properties its type carries, one place in a tree, and an app that opens it. It can be binned and restored.
 
-| Object | File? | Why |
+| File type | Content | Lives in |
 | --- | --- | --- |
-| Photo, canvas, shot, timeline | Yes | Content the user makes |
-| Filter | Yes | A saved query that opens as a list of files (below) |
-| Master timeline | A fixed item | Exactly one per project; it cannot be created, moved or binned |
-| Optics preset | No: managed in its app | A reusable setting, not content |
-| Property definition, naming pattern | No: project settings | They describe files |
-| Device, camera layout | No: managed in their apps | They belong to an account, not a project |
+| Folder | Any files, including folders and collections | A project or an account home |
+| Collection | Photos only; cannot hold folders or collections | A project |
+| Photo, canvas, shot, timeline | See [01](01-media.md), [05](05-composition.md), [04](04-shots.md), [06](06-timeline.md) | A project |
+| Master timeline | An order of timelines; exactly one, cannot be created, moved or binned | A project |
+| Filter | A saved query over files (below) | A project |
+| Optics preset | See [02](02-optics.md) | A project |
+| Property definition, naming pattern | See Properties and [04](04-shots.md) | A project's settings folder |
+| Device, camera layout | See [03](03-capture.md) | An account home |
 
-Open question 1.
+Extensions bring file types of their own (workshop 08).
 
-### Folders
+### Two kinds of root
 
-As today: a folder belongs to a project, folders nest, a file sits in at most one folder or at the top level, and there is no manual order (sorting by name, date, type or a property). The Desktop folder and shortcuts stay as they are.
+- **A project** is a root. It is a hard scope: nothing moves between projects, and both clients enter a project first.
+- **An account home** is the other root, one per account: files that belong to a person and are with them in every project. Devices and camera layouts live there.
 
-- **Internal files** ([I1](i1-interjection.md)) are not in any folder and not in the browser; they show inside their parent.
-- A shot is not a folder: a folder is where a file lives, a shot points at files and adds intent and order ([04](04-shots.md)).
+### Containers
 
-### Collections
+A file sits in exactly one container, or at the top level of its root.
 
-Proposed: a **collection is a kind of folder** (open question 2). It holds only photos and no subfolders, the camera can create one, and the media library shows it as one tile or spread out. "A photo is in at most one collection" is then the folder rule that already exists, and there is one answer to "where is this photo".
+| Container | Holds | Nests |
+| --- | --- | --- |
+| Folder | Any files | Yes |
+| Collection | Photos | No; it can sit in a folder |
+
+- There is no manual order in a folder: sorting is by name, date, type or a property. A collection has an order for the media library ([I1](i1-interjection.md)).
+- "A photo is in at most one collection" is this rule: a photo has one place.
+- **Fixed folders** per project, which cannot be renamed, moved or binned: **Desktop** (its contents are the desktop's icons, as today; shortcuts to apps and to files elsewhere stay) and **Settings** (property definitions and naming patterns live only there; they are edited through project settings and visible in the tree).
+- **Internal files** ([I1](i1-interjection.md)) are in no container; they show inside their parent.
+- A shot is not a container: a folder is where a file lives, a shot points at files and adds intent and order ([04](04-shots.md)).
 
 ### The bin
 
-Unchanged in behaviour: every delete bins, restore, purge after 30 days. Better than today in one way: because everything points at files by reference, a binned file only shows as missing where it was used, and a restore brings every use back. An internal file is binned and restored with its parent. A photo's stored image is removed only when the last photo sharing it is purged.
+Every delete bins; restore puts a file back where it was; purge after 30 days, as today. Because everything points at files by reference, a binned file only shows as missing where it was used, and a restore brings every use back. A container is binned with its contents, an internal file with its parent. A photo's stored image is removed only when the last photo sharing it is purged.
 
 ### Properties in detail
 
-The catalogue from [04](04-shots.md), made concrete:
+The catalogue of [04](04-shots.md), made concrete. A property definition is a file in the project's Settings folder.
 
-| Part of a definition | Meaning |
+**Four kinds of property:**
+
+| Kind | Examples | Defined by | Editable value | Can be hidden |
+| --- | --- | --- | --- | --- |
+| System | Name, type, created, updated, created by | The base | Name only | No |
+| Facts of the file type | A photo's angle of view, device | The file type | No | Yes |
+| Provided by an app or extension | A light condition a scheduling feature calculates with | That app; fixed meaning and values | Yes | Yes |
+| Project-defined | Scene, shot size, status | The project | Yes | Yes |
+
+The third kind is reserved: a feature that has to calculate with a property brings that property itself, so the core never has to understand a project's own fields. Nothing uses it yet.
+
+**A project-defined property:**
+
+| Part | Meaning |
 | --- | --- |
-| Name, field type | Text, long text, number, yes/no, single choice, multiple choice, date |
+| Name | Free text |
+| Field type | Text, long text, number, yes/no, single choice, multiple choice, date |
 | Options | For choices: a label and a colour each |
 | Attached to | The file types that carry it |
-| Depends on | Optional, for a choice: its options depend on another choice's value (line → station) |
-| Section | Optional heading that groups properties in the list |
+| Depends on | Optional, for a choice: its options depend on another choice's value (line → station); changing the parent clears a value that no longer fits |
+| Section | Optional heading that groups properties in the list; visual only |
 | Hidden | Per file type; values are kept |
 
-- **Structure:** flat. Today's nested groups become section headings; a dependent choice stays (open question 4).
-- **Default template** of a new project: for shots a typical shot list (scene, shot number, shot size, angle, movement, support, lens, INT/EXT, day or night); for a canvas a "kind" (floor plan, lighting diagram, blocking, storyboard); none for photos and timelines.
+- **Structure is flat.** Sections are headings; there are no nested groups.
+- **Default template** of a new project: for shots a typical shot list (scene, shot number, shot size, angle, movement, support, lens, INT/EXT, day or night); for a canvas a "kind" (floor plan, lighting diagram, blocking, storyboard); none for other types. No location property: places have their own workshop.
 - **Deleting a definition** bins it with its values; a restore brings both back.
 - **AI import** as today: a prompt explains the format, the answer is imported as definitions.
-- **Naming patterns** ([04](04-shots.md)) and the catalogue are edited in the project's settings.
+- A "reference to a file" field type may follow; it is a question of the places workshop.
 
 ### Finding and bulk editing
 
 One file browser serves every place files are listed (the Files app, the media library, the timeline's file panel):
 
 - **Search** over names and property values, across all file types.
-- **Filters:** a saved query over files (types, properties, folder), stored as a file. Opening it lists what matches now. It replaces saved views.
-- **Views of a list:** list, grid, and **board**: columns by one single-choice property, drag a file to another column to set it. The board replaces the Metadata board and works on every file type.
+- **Filter:** a saved query over files (types, properties, container), itself a file. Opening it lists what matches now. It replaces saved views.
+- **Views of a list:** list, grid, and **board**: columns by one single-choice property; dragging a file to another column sets it. The board replaces the Metadata app and works on every file type.
 - **Bulk edit:** select files, set a property on all.
 
 ### Places
 
-Proposed (open question 3): no location objects, no spots, no map in the base for now. A place is described with what already exists:
+Not in the base for now: no locations, spots, positions or maps. Places get a workshop of their own, [#352](https://github.com/OpenClapper-dev/core/issues/352), after workshop 09. Its starting note from the owner: in film a location is a place in the story (German: Motiv). A Motiv can have an address, but it is not in itself a geographic location.
 
-- "Location" is a property on shots (a choice), part of the default template; an address is another property.
-- Photos and canvases of a place sit in a folder.
-- Several script locations at one address are two options with the same address value.
+### Roles
 
-A richer shape is recorded for later: a location as a file type of its own, with properties and a content list like a shot, and shots pointing at it through a "reference" property.
+Who may do what in a project or workspace is business logic for later ([00](00-principles.md)).
 
-### Projects and scope
+## What goes
 
-Unchanged: a project is a hard scope, nothing moves between projects, and both clients enter a project first. Project settings hold the property catalogue, the naming patterns and, through their app, the optics presets. Who may do what (roles) is business logic for later ([00](00-principles.md)).
-
-### What goes
-
-Locations, spots and their pins, positions and maps, saved views (filters replace them), extra-field groups and their nesting, the Metadata app (a board view of the browser), days as a file type, per-type exceptions in what a file can do.
+Locations, spots and their pins, positions and maps (until the places workshop), saved views (filters replace them), extra-field groups and their nesting, the Metadata app (a board view of the browser), days as a file type, "apps, not files" for rigs, layouts and devices, per-type exceptions in what a file can do.
 
 ## Handed to other workshops
 
-- **09 (shells):** the Files app and the media library as uses of one browser; the desktop; which apps exist.
-- **UX workshops:** the browser, the board, the property editor, project settings.
-
-## Open questions
-
-1. **Files:** is the split above right (photo, canvas, shot, timeline and filter are files; presets, definitions, devices and layouts are not)?
-2. **Collections:** a kind of folder, or a grouping of their own next to folders?
-3. **Places:** a property and folders for now, or a location file type?
-4. **Property structure:** flat with sections and dependent choices, or nested groups as today?
+- **08 (extensions):** file types and properties an extension brings.
+- **09 (shells):** the Files app and the media library as uses of one browser; the desktop; project settings; the account home in the Studio and on the phone.
+- **09a (places), [#352](https://github.com/OpenClapper-dev/core/issues/352).**
+- **UX workshops:** the browser, the board, the property editor.
 
 ## Decided
 
-Nothing yet.
+2026-11-20, by the owner:
+
+- **Everything is a file,** as in Linux: folders and collections too, and presets, property definitions, naming patterns, devices and camera layouts.
+- **A folder is a file that contains any files; a collection is a file that contains only photos.** A folder nests, a collection does not.
+- **Account-owned files live in an account home,** a root of its own next to the project roots.
+- **A project's property definitions and naming patterns live in a fixed Settings folder.**
+- **Properties:** the field types text, long text, number, yes/no, single choice, multiple choice, date; a flat list with section headings; a choice can depend on another choice; no nested groups. A fourth kind of property, provided by an app or extension with a fixed meaning, is reserved.
+- **Places are postponed** to a workshop of their own after 09 ([#352](https://github.com/OpenClapper-dev/core/issues/352)). No locations, spots, positions or maps in the base until then.
+
+Taken from the proposal with the above: the bin with restore of every use; one file browser with search, saved filters, list, grid and board views and bulk edit; the Desktop folder and shortcuts as today.
