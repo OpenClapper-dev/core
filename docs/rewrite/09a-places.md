@@ -1,6 +1,6 @@
 # 09a · Places
 
-Workshop [#352](https://github.com/OpenClapper-dev/core/issues/352). Status: **proposal, nothing decided yet**.
+Workshop [#352](https://github.com/OpenClapper-dev/core/issues/352). Status: **decided** (2026-11-20).
 
 What a place is in the rebuild. Added by [workshop 07](07-organisation.md), which postponed the question.
 
@@ -27,59 +27,76 @@ What a place is in the rebuild. Added by [workshop 07](07-organisation.md), whic
 3. **Geography is built in.** Pins, GPS and maps shape capture and the data model, although a story place needs none of it.
 4. **Places can only hang on shots.** A scouting photo belongs to a real place before any shot exists.
 
-## Proposal
+## The model
 
-### Two things, kept apart
+### Two file types
 
-| | Story place | Real place |
+| | **Set** | **Location** |
 | --- | --- | --- |
-| What it is | Where a scene plays: "Joe's kitchen", "the bridge at night" | Where it is filmed: a flat, a street, a studio |
+| What it is | The place in the story where a scene plays: "Joe's kitchen", "the bridge at night" | The real place where it is filmed: a flat, a street, a studio |
 | Comes from | The screenplay | Scouting |
-| Has an address | No | Usually |
 | German | Motiv | Drehort |
-| English (proposed) | **Setting** (open question 2) | **Location** |
+| Has an address | No | Usually |
+| Has a position on the map | No | Optional |
 
-Relations:
+"Set" and "Location" are the two terms script breakdowns and scheduling use side by side. "Set" also means a built set in everyday speech; in the app it is always the story place.
+
+Both are files of a project ([07](07-organisation.md)) and built alike: properties and a content list, as a shot has ([04](04-shots.md)), without a progression.
+
+- A **location's** content list holds what was gathered there: scouting photos, floor plans, other canvases.
+- A **set's** content list holds what describes it: references, mood pictures, sketches.
+- Nothing is stored per entry, one file can be in several lists, and a removed file leaves a missing reference, as everywhere.
+
+### Relations
 
 | Relation | Meaning | How many |
 | --- | --- | --- |
-| Shot → setting | The shot plays there | One per shot |
-| Setting → location | A real place found for it: a candidate, or the chosen one | Any number each way |
+| Shot → set | The shot plays there | One per shot |
+| Set → location | A real place found for it: a candidate, or the chosen one | Any number each way |
 
-Several settings at one address are several settings pointing at the same location. There is no parent and child.
+Several sets at one address are several sets pointing at the same location. There is no parent and child, and there are no spots.
 
-### How they are built
+These relations are properties of a new field type.
 
-Proposed (open question 1): places are not special. The base gets one generic file type and one new field type, and "setting" and "location" are made from them.
+### New field type: reference
 
-- **Element:** a file with properties and a content list, like a shot without a progression. A project defines **kinds** of element (a name, an icon, the properties attached). The word is the one script breakdowns use for what a scene needs.
-- **Reference:** a new field type whose value is one or several files of a given type or kind. It shows as a chip that opens the file, and search, filters and the board work with it (shots grouped by setting is a board).
-- **The default template** of a new project has two kinds: *Setting* and *Location*, the property "Setting" on shots (a reference), "Locations" on settings (references), and "Address" on locations (text).
+A **reference** is a property whose value is one or several files of a given type.
 
-What that gives:
+- It shows as a chip that opens the file.
+- Search, filters and the board work with it: shots grouped by set is a board with one column per set.
+- A removed file shows as a missing reference.
+- It is a generic field type: a project can define references of its own.
 
-- A location's content list holds its scouting photos and floor plans; a setting's can hold references and mood pictures.
-- A project that does not think in settings deletes the kind; one that also wants characters or props adds a kind. The base has no opinion.
-- Kind definitions are files in the project's Settings folder, like property definitions ([07](07-organisation.md)).
+In the default template of a new project: "Set" on shots (one set) and "Locations" on sets (any number of locations).
 
 ### Geography
 
-Proposed (open question 3): for now an address is text. Positions and maps come later as two generic pieces, not as part of places: a **position** field type (coordinates, optionally filled from an address) and a **map view** of the file browser next to list, grid and board, showing files that carry a position. Photos still record none.
+- **Address** is a text property on locations, in the default template.
+- **New field type: position.** Coordinates, set by placing a pin on a map or by typing them. In the default template it is on locations. Like every field type it is generic: a project can attach a position to other file types.
+- **Map view.** The file browser gets a fourth view next to list, grid and board ([07](07-organisation.md)): the files that carry a position, on a map.
+- **No lookup for now.** Finding an address on the map automatically is added later; it would send addresses to an outside service.
+- **Photos still record no position** at capture ([01](01-media.md)).
 
-### What goes
+### Apps
 
-Locations and spots as built-in tables, the location › spot hierarchy, pins and "synced" positions, creating places on the fly by name from a tag form.
+Sets and locations are listed by the file browser and open in a window like a shot's (properties, content list). Whether they share one app is a question for the UX workshops.
+
+## What goes
+
+Locations and spots as today's tables, the location › spot hierarchy, pins "synced" to shots, positions taken from photos, creating places on the fly by name from a tag form, the Locations app.
 
 ## Handed to other workshops
 
-- **UX workshops:** elements in the browser and the shot window, the kind editor, references in lists and boards.
-
-## Open questions
-
-1. **Shape:** generic elements with project-defined kinds, two built-in file types, or properties only?
-2. **Name** of the story place.
-3. **Geography:** address as text now and a map later, a position field and map view now, or none?
+- **UX workshops:** the set and location windows, references in lists and boards, the map view, the pin editor.
 
 ## Decided
 
-Nothing yet.
+2026-11-20, by the owner:
+
+- **Two built-in file types: Set** (the story place, Motiv) **and Location** (the real place, Drehort), each with properties and a content list.
+- **The names** are Set and Location, the pair used in script breakdowns.
+- **A position field type and a map view are part of the rebuild.** A position is set by a pin or by coordinates; address lookup comes later.
+
+Taken from the proposal with the above: the reference field type and the two relations (shot → set, set → locations, many-to-many); address as text; no spots.
+
+Not chosen: generic elements with project-defined kinds. Characters, props and the like would each need a file type of their own if they are wanted later.

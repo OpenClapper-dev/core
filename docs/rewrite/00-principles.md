@@ -108,6 +108,8 @@ Proposed target vocabulary. Each later workshop refines the definition of its ow
 | **Progression** | A shot's timed order of pictures ([04](04-shots.md)) | sequence, steps |
 | **View mode** | How something with a frame is displayed: **Mask**, **Outline**, **Crop**, **Full**; a window's choice | mask / frame / fit / raw ("off") |
 | **Timeline**, **Clip** | A rough cut; a reference with a hold time ([06](06-timeline.md)) | — |
+| **Set** | The place in the story where a scene plays (German: Motiv); a file type ([09a](09a-places.md)) | location (as script location) |
+| **Location** | The real place where something is filmed (German: Drehort); a file type ([09a](09a-places.md)) | location with spots and pins |
 | **Placeholder** | A clip without a file | same |
 | **Chapter marker** | A title at the start of a clip that organises a timeline | — |
 | **Master timeline** | The project's one order of timelines ([06](06-timeline.md)) | — |
