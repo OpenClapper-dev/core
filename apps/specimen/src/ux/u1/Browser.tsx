@@ -31,7 +31,6 @@ function thumbOf(f: FileRec, files: FileRec[]): string | undefined {
   const first = f.type === "collection" ? files.find((c) => c.parent === f.id && !c.binned) : (f.content ?? []).map((id) => m.get(id)).find((c) => c && PICTURE.includes(c.type));
   return first?.pic != null ? picture(first.pic) : undefined;
 }
-const propsOf = (t: FileType) => PROPS.filter((p) => p.on.includes(t));
 const text = (v: string | string[] | undefined) => (v == null ? "" : Array.isArray(v) ? v.join(", ") : v);
 
 /** A choice value as a coloured tag; a reference as a chip naming the file. */
@@ -185,7 +184,7 @@ export default function U1Browser() {
     type: TYPES[f.type].label,
     where: f.parent ? map.get(f.parent)?.name ?? "" : "Top level",
     created: f.created,
-    ...Object.fromEntries(cols.map((c) => [c, <Value def={PROPS.find((p) => p.id === c)!} value={f.props[c]} files={files} />])),
+    ...Object.fromEntries(cols.map((c) => [c, <Value key={c} def={PROPS.find((p) => p.id === c)!} value={f.props[c]} files={files} />])),
     ...(nav === "bin" ? { act: <Button size="sm" variant="quiet" icon="history" onClick={() => { setFiles(files.map((x) => (x.id === f.id ? { ...x, binned: false } : x))); say(`Restored “${f.name}”, also everywhere it was used`); }}>Restore</Button> } : {}),
   }));
   const main = !items.length ? <EmptyState icon={q ? "search" : nav === "bin" ? "trash" : "folder-open"} title={q ? `Nothing matches “${q}”` : nav === "bin" ? "The bin is empty" : "Nothing here yet"}>{q ? "Search looks at names and at every property value." : nav === "bin" ? "" : "Drop files here, or use New."}</EmptyState>
