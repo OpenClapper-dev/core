@@ -1,6 +1,6 @@
 # U1 · Files and properties
 
-UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 2 built**; first decisions recorded below.
+UX workshop [#357](https://github.com/OpenClapper-dev/core/issues/357) ([plan](ux-plan.md)). Status: **round 3 built**; decisions so far recorded below.
 
 The file browser in its five entries, and how properties are shown and edited. Specified in [07](07-organisation.md), [09](09-shells.md), [09a](09a-places.md) and [04](04-shots.md).
 
@@ -44,6 +44,16 @@ From the owner's reaction to round 1:
 | A collection has a colour | Each collection carries one of the eight categorical colours. Its stacked tile shows it, and so does the list's Collection column |
 | Photos keep their collection's colour when spread out | Spread the collections: each photo of a collection carries the colour and names its collection underneath. Three ways to draw the mark are in the top bar: a **bar** under the picture, a **dot** before the name, a **frame** around the picture |
 
+## Round 3 (2026-11-20)
+
+| Change | What to try |
+| --- | --- |
+| The mark is a personal preference | "Collection mark" in the top bar stands for a setting of the account: bar (the default), dot or frame |
+| The bar can sit below or to the left | With "Bar" chosen, a second switch: Bottom (the default) or Left |
+| A thicker frame | Choose "Frame" |
+| The mark on the board | Media → board: every photo of a collection carries its collection's mark and names the collection. The board always shows single photos, because a property is set per photo |
+| Choosing a collection's colour | Select a collection (Media, grid): the panel has a Colour section with the eight colours and a "+" for a colour of one's own. The change shows at once on the tile and on its photos |
+
 ## Stand-ins
 
 - **Pictures** are generated placeholders. Real example photos are still to come ([02](02-optics.md)).
@@ -56,10 +66,8 @@ The Project app (property editor, AI import, naming patterns, extensions), creat
 
 ## Questions for the owner
 
-1. Which collection mark: bar, dot or frame?
-2. Does the scrubbing feel right?
-3. Who sets a collection's colour: assigned automatically and changeable, or chosen when the collection is made?
-4. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
+1. Does the scrubbing feel right?
+2. What next: the Project app (property editor, AI import, naming patterns, extensions), or more on the browser first?
 
 ## Decided
 
@@ -69,4 +77,10 @@ The Project app (property editor, AI import, naming patterns, extensions), creat
 - **The properties panel** can sit on the right, at the bottom, or be off; those three are enough.
 - **List is the default view** of every entry.
 - **A collection is a stacked tile that can be scrubbed** by moving the pointer across it.
-- **A collection has a colour,** and its photos show it when collections are spread out. How the mark is drawn is open (question 1).
+- **A collection has a colour,** and its photos show it when collections are spread out.
+
+2026-11-20, by the owner, after round 2:
+
+- **How the mark is drawn is a personal preference** of the account ([09](09-shells.md)): a bar (the default), a dot or a frame. The bar sits below the picture (the default) or to its left.
+- **The mark shows wherever photos of a collection appear singly,** also on the board.
+- **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.

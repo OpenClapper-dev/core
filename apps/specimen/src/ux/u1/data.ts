@@ -62,8 +62,8 @@ export interface FileRec {
   /** Fixed folders cannot be renamed, moved or binned. */
   fixed?: boolean;
   binned?: boolean;
-  /** A collection's colour (1 to 8), which marks its photos when collections are spread out. */
-  color?: number;
+  /** A collection's colour: one of the eight categorical colours (1 to 8) or a colour of the user's own (hex). Given at random on creation, stored with the collection, the same for everyone. */
+  color?: number | string;
   /** A location's place on the fake map, in percent. */
   pos?: [number, number];
 }
@@ -126,6 +126,9 @@ export const FILES: FileRec[] = [
   { id: "b1", type: "photo", name: "Photo 0099", created: day(3), by: "Ada", pic: 44, props: {}, binned: true, facts: [["Size", "4000 × 3000"]] },
   { id: "b2", type: "canvas", name: "Canvas 00", created: day(3), by: "Ben", pic: 65, props: {}, binned: true },
 ];
+
+// A few photos carry a status, so a board of photos has something in its columns.
+for (const [id, status] of [["ph101", "Approved"], ["ph103", "Planned"], ["ph122", "Planned"], ["ph124", "Idea"], ["ph142", "Idea"]]) FILES.find((f) => f.id === id)!.props.status = status;
 
 /** Saved filters as queries the prototype can run. */
 export const QUERIES: Record<string, { types: FileType[]; where: Record<string, string>; empty?: boolean }> = {

@@ -36,7 +36,9 @@
 .u1-tile--bar .u1-tile__art::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; border-radius: 2px; background: var(--coll); }
 .u1-tile--bar .u1-tile__name { margin-top: 3px; }
 .u1-tile__dot { display: inline-block; width: 8px; height: 8px; margin-right: 5px; border-radius: 50%; background: var(--coll); }
-.u1-tile--frame .u1-tile__art { outline: 2px solid var(--coll); outline-offset: 1px; }
+.u1-tile--barleft .u1-tile__art::after { content: ""; position: absolute; top: 0; bottom: 0; left: -5px; width: 3px; border-radius: 2px; background: var(--coll); }
+.u1-tile--barleft .u1-tile__art { margin-left: 5px; }
+.u1-tile--frame .u1-tile__art { outline: 4px solid var(--coll); outline-offset: 1px; margin: 4px; }
 .u1-tile__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--weight-medium, 500); }
 .u1-tile__meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-secondary); font-size: var(--font-size-xs); }
 
@@ -58,6 +60,21 @@
 .u1-col header .oc-num { margin-left: auto; color: var(--text-secondary); font-weight: 400; }
 .u1-card { display: grid; gap: 3px; padding: var(--space-3); border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: grab; }
 .u1-card.is-selected { border-color: var(--selection-border); box-shadow: inset 0 0 0 1px var(--selection-border); }
+/* The same collection mark on board cards. */
+.u1-card__art { position: relative; display: block; }
+.u1-card__art > img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 2px; }
+.u1-card--bar .u1-card__art { margin-bottom: 4px; }
+.u1-card--bar .u1-card__art::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 3px; border-radius: 2px; background: var(--coll); }
+.u1-card--barleft .u1-card__art { margin-left: 5px; }
+.u1-card--barleft .u1-card__art::after { content: ""; position: absolute; top: 0; bottom: 0; left: -5px; width: 3px; border-radius: 2px; background: var(--coll); }
+.u1-card--frame .u1-card__art { outline: 4px solid var(--coll); outline-offset: 1px; margin: 5px; }
+/* Choosing a collection's colour: the eight categorical colours, or one of the user's own. */
+.u1-swatches { display: flex; flex-wrap: wrap; gap: 6px; padding: var(--space-3) var(--space-5); }
+.u1-swatches > * { position: relative; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; display: grid; place-items: center; color: var(--text-secondary); }
+.u1-swatches > .is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.u1-swatches__own { border: var(--border-w) dashed var(--border-control) !important; }
+.u1-swatches__own input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.u1-hint { margin: 0; padding: 0 var(--space-5) var(--space-4); color: var(--text-secondary); font-size: var(--font-size-xs); }
 .u1-card > img, .u1-card__blank { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 2px; display: grid; place-items: center; background: var(--surface-sunken); }
 .u1-card__name { display: flex; align-items: center; gap: var(--space-3); font-weight: var(--weight-medium, 500); }
 .u1-card__meta { color: var(--text-secondary); font-size: var(--font-size-xs); }
