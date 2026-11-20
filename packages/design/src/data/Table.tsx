@@ -25,11 +25,15 @@ export interface TableProps extends Omit<JSX.HTMLAttributes<HTMLTableElement>, "
   onSelect?: (ids: string[]) => void;
   /** Row with the keyboard cursor. */
   cursor?: string;
-  /** Adds a checkbox column. */
+  /** Adds a checkbox column. Ticking is the selection; a click on the row then only moves the cursor (onCursor). */
   selectable?: boolean;
+  /** A row was clicked: make it the current one. Without it, a click on a row of a selectable table does nothing. */
+  onCursor?: (id: string) => void;
+  /** A row was double-clicked. */
+  onOpen?: (id: string) => void;
 }
 
-export function Table({ columns = [], rows = [], sort, onSort, selected = [], onSelect, cursor, selectable, className, ...rest }: TableProps) {
+export function Table({ columns = [], rows = [], sort, onSort, selected = [], onSelect, cursor, selectable, onCursor, onOpen, className, ...rest }: TableProps) {
   const all = rows.length > 0 && rows.every(r => selected.includes(r.id));
   const emit = (ids: string[]) => onSelect && onSelect(ids);
   return (
@@ -51,8 +55,8 @@ export function Table({ columns = [], rows = [], sort, onSort, selected = [], on
         {rows.map(r => {
           const sel = selected.includes(r.id);
           return (
-            <tr key={r.id} aria-selected={sel} className={cx(cursor === r.id && "is-cursor")} onClick={selectable ? undefined : () => emit([r.id])}>
-              {selectable && <td className="oc-table__check"><Checkbox checked={sel} onChange={() => emit(sel ? selected.filter(i => i !== r.id) : selected.concat(r.id))} aria-label="Select row" /></td>}
+            <tr key={r.id} aria-selected={sel} className={cx(cursor === r.id && "is-cursor")} onClick={selectable ? (onCursor ? () => onCursor(r.id) : undefined) : () => emit([r.id])} onDblClick={onOpen ? () => onOpen(r.id) : undefined}>
+              {selectable && <td className="oc-table__check" onClick={e => e.stopPropagation()}><Checkbox checked={sel} onChange={() => emit(sel ? selected.filter(i => i !== r.id) : selected.concat(r.id))} aria-label="Select row" /></td>}
               {columns.map(c => <td key={c.key} className={cx(c.numeric && "is-num", c.mono && "is-mono")}>{r[c.key]}</td>)}
             </tr>
           );

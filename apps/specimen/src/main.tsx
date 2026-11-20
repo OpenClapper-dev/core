@@ -6,11 +6,16 @@ import { CARDS } from "./registry";
 import Desktop from "./kits/Desktop";
 import Layouts from "./kits/Layouts";
 import Phone from "./kits/Phone";
+import U1Browser from "./ux/u1/Browser";
 
 const KITS = [
   { id: "desktop", name: "Assembled desktop", Component: Desktop },
   { id: "layouts", name: "Window templates", Component: Layouts },
   { id: "phone", name: "Phone companion", Component: Phone },
+];
+// Prototypes of the rewrite's UX workshops (docs/rewrite/ux-plan.md): clickable, on fake data.
+const UX = [
+  { id: "u1", name: "U1 · Files and properties", Component: U1Browser },
 ];
 const GROUPS = [...new Set(CARDS.map((c) => c.group))];
 
@@ -22,7 +27,7 @@ const useHash = () => {
 
 function App() {
   const route = useHash();
-  const kit = KITS.find((k) => route === `kit/${k.id}`);
+  const kit = KITS.find((k) => route === `kit/${k.id}`) ?? UX.find((k) => route === `ux/${k.id}`);
   if (kit) return <div className="sp-full"><kit.Component /><a className="sp-back oc-btn oc-btn--sm" href="#/">Specimens</a></div>;
   const card = CARDS.find((c) => route === `card/${c.id}`) ?? CARDS[0];
   return (
@@ -30,6 +35,8 @@ function App() {
       <nav className="sp-nav" aria-label="Specimens">
         <h2>Kits</h2>
         {KITS.map((k) => <a key={k.id} href={`#/kit/${k.id}`}>{k.name}</a>)}
+        <h2>UX workshops</h2>
+        {UX.map((k) => <a key={k.id} href={`#/ux/${k.id}`}>{k.name}</a>)}
         {GROUPS.map((g) => (
           <div key={g}>
             <h2>{g}</h2>

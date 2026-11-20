@@ -18,7 +18,10 @@ export interface AppIconProps extends Omit<JSX.HTMLAttributes<HTMLSpanElement>, 
 }
 
 export function AppIcon({ glyph = "window", color = 0, size = 32, off, label, className, style, ...rest }: AppIconProps) {
-  const g = size <= 16 ? 12 : size <= 24 ? 16 : Math.round(size * 0.56);
+  // The glyph takes about 60 % of the tile, and the space left over is always an even number of pixels, so the glyph
+  // sits exactly in the middle at every size (an odd remainder puts it half a pixel off).
+  const even = 2 * Math.round((size * 0.6) / 2);
+  const g = size <= 16 ? 12 : (size - even) % 2 === 0 ? even : even - 1;
   return (
     <span role={label ? "img" : undefined} aria-label={label} className={cx("oc-appicon", color > 0 && `oc-appicon--c${color}`, off && "is-off", className)} style={{ width: size, height: size, ...style }} {...rest}>
       <Icon name={glyph} size={g} />
