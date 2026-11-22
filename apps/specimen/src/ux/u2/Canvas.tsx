@@ -1,4 +1,4 @@
-// UX workshop U2, round 3: the canvas tool. Objects in one stack (shapes, text, stencils, pictures, groups) that are
+// UX workshop U2, round 5: the canvas tool. Objects in one stack (shapes, text, stencils, pictures, groups) that are
 // selected, moved, resized and layered as in a drawing program; a surface (a base photo or paper) at the bottom;
 // frames on a base photo, drawn with the real frame math. A prototype on fake data: no server, no product code.
 // Specified in docs/rewrite/05-composition.md and 02-optics.md.
@@ -20,7 +20,8 @@ const TOOLS: { id: Tool; icon: IconName; label: string; kbd: string }[] = [
 ];
 type P = [number, number];
 type Act =
-  | { type: "move"; start: P; orig: Record<string, P> }
+  | { type: "move"; start: P; orig: Record<string, P>; box: [number, number, number, number] }
+  | { type: "pan"; x: number; y: number; ox: number; oy: number }
   | { type: "resize"; id: string; rot: number; fixed: P }
   | { type: "rotate"; id: string; centre: P; from: number; orig: number }
   | { type: "end"; id: string; which: 0 | 1; other: P }
@@ -61,6 +62,14 @@ export default function U2Canvas() {
   const [theme, setTheme] = useState("dark");
   const [draft, setDraft] = useState<{ tool: Tool; pts: P[] } | null>(null);
   const [dragRow, setDragRow] = useState<string | null>(null);
+  // The view: how far the canvas is zoomed and where it is pushed to. It changes what is seen, never the canvas.
+  const [view, setView] = useState({ z: 1, x: 0, y: 0 });
+  const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
+  const [compare, setCompare] = useState(false);
+  const [sideA, setSideA] = useState<string | null>(null);
+  const [sideB, setSideB] = useState<string | null>(null);
+  const fit = useRef<HTMLDivElement>(null);
+  const space = useRef(false);
   // Comments are not objects: they are not part of the picture and have no place in the stack.
   const [comments, setComments] = useState<Comment[]>(COMMENTS);
   const [selC, setSelC] = useState<string | null>(null);
@@ -103,7 +112,16 @@ export default function U2Canvas() {
   const curR = cur ? rectOf(cur) : null;
 
   // Crop: the view is fitted to the picture's frame; outside it nothing shows, and a delivery aspect leaves bars inside.
-  const crop = mode === "crop" && picF ? (() => { const r = rectOf(picF), k = Math.min(1 / (r.w * scale), 1 / (r.h * scale)), cx = 0.5 + (picF.cx - 0.5) * scale, cy = 0.5 + (picF.cy - 0.5) * scale; return `translate(${(0.5 - cx * k) * 100}%, ${(0.5 - cy * k) * 100}%) scale(${k})`; })() : undefined;
+  const fitTo = (f: Frame) => { const r = rectOf(f), k = Math.min(1 / (r.w * scale), 1 / (r.h * scale)), cx = 0.5 + (f.cx - 0.5) * scale, cy = 0.5 + (f.cy - 0.5) * scale; return `translate(${(0.5 - cx * k) * 100}%, ${(0.5 - cy * k) * 100}%) scale(${k})`; };
+  const crop = mode === "crop" && picF ? fitTo(picF) : undefined;
+  // Zooming keeps the point under the pointer where it is.
+  const zoomAt = (to: number, cx?: number, cy?: number) => setView((v) => { const z = Math.min(8, Math.max(0.25, to)), r = fit.current?.getBoundingClientRect(); if (!r) return { ...v, z }; const px = (cx ?? r.left + r.width / 2) - (r.left + r.width / 2), py = (cy ?? r.top + r.height / 2) - (r.top + r.height / 2), k = z / v.z; return { z, x: px - (px - v.x) * k, y: py - (py - v.y) * k }; });
+  useEffect(() => {
+    const el = fit.current; if (!el) return;
+    const wheel = (e: WheelEvent) => { e.preventDefault(); if (e.ctrlKey || e.metaKey) zoomAt(view.z * Math.exp(-e.deltaY * 0.0022), e.clientX, e.clientY); else setView((v) => ({ ...v, x: v.x - (e.shiftKey ? e.deltaY : e.deltaX), y: v.y - (e.shiftKey ? 0 : e.deltaY) })); };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  });
 
   // Pointer work on the surface. Positions are fractions of the surface.
   const at = (e: PointerEvent): P => { const r = box.current!.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
@@ -133,7 +151,21 @@ export default function U2Canvas() {
     const a = act.current; if (!a) return;
     const p = at(e);
     if (a.type === "draw") { a.pts = a.tool === "pen" ? [...a.pts, p] : [a.pts[0], p]; setDraft({ tool: a.tool, pts: a.pts }); }
-    else if (a.type === "move") setObjs((os) => os.map((o) => (a.orig[o.id] ? { ...o, x: a.orig[o.id][0] + p[0] - a.start[0], y: a.orig[o.id][1] + p[1] - a.start[1] } : o)));
+    else if (a.type === "move") {
+      // Snapping: the moved box's edges and middle are drawn to the surface's, to other objects' and to the frames',
+      // when they come within a few pixels. Ctrl or Cmd held: no snapping.
+      let dx = p[0] - a.start[0], dy = p[1] - a.start[1]; const g: { v?: number; h?: number } = {};
+      if (!e.ctrlKey && !e.metaKey) {
+        const r = box.current!.getBoundingClientRect(), tx = 6 / r.width, ty = 6 / r.height, [bx, by, bw, bh] = a.box;
+        const others = objs.filter((o) => !a.orig[o.id] && o.kind !== "group" && shown(o)).map((o): [number, number, number, number] => [o.x, o.y, o.w, o.h]).concat(shownFrames.map((f): [number, number, number, number] => { const q = rectOf(f); return [f.cx - q.w / 2, f.cy - q.h / 2, q.w, q.h]; }));
+        const xs = [0, 0.5, 1, ...others.flatMap((o) => [o[0], o[0] + o[2] / 2, o[0] + o[2]])], ys = [0, 0.5, 1, ...others.flatMap((o) => [o[1], o[1] + o[3] / 2, o[1] + o[3]])];
+        let best = tx; for (const m of [bx, bx + bw / 2, bx + bw]) for (const t of xs) { const d = t - (m + dx); if (Math.abs(d) < Math.abs(best)) { best = d; g.v = t; } } if (g.v != null) dx += best;
+        best = ty; for (const m of [by, by + bh / 2, by + bh]) for (const t of ys) { const d = t - (m + dy); if (Math.abs(d) < Math.abs(best)) { best = d; g.h = t; } } if (g.h != null) dy += best;
+      }
+      setGuides(g);
+      setObjs((os) => os.map((o) => (a.orig[o.id] ? { ...o, x: a.orig[o.id][0] + dx, y: a.orig[o.id][1] + dy } : o)));
+    }
+    else if (a.type === "pan") setView((v) => ({ ...v, x: a.ox + e.clientX - a.x, y: a.oy + e.clientY - a.y }));
     else if (a.type === "resize") {
       // The corner opposite the dragged one stays where it is, also when the object is rotated.
       const q = toPx(p), d = turn([q[0] - a.fixed[0], q[1] - a.fixed[1]], -a.rot), w = Math.max(0.04, Math.abs(d[0])), h = Math.max(0.04, Math.abs(d[1]));
@@ -142,10 +174,16 @@ export default function U2Canvas() {
     }
     else if (a.type === "rotate") { const q = toPx(p), ang = (Math.atan2(q[1] - a.centre[1], q[0] - a.centre[0]) * 180) / Math.PI; let rot = a.orig + ang - a.from; if (e.shiftKey) rot = Math.round(rot / 15) * 15; patchO([a.id], { rot: ((rot % 360) + 360) % 360 }); }
     else if (a.type === "end") { const ends: [P, P] = a.which === 0 ? [p, a.other] : [a.other, p], x = Math.min(ends[0][0], ends[1][0]), y = Math.min(ends[0][1], ends[1][1]), w = Math.abs(ends[1][0] - ends[0][0]), h = Math.abs(ends[1][1] - ends[0][1]); patchO([a.id], { x, y, w: Math.max(w, 0.0005), h: Math.max(h, 0.0005), pts: ends.map((q): P => [w ? (q[0] - x) / w : 0, h ? (q[1] - y) / h : 0]) }); }
-    else if (a.type === "frame") { const dx = p[0] - a.start[0], dy = p[1] - a.start[1]; if (linked) centreAll(a.orig[a.id][0] + dx, a.orig[a.id][1] + dy); else patchF(a.id, { cx: a.orig[a.id][0] + dx, cy: a.orig[a.id][1] + dy }); }
+    else if (a.type === "frame") {
+      // A frame's centre snaps to the middle of the photo.
+      const r = box.current!.getBoundingClientRect(); let cx = a.orig[a.id][0] + p[0] - a.start[0], cy = a.orig[a.id][1] + p[1] - a.start[1]; const g: { v?: number; h?: number } = {};
+      if (!e.ctrlKey && !e.metaKey) { if (Math.abs(cx - 0.5) < 6 / r.width) { cx = 0.5; g.v = 0.5; } if (Math.abs(cy - 0.5) < 6 / r.height) { cy = 0.5; g.h = 0.5; } }
+      setGuides(g);
+      if (linked) centreAll(cx, cy); else patchF(a.id, { cx, cy });
+    }
   };
   const up = () => {
-    const a = act.current; act.current = null;
+    const a = act.current; act.current = null; setGuides({});
     if (a?.type !== "draw") return;
     setDraft(null);
     const xs = a.pts.map((q) => q[0]), ys = a.pts.map((q) => q[1]);
@@ -163,7 +201,8 @@ export default function U2Canvas() {
     const id = o.group ?? o.id, ids = e.shiftKey ? (sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id]) : sel.includes(id) ? sel : [id];
     setRootSel(false); setSelF(null); setSel(ids); setTab("layers");
     capture(e);
-    act.current = { type: "move", start: at(e), orig: Object.fromEntries(moved(ids).map((m) => [m.id, [m.x, m.y] as P])) };
+    const mv = moved(ids), x0 = Math.min(...mv.map((m) => m.x)), y0 = Math.min(...mv.map((m) => m.y));
+    act.current = { type: "move", start: at(e), orig: Object.fromEntries(mv.map((m) => [m.id, [m.x, m.y] as P])), box: mv.length ? [x0, y0, Math.max(...mv.map((m) => m.x + m.w)) - x0, Math.max(...mv.map((m) => m.y + m.h)) - y0] : [0, 0, 0, 0] };
   };
   const grabF = (e: PointerEvent, f: Frame) => { if (locked || tool !== "select") return; e.stopPropagation(); setSel([]); setRootSel(false); setSelF(f.id); setTab("frames"); capture(e); act.current = { type: "frame", id: f.id, start: at(e), orig: Object.fromEntries(frames.map((x) => [x.id, [x.cx, x.cy] as P])) }; };
 
@@ -185,12 +224,16 @@ export default function U2Canvas() {
       if ((e.key === "Delete" || e.key === "Backspace") && sel.length) { e.preventDefault(); remove(sel); }
       else if ((e.metaKey || e.ctrlKey) && k === "g") { e.preventDefault(); if (e.shiftKey) { const g = sel.find((s) => byId.get(s)?.kind === "group"); if (g) ungroup(g); } else group(); }
       else if ((e.metaKey || e.ctrlKey) && k === "d" && sel.length) { e.preventDefault(); duplicate(sel); }
+      else if (e.key === " ") { e.preventDefault(); space.current = true; fit.current?.classList.add("is-hand"); }
+      else if (k === "0" || (e.shiftKey && k === "1") || k === "!") { e.preventDefault(); setView({ z: 1, x: 0, y: 0 }); }
+      else if (k === "+" || k === "=") zoomAt(view.z * 1.25); else if (k === "-") zoomAt(view.z / 1.25);
       else if (e.key === "Escape") { pick(null); setTool("select"); }
       else if (e.key === "Enter" && sel.length === 1 && byId.get(sel[0])?.kind === "text") { e.preventDefault(); setEditing(sel[0]); }
       else if (!e.metaKey && !e.ctrlKey && !e.altKey) { const hit = TOOLS.find((x) => x.kbd.toLowerCase() === k); if (hit) setTool(hit.id); }
     };
-    window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
+    const keyup = (e: KeyboardEvent) => { if (e.key === " ") { space.current = false; fit.current?.classList.remove("is-hand"); } };
+    window.addEventListener("keydown", key); window.addEventListener("keyup", keyup);
+    return () => { window.removeEventListener("keydown", key); window.removeEventListener("keyup", keyup); };
   });
 
   // Drawing one object. Lines live in a layer the size of the surface, so arrowheads and strokes keep their shape.
@@ -386,13 +429,28 @@ export default function U2Canvas() {
               {tool === "comment" && <span className="oc-meta">click a point, or drag a region to comment on</span>}
             </span>}
             <ToolbarSpacer />
+            <span className="u2-zoomer"><Button size="sm" variant="quiet" icon="minus" label="Zoom out (−)" onClick={() => zoomAt(view.z / 1.25)} /><button type="button" className="u2-zoomer__now" title="Fit the canvas into the view (0)" onClick={() => setView({ z: 1, x: 0, y: 0 })}>{Math.round(view.z * 100)} %</button><Button size="sm" variant="quiet" icon="plus" label="Zoom in (+)" onClick={() => zoomAt(view.z * 1.25)} /></span>
+            {photo && frames.length > 1 && <Button size="sm" variant="quiet" icon="columns" selected={compare} onClick={() => { setCompare(!compare); pick(null); setSelC(null); }}>Compare</Button>}
             <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
             {photo && <Segmented label="View mode" value={mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} />}
           </Toolbar>}
           toolRail={<ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} />}
           canvas={
-            <div className="u2-fit">
-              <div className={cx("u2-stage", `u2-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", scale < 1 && "is-beyond")}>
+            compare && photo ? (
+              <div className="u2-compare">
+                {([[sideA ?? pic ?? frames[0]?.id, setSideA, "A"], [sideB ?? frames.find((f) => f.id !== (sideA ?? pic ?? frames[0]?.id))?.id, setSideB, "B"]] as const).map(([id, set, tag]) => { const f = frames.find((x) => x.id === id); return (
+                  <section key={tag} className="u2-pane">
+                    <header><b>{tag}</b><Select size="sm" value={id ?? ""} onChange={(v) => set(v)} options={frames.map((x) => ({ value: x.id, label: `${x.name} · ${x.kind === "preset" ? PRESETS.find((q) => q.id === x.preset)?.name : x.kind === "free" ? "free-form" : "aspect"}` }))} />{f && rectOf(f).hfov && <span className="oc-meta">{rectOf(f).hfov!.toFixed(0)}° × {rectOf(f).vfov!.toFixed(0)}°</span>}</header>
+                    <div className="u2-fit"><div className="u2-stage u2-stage--crop"><div className="u2-world" style={{ transform: f ? fitTo(f) : undefined, transformOrigin: "0 0" }}>
+                      <div className="u2-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%` }}><img className="u2-photo" src={picture(PHOTO.seed)} alt="" draggable={false} style={{ filter: lookFilter(surface.look) }} />{objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw({ ...o, id: `${tag}${o.id}` }, true))}</div>
+                      {f && <span className="u2-mask u2-mask--solid" style={place(f, true)} />}
+                    </div></div></div>
+                  </section>
+                ); })}
+              </div>
+            ) :
+            <div ref={fit} className="u2-fit" onPointerDownCapture={(e) => { if (space.current || e.button === 1) { e.stopPropagation(); e.preventDefault(); capture(e); act.current = { type: "pan", x: e.clientX, y: e.clientY, ox: view.x, oy: view.y }; } }} onPointerMove={(e) => { if (act.current?.type === "pan") move(e); }} onPointerUp={() => { if (act.current?.type === "pan") up(); }}>
+              <div className={cx("u2-stage", `u2-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", scale < 1 && "is-beyond")} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, "--inv": 1 / view.z }}>
                 <div className="u2-world" style={{ transform: crop, transformOrigin: "0 0" }}>
                   <div ref={box} className="u2-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : css(surface.colour) }} onPointerDown={down} onPointerMove={move} onPointerUp={up}>
                     {photo && <img className="u2-photo" src={picture(PHOTO.seed)} alt="" draggable={false} style={{ filter: lookFilter(surface.look) }} />}
@@ -409,6 +467,8 @@ export default function U2Canvas() {
                   ); })}
                   {/* Selection handles sit above the frames, so a handle that lies on a frame's edge still takes the pointer. */}
                   <div className="u2-surface u2-surface--ui" style={{ width: `${scale * 100}%`, height: `${scale * 100}%` }}>
+                    {guides.v != null && <span className="u2-guide u2-guide--v" style={{ left: `${guides.v * 100}%` }} />}
+                    {guides.h != null && <span className="u2-guide u2-guide--h" style={{ top: `${guides.h * 100}%` }} />}
                     {showC && comments.filter((c) => !c.resolved || showDone || c.id === selC).map((c) => { const on = selC === c.id, px = c.x + (c.w ?? 0), flip = px > 0.62; return [
                       on && c.w != null && <span key={`${c.id}r`} className="u2-region" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, width: `${c.w * 100}%`, height: `${(c.h ?? 0) * 100}%` }} />,
                       <button type="button" key={c.id} className={cx("u2-pin", on && "is-current", c.resolved && "is-done")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} title={`${c.author}: ${c.text}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => openC(on ? null : c.id)}>{c.resolved ? <Icon name="check" size={12} /> : c.n}</button>,
@@ -449,7 +509,7 @@ export default function U2Canvas() {
             </div>
           }
           inspector={<div className="u2-inspector"><div className="u2-tabs"><Segmented label="Inspector" value={tab} onChange={setTab} options={[{ value: "layers", label: "Layers", icon: "layers" }, { value: "frames", label: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame" }, { value: "comments", label: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment" }]} /></div><PropertyList>{tab === "layers" ? layersTab : tab === "frames" ? framesTab : commentsTab}</PropertyList></div>}
-          statusBar={<StatusBar>{objs.filter((o) => o.kind !== "group").length} objects{photo && <> · {frames.length} frames{picF && <> · the picture is <strong>{picF.name}</strong></>}{scale < 1 && <> · a frame sees more than the photo: the hatched area is beyond it</>}</>}{mode === "crop" && picF && <> · Crop: fitted to the picture's frame{rectOf(picF).inner ? ", bars for the delivery aspect" : ""}</>}{cur && curR?.hfov && <> · <strong>{cur.name}</strong> covers {Math.min(100, curR.w * 100).toFixed(0)} % of the photo's width</>}</StatusBar>} />
+          statusBar={<StatusBar>{objs.filter((o) => o.kind !== "group").length} objects{photo && <> · {frames.length} frames{picF && <> · the picture is <strong>{picF.name}</strong></>}{scale < 1 && <> · a frame sees more than the photo: the hatched area is beyond it</>}</>}{compare && <> · Compare: two frames side by side, to look at, not to edit</>}{mode === "crop" && picF && <> · Crop: fitted to the picture's frame{rectOf(picF).inner ? ", bars for the delivery aspect" : ""}</>}{cur && curR?.hfov && <> · <strong>{cur.name}</strong> covers {Math.min(100, curR.w * 100).toFixed(0)} % of the photo's width</>}</StatusBar>} />
         {locked && (
           <div className="u2-lock" role="alertdialog" aria-label="Someone else is editing">
             <div className="u2-lock__card">

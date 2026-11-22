@@ -1,6 +1,6 @@
 # U2 · Canvas
 
-UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 4 built**; decisions so far recorded below.
+UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 5 built**; decisions so far recorded below.
 
 The one tool for drawing, placing pictures and framing. Specified in [05](05-composition.md) and [02](02-optics.md).
 
@@ -81,9 +81,19 @@ The last row came out of testing with a real mouse: the end node of the arrow an
 
 Also: the picture's label is no longer cut by the corner marks; rows and their buttons show the pointing hand, and a quiet button's hover is visible on a hovered or selected row.
 
+## Round 5 (2026-11-22): zoom and pan, snapping, Compare
+
+| Change | What to try |
+| --- | --- |
+| Zoom | Ctrl (or Cmd) + wheel zooms around the pointer; − and + in the toolbar or on the keyboard; the percentage between them, or the 0 key, fits the canvas into the view again. 25 % to 800 % |
+| Pan | The wheel moves the view (Shift + wheel sideways); hold Space and drag, or drag with the middle button |
+| Handles keep their size | Selection handles, end nodes, comment pins and frame labels stay the same size on screen at any zoom |
+| Snapping | While an object is moved, its edges and its middle are drawn to the surface's edges and middle, to other objects' and to the frames', within a few pixels; a line shows what it holds on to. Ctrl or Cmd held: no snapping. A frame's centre snaps to the middle of the photo |
+| Compare | "Compare" in the toolbar (with a base photo and at least two frames): two panes, A and B, each fitted to one frame chosen at its top, with that frame's angle of view. To look at, not to edit |
+
 ## Not built yet
 
-Compare (two frames side by side), the preset create flow with its preview on example photos, editing a pen stroke's points, snapping and alignment guides, rotating and resizing a group, undo and redo, zooming and panning the view, the tablet.
+The preset create flow with its preview on example photos, editing a pen stroke's points, snapping while resizing, rotating and resizing a group, undo and redo, the tablet.
 
 ## Questions for the owner
 
@@ -141,3 +151,4 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - **No commenting while someone else edits a canvas,** to keep it simple; to be rethought together with collaboration.
 - **Comments exist only on a canvas** for now.
 - A comment without a place on the picture (a general remark in a thread) is not needed yet.
+- **Next were Compare, zoom and pan, and snapping,** built in round 5.
