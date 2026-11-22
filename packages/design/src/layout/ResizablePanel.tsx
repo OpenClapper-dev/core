@@ -22,9 +22,9 @@ function useGrip(ref: RefObject<HTMLDivElement>, size: number, setSize: (n: numb
   return { dragging, props: { onPointerDown, onPointerMove, onPointerUp, onKeyDown } };
 }
 
-/** A side panel with a grip on its inner edge, for inspectors and sidebars. */
+/** A panel with a grip on its inner edge, for inspectors and sidebars: at the left, at the right, or along the bottom. Double-click the grip to go back to the default size. */
 export interface ResizablePanelProps extends JSX.HTMLAttributes<HTMLDivElement> {
-  side?: "left" | "right";
+  side?: "left" | "right" | "bottom";
   defaultSize?: number;
   min?: number;
   max?: number;
@@ -34,11 +34,12 @@ export interface ResizablePanelProps extends JSX.HTMLAttributes<HTMLDivElement> 
 export function ResizablePanel({ side = "left", defaultSize = 220, min = 120, max = 480, children, className, ...rest }: ResizablePanelProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState(defaultSize);
-  const grip = useGrip(ref, size, setSize, { min, max, fromEnd: side === "right" });
+  const vertical = side === "bottom";
+  const grip = useGrip(ref, size, setSize, { min, max, fromEnd: side !== "left", vertical });
   return (
-    <div ref={ref} className={cx("oc-panel", side === "right" && "oc-panel--right", className)} style={{ width: size }} {...rest}>
+    <div ref={ref} className={cx("oc-panel", side !== "left" && `oc-panel--${side}`, className)} style={vertical ? { height: size } : { width: size }} {...rest}>
       <div className="oc-panel__body">{children}</div>
-      <button type="button" role="separator" aria-orientation="vertical" aria-label="Resize panel" aria-valuenow={size} className={cx("oc-grip", grip.dragging && "is-dragging")} {...grip.props} />
+      <button type="button" role="separator" aria-orientation={vertical ? "horizontal" : "vertical"} aria-label="Resize panel" title="Drag to resize, double-click to reset" aria-valuenow={size} aria-valuemin={min} aria-valuemax={max} className={cx("oc-grip", vertical && "oc-grip--v", grip.dragging && "is-dragging")} onDblClick={() => setSize(defaultSize)} {...grip.props} />
     </div>
   );
 }

@@ -14,7 +14,8 @@
 .oc-menu-host--end>.oc-menu,.oc-menu-host--end>.oc-popover{left:auto;right:0}
 .oc-menu--context{position:absolute;z-index:var(--z-menu)}
 .oc-popover{width:max-content;max-width:280px;padding:var(--space-5);box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-control);background:var(--surface-raised);box-shadow:var(--shadow-menu);color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-body) var(--font-sans)}
-.oc-scrim{position:absolute;inset:0;z-index:var(--z-modal);display:grid;place-items:center;background:var(--scrim)}
+/* One track the size of the scrim: without it the row grows with a tall dialog, and the dialog is centred in that row instead of on screen. */
+.oc-scrim{position:absolute;inset:0;z-index:var(--z-modal);display:grid;grid-template:minmax(0,1fr)/minmax(0,1fr);place-items:center;background:var(--scrim)}
 .oc-scrim--fixed{position:fixed}
 .oc-scrim--top{align-items:start;padding-top:12%}
 .oc-dialog{display:flex;flex-direction:column;width:min(420px,calc(100% - 32px));max-height:calc(100% - 32px);box-sizing:border-box;border:var(--border-w) solid var(--border-window);border-radius:var(--radius-window);background:var(--surface);box-shadow:var(--shadow-window-focused);color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-body) var(--font-sans)}
