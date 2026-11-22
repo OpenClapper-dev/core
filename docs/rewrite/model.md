@@ -32,7 +32,7 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 | File type | What it is | Holds | Decided in |
 | --- | --- | --- | --- |
 | Photo | A still image; the untouched original plus a preview and a thumbnail | Nothing; facts: size, time taken, angle of view, device, EXIF, the frame on screen at capture | [01](01-media.md), [02](02-optics.md), [03](03-capture.md) |
-| Canvas | A blank surface or a base photo with drawing and adjustment layers, placed pictures and frames | Layers, objects, frames; a render | [05](05-composition.md) |
+| Canvas | A blank surface or a base photo with objects in one stack (shapes, text, stencils, placed pictures, groups), frames and comments | Objects, frames, comments; a render | [05](05-composition.md), [U2](ux-2-canvas.md) |
 | Shot | An intent: a planned picture | A content list (any files) and optionally one progression | [04](04-shots.md) |
 | Timeline | A rough cut for deciding | Clips (picture, shot, placeholder) and chapter markers | [06](06-timeline.md) |
 | Master timeline | The project's one order of timelines | An ordered list of timelines | [06](06-timeline.md) |

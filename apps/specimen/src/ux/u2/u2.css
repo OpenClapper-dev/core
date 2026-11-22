@@ -191,7 +191,9 @@
 .u2p-facts span { color: var(--text-secondary); }
 .u2p-shot { position: relative; display: block; flex: 1; min-height: 160px; aspect-ratio: 3 / 2; max-height: 100%; align-self: center; width: auto; max-width: 100%; overflow: hidden; background: #000; border-radius: 3px; }
 .u2p-shot.is-beyond { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
-.u2p-shot__world { position: absolute; inset: 0; display: grid; place-items: center; }
+/* One track the size of the box. Without it the row takes the example picture's own height (it is 4:3, the box 3:2),
+   and everything is centred in that taller row: the frame sits too low and "What it sees" cuts it off. */
+.u2p-shot__world { position: absolute; inset: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; }
 .u2p-shot__world > * { grid-area: 1 / 1; }
 .u2p-shot__world > img { display: block; object-fit: cover; }
 .u2p-shot__mask { box-shadow: 0 0 0 9999px rgba(0, 0, 0, .62); pointer-events: none; }

@@ -1,6 +1,6 @@
 # U2 · Canvas
 
-UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 8 built**; decisions so far recorded below.
+UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **decided** (2026-11-22), after eight rounds.
 
 The one tool for drawing, placing pictures and framing. Specified in [05](05-composition.md) and [02](02-optics.md).
 
@@ -126,15 +126,11 @@ Also: the picture's label is no longer cut by the corner marks; rows and their b
 
 The examples are generated placeholders that stand for photos taken at 14 mm on full frame from one position, so every longer lens is an exact crop. The real ones are still to be shot ([02](02-optics.md)).
 
-## Not built yet
+Afterwards the preview was corrected: the frame sat too low on the example and "What it sees" cut it off. The example picture is 4:3, its box 3:2, and the layout centred everything in a row as tall as the picture instead of the box. The math was right; the layout was not.
+
+## Not prototyped
 
 Editing and archiving an existing preset (adding lenses, the "in use" state), editing a pen stroke's points, dragging an object into or out of a group in the layer list, snapping while resizing, rotating and resizing a group, undo and redo, the tablet.
-
-## Questions for the owner
-
-1. Preset preview: are the two ways to look and the strip the right way to understand a preset, and what is missing?
-2. Which stencils are missing? Film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
-3. Is U2 complete enough to decide, with the tablet left to a test in the build?
 
 ## Into the design system
 
@@ -150,7 +146,7 @@ Editing and archiving an existing preset (adding lenses, the "in use" state), ed
 
 ## Changes to specification pages
 
-To be applied to [05](05-composition.md) when this workshop is decided:
+Applied to [05](05-composition.md):
 
 - A canvas holds **objects in one stack**, with groups. "Drawing layers" and "adjustment layers" are dropped; layering is the order of objects.
 - A **look** (exposure, contrast, saturation and the rest) is a property of a photo object, the base photo or a placed one, not a layer over everything.
@@ -202,3 +198,8 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - **The inspector can be collapsed,** by a button and by dragging it past its smallest width.
 - **Compare uses the view modes** Outline, Mask and Crop for both panes at once; Full is not offered there.
 - A zoom explorer is left until the progression of a shot is designed (U3).
+
+2026-11-22, by the owner, after round 8:
+
+- **The preset create flow** with its preview on example photos is right; real example photos are still to come.
+- **U2 is complete.** The tablet is left to the research and test at the start of the build ([05](05-composition.md)).
