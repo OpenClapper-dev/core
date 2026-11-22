@@ -1,6 +1,6 @@
 # U2 · Canvas
 
-UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 7 built**; decisions so far recorded below.
+UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 8 built**; decisions so far recorded below.
 
 The one tool for drawing, placing pictures and framing. Specified in [05](05-composition.md) and [02](02-optics.md).
 
@@ -110,14 +110,31 @@ Also: the picture's label is no longer cut by the corner marks; rows and their b
 | The inspector can be closed | A button at the right end of the toolbar hides and shows it. Dragging its edge well past the smallest width closes it too; it leaves a thin rail on the edge, which opens it again on a click or a pull |
 | Compare follows the view mode | Outline: each pane shows the whole photo with its frame. Mask: the same, dimmed outside the picture. Crop: each pane fitted to its frame. Full is shown greyed and cannot be chosen while comparing, because it has no frame |
 
+## Round 8 (2026-11-22): creating an optics preset
+
+"+ Frame → New optics preset…" in the Frames tab, or "Create a preset from it" on a free-form frame (which starts the form with that frame's values). Code: `PresetFlow.tsx`.
+
+| Part | What it does |
+| --- | --- |
+| The form | Name; format from the generic list or an own width and height; multiplier; squeeze; delivery aspect; lenses as primes (ticked from the built-in list, own focal lengths can be added) or as one zoom from–to |
+| The preview | An example photo with the frame the preset gives at one focal length, drawn with the same math as on a canvas. Four scenes to switch between |
+| Two ways to look | "On the photo": the frame on the whole example, dimmed outside. "What it sees": fitted to the frame |
+| Stepping through the lenses | A strip with one small picture per prime (or four across a zoom's range, with a slider for every mm); clicking one shows it large |
+| What it amounts to | Under the picture: the focal length, the angle of view, the full-frame equivalent, the delivery aspect; a warning when the preset is wider than the example |
+| What is fixed | The foot says it before creating: format, multiplier, squeeze and delivery cannot be changed afterwards, lenses can be added |
+| After creating | The preset is in the list at once and a first frame from it is added; a free-form frame it was made from now belongs to it |
+
+The examples are generated placeholders that stand for photos taken at 14 mm on full frame from one position, so every longer lens is an exact crop. The real ones are still to be shot ([02](02-optics.md)).
+
 ## Not built yet
 
-The preset create flow with its preview on example photos, editing a pen stroke's points, snapping while resizing, rotating and resizing a group, undo and redo, the tablet.
+Editing and archiving an existing preset (adding lenses, the "in use" state), editing a pen stroke's points, dragging an object into or out of a group in the layer list, snapping while resizing, rotating and resizing a group, undo and redo, the tablet.
 
 ## Questions for the owner
 
-1. Which stencils are missing? Film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
-2. Anything on Compare, zoom and pan, or snapping once they are built?
+1. Preset preview: are the two ways to look and the strip the right way to understand a preset, and what is missing?
+2. Which stencils are missing? Film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
+3. Is U2 complete enough to decide, with the tablet left to a test in the build?
 
 ## Into the design system
 

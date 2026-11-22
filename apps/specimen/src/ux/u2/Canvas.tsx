@@ -12,7 +12,8 @@ import {
 } from "@openclapper/design";
 import { picture } from "../u1/pictures";
 import { ColourButton, css, type Colour } from "../u1/catalogue";
-import { ASPECTS, COMMENTS, FORMATS, KIND, NO_LOOK, PENS, PHOTO, PRESETS, PRIMES, START, STENCILS, clampCentre, frameFrom, lookFilter, rectOf, type Comment, type Frame, type Kind, type Look, type Obj, type PenType } from "./model";
+import { ASPECTS, COMMENTS, FORMATS, KIND, NO_LOOK, PENS, PHOTO, PRESETS as SEED, PRIMES, START, STENCILS, clampCentre, frameFrom, lookFilter, rectOf, type Comment, type Frame, type Kind, type Look, type Obj, type PenType, type Preset } from "./model";
+import PresetFlow, { type Draft } from "./PresetFlow";
 
 type Tool = "select" | "pen" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "picture" | "comment";
 const TOOLS: { id: Tool; icon: IconName; label: string; kbd: string }[] = [
@@ -54,7 +55,10 @@ export default function U2Canvas() {
   const [penType, setPenType] = useState<PenType>("pen");
   const [editing, setEditing] = useState<string | null>(null);
   const [surface, setSurface] = useState<{ kind: "photo" | "blank"; colour: Colour; look: Look }>({ kind: "photo", colour: "#f4f1ea", look: NO_LOOK });
-  const [frames, setFrames] = useState<Frame[]>(() => [frameFrom(PRESETS[0], 18, 0), frameFrom(PRESETS[0], 24, 1), frameFrom(PRESETS[0], 35, 2)]);
+  const [presets, setPresets] = useState<Preset[]>(SEED);
+  /** The preset being made: its starting values, or null when the dialog is closed. */
+  const [making, setMaking] = useState<Partial<Draft> | null>(null);
+  const [frames, setFrames] = useState<Frame[]>(() => [frameFrom(SEED[0], 18, 0), frameFrom(SEED[0], 24, 1), frameFrom(SEED[0], 35, 2)]);
   const [selF, setSelF] = useState<string | null>(null);
   const [pic, setPic] = useState<string | null>(() => null);
   const [linked, setLinked] = useState(true);
@@ -118,7 +122,7 @@ export default function U2Canvas() {
   /** Linked centres: every frame that fits on the photo shares one centre, held inside by the largest of them. */
   const centreAll = (cx: number, cy: number) => setFrames((fs) => { const fit = fs.map(rectOf).filter((r) => r.w < 1 && r.h < 1), w = Math.max(0, ...fit.map((r) => r.w)), h = Math.max(0, ...fit.map((r) => r.h)); const x = clampCentre(cx, w), y = clampCentre(cy, h); return fs.map((f) => { const r = rectOf(f); return { ...f, cx: r.w >= 1 ? 0.5 : x, cy: r.h >= 1 ? 0.5 : y }; }); });
   const cur = frames.find((f) => f.id === selF) ?? null;
-  const preset = cur?.preset ? PRESETS.find((p) => p.id === cur.preset) : undefined;
+  const preset = cur?.preset ? presets.find((p) => p.id === cur.preset) : undefined;
   const curR = cur ? rectOf(cur) : null;
 
   // Crop: the view is fitted to the picture's frame; outside it nothing shows, and a delivery aspect leaves bars inside.
@@ -373,8 +377,9 @@ export default function U2Canvas() {
 
   // Inspector: frames.
   const addFrame = (id: string) => {
+    if (id === "new") { setMaking({}); return; }
     const n = frames.length;
-    const f: Frame = id === "free" ? { ...frameFrom(PRESETS[1], 35, n), kind: "free", preset: undefined, name: "Free-form" } : id === "aspect" ? { ...frameFrom(PRESETS[1], 35, n), kind: "aspect", preset: undefined, name: "2.39:1", delivery: undefined } : (() => { const p = PRESETS.find((x) => x.id === id)!; return frameFrom(p, p.primes?.[0] ?? p.zoom![0], n); })();
+    const f: Frame = id === "free" ? { ...frameFrom(presets[1], 35, n), kind: "free", preset: undefined, name: "Free-form" } : id === "aspect" ? { ...frameFrom(presets[1], 35, n), kind: "aspect", preset: undefined, name: "2.39:1", delivery: undefined } : (() => { const p = presets.find((x) => x.id === id)!; return frameFrom(p, p.primes?.[0] ?? p.zoom![0], n); })();
     const first = frames[0];
     setFrames([...frames, linked && first ? { ...f, cx: clampCentre(first.cx, rectOf(f).w), cy: clampCentre(first.cy, rectOf(f).h) } : f]); setSel([]); setRootSel(false); setSelF(f.id); if (!pic) setPic(f.id);
   };
@@ -385,7 +390,7 @@ export default function U2Canvas() {
           {frames.map((f) => { const fr = rectOf(f); return (
             <li key={f.id} className={cx("u2-row u2-row--frame", selF === f.id && "is-current", pic === f.id && "is-picture", !f.visible && "is-hidden")} onClick={() => { setSel([]); setRootSel(false); setSelF(f.id); }}>
               <i style={{ background: css(f.color) }} />
-              <span className="u2-row__name">{f.name}<small>{f.kind === "preset" ? PRESETS.find((p) => p.id === f.preset)?.name : f.kind === "free" ? `Free-form · ${f.format[0]} × ${f.format[1]} mm` : "Aspect ratio"}</small></span>
+              <span className="u2-row__name">{f.name}<small>{f.kind === "preset" ? presets.find((p) => p.id === f.preset)?.name : f.kind === "free" ? `Free-form · ${f.format[0]} × ${f.format[1]} mm` : "Aspect ratio"}</small></span>
               {Math.max(fr.w, fr.h) > 1 && <span title="Sees more than the photo"><Icon name="expand" size={12} /></span>}
               {pic === f.id ? <button type="button" className="u2-picture" title="The picture of this canvas; click to take it away" onClick={(e) => { e.stopPropagation(); setPic(null); }}><Icon name="crop" size={12} /> Picture</button> : <Button size="sm" variant="quiet" icon="crop" label="Make it the picture of this canvas" onClick={(e) => { e.stopPropagation(); setPic(f.id); }} />}
               <Button size="sm" variant="quiet" icon={f.visible ? "eye" : "eye-off"} label={f.visible ? "Hide" : "Show"} onClick={(e) => { e.stopPropagation(); patchF(f.id, { visible: !f.visible }); }} />
@@ -393,7 +398,7 @@ export default function U2Canvas() {
           ); })}
         </ul>
         <div className="u2-bar">
-          <DropdownMenu size="sm" icon="plus" label="Frame" items={[{ heading: "From an optics preset" }, ...PRESETS.map((p) => ({ id: p.id, label: p.name, icon: "lens" as const })), { separator: true }, { id: "free", label: "Free-form values", icon: "sliders" }, { id: "aspect", label: "Aspect ratio only", icon: "aspect" }]} onSelect={addFrame} />
+          <DropdownMenu size="sm" icon="plus" label="Frame" items={[{ heading: "From an optics preset" }, ...presets.map((p) => ({ id: p.id, label: p.name, icon: "lens" as const })), { separator: true }, { id: "free", label: "Free-form values", icon: "sliders" }, { id: "aspect", label: "Aspect ratio only", icon: "aspect" }, { separator: true }, { id: "new", label: "New optics preset…", icon: "plus" }]} onSelect={addFrame} />
           <span style={{ flex: 1 }} />
           <Switch checked={linked} onChange={(c) => { setLinked(c); if (c) { const f = cur ?? picF ?? frames[0]; if (f) centreAll(f.cx, f.cy); } }}>Link centres</Switch>
         </div>
@@ -405,7 +410,7 @@ export default function U2Canvas() {
           <PropertyRow label="Colour"><ColourButton value={cur.color} label="Frame colour" onChange={(c) => patchF(cur.id, { color: c })} /></PropertyRow>
           {cur.kind === "preset" && preset && (
             <>
-              <PropertyRow label="Preset"><Select size="sm" value={preset.id} onChange={(v) => { const p = PRESETS.find((x) => x.id === v)!; patchF(cur.id, { preset: p.id, format: p.format, mult: p.mult, squeeze: p.squeeze, delivery: p.delivery, focal: p.primes?.[0] ?? p.zoom![0], name: `${p.primes?.[0] ?? p.zoom![0]} mm` }); }} options={PRESETS.map((p) => ({ value: p.id, label: p.name }))} /></PropertyRow>
+              <PropertyRow label="Preset"><Select size="sm" value={preset.id} onChange={(v) => { const p = presets.find((x) => x.id === v)!; patchF(cur.id, { preset: p.id, format: p.format, mult: p.mult, squeeze: p.squeeze, delivery: p.delivery, focal: p.primes?.[0] ?? p.zoom![0], name: `${p.primes?.[0] ?? p.zoom![0]} mm` }); }} options={presets.map((p) => ({ value: p.id, label: p.name }))} /></PropertyRow>
               <PropertyRow label="Focal length">
                 {preset.primes ? <span className="u2-chips">{preset.primes.map((mm) => <button type="button" key={mm} className={cx(cur.focal === mm && "is-on")} onClick={() => patchF(cur.id, { focal: mm, name: `${mm} mm` })}>{mm}</button>)}</span>
                   : <span className="u2-zoom"><Slider min={preset.zoom![0]} max={preset.zoom![1]} step={1} value={cur.focal} onChange={(mm) => patchF(cur.id, { focal: mm, name: `${mm} mm` })} /><b className="oc-num">{cur.focal} mm</b></span>}
@@ -431,7 +436,7 @@ export default function U2Canvas() {
           )}
           {cur.kind !== "aspect" && <PropertyRow label="Orientation"><Segmented label="Orientation" value={cur.portrait ? "p" : "l"} onChange={(v) => patchF(cur.id, { portrait: v === "p" })} options={[{ value: "l", label: "Landscape" }, { value: "p", label: "Portrait" }]} /></PropertyRow>}
           {curR?.hfov && <PropertyRow label="Sees" value={`${curR.hfov.toFixed(0)}° × ${curR.vfov!.toFixed(0)}° · like ${curR.ffeq!.toFixed(0)} mm on full frame`} />}
-          <div className="u2-bar">{cur.kind === "free" && <Button size="sm" variant="quiet" icon="plus">Create a preset from it</Button>}<span style={{ flex: 1 }} /><Button size="sm" variant="quiet" icon="trash" onClick={() => { setFrames(frames.filter((f) => f.id !== cur.id)); setSelF(null); if (pic === cur.id) setPic(null); }}>Remove</Button></div>
+          <div className="u2-bar">{cur.kind === "free" && <Button size="sm" variant="quiet" icon="plus" onClick={() => setMaking({ format: cur.format, mult: cur.mult, squeeze: cur.squeeze, delivery: cur.delivery, lenses: "primes", primes: [cur.focal] })}>Create a preset from it</Button>}<span style={{ flex: 1 }} /><Button size="sm" variant="quiet" icon="trash" onClick={() => { setFrames(frames.filter((f) => f.id !== cur.id)); setSelF(null); if (pic === cur.id) setPic(null); }}>Remove</Button></div>
         </PropertySection>
       )}
     </>
@@ -493,7 +498,7 @@ export default function U2Canvas() {
               <div className="u2-compare">
                 {([[sideA ?? pic ?? frames[0]?.id, setSideA, "A"], [sideB ?? frames.find((f) => f.id !== (sideA ?? pic ?? frames[0]?.id))?.id, setSideB, "B"]] as const).map(([id, set, tag]) => { const f = frames.find((x) => x.id === id); return (
                   <section key={tag} className="u2-pane">
-                    <header><b>{tag}</b><Select size="sm" value={id ?? ""} onChange={(v) => set(v)} options={frames.map((x) => ({ value: x.id, label: `${x.name} · ${x.kind === "preset" ? PRESETS.find((q) => q.id === x.preset)?.name : x.kind === "free" ? "free-form" : "aspect"}` }))} />{f && rectOf(f).hfov && <span className="oc-meta">{rectOf(f).hfov!.toFixed(0)}° × {rectOf(f).vfov!.toFixed(0)}°</span>}</header>
+                    <header><b>{tag}</b><Select size="sm" value={id ?? ""} onChange={(v) => set(v)} options={frames.map((x) => ({ value: x.id, label: `${x.name} · ${x.kind === "preset" ? presets.find((q) => q.id === x.preset)?.name : x.kind === "free" ? "free-form" : "aspect"}` }))} />{f && rectOf(f).hfov && <span className="oc-meta">{rectOf(f).hfov!.toFixed(0)}° × {rectOf(f).vfov!.toFixed(0)}°</span>}</header>
                     <div className="u2-fit"><div className={cx("u2-stage", `u2-stage--${mode === "full" ? "crop" : mode}`, scale < 1 && mode !== "crop" && mode !== "full" && "is-beyond")}><div className="u2-world" style={{ transform: f && (mode === "crop" || mode === "full") ? fitTo(f) : undefined, transformOrigin: "0 0" }}>
                       <div className="u2-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%` }}><img className="u2-photo" src={picture(PHOTO.seed)} alt="" draggable={false} style={{ filter: lookFilter(surface.look) }} />{objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw({ ...o, id: `${tag}${o.id}` }, true))}</div>
                       {f && mode !== "outline" && <span className={cx("u2-mask", (mode === "crop" || mode === "full") && "u2-mask--solid")} style={place(f, true)} />}
@@ -566,6 +571,13 @@ export default function U2Canvas() {
           }
           inspector={<div className="u2-inspector"><div className="u2-tabs"><Segmented label="Inspector" value={tab} onChange={setTab} options={[{ value: "layers", label: "Layers", icon: "layers" }, { value: "frames", label: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame" }, { value: "comments", label: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment" }]} /></div><PropertyList>{tab === "layers" ? layersTab : tab === "frames" ? framesTab : commentsTab}</PropertyList></div>}
           statusBar={<StatusBar>{objs.filter((o) => o.kind !== "group").length} objects{photo && <> · {frames.length} frames{picF && <> · the picture is <strong>{picF.name}</strong></>}{scale < 1 && <> · a frame sees more than the photo: the hatched area is beyond it</>}</>}{compare && <> · Compare: two frames side by side, to look at, not to edit</>}{mode === "crop" && picF && <> · Crop: fitted to the picture's frame{rectOf(picF).inner ? ", bars for the delivery aspect" : ""}</>}{cur && curR?.hfov && <> · <strong>{cur.name}</strong> covers {Math.min(100, curR.w * 100).toFixed(0)} % of the photo's width</>}</StatusBar>} />
+        {making && <PresetFlow start={making} onClose={() => setMaking(null)} onCreate={(pr) => {
+          // The new preset is there at once: a free-form frame it was made from now belongs to it, otherwise a first frame is added.
+          setPresets([...presets, pr]); setMaking(null);
+          const first = pr.primes?.[0] ?? pr.zoom![0];
+          if (cur?.kind === "free" && making.format) setFrames(frames.map((f) => (f.id === cur.id ? { ...f, kind: "preset", preset: pr.id, format: pr.format, mult: pr.mult, squeeze: pr.squeeze, delivery: pr.delivery, focal: pr.primes?.includes(f.focal) ? f.focal : first, name: `${pr.primes?.includes(f.focal) ? f.focal : first} mm` } : f)));
+          else { const f = frameFrom(pr, first, frames.length), o = frames[0]; setFrames([...frames, linked && o ? { ...f, cx: clampCentre(o.cx, rectOf(f).w), cy: clampCentre(o.cy, rectOf(f).h) } : f]); setSel([]); setRootSel(false); setSelF(f.id); setTab("frames"); }
+        }} />}
         {locked && (
           <div className="u2-lock" role="alertdialog" aria-label="Someone else is editing">
             <div className="u2-lock__card">

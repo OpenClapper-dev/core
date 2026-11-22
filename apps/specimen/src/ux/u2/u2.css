@@ -170,3 +170,37 @@
 /* While comparing, Full is shown but cannot be chosen: it has no frame to compare. */
 .u2-nofull .oc-seg__opt:last-of-type { opacity: .35; pointer-events: none; }
 .u2-pane .u2-frame { pointer-events: none; }
+
+/* Creating an optics preset: the form, and what it sees on example photos */
+.u2p { width: min(1080px, calc(100% - 48px)); height: min(760px, calc(100% - 48px)); }
+.u2p .oc-dialog__body { flex: 1; min-height: 0; color: var(--text); }
+.u2p .oc-dialog__foot { align-items: center; padding-top: var(--space-5); border-top: var(--border-w) solid var(--border-divider); }
+.u2p-grid { display: grid; grid-template-columns: minmax(300px, 4fr) minmax(0, 7fr); gap: var(--space-7); height: 100%; min-height: 0; }
+.u2p-form { display: grid; gap: var(--space-5); align-content: start; overflow: auto; padding-right: var(--space-3); min-height: 0; }
+.u2p-form .oc-selectbox, .u2p-form .oc-input { width: 100%; }
+.u2p-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+.u2p-pair { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); color: var(--text-secondary); }
+.u2p-pair .oc-input { width: 110px; flex: none; }
+.u2p-form .u2-chips { margin-top: var(--space-4); }
+.u2p-preview { display: flex; flex-direction: column; gap: var(--space-4); min-height: 0; min-width: 0; }
+.u2p-bar { display: flex; align-items: center; gap: var(--space-4); }
+.u2p-note { margin: 0; color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u2p-bad { display: inline-flex; align-items: center; gap: 6px; color: var(--danger); font-size: var(--font-size-xs); }
+.u2p-facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-5); }
+.u2p-facts strong { font: 700 var(--font-size-lg)/1 var(--font-mono); }
+.u2p-facts span { color: var(--text-secondary); }
+.u2p-shot { position: relative; display: block; flex: 1; min-height: 160px; aspect-ratio: 3 / 2; max-height: 100%; align-self: center; width: auto; max-width: 100%; overflow: hidden; background: #000; border-radius: 3px; }
+.u2p-shot.is-beyond { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
+.u2p-shot__world { position: absolute; inset: 0; display: grid; place-items: center; }
+.u2p-shot__world > * { grid-area: 1 / 1; }
+.u2p-shot__world > img { display: block; object-fit: cover; }
+.u2p-shot__mask { box-shadow: 0 0 0 9999px rgba(0, 0, 0, .62); pointer-events: none; }
+.u2p-shot__mask.is-solid { box-shadow: 0 0 0 9999px #000; }
+.u2p-shot__frame { box-sizing: border-box; border: 2px solid var(--cat-2); outline: 1px solid rgba(0, 0, 0, .7); display: grid; place-items: center; }
+.u2p-shot__frame.is-beyond { border-style: dashed; }
+.u2p-shot__frame > i { box-sizing: border-box; border: 1px dashed var(--cat-2); }
+.u2p-shot--small { flex: none; width: 100%; min-height: 0; border-radius: 2px; }
+.u2p-strip { display: flex; gap: var(--space-4); overflow-x: auto; padding-bottom: 2px; flex: none; }
+.u2p-strip button { flex: none; width: 104px; display: grid; gap: 3px; padding: 3px; border: var(--border-w) solid transparent; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); font: var(--font-size-xs)/1.3 var(--font-mono); cursor: pointer; }
+.u2p-strip button:hover { background: var(--surface-hover); }
+.u2p-strip button.is-on { border-color: var(--accent); color: var(--text); font-weight: 700; }
