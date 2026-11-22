@@ -7,3 +7,4 @@ export * from "./DropdownMenu";
 export * from "./Menu";
 export * from "./Popover";
 export * from "./Toast";
+export * from "./Floating";

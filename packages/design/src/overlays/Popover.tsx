@@ -1,5 +1,6 @@
 import type { ComponentChildren } from "preact";
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
+import { Floating } from "./Floating";
 import { cx } from "../util";
 
 /** A small non-modal surface anchored to a control, for a few fields or details. */
@@ -16,11 +17,12 @@ export interface PopoverProps {
 export function Popover({ trigger, open, defaultOpen, onOpenChange, align = "start", children, className }: PopoverProps) {
   const [inner, setInner] = useState(!!defaultOpen);
   const shown = open != null ? open : inner;
+  const host = useRef<HTMLSpanElement>(null);
   const set = (v: boolean) => { setInner(v); if (onOpenChange) onOpenChange(v); };
   return (
-    <span className={cx("oc-menu-host", align === "end" && "oc-menu-host--end")} onKeyDown={(e) => { if (e.key === "Escape") set(false); }}>
+    <span ref={host} className={cx("oc-menu-host", align === "end" && "oc-menu-host--end")} onKeyDown={(e) => { if (e.key === "Escape") set(false); }}>
       <span onClick={() => set(!shown)} style={{ display: "inline-flex" }}>{trigger}</span>
-      {shown && <div role="dialog" className={cx("oc-popover", className)}>{children}</div>}
+      {shown && <Floating anchor={host} align={align} onDismiss={() => set(false)}><div role="dialog" className={cx("oc-popover", className)}>{children}</div></Floating>}
     </span>
   );
 }

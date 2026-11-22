@@ -65,7 +65,7 @@ export const CARDS: Card[] = [
   { id: "z-layers", group: "Spacing", name: "Z-layers", subtitle: "One stack for the whole OS", Component: C18 },
   { id: "film-glyphs", group: "Icons", name: "Film glyphs", subtitle: "Film concepts: which Tabler icon covers each, and the custom glyphs drawn to Tabler rules where none fits", Component: C19 },
   { id: "icon-rules", group: "Icons", name: "Construction rules", subtitle: "How to draw a glyph so it matches the set", Component: C20 },
-  { id: "icons", group: "Icons", name: "UI glyphs", subtitle: "Tabler Icons outline · 182 bundled · currentColor", Component: C21 },
+  { id: "icons", group: "Icons", name: "UI glyphs", subtitle: "Tabler Icons outline · 187 bundled · currentColor", Component: C21 },
   { id: "brand-clients", group: "Brand", name: "Clients × environments", subtitle: "One glyph per client · environment by colour · home uses the plain mark", Component: C22 },
   { id: "brand-mark", group: "Brand", name: "Mark", subtitle: "Slate corner, refined · Light and Dark grounds", Component: C23 },
   { id: "brand-sizes", group: "Brand", name: "Icon sizes", subtitle: "512 to 16 px; glyph drops below 48 px; maskable and Android adaptive", Component: C24 },

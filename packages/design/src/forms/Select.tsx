@@ -1,11 +1,12 @@
 import type { JSX } from "preact";
 import { useRef, useState } from "preact/hooks";
 import { Icon } from "../core/Icon";
+import { Floating } from "../overlays/Floating";
 import { cx } from "../util";
 
 /**
  * Pick one from a short fixed list. The list is the design system's own (the same listbox as the combobox), not the
- * browser's menu, so it looks the same everywhere and in both themes. It opens upward when there is no room below.
+ * browser's menu, so it looks the same everywhere and in both themes. It floats above panels and dialogs and opens upward when there is no room below.
  */
 export interface SelectProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, "size" | "value" | "onChange" | "style"> {
   options: { value: string; label: string }[];
@@ -20,13 +21,10 @@ export interface SelectProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>,
 export function Select({ options = [], value, onChange, size = "md", invalid, disabled, className, style, ...rest }: SelectProps) {
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
-  const [up, setUp] = useState(false);
   const host = useRef<HTMLSpanElement>(null);
   const current = options.find(o => o.value === value);
   const show = () => {
     if (disabled) return;
-    const r = host.current?.getBoundingClientRect();
-    setUp(!!r && r.bottom + Math.min(options.length * 28 + 12, 212) > window.innerHeight && r.top > window.innerHeight - r.bottom);
     setCursor(Math.max(0, options.findIndex(o => o.value === value)));
     setOpen(true);
   };
@@ -50,14 +48,14 @@ export function Select({ options = [], value, onChange, size = "md", invalid, di
         <Icon name="chevron-down" />
       </button>
       {open && (
-        <ul className={cx("oc-listbox", up && "oc-listbox--up")} role="listbox">
+        <Floating anchor={host} matchWidth onDismiss={() => setOpen(false)}><ul className="oc-listbox" role="listbox">
           {options.map((o, i) => (
             <li key={o.value} role="option" aria-selected={o.value === value} className={cx("oc-option", i === cursor && "is-cursor")}
               onMouseDown={e => { e.preventDefault(); pick(i); }} onMouseEnter={() => setCursor(i)}>
               <Icon name="check" className="oc-option__check" />{o.label}
             </li>
           ))}
-        </ul>
+        </ul></Floating>
       )}
     </span>
   );

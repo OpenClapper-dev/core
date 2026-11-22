@@ -43,3 +43,7 @@
 .oc-toast__btn:hover{border-color:currentColor}
 .oc-toast__btn:focus-visible{outline:var(--focus-w) solid currentColor;outline-offset:var(--focus-offset)}
 .oc-toast-stack{position:absolute;right:var(--space-6);bottom:var(--space-6);z-index:var(--z-toast);display:flex;flex-direction:column;align-items:flex-end;gap:var(--space-4)}
+/* Floating surfaces: fixed to the viewport, above windows and dialogs; what they hold drops its own positioning. */
+.oc-floating{position:fixed;z-index:calc(var(--z-modal) + 10);display:flex;flex-direction:column;box-sizing:border-box}
+.oc-floating>.oc-menu,.oc-floating>.oc-popover,.oc-floating>.oc-listbox{position:static;min-width:0;max-height:inherit;overflow:auto;animation:oc-pop-in var(--dur) var(--ease) both}
+.oc-floating>.oc-listbox{width:100%}
