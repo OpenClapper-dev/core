@@ -24,11 +24,14 @@
 .u2-world { position: absolute; inset: 0; }
 .u2-surface { position: absolute; left: 50%; top: 50%; translate: -50% -50%; container-type: size; }
 .u2-stage.is-drawing .u2-surface { cursor: crosshair; }
+.u2-surface--ui { pointer-events: none; z-index: 5; }
+.u2-surface--ui .u2-node { pointer-events: auto; }
 .u2-photo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 
 /* Objects */
 .u2-obj { position: absolute; box-sizing: border-box; cursor: move; }
 .u2-obj--ellipse { border-radius: 50%; }
+.u2-obj--text.is-editing { cursor: text; outline: 1.5px solid var(--accent); outline-offset: 3px; background: rgba(0, 0, 0, .25); user-select: text; white-space: pre; }
 .u2-obj--text { display: flex; align-items: center; white-space: nowrap; font: 700 calc(var(--fs) * 1cqh)/1 var(--font-sans); text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
 .u2-obj--stencil { display: grid; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .6)); }
 .u2-obj--stencil > svg { width: 100%; height: 100%; }
@@ -43,21 +46,33 @@
 .u2-handle--0 { left: -8px; top: -8px; cursor: nwse-resize; } .u2-handle--1 { right: -8px; top: -8px; cursor: nesw-resize; }
 .u2-handle--2 { left: -8px; bottom: -8px; cursor: nesw-resize; } .u2-handle--3 { right: -8px; bottom: -8px; cursor: nwse-resize; }
 
+/* Rotating: a zone just outside each corner. Lines and arrows: a node on each end instead of a box. */
+.u2-rot { position: absolute; width: 18px; height: 18px; pointer-events: auto; }
+.u2-rot--0 { left: -24px; top: -24px; } .u2-rot--1 { right: -24px; top: -24px; } .u2-rot--2 { left: -24px; bottom: -24px; } .u2-rot--3 { right: -24px; bottom: -24px; }
+.u2-node { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 50%; background: #fff; cursor: move; z-index: 3; }
+
 /* Mask: outside the picture is dimmed. Crop: outside the picture is gone. */
 .u2-mask { position: absolute; box-shadow: 0 0 0 9999px var(--over-mask, rgba(0, 0, 0, .62)); pointer-events: none; }
 .u2-mask--solid { box-shadow: 0 0 0 9999px #000; }
 
 /* A frame: an outline in its colour with a dark edge so it reads on any picture. */
 .u2-frame { position: absolute; box-sizing: border-box; border: 2px solid var(--c); outline: 1px solid rgba(0, 0, 0, .7); cursor: grab; display: grid; place-items: center; pointer-events: none; }
-/* Only the edge of a frame takes the pointer (a ring cut out of a larger box), so objects inside it stay reachable. */
-.u2-frame::before { content: ""; position: absolute; inset: -7px; pointer-events: auto; clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, 14px 14px, 14px calc(100% - 14px), calc(100% - 14px) calc(100% - 14px), calc(100% - 14px) 14px, 14px 14px); }
-.u2-frame.is-passive::before { pointer-events: none; }
+/* A frame itself takes no pointer: it is grabbed by its label, or by its edge where no object lies (worked out in the tool). */
 .u2-frame.is-current { border-width: 3px; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9); z-index: 2; }
 .u2-frame.is-beyond { border-style: dashed; }
 .u2-frame__label { position: absolute; left: -2px; top: -2px; translate: 0 -100%; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--c); color: #fff; font: 700 11px/1.5 var(--font-mono); white-space: nowrap; pointer-events: auto; cursor: grab; }
 .u2-frame__inner { box-sizing: border-box; border: 1px dashed var(--c); display: grid; place-items: end; pointer-events: none; }
 .u2-frame__inner > span { padding: 0 4px; background: var(--c); color: #fff; font: 700 10px/1.4 var(--font-mono); }
-.u2-stage--mask .u2-frame:not(.is-current) { border-color: transparent; outline-color: transparent; }
+/* The picture: a heavier edge, corner marks and a badge, so it is never mistaken for one frame among others. */
+.u2-frame.is-picture { border-width: 3px; }
+.u2-frame.is-picture::after { content: ""; position: absolute; inset: -9px; pointer-events: none; background:
+  linear-gradient(var(--c), var(--c)) left top / 22px 3px, linear-gradient(var(--c), var(--c)) left top / 3px 22px,
+  linear-gradient(var(--c), var(--c)) right top / 22px 3px, linear-gradient(var(--c), var(--c)) right top / 3px 22px,
+  linear-gradient(var(--c), var(--c)) left bottom / 22px 3px, linear-gradient(var(--c), var(--c)) left bottom / 3px 22px,
+  linear-gradient(var(--c), var(--c)) right bottom / 22px 3px, linear-gradient(var(--c), var(--c)) right bottom / 3px 22px; background-repeat: no-repeat; }
+.u2-frame__label b { display: inline-flex; align-items: center; gap: 3px; margin: -1px -6px -1px 4px; padding: 1px 6px; background: #fff; color: #000; text-transform: uppercase; letter-spacing: .04em; }
+.u2-row--frame.is-picture { box-shadow: inset 3px 0 0 var(--accent); }
+.u2-picture { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; border-radius: 11px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 var(--font-size-xs)/1 var(--font-sans); cursor: pointer; }
 
 /* Inspector */
 .u2-inspector { display: flex; flex-direction: column; min-height: 0; }

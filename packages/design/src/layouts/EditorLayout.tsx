@@ -10,17 +10,20 @@ export interface EditorLayoutProps extends JSX.HTMLAttributes<HTMLDivElement> {
   canvas?: ComponentChildren;
   inspector?: ComponentChildren;
   inspectorWidth?: number;
+  /** How far the inspector can be dragged. */
+  inspectorMin?: number;
+  inspectorMax?: number;
   statusBar?: ComponentChildren;
 }
 
-export function EditorLayout({ toolbar, toolRail, canvas, inspector, inspectorWidth = 220, statusBar, className, ...rest }: EditorLayoutProps) {
+export function EditorLayout({ toolbar, toolRail, canvas, inspector, inspectorWidth = 220, inspectorMin = 180, inspectorMax = 640, statusBar, className, ...rest }: EditorLayoutProps) {
   return (
     <div className={cx("oc-app", className)} {...rest}>
       {toolbar}
       <div className="oc-app__body">
         {toolRail}
         <div className="oc-app__canvas">{canvas}</div>
-        {inspector && <ResizablePanel side="right" defaultSize={inspectorWidth} min={180} max={400}>{inspector}</ResizablePanel>}
+        {inspector && <ResizablePanel side="right" defaultSize={inspectorWidth} min={inspectorMin} max={inspectorMax}>{inspector}</ResizablePanel>}
       </div>
       {statusBar}
     </div>

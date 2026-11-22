@@ -1,6 +1,6 @@
 # U2 · Canvas
 
-UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 2 built**; first decisions recorded below.
+UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 3 built**; decisions so far recorded below.
 
 The one tool for drawing, placing pictures and framing. Specified in [05](05-composition.md) and [02](02-optics.md).
 
@@ -53,16 +53,31 @@ From the owner's reaction to round 1. The prototype was rebuilt around one idea:
 
 Found while testing with a real mouse: frames swallowed clicks meant for objects inside them. Only a frame's edge and its label take the pointer now.
 
+## Round 3 (2026-11-22)
+
+| Change | What to try |
+| --- | --- |
+| Mask always shows the picture's frame | In Mask the camera's frame of the picture is drawn whether or not it is selected, so the bars of a delivery aspect have an edge |
+| "The picture" is marked clearly | The star is gone. In the list the frame carries a filled **Picture** pill and an accent bar; on the canvas its label carries a **PICTURE** badge and the frame has a heavier edge with corner marks. A crop icon on the other frames makes one of them the picture |
+| Text is edited in place | Double-click a text (or select it and press Enter): type on the canvas; Enter finishes, Escape gives up. A text placed with the Text tool starts in this state |
+| Rotation | Just outside each corner of a selection the pointer becomes a rotate arrow: drag to turn the object, Shift for steps of 15°. The inspector shows the angle. Resizing a turned object keeps the opposite corner in place |
+| Lines and arrows have end points | A selected line or arrow shows a node on each end instead of a box. Drag a node: that end moves, the other stays. Drag the line itself to move it whole |
+| Kinds of pen | Pen, Marker (broad, flat ends), Highlighter (very broad, see-through), Brush (thin at both ends), Dashed. Chosen in the toolbar while the Pen is active; a stroke's kind can be changed afterwards in the inspector. Strokes are drawn with rounded corners |
+| A wider inspector | It can be dragged from 280 to 820 px (the layout's default limit rose from 400 to 640) |
+| Objects win over frames | A frame is grabbed by its label, or by its edge where no object lies. An object on or inside a frame is always the one that is clicked, and the handles of a selection sit above the frames |
+
+The last row came out of testing with a real mouse: the end node of the arrow and the text both lay on a frame's edge and could not be grabbed.
+
 ## Not built yet
 
-Compare (two frames side by side), the preset create flow with its preview on example photos, editing a pen stroke's points, rotating, snapping and alignment guides, typing text directly on the canvas, undo and redo, zooming and panning the view, the tablet.
+Compare (two frames side by side), the preset create flow with its preview on example photos, editing a pen stroke's points, snapping and alignment guides, rotating and resizing a group, undo and redo, zooming and panning the view, the tablet.
 
 ## Questions for the owner
 
-1. Does drawing and layering now feel like the tools you know?
-2. Which stencils are missing? The set is what the icon library offers today; film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
-3. Crop fits the view to the camera's frame, with the delivery bars inside. Right, or should it fit to the delivery picture?
-4. Next: Compare, the preset create flow, or zoom and pan with rotation and snapping?
+1. Is the picture now marked clearly enough?
+2. Do the pens feel right, and is one missing?
+3. Which stencils are missing? Film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
+4. Next: Compare, the preset create flow, or zoom and pan with snapping?
 
 ## Into the design system
 
@@ -70,6 +85,7 @@ Compare (two frames side by side), the preset create flow with its preview on ex
 | --- | --- |
 | `Floating` | New: a surface that floats next to a control, rendered at the themed root so no panel, row or animated section can cut it off or paint over it; follows its anchor, opens upward when there is no room, closes on a press outside |
 | `Select`, `Combobox`, `DropdownMenu`, `Popover` | Their lists and surfaces use `Floating` |
+| `EditorLayout`, `ViewerLayout` | The inspector's limits can be set; it can be dragged up to 640 px by default (was 400) |
 | Icons | New glyphs for the drawing tools: cursor, pencil, line, arrow, square, circle, text, stencil, group. The Tabler ones were written out from the published set and are to be checked against the package |
 
 ## Changes to specification pages
@@ -92,3 +108,11 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - **The edit lock is an overlay** over a disabled tool, not a banner.
 - **Crop** shows only the picture, fitted to the view.
 - **No angle of view for a blank canvas.**
+
+2026-11-22, by the owner, after round 2:
+
+- **The object stack, groups and controls** are right as built.
+- **Crop** as built: fitted to the picture's frame, bars for a delivery aspect inside.
+- **Mask** always shows the picture's frame.
+- **Text is edited in place;** objects can be rotated; lines and arrows are changed by their end points; there are several kinds of pen.
+- **The picture needs a stronger mark** than a star.

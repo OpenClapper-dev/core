@@ -9,12 +9,15 @@ export interface ViewerLayoutProps extends JSX.HTMLAttributes<HTMLDivElement> {
   stage?: ComponentChildren;
   inspector?: ComponentChildren;
   inspectorWidth?: number;
+  /** How far the inspector can be dragged. */
+  inspectorMin?: number;
+  inspectorMax?: number;
   /** Optional filmstrip under the stage. */
   strip?: ComponentChildren;
   statusBar?: ComponentChildren;
 }
 
-export function ViewerLayout({ toolbar, stage, inspector, inspectorWidth = 240, strip, statusBar, className, ...rest }: ViewerLayoutProps) {
+export function ViewerLayout({ toolbar, stage, inspector, inspectorWidth = 240, inspectorMin = 180, inspectorMax = 640, strip, statusBar, className, ...rest }: ViewerLayoutProps) {
   return (
     <div className={cx("oc-app", className)} {...rest}>
       {toolbar}
@@ -23,7 +26,7 @@ export function ViewerLayout({ toolbar, stage, inspector, inspectorWidth = 240, 
           <div className="oc-app__stage">{stage}</div>
           {strip && <div className="oc-app__strip">{strip}</div>}
         </div>
-        {inspector && <ResizablePanel side="right" defaultSize={inspectorWidth} min={180} max={400}>{inspector}</ResizablePanel>}
+        {inspector && <ResizablePanel side="right" defaultSize={inspectorWidth} min={inspectorMin} max={inspectorMax}>{inspector}</ResizablePanel>}
       </div>
       {statusBar}
     </div>

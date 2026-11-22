@@ -32,6 +32,15 @@ export function rectOf(f: Frame): { w: number; h: number; inner?: { w: number; h
 }
 export const clampCentre = (c: number, size: number) => (size >= 1 ? 0.5 : Math.min(1 - size / 2, Math.max(size / 2, c)));
 
+export type PenType = "pen" | "marker" | "highlighter" | "brush" | "dashed";
+/** The kinds of pen: how wide a stroke is against the chosen width, how it ends, and how see-through it is. */
+export const PENS: Record<PenType, { label: string; scale: number; opacity: number; cap: "round" | "butt"; dash?: string; taper?: boolean; blend?: string }> = {
+  pen: { label: "Pen", scale: 1, opacity: 1, cap: "round" },
+  marker: { label: "Marker", scale: 3, opacity: 0.9, cap: "butt" },
+  highlighter: { label: "Highlighter", scale: 7, opacity: 0.4, cap: "butt", blend: "screen" },
+  brush: { label: "Brush", scale: 4, opacity: 1, cap: "round", taper: true },
+  dashed: { label: "Dashed", scale: 1, opacity: 1, cap: "round", dash: "2 14" },
+};
 export type Kind = "pen" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "picture" | "group";
 export interface Look { exposure: number; contrast: number; saturation: number }
 /**
@@ -44,6 +53,10 @@ export interface Obj {
   pts?: [number, number][];
   stroke: Colour; fill?: Colour; width: number; opacity: number;
   text?: string; icon?: IconName; seed?: number; look?: Look;
+  /** Rotation in degrees around the middle of its box. */
+  rot?: number;
+  /** Which pen a pen stroke was drawn with. */
+  pen?: PenType;
   visible: boolean; locked: boolean; group?: string;
 }
 export const KIND: Record<Kind, { label: string; icon: IconName }> = {
