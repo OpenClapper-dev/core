@@ -75,3 +75,10 @@ export const START: Obj[] = [
   { ...base, id: "o3", kind: "stencil", name: "Camera A", x: 0.14, y: 0.76, w: 0.06, h: 0.08, icon: "camera", stroke: "#ffffff" },
   { ...base, id: "o4", kind: "text", name: "Note", x: 0.52, y: 0.72, w: 0.3, h: 0.06, text: "Dolly in, 6 m", stroke: "#ffffff" },
 ];
+
+/** A comment on the canvas: a point, or a region when w and h are set. Not an object: it is not part of the picture. */
+export interface Comment { id: string; n: number; x: number; y: number; w?: number; h?: number; author: string; at: string; text: string; replies: { author: string; at: string; text: string }[]; resolved: boolean }
+export const COMMENTS: Comment[] = [
+  { id: "c1", n: 1, x: 0.535, y: 0.44, author: "Ben", at: "Yesterday 17:40", text: "Can we wait for the sun to sit lower? It should touch the roofline.", replies: [{ author: "Ada", at: "Yesterday 18:02", text: "About 20 minutes later. I'll note it on the shot." }], resolved: false },
+  { id: "c2", n: 2, x: 0.08, y: 0.62, w: 0.26, h: 0.3, author: "Mara", at: "Today 09:15", text: "Is this corner clear for the dolly track? There was a fence last week.", replies: [], resolved: false },
+];

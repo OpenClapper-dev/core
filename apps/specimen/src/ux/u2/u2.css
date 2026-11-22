@@ -25,7 +25,7 @@
 .u2-surface { position: absolute; left: 50%; top: 50%; translate: -50% -50%; container-type: size; }
 .u2-stage.is-drawing .u2-surface { cursor: crosshair; }
 .u2-surface--ui { pointer-events: none; z-index: 5; }
-.u2-surface--ui .u2-node { pointer-events: auto; }
+.u2-surface--ui .u2-node, .u2-surface--ui .u2-pin, .u2-surface--ui .u2-thread { pointer-events: auto; }
 .u2-photo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
 
 /* Objects */
@@ -60,11 +60,12 @@
 /* A frame itself takes no pointer: it is grabbed by its label, or by its edge where no object lies (worked out in the tool). */
 .u2-frame.is-current { border-width: 3px; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9); z-index: 2; }
 .u2-frame.is-beyond { border-style: dashed; }
-.u2-frame__label { position: absolute; left: -2px; top: -2px; translate: 0 -100%; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--c); color: #fff; font: 700 11px/1.5 var(--font-mono); white-space: nowrap; pointer-events: auto; cursor: grab; }
+.u2-frame__label { position: absolute; left: -2px; top: -2px; translate: 0 -100%; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--c); color: #fff; font: 700 11px/1.5 var(--font-mono); white-space: nowrap; pointer-events: auto; cursor: grab; }
 .u2-frame__inner { box-sizing: border-box; border: 1px dashed var(--c); display: grid; place-items: end; pointer-events: none; }
 .u2-frame__inner > span { padding: 0 4px; background: var(--c); color: #fff; font: 700 10px/1.4 var(--font-mono); }
 /* The picture: a heavier edge, corner marks and a badge, so it is never mistaken for one frame among others. */
 .u2-frame.is-picture { border-width: 3px; }
+.u2-frame.is-picture > .u2-frame__label { left: -9px; top: -9px; }
 .u2-frame.is-picture::after { content: ""; position: absolute; inset: -9px; pointer-events: none; background:
   linear-gradient(var(--c), var(--c)) left top / 22px 3px, linear-gradient(var(--c), var(--c)) left top / 3px 22px,
   linear-gradient(var(--c), var(--c)) right top / 22px 3px, linear-gradient(var(--c), var(--c)) right top / 3px 22px,
@@ -109,3 +110,30 @@
 .u2-stencils button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); cursor: pointer; }
 .u2-stencils button:hover { background: var(--surface-hover); }
 .u2-stencils button.is-on { background: var(--selection); box-shadow: inset 0 0 0 1px var(--selection-border); }
+
+/* Rows: the pointing hand on what can be clicked, and a hover that shows on the row's own hover and selection. */
+.u2-row--frame, .u2-comments li, .u2-row__twist, .u2-picture { cursor: pointer; }
+.u2-row .oc-btn--quiet:hover { background: color-mix(in srgb, var(--text) 18%, transparent); }
+
+/* Comments: a numbered pin; its region and its thread show only while it is open. */
+.u2-pin { position: absolute; z-index: 6; display: grid; place-items: center; width: 24px; height: 24px; margin: -22px 0 0 2px; padding: 0; border: 2px solid #fff; border-radius: 12px 12px 12px 2px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 11px/1 var(--font-mono); box-shadow: 0 1px 4px rgba(0, 0, 0, .5); cursor: pointer; }
+.u2-pin:hover, .u2-pin.is-current { scale: 1.15; }
+.u2-pin.is-done { background: var(--text-secondary); }
+.u2-pin--list { position: static; margin: 2px 0 0; flex: none; border-color: transparent; box-shadow: none; }
+.u2-pin--list:hover { scale: 1; }
+.u2-region { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.u2-thread { position: absolute; z-index: 7; width: 268px; margin: 6px 0 0 30px; display: grid; gap: var(--space-4); padding: var(--space-5); border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface-raised, var(--surface)); color: var(--text); box-shadow: var(--shadow-menu, 0 8px 24px rgba(0, 0, 0, .35)); font: var(--font-size-sm)/1.4 var(--font-sans); cursor: default; user-select: text; }
+.u2-thread.is-left { margin-left: -276px; }
+.u2-thread textarea { width: 100%; box-sizing: border-box; resize: none; }
+.u2-thread .u2-bar { padding: 0; }
+.u2-msg p, .u2-comments p { margin: 2px 0 0; }
+.u2-msg + .u2-msg { padding-top: var(--space-4); border-top: var(--border-w) solid var(--border-divider); }
+.u2-msg__who { display: flex; align-items: center; gap: 6px; }
+.u2-msg__who i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-sunken); font: 700 10px/1 var(--font-sans); font-style: normal; }
+.u2-msg__who small, .u2-comments small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u2-comments { list-style: none; margin: 0; padding: 0 var(--space-4); display: grid; gap: 2px; }
+.u2-comments li { display: flex; gap: var(--space-4); padding: var(--space-4); border: var(--border-w) solid transparent; border-radius: var(--radius-control); }
+.u2-comments li:hover { background: var(--surface-hover); }
+.u2-comments li.is-current { border-color: var(--selection-border); background: var(--selection); }
+.u2-comments li.is-done p { color: var(--text-secondary); text-decoration: line-through; }
+.u2-bar--wrap { flex-wrap: wrap; }

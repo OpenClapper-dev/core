@@ -1,4 +1,4 @@
-.oc-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-3);height:var(--control-h);padding:0 10px;box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-control);background:var(--surface);box-shadow:var(--shadow-xs);color:var(--text);font:var(--weight-semibold) var(--font-size-md)/1 var(--font-sans);white-space:nowrap;cursor:default;user-select:none;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease)}
+.oc-btn{display:inline-flex;align-items:center;justify-content:center;gap:var(--space-3);height:var(--control-h);padding:0 10px;box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-control);background:var(--surface);box-shadow:var(--shadow-xs);color:var(--text);font:var(--weight-semibold) var(--font-size-md)/1 var(--font-sans);white-space:nowrap;cursor:pointer;user-select:none;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease)}
 .oc-btn:hover,.oc-btn.is-hover{background:var(--surface-hover)}
 .oc-btn:active,.oc-btn.is-pressed{background:var(--surface-pressed)}
 .oc-btn:focus-visible,.oc-btn.is-focus{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4px var(--focus-ring)}
@@ -7,7 +7,7 @@
 .oc-btn--primary:hover,.oc-btn--primary.is-hover{border-color:var(--accent-hover);background:var(--accent-hover)}
 .oc-btn--primary:active,.oc-btn--primary.is-pressed{border-color:var(--accent-pressed);background:var(--accent-pressed)}
 .oc-btn--quiet{border-color:transparent;background:transparent;box-shadow:none}
-.oc-btn--quiet:hover,.oc-btn--quiet.is-hover{background:var(--surface-hover)}
+.oc-btn--quiet:hover,.oc-btn--quiet.is-hover{background:color-mix(in srgb,var(--text) 14%,transparent)}
 .oc-btn--danger{border-color:var(--danger);color:var(--danger)}
 .oc-btn--danger:hover,.oc-btn--danger.is-hover{background:var(--danger-tint)}
 .oc-btn--danger:active,.oc-btn--danger.is-pressed{background:var(--danger);color:var(--surface)}

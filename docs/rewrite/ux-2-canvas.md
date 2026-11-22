@@ -1,6 +1,6 @@
 # U2 · Canvas
 
-UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 3 built**; decisions so far recorded below.
+UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 4 built**; decisions so far recorded below.
 
 The one tool for drawing, placing pictures and framing. Specified in [05](05-composition.md) and [02](02-optics.md).
 
@@ -68,14 +68,27 @@ Found while testing with a real mouse: frames swallowed clicks meant for objects
 
 The last row came out of testing with a real mouse: the end node of the arrow and the text both lay on a frame's edge and could not be grabbed.
 
+## Round 4 (2026-11-22): comments
+
+| Change | What to try |
+| --- | --- |
+| Commenting | The last tool in the rail (C). **Click** a point, or **drag** a region; a box opens to type; Enter posts, Escape gives up |
+| On the canvas | A comment is a numbered pin. Click it: its thread opens next to it (the comment, replies, a reply field, Resolve, delete). A comment on a region shows that region, dashed, only while it is open |
+| Showing and hiding | The comment button left of the view modes shows or hides comments on the canvas and counts the open ones; the same switch is in the Comments tab |
+| The Comments tab | A third tab in the inspector lists every comment with author and time, whether it is on a region, and its replies. Clicking one opens it on the canvas. "Resolved too" brings resolved ones back; "New comment" takes the tool. The list works with comments hidden on the canvas |
+| Resolving | A resolved comment leaves the canvas and the list until "Resolved too" is ticked; it can be reopened |
+| Not objects | Comments are not in the layer stack and are not part of the picture (a render never shows them) |
+
+Also: the picture's label is no longer cut by the corner marks; rows and their buttons show the pointing hand, and a quiet button's hover is visible on a hovered or selected row.
+
 ## Not built yet
 
 Compare (two frames side by side), the preset create flow with its preview on example photos, editing a pen stroke's points, snapping and alignment guides, rotating and resizing a group, undo and redo, zooming and panning the view, the tablet.
 
 ## Questions for the owner
 
-1. Is the picture now marked clearly enough?
-2. Do the pens feel right, and is one missing?
+1. Should commenting be possible while someone else is editing the canvas? A comment does not change the picture.
+2. Comments only on a canvas, or the same on photos, shots and timelines later?
 3. Which stencils are missing? Film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
 4. Next: Compare, the preset create flow, or zoom and pan with snapping?
 
@@ -85,6 +98,8 @@ Compare (two frames side by side), the preset create flow with its preview on ex
 | --- | --- |
 | `Floating` | New: a surface that floats next to a control, rendered at the themed root so no panel, row or animated section can cut it off or paint over it; follows its anchor, opens upward when there is no room, closes on a press outside |
 | `Select`, `Combobox`, `DropdownMenu`, `Popover` | Their lists and surfaces use `Floating` |
+| `Button` | Buttons show the pointing hand; a quiet button's hover is visible on any surface |
+| Icons | A comment glyph |
 | `EditorLayout`, `ViewerLayout` | The inspector's limits can be set; it can be dragged up to 640 px by default (was 400) |
 | Icons | New glyphs for the drawing tools: cursor, pencil, line, arrow, square, circle, text, stencil, group. The Tabler ones were written out from the published set and are to be checked against the package |
 
@@ -96,6 +111,7 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - A **look** (exposure, contrast, saturation and the rest) is a property of a photo object, the base photo or a placed one, not a layer over everything.
 - A blank surface has a colour.
 - Frames are not part of the stack.
+- A canvas has **comments**: on a point or a region, with replies, resolved or open. They are not objects and not part of the picture. New for the specification; whether commenting needs the edit lock, and whether photos, shots and timelines get comments too, is open.
 
 ## Decided
 
@@ -116,3 +132,8 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - **Mask** always shows the picture's frame.
 - **Text is edited in place;** objects can be rotated; lines and arrows are changed by their end points; there are several kinds of pen.
 - **The picture needs a stronger mark** than a star.
+
+2026-11-22, by the owner, after round 3:
+
+- **Comments** on a canvas, as in familiar design tools: on a point or a region, shown or hidden on the canvas, listed in the inspector.
+- **Clickable things show the pointing hand,** and hover is visible everywhere.

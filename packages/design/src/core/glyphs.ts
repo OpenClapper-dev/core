@@ -14,6 +14,7 @@ export const GLYPHS = {
   "circle": ["circle", "<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>"],
   "text": ["letter-t", "<path d=\"M6 4l12 0\"/> <path d=\"M12 4l0 16\"/>"],
   "stencil": ["custom", "<path d=\"M4 4h6v6h-6z\"/> <path d=\"M14 7a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"/> <path d=\"M7 14l3.5 6h-7z\"/> <path d=\"M14 14h6v6h-6z\"/>"],
+  "comment": ["message", "<path d=\"M8 9h8\"/> <path d=\"M8 13h6\"/> <path d=\"M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12\"/>"],
   "group": ["custom", "<path d=\"M4 6v-1a1 1 0 0 1 1 -1h1\"/> <path d=\"M18 4h1a1 1 0 0 1 1 1v1\"/> <path d=\"M20 18v1a1 1 0 0 1 -1 1h-1\"/> <path d=\"M6 20h-1a1 1 0 0 1 -1 -1v-1\"/> <path d=\"M8 8h5v5h-5z\"/> <path d=\"M11 11h5v5h-5z\"/>"],
   "check": ["check", "<path d=\"M5 12l5 5l10 -10\"/>"],
   "close": ["x", "<path d=\"M18 6l-12 12\"/> <path d=\"M6 6l12 12\"/>"],

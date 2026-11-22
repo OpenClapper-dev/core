@@ -11,12 +11,12 @@ import {
 } from "@openclapper/design";
 import { picture } from "../u1/pictures";
 import { ColourButton, css, type Colour } from "../u1/catalogue";
-import { ASPECTS, FORMATS, KIND, NO_LOOK, PENS, PHOTO, PRESETS, PRIMES, START, STENCILS, clampCentre, frameFrom, lookFilter, rectOf, type Frame, type Kind, type Look, type Obj, type PenType } from "./model";
+import { ASPECTS, COMMENTS, FORMATS, KIND, NO_LOOK, PENS, PHOTO, PRESETS, PRIMES, START, STENCILS, clampCentre, frameFrom, lookFilter, rectOf, type Comment, type Frame, type Kind, type Look, type Obj, type PenType } from "./model";
 
-type Tool = "select" | "pen" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "picture";
+type Tool = "select" | "pen" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "picture" | "comment";
 const TOOLS: { id: Tool; icon: IconName; label: string; kbd: string }[] = [
   { id: "select", icon: "cursor", label: "Move", kbd: "V" }, { id: "pen", icon: "pencil", label: "Pen", kbd: "P" }, { id: "line", icon: "line-tool", label: "Line", kbd: "L" }, { id: "arrow", icon: "arrow-up-right", label: "Arrow", kbd: "A" },
-  { id: "rect", icon: "square", label: "Rectangle", kbd: "R" }, { id: "ellipse", icon: "circle", label: "Ellipse", kbd: "O" }, { id: "text", icon: "text", label: "Text", kbd: "T" }, { id: "stencil", icon: "stencil", label: "Stencil", kbd: "S" }, { id: "picture", icon: "image", label: "Place a photo", kbd: "I" },
+  { id: "rect", icon: "square", label: "Rectangle", kbd: "R" }, { id: "ellipse", icon: "circle", label: "Ellipse", kbd: "O" }, { id: "text", icon: "text", label: "Text", kbd: "T" }, { id: "stencil", icon: "stencil", label: "Stencil", kbd: "S" }, { id: "picture", icon: "image", label: "Place a photo", kbd: "I" }, { id: "comment", icon: "comment", label: "Comment: click a point, or drag a region", kbd: "C" },
 ];
 type P = [number, number];
 type Act =
@@ -61,6 +61,18 @@ export default function U2Canvas() {
   const [theme, setTheme] = useState("dark");
   const [draft, setDraft] = useState<{ tool: Tool; pts: P[] } | null>(null);
   const [dragRow, setDragRow] = useState<string | null>(null);
+  // Comments are not objects: they are not part of the picture and have no place in the stack.
+  const [comments, setComments] = useState<Comment[]>(COMMENTS);
+  const [selC, setSelC] = useState<string | null>(null);
+  const [showC, setShowC] = useState(true);
+  const [showDone, setShowDone] = useState(false);
+  const [compose, setCompose] = useState<{ x: number; y: number; w?: number; h?: number } | null>(null);
+  const [words, setWords] = useState("");
+  const [reply, setReply] = useState("");
+  const post = () => { if (!compose || !words.trim()) return; const c: Comment = { id: uid(), n: Math.max(0, ...comments.map((x) => x.n)) + 1, ...compose, author: "Ada", at: "Just now", text: words.trim(), replies: [], resolved: false }; setComments([...comments, c]); setCompose(null); setWords(""); setSelC(c.id); setTool("select"); setTab("comments"); setShowC(true); };
+  // The composer takes the keyboard as soon as it opens, so the first key typed is the comment, not a tool shortcut.
+  useEffect(() => { if (compose) document.querySelector<HTMLTextAreaElement>(".u2-thread textarea")?.focus(); }, [compose]);
+  const openC = (id: string | null) => { setSelC(id); setReply(""); setCompose(null); if (id) { setSel([]); setSelF(null); setRootSel(false); setTab("comments"); } };
   const box = useRef<HTMLDivElement>(null);
   const act = useRef<Act | null>(null);
 
@@ -103,6 +115,7 @@ export default function U2Canvas() {
       // or inside a frame always win, and a frame never has to be aimed at through them.
       const p = at(e), r = box.current!.getBoundingClientRect(), tx = 7 / r.width, ty = 7 / r.height;
       const f = photo && mode !== "full" && mode !== "crop" ? [...shownFrames].reverse().find((x) => { if (mode === "mask" && x.id !== pic && x.id !== selF) return false; const q = rectOf(x), l = x.cx - q.w / 2, t = x.cy - q.h / 2, inX = p[0] > l - tx && p[0] < l + q.w + tx, inY = p[1] > t - ty && p[1] < t + q.h + ty; return inX && inY && (Math.abs(p[0] - l) < tx || Math.abs(p[0] - l - q.w) < tx || Math.abs(p[1] - t) < ty || Math.abs(p[1] - t - q.h) < ty); }) : undefined;
+      setSelC(null);
       if (f) grabF(e, f); else pick(null);
       return;
     }
@@ -137,6 +150,7 @@ export default function U2Canvas() {
     setDraft(null);
     const xs = a.pts.map((q) => q[0]), ys = a.pts.map((q) => q[1]);
     let x = Math.min(...xs), y = Math.min(...ys), w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+    if (a.tool === "comment") { setWords(""); setSelC(null); setCompose(w < 0.02 && h < 0.02 ? { x: a.pts[0][0], y: a.pts[0][1] } : { x, y, w, h }); return; }
     if (w < 0.006 && h < 0.006) { if (a.tool === "pen") return; w = 0.16; h = a.tool === "line" || a.tool === "arrow" ? 0 : 0.12; a.pts = [[x, y], [x + w, y + h]]; }
     const line = a.tool === "pen" || a.tool === "line" || a.tool === "arrow";
     const o: Obj = { id: uid(), kind: a.tool as Kind, name: KIND[a.tool as Kind].label, x, y, w: Math.max(w, 0.001), h: Math.max(h, 0.001), pts: line ? a.pts.map((q): P => [w ? (q[0] - x) / w : 0, h ? (q[1] - y) / h : 0]) : undefined, pen: a.tool === "pen" ? penType : undefined, stroke, width: strokeW, opacity: 1, visible: true, locked: false };
@@ -329,6 +343,25 @@ export default function U2Canvas() {
     </>
   );
 
+  // Inspector: comments, to read them with or without the canvas.
+  const listed = comments.filter((c) => !c.resolved || showDone);
+  const commentsTab = (
+    <PropertySection title={`Comments · ${comments.filter((c) => !c.resolved).length} open`} icon="comment">
+      <div className="u2-bar u2-bar--wrap"><Switch checked={showC} onChange={setShowC}>Show on the canvas</Switch><span style={{ flex: 1 }} /><Checkbox checked={showDone} onChange={setShowDone}>Resolved too</Checkbox></div>
+      {!listed.length ? <p className="u2-note">No comments. Take the Comment tool (C), then click a point or drag a region.</p> : (
+        <ul className="u2-comments">
+          {listed.map((c) => (
+            <li key={c.id} className={cx(selC === c.id && "is-current", c.resolved && "is-done")} onClick={() => openC(selC === c.id ? null : c.id)}>
+              <span className={cx("u2-pin u2-pin--list", c.resolved && "is-done")}>{c.resolved ? <Icon name="check" size={12} /> : c.n}</span>
+              <div><span className="u2-msg__who"><strong>{c.author}</strong><small>{c.at}{c.w != null && " · a region"}</small></span><p>{c.text}</p>{c.replies.length > 0 && <small>{c.replies.length} {c.replies.length === 1 ? "reply" : "replies"}</small>}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="u2-bar"><Button size="sm" icon="comment" onClick={() => { setTool("comment"); setShowC(true); }}>New comment</Button></div>
+    </PropertySection>
+  );
+
   const selBox = one && !frozen(one) ? bounds(one) : null;
   const drawing = tool !== "select";
   return (
@@ -346,15 +379,17 @@ export default function U2Canvas() {
             <Button size="sm" variant="quiet" icon="undo" label="Undo" /><Button size="sm" variant="quiet" icon="redo" label="Redo" />
             {drawing && <span className="u2-toolopts"><span className="oc-meta">{TOOLS.find((t) => t.id === tool)!.label}</span>
               {tool === "pen" && <Segmented label="Pen" value={penType} onChange={(v) => setPenType(v as PenType)} options={Object.entries(PENS).map(([k, v]) => ({ value: k, label: v.label }))} />}
-              {tool !== "picture" && <ColourButton value={stroke} label="Colour" onChange={setStroke} />}
+              {tool !== "picture" && tool !== "comment" && <ColourButton value={stroke} label="Colour" onChange={setStroke} />}
               {["pen", "line", "arrow", "rect", "ellipse"].includes(tool) && <span className="u2-zoom" style={{ width: 150 }}><Slider min={1} max={12} step={1} value={strokeW} onChange={setStrokeW} /><b className="oc-num">{strokeW} px</b></span>}
               {tool === "stencil" && <Popover trigger={<Button size="sm" icon={stencil} iconAfter="chevron-down">Stencil</Button>}><div className="u2-stencils">{STENCILS.map((s) => <button type="button" key={s} title={s} className={cx(stencil === s && "is-on")} onClick={() => setStencil(s)}><Icon name={s} size={20} /></button>)}</div></Popover>}
               {(tool === "text" || tool === "stencil" || tool === "picture") && <span className="oc-meta">click on the canvas to place it</span>}
+              {tool === "comment" && <span className="oc-meta">click a point, or drag a region to comment on</span>}
             </span>}
             <ToolbarSpacer />
+            <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
             {photo && <Segmented label="View mode" value={mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} />}
           </Toolbar>}
-          toolRail={<ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6)]} />}
+          toolRail={<ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} />}
           canvas={
             <div className="u2-fit">
               <div className={cx("u2-stage", `u2-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", scale < 1 && "is-beyond")}>
@@ -362,7 +397,7 @@ export default function U2Canvas() {
                   <div ref={box} className="u2-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : css(surface.colour) }} onPointerDown={down} onPointerMove={move} onPointerUp={up}>
                     {photo && <img className="u2-photo" src={picture(PHOTO.seed)} alt="" draggable={false} style={{ filter: lookFilter(surface.look) }} />}
                     {objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw(o))}
-                    {draft && draft.tool !== "pen" && draft.tool !== "line" && draft.tool !== "arrow" && (() => { const [a, b] = draft.pts; return <div className={cx("u2-obj", `u2-obj--${draft.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: `${strokeW}px solid ${css(stroke)}`, pointerEvents: "none" }} />; })()}
+                    {draft && draft.tool !== "pen" && draft.tool !== "line" && draft.tool !== "arrow" && (() => { const [a, b] = draft.pts; return <div className={cx("u2-obj", draft.tool === "comment" ? "u2-region" : `u2-obj--${draft.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: draft.tool === "comment" ? undefined : `${strokeW}px solid ${css(stroke)}`, pointerEvents: "none" }} />; })()}
                     {draft && (draft.tool === "pen" || draft.tool === "line" || draft.tool === "arrow") && draw({ id: "draft", kind: draft.tool as Kind, name: "", x: 0, y: 0, w: 1, h: 1, pts: draft.pts, pen: penType, stroke, width: strokeW, opacity: 1, visible: true, locked: false }, true)}
                   </div>
                   {photo && (mode === "mask" || mode === "crop") && picF && <span className={cx("u2-mask", mode === "crop" && "u2-mask--solid")} style={place(picF, true)} />}
@@ -374,6 +409,25 @@ export default function U2Canvas() {
                   ); })}
                   {/* Selection handles sit above the frames, so a handle that lies on a frame's edge still takes the pointer. */}
                   <div className="u2-surface u2-surface--ui" style={{ width: `${scale * 100}%`, height: `${scale * 100}%` }}>
+                    {showC && comments.filter((c) => !c.resolved || showDone || c.id === selC).map((c) => { const on = selC === c.id, px = c.x + (c.w ?? 0), flip = px > 0.62; return [
+                      on && c.w != null && <span key={`${c.id}r`} className="u2-region" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, width: `${c.w * 100}%`, height: `${(c.h ?? 0) * 100}%` }} />,
+                      <button type="button" key={c.id} className={cx("u2-pin", on && "is-current", c.resolved && "is-done")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} title={`${c.author}: ${c.text}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => openC(on ? null : c.id)}>{c.resolved ? <Icon name="check" size={12} /> : c.n}</button>,
+                      on && (
+                        <div key={`${c.id}t`} className={cx("u2-thread", flip && "is-left")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} onPointerDown={(e) => e.stopPropagation()}>
+                          {[c, ...c.replies].map((m, i) => <div key={i} className="u2-msg"><span className="u2-msg__who"><i>{m.author[0]}</i><strong>{m.author}</strong><small>{m.at}</small></span><p>{m.text}</p></div>)}
+                          <TextArea rows={2} value={reply} placeholder="Reply…" onInput={(e) => setReply((e.target as HTMLTextAreaElement).value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && reply.trim()) { e.preventDefault(); setComments(comments.map((x) => (x.id === c.id ? { ...x, replies: [...x.replies, { author: "Ada", at: "Just now", text: reply.trim() }] } : x))); setReply(""); } }} />
+                          <div className="u2-bar"><Button size="sm" variant="quiet" icon="check" onClick={() => { setComments(comments.map((x) => (x.id === c.id ? { ...x, resolved: !x.resolved } : x))); if (!c.resolved) setSelC(null); }}>{c.resolved ? "Reopen" : "Resolve"}</Button><span style={{ flex: 1 }} /><Button size="sm" variant="quiet" icon="trash" label="Delete the comment" onClick={() => { setComments(comments.filter((x) => x.id !== c.id)); setSelC(null); }} /></div>
+                        </div>
+                      ),
+                    ]; })}
+                    {compose && [
+                      compose.w != null && <span key="r" className="u2-region" style={{ left: `${compose.x * 100}%`, top: `${compose.y * 100}%`, width: `${compose.w * 100}%`, height: `${(compose.h ?? 0) * 100}%` }} />,
+                      <span key="p" className="u2-pin is-current" style={{ left: `${(compose.x + (compose.w ?? 0)) * 100}%`, top: `${compose.y * 100}%` }}><Icon name="plus" size={12} /></span>,
+                      <div key="c" className={cx("u2-thread", compose.x + (compose.w ?? 0) > 0.62 && "is-left")} style={{ left: `${(compose.x + (compose.w ?? 0)) * 100}%`, top: `${compose.y * 100}%` }} onPointerDown={(e) => e.stopPropagation()}>
+                        <TextArea rows={3} value={words} placeholder={compose.w != null ? "Comment on this region…" : "Comment on this point…"} onInput={(e) => setWords((e.target as HTMLTextAreaElement).value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); post(); } else if (e.key === "Escape") setCompose(null); }} />
+                        <div className="u2-bar"><Button size="sm" variant="quiet" onClick={() => setCompose(null)}>Cancel</Button><span style={{ flex: 1 }} /><Button size="sm" variant="primary" disabled={!words.trim()} onClick={post}>Comment</Button></div>
+                      </div>,
+                    ]}
                     {tool === "select" && marks.filter((m) => m !== one || !selBox).map((m) => { const [x, y, w, h] = bounds(m); return <span key={m.id} className="u2-sel" style={{ left: `${x * 100}%`, top: `${y * 100}%`, width: `${w * 100}%`, height: `${h * 100}%`, transform: m.rot ? `rotate(${m.rot}deg)` : undefined }} />; })}
                     {tool === "select" && one && selBox && !editing && (one.kind === "line" || one.kind === "arrow") && one.pts && [0, 1].map((k) => { const q = abs(one, one.pts![k === 0 ? 0 : one.pts!.length - 1]); return (
                       <i key={k} className="u2-node" style={{ left: `${q[0] * 100}%`, top: `${q[1] * 100}%` }} onPointerMove={move} onPointerUp={up}
@@ -394,7 +448,7 @@ export default function U2Canvas() {
               </div>
             </div>
           }
-          inspector={<div className="u2-inspector"><div className="u2-tabs"><Segmented label="Inspector" value={tab} onChange={setTab} options={[{ value: "layers", label: "Layers", icon: "layers" }, { value: "frames", label: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame" }]} /></div><PropertyList>{tab === "layers" ? layersTab : framesTab}</PropertyList></div>}
+          inspector={<div className="u2-inspector"><div className="u2-tabs"><Segmented label="Inspector" value={tab} onChange={setTab} options={[{ value: "layers", label: "Layers", icon: "layers" }, { value: "frames", label: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame" }, { value: "comments", label: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment" }]} /></div><PropertyList>{tab === "layers" ? layersTab : tab === "frames" ? framesTab : commentsTab}</PropertyList></div>}
           statusBar={<StatusBar>{objs.filter((o) => o.kind !== "group").length} objects{photo && <> · {frames.length} frames{picF && <> · the picture is <strong>{picF.name}</strong></>}{scale < 1 && <> · a frame sees more than the photo: the hatched area is beyond it</>}</>}{mode === "crop" && picF && <> · Crop: fitted to the picture's frame{rectOf(picF).inner ? ", bars for the delivery aspect" : ""}</>}{cur && curR?.hfov && <> · <strong>{cur.name}</strong> covers {Math.min(100, curR.w * 100).toFixed(0)} % of the photo's width</>}</StatusBar>} />
         {locked && (
           <div className="u2-lock" role="alertdialog" aria-label="Someone else is editing">
