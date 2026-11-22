@@ -16,6 +16,12 @@
 .oc-panel{flex:none;display:flex;min-height:0}
 .oc-panel--right{flex-direction:row-reverse}
 .oc-panel--bottom{flex-direction:column-reverse;min-width:0}
+/* A closed panel: a thin rail on the edge that opens it again on a click or a pull. */
+.oc-panel--closed{width:auto!important;height:auto!important}
+.oc-panel__rail{flex:none;display:grid;place-items:center;width:16px;padding:0;border:0;border-left:var(--border-w) solid var(--border-divider);background:var(--surface-sunken);color:var(--text-secondary);cursor:pointer;touch-action:none}
+.oc-panel__rail--v{width:auto;height:16px;border-left:0;border-top:var(--border-w) solid var(--border-divider)}
+.oc-panel__rail:hover,.oc-panel__rail.is-dragging{background:var(--accent-tint);color:var(--accent)}
+.oc-panel__rail:focus-visible{outline:0;box-shadow:inset 0 0 0 1px var(--focus),inset 0 0 0 3px var(--focus-ring)}
 .oc-panel__body{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0;overflow:auto;background:var(--surface)}
 .oc-card{display:flex;flex-direction:column;min-width:0;box-sizing:border-box;border:var(--border-w) solid var(--border-divider);border-radius:var(--radius-card);background:var(--surface);box-shadow:var(--shadow-card);color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-ui) var(--font-sans);text-align:left}
 .oc-card__head{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-6) var(--space-6) 0;font-size:var(--font-size-lg);font-weight:var(--weight-bold)}

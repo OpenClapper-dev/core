@@ -4,6 +4,18 @@
 // dependency; the phone maps the same Tabler names through tabler() below.
 export const TABLER_VERSION = "3.51.0";
 export const GLYPHS = {
+  // Drawing tools of the canvas (rewrite UX workshop U2). The Tabler ones were written out from the published set
+  // and are to be checked against the package when icons are next synced; "cursor", "line-tool" and "group" are in-house.
+  "cursor": ["custom", "<path d=\"M6 4l11 8.4l-5.1 1.1l3.2 5.6l-2 1.1l-3.2 -5.6l-3.9 3.5z\"/>"],
+  "pencil": ["pencil", "<path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"/> <path d=\"M13.5 6.5l4 4\"/>"],
+  "line-tool": ["custom", "<path d=\"M6 18l12 -12\"/> <path d=\"M4 20a1.5 1.5 0 1 0 3 -3a1.5 1.5 0 0 0 -3 3\"/> <path d=\"M17 7a1.5 1.5 0 1 0 3 -3a1.5 1.5 0 0 0 -3 3\"/>"],
+  "arrow-up-right": ["arrow-up-right", "<path d=\"M17 7l-10 10\"/> <path d=\"M8 7l9 0l0 9\"/>"],
+  "square": ["square", "<path d=\"M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14\"/>"],
+  "circle": ["circle", "<path d=\"M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0\"/>"],
+  "text": ["letter-t", "<path d=\"M6 4l12 0\"/> <path d=\"M12 4l0 16\"/>"],
+  "stencil": ["custom", "<path d=\"M4 4h6v6h-6z\"/> <path d=\"M14 7a3 3 0 1 0 6 0a3 3 0 0 0 -6 0\"/> <path d=\"M7 14l3.5 6h-7z\"/> <path d=\"M14 14h6v6h-6z\"/>"],
+  "comment": ["message", "<path d=\"M8 9h8\"/> <path d=\"M8 13h6\"/> <path d=\"M18 4a3 3 0 0 1 3 3v8a3 3 0 0 1 -3 3h-5l-5 3v-3h-2a3 3 0 0 1 -3 -3v-8a3 3 0 0 1 3 -3h12\"/>"],
+  "group": ["custom", "<path d=\"M4 6v-1a1 1 0 0 1 1 -1h1\"/> <path d=\"M18 4h1a1 1 0 0 1 1 1v1\"/> <path d=\"M20 18v1a1 1 0 0 1 -1 1h-1\"/> <path d=\"M6 20h-1a1 1 0 0 1 -1 -1v-1\"/> <path d=\"M8 8h5v5h-5z\"/> <path d=\"M11 11h5v5h-5z\"/>"],
   "check": ["check", "<path d=\"M5 12l5 5l10 -10\"/>"],
   "close": ["x", "<path d=\"M18 6l-12 12\"/> <path d=\"M6 6l12 12\"/>"],
   "plus": ["plus", "<path d=\"M12 5l0 14\"/> <path d=\"M5 12l14 0\"/>"],

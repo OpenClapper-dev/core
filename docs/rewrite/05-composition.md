@@ -1,6 +1,6 @@
 # 05 · Canvas (was: composition)
 
-Workshop [#332](https://github.com/OpenClapper-dev/core/issues/332). Status: **decided** (2026-11-19; references to one frame and internal canvases added in the [interjection](i1-interjection.md)).
+Workshop [#332](https://github.com/OpenClapper-dev/core/issues/332). Status: **decided** (2026-11-19; references to one frame and internal canvases added in the [interjection](i1-interjection.md); objects in one stack, comments and the look on photos from UX workshop [U2](ux-2-canvas.md), 2026-11-22).
 
 One tool and one file type for everything drawn or arranged: a sketch, a floor plan, a photo with marks and a look, a photo explored through frames. The direction was set in [workshop 04](04-shots.md); this page fills it in.
 
@@ -37,8 +37,11 @@ A **canvas** is a file of a project. It stands alone; shots, timelines and folde
 | Part | Meaning |
 | --- | --- |
 | Surface | Either blank with an aspect ratio, or a **base photo** |
-| Layers | An ordered stack: drawing layers and adjustment layers, each with name, opacity, visibility, lock |
-| Objects | What a drawing layer holds: today's shapes, plus a **placed picture** (a reference to a photo of the project with position, size, rotation and crop) |
+| Surface colour | A blank surface has a colour |
+| Objects | Everything drawn or placed, in **one stack**: pen strokes (several kinds of pen), lines, arrows, rectangles, ellipses, text, stencils, and **placed pictures** (a reference to a photo of the project). Each has a name, position, size, rotation, opacity, visibility and a lock. The order of the stack is the layering; there are no layer kinds |
+| Groups | Objects can be grouped; a group moves and is layered as one |
+| Look | Exposure, contrast, saturation and the rest are properties of a photo: the base photo or a placed one. There is no adjustment layer over everything |
+| Comments | On a point or a region, with replies, open or resolved. Not objects, not part of the picture, never in a render |
 | Frames | Only with a base photo, optional: any number of frames, one of which can be the picture the canvas stands for |
 | Render | A flattened image of the whole surface, and a thumbnail (below) |
 
@@ -79,13 +82,15 @@ A frame exists only inside a canvas that has a base photo. There is no framing a
 
 ### Render instead of bakes
 
-Whoever edits a canvas uploads its render with the save, as sketches do today: the whole surface flattened (base photo, layers), plus a thumbnail. Viewers that cannot draw layers (the phone, a list, a shot's thumbnail) show the render and apply the frame themselves.
+Whoever edits a canvas uploads its render with the save, as sketches do today: the whole surface flattened (base photo, objects), plus a thumbnail. Viewers that cannot draw layers (the phone, a list, a shot's thumbnail) show the render and apply the frame themselves.
 
 Because the render is the whole surface, changing or moving the frame never makes it stale. Only editing the canvas does, and that edit uploads a new one. The bakery, bake hashes and stale states go.
 
 ### The drawing model
 
-Carried over: the shapes, stencils, eraser masks, the fixed palette, the look. Added: the placed picture. Everything is fractions of the surface, so it scales with any display.
+Carried over: the shapes, stencils and the look. Added by [U2](ux-2-canvas.md): the placed picture, several kinds of pen, rotation, groups, any colour next to the predefined ones. Dropped there: drawing layers and adjustment layers, eraser masks on a shape. Everything is fractions of the surface, so it scales with any display.
+
+Frames are not part of the stack. An object on or inside a frame is always the one that is taken; a frame is taken by its label or by its edge where no object lies.
 
 ### Browser and tablet
 
@@ -129,3 +134,9 @@ Taken from the proposal with the above: a render of the whole surface replaces b
 
 - **A reference can point at one frame of a canvas.**
 - **A canvas can be an internal file of a shot,** for a generated framing series and for a progression's overlay.
+
+2026-11-22, in UX workshop [U2](ux-2-canvas.md), by the owner:
+
+- **Objects in one stack, with groups,** replace drawing and adjustment layers. A look belongs to a photo.
+- **Comments** on a canvas, on a point or a region. Commenting needs the edit lock like any change; only canvases have comments for now.
+- **A blank canvas has no angle of view** and therefore no frames.
