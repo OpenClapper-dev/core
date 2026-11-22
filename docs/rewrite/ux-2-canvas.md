@@ -1,6 +1,6 @@
 # U2 · Canvas
 
-UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 5 built**; decisions so far recorded below.
+UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 6 built**; decisions so far recorded below.
 
 The one tool for drawing, placing pictures and framing. Specified in [05](05-composition.md) and [02](02-optics.md).
 
@@ -91,6 +91,17 @@ Also: the picture's label is no longer cut by the corner marks; rows and their b
 | Snapping | While an object is moved, its edges and its middle are drawn to the surface's edges and middle, to other objects' and to the frames', within a few pixels; a line shows what it holds on to. Ctrl or Cmd held: no snapping. A frame's centre snaps to the middle of the photo |
 | Compare | "Compare" in the toolbar (with a base photo and at least two frames): two panes, A and B, each fitted to one frame chosen at its top, with that frame's angle of view. To look at, not to edit |
 
+## Round 6 (2026-11-22)
+
+| Change | What to try |
+| --- | --- |
+| Snapping can be switched off | "Snap" in the toolbar, next to the zoom. Holding Ctrl while moving still suspends it for one move |
+| Alt + drag makes a copy | Hold Alt and drag an object, a selection or a group: a copy is dragged and the original stays. A group is copied with what is in it |
+| Dragging layers | The list no longer uses the browser's drag and drop. The row is lifted out and follows the pointer as a raised copy; the other rows slide aside to make room where it would land; on release it glides into its place. A group moves with its objects |
+| Moving a comment | Drag a comment's pin to move it; a comment on a region takes its region along. A plain click still opens it |
+| A comment's region can be drawn again | "Redraw region" (or "Set a region" on a point comment) in the thread: then click a point or drag a region on the canvas |
+| Escape | Also closes an open comment |
+
 ## Not built yet
 
 The preset create flow with its preview on example photos, editing a pen stroke's points, snapping while resizing, rotating and resizing a group, undo and redo, the tablet.
@@ -152,3 +163,10 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - **Comments exist only on a canvas** for now.
 - A comment without a place on the picture (a general remark in a thread) is not needed yet.
 - **Next were Compare, zoom and pan, and snapping,** built in round 5.
+
+2026-11-22, by the owner, after round 5:
+
+- **Zoom, pan and snapping** are right; snapping needs a switch.
+- **Alt + drag copies.**
+- **Lists are reordered with the app's own drag and drop,** not the browser's: a lifted row, the others making room, a smooth landing.
+- **Comments can be moved,** and a region drawn again.

@@ -1,4 +1,4 @@
-// UX workshop U2, round 5: the canvas tool. Objects in one stack (shapes, text, stencils, pictures, groups) that are
+// UX workshop U2, round 6: the canvas tool. Objects in one stack (shapes, text, stencils, pictures, groups) that are
 // selected, moved, resized and layered as in a drawing program; a surface (a base photo or paper) at the bottom;
 // frames on a base photo, drawn with the real frame math. A prototype on fake data: no server, no product code.
 // Specified in docs/rewrite/05-composition.md and 02-optics.md.
@@ -22,6 +22,7 @@ type P = [number, number];
 type Act =
   | { type: "move"; start: P; orig: Record<string, P>; box: [number, number, number, number] }
   | { type: "pan"; x: number; y: number; ox: number; oy: number }
+  | { type: "pin"; id: string; start: P; orig: P; moved: boolean }
   | { type: "resize"; id: string; rot: number; fixed: P }
   | { type: "rotate"; id: string; centre: P; from: number; orig: number }
   | { type: "end"; id: string; which: 0 | 1; other: P }
@@ -61,10 +62,16 @@ export default function U2Canvas() {
   const [locked, setLocked] = useState(false);
   const [theme, setTheme] = useState("dark");
   const [draft, setDraft] = useState<{ tool: Tool; pts: P[] } | null>(null);
-  const [dragRow, setDragRow] = useState<string | null>(null);
   // The view: how far the canvas is zoomed and where it is pushed to. It changes what is seen, never the canvas.
   const [view, setView] = useState({ z: 1, x: 0, y: 0 });
   const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
+  const [snap, setSnap] = useState(true);
+  /** Which comment is getting a new place or region drawn for it. */
+  const [redraw, setRedraw] = useState<string | null>(null);
+  // Reordering the layer list by dragging: the row follows the pointer as a lifted copy, the others make room.
+  const [sort, setSort] = useState<{ id: string; from: number; to: number; h: number; x: number; w: number; y: number; grab: number; mids: number[]; tops: number[]; hs: number[]; drop?: boolean } | null>(null);
+  const sortStart = useRef<{ id: string; y: number } | null>(null);
+  const justSorted = useRef(false);
   const [compare, setCompare] = useState(false);
   const [sideA, setSideA] = useState<string | null>(null);
   const [sideB, setSideB] = useState<string | null>(null);
@@ -155,7 +162,7 @@ export default function U2Canvas() {
       // Snapping: the moved box's edges and middle are drawn to the surface's, to other objects' and to the frames',
       // when they come within a few pixels. Ctrl or Cmd held: no snapping.
       let dx = p[0] - a.start[0], dy = p[1] - a.start[1]; const g: { v?: number; h?: number } = {};
-      if (!e.ctrlKey && !e.metaKey) {
+      if (snap && !e.ctrlKey && !e.metaKey) {
         const r = box.current!.getBoundingClientRect(), tx = 6 / r.width, ty = 6 / r.height, [bx, by, bw, bh] = a.box;
         const others = objs.filter((o) => !a.orig[o.id] && o.kind !== "group" && shown(o)).map((o): [number, number, number, number] => [o.x, o.y, o.w, o.h]).concat(shownFrames.map((f): [number, number, number, number] => { const q = rectOf(f); return [f.cx - q.w / 2, f.cy - q.h / 2, q.w, q.h]; }));
         const xs = [0, 0.5, 1, ...others.flatMap((o) => [o[0], o[0] + o[2] / 2, o[0] + o[2]])], ys = [0, 0.5, 1, ...others.flatMap((o) => [o[1], o[1] + o[3] / 2, o[1] + o[3]])];
@@ -165,6 +172,7 @@ export default function U2Canvas() {
       setGuides(g);
       setObjs((os) => os.map((o) => (a.orig[o.id] ? { ...o, x: a.orig[o.id][0] + dx, y: a.orig[o.id][1] + dy } : o)));
     }
+    else if (a.type === "pin") { const dx = p[0] - a.start[0], dy = p[1] - a.start[1]; if (Math.abs(dx) + Math.abs(dy) > 0.004) a.moved = true; if (a.moved) setComments((cs) => cs.map((c) => (c.id === a.id ? { ...c, x: a.orig[0] + dx, y: a.orig[1] + dy } : c))); }
     else if (a.type === "pan") setView((v) => ({ ...v, x: a.ox + e.clientX - a.x, y: a.oy + e.clientY - a.y }));
     else if (a.type === "resize") {
       // The corner opposite the dragged one stays where it is, also when the object is rotated.
@@ -177,7 +185,7 @@ export default function U2Canvas() {
     else if (a.type === "frame") {
       // A frame's centre snaps to the middle of the photo.
       const r = box.current!.getBoundingClientRect(); let cx = a.orig[a.id][0] + p[0] - a.start[0], cy = a.orig[a.id][1] + p[1] - a.start[1]; const g: { v?: number; h?: number } = {};
-      if (!e.ctrlKey && !e.metaKey) { if (Math.abs(cx - 0.5) < 6 / r.width) { cx = 0.5; g.v = 0.5; } if (Math.abs(cy - 0.5) < 6 / r.height) { cy = 0.5; g.h = 0.5; } }
+      if (snap && !e.ctrlKey && !e.metaKey) { if (Math.abs(cx - 0.5) < 6 / r.width) { cx = 0.5; g.v = 0.5; } if (Math.abs(cy - 0.5) < 6 / r.height) { cy = 0.5; g.h = 0.5; } }
       setGuides(g);
       if (linked) centreAll(cx, cy); else patchF(a.id, { cx, cy });
     }
@@ -188,6 +196,7 @@ export default function U2Canvas() {
     setDraft(null);
     const xs = a.pts.map((q) => q[0]), ys = a.pts.map((q) => q[1]);
     let x = Math.min(...xs), y = Math.min(...ys), w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+    if (a.tool === "comment" && redraw) { const point = w < 0.02 && h < 0.02; setComments((cs) => cs.map((c) => (c.id === redraw ? { ...c, x: point ? a.pts[0][0] : x, y: point ? a.pts[0][1] : y, w: point ? undefined : w, h: point ? undefined : h } : c))); setSelC(redraw); setRedraw(null); setTool("select"); return; }
     if (a.tool === "comment") { setWords(""); setSelC(null); setCompose(w < 0.02 && h < 0.02 ? { x: a.pts[0][0], y: a.pts[0][1] } : { x, y, w, h }); return; }
     if (w < 0.006 && h < 0.006) { if (a.tool === "pen") return; w = 0.16; h = a.tool === "line" || a.tool === "arrow" ? 0 : 0.12; a.pts = [[x, y], [x + w, y + h]]; }
     const line = a.tool === "pen" || a.tool === "line" || a.tool === "arrow";
@@ -198,10 +207,20 @@ export default function U2Canvas() {
     if (locked || tool !== "select") return;
     e.stopPropagation();
     if (editing === o.id) return;
-    const id = o.group ?? o.id, ids = e.shiftKey ? (sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id]) : sel.includes(id) ? sel : [id];
+    const id = o.group ?? o.id; let ids = e.shiftKey ? (sel.includes(id) ? sel.filter((s) => s !== id) : [...sel, id]) : sel.includes(id) ? sel : [id];
+    let mv = moved(ids);
+    if (e.altKey && mv.length) {
+      // Alt held: what is dragged is a copy; the original stays where it is. A group is copied with what is in it.
+      const names: Record<string, string> = {}, copies: Obj[] = [];
+      for (const src of objs) { if (!ids.includes(src.id) && !(src.group && ids.includes(src.group))) continue; names[src.id] = uid(); }
+      for (const src of objs) { if (names[src.id]) copies.push({ ...src, id: names[src.id], name: src.group && names[src.group] ? src.name : `${src.name} copy`, group: src.group && names[src.group] ? names[src.group] : src.kind === "group" ? undefined : src.group && !ids.includes(src.id) ? src.group : undefined }); }
+      setObjs((os) => [...os, ...copies]);
+      ids = copies.filter((c) => !c.group).map((c) => c.id); mv = copies.filter((c) => c.kind !== "group");
+      setOpen((op) => [...op, ...copies.filter((c) => c.kind === "group").map((c) => c.id)]);
+    }
     setRootSel(false); setSelF(null); setSel(ids); setTab("layers");
     capture(e);
-    const mv = moved(ids), x0 = Math.min(...mv.map((m) => m.x)), y0 = Math.min(...mv.map((m) => m.y));
+    const x0 = Math.min(...mv.map((m) => m.x)), y0 = Math.min(...mv.map((m) => m.y));
     act.current = { type: "move", start: at(e), orig: Object.fromEntries(mv.map((m) => [m.id, [m.x, m.y] as P])), box: mv.length ? [x0, y0, Math.max(...mv.map((m) => m.x + m.w)) - x0, Math.max(...mv.map((m) => m.y + m.h)) - y0] : [0, 0, 0, 0] };
   };
   const grabF = (e: PointerEvent, f: Frame) => { if (locked || tool !== "select") return; e.stopPropagation(); setSel([]); setRootSel(false); setSelF(f.id); setTab("frames"); capture(e); act.current = { type: "frame", id: f.id, start: at(e), orig: Object.fromEntries(frames.map((x) => [x.id, [x.cx, x.cy] as P])) }; };
@@ -227,7 +246,7 @@ export default function U2Canvas() {
       else if (e.key === " ") { e.preventDefault(); space.current = true; fit.current?.classList.add("is-hand"); }
       else if (k === "0" || (e.shiftKey && k === "1") || k === "!") { e.preventDefault(); setView({ z: 1, x: 0, y: 0 }); }
       else if (k === "+" || k === "=") zoomAt(view.z * 1.25); else if (k === "-") zoomAt(view.z / 1.25);
-      else if (e.key === "Escape") { pick(null); setTool("select"); }
+      else if (e.key === "Escape") { pick(null); setTool("select"); setRedraw(null); setSelC(null); setCompose(null); }
       else if (e.key === "Enter" && sel.length === 1 && byId.get(sel[0])?.kind === "text") { e.preventDefault(); setEditing(sel[0]); }
       else if (!e.metaKey && !e.ctrlKey && !e.altKey) { const hit = TOOLS.find((x) => x.kbd.toLowerCase() === k); if (hit) setTool(hit.id); }
     };
@@ -268,17 +287,45 @@ export default function U2Canvas() {
   const marks = sel.map((s) => byId.get(s)).filter((o): o is Obj => !!o);
 
   // Inspector: the stack.
+  const order = [...tops].reverse();
   const row = (o: Obj, depth = 0) => (
-    <li key={o.id} className={cx("u2-row", sel.includes(o.id) && "is-current", dragRow === o.id && "is-dragging", !shown(o) && "is-hidden")} style={{ paddingLeft: 6 + depth * 18 }} draggable={depth === 0}
-      onClick={(e) => pick(o.id, e.shiftKey || e.metaKey || e.ctrlKey)} onDragStart={() => setDragRow(o.id)} onDragEnd={() => setDragRow(null)} onDragOver={(e) => { if (dragRow && depth === 0) e.preventDefault(); }}
-      onDrop={(e) => { e.preventDefault(); if (dragRow && dragRow !== o.id && depth === 0) reorder(dragRow, tops.filter((t) => t.id !== dragRow).findIndex((t) => t.id === o.id) + 1); setDragRow(null); }}>
+    <div key={o.id} className={cx("u2-row", sel.includes(o.id) && "is-current", !shown(o) && "is-hidden")} style={{ paddingLeft: 6 + depth * 18 }}
+      onClick={(e) => { if (justSorted.current) { justSorted.current = false; return; } pick(o.id, e.shiftKey || e.metaKey || e.ctrlKey); }}>
       {o.kind === "group" ? <button type="button" className="u2-row__twist" aria-label={open.includes(o.id) ? "Collapse" : "Expand"} onClick={(e) => { e.stopPropagation(); setOpen(open.includes(o.id) ? open.filter((x) => x !== o.id) : [...open, o.id]); }}><Icon name={open.includes(o.id) ? "chevron-down" : "chevron-right"} size={12} /></button> : <span className="u2-row__twist" />}
       <Icon name={o.kind === "stencil" && o.icon ? o.icon : KIND[o.kind].icon} />
       <span className="u2-row__name">{o.name}{o.kind === "group" && <small> · {kids(o.id).length}</small>}</span>
       <Button size="sm" variant="quiet" icon={o.locked ? "lock" : "unlock"} selected={o.locked} label={o.locked ? "Unlock" : "Lock"} onClick={(e) => { e.stopPropagation(); patchO([o.id], { locked: !o.locked }); }} />
       <Button size="sm" variant="quiet" icon={o.visible ? "eye" : "eye-off"} label={o.visible ? "Hide" : "Show"} onClick={(e) => { e.stopPropagation(); patchO([o.id], { visible: !o.visible }); }} />
-    </li>
+    </div>
   );
+  /** One entry of the list: an object, or a group with the objects in it. It is what is dragged. */
+  const blockOf = (t: Obj) => <>{row(t)}{t.kind === "group" && open.includes(t.id) && [...kids(t.id)].reverse().map((k) => row(k, 1))}</>;
+  const sortDown = (e: PointerEvent, t: Obj) => { if (e.button !== 0 || (e.target as HTMLElement).closest("button")) return; sortStart.current = { id: t.id, y: e.clientY }; capture(e); };
+  const sortMove = (e: PointerEvent) => {
+    const st = sortStart.current; if (!st) return;
+    if (!sort) {
+      if (Math.abs(e.clientY - st.y) < 4) return;
+      const els = [...(e.currentTarget as HTMLElement).parentElement!.querySelectorAll<HTMLElement>(":scope > .u2-block")], rects = els.map((el) => el.getBoundingClientRect()), from = order.findIndex((t) => t.id === st.id), r = rects[from];
+      setSort({ id: st.id, from, to: from, h: r.height, x: r.left, w: r.width, y: e.clientY, grab: st.y - r.top, mids: rects.map((q) => q.top + q.height / 2), tops: rects.map((q) => q.top), hs: rects.map((q) => q.height) });
+      return;
+    }
+    // Where it would land: the number of other entries whose middle lies above the middle of the lifted one.
+    const mid = e.clientY - sort.grab + sort.h / 2, to = sort.mids.filter((m, i) => i !== sort.from && m < mid).length;
+    setSort({ ...sort, y: e.clientY, to });
+  };
+  const sortUp = () => {
+    sortStart.current = null;
+    if (!sort) return;
+    justSorted.current = true;
+    const { id, from, to } = sort;
+    // Let the lifted row glide into its place, then make the new order real.
+    setSort({ ...sort, drop: true });
+    setTimeout(() => { if (to !== from) reorder(id, order.length - 1 - to); setSort(null); }, 170);
+  };
+  /** How far an entry moves aside while another is dragged past it. */
+  const shift = (i: number) => (!sort || i === sort.from ? 0 : i > sort.from && i - 1 < sort.to ? -sort.h : i < sort.from && i >= sort.to ? sort.h : 0);
+  // Where the lifted entry comes to rest: below the entry it ends up after, or at the top of the one it ends up before.
+  const landing = sort ? (sort.to > sort.from ? sort.tops[sort.to] + sort.hs[sort.to] - sort.h : sort.tops[sort.to]) : 0;
   const look = (l: Look, set: (l: Look) => void) => ([["exposure", "Exposure", -2, 2], ["contrast", "Contrast", -0.6, 0.6], ["saturation", "Saturation", -1, 1]] as const).map(([k, label, min, max]) => <PropertyRow key={k} label={label}><Slider min={min} max={max} step={0.02} value={l[k]} onChange={(v) => set({ ...l, [k]: v })} /></PropertyRow>);
   const layersTab = (
     <>
@@ -290,10 +337,11 @@ export default function U2Canvas() {
           <Button size="sm" variant="quiet" icon="arrow-up" label="Bring forward" disabled={!one || !!one.group} onClick={() => one && step(one.id, 1)} />
           <Button size="sm" variant="quiet" icon="arrow-down" label="Send backward" disabled={!one || !!one.group} onClick={() => one && step(one.id, -1)} />
         </div>
-        <ul className="u2-stack">
-          {[...tops].reverse().flatMap((t) => [row(t), ...(t.kind === "group" && open.includes(t.id) ? [...kids(t.id)].reverse().map((k) => row(k, 1)) : [])])}
-          <li className={cx("u2-row u2-row--root", rootSel && "is-current")} onClick={() => { setSel([]); setSelF(null); setRootSel(true); }}><span className="u2-row__twist" /><Icon name={photo ? "image" : "file"} /><span className="u2-row__name">{photo ? PHOTO.name : "Paper"}<small> · the surface</small></span><Icon name="lock" size={12} /></li>
-        </ul>
+        <div className={cx("u2-stack", sort && "is-sorting")}>
+          {order.map((t, i) => <div key={t.id} className={cx("u2-block", sort?.id === t.id && "is-lifted")} style={{ transform: shift(i) ? `translateY(${shift(i)}px)` : undefined }} onPointerDown={(e) => sortDown(e, t)} onPointerMove={sortMove} onPointerUp={sortUp} onPointerCancel={sortUp}>{blockOf(t)}</div>)}
+          {sort && <div className={cx("u2-ghost", sort.drop && "is-dropping")} style={{ left: sort.x, width: sort.w, top: sort.drop ? landing : sort.y - sort.grab }}>{blockOf(byId.get(sort.id)!)}</div>}
+          <div className={cx("u2-row u2-row--root", rootSel && "is-current")} onClick={() => { setSel([]); setSelF(null); setRootSel(true); }}><span className="u2-row__twist" /><Icon name={photo ? "image" : "file"} /><span className="u2-row__name">{photo ? PHOTO.name : "Paper"}<small> · the surface</small></span><Icon name="lock" size={12} /></div>
+        </div>
         <p className="u2-note">Top of the list is in front. Drag a row to reorder; Shift-click to select several.</p>
       </PropertySection>
       {rootSel && (
@@ -426,10 +474,11 @@ export default function U2Canvas() {
               {["pen", "line", "arrow", "rect", "ellipse"].includes(tool) && <span className="u2-zoom" style={{ width: 150 }}><Slider min={1} max={12} step={1} value={strokeW} onChange={setStrokeW} /><b className="oc-num">{strokeW} px</b></span>}
               {tool === "stencil" && <Popover trigger={<Button size="sm" icon={stencil} iconAfter="chevron-down">Stencil</Button>}><div className="u2-stencils">{STENCILS.map((s) => <button type="button" key={s} title={s} className={cx(stencil === s && "is-on")} onClick={() => setStencil(s)}><Icon name={s} size={20} /></button>)}</div></Popover>}
               {(tool === "text" || tool === "stencil" || tool === "picture") && <span className="oc-meta">click on the canvas to place it</span>}
-              {tool === "comment" && <span className="oc-meta">click a point, or drag a region to comment on</span>}
+              {tool === "comment" && <span className="oc-meta">{redraw ? "click a point or drag a region: the comment moves there" : "click a point, or drag a region to comment on"}</span>}
             </span>}
             <ToolbarSpacer />
             <span className="u2-zoomer"><Button size="sm" variant="quiet" icon="minus" label="Zoom out (−)" onClick={() => zoomAt(view.z / 1.25)} /><button type="button" className="u2-zoomer__now" title="Fit the canvas into the view (0)" onClick={() => setView({ z: 1, x: 0, y: 0 })}>{Math.round(view.z * 100)} %</button><Button size="sm" variant="quiet" icon="plus" label="Zoom in (+)" onClick={() => zoomAt(view.z * 1.25)} /></span>
+            <Button size="sm" variant="quiet" icon="crosshair" selected={snap} title={snap ? "Snapping is on: moved objects hold on to edges and middles. Click to switch it off (or hold Ctrl while moving)" : "Snapping is off. Click to switch it on"} onClick={() => setSnap(!snap)}>Snap</Button>
             {photo && frames.length > 1 && <Button size="sm" variant="quiet" icon="columns" selected={compare} onClick={() => { setCompare(!compare); pick(null); setSelC(null); }}>Compare</Button>}
             <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
             {photo && <Segmented label="View mode" value={mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} />}
@@ -471,12 +520,14 @@ export default function U2Canvas() {
                     {guides.h != null && <span className="u2-guide u2-guide--h" style={{ top: `${guides.h * 100}%` }} />}
                     {showC && comments.filter((c) => !c.resolved || showDone || c.id === selC).map((c) => { const on = selC === c.id, px = c.x + (c.w ?? 0), flip = px > 0.62; return [
                       on && c.w != null && <span key={`${c.id}r`} className="u2-region" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, width: `${c.w * 100}%`, height: `${(c.h ?? 0) * 100}%` }} />,
-                      <button type="button" key={c.id} className={cx("u2-pin", on && "is-current", c.resolved && "is-done")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} title={`${c.author}: ${c.text}`} onPointerDown={(e) => e.stopPropagation()} onClick={() => openC(on ? null : c.id)}>{c.resolved ? <Icon name="check" size={12} /> : c.n}</button>,
+                      <button type="button" key={c.id} className={cx("u2-pin", on && "is-current", c.resolved && "is-done")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} title={`${c.author}: ${c.text} (drag to move)`} onPointerMove={move}
+                        onPointerDown={(e) => { e.stopPropagation(); if (locked) return; capture(e); act.current = { type: "pin", id: c.id, start: at(e), orig: [c.x, c.y], moved: false }; }}
+                        onPointerUp={() => { const a = act.current; up(); if (a?.type === "pin" && !a.moved) openC(on ? null : c.id); }}>{c.resolved ? <Icon name="check" size={12} /> : c.n}</button>,
                       on && (
                         <div key={`${c.id}t`} className={cx("u2-thread", flip && "is-left")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} onPointerDown={(e) => e.stopPropagation()}>
                           {[c, ...c.replies].map((m, i) => <div key={i} className="u2-msg"><span className="u2-msg__who"><i>{m.author[0]}</i><strong>{m.author}</strong><small>{m.at}</small></span><p>{m.text}</p></div>)}
                           <TextArea rows={2} value={reply} placeholder="Reply…" onInput={(e) => setReply((e.target as HTMLTextAreaElement).value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && reply.trim()) { e.preventDefault(); setComments(comments.map((x) => (x.id === c.id ? { ...x, replies: [...x.replies, { author: "Ada", at: "Just now", text: reply.trim() }] } : x))); setReply(""); } }} />
-                          <div className="u2-bar"><Button size="sm" variant="quiet" icon="check" onClick={() => { setComments(comments.map((x) => (x.id === c.id ? { ...x, resolved: !x.resolved } : x))); if (!c.resolved) setSelC(null); }}>{c.resolved ? "Reopen" : "Resolve"}</Button><span style={{ flex: 1 }} /><Button size="sm" variant="quiet" icon="trash" label="Delete the comment" onClick={() => { setComments(comments.filter((x) => x.id !== c.id)); setSelC(null); }} /></div>
+                          <div className="u2-bar"><Button size="sm" variant="quiet" icon="crop" title="Give the comment a new point or region: click or drag on the canvas" onClick={() => { setRedraw(c.id); setSelC(null); setTool("comment"); }}>{c.w != null ? "Redraw region" : "Set a region"}</Button><Button size="sm" variant="quiet" icon="check" onClick={() => { setComments(comments.map((x) => (x.id === c.id ? { ...x, resolved: !x.resolved } : x))); if (!c.resolved) setSelC(null); }}>{c.resolved ? "Reopen" : "Resolve"}</Button><span style={{ flex: 1 }} /><Button size="sm" variant="quiet" icon="trash" label="Delete the comment" onClick={() => { setComments(comments.filter((x) => x.id !== c.id)); setSelC(null); }} /></div>
                         </div>
                       ),
                     ]; })}

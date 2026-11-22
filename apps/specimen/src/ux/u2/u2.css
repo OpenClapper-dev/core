@@ -105,10 +105,18 @@
 .u2-bar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); }
 .u2-inline { display: inline-flex; align-items: center; gap: var(--space-5); }
 .u2-stack { list-style: none; margin: 0; padding: 0 var(--space-4); display: grid; gap: 1px; }
+.u2-block { display: grid; gap: 1px; }
 .u2-row { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; padding: 0 2px 0 6px; border: var(--border-w) solid transparent; border-radius: var(--radius-control); cursor: default; }
 .u2-row:hover { background: var(--surface-hover); }
 .u2-row.is-current { border-color: var(--selection-border); background: var(--selection); }
-.u2-row.is-dragging { opacity: .4; }
+/* Dragging a layer: the entry is lifted out (its place stays as a gap), the others slide to make room, and a copy of
+   it follows the pointer and glides into place on release. */
+.u2-block { touch-action: none; }
+.u2-stack.is-sorting .u2-block { transition: transform 160ms cubic-bezier(.2, .8, .2, 1); }
+.u2-block.is-lifted { visibility: hidden; }
+.u2-ghost { position: fixed; z-index: 900; pointer-events: none; border-radius: var(--radius-control); background: var(--surface-raised, var(--surface)); box-shadow: 0 10px 28px rgba(0, 0, 0, .4), 0 0 0 1px var(--selection-border); scale: 1.02; opacity: .97; }
+.u2-ghost.is-dropping { transition: top 160ms cubic-bezier(.2, .8, .2, 1), scale 160ms, box-shadow 160ms; scale: 1; box-shadow: 0 0 0 1px var(--selection-border); }
+.u2-stack.is-sorting, .u2-stack.is-sorting * { cursor: grabbing !important; user-select: none; }
 .u2-row.is-hidden .u2-row__name { color: var(--text-disabled); }
 .u2-row > .oc-icon { color: var(--text-secondary); }
 .u2-row__twist { flex: none; display: grid; place-items: center; width: 14px; height: 20px; padding: 0; border: 0; background: transparent; color: var(--text-secondary); }
@@ -137,6 +145,7 @@
 .u2-row .oc-btn--quiet:hover { background: color-mix(in srgb, var(--text) 18%, transparent); }
 
 /* Comments: a numbered pin; its region and its thread show only while it is open. */
+.u2-pin { touch-action: none; }
 .u2-pin { position: absolute; z-index: 6; display: grid; place-items: center; width: 24px; height: 24px; margin: -22px 0 0 2px; padding: 0; border: 2px solid #fff; border-radius: 12px 12px 12px 2px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 11px/1 var(--font-mono); box-shadow: 0 1px 4px rgba(0, 0, 0, .5); cursor: pointer; }
 .u2-pin.is-done { background: var(--text-secondary); }
 .u2-pin--list { position: static; margin: 2px 0 0; flex: none; border-color: transparent; box-shadow: none; }
