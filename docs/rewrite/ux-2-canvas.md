@@ -87,10 +87,8 @@ Compare (two frames side by side), the preset create flow with its preview on ex
 
 ## Questions for the owner
 
-1. Should commenting be possible while someone else is editing the canvas? A comment does not change the picture.
-2. Comments only on a canvas, or the same on photos, shots and timelines later?
-3. Which stencils are missing? Film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
-4. Next: Compare, the preset create flow, or zoom and pan with snapping?
+1. Which stencils are missing? Film-specific ones (dolly, tripod, flag on a stand, light with barn doors) would have to be drawn.
+2. Anything on Compare, zoom and pan, or snapping once they are built?
 
 ## Into the design system
 
@@ -111,7 +109,7 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - A **look** (exposure, contrast, saturation and the rest) is a property of a photo object, the base photo or a placed one, not a layer over everything.
 - A blank surface has a colour.
 - Frames are not part of the stack.
-- A canvas has **comments**: on a point or a region, with replies, resolved or open. They are not objects and not part of the picture. New for the specification; whether commenting needs the edit lock, and whether photos, shots and timelines get comments too, is open.
+- A canvas has **comments**: on a point or a region, with replies, resolved or open. They are not objects and not part of the picture. New for the specification. Commenting needs the edit lock like any other change, and only canvases have comments for now.
 
 ## Decided
 
@@ -137,3 +135,9 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 
 - **Comments** on a canvas, as in familiar design tools: on a point or a region, shown or hidden on the canvas, listed in the inspector.
 - **Clickable things show the pointing hand,** and hover is visible everywhere.
+
+2026-11-22, by the owner, after round 4:
+
+- **No commenting while someone else edits a canvas,** to keep it simple; to be rethought together with collaboration.
+- **Comments exist only on a canvas** for now.
+- A comment without a place on the picture (a general remark in a thread) is not needed yet.
