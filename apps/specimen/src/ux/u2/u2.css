@@ -99,7 +99,7 @@
 /* Inspector */
 .u2-inspector { display: flex; flex-direction: column; min-height: 0; }
 .u2-tabs { flex: none; padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
-.u2-tabs .oc-segmented { display: flex; } .u2-tabs .oc-segmented > * { flex: 1; justify-content: center; }
+.u2-tabs .oc-seg { display: flex; } .u2-tabs .oc-seg__opt { flex: 1; justify-content: center; }
 .u2-inspector .oc-props__row { padding-block: 5px; gap: var(--space-5); }
 .u2-inspector .oc-props__body { padding-bottom: var(--space-5); }
 .u2-bar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); }
@@ -166,3 +166,7 @@
 .u2-comments li.is-current { border-color: var(--selection-border); background: var(--selection); }
 .u2-comments li.is-done p { color: var(--text-secondary); text-decoration: line-through; }
 .u2-bar--wrap { flex-wrap: wrap; }
+
+/* While comparing, Full is shown but cannot be chosen: it has no frame to compare. */
+.u2-nofull .oc-seg__opt:last-of-type { opacity: .35; pointer-events: none; }
+.u2-pane .u2-frame { pointer-events: none; }

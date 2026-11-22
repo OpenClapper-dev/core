@@ -12,12 +12,16 @@ export interface ViewerLayoutProps extends JSX.HTMLAttributes<HTMLDivElement> {
   /** How far the inspector can be dragged. */
   inspectorMin?: number;
   inspectorMax?: number;
+  /** The inspector can be closed to a rail; with inspectorCollapsed and onInspectorCollapsed a button elsewhere can do the same. */
+  inspectorCollapsible?: boolean;
+  inspectorCollapsed?: boolean;
+  onInspectorCollapsed?: (collapsed: boolean) => void;
   /** Optional filmstrip under the stage. */
   strip?: ComponentChildren;
   statusBar?: ComponentChildren;
 }
 
-export function ViewerLayout({ toolbar, stage, inspector, inspectorWidth = 240, inspectorMin = 180, inspectorMax = 640, strip, statusBar, className, ...rest }: ViewerLayoutProps) {
+export function ViewerLayout({ toolbar, stage, inspector, inspectorWidth = 240, inspectorMin = 180, inspectorMax = 640, inspectorCollapsible, inspectorCollapsed, onInspectorCollapsed, strip, statusBar, className, ...rest }: ViewerLayoutProps) {
   return (
     <div className={cx("oc-app", className)} {...rest}>
       {toolbar}
@@ -26,7 +30,7 @@ export function ViewerLayout({ toolbar, stage, inspector, inspectorWidth = 240, 
           <div className="oc-app__stage">{stage}</div>
           {strip && <div className="oc-app__strip">{strip}</div>}
         </div>
-        {inspector && <ResizablePanel side="right" defaultSize={inspectorWidth} min={inspectorMin} max={inspectorMax}>{inspector}</ResizablePanel>}
+        {inspector && <ResizablePanel side="right" defaultSize={inspectorWidth} min={inspectorMin} max={inspectorMax} collapsible={inspectorCollapsible} collapsed={inspectorCollapsed} onCollapsedChange={onInspectorCollapsed}>{inspector}</ResizablePanel>}
       </div>
       {statusBar}
     </div>

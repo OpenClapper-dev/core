@@ -1,9 +1,10 @@
-// UX workshop U2, round 6: the canvas tool. Objects in one stack (shapes, text, stencils, pictures, groups) that are
+// UX workshop U2, round 7: the canvas tool. Objects in one stack (shapes, text, stencils, pictures, groups) that are
 // selected, moved, resized and layered as in a drawing program; a surface (a base photo or paper) at the bottom;
 // frames on a base photo, drawn with the real frame math. A prototype on fake data: no server, no product code.
 // Specified in docs/rewrite/05-composition.md and 02-optics.md.
 import "./u2.css";
 import type { JSX } from "preact";
+import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
   Button, Checkbox, DropdownMenu, EditorLayout, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextArea, TextInput, Toolbar, ToolbarSpacer, ToolRail, cx,
@@ -66,6 +67,8 @@ export default function U2Canvas() {
   const [view, setView] = useState({ z: 1, x: 0, y: 0 });
   const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
   const [snap, setSnap] = useState(true);
+  const [closed, setClosed] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
   /** Which comment is getting a new place or region drawn for it. */
   const [redraw, setRedraw] = useState<string | null>(null);
   // Reordering the layer list by dragging: the row follows the pointer as a lifted copy, the others make room.
@@ -339,7 +342,7 @@ export default function U2Canvas() {
         </div>
         <div className={cx("u2-stack", sort && "is-sorting")}>
           {order.map((t, i) => <div key={t.id} className={cx("u2-block", sort?.id === t.id && "is-lifted")} style={{ transform: shift(i) ? `translateY(${shift(i)}px)` : undefined }} onPointerDown={(e) => sortDown(e, t)} onPointerMove={sortMove} onPointerUp={sortUp} onPointerCancel={sortUp}>{blockOf(t)}</div>)}
-          {sort && <div className={cx("u2-ghost", sort.drop && "is-dropping")} style={{ left: sort.x, width: sort.w, top: sort.drop ? landing : sort.y - sort.grab }}>{blockOf(byId.get(sort.id)!)}</div>}
+          {sort && root.current && createPortal(<div className={cx("u2-ghost", sort.drop && "is-dropping")} style={{ left: sort.x, width: sort.w, top: sort.drop ? landing : sort.y - sort.grab }}>{blockOf(byId.get(sort.id)!)}</div>, root.current)}
           <div className={cx("u2-row u2-row--root", rootSel && "is-current")} onClick={() => { setSel([]); setSelF(null); setRootSel(true); }}><span className="u2-row__twist" /><Icon name={photo ? "image" : "file"} /><span className="u2-row__name">{photo ? PHOTO.name : "Paper"}<small> · the surface</small></span><Icon name="lock" size={12} /></div>
         </div>
         <p className="u2-note">Top of the list is in front. Drag a row to reorder; Shift-click to select several.</p>
@@ -456,7 +459,7 @@ export default function U2Canvas() {
   const selBox = one && !frozen(one) ? bounds(one) : null;
   const drawing = tool !== "select";
   return (
-    <div className="u2" data-theme={theme}>
+    <div ref={root} className="u2" data-theme={theme}>
       <header className="u2-proto">
         <strong>U2</strong><span className="u2-proto__note">prototype · Canvas</span>
         <span style={{ flex: 1 }} />
@@ -464,7 +467,7 @@ export default function U2Canvas() {
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
       <div className="u2-work">
-        <EditorLayout className={cx("u2-editor", locked && "is-locked")} inspectorWidth={340} inspectorMin={280} inspectorMax={820} {...(locked ? { inert: true } : {})}
+        <EditorLayout className={cx("u2-editor", locked && "is-locked")} inspectorWidth={340} inspectorMin={280} inspectorMax={820} inspectorCollapsible inspectorCollapsed={closed} onInspectorCollapsed={setClosed} {...(locked ? { inert: true } : {})}
           toolbar={<Toolbar>
             <strong className="u2-title">Canvas 02</strong>
             <Button size="sm" variant="quiet" icon="undo" label="Undo" /><Button size="sm" variant="quiet" icon="redo" label="Redo" />
@@ -479,9 +482,10 @@ export default function U2Canvas() {
             <ToolbarSpacer />
             <span className="u2-zoomer"><Button size="sm" variant="quiet" icon="minus" label="Zoom out (−)" onClick={() => zoomAt(view.z / 1.25)} /><button type="button" className="u2-zoomer__now" title="Fit the canvas into the view (0)" onClick={() => setView({ z: 1, x: 0, y: 0 })}>{Math.round(view.z * 100)} %</button><Button size="sm" variant="quiet" icon="plus" label="Zoom in (+)" onClick={() => zoomAt(view.z * 1.25)} /></span>
             <Button size="sm" variant="quiet" icon="crosshair" selected={snap} title={snap ? "Snapping is on: moved objects hold on to edges and middles. Click to switch it off (or hold Ctrl while moving)" : "Snapping is off. Click to switch it on"} onClick={() => setSnap(!snap)}>Snap</Button>
-            {photo && frames.length > 1 && <Button size="sm" variant="quiet" icon="columns" selected={compare} onClick={() => { setCompare(!compare); pick(null); setSelC(null); }}>Compare</Button>}
+            {photo && frames.length > 1 && <Button size="sm" variant="quiet" icon="columns" selected={compare} onClick={() => { setCompare(!compare); pick(null); setSelC(null); if (!compare && mode === "full") setMode("crop"); }}>Compare</Button>}
             <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
-            {photo && <Segmented label="View mode" value={mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} />}
+            {photo && <span className={cx(compare && "u2-nofull")} title={compare ? "Full has no frame, so it is not offered while comparing" : undefined}><Segmented label="View mode" value={compare && mode === "full" ? "crop" : mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} /></span>}
+            <Button size="sm" variant="quiet" icon="sidebar" selected={!closed} label={closed ? "Show the inspector" : "Hide the inspector"} onClick={() => setClosed(!closed)} />
           </Toolbar>}
           toolRail={<ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} />}
           canvas={
@@ -490,9 +494,10 @@ export default function U2Canvas() {
                 {([[sideA ?? pic ?? frames[0]?.id, setSideA, "A"], [sideB ?? frames.find((f) => f.id !== (sideA ?? pic ?? frames[0]?.id))?.id, setSideB, "B"]] as const).map(([id, set, tag]) => { const f = frames.find((x) => x.id === id); return (
                   <section key={tag} className="u2-pane">
                     <header><b>{tag}</b><Select size="sm" value={id ?? ""} onChange={(v) => set(v)} options={frames.map((x) => ({ value: x.id, label: `${x.name} · ${x.kind === "preset" ? PRESETS.find((q) => q.id === x.preset)?.name : x.kind === "free" ? "free-form" : "aspect"}` }))} />{f && rectOf(f).hfov && <span className="oc-meta">{rectOf(f).hfov!.toFixed(0)}° × {rectOf(f).vfov!.toFixed(0)}°</span>}</header>
-                    <div className="u2-fit"><div className="u2-stage u2-stage--crop"><div className="u2-world" style={{ transform: f ? fitTo(f) : undefined, transformOrigin: "0 0" }}>
+                    <div className="u2-fit"><div className={cx("u2-stage", `u2-stage--${mode === "full" ? "crop" : mode}`, scale < 1 && mode !== "crop" && mode !== "full" && "is-beyond")}><div className="u2-world" style={{ transform: f && (mode === "crop" || mode === "full") ? fitTo(f) : undefined, transformOrigin: "0 0" }}>
                       <div className="u2-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%` }}><img className="u2-photo" src={picture(PHOTO.seed)} alt="" draggable={false} style={{ filter: lookFilter(surface.look) }} />{objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw({ ...o, id: `${tag}${o.id}` }, true))}</div>
-                      {f && <span className="u2-mask u2-mask--solid" style={place(f, true)} />}
+                      {f && mode !== "outline" && <span className={cx("u2-mask", (mode === "crop" || mode === "full") && "u2-mask--solid")} style={place(f, true)} />}
+                      {f && (mode === "outline" || mode === "mask") && (() => { const fr = rectOf(f); return <div className={cx("u2-frame", "is-picture", Math.max(fr.w, fr.h) > 1 && "is-beyond")} style={{ ...place(f), "--c": css(f.color) }}><span className="u2-frame__label">{f.name}</span>{fr.inner && <span className="u2-frame__inner" style={{ width: `${(fr.inner.w / fr.w) * 100}%`, height: `${(fr.inner.h / fr.h) * 100}%` }}><span>{f.delivery}:1</span></span>}</div>; })()}
                     </div></div></div>
                   </section>
                 ); })}

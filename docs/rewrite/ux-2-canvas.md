@@ -1,6 +1,6 @@
 # U2 · Canvas
 
-UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 6 built**; decisions so far recorded below.
+UX workshop [#358](https://github.com/OpenClapper-dev/core/issues/358) ([plan](ux-plan.md)). Status: **round 7 built**; decisions so far recorded below.
 
 The one tool for drawing, placing pictures and framing. Specified in [05](05-composition.md) and [02](02-optics.md).
 
@@ -102,6 +102,14 @@ Also: the picture's label is no longer cut by the corner marks; rows and their b
 | A comment's region can be drawn again | "Redraw region" (or "Set a region" on a point comment) in the thread: then click a point or drag a region on the canvas |
 | Escape | Also closes an open comment |
 
+## Round 7 (2026-11-22)
+
+| Change | What to try |
+| --- | --- |
+| The dragged layer is visible | The lifted row was drawn inside the inspector, where an animated section moved it out of sight; it is drawn at the root of the tool now |
+| The inspector can be closed | A button at the right end of the toolbar hides and shows it. Dragging its edge well past the smallest width closes it too; it leaves a thin rail on the edge, which opens it again on a click or a pull |
+| Compare follows the view mode | Outline: each pane shows the whole photo with its frame. Mask: the same, dimmed outside the picture. Crop: each pane fitted to its frame. Full is shown greyed and cannot be chosen while comparing, because it has no frame |
+
 ## Not built yet
 
 The preset create flow with its preview on example photos, editing a pen stroke's points, snapping while resizing, rotating and resizing a group, undo and redo, the tablet.
@@ -119,7 +127,8 @@ The preset create flow with its preview on example photos, editing a pen stroke'
 | `Select`, `Combobox`, `DropdownMenu`, `Popover` | Their lists and surfaces use `Floating` |
 | `Button` | Buttons show the pointing hand; a quiet button's hover is visible on any surface |
 | Icons | A comment glyph |
-| `EditorLayout`, `ViewerLayout` | The inspector's limits can be set; it can be dragged up to 640 px by default (was 400) |
+| `EditorLayout`, `ViewerLayout` | The inspector's limits can be set; it can be dragged up to 640 px by default (was 400); it can be made collapsible |
+| `ResizablePanel` | `collapsible`: closes to a rail by a pull well past its smallest size, opens again by a click or a pull on the rail; can be controlled from a button elsewhere |
 | Icons | New glyphs for the drawing tools: cursor, pencil, line, arrow, square, circle, text, stencil, group. The Tabler ones were written out from the published set and are to be checked against the package |
 
 ## Changes to specification pages
@@ -170,3 +179,9 @@ To be applied to [05](05-composition.md) when this workshop is decided:
 - **Alt + drag copies.**
 - **Lists are reordered with the app's own drag and drop,** not the browser's: a lifted row, the others making room, a smooth landing.
 - **Comments can be moved,** and a region drawn again.
+
+2026-11-22, by the owner, after round 6:
+
+- **The inspector can be collapsed,** by a button and by dragging it past its smallest width.
+- **Compare uses the view modes** Outline, Mask and Crop for both panes at once; Full is not offered there.
+- A zoom explorer is left until the progression of a shot is designed (U3).
