@@ -1,6 +1,6 @@
 # 08 · Extensions
 
-Workshop [#335](https://github.com/OpenClapper-dev/core/issues/335). Status: **decided** (2026-11-20).
+Workshop [#335](https://github.com/OpenClapper-dev/core/issues/335). Status: **decided** (2026-11-20; phone-only parts, the flow editor on every client and the carry-over rule from UX workshop [U6](ux-6-devices.md), 2026-11-23).
 
 How expert features are packaged so that the core runs unchanged without them, and which features become extensions.
 
@@ -84,6 +84,8 @@ Each model declares what it exposes:
 | Feeds (streams) | A video transmitter's picture |
 | Relations to other devices | A battery powers a COB light, with the light as the parent |
 
+A model can limit a part to where it works. A video transmitter's feed can be shown on the phone only (it comes over the transmitter's own Wi-Fi, which the phone joins); its connection and state show everywhere ([U6](ux-6-devices.md)).
+
 | Today | In the catalogue |
 | --- | --- |
 | Aputure MC | Light: controls, state including its own battery, effects |
@@ -99,6 +101,7 @@ The extension contains pairing, the phone as proxy (it holds the Bluetooth conne
 A **flow** is a timed programme that drives controls (today "light sequence"). It needs the Hardware extension and can drive any control a registered device exposes, not only lights: a camera's recording can start at a point in a flow.
 
 - A flow is a file of a project; its app is Flows; it can play from the Studio or from the phone itself.
+- Flows are made, changed and played on the phone and tablet as in the Studio: one editor, the same flows ([U6](ux-6-devices.md)). The editor's logic is today's sequences; everything they can do is carried over.
 - A flow has no relation to a shot's progression for now ([I1](i1-interjection.md)); as a file it can be in a shot's content list.
 
 ### What Day planning takes with it
@@ -132,3 +135,10 @@ Lights traffic and its rules in the layout preview's relay, device sync inside `
 - **Live picture is part of Hardware:** the feed of a video transmitter.
 
 Taken from the proposal with the above: the registration points; an extension that is switched off keeps its files; day planning goes entirely, offline mode moves to workshop 09.
+
+2026-11-23, in UX workshop [U6](ux-6-devices.md), by the owner:
+
+- **Hardware and Flows are apps on the phone and tablet too** and can be tabs. Hardware there shows the devices as a table or as cards with their controls.
+- **A part of a device can be limited to where it works;** a transmitter's picture shows on the phone only.
+- **One flow editor for every client.**
+- **The prototypes show the design, not the feature list.** Every control and state the written device drivers offer, and everything today's sequences can do, stays unless a page says it goes.

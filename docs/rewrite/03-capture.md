@@ -1,6 +1,6 @@
 # 03 · Capture on the phone
 
-Workshop [#330](https://github.com/OpenClapper-dev/core/issues/330). Status: **decided** (2026-11-18; frame at capture changed by [05](05-composition.md; layout sections, lens names, the collection switch and the folder for new photos from UX workshop [U5](ux-5-phone.md), 2026-11-23), collection mode added in the [interjection](i1-interjection.md), 2026-11-19).
+Workshop [#330](https://github.com/OpenClapper-dev/core/issues/330). Status: **decided** (2026-11-18; frame at capture changed by [05](05-composition.md), collection mode added in the [interjection](i1-interjection.md), 2026-11-19; lens names, the collection switch and the folder for new photos from UX workshop [U5](ux-5-phone.md), bars and readouts from [U6](ux-6-devices.md), 2026-11-23).
 
 The phone takes photos. Everything else on the capture screen (frames, presets, reference frames) is an optional control on top.
 
@@ -84,7 +84,7 @@ No fallbacks: no learning from the phone's photos, no typed value, no assumed de
 
 ### Camera layouts
 
-A **camera layout** says which controls are on the screen and where, per orientation, with its look (frame colour, blackout, HUD). It fills generic sections: a control row, a lens rail and a strip over the picture ([U5](ux-5-phone.md)); today's options of a layout are kept as options. A control that is not in the layout is off, so a layout is also the "capture profile": a plain camera, a viewfinder with presets, and so on.
+A **camera layout** says which controls are on the screen and where, per orientation, with its look (frame colour, blackout, HUD). It is a set of **bars**, per orientation ([U6](ux-6-devices.md)): any number, each at the top, bottom, left or right edge, stacked where several share an edge, each holding controls in an order and with a distribution (start, centre, end, between, around). Upright, top and bottom bars take the full width and side bars the height left between them; in landscape it is the other way round. A bar can lie over the picture instead of taking room from it. Readouts (project, lens in use, preset and focal length, angle of view, collection, folder, warnings) are controls like the others; by default they sit in a bar over the picture. A control that steps through values (a carousel) has separate back and on buttons. Today's options of a layout are kept as options. A control that is not in the layout is off, so a layout is also the "capture profile": a plain camera, a viewfinder with presets, and so on.
 
 Layouts stay customisable as today: made in the Studio's layout editor, previewed live on the phone, picked on the phone. Built in and read-only: **Camera** (shutter, phone lenses, torch, uploads) and **Viewfinder** (plus optics frame, focal lengths, zoom to frame, reference frame). A layout belongs to the account, like the devices it is designed for.
 
@@ -155,10 +155,17 @@ The rig as a precondition, the Tag screen and remembered tags, drafts, Seq mode,
 
 2026-11-23, in UX workshop [U5](ux-5-phone.md), by the owner:
 
-- **A camera layout fills sections** (control row, lens rail, strip over the picture). Focal lengths of a preset are buttons for primes and a slider for a zoom.
+- **A camera layout fills sections** (control row, lens rail, strip over the picture; replaced by free bars in [U6](ux-6-devices.md)). Focal lengths of a preset are buttons for primes and a slider for a zoom.
 - **Lens names are a preference:** the phone's own names (0.5×, 1×, 5×) by default, or focal lengths.
 - **Collection mode is a switch:** on starts a new collection named by the pattern, off ends it. Asking for a name at the start or the end is a preference.
 - **New photos go to the top level of the project,** unless a folder is set for the next photos.
 - **A frame wider than the lens is the container:** the camera's picture is drawn smaller inside it.
 - **Camera controls show their state by a filled colour.**
 - GPS on capture stays dropped.
+
+2026-11-23, in UX workshop [U6](ux-6-devices.md), by the owner:
+
+- **A camera layout is a set of free bars** at the four edges, per orientation, each with its controls, their order and distribution. Any bar can lie over the picture.
+- **Readouts are controls** placed in bars.
+- **Controls are moved by dragging,** in the preview and in the list.
+- **Whatever is set on a phone or tablet can be set from the Studio,** and the other way round: tabs and camera layout to begin with. There are no device profiles.

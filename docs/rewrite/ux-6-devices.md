@@ -1,6 +1,6 @@
 # U6 · Devices, layouts, extensions
 
-UX workshop [#362](https://github.com/OpenClapper-dev/core/issues/362) ([plan](ux-plan.md)). Status: **in progress** (round 3, 2026-11-23).
+UX workshop [#362](https://github.com/OpenClapper-dev/core/issues/362) ([plan](ux-plan.md)). Status: **decided** (2026-11-23), after three rounds.
 
 The camera layout editor, the Devices app, and the two extensions with their apps. Specified in [03](03-capture.md), [08](08-extensions.md) and [U5](ux-5-phone.md).
 
@@ -81,7 +81,7 @@ From the owner's reaction to round 1.
 | **Tracks: order and height** | The grip at the far left of a track reorders the tracks. The lower edge of a track is dragged to make that track taller or lower. The slider in the toolbar gives every track one height; "Fit height" spreads them over the room there is. A track sized by hand keeps its own height until the slider or Fit is used again |
 | **A thumb to take hold of** | The playhead of a flow and of the timeline ([U4](ux-4-timeline.md)) has a larger thumb with the grabbing hand; the ruler shows the pointing hand, not the text cursor |
 
-## Decided so far
+## Decided
 
 2026-11-23, by the owner:
 
@@ -98,6 +98,10 @@ From the owner's reaction to round 1.
 - **The prototypes show the design, not the feature list.** What today's app can do stays unless a workshop page says it goes: every control and state the written device drivers offer (Aputure MC, NEEWER FS230B and FS300B, PS099S, the Blackmagic camera, the Hollyland transmitter), and everything today's sequences can do (multi-selection, box selection, keyframe sizes, native and stepped fades, smoothing, track markers, run on phone and the rest of [lights](../features/lights.md)). The build takes its inventory from the current code and docs, in [workshop 10](README.md).
 - **A part of a device can be limited to where it works.** A video transmitter's picture is shown on the phone only; its state shows everywhere. The catalogue declares such limits per model.
 - **Hardware and Flows are apps on the phone and tablet too** and can be tabs.
+
+## Changes to specification pages
+
+Applied to [03](03-capture.md) (bars, readouts, a device's setup from the Studio) and [08](08-extensions.md) (phone-only parts, the extensions' apps on the phone, one flow editor, the carry-over rule).
 
 ## Not prototyped
 

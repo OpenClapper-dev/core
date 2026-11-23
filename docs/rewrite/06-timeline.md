@@ -1,6 +1,6 @@
 # 06 · Timeline
 
-Workshop [#333](https://github.com/OpenClapper-dev/core/issues/333). Status: **decided** (2026-11-19; hierarchy, markers and master timeline added in the [interjection](i1-interjection.md; one track, default hold time, film strip and the lock per file from UX workshop [U4](ux-4-timeline.md), 2026-11-23)).
+Workshop [#333](https://github.com/OpenClapper-dev/core/issues/333). Status: **decided** (2026-11-19; hierarchy, markers and master timeline added in the [interjection](i1-interjection.md); one track, default hold time, film strip and the lock per file from UX workshop [U4](ux-4-timeline.md), 2026-11-23).
 
 A rough cut out of pictures: clips in order, each held for a time, played back to see what carries a sequence. With shots, canvases and photos now separate files, a clip becomes a plain reference.
 
