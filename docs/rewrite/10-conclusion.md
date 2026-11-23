@@ -215,4 +215,24 @@ B0–B3 give the first end-to-end use (take a photo, see it in the Studio). B4�
 
 ## Decided
 
-Nothing yet.
+2026-11-23, by the owner:
+
+- **The rebuild is built directly on `main`.** Today's app cannot be released from `main` again once the first build step lands; production keeps running the last release until the cutover, staging runs the rebuild. `rewrite/plan` is merged into `main` before the first step.
+- **The order is the proposed one:** the photo path first (B0–B3), then the planning tools (B4–B7), then camera layouts, Hardware and Flows (B8–B10), then the cutover.
+- **A new schema baseline** on newly created databases and buckets; the old migration files go.
+
+Open: how a file's own content is stored (question 4), with the writer's recommendation below.
+
+### Recommendation on question 4
+
+Normalise what the server searches, joins or has to keep consistent across rows; keep as one JSON document what is always loaded and saved whole.
+
+| In tables | Why |
+| --- | --- |
+| Files, references between files, property values, photos and their stored objects, frames, devices | They are searched, filtered, joined or counted: "where is this used", "shots by set", "is this lens in use" |
+
+| As a JSON body | Why |
+| --- | --- |
+| A canvas's objects and comments, a flow's tracks and keyframes, a layout's bars, a shot's progression settings | One editor at a time loads the whole and saves the whole; the server never asks for one object or one keyframe. Rows would mean hundreds of writes per save and a migration for every new property of an object |
+
+How the usual weaknesses of JSON are met: every body is checked by shared code on every save (as layers, sequences and layouts are today); a body carries a version number and is upgraded when read, so a change to its shape needs no database migration; if the server ever has to search inside a body, that part moves into a table then. A limit to check in B0: how large a row the database accepts, for a canvas with very many pen strokes.
