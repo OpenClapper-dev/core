@@ -1,6 +1,6 @@
 # U5 · Phone and tablet
 
-UX workshop [#361](https://github.com/OpenClapper-dev/core/issues/361) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
+UX workshop [#361](https://github.com/OpenClapper-dev/core/issues/361) ([plan](ux-plan.md)). Status: **decided** (2026-11-23), after two rounds.
 
 The one app for phones and tablets. Specified in [03](03-capture.md) and [09](09-shells.md).
 
@@ -54,7 +54,7 @@ From the owner's reaction to round 1. The prototype starts held upright now.
 | **Media: all photos or folders** | A switch at the top: every photo of the project, or its folders with the photos at the top level below them |
 | **Collections as in the Studio** | The header button shows collections as stacks or spread out. Spread, each photo carries its collection's mark; Setup, Appearance chooses bar below, bar left, dot or frame, the same preference as in the Studio |
 
-## Decided so far
+## Decided
 
 2026-11-23, by the owner:
 
@@ -71,6 +71,17 @@ From the owner's reaction to round 1. The prototype starts held upright now.
 - **Camera controls show their state by a filled colour,** not by an outline alone.
 - **A frame wider than the lens is the container.** The camera's picture is drawn smaller inside the frame and the area the lens does not see stays empty, as in today's app. No message in the middle of the picture; the readout notes it.
 - **Today's customisations of a layout are kept** as options of a layout, not as defaults: its labels and readouts, colours, what is shown and where. They are taken stock of and carried over in [U6](ux-plan.md), with the layout editor.
+
+## Changes to specification pages
+
+Applied to [03](03-capture.md) and [09](09-shells.md):
+
+- A camera layout fills sections (control row, lens rail, strip over the picture); focal lengths are buttons for primes and a slider for a zoom.
+- Lens names are a preference: the phone's own names, or focal lengths.
+- Collection mode is a switch; asking for a name is a preference.
+- New photos go to the top level of the project unless a folder is set for the next photos.
+- A frame wider than the lens is drawn as the container with the camera's picture inside.
+- One tab bar for every app; it turns with the device.
 
 ## Not prototyped
 
