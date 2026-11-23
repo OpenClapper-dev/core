@@ -1,6 +1,6 @@
 # 06 · Timeline
 
-Workshop [#333](https://github.com/OpenClapper-dev/core/issues/333). Status: **decided** (2026-11-19; hierarchy, markers and master timeline added in the [interjection](i1-interjection.md)).
+Workshop [#333](https://github.com/OpenClapper-dev/core/issues/333). Status: **decided** (2026-11-19; hierarchy, markers and master timeline added in the [interjection](i1-interjection.md; one track, default hold time, film strip and the lock per file from UX workshop [U4](ux-4-timeline.md), 2026-11-23)).
 
 A rough cut out of pictures: clips in order, each held for a time, played back to see what carries a sequence. With shots, canvases and photos now separate files, a clip becomes a plain reference.
 
@@ -44,7 +44,7 @@ A timeline's clips can also be pictures directly, or placeholders.
 
 ### The timeline
 
-A **timeline** is a file of a project: a name, properties ([04](04-shots.md)), an ordered list of clips and chapter markers. It stays a tool for deciding: hold times and playback, no audio, transitions or export.
+A **timeline** is a file of a project: a name, properties ([04](04-shots.md)), an ordered list of clips and chapter markers. It has one track. It stays a tool for deciding: hold times and playback, no audio, transitions or export.
 
 ### The clip
 
@@ -63,6 +63,7 @@ A clip is a reference and a time, nothing more:
 - A removed file leaves the clip in place, showing a missing reference (principle 2).
 - A timeline cannot be a clip of a timeline.
 - Clips have no notes.
+- A clip added to a cut holds a default time: an account setting (2 s to start with) that every timeline inherits and a timeline can override.
 - A collection ([01](01-media.md)) is never a clip: dropping one into a timeline adds the photos chosen from it as separate clips.
 
 ### Spread and collapsed
@@ -98,10 +99,11 @@ Rules that hold whichever way is chosen:
 
 - **The edit is to the file,** not to the clip. The host says where else the file is used and offers to duplicate it first.
 - **The file's app saves,** as it does on its own (automatically, with its render). The timeline saves only its own list.
-- **The edit lock applies:** a file someone else is editing is read-only in the timeline too.
+- **The edit lock applies, and it is one lock per file.** Editing a file in place takes the same lock as editing it in its own app, so nobody else can edit it anywhere meanwhile; a file someone else is editing is read-only in the timeline too. Editing a timeline locks the timeline, not the files its clips point at; locking those as well may become a project setting, off by default ([U4](ux-4-timeline.md)).
 - **Playback and editing do not mix.** Starting an edit pauses and pins the playhead to the clip; moving the playhead away ends the edit, which saves first. Until the new render is stored, the strip shows the live picture.
 - **The editor owns the keys** while it is active.
 - A photo cannot be edited: editing a photo clip makes a canvas from it.
+- A canvas and a shot are both mounted in place (a double-click on the clip); either can instead be opened in its app in a window of its own.
 
 ### Two file panels
 
@@ -116,7 +118,7 @@ A **chapter marker** organises a cut: a title, and optionally a colour, at the s
 
 ### The master timeline
 
-Every project has one **master timeline**: an ordered list of timelines chosen from the project, played end to end. Timelines that are not in it (alternatives, experiments) stay outside. Only membership and order are edited there; a timeline's clips are edited in the timeline. Several people can each work on their own timeline while the master strings them together.
+Every project has one **master timeline**: an ordered list of timelines chosen from the project, played end to end. Timelines that are not in it (alternatives, experiments) stay outside. Only membership and order are edited there; a timeline's clips are edited in the timeline. In the master's strip a timeline shows as a film strip: as many of its pictures as its width holds, the first and the last always. Several people can each work on their own timeline while the master strings them together.
 
 ### What the timeline no longer does
 
@@ -159,3 +161,11 @@ A standard app, as in workshop 00. Made in the Studio; whether the phone or tabl
 - **A shot with a progression plays its progression,** at the progression's timing; the clip has no hold time of its own. This replaces "no blocks": the track shows such a shot **spread** or **collapsed**, a view setting that does not change playback.
 - **Chapter markers** organise a timeline.
 - **One master timeline per project:** a chosen order of timelines. A timeline still cannot be a clip of a timeline.
+
+2026-11-23, in UX workshop [U4](ux-4-timeline.md), by the owner:
+
+- **One track.**
+- **A default hold time for new clips,** set for the account and overridable per timeline.
+- **Canvases and shots are edited in place or in their own window;** both ways are offered.
+- **The master shows timelines as film strips.**
+- **One edit lock per file,** whichever window edits it; editing a timeline does not lock the files of its clips (a possible project setting, off by default).
