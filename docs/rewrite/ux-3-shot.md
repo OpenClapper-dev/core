@@ -70,12 +70,13 @@ The panels of round 2 became a part of the design system (`Dock`) and every prot
 
 | Change | What to try |
 | --- | --- |
-| **The tab is the handle** | A panel is moved by dragging its title. The separate grip is gone |
+| **A handle of its own** | Every panel name has a grip at its left. The grip moves the panel; the name is only clicked (to switch tabs, or to open a collapsed panel) |
+| **Reordering tabs** | Drag a grip onto another tab of the row: a line shows whether the panel lands before or after it. The same works into the tab row of another place |
 | **Share the room** | Drag the border between two panels of one place |
 | **A head with names only** | The head of a place carries the panel names and the collapse button, nothing else. A panel's own controls (the progression's timing, the content's view switch) are a row inside the panel, under the head |
 | **Collapse** | The "–" at the right of a panel's head folds it down to its head; a click on its name opens it again. A collapsed place at the left or right, or beside another panel, becomes a narrow rail with the panels' icons |
 | **Panels as tabs** | Drop a panel onto the middle of another, or onto its head ("As a tab"): they share the place and its full size. Click a tab to switch; drag a tab out again onto a half or an edge |
-| **The drawing tools are a panel too** | In [U2](ux-2-canvas.md) the strip of tools (Move, Pen, Line and the rest) is a panel named Tools, at the left to start with. It is a slim panel: its place is only as big as the tools. At a side or beside another panel it is a rail; above or below one it is a bar whose tools run in a row and wrap. It moves, collapses and reopens like the others |
+| **The drawing tools are a panel too** | In [U2](ux-2-canvas.md) the strip of tools (Move, Pen, Line and the rest) is a panel named Tools, at the left to start with. It is a slim panel: its place is only as big as the tools. At a side or beside another panel it is a rail; above or below one it is a bar whose tools run in a row and wrap. It moves like the others by its grip, which is all its head shows; it does not collapse, because it is already as small as it gets |
 | **It is remembered** | The arrangement survives a reload (kept in the browser here; an account preference in the product). "Panels back to their places" in the toolbar's menu resets it |
 | **Everywhere** | [U1](ux-1-files.md): the sidebar and the properties are such panels (the "Properties: right, bottom, off" switch of the prototype bar is gone). [U2](ux-2-canvas.md): Layers, Frames and Comments are three panels, tabs of one place to start with; pull Frames below Layers to see both. The canvas tool mounted in the shot window brings its own panels |
 

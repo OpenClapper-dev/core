@@ -78,8 +78,8 @@ button.oc-card:focus-visible{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4
 .oc-dock__split--col>.oc-dock__group.is-collapsed+.oc-dock__group,.oc-dock__split--col>.oc-dock__group+.oc-dock__group.is-collapsed,.oc-dock__split--col>.oc-dock__split+.oc-dock__group.is-collapsed,.oc-dock__split--col>.oc-dock__group.is-collapsed+.oc-dock__split{border-top:var(--border-w) solid var(--border-divider)}
 .oc-dock__head{flex:none;display:flex;align-items:center;gap:var(--space-3);min-height:36px;padding:var(--space-2) var(--space-3);box-sizing:border-box;border-bottom:var(--border-w) solid var(--border-divider);background:var(--surface)}
 .oc-dock__group.is-collapsed>.oc-dock__head{border-bottom:0;background:var(--surface-sunken)}
-.oc-dock__tabs{flex:1;display:flex;gap:2px;min-width:0;overflow-x:auto;scrollbar-width:none}
-.oc-dock__tab{display:inline-flex;align-items:center;gap:var(--space-2);height:var(--control-h-sm);padding:0 var(--space-3);border:0;border-radius:var(--radius-control);background:transparent;color:var(--text-secondary);font:var(--weight-bold) var(--font-size-sm)/1 var(--font-sans);white-space:nowrap;cursor:grab;touch-action:none;user-select:none}
+.oc-dock__tabs{flex:1;display:flex;gap:var(--space-2);min-width:0;overflow-x:auto;scrollbar-width:none}
+.oc-dock__tab{display:inline-flex;align-items:center;gap:var(--space-2);height:var(--control-h-sm);padding:0 var(--space-3) 0 var(--space-2);border:0;border-radius:var(--radius-control);background:transparent;color:var(--text-secondary);font:var(--weight-bold) var(--font-size-sm)/1 var(--font-sans);white-space:nowrap;cursor:pointer;user-select:none}
 .oc-dock__tab:hover{background:color-mix(in srgb,var(--text) 12%,transparent);color:var(--text)}
 .oc-dock__tab[aria-selected="true"]{color:var(--text)}
 .oc-dock__tabs.is-many>.oc-dock__tab[aria-selected="true"]{background:var(--selection);box-shadow:inset 0 0 0 var(--border-w) var(--selection-border)}
@@ -117,3 +117,12 @@ button.oc-card:focus-visible{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4
 .oc-dock__body>.oc-toolrail{border-right:0;width:auto;min-width:var(--toolrail-w)}
 .oc-dock__group:not(.is-rail) .oc-dock__body>.oc-toolrail{flex-direction:row;flex-wrap:wrap;padding:var(--space-2) var(--space-3)}
 .oc-dock__group:not(.is-rail) .oc-dock__body>.oc-toolrail>.oc-toolrail__sep{width:var(--border-w);height:20px;margin:0 var(--space-2)}
+.oc-dock__tabwrap{flex:none;display:inline-flex;align-items:center;border-radius:var(--radius-control)}
+.oc-dock__grip{flex:none;display:grid;place-items:center;width:14px;height:var(--control-h-sm);border-radius:var(--radius-xs);color:var(--text-disabled);cursor:grab;touch-action:none}
+.oc-dock__grip:hover{background:color-mix(in srgb,var(--text) 14%,transparent);color:var(--text)}
+.oc-dock__grip:active{cursor:grabbing}
+.oc-dock__group.is-rail .oc-dock__tabwrap{flex-direction:column}
+.oc-dock__group.is-rail .oc-dock__grip{width:var(--control-h);height:14px}
+.oc-dock__group.is-rail .oc-dock__grip>svg{rotate:90deg}
+.oc-dock__group.is-slim .oc-dock__grip{width:var(--control-h-sm);height:var(--control-h-sm)}
+.oc-dock__group.is-slim.is-rail .oc-dock__grip{width:var(--control-h);height:16px}

@@ -16,7 +16,7 @@ export type DockNode = DockGroup | DockSplit;
 export type DockLayout = Partial<Record<DockZone, DockNode | null>>;
 export interface DockPanel { id: string; title: string; icon?: IconName; /** The panel's own controls: a row inside the panel, under the head. The head carries only the tabs and the collapse button. */ actions?: ComponentChildren; body: ComponentChildren; /** Needs little room (a strip of tools): its place is only as big as its content, a rail at a side or beside another panel, a bar above or below one. */ slim?: boolean }
 type Side = "left" | "right" | "top" | "bottom" | "center";
-type Target = { zone: DockZone } | { panel: string; side: Side };
+type Target = { zone: DockZone } | { panel: string; side: Side } | { tab: string; before: boolean };
 
 const ZONES: DockZone[] = ["left", "right", "bottom"];
 const isGroup = (n: DockNode): n is DockGroup => "tabs" in n;
@@ -46,6 +46,8 @@ const each = (l: DockLayout, fn: (n: DockNode | null | undefined) => DockNode | 
 export function dockMove(l: DockLayout, id: string, to: Target): DockLayout {
   const out = each(l, (n) => keep(n, (x) => x !== id));
   if ("zone" in to) { const z = out[to.zone]; out[to.zone] = z ? { dir: to.zone === "bottom" ? "row" : "col", kids: [z, { tabs: [id] }] } : { tabs: [id] }; return out; }
+  // Next to a tab: into that row of tabs, before or after it. This also reorders the tabs of one place.
+  if ("tab" in to) return to.tab === id ? l : each(out, (n) => mapGroups(n, (g) => { const i = g.tabs.indexOf(to.tab); if (i < 0) return g; const tabs = [...g.tabs]; tabs.splice(to.before ? i : i + 1, 0, id); return { ...g, tabs, active: id, collapsed: false }; }));
   if (to.panel === id) return l;
   return each(out, (n) => (n ? put(n, to.panel, id, to.side) : null));
 }
@@ -86,7 +88,6 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
   const root = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const live = useRef<Drag | null>(null);
-  const dragged = useRef(false);
   const byId = new Map(panels.map((p) => [p.id, p]));
   const shown = (z: DockZone) => (zones.includes(z) ? keep(layout[z], (id) => byId.has(id)) : null);
   const slimOf = (g: DockGroup) => g.tabs.every((t) => byId.get(t)?.slim);
@@ -95,13 +96,22 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
   const start = (id: string) => (e: JSX.TargetedPointerEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     const sx = e.clientX, sy = e.clientY, themed = e.currentTarget.closest("[data-theme]") ?? document.body;
-    dragged.current = false;
+    e.preventDefault();
+    let on = false;
     const move = (m: PointerEvent) => {
-      if (!dragged.current && Math.hypot(m.clientX - sx, m.clientY - sy) < 5) return;
-      dragged.current = true;
-      const el = document.elementFromPoint(m.clientX, m.clientY), edge = el?.closest<HTMLElement>("[data-dock-zone]"), group = el?.closest<HTMLElement>("[data-dock-group]");
+      if (!on && Math.hypot(m.clientX - sx, m.clientY - sy) < 4) return;
+      on = true;
+      const el = document.elementFromPoint(m.clientX, m.clientY), edge = el?.closest<HTMLElement>("[data-dock-zone]"), group = el?.closest<HTMLElement>("[data-dock-group]"), over = el?.closest<HTMLElement>("[data-dock-tab]");
       let to: Target | null = null, box: Drag["box"] = null;
       if (edge && edge.closest(".oc-dock") === root.current) { const r = edge.getBoundingClientRect(); to = { zone: edge.dataset.dockZone as DockZone }; box = [r.left, r.top, r.width, r.height]; }
+      else if (over && over.closest(".oc-dock") === root.current && !over.closest(".is-slim")) {
+        // Over a tab: the dragged panel goes before or after it, shown as a line between the tabs.
+        if (over.dataset.dockTab !== id) {
+          const r = over.getBoundingClientRect(), upright = !!over.closest(".is-rail"), before = upright ? m.clientY < r.top + r.height / 2 : m.clientX < r.left + r.width / 2;
+          to = { tab: over.dataset.dockTab!, before };
+          box = upright ? [r.left, (before ? r.top : r.bottom) - 2, r.width, 4] : [(before ? r.left : r.right) - 2, r.top, 4, r.height];
+        }
+      }
       else if (group && group.closest(".oc-dock") === root.current) {
         // The panel it lands next to: any tab of that place but the dragged one.
         const other = group.dataset.dockGroup!.split(" ").find((t) => t !== id);
@@ -145,25 +155,34 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
       return (
         <div key={groupsOf(n)[0].tabs[0] + n.dir} className={cx("oc-dock__split", `oc-dock__split--${n.dir}`)} style={size != null ? { flex: `${size} 1 0px` } : undefined}>
           {n.kids.flatMap((k, i) => {
-            const prev = n.kids[i - 1], folded = (x: DockNode) => isGroup(x) && (!!x.collapsed || slimOf(x));
-            return [i > 0 && !folded(prev) && !folded(k) && <i key={`bar${i}`} role="separator" aria-orientation={n.dir === "row" ? "vertical" : "horizontal"} className={cx("oc-dock__bar", `oc-dock__bar--${n.dir}`)} title="Drag to share the room" onPointerDown={share(prev, k, n.dir)} />, draw(k, zone, all, n.dir, n.sizes?.[i] ?? 1)];
+            const prev = n.kids[i - 1], fixedKid = (x: DockNode) => isGroup(x) && (!!x.collapsed || slimOf(x));
+            return [i > 0 && !fixedKid(prev) && !fixedKid(k) && <i key={`bar${i}`} role="separator" aria-orientation={n.dir === "row" ? "vertical" : "horizontal"} className={cx("oc-dock__bar", `oc-dock__bar--${n.dir}`)} title="Drag to share the room" onPointerDown={share(prev, k, n.dir)} />, draw(k, zone, all, n.dir, n.sizes?.[i] ?? 1)];
           })}
         </div>
       );
     }
     const active = n.active && n.tabs.includes(n.active) ? n.active : n.tabs[0], panel = byId.get(active)!;
     // A collapsed place and a slim one take the same shape: a rail where they stand beside something, a bar where they lie above or below.
-    const slim = slimOf(n), fixed = !!n.collapsed || slim, rail = fixed && (all ? zone !== "bottom" : parent === "row");
+    const slim = slimOf(n), folded = !!n.collapsed && !slim, fixed = folded || slim, rail = fixed && (all ? zone !== "bottom" : parent === "row");
     return (
-      <section key={n.tabs[0]} data-dock-group={n.tabs.join(" ")} className={cx("oc-dock__group", n.collapsed && "is-collapsed", slim && "is-slim", rail && "is-rail", slim && !rail && "is-bar")} style={{ flex: fixed ? "none" : `${size ?? 1} 1 0px` }}>
+      <section key={n.tabs[0]} data-dock-group={n.tabs.join(" ")} className={cx("oc-dock__group", folded && "is-collapsed", slim && "is-slim", rail && "is-rail", slim && !rail && "is-bar")} style={{ flex: fixed ? "none" : `${size ?? 1} 1 0px` }}>
         <header className="oc-dock__head">
           <span className={cx("oc-dock__tabs", n.tabs.length > 1 && "is-many")} role="tablist">
-            {n.tabs.map((t) => { const p = byId.get(t)!; return <button key={t} type="button" role="tab" aria-selected={t === active} className="oc-dock__tab" title={n.collapsed ? `Open ${p.title}` : "Drag to put this panel elsewhere"} onPointerDown={start(t)} onClick={() => { if (!dragged.current) patch(t, { active: t, collapsed: false }); }}>{p.icon && <Icon name={p.icon} />}<span>{p.title}</span></button>; })}
+            {n.tabs.map((t) => {
+              const p = byId.get(t)!;
+              // Two areas: the grip moves the panel, the name is only clicked. A slim panel shows the grip alone.
+              return (
+                <span key={t} data-dock-tab={t} className={cx("oc-dock__tabwrap", t === active && "is-active")}>
+                  <i role="button" aria-label={`Move ${p.title}`} className="oc-dock__grip" title={`${p.title}: drag to put this panel elsewhere`} onPointerDown={start(t)}><Icon name="grip" size={12} /></i>
+                  {!slim && <button type="button" role="tab" aria-selected={t === active} className="oc-dock__tab" title={folded ? `Open ${p.title}` : p.title} onClick={() => patch(t, { active: t, collapsed: false })}>{p.icon && <Icon name={p.icon} />}<span>{p.title}</span></button>}
+                </span>
+              );
+            })}
           </span>
-          {!n.collapsed && <button type="button" className="oc-dock__fold" aria-label={`Collapse ${panel.title}`} title="Collapse" onClick={() => patch(active, { collapsed: true })}><Icon name="minus" size={12} /></button>}
+          {!fixed && <button type="button" className="oc-dock__fold" aria-label={`Collapse ${panel.title}`} title="Collapse" onClick={() => patch(active, { collapsed: true })}><Icon name="minus" size={12} /></button>}
         </header>
-        {!n.collapsed && panel.actions != null && <div className="oc-dock__actions">{panel.actions}</div>}
-        {!n.collapsed && <div className="oc-dock__body">{panel.body}</div>}
+        {!folded && panel.actions != null && <div className="oc-dock__actions">{panel.actions}</div>}
+        {!folded && <div className="oc-dock__body">{panel.body}</div>}
       </section>
     );
   };
