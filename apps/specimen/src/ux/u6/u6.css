@@ -12,22 +12,49 @@
 .u6-stage { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding: var(--space-6); overflow: auto; background: var(--surface-sunken); }
 .u6-stage > .oc-banner { align-self: stretch; }
 .u6-device { flex: none; border: 8px solid #555; border-radius: 22px; overflow: hidden; background: #000; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); }
-.u6-device > .oc-cam { transform-origin: 0 0; }
+.u6-screen { user-select: none; display: flex; flex-direction: column; transform-origin: 0 0; background: #000; color: #fff; }
+.u6-screen.is-land { flex-direction: row; }
+.u6-mid { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.u6-screen.is-land > .u6-mid { flex-direction: column; }
+.u6-mid > .oc-cam__view { flex: 1; min-width: 0; min-height: 0; }
 .u6-live { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .u6-frame { position: absolute; left: 14%; right: 14%; top: 50%; aspect-ratio: 1.85; translate: 0 -50%; border-style: solid; outline: 1px solid rgba(0, 0, 0, .7); }
-.oc-cam--landscape .u6-frame { left: 22%; right: 22%; }
-.u6-top--bottom { top: auto; bottom: 8px; }
-.u6-hud--top { top: 8px; }
-.u6-bar { flex-wrap: nowrap; }
+/* Bars: a row along a top or bottom edge, a column along a side edge. */
+.u6-bar { flex: none; display: flex; align-items: center; gap: 8px; box-sizing: border-box; background: #000; overflow: hidden; }
+.u6-bar.is-h { min-height: 60px; padding: 6px 10px; }
+.u6-bar.is-v { flex-direction: column; min-width: 64px; padding: 10px 6px; }
+.u6-bar.has-shutter.is-h { min-height: 96px; }
+.u6-bar.has-shutter.is-v { min-width: 96px; }
+.u6-bar.is-start { justify-content: flex-start; } .u6-bar.is-center { justify-content: center; } .u6-bar.is-end { justify-content: flex-end; } .u6-bar.is-between { justify-content: space-between; } .u6-bar.is-around { justify-content: space-around; }
+.u6-bar + .u6-bar { box-shadow: inset 0 1px 0 #222, inset 1px 0 0 #222; }
+.u6-bar__empty { margin: auto; color: #777; font: 600 10px/1 var(--font-sans); }
+.u6-slot { flex: none; display: inline-flex; cursor: grab; touch-action: none; border-radius: 26px; }
+.u6-slot:hover { box-shadow: 0 0 0 2px var(--accent); }
+.u6-slot.is-dragged, .u6-item.is-dragged { opacity: .3; }
+.u6-slot * { pointer-events: none; }
 .u6-strip { display: inline-flex; gap: 6px; }
-.oc-cam--landscape .u6-strip { flex-direction: column; }
+.u6-strip.is-v { flex-direction: column; }
+.u6-strip .oc-cam__btn { min-width: 44px; height: 40px; padding: 0 6px; }
+/* A carousel: back, the value, on. Three parts a thumb can hit. */
+.u6-carousel { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 2px solid rgba(255, 255, 255, .5); border-radius: 28px; }
+.u6-carousel.is-v { flex-direction: column; }
+.u6-carousel > b { min-width: 44px; text-align: center; font: 700 14px/44px var(--font-mono); color: #fff; }
+.u6-carousel.is-v > b { line-height: 36px; }
+.u6-carousel .oc-cam__btn { width: 44px; height: 44px; border-color: transparent; background: rgba(255, 255, 255, .16); }
 .u6-ctl { display: inline-grid; justify-items: center; gap: 2px; }
 .u6-ctl small { color: #fff; font: 600 9px/1 var(--font-sans); opacity: .85; }
 .u6-last { display: block; flex: none; }
 .u6-last img { display: block; width: 100%; height: 100%; object-fit: cover; }
+/* Readouts: one tag each. */
+.u6-chips { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none; }
+.u6-chips > span { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 10px; background: rgba(0, 0, 0, .72); color: #fff; font: 600 11px/14px var(--font-mono); white-space: nowrap; }
+.u6-chips > span.is-warn { background: var(--warning, #d98a00); color: #000; }
+.u6-chips i { width: 8px; height: 8px; border-radius: 50%; background: var(--cat-4); }
 .u6-tabs { flex: none; display: flex; align-items: center; justify-content: space-around; height: 56px; background: var(--surface-sunken); color: var(--text-secondary); }
 .u6-tabs.is-side { flex-direction: column; width: 64px; height: auto; }
-.u6-items { list-style: none; margin: 0; padding: var(--space-2) var(--space-4); display: grid; gap: 2px; }
+.u6-line { position: fixed; z-index: 900; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
+.u6-item--empty { justify-content: center; color: var(--text-disabled); font-size: var(--font-size-xs); border: var(--border-w) dashed var(--border-control); cursor: default; }
+.u6-items { list-style: none; margin: 0; padding: var(--space-2) var(--space-4); display: grid; gap: 2px; min-height: 36px; }
 .u6-item { display: flex; align-items: center; gap: var(--space-3); min-height: 34px; padding: 0 2px 0 4px; border-radius: 4px; background: var(--surface); cursor: grab; user-select: none; touch-action: none; }
 .u6-item:hover { background: var(--surface-hover); }
 .u6-item > svg:first-child { color: var(--text-disabled); flex: none; }
@@ -87,3 +114,22 @@
 .u6-ext dl > div { display: grid; grid-template-columns: 130px 1fr; }
 .u6-ext dt { color: var(--text-secondary); }
 .u6-ext dd { margin: 0; }
+
+/* A phone's or tablet's setup, changed from the Studio. */
+.u6-tabrow { display: flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-5); min-height: 32px; }
+.u6-tabrow > span { flex: 1; }
+.u6-only { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+/* Hardware and Flows on the phone. */
+.u6-phone { flex: 1; min-height: 0; overflow: auto; display: flex; gap: var(--space-8); align-items: flex-start; justify-content: center; padding: var(--space-7); background: var(--surface-sunken); }
+.u6-phone__notes { max-width: 340px; display: grid; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-sm); }
+.u6-phone__notes h3 { margin: 0; color: var(--text); font-size: var(--font-size-md, 15px); }
+.u6-phone__notes p { margin: 0; }
+.u6-feedbig { background: #000; }
+.u6-feedbig img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.u6-lanes { display: grid; gap: 6px; padding: var(--space-4) var(--space-5); }
+.u6-lanes > div { position: relative; height: 26px; border-radius: 4px; background: var(--surface-sunken); overflow: hidden; }
+.u6-lanes > div > i { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; opacity: .75; }
+.u6-lanes > div > span { position: absolute; left: 6px; top: 0; line-height: 26px; font-size: var(--font-size-2xs); }
+.u6-lanes > b { position: absolute; }
+.u6-prog { position: relative; }
+.u6-prog > b { position: absolute; top: var(--space-4); bottom: var(--space-4); width: 2px; background: var(--over-rec, #ff2d2d); }

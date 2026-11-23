@@ -1,12 +1,12 @@
 # U6 · Devices, layouts, extensions
 
-UX workshop [#362](https://github.com/OpenClapper-dev/core/issues/362) ([plan](ux-plan.md)). Status: **in progress** (round 1, 2026-11-23).
+UX workshop [#362](https://github.com/OpenClapper-dev/core/issues/362) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
 
 The camera layout editor, the Devices app, and the two extensions with their apps. Specified in [03](03-capture.md), [08](08-extensions.md) and [U5](ux-5-phone.md).
 
 ## The prototype
 
-`make specimen`, then <http://localhost:5175/#/ux/u6>. Code: `apps/specimen/src/ux/u6/`. Fake data, no phone, no Bluetooth, no server; a reload resets everything except the arrangement of the panels. The bar at the very top is not part of the design: it switches between four places.
+`make specimen`, then <http://localhost:5175/#/ux/u6>. Code: `apps/specimen/src/ux/u6/`. Fake data, no phone, no Bluetooth, no server; a reload resets everything except the arrangement of the panels. The bar at the very top is not part of the design: it switches between five places.
 
 ## Round 1: what is in it
 
@@ -47,18 +47,43 @@ Taken over from today's editor ([viewfinder layouts](../features/viewfinder-layo
 | **What a switch changes** | With Hardware off: Devices shows only phones and tablets and says why; the Lights control of a layout is unavailable; Flows shows "needs its extension". Nothing is deleted |
 | **Flows** | A list of flows and an editor: one lane per control of a device (a light's intensity or colour, a camera's recording), steps on a time axis, a playhead, play from the Studio through the proxy or on the phone itself. Low fidelity: the steps are fixed |
 
-## Open questions for the owner
+## Round 2 (2026-11-23)
 
-1. **Sections or free bars.** Today a layout has up to four bars at two edges. Here it has three named sections, with the rail and the row each at an edge of choice. Is that enough freedom, or are more than one rail or row wanted?
-2. **Moving controls.** Inside a section a control is dragged; to another section it goes by the menu. Should dragging work across sections, and directly in the preview?
-3. **Per layout or per account.** Lens names can be fixed for a layout or follow the account. The collection's name prompt and the folder are account matters. Right this way round?
-4. **Devices: the phone's own entry.** A phone's panel shows its tabs and its camera layout. Should both be changeable from the Studio, or only on the device?
-5. **Flows** are shown in low fidelity, as the app exists today and nothing about it was reconsidered. Is a full round on the flow editor wanted in this workshop, or is "carried over in the new design" enough for the plan?
-6. **The live picture** of a transmitter sits in its device panel. Where else should it show: in the phone's camera as a control, in a window of its own in the Studio?
+From the owner's reaction to round 1.
+
+| Change | What to try |
+| --- | --- |
+| **Free bars instead of named sections** | A layout is any number of bars. A bar stands at the top, bottom, left or right; bars at one edge stack in the order listed. "+ Bar" in the Bars panel adds one at an edge; a bar is renamed, moved to another edge or removed in its section. The strip over the picture of round 1 is a bar like the others |
+| **How bars share the screen** | Upright, top and bottom bars take the full width and side bars the height left between them. In landscape, left and right bars take the full height and top and bottom bars the width left between them |
+| **Distribution** | Per bar: its controls packed at the start, in the middle or at the end, or spread out between the ends or with room around |
+| **Dragging controls anywhere** | A control is dragged to another place in its bar or into another bar, in the list at the right and directly in the preview. A line shows where it lands |
+| **A carousel a thumb can use** | "Stepped" shows three full-size parts: back, the value, on. In an upright bar they stack (up, value, down); in a lying bar they sit side by side |
+| **Readouts as tags** | Each readout on the picture is a tag of its own; a warning is coloured |
+| **A phone's setup from the Studio** | Devices, a phone or tablet: its tabs (switch, order) and its camera layout are changed in its panel, and "Take the setup of another device" copies both |
+| **The transmitter's picture** | Marked "On the phone only" in the Studio: the device's connection and state show like any other, its picture does not. The catalogue says so too |
+| **Extensions on the phone** | A fifth place, "On the phone": the Hardware tab (the proxy switch, the devices, a device's controls, the transmitter's picture) and the Flows tab (the project's flows, played from the phone) |
+
+## Decided so far
+
+2026-11-23, by the owner:
+
+- **A camera layout is a set of free bars** at the four edges, per orientation: any number, stackable, each with its controls in order and a distribution. No named sections.
+- **Controls are moved by dragging,** in the preview and in the list, within a bar and across bars.
+- **A stepped control (carousel) has separate, full-size back and on buttons,** stacked in an upright bar.
+- **Readouts on the picture are separate tags,** not one line of text.
+- **Lens names can be fixed per layout or follow the account;** the collection's name prompt and the folder for new photos are account matters.
+- **Whatever can be set on a phone or tablet can be set from the Studio,** and the other way round: tabs and camera layout to begin with.
+- **Flows is carried over** with today's logic in the new design; no redesign in this workshop.
+- **A part of a device can be limited to where it works.** A video transmitter's picture is shown on the phone only; its state shows everywhere. The catalogue declares such limits per model.
+- **Hardware and Flows are apps on the phone and tablet too** and can be tabs.
+
+## Open
+
+**Device profiles.** The owner raised named profiles for phones and tablets (a tab arrangement for "my phone", another for "my tablet"), creatable in the Studio. Today the only thing such a profile would hold is the tabs and the camera layout. Proposal: no profile object for now. The setup lives on the device, is editable from both sides, and "Take the setup of another device" covers reuse. A named profile can be added when a setup holds more than two things. To be confirmed.
 
 ## Not prototyped
 
-The phone's Proxy screen, pairing an Aputure mesh, effects with their options, the power overview, dimming curves, editing the steps of a flow, device specs read out again, a layout laid out for a device it was not designed for.
+Pairing an Aputure mesh, effects with their options, the power overview, dimming curves, editing the steps of a flow, device specs read out again, a layout laid out for a device it was not designed for.
 
 ## Into the design system
 

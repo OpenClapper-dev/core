@@ -8,17 +8,17 @@ import {
   type DockPanel, type IconName,
 } from "@openclapper/design";
 import { ColourButton, type Colour } from "../u1/catalogue";
-import { picture } from "../u1/pictures";
 
 type Kind = "phone" | "tablet" | "light" | "battery" | "camera" | "transmitter";
 type Link = "connected" | "near" | "away" | "asleep" | "self";
-interface Dev { id: string; kind: Kind; brand: string; model: string; name: string; link: Link; battery?: number; mins?: number; on?: boolean; level?: number; kelvin?: number; colour?: Colour; effect?: string; poweredBy?: string; rec?: boolean; iso?: string; shutter?: string }
+interface Dev { id: string; kind: Kind; brand: string; model: string; name: string; link: Link; battery?: number; mins?: number; on?: boolean; level?: number; kelvin?: number; colour?: Colour; effect?: string; poweredBy?: string; rec?: boolean; iso?: string; shutter?: string; tabs?: string[]; layout?: string }
 const KIND: Record<Kind, { label: string; plural: string; icon: IconName; core?: boolean }> = { phone: { label: "Phone", plural: "Phones and tablets", icon: "mobile", core: true }, tablet: { label: "Tablet", plural: "Phones and tablets", icon: "tablet", core: true }, light: { label: "Light", plural: "Lights", icon: "light-fixture" }, battery: { label: "Battery", plural: "Batteries", icon: "battery" }, camera: { label: "Camera", plural: "Cameras", icon: "video" }, transmitter: { label: "Video transmitter", plural: "Video transmitters", icon: "antenna" } };
 const LINK: Record<Link, string> = { connected: "Connected", near: "In range, connecting", away: "Not in range", asleep: "Asleep", self: "Registered" };
 /** The catalogue of supported hardware: brand, model, type. It is part of the app and grows with it. */
 const CATALOGUE: [string, string, Kind][] = [["Aputure", "MC", "light"], ["NEEWER", "FS230B", "light"], ["NEEWER", "FS300B", "light"], ["NEEWER", "PS099S", "battery"], ["Blackmagic", "Pocket Cinema Camera 6K", "camera"], ["Hollyland", "Mars 400S Pro", "transmitter"]];
+const APPS = ["Camera", "Media", "Shots", "Sets", "Locations", "Canvas", "Hardware", "Flows"];
 const START: Dev[] = [
-  { id: "p1", kind: "phone", brand: "Google", model: "Pixel 9 Pro", name: "Pixel 9 Pro", link: "self" }, { id: "p2", kind: "tablet", brand: "Google", model: "Pixel Tablet", name: "Pixel Tablet", link: "self" },
+  { id: "p1", kind: "phone", brand: "Google", model: "Pixel 9 Pro", name: "Pixel 9 Pro", link: "self", tabs: ["Camera", "Media", "Shots"], layout: "Scout, wide" }, { id: "p2", kind: "tablet", brand: "Google", model: "Pixel Tablet", name: "Pixel Tablet", link: "self", tabs: ["Canvas", "Media", "Shots"], layout: "Camera" },
   { id: "l1", kind: "light", brand: "Aputure", model: "MC", name: "MC, window", link: "connected", battery: 72, mins: 96, on: true, level: 60, kelvin: 4300, colour: "#ffb070", effect: "" },
   { id: "l2", kind: "light", brand: "Aputure", model: "MC", name: "MC, practical", link: "asleep", battery: 18, on: false, level: 30, kelvin: 3200, effect: "Fire" },
   { id: "l3", kind: "light", brand: "NEEWER", model: "FS300B", name: "Key", link: "connected", on: true, level: 85, kelvin: 5600, poweredBy: "b1" },
@@ -76,7 +76,7 @@ export default function Devices({ hardware, say, toExtensions }: { hardware: boo
             <PropertyRow label="Shutter"><Select size="sm" value={d.shutter ?? "180°"} onChange={(v) => patch({ shutter: v })} options={["90°", "172.8°", "180°", "270°"].map((x) => ({ value: x, label: x }))} /></PropertyRow>
           </PropertySection>
         )}
-        {d.kind === "transmitter" && <PropertySection title="Feed" icon="video"><div className="u6-feed">{live(d) || d.link === "near" ? <img src={picture(14)} alt="The transmitter's picture" /> : <span>No picture</span>}<small>The live picture goes from the transmitter to the phone directly; the Studio sees it through the phone.</small></div></PropertySection>}
+        {d.kind === "transmitter" && <PropertySection title="Feed" icon="video"><div className="u6-only"><Badge icon="mobile">On the phone only</Badge><span>The transmitter's picture goes straight to the phone over the transmitter's own Wi-Fi. It can be seen on the phone that is the proxy, in its Hardware tab; the Studio cannot show it. Connection and state are shown here like for every device.</span></div></PropertySection>}
         {!KIND[d.kind].core && (
           <PropertySection title="State" icon="info">
             <PropertyRow label="Connection" value={proxy ? LINK[d.link] : "No proxy"} />
@@ -95,7 +95,14 @@ export default function Devices({ hardware, say, toExtensions }: { hardware: boo
         {KIND[d.kind].core && (
           <>
             <PropertySection title="Reported by the device" icon="mobile"><PropertyRow label="Screen" value={d.kind === "phone" ? "412 × 915 upright, 915 × 412 landscape" : "800 × 1280 upright"} /><PropertyRow label="Real lenses" value={d.kind === "phone" ? "0.5× (13 mm), 1× (24 mm), 5× (120 mm), Macro (no report)" : "1× (26 mm)"} /><PropertyRow label="Last seen" value={d.id === "p1" ? "Now" : "Yesterday 18:20"} /></PropertySection>
-            <PropertySection title="On this device" icon="apps"><PropertyRow label="Tabs" value={d.kind === "phone" ? "Camera, Media, Shots, Setup" : "Canvas, Media, Shots, Setup"} /><PropertyRow label="Camera layout" value={d.kind === "phone" ? "Scout, wide" : "Camera"} /></PropertySection>
+            <PropertySection title="Tabs on this device" icon="apps">
+              {(d.tabs ?? []).map((t, i) => <div key={t} className="u6-tabrow"><span>{t}</span><Button size="sm" variant="quiet" icon="arrow-up" label={`${t} earlier`} disabled={i === 0} onClick={() => { const x = [...d.tabs!]; [x[i - 1], x[i]] = [x[i], x[i - 1]]; patch({ tabs: x }); }} /><Button size="sm" variant="quiet" icon="arrow-down" label={`${t} later`} disabled={i === d.tabs!.length - 1} onClick={() => { const x = [...d.tabs!]; [x[i + 1], x[i]] = [x[i], x[i + 1]]; patch({ tabs: x }); }} /><Switch checked onChange={() => patch({ tabs: d.tabs!.filter((x) => x !== t) })} aria-label={`${t} is a tab`} /></div>)}
+              <div className="u6-tabrow"><span>Setup</span><Icon name="lock" label="Always a tab" /></div>
+              {APPS.filter((t) => !(d.tabs ?? []).includes(t) && (hardware || (t !== "Hardware" && t !== "Flows"))).map((t) => <div key={t} className="u6-tabrow"><span style={{ color: "var(--text-secondary)" }}>{t}</span><Switch checked={false} onChange={() => patch({ tabs: [...(d.tabs ?? []), t] })} aria-label={`${t} is a tab`} /></div>)}
+            </PropertySection>
+            <PropertySection title="Camera" icon="camera"><PropertyRow label="Layout"><Select size="sm" value={d.layout ?? "Camera"} onChange={(v) => patch({ layout: v })} options={["Camera", "Viewfinder", "Scout, wide"].map((x) => ({ value: x, label: x }))} /></PropertyRow></PropertySection>
+            <div className="u6-pad"><DropdownMenu size="sm" variant="quiet" icon="copy" label="Take the setup of another device" items={devs.filter((x) => KIND[x.kind].core && x.id !== d.id).map((x) => ({ id: x.id, label: x.name, icon: KIND[x.kind].icon }))} onSelect={(id) => { const from = devs.find((x) => x.id === id)!; patch({ tabs: from.tabs, layout: from.layout }); say(`Tabs and camera layout taken from “${from.name}”`); }} /></div>
+            <p className="u6-note">Whatever can be set on the device can be set here, and the other way round. The device takes a change the next time it is in touch.</p>
             <p className="u6-note">Phones and tablets register themselves and keep this current. One record per piece of hardware; it belongs to your account and follows you into every project.</p>
           </>
         )}
@@ -130,7 +137,7 @@ export default function Devices({ hardware, say, toExtensions }: { hardware: boo
             <div><h3 className="u6-group">{adding === "scan" ? "Scanning through the Pixel 9 Pro…" : "Found nearby"}</h3>
               {adding === "found" ? <ul className="u6-rows">{[["NEEWER FS300B", "Probably a NEEWER FS300B"], ["AP-MC-7F21", "Probably an Aputure MC"]].map(([n, guess]) => <li key={n} onClick={() => { const id = `n${Date.now()}`, mc = n.startsWith("AP"); setDevs([...devs, { id, kind: "light", brand: mc ? "Aputure" : "NEEWER", model: mc ? "MC" : "FS300B", name: mc ? "MC 3" : "FS300B 2", link: "near", on: false, level: 50, kelvin: 5600, battery: mc ? 90 : undefined, poweredBy: mc ? undefined : "socket" }]); setSel(id); setAdding(null); say("Paired. Name it in its panel"); }}><Icon name="bluetooth" /><strong>{n}</strong><span>{guess}</span><Button size="sm">Pair</Button></li>)}</ul> : <p className="u6-note">Hold the device near the phone and switch it on.</p>}
             </div>
-            <div><h3 className="u6-group">Supported hardware</h3><ul className="u6-rows u6-rows--cat">{CATALOGUE.map(([b, m, k]) => <li key={m}><Icon name={KIND[k].icon} /><strong>{b}</strong><span>{m}</span><span>{KIND[k].label}</span></li>)}</ul></div>
+            <div><h3 className="u6-group">Supported hardware</h3><ul className="u6-rows u6-rows--cat">{CATALOGUE.map(([b, m, k]) => <li key={m}><Icon name={KIND[k].icon} /><strong>{b}</strong><span>{m}</span><span>{KIND[k].label}{k === "transmitter" && " · picture on the phone only"}</span></li>)}</ul></div>
           </div>
         </Dialog>
       )}

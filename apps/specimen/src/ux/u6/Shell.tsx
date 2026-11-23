@@ -9,9 +9,10 @@ import { useEffect, useState } from "preact/hooks";
 import { AppIcon, Banner, Button, EmptyState, Icon, List, ListRow, PropertyList, PropertyRow, PropertySection, Select, Slider, StatusBar, Switch, Toast, Toolbar, ToolbarSpacer, TrackLayout, cx, type IconName } from "@openclapper/design";
 import Devices from "./Devices";
 import Layouts from "./Layouts";
+import OnPhone from "./OnPhone";
 
-type Place = "layouts" | "devices" | "flows" | "extensions";
-const PLACES: { id: Place; label: string; icon: IconName; color: number }[] = [{ id: "layouts", label: "Camera layouts", icon: "camera-layout", color: 4 }, { id: "devices", label: "Devices", icon: "mobile", color: 6 }, { id: "flows", label: "Flows", icon: "route", color: 8 }, { id: "extensions", label: "Project · Extensions", icon: "extension", color: 0 }];
+type Place = "layouts" | "devices" | "flows" | "phone" | "extensions";
+const PLACES: { id: Place; label: string; icon: IconName; color: number }[] = [{ id: "layouts", label: "Camera layouts", icon: "camera-layout", color: 4 }, { id: "devices", label: "Devices", icon: "mobile", color: 6 }, { id: "flows", label: "Flows", icon: "route", color: 8 }, { id: "phone", label: "On the phone", icon: "mobile", color: 3 }, { id: "extensions", label: "Project · Extensions", icon: "extension", color: 0 }];
 
 /** A flow: a timed programme that drives controls of devices. Each lane is one control of one device. */
 const LANES = [
@@ -83,7 +84,7 @@ export default function U6Shell() {
         <span style={{ flex: 1 }} />
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
-      {place === "layouts" ? <Layouts hardware={ext.hardware} say={say} /> : place === "devices" ? <Devices hardware={ext.hardware} say={say} toExtensions={() => setPlace("extensions")} /> : place === "extensions" ? extensions
+      {place === "layouts" ? <Layouts hardware={ext.hardware} say={say} /> : place === "devices" ? <Devices hardware={ext.hardware} say={say} toExtensions={() => setPlace("extensions")} /> : place === "phone" ? <OnPhone hardware={ext.hardware} flows={ext.flows} theme={theme} /> : place === "extensions" ? extensions
         : ext.flows ? <Flows say={say} /> : <div className="oc-app u3-win"><EmptyState icon="route" title="Flows needs its extension" action={<Button onClick={() => setPlace("extensions")}>Extensions of this project</Button>}>The Flows extension is off in this project. Its files stay and show as “needs the Flows extension”.</EmptyState></div>}
       {toast && <Toast className="u3-toast" tone="info" onDismiss={() => setToast(null)}>{toast}</Toast>}
     </div>
