@@ -21,7 +21,7 @@
 .u3-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
 
 /* A picture fills the nearest sized box, letterboxed; .u3-box and every thumbnail holder are such boxes. */
-.u3-box, .u3-item__art, .u3-tile__art, .u3-head__art, .u3-pickrow__art, .u3-gen__stage, .u3-gen__strip button > span { container-type: size; display: grid; place-items: center; overflow: hidden; background: var(--photo-bg); }
+.u3-box, .u3-line__art, .u3-gen__smooth > span, .u3-item__art, .u3-tile__art, .u3-head__art, .u3-pickrow__art, .u3-gen__stage, .u3-gen__strip button > span { container-type: size; display: grid; place-items: center; overflow: hidden; background: var(--photo-bg); }
 .u3-pic { position: relative; display: block; overflow: hidden; width: min(100cqw, 100cqh * var(--a, 1.333)); height: min(100cqh, 100cqw / var(--a, 1.333)); }
 .u3-pic > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; user-select: none; }
 .u3-pic--crop { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
@@ -47,9 +47,26 @@
 .u3-stageacts { position: absolute; right: var(--space-5); top: var(--space-4); display: inline-flex; gap: var(--space-3); }
 
 /* The side panel. */
-.u3-side > .oc-panel__body { overflow: hidden; }
-.u3-side .oc-props { flex: 1; min-height: 0; overflow: auto; }
-.u3-tabs { flex: none; display: flex; padding: var(--space-3) var(--space-4); border-bottom: var(--border-w) solid var(--border-divider); overflow: hidden; }
+/* Places for panels: left and right of the stage and below it; a place holds panels beside or above each other. */
+.u3-top { position: relative; }
+.u3-zone > .oc-panel__body { overflow: hidden; }
+.u3-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
+.u3-split--col { flex-direction: column; }
+.u3-split--row > * + * { border-left: var(--border-w) solid var(--border-divider); }
+.u3-split--col > * + * { border-top: var(--border-w) solid var(--border-divider); }
+.u3-panel { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: auto; background: var(--surface); }
+.u3-panel[data-panel="props"] { overflow: hidden; }
+.u3-panel .oc-props { flex: 1; min-height: 0; overflow: auto; }
+.u3-sec { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.u3-grab { flex: none; display: grid; place-items: center; width: 16px; height: 24px; margin-left: -6px; border-radius: 4px; color: var(--text-disabled); cursor: grab; touch-action: none; }
+.u3-grab:hover { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
+.u3-dockbox { position: fixed; z-index: 190; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 4px; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; transition: all var(--dur-fast) linear; }
+.u3-dockghost { position: fixed; z-index: 200; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border-radius: var(--radius-control); background: var(--accent); color: var(--on-accent, #fff); font-weight: var(--weight-bold); box-shadow: var(--shadow-menu); pointer-events: none; }
+.u3-dockzone { position: absolute; z-index: 20; display: grid; place-items: center; align-content: center; gap: 4px; border: 2px dashed var(--accent); border-radius: 6px; background: color-mix(in srgb, var(--surface) 86%, var(--accent)); color: var(--text); font-size: var(--font-size-xs); }
+.u3-dockzone--left { left: 6px; top: 6px; bottom: 6px; width: 84px; }
+.u3-dockzone--right { right: 6px; top: 6px; bottom: 6px; width: 84px; }
+.u3-dockzone--bottom { left: 100px; right: 100px; bottom: 6px; height: 64px; }
+.u3-tabs { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--border-w) solid var(--border-divider); overflow: hidden; }
 .u3-tabs .oc-seg__opt { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .u3-head { flex: none; display: grid; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
 .u3-head__art { height: 132px; border-radius: 3px; }
@@ -82,13 +99,11 @@
 .u3-pos__pin { position: absolute; translate: -50% -100%; pointer-events: none; }
 
 /* Below the stage: the progression and the content list. */
-.u3-lower { min-width: 0; }
-.u3-sec + .u3-sec { border-top: var(--border-w) solid var(--border-divider); }
-.u3-sec__head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); min-height: 40px; }
+.u3-sec__head { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); min-height: 40px; flex-wrap: wrap; row-gap: var(--space-2); }
 .u3-sec__head > * { flex: none; white-space: nowrap; }
 .u3-sec__count { color: var(--text-secondary); font-size: var(--font-size-xs); margin-right: var(--space-3); }
 .u3-sec__sep { width: 1px; height: 18px; background: var(--border-divider); margin: 0 var(--space-2); }
-.u3-strip { display: flex; gap: 6px; padding: 0 var(--space-5) var(--space-4); overflow-x: auto; }
+.u3-strip { flex: none; display: flex; gap: 6px; padding: 0 var(--space-5) var(--space-4); overflow-x: auto; }
 .u3-strip--prog { gap: 2px; }
 .u3-item, .u3-tile { position: relative; flex: none; display: flex; flex-direction: column; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-divider); cursor: pointer; user-select: none; touch-action: none; }
 .u3-item:hover, .u3-tile:hover { outline-color: var(--text); }
@@ -106,6 +121,24 @@
 .u3-item__grip { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .u3-item__grip::after { content: ""; position: absolute; right: 2px; top: 30%; bottom: 30%; width: 2px; border-radius: 1px; background: #fff; opacity: 0; box-shadow: 0 0 0 1px rgba(0, 0, 0, .5); }
 .u3-item:hover .u3-item__grip::after { opacity: .9; }
+.u3-item__move { position: absolute; left: 3px; bottom: 23px; display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; border-radius: 8px; background: var(--accent); color: var(--on-accent, #fff); font: 700 10px/15px var(--font-mono); }
+.u3-item.is-move .u3-item__art { background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 35%, transparent)); }
+.u3-lines { list-style: none; margin: 0; padding: 0 var(--space-4) var(--space-4); display: grid; gap: 2px; overflow: auto; }
+.u3-line { display: flex; align-items: center; gap: var(--space-4); height: 40px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: 4px; background: var(--surface); outline: var(--border-w) solid transparent; cursor: pointer; user-select: none; touch-action: none; }
+.u3-line > .oc-icon:first-child, .u3-line > svg:first-child { color: var(--text-disabled); flex: none; }
+.u3-line:hover { background: var(--surface-hover); }
+.u3-line.is-current { background: var(--selection); outline-color: var(--accent); }
+.u3-line.is-missing { color: var(--danger, #c62828); }
+.u3-line .u3-tile__menu { position: static; flex: none; }
+.u3-line__art { flex: none; width: 52px; height: 32px; border-radius: 2px; }
+.u3-line__name { flex: 1; min-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u3-line__type { flex: none; display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u3-pair { display: flex; gap: var(--space-3); }
+.u3-pair > * { flex: 1; min-width: 0; }
+.u3-gen__smooth { display: flex; gap: var(--space-5); align-items: center; }
+.u3-gen__smooth > span { flex: none; width: 200px; height: 96px; border-radius: 3px; }
+.u3-gen__smooth > div { flex: 1; display: grid; gap: var(--space-2); }
+.u3-gen__smooth small { color: var(--text-secondary); font-size: var(--font-size-xs); }
 .u3-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--over-rec, #ff2d2d); pointer-events: none; z-index: 2; }
 .u3-tile { width: 124px; }
 .u3-tile__art { position: relative; height: 78px; }

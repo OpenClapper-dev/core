@@ -4,20 +4,21 @@
 import { AppIcon, Icon, cx } from "@openclapper/design";
 import { TYPES, type FileRec } from "../u1/data";
 import { picture } from "../u1/pictures";
-import { DOCS, eqOf, frameOfDefault, rect, type DefFrame, type Doc, type Fr, type Ref } from "./model";
+import { DOCS, between, eqOf, frameOfDefault, rect, type DefFrame, type Doc, type Fr, type Ref } from "./model";
 
 export type Mode = "outline" | "mask" | "crop" | "full";
 export interface Seen { file?: FileRec; src?: string; frame?: Fr; eq?: number; source: "own" | "default" | "picture" | "none"; missing?: boolean }
 
 /** What a reference shows: its picture, and the frame it is seen through (its own, the canvas's picture, or a progression's default). */
-export function see(ref: Ref, files: Map<string, FileRec>, docs: Record<string, Doc> = DOCS, def?: DefFrame | null): Seen {
+export function see(ref: Ref & { to?: string; ease?: boolean }, files: Map<string, FileRec>, docs: Record<string, Doc> = DOCS, def?: DefFrame | null, at = 0): Seen {
   const file = files.get(ref.file);
   if (!file || file.binned) return { file, source: "none", missing: true };
   const doc = file.type === "canvas" ? docs[file.id] : undefined, base = doc?.base ? files.get(doc.base) : file.type === "photo" ? file : undefined;
   const src = file.type === "photo" || file.type === "canvas" ? (base?.pic != null ? picture(base.pic) : file.pic != null ? picture(file.pic) : undefined) : undefined;
   const eq = eqOf(base);
   const own = doc?.frames.find((f) => f.id === ref.frame);
-  if (own) return { file, src, eq, frame: own, source: "own" };
+  const end = own && ref.to ? doc?.frames.find((f) => f.id === ref.to) : undefined;
+  if (own) return { file, src, eq, frame: end ? between(own, end, at, ref.ease) : own, source: "own" };
   if (def && eq) return { file, src, eq, frame: frameOfDefault(def), source: "default" };
   const pic = doc?.frames.find((f) => f.id === doc.picture);
   return pic ? { file, src, eq, frame: pic, source: "picture" } : { file, src, eq, source: "none" };

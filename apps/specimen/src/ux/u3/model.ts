@@ -10,12 +10,19 @@ export interface Fr { id: string; name: string; color: number; preset?: string; 
 export interface Doc { base?: string; frames: Fr[]; picture?: string }
 /** A reference to a picture: a photo, a canvas, or one frame of a canvas. */
 export interface Ref { file: string; frame?: string }
-export interface Item extends Ref { id: string; hold: number }
+/** A progression item: a picture held for a time, or (with `to`) a smooth move from its frame to another frame of the same canvas over that time. */
+export interface Item extends Ref { id: string; hold: number; to?: string; ease?: boolean }
+/** Optics values typed in, without a preset. */
+export interface Values { format: [number, number]; mult: number; squeeze: number; delivery?: number }
 /** The default frame of a progression: optics values or an aspect, applied centred. */
-export type DefFrame = { kind: "preset"; preset: string; focal: number } | { kind: "aspect"; aspect: number };
+export type DefFrame = { kind: "preset"; preset: string; focal: number } | { kind: "aspect"; aspect: number } | ({ kind: "free"; focal: number } & Values);
 export interface Prog { items: Item[]; timing: "each" | "even" | "ends"; total: number; overlay: { file: string; visible: boolean } | null; frame: DefFrame | null }
 
 export const fromPreset = (p: Preset, focal: number, n: number, cx = 0.5, cy = 0.5): Fr => ({ id: `${p.id}-${focal}-${n}`, name: `${focal} mm`, color: (n % 8) + 1, preset: p.id, format: p.format, mult: p.mult, squeeze: p.squeeze, focal, delivery: p.delivery, cx, cy });
+
+export const fromValues = (v: Values, focal: number, n: number): Fr => ({ id: `free-${focal}-${n}`, name: `${focal} mm`, color: (n % 8) + 1, format: v.format, mult: v.mult, squeeze: v.squeeze, focal, delivery: v.delivery, cx: 0.5, cy: 0.5 });
+/** The frame at a point of a smooth move: focal length and centre between the two ends. */
+export const between = (a: Fr, b: Fr, u: number, ease?: boolean): Fr => { const k = ease ? u * u * (3 - 2 * u) : u, focal = a.focal! + (b.focal! - a.focal!) * k; return { ...a, focal, cx: a.cx + (b.cx - a.cx) * k, cy: a.cy + (b.cy - a.cy) * k, name: `${a.focal} → ${b.focal} mm` }; };
 
 /** The full-frame equivalent a photo was taken at, from its facts; undefined = no angle of view. */
 export const eqOf = (f: FileRec | undefined) => { const m = f?.facts?.find(([k]) => k === "Lens")?.[1].match(/^(\d+)/); return m ? Number(m[1]) : undefined; };
@@ -27,8 +34,8 @@ export function rect(f: Fr, eq: number): { w: number; h: number; inner?: { w: nu
   const a = (w * (4 / 3)) / h;
   return { w, h, inner: f.delivery > a ? { w, h: (h * a) / f.delivery } : { w: (w * f.delivery) / a, h } };
 }
-export const frameOfDefault = (d: DefFrame): Fr => (d.kind === "aspect" ? { id: "default", name: "Default frame", color: 6, aspect: d.aspect, cx: 0.5, cy: 0.5 } : { ...fromPreset(PRESETS.find((p) => p.id === d.preset)!, d.focal, 5), id: "default", name: "Default frame" });
-export const describe = (d: DefFrame) => (d.kind === "aspect" ? `${Math.round(d.aspect * 100) / 100}:1` : `${PRESETS.find((p) => p.id === d.preset)!.name} · ${d.focal} mm`);
+export const frameOfDefault = (d: DefFrame): Fr => (d.kind === "free" ? { ...fromValues(d, d.focal, 5), id: "default", name: "Default frame" } : d.kind === "aspect" ? { id: "default", name: "Default frame", color: 6, aspect: d.aspect, cx: 0.5, cy: 0.5 } : { ...fromPreset(PRESETS.find((p) => p.id === d.preset)!, d.focal, 5), id: "default", name: "Default frame" });
+export const describe = (d: DefFrame) => (d.kind === "free" ? `${d.format[0]} × ${d.format[1]} mm · ${d.focal} mm` : d.kind === "aspect" ? `${Math.round(d.aspect * 100) / 100}:1` : `${PRESETS.find((p) => p.id === d.preset)!.name} · ${d.focal} mm`);
 
 /** How long each item holds: its own time, or its share of one total (evenly, or with the first and last held twice as long). */
 export function holds(p: Prog): number[] {
@@ -36,7 +43,7 @@ export function holds(p: Prog): number[] {
   const w = p.items.map((_, i) => (p.timing === "ends" && p.items.length > 2 && (i === 0 || i === p.items.length - 1) ? 2 : 1)), sum = w.reduce((a, b) => a + b, 0) || 1;
   return w.map((x) => (p.total * x) / sum);
 }
-export const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}${s % 1 ? `.${Math.round((s % 1) * 10)}` : ""}`;
+export const clock = (s: number) => { const d = Math.round(s * 10); return `${Math.floor(d / 600)}:${String(Math.floor((d % 600) / 10)).padStart(2, "0")}${d % 10 ? `.${d % 10}` : ""}`; };
 
 const P6K = PRESETS[0];
 /** Canvases of the fake project that have a base photo and frames. Canvas 02 is a project file; the others are internal files of shots. */
