@@ -7,7 +7,7 @@ import type { JSX } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  Button, Checkbox, DropdownMenu, EditorLayout, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextArea, TextInput, Toolbar, ToolbarSpacer, ToolRail, cx, dockCollapse, dockShow, dockShown, useDockLayout,
+  Button, Checkbox, DropdownMenu, EditorLayout, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextArea, TextInput, Toolbar, ToolbarSpacer, ToolRail, cx, dockShow, useDockLayout,
   type IconName,
 } from "@openclapper/design";
 import { picture } from "../u1/pictures";
@@ -69,8 +69,6 @@ export default function U2Canvas({ host }: { host?: CanvasHost } = {}) {
   // The inspector's three parts are panels the user arranges: tabs of one place to start with.
   const [panels, setPanels] = useDockLayout(host ? "u2-hosted" : "u2", { right: { tabs: ["layers", "frames", "comments"] } });
   const setTab = (id: string) => setPanels(dockShow(panels, id, false));
-  const PARTS = ["layers", "frames", "comments"], closed = !PARTS.some((id) => dockShown(panels, id));
-  const setClosed = (c: boolean) => setPanels(PARTS.reduce((l, id) => dockCollapse(l, id, c), panels));
   const [locked, setLocked] = useState(false);
   const [own, setTheme] = useState("dark"), theme = host?.theme ?? own;
   const [draft, setDraft] = useState<{ tool: Tool; pts: P[] } | null>(null);
@@ -500,7 +498,6 @@ export default function U2Canvas({ host }: { host?: CanvasHost } = {}) {
             {photo && frames.length > 1 && <Button size="sm" variant="quiet" icon="columns" selected={compare} onClick={() => { setCompare(!compare); pick(null); setSelC(null); if (!compare && mode === "full") setMode("crop"); }}>Compare</Button>}
             <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
             {photo && <span className={cx(compare && "u2-nofull")} title={compare ? "Full has no frame, so it is not offered while comparing" : undefined}><Segmented label="View mode" value={compare && mode === "full" ? "crop" : mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} /></span>}
-            <Button size="sm" variant="quiet" icon="sidebar" selected={!closed} label={closed ? "Show the panels" : "Collapse the panels"} onClick={() => setClosed(!closed)} />
           </Toolbar>}
           toolRail={<ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} />}
           canvas={

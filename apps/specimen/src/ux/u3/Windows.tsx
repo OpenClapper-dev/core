@@ -6,7 +6,7 @@
 import "./u3.css";
 import { useEffect, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Banner, Button, Confirm, Dock, DropdownMenu, EmptyState, Checkbox, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextInput, Toast, Toolbar, ToolbarSpacer, cx, dockCollapse, dockShown, useDockLayout,
+  AppIcon, Badge, Banner, Button, Confirm, Dock, DropdownMenu, EmptyState, Checkbox, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextInput, Toast, Toolbar, ToolbarSpacer, cx, dockCollapse, useDockLayout,
   type DockLayout, type DockPanel,
 } from "@openclapper/design";
 import { TYPES, type FileRec } from "../u1/data";
@@ -348,7 +348,6 @@ export default function U3Windows() {
           <ToolbarSpacer />
           {!editing && <Segmented label="View mode" value={mode} disabled={!seen?.frame} onChange={(v) => setMode(v as Mode)} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} />}
           <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh", }, { separator: true }, { id: "dup", label: "Duplicate", icon: "copy" }, { id: "bin", label: "Move to the recycle bin…", icon: "trash", danger: true }]} onSelect={(x) => (x === "panels" ? resetPanels() : x === "bin" ? setBinning(true) : say(`A copy of “${file.name}”${internal.length ? `, with copies of its ${internal.length} internal files` : ""}`))} />
-          {!editing && <Button size="sm" variant="quiet" icon="sidebar" label={dockShown(panels, "props") ? "Collapse the properties" : "Show the properties"} selected={dockShown(panels, "props")} onClick={() => setPanels(dockShown(panels, "props") ? dockCollapse(panels, "props", true) : dockCollapse(panels, "props", false))} />}
         </Toolbar>
         <Dock key={file.type} panels={dockPanels} layout={panels} onLayoutChange={setPanels} zones={editing ? ["bottom"] : undefined} zoneSizes={{ left: 320, right: 340, bottom: shot ? 330 : 200 }}>
           {editing && editFile ? (
