@@ -169,6 +169,7 @@ export const GLYPHS = {
   "mobile": ["device-mobile", "<path d=\"M6 5a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2v-14\"/> <path d=\"M11 4h2\"/> <path d=\"M12 17v.01\"/>"],
   "desktop": ["device-desktop", "<path d=\"M3 5a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v10a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1v-10\"/> <path d=\"M7 20h10\"/> <path d=\"M9 16v4\"/> <path d=\"M15 16v4\"/>"],
   "tablet": ["device-tablet", "<path d=\"M5 4a1 1 0 0 1 1 -1h12a1 1 0 0 1 1 1v16a1 1 0 0 1 -1 1h-12a1 1 0 0 1 -1 -1v-16\"/> <path d=\"M11 17a1 1 0 1 0 2 0a1 1 0 0 0 -2 0\"/>"],
+  "flashlight": ["flashlight", "<path d=\"M8 3h8v3l-2 3v10a2 2 0 0 1 -2 2a2 2 0 0 1 -2 -2v-10l-2 -3z\"/> <path d=\"M8 6h8\"/> <path d=\"M12 12v2\"/>"],
   "bulb": ["bulb", "<path d=\"M3 12h1m8 -9v1m8 8h1m-15.4 -6.4l.7 .7m12.1 -.7l-.7 .7\"/> <path d=\"M9 16a5 5 0 1 1 6 0a3.5 3.5 0 0 0 -1 3a2 2 0 0 1 -4 0a3.5 3.5 0 0 0 -1 -3\"/> <path d=\"M9.7 17l4.6 0\"/>"],
   "battery": ["battery", "<path d=\"M6 7h11a2 2 0 0 1 2 2v.5a.5 .5 0 0 0 .5 .5a.5 .5 0 0 1 .5 .5v3a.5 .5 0 0 1 -.5 .5a.5 .5 0 0 0 -.5 .5v.5a2 2 0 0 1 -2 2h-11a2 2 0 0 1 -2 -2v-6a2 2 0 0 1 2 -2\"/>"],
   "battery-charging": ["battery-charging", "<path d=\"M16 7h1a2 2 0 0 1 2 2v.5a.5 .5 0 0 0 .5 .5a.5 .5 0 0 1 .5 .5v3a.5 .5 0 0 1 -.5 .5a.5 .5 0 0 0 -.5 .5v.5a2 2 0 0 1 -2 2h-2\"/> <path d=\"M8 7h-2a2 2 0 0 0 -2 2v6a2 2 0 0 0 2 2h1\"/> <path d=\"M12 8l-2 4h3l-2 4\"/>"],

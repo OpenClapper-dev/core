@@ -1,6 +1,6 @@
 # U5 · Phone and tablet
 
-UX workshop [#361](https://github.com/OpenClapper-dev/core/issues/361) ([plan](ux-plan.md)). Status: **in progress** (round 1, 2026-11-23).
+UX workshop [#361](https://github.com/OpenClapper-dev/core/issues/361) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
 
 The one app for phones and tablets. Specified in [03](03-capture.md) and [09](09-shells.md).
 
@@ -35,14 +35,40 @@ The frames in the camera are drawn with the real math of [02](02-optics.md) agai
 
 Limits of the prototype: the live picture is a still; uploads run on a timer; held in landscape only the camera turns (the other screens stay upright on a phone); the shot's Play and "Add to a shot" are messages.
 
-## Open questions for the owner
+## Round 2 (2026-11-23)
 
-1. **Leaving the camera in landscape.** Held in landscape the tab bar is a narrow rail at the right edge of the camera (icons only). In portrait it is the normal tab bar under the camera. Right, or should the camera hide the tabs and have one way out?
-2. **Lens names.** The lenses are named by their focal length (13, 24, 120), not by "0.5×, 1×, 5×". Agreed?
-3. **The focal lengths in the viewfinder** sit in a strip over the lower edge of the picture. For a preset with many primes the strip scrolls. Enough, or a different picker?
-4. **Collection mode** asks which collection when it is switched on (a new one or an existing one). Or should it always start a new one, with no question?
-5. **Media on the phone** shows collections as stacks and loose photos, newest first, with no folders. Is a folder view needed on the phone, or is that the Studio's business?
-6. **Shots on the phone:** properties and content can be edited; the progression can only be played. Enough for the phone?
+From the owner's reaction to round 1. The prototype starts held upright now.
+
+| Change | What to try |
+| --- | --- |
+| **One tab bar for every app** | The camera is an app like the others: the tab bar is always there and looks the same. Held upright it is under the screen; held in landscape it is at the right edge. "Held" in the top bar turns the whole app, not only the camera |
+| **The camera is built from sections** | A layout fills three sections: the **control row**, the **lens rail** and a **strip over the picture**. The built-in default follows today's app. Upright: the lens rail is a row above the control row, above the tabs. Landscape: the control row stands at the right beside the tabs, the lens rail at the far left |
+| **Control row** | Uploads (with the count), collection mode, shutter, reference frame, torch, optics preset |
+| **Lens rail** | The phone's real lenses, then the focal lengths of a preset with primes as buttons to click through |
+| **A zoom gets a slider** | A preset with a zoom lens shows a slider over the lower edge of the picture instead of buttons |
+| **Strip over the picture** | Layout, the folder for the next photos, and at the right Fit (was "zoom to frame"), blackout and frame upright |
+| **Buttons that show their state** | Every camera button is outlined when off and filled in the accent colour when on: lenses, focal lengths, collection mode, torch, the toggles. This is the design system's camera button now; the torch has a flashlight icon |
+| **Lens names** | Setup, Camera: as the phone calls them (0.5×, 1×, 5×; the default) or by focal length (13, 24, 120) |
+| **Collection mode is a switch** | On starts a new collection named by the pattern ("Collection 3"), off ends it; no question. Setup, Camera offers to be asked for a name when a collection starts or when it ends |
+| **A folder for the next photos** | The folder button in the strip: the top level of the project (the default), an existing folder, or a new one. It stays until changed |
+| **Media: all photos or folders** | A switch at the top: every photo of the project, or its folders with the photos at the top level below them |
+| **Collections as in the Studio** | The header button shows collections as stacks or spread out. Spread, each photo carries its collection's mark; Setup, Appearance chooses bar below, bar left, dot or frame, the same preference as in the Studio |
+
+## Decided so far
+
+2026-11-23, by the owner:
+
+- **One tab bar for all apps,** the camera included. It turns with the device: under the screen upright, at the right edge in landscape.
+- **A camera layout fills generic sections** (control row, lens rail, strip over the picture) with controls; the built-in defaults follow today's app. Editing layouts is [U6](ux-plan.md).
+- **Focal lengths:** buttons for a preset's primes, a slider for a zoom.
+- **Lens names are a preference:** the phone's own names by default, focal lengths as the alternative.
+- **Collection mode is a switch** that starts and ends a collection named by the pattern. Asking for a name at the start or at the end is a preference.
+- **New photos go to the top level of the project** unless a folder is set for the next photos, which can be changed or switched off at any time.
+- **Media on the phone** shows all photos or the folders, and collections stacked or spread with the Studio's marks.
+- **Shots on the phone:** properties and content are edited, the progression is played. More can follow once the app is in use.
+- **The canvas on phone and tablet is the Studio's editor in a web view,** to be tried as built here.
+- **The phone and tablet app is not a second-class client:** what the Studio shows and lets a person set should be there too, in a touch form.
+- **Camera controls show their state by a filled colour,** not by an outline alone.
 
 ## Not prototyped
 
@@ -50,4 +76,10 @@ Capturing for a shot (deferred in [04](04-shots.md)), the live preview of a layo
 
 ## Into the design system
 
-Nothing yet. Candidates: the chip buttons over the camera picture, the lens strip, the focal strip, and the upload badge on a tile.
+| Part | What |
+| --- | --- |
+| `BottomTabs` | `side`: the same tabs stacked along the edge of a screen held in landscape |
+| `CameraButton` | Outlined when off, filled in the accent colour when on; with text it is a pill (a lens, a focal length, a count) |
+| Icons | A flashlight (own drawing) |
+
+Candidates: the upload badge on a tile and the collection marks, which the Studio's file browser needs as well.
