@@ -177,3 +177,7 @@ None were needed. Three details go beyond what the specifications say and are re
 - **Dropdowns never use the browser's menu;** they use the design system's list.
 - **Tokens in a naming pattern are shown as boxes and validated:** an unknown token, or one that does not apply to the file type, is marked with the reason, and the pattern is not used until it is fixed.
 - **A collection's colour** is given at random when the collection is made. It can be changed to one of the predefined colours or to any colour with a picker. It is stored with the collection on the server, so everyone sees the same.
+
+## After the workshop
+
+2026-11-23, from [U3](ux-3-shot.md): the sidebar and the properties are panels of the design system's `Dock`. They can be moved, sized against each other, collapsed and stacked as tabs; the prototype bar's switch for the properties panel is gone.

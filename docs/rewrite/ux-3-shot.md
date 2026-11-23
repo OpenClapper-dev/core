@@ -1,6 +1,6 @@
 # U3 · Shot, set, location
 
-UX workshop [#359](https://github.com/OpenClapper-dev/core/issues/359) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
+UX workshop [#359](https://github.com/OpenClapper-dev/core/issues/359) ([plan](ux-plan.md)). Status: **in progress** (round 3, 2026-11-23).
 
 The three windows that open a shot, a set and a location. Specified in [04](04-shots.md), [09a](09a-places.md), [I1](i1-interjection.md) and [06](06-timeline.md) (hosting another app in place).
 
@@ -64,11 +64,25 @@ From the owner's reaction to round 1.
 
 Found while testing: playback counted ticks and ran slow; it runs on the clock now.
 
+## Round 3 (2026-11-23)
+
+The panels of round 2 became a part of the design system (`Dock`) and every prototype uses it.
+
+| Change | What to try |
+| --- | --- |
+| **The tab is the handle** | A panel is moved by dragging its title. The separate grip is gone |
+| **Share the room** | Drag the border between two panels of one place |
+| **Collapse** | The "–" at the right of a panel's head folds it down to its head; the same button opens it. A collapsed place at the left or right, or beside another panel, becomes a narrow rail with the panels' icons |
+| **Panels as tabs** | Drop a panel onto the middle of another, or onto its head ("As a tab"): they share the place and its full size. Click a tab to switch; drag a tab out again onto a half or an edge |
+| **It is remembered** | The arrangement survives a reload (kept in the browser here; an account preference in the product). "Panels back to their places" in the toolbar's menu resets it |
+| **Everywhere** | [U1](ux-1-files.md): the sidebar and the properties are such panels (the "Properties: right, bottom, off" switch of the prototype bar is gone). [U2](ux-2-canvas.md): Layers, Frames and Comments are three panels, tabs of one place to start with; pull Frames below Layers to see both. The canvas tool mounted in the shot window brings its own panels |
+
 ## Decided so far
 
 2026-11-23, by the owner:
 
 - **The default layout** of round 1 stands: stage, properties at the right, progression and content below. Panels can be rearranged by dragging, as a personal preference.
+- **Panels are arranged by the user in every app:** moved beside, above or below each other or to an edge, sized against each other, collapsed, or stacked as tabs. Each app has a default.
 - **The content list has two views:** cards and rows.
 - **Editing in place** takes the stage and the side panel, as built. Beside it there is opening the file in a window of its own; both are offered.
 - **The side panel's second tab** for the chosen picture stays.
@@ -88,8 +102,13 @@ To be applied to [04](04-shots.md) when the workshop is decided:
 
 ## Not prototyped
 
-Creating a canvas from a photo in the content ("Draw or frame"), duplicating a shot, moving a frame from the shot window without opening the canvas, dragging the border between two panels of one place, panels as tabs of one place, keyboard handling of the lists, typing coordinates, the windows on a phone or tablet ([U5](ux-plan.md)).
+Creating a canvas from a photo in the content ("Draw or frame"), duplicating a shot, moving a frame from the shot window without opening the canvas, keyboard handling of the lists, typing coordinates, the windows on a phone or tablet ([U5](ux-plan.md)).
 
 ## Into the design system
 
-Nothing yet. Candidates: the pointer-based reordering with its ghost (now written twice, in U2's layer list and here), panels that can be put elsewhere (the timeline of U4 will want the same), and a popover wider than 280 px.
+| Part | What |
+| --- | --- |
+| `Dock` | New: panels around the middle of a window, in three zones (left, right, below). A place holds one panel, several as tabs, or places beside or above each other with draggable borders. Panels are moved by their tab, with a highlight of where they land; places collapse to their head or to a rail. `useDockLayout` keeps the arrangement; `dockShow`, `dockCollapse`, `dockShown` and `dockMove` change it from code |
+| `BrowserLayout`, `EditorLayout`, `ViewerLayout` | Take a `dock` in place of the fixed sidebar or inspector |
+
+Open: a specimen card for `Dock`; keyboard handling of moving panels. Candidates still: the pointer-based reordering with its ghost (written twice, in U2's layer list and here), and a popover wider than 280 px.

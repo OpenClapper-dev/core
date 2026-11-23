@@ -99,7 +99,7 @@
 .u2-picture { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; border-radius: 11px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 var(--font-size-xs)/1 var(--font-sans); cursor: pointer; }
 
 /* Inspector */
-.u2-inspector { display: flex; flex-direction: column; min-height: 0; }
+.u2-inspector { min-height: 0; }
 .u2-tabs { flex: none; padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
 .u2-tabs .oc-seg { display: flex; } .u2-tabs .oc-seg__opt { flex: 1; justify-content: center; }
 .u2-inspector .oc-props__row { padding-block: 5px; gap: var(--space-5); }

@@ -6,13 +6,13 @@
 import "./u3.css";
 import { useEffect, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Banner, Button, Confirm, DropdownMenu, EmptyState, Checkbox, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, ResizablePanel, Segmented, Select, Slider, StatusBar, Switch, TextInput, Toast, Toolbar, ToolbarSpacer, cx,
+  AppIcon, Badge, Banner, Button, Confirm, Dock, DropdownMenu, EmptyState, Checkbox, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextInput, Toast, Toolbar, ToolbarSpacer, cx, dockCollapse, dockShown, useDockLayout,
+  type DockLayout, type DockPanel,
 } from "@openclapper/design";
 import { TYPES, type FileRec } from "../u1/data";
 import { ASPECTS, FORMATS, PRESETS } from "../u2/model";
 import U2Canvas from "../u2/Canvas";
 import AddFiles from "./AddFiles";
-import { Place, useDock, without, type Layout, type Zone } from "./dock";
 import Generator, { type Made } from "./Generator";
 import { DOCS, START_FILES, START_PROGS, TABS, clock, describe, holds, type DefFrame, type Doc, type Item, type Prog, type Ref } from "./model";
 import { Pic, see, type Mode } from "./Pic";
@@ -23,8 +23,7 @@ const SCALE = 120; // px per second in the progression
 const SOURCE = { own: "its own frame", default: "the default frame", picture: "the canvas's picture", none: "no frame" };
 type Pick = { list: "prog" | "content"; i: number };
 /** Where the panels sit when nothing was moved: properties at the right, progression above content below the stage. */
-const PANELS: Layout = { left: null, right: "props", bottom: { dir: "col", kids: ["prog", "content"] } };
-const TITLES = { props: "Properties", prog: "Progression", content: "Content" };
+const PANELS: DockLayout = { right: { tabs: ["props"] }, bottom: { dir: "col", kids: [{ tabs: ["prog"] }, { tabs: ["content"] }] } };
 
 export default function U3Windows() {
   const [files, setFiles] = useState<FileRec[]>(START_FILES);
@@ -43,12 +42,9 @@ export default function U3Windows() {
   const [binning, setBinning] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [theme, setTheme] = useState("dark");
-  const [closed, setClosed] = useState(false);
-  const [low, setLow] = useState(false);
-  const [panels, setPanels] = useState<Layout>(PANELS);
+  const [panels, setPanels, resetPanels] = useDockLayout("u3", PANELS);
   const [lines, setLines] = useState("cards");
   const [scrub, setScrub] = useState(0);
-  const dk = useDock(panels, setPanels, TITLES);
   const say = (m: string) => { setToast(m); setTimeout(() => setToast((x) => (x === m ? null : x)), 3200); };
 
   const map = new Map(files.map((f) => [f.id, f]));
@@ -88,8 +84,9 @@ export default function U3Windows() {
   const open = (id: string) => { const f = map.get(id); if (!f) return; if (["shot", "set", "location"].includes(f.type)) { setCur(id); setPick(null); setT(null); done(); setTab("file"); } else say(`“${f.name}” opens in the ${TYPES[f.type].app} app, in a window of its own`); };
   const choose = (p: Pick) => { setT(null); setScrub(0); setPick(p); const id = p.list === "prog" ? prog!.items[p.i].file : content[p.i]; if (editing) { if (map.get(id)?.type === "canvas") setEditing(id); else done(); } };
   // The canvas tool needs the room: the lists below fold away while it is mounted, and can be pulled up again.
-  const edit = (id: string) => { setT(null); if (!editing) setLow(true); setEditing(id); };
-  const done = () => { setEditing(null); setLow(false); };
+  const fold = (c: boolean) => setPanels(dockCollapse(dockCollapse(panels, "prog", c), "content", c));
+  const edit = (id: string) => { setT(null); if (!editing) fold(true); setEditing(id); };
+  const done = () => { if (editing) fold(false); setEditing(null); };
   const emptyProg = (): Prog => ({ items: [], timing: "each", total: 0, overlay: null, frame: null });
 
   const addRefs = (refs: Ref[]) => {
@@ -227,10 +224,8 @@ export default function U3Windows() {
       </div>
     </Popover>
   );
-  const progression = shot && (
-    <section className="u3-sec">
-      <header className="u3-sec__head">
-        {dk.grip("prog")}<Icon name="timeline" /><strong>Progression</strong>
+  const progActions = shot && (
+    <>
         {prog ? <>
           <span className="u3-sec__count oc-num">{prog.items.length} {prog.items.length === 1 ? "picture" : "pictures"} · {clock(total)}</span>
           <Button size="sm" variant="quiet" icon={t != null ? "pause" : "play"} label={t != null ? "Pause" : "Play the progression"} disabled={!prog.items.length} onClick={() => setT(t != null ? null : 0)} />
@@ -248,7 +243,10 @@ export default function U3Windows() {
           <Button size="sm" variant="quiet" icon="framing" onClick={() => setGen(true)}>Generate a zoom…</Button>
           <Button size="sm" icon="plus" onClick={() => setAdding("prog")}>From pictures…</Button>
         </>}
-      </header>
+    </>
+  );
+  const progBody = shot && (
+    <>
       {prog && (prog.items.length ? (
         <div className="u3-strip u3-strip--prog">
           {prog.items.map((it, i) => {
@@ -268,7 +266,7 @@ export default function U3Windows() {
           {sortP.ghost((i) => <div className="u3-item is-current" style={{ width: "100%" }}><span className="u3-item__art"><Pic seen={see(prog.items[i], map, docs, prog.frame)} /></span></div>)}
         </div>
       ) : <p className="u3-note">An empty progression. Add pictures, or generate a zoom from one photo.</p>)}
-    </section>
+    </>
   );
 
   const menuOf = (id: string, i: number) => {
@@ -282,15 +280,17 @@ export default function U3Windows() {
     );
   };
   const openEntry = (id: string) => { const f = map.get(id); if (f && !f.binned) { if (f.type === "canvas") edit(id); else open(id); } };
-  const contentSec = (
-    <section className="u3-sec">
-      <header className="u3-sec__head">
-        {dk.grip("content")}<Icon name="files" /><strong>Content</strong><span className="u3-sec__count oc-num">{content.length} {content.length === 1 ? "file" : "files"}</span>
+  const contentActions = (
+    <>
+        <span className="u3-sec__count oc-num">{content.length} {content.length === 1 ? "file" : "files"}</span>
         <span style={{ flex: 1 }} />
         <Segmented label="Content as" value={lines} onChange={setLines} options={[{ value: "cards", icon: "grid", title: "Cards" }, { value: "list", icon: "list", title: "List" }]} />
         <Button size="sm" variant="quiet" icon="brush" title="A new canvas, made inside this file" onClick={newCanvas}>New canvas</Button>
         <Button size="sm" icon="plus" onClick={() => setAdding("content")}>Add files</Button>
-      </header>
+    </>
+  );
+  const contentBody = (
+    <>
       {content.length && lines === "list" ? (
         <ul className="u3-lines">
           {content.map((id, i) => {
@@ -321,28 +321,14 @@ export default function U3Windows() {
           {sortC.ghost((i) => <div className="u3-tile is-current"><span className="u3-tile__art"><Pic seen={see({ file: content[i] }, map, docs)} /></span><span className="u3-tile__name">{map.get(content[i])?.name}</span></div>)}
         </div>
       ) : <p className="u3-note">Nothing yet. Any file of the project can be content: photos, canvases, later documents and flows.</p>}
-    </section>
+    </>
   );
 
-  // The places panels can sit in: left and right of the stage, and below it.
-  const panel = (id: string) => (id === "prog" ? progression : id === "content" ? contentSec : (
-    <>
-      <div className="u3-tabs">{dk.grip("props")}<Segmented label="Side panel" value={entry ? tab : "file"} onChange={setTab} options={[{ value: "file", label: type.label, icon: type.glyph }, ...(entry ? [{ value: "entry", label: entry.name, icon: TYPES[entry.type].glyph }] : [])]} /></div>
-      {tab === "entry" && entry ? entryTab : fileTab}
-    </>
-  ));
-  const nodeOf = (z: Zone) => (shot ? panels[z] : without(panels[z], "prog"));
-  const zone = (z: Zone) => {
-    const node = nodeOf(z);
-    if (!node) return null;
-    const tall = z === "bottom" && typeof node !== "string" && node.dir === "col";
-    return (
-      <ResizablePanel key={z + JSON.stringify(node)} side={z} defaultSize={z === "bottom" ? (tall ? 318 : 176) : z === "right" ? 340 : 320} min={z === "bottom" ? 120 : 260} max={z === "bottom" ? 520 : 640} collapsible {...(z === "right" ? { collapsed: closed, onCollapsedChange: setClosed } : z === "bottom" ? { collapsed: low, onCollapsedChange: setLow } : {})} className={`u3-zone u3-zone--${z}`} aria-label={`Panels, ${z}`}>
-        <Place node={node} render={panel} />
-      </ResizablePanel>
-    );
-  };
-  const edges = dk.dragging && (["left", "right", "bottom"] as Zone[]).filter((z) => !nodeOf(z)).map((z) => <div key={z} data-dockzone={z} className={`u3-dockzone u3-dockzone--${z}`}><Icon name="plus" size={12} />{z === "bottom" ? "Below the stage" : z === "left" ? "Left" : "Right"}</div>);
+  const dockPanels: DockPanel[] = [
+    { id: "props", title: "Properties", icon: "info", body: <><div className="u3-tabs"><Segmented label="Side panel" value={entry ? tab : "file"} onChange={setTab} options={[{ value: "file", label: type.label, icon: type.glyph }, ...(entry ? [{ value: "entry", label: entry.name, icon: TYPES[entry.type].glyph }] : [])]} /></div>{tab === "entry" && entry ? entryTab : fileTab}</> },
+    ...(shot ? [{ id: "prog", title: "Progression", icon: "timeline" as const, actions: progActions, body: progBody }] : []),
+    { id: "content", title: "Content", icon: "files", actions: contentActions, body: contentBody },
+  ];
 
   const tabs = [...TABS, ...(TABS.includes(cur) ? [] : [cur])];
   return (
@@ -361,12 +347,13 @@ export default function U3Windows() {
           {shot && file.props.scene && <Badge>Scene {file.props.scene}{file.props.no ? ` · ${file.props.no}` : ""}</Badge>}
           <ToolbarSpacer />
           {!editing && <Segmented label="View mode" value={mode} disabled={!seen?.frame} onChange={(v) => setMode(v as Mode)} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} />}
-          <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh", disabled: panels === PANELS }, { separator: true }, { id: "dup", label: "Duplicate", icon: "copy" }, { id: "bin", label: "Move to the recycle bin…", icon: "trash", danger: true }]} onSelect={(x) => (x === "panels" ? setPanels(PANELS) : x === "bin" ? setBinning(true) : say(`A copy of “${file.name}”${internal.length ? `, with copies of its ${internal.length} internal files` : ""}`))} />
-          {!editing && <Button size="sm" variant="quiet" icon="sidebar" disabled={!nodeOf("right")} label={closed ? "Show the panels at the right" : "Hide the panels at the right"} selected={!closed} onClick={() => setClosed(!closed)} />}
+          <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh", }, { separator: true }, { id: "dup", label: "Duplicate", icon: "copy" }, { id: "bin", label: "Move to the recycle bin…", icon: "trash", danger: true }]} onSelect={(x) => (x === "panels" ? resetPanels() : x === "bin" ? setBinning(true) : say(`A copy of “${file.name}”${internal.length ? `, with copies of its ${internal.length} internal files` : ""}`))} />
+          {!editing && <Button size="sm" variant="quiet" icon="sidebar" label={dockShown(panels, "props") ? "Collapse the properties" : "Show the properties"} selected={dockShown(panels, "props")} onClick={() => setPanels(dockShown(panels, "props") ? dockCollapse(panels, "props", true) : dockCollapse(panels, "props", false))} />}
         </Toolbar>
-        {editing && editFile ? (
-          <div className="u3-top u3-top--edit">
-            <div className="u3-host">
+        <Dock key={file.type} panels={dockPanels} layout={panels} onLayoutChange={setPanels} zones={editing ? ["bottom"] : undefined} zoneSizes={{ left: 320, right: 340, bottom: shot ? 330 : 200 }}>
+          {editing && editFile ? (
+            <div className="u3-top u3-top--edit">
+              <div className="u3-host">
               <Button size="sm" icon="arrow-left" onClick={done}>Back to {file.name}</Button>
               <span className="u3-host__crumb"><AppIcon glyph={type.glyph} color={type.color} size={20} />{file.name}<Icon name="chevron-right" size={12} /><AppIcon glyph="brush" color={2} size={20} /><strong>{editFile.name}</strong></span>
               <span className="u3-host__note">{editFile.internalOf ? <><Icon name="lock" size={12} /> Internal file of this shot</> : others.length ? <><Icon name="link" size={12} /> You are changing the file itself. Also used in: {others.map((f) => f.name).join(", ")}</> : <><Icon name="file" size={12} /> A project file, used only here</>}</span>
@@ -375,23 +362,15 @@ export default function U3Windows() {
               <Button size="sm" variant="primary" icon="check" onClick={done}>Done</Button>
             </div>
             <U2Canvas key={editing} host={{ title: editFile.name, theme, blank: !docs[editing]?.base, empty: fresh.includes(editing) }} />
-            {zone("bottom")}
-          </div>
-        ) : (
-          <div className="u3-top">
-            {zone("left")}
-            <div className="u3-left"><div className={cx("oc-app__stage u3-stage", (!sel || seen?.missing) && "is-empty")}>{stage}</div>{zone("bottom")}</div>
-            {zone("right")}
-            {edges}
-          </div>
-        )}
+            </div>
+          ) : <div className={cx("oc-app__stage u3-stage", (!sel || seen?.missing) && "is-empty")}>{stage}</div>}
+        </Dock>
         <StatusBar>{content.length} in the content{prog && <> · progression of {prog.items.length} {prog.items.length === 1 ? "picture" : "pictures"}, {clock(total)}</>}{internal.length > 0 && <> · {internal.length} internal files</>}{t != null && <> · playing <strong className="oc-num">{clock(t)}</strong></>}{editing && <> · editing <strong>{editFile?.name}</strong> in place: the canvas tool is mounted here</>}</StatusBar>
       </div>
       {adding && <AddFiles title={adding === "prog" ? "Add pictures to the progression" : `Add files to the content of ${file.name}`} pictures={adding === "prog"} files={files} docs={docs} onAdd={addRefs} onClose={() => setAdding(null)} />}
       {gen && <Generator files={files} start={entry?.type === "photo" ? entry.id : undefined} has={!!prog?.items.length} onMake={generate} onClose={() => setGen(false)} />}
       {release && <Confirm fixed title={`Make “${map.get(release)!.name}” a project file?`} confirmLabel="Make it a project file" message={`It appears in the file browser and in search, and other files can use it. ${file.name} keeps pointing at it. This cannot be turned back.`} onCancel={() => setRelease(null)} onConfirm={() => { patch(release, { internalOf: undefined }); say(`“${map.get(release)!.name}” is now a file of the project`); setRelease(null); }} />}
       {binning && <Confirm fixed danger title={`Move “${file.name}” to the recycle bin?`} confirmLabel="Move to the bin" message={internal.length ? `Its ${internal.length} internal files (${internal.map((f) => f.name).join(", ")}) go with it. The files in its content stay where they are.` : "The files in its content stay where they are."} onCancel={() => setBinning(false)} onConfirm={() => { setBinning(false); say(`“${file.name}” is in the recycle bin (not done in the prototype)`); }} />}
-      {dk.overlay}
       {toast && <Toast className="u3-toast" tone="info" onDismiss={() => setToast(null)}>{toast}</Toast>}
     </div>
   );

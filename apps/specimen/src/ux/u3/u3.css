@@ -47,26 +47,9 @@
 .u3-stageacts { position: absolute; right: var(--space-5); top: var(--space-4); display: inline-flex; gap: var(--space-3); }
 
 /* The side panel. */
-/* Places for panels: left and right of the stage and below it; a place holds panels beside or above each other. */
 .u3-top { position: relative; }
-.u3-zone > .oc-panel__body { overflow: hidden; }
-.u3-split { flex: 1; display: flex; min-width: 0; min-height: 0; }
-.u3-split--col { flex-direction: column; }
-.u3-split--row > * + * { border-left: var(--border-w) solid var(--border-divider); }
-.u3-split--col > * + * { border-top: var(--border-w) solid var(--border-divider); }
-.u3-panel { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: auto; background: var(--surface); }
-.u3-panel[data-panel="props"] { overflow: hidden; }
-.u3-panel .oc-props { flex: 1; min-height: 0; overflow: auto; }
-.u3-sec { display: flex; flex-direction: column; min-height: 0; flex: 1; }
-.u3-grab { flex: none; display: grid; place-items: center; width: 16px; height: 24px; margin-left: -6px; border-radius: 4px; color: var(--text-disabled); cursor: grab; touch-action: none; }
-.u3-grab:hover { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--text); }
-.u3-dockbox { position: fixed; z-index: 190; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 4px; background: color-mix(in srgb, var(--accent) 22%, transparent); pointer-events: none; transition: all var(--dur-fast) linear; }
-.u3-dockghost { position: fixed; z-index: 200; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border-radius: var(--radius-control); background: var(--accent); color: var(--on-accent, #fff); font-weight: var(--weight-bold); box-shadow: var(--shadow-menu); pointer-events: none; }
-.u3-dockzone { position: absolute; z-index: 20; display: grid; place-items: center; align-content: center; gap: 4px; border: 2px dashed var(--accent); border-radius: 6px; background: color-mix(in srgb, var(--surface) 86%, var(--accent)); color: var(--text); font-size: var(--font-size-xs); }
-.u3-dockzone--left { left: 6px; top: 6px; bottom: 6px; width: 84px; }
-.u3-dockzone--right { right: 6px; top: 6px; bottom: 6px; width: 84px; }
-.u3-dockzone--bottom { left: 100px; right: 100px; bottom: 6px; height: 64px; }
-.u3-tabs { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--border-w) solid var(--border-divider); overflow: hidden; }
+.u3-stage { flex: 1; }
+.u3-tabs { position: sticky; top: 0; z-index: 2; background: var(--surface); flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--border-w) solid var(--border-divider); overflow: hidden; }
 .u3-tabs .oc-seg__opt { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .u3-head { flex: none; display: grid; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
 .u3-head__art { height: 132px; border-radius: 3px; }
@@ -103,7 +86,7 @@
 .u3-sec__head > * { flex: none; white-space: nowrap; }
 .u3-sec__count { color: var(--text-secondary); font-size: var(--font-size-xs); margin-right: var(--space-3); }
 .u3-sec__sep { width: 1px; height: 18px; background: var(--border-divider); margin: 0 var(--space-2); }
-.u3-strip { flex: none; display: flex; gap: 6px; padding: 0 var(--space-5) var(--space-4); overflow-x: auto; }
+.u3-strip { flex: none; display: flex; gap: 6px; padding: var(--space-4) var(--space-5); overflow-x: auto; }
 .u3-strip--prog { gap: 2px; }
 .u3-item, .u3-tile { position: relative; flex: none; display: flex; flex-direction: column; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-divider); cursor: pointer; user-select: none; touch-action: none; }
 .u3-item:hover, .u3-tile:hover { outline-color: var(--text); }
@@ -123,7 +106,7 @@
 .u3-item:hover .u3-item__grip::after { opacity: .9; }
 .u3-item__move { position: absolute; left: 3px; bottom: 23px; display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; border-radius: 8px; background: var(--accent); color: var(--on-accent, #fff); font: 700 10px/15px var(--font-mono); }
 .u3-item.is-move .u3-item__art { background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 35%, transparent)); }
-.u3-lines { list-style: none; margin: 0; padding: 0 var(--space-4) var(--space-4); display: grid; gap: 2px; overflow: auto; }
+.u3-lines { list-style: none; margin: 0; padding: var(--space-3) var(--space-4); display: grid; gap: 2px; }
 .u3-line { display: flex; align-items: center; gap: var(--space-4); height: 40px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: 4px; background: var(--surface); outline: var(--border-w) solid transparent; cursor: pointer; user-select: none; touch-action: none; }
 .u3-line > .oc-icon:first-child, .u3-line > svg:first-child { color: var(--text-disabled); flex: none; }
 .u3-line:hover { background: var(--surface-hover); }
