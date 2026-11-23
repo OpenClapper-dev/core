@@ -1,5 +1,7 @@
 /* Page styles of the UX workshop U2 prototype (the canvas). Layout and prototype-specific pieces only. */
 .u2 { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--text); font: var(--font-size-sm)/1.4 var(--font-sans); }
+.u2--hosted { position: relative; inset: auto; flex: 1; min-height: 0; min-width: 0; }
+.u2-proto[hidden] { display: none; }
 .u2-proto { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-3) var(--space-5); background: var(--surface-sunken); border-bottom: var(--border-w) solid var(--border-divider); flex: none; }
 .u2-proto__note { color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); }
 .u2-work { position: relative; flex: 1; min-height: 0; display: flex; }
