@@ -44,7 +44,7 @@ Workshops 01–03 are the root of the entanglement and come first; 04–06 build
 | U3 | [Shot, set, location](ux-3-shot.md) | [#359](https://github.com/OpenClapper-dev/core/issues/359) | decided |
 | U4 | [Timeline](ux-4-timeline.md) | [#360](https://github.com/OpenClapper-dev/core/issues/360) | decided |
 | U5 | [Phone and tablet](ux-5-phone.md) | [#361](https://github.com/OpenClapper-dev/core/issues/361) | decided |
-| U6 | Devices, layouts, extensions | [#362](https://github.com/OpenClapper-dev/core/issues/362) | not started |
+| U6 | [Devices, layouts, extensions](ux-6-devices.md) | [#362](https://github.com/OpenClapper-dev/core/issues/362) | in progress |
 
 Workshop 10 maps every current table, route group, Studio app and phone screen to "kept as", "replaced by" or "deleted".
 
