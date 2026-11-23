@@ -103,3 +103,17 @@ button.oc-card:focus-visible{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4
 .oc-dock__drop>span{padding:2px var(--space-4);border-radius:var(--radius-pill);background:var(--accent);color:var(--text-on-accent);font:var(--weight-bold) var(--font-size-xs)/1.6 var(--font-sans)}
 .oc-dock__ghost{position:fixed;z-index:calc(var(--z-modal) + 21);display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);border-radius:var(--radius-control);background:var(--accent);color:var(--text-on-accent);font:var(--weight-bold) var(--font-size-sm)/1.4 var(--font-sans);box-shadow:var(--shadow-menu);pointer-events:none}
 .oc-dock__zone--left.is-min .oc-dock__group,.oc-dock__zone--right.is-min .oc-dock__group{flex:1 1 auto!important}
+.oc-dock__group.is-slim.is-rail:not(.is-collapsed)>.oc-dock__head{flex:none;border-bottom:var(--border-w) solid var(--border-divider)}
+.oc-dock__group.is-rail .oc-dock__fold{margin:0}
+.oc-dock__group.is-slim.is-rail>.oc-dock__body{overflow:hidden auto;align-items:center}
+.oc-dock__group.is-bar{flex-direction:row;align-items:stretch}
+.oc-dock__group.is-bar>.oc-dock__head{flex:none;align-self:flex-start;border-bottom:0}
+.oc-dock__group.is-bar.is-collapsed>.oc-dock__head{flex:1;border-right:0}
+.oc-dock__group.is-bar>.oc-dock__body{flex:1;flex-direction:row;align-items:center;min-width:0;overflow:visible;border-left:var(--border-w) solid var(--border-divider)}
+.oc-dock__group.is-bar>.oc-dock__body>.oc-toolrail{flex:1;min-width:0}
+.oc-dock__split--row>.oc-dock__group.is-slim+*,.oc-dock__split--row>*+.oc-dock__group.is-slim{border-left:var(--border-w) solid var(--border-divider)}
+.oc-dock__split--col>.oc-dock__group.is-slim+*,.oc-dock__split--col>*+.oc-dock__group.is-slim{border-top:var(--border-w) solid var(--border-divider)}
+/* A tool rail inside a dock follows its place: a column in a rail, a wrapping row anywhere else. */
+.oc-dock__body>.oc-toolrail{border-right:0;width:auto;min-width:var(--toolrail-w)}
+.oc-dock__group:not(.is-rail) .oc-dock__body>.oc-toolrail{flex-direction:row;flex-wrap:wrap;padding:var(--space-2) var(--space-3)}
+.oc-dock__group:not(.is-rail) .oc-dock__body>.oc-toolrail>.oc-toolrail__sep{width:var(--border-w);height:20px;margin:0 var(--space-2)}

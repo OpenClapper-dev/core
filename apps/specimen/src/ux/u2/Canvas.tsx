@@ -67,7 +67,7 @@ export default function U2Canvas({ host }: { host?: CanvasHost } = {}) {
   const [linked, setLinked] = useState(true);
   const [mode, setMode] = useState("outline");
   // The inspector's three parts are panels the user arranges: tabs of one place to start with.
-  const [panels, setPanels] = useDockLayout(host ? "u2-hosted" : "u2", { right: { tabs: ["layers", "frames", "comments"] } });
+  const [panels, setPanels] = useDockLayout(host ? "u2-hosted-2" : "u2-2", { left: { tabs: ["tools"] }, right: { tabs: ["layers", "frames", "comments"] } });
   const setTab = (id: string) => setPanels(dockShow(panels, id, false));
   const [locked, setLocked] = useState(false);
   const [own, setTheme] = useState("dark"), theme = host?.theme ?? own;
@@ -477,6 +477,7 @@ export default function U2Canvas({ host }: { host?: CanvasHost } = {}) {
       </header>
       <div className="u2-work">
         <EditorLayout className={cx("u2-editor", locked && "is-locked")} dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { right: 340, left: 320, bottom: 260 }, panels: [
+          { id: "tools", title: "Tools", icon: "brush", slim: true, body: <ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} /> },
           { id: "layers", title: "Layers", icon: "layers", body: <PropertyList className="u2-inspector">{layersTab}</PropertyList> },
           { id: "frames", title: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame", body: <PropertyList className="u2-inspector">{framesTab}</PropertyList> },
           { id: "comments", title: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment", body: <PropertyList className="u2-inspector">{commentsTab}</PropertyList> },
@@ -499,7 +500,6 @@ export default function U2Canvas({ host }: { host?: CanvasHost } = {}) {
             <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
             {photo && <span className={cx(compare && "u2-nofull")} title={compare ? "Full has no frame, so it is not offered while comparing" : undefined}><Segmented label="View mode" value={compare && mode === "full" ? "crop" : mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} /></span>}
           </Toolbar>}
-          toolRail={<ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} />}
           canvas={
             compare && photo ? (
               <div className="u2-compare">

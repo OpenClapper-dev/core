@@ -14,7 +14,7 @@ export interface DockSplit { dir: "row" | "col"; kids: DockNode[]; sizes?: numbe
 export type DockNode = DockGroup | DockSplit;
 /** Where every panel of a window sits: left and right of the middle, and below it. */
 export type DockLayout = Partial<Record<DockZone, DockNode | null>>;
-export interface DockPanel { id: string; title: string; icon?: IconName; /** The panel's own controls: a row inside the panel, under the head. The head carries only the tabs and the collapse button. */ actions?: ComponentChildren; body: ComponentChildren }
+export interface DockPanel { id: string; title: string; icon?: IconName; /** The panel's own controls: a row inside the panel, under the head. The head carries only the tabs and the collapse button. */ actions?: ComponentChildren; body: ComponentChildren; /** Needs little room (a strip of tools): its place is only as big as its content, a rail at a side or beside another panel, a bar above or below one. */ slim?: boolean }
 type Side = "left" | "right" | "top" | "bottom" | "center";
 type Target = { zone: DockZone } | { panel: string; side: Side };
 
@@ -89,6 +89,7 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
   const dragged = useRef(false);
   const byId = new Map(panels.map((p) => [p.id, p]));
   const shown = (z: DockZone) => (zones.includes(z) ? keep(layout[z], (id) => byId.has(id)) : null);
+  const slimOf = (g: DockGroup) => g.tabs.every((t) => byId.get(t)?.slim);
   const patch = (id: string, c: Partial<DockGroup>) => onLayoutChange(each(layout, (n) => mapGroups(n, (g) => (g.tabs.includes(id) ? { ...g, ...c } : g))));
 
   const start = (id: string) => (e: JSX.TargetedPointerEvent<HTMLElement>) => {
@@ -144,16 +145,17 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
       return (
         <div key={groupsOf(n)[0].tabs[0] + n.dir} className={cx("oc-dock__split", `oc-dock__split--${n.dir}`)} style={size != null ? { flex: `${size} 1 0px` } : undefined}>
           {n.kids.flatMap((k, i) => {
-            const prev = n.kids[i - 1], folded = (x: DockNode) => isGroup(x) && !!x.collapsed;
+            const prev = n.kids[i - 1], folded = (x: DockNode) => isGroup(x) && (!!x.collapsed || slimOf(x));
             return [i > 0 && !folded(prev) && !folded(k) && <i key={`bar${i}`} role="separator" aria-orientation={n.dir === "row" ? "vertical" : "horizontal"} className={cx("oc-dock__bar", `oc-dock__bar--${n.dir}`)} title="Drag to share the room" onPointerDown={share(prev, k, n.dir)} />, draw(k, zone, all, n.dir, n.sizes?.[i] ?? 1)];
           })}
         </div>
       );
     }
     const active = n.active && n.tabs.includes(n.active) ? n.active : n.tabs[0], panel = byId.get(active)!;
-    const rail = !!n.collapsed && (all ? zone !== "bottom" : parent === "row");
+    // A collapsed place and a slim one take the same shape: a rail where they stand beside something, a bar where they lie above or below.
+    const slim = slimOf(n), fixed = !!n.collapsed || slim, rail = fixed && (all ? zone !== "bottom" : parent === "row");
     return (
-      <section key={n.tabs[0]} data-dock-group={n.tabs.join(" ")} className={cx("oc-dock__group", n.collapsed && "is-collapsed", rail && "is-rail")} style={{ flex: n.collapsed ? "none" : `${size ?? 1} 1 0px` }}>
+      <section key={n.tabs[0]} data-dock-group={n.tabs.join(" ")} className={cx("oc-dock__group", n.collapsed && "is-collapsed", slim && "is-slim", rail && "is-rail", slim && !rail && "is-bar")} style={{ flex: fixed ? "none" : `${size ?? 1} 1 0px` }}>
         <header className="oc-dock__head">
           <span className={cx("oc-dock__tabs", n.tabs.length > 1 && "is-many")} role="tablist">
             {n.tabs.map((t) => { const p = byId.get(t)!; return <button key={t} type="button" role="tab" aria-selected={t === active} className="oc-dock__tab" title={n.collapsed ? `Open ${p.title}` : "Drag to put this panel elsewhere"} onPointerDown={start(t)} onClick={() => { if (!dragged.current) patch(t, { active: t, collapsed: false }); }}>{p.icon && <Icon name={p.icon} />}<span>{p.title}</span></button>; })}
@@ -168,7 +170,7 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
   const zoneEl = (z: DockZone) => {
     const node = shown(z);
     if (!node) return null;
-    const all = groupsOf(node).every((g) => g.collapsed);
+    const all = groupsOf(node).every((g) => g.collapsed || slimOf(g));
     return <ResizablePanel key={z} side={z} defaultSize={zoneSizes?.[z] ?? (z === "bottom" ? 240 : z === "right" ? 320 : 260)} min={z === "bottom" ? 96 : 200} max={z === "bottom" ? 640 : 720} className={cx("oc-dock__zone", `oc-dock__zone--${z}`, all && "is-min")}>{draw(node, z, all)}</ResizablePanel>;
   };
   /** While a panel is dragged, an empty zone shows where it is. */
