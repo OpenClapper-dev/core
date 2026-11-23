@@ -9,6 +9,7 @@ import Phone from "./kits/Phone";
 import U1Browser from "./ux/u1/Browser";
 import U2Canvas from "./ux/u2/Canvas";
 import U3Windows from "./ux/u3/Windows";
+import U4Timeline from "./ux/u4/Timeline";
 
 const KITS = [
   { id: "desktop", name: "Assembled desktop", Component: Desktop },
@@ -20,6 +21,7 @@ const UX = [
   { id: "u1", name: "U1 · Files and properties", Component: U1Browser },
   { id: "u2", name: "U2 · Canvas", Component: U2Canvas },
   { id: "u3", name: "U3 · Shot, set, location", Component: U3Windows },
+  { id: "u4", name: "U4 · Timeline", Component: U4Timeline },
 ];
 const GROUPS = [...new Set(CARDS.map((c) => c.group))];
 
