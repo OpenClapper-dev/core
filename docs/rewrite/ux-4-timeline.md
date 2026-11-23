@@ -1,6 +1,6 @@
 # U4 · Timeline
 
-UX workshop [#360](https://github.com/OpenClapper-dev/core/issues/360) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
+UX workshop [#360](https://github.com/OpenClapper-dev/core/issues/360) ([plan](ux-plan.md)). Status: **decided** (2026-11-23), after two rounds.
 
 The window that opens a timeline, and the master timeline. Specified in [06](06-timeline.md) and [I1](i1-interjection.md).
 
@@ -44,7 +44,7 @@ From the owner's reaction to round 1.
 | **How long a new clip holds** | "New clips … s" in the strip's controls. The value belongs to the account and every timeline takes it; a timeline can be given a value of its own |
 | **The master as a film strip** | A timeline in the master shows as many of its pictures as its width holds: always the first and the last, the rest evenly from between. Zooming in shows more. The Spread and Collapsed switch is for progressions and is not shown in the master |
 
-## Decided so far
+## Decided
 
 2026-11-23, by the owner:
 
@@ -56,9 +56,19 @@ From the owner's reaction to round 1.
 - **Editing a timeline locks the timeline only,** not the files its clips point at. Locking those as well can become a project setting, off by default.
 - **No "replace the file of a clip".** A clip that is not wanted is removed and another file is dragged in.
 
+## Changes to specification pages
+
+Applied to [06](06-timeline.md):
+
+- One track.
+- A new clip's hold time: an account setting that every timeline inherits and can override; 2 s to start with.
+- A shot is edited in place from the cut like a canvas; both can also be opened in their own window.
+- The master timeline shows each timeline as a film strip.
+- The edit lock is one lock per file.
+
 ## Not prototyped
 
-The edit lock of a timeline (someone else has it open), duplicating a file from a clip, making a canvas from a photo clip, undo and redo, selecting several clips, playback on a phone or tablet ([U5](ux-plan.md)).
+The edit lock of a timeline (someone else has it open) and a locked file inside a cut, duplicating a file from a clip, making a canvas from a photo clip, undo and redo, selecting several clips, playback on a phone or tablet ([U5](ux-plan.md)).
 
 ## Into the design system
 
