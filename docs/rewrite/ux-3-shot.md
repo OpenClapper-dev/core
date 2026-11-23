@@ -1,6 +1,6 @@
 # U3 · Shot, set, location
 
-UX workshop [#359](https://github.com/OpenClapper-dev/core/issues/359) ([plan](ux-plan.md)). Status: **in progress** (round 1, 2026-11-23).
+UX workshop [#359](https://github.com/OpenClapper-dev/core/issues/359) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
 
 The three windows that open a shot, a set and a location. Specified in [04](04-shots.md), [09a](09a-places.md), [I1](i1-interjection.md) and [06](06-timeline.md) (hosting another app in place).
 
@@ -48,18 +48,48 @@ One build for all three windows.
 
 Limits of the prototype: the mounted canvas tool always opens U2's sample canvas, whichever file is edited; the overlay's drawing is fixed; frames that see more than the photo are not marked on the stage.
 
-## Open questions for the owner
+## Round 2 (2026-11-23)
 
-1. **Where the lists sit.** Progression and content are strips below the stage, like a timeline. The alternative is a column at the left.
-2. **Editing in place takes the whole window.** The canvas tool needs room, so stage and side panel give way and the lists fold. The alternative keeps the shot's panel visible and gives the tool only the stage.
-3. **The second tab of the side panel** shows the chosen picture's panel. The alternative is one long panel, or switching automatically when a picture is clicked.
-4. **A set's locations** are all alike. [09a](09a-places.md) speaks of "a candidate, or the chosen one": whether one location of a set can be marked as chosen is not decided.
-5. **Free-form values** as a default frame and in the generator are left out so far; both take a preset or an aspect ratio.
+From the owner's reaction to round 1.
+
+| Change | What to try |
+| --- | --- |
+| **Panels can be put elsewhere** | Properties, Progression and Content each carry a grip at the left of their head. Drag it onto a half of another panel (the left, right, top or bottom half lights up) to sit beside, above or below it, or onto an empty edge of the window (left, right, below the stage). The arrangement of round 1 stays the default; "Panels back to their places" is in the toolbar's menu. Examples: Content onto the lower half of Properties; Content onto the right half of Progression; Properties to the left edge |
+| **Content as a list** | The two buttons in the Content head switch between cards and rows. Rows are reordered by dragging, too |
+| **Two ways to open** | On the stage, in the panel of a picture and in a tile's menu: "Edit here" mounts the canvas tool in this window; "Open" opens the file's app in a window of its own (a message in the prototype) |
+| **Free-form values** | The default frame takes a preset, typed values (format, focal length, multiplier, squeeze, delivery) or an aspect ratio. The generator takes a preset or "Free-form values…" |
+| **The generator makes zooms only** | Pan and tilt are gone: from one photo they cannot be right, because the perspective changes |
+| **Zoom in steps** | Primes: the ticked lenses. A zoom preset or free values: "Common stops", "Every … mm" (any step, for example 1 mm from 18 to 35) or a typed list; From and To also give the direction |
+| **Smooth zoom** | "Smooth": from one focal length to another over a time, optionally eased. It makes two frames and one moving picture, not a picture per millimetre. The preview has a slider to look through the move; in the progression the picture carries "smooth", plays by itself, and its panel has the same slider and the Ease switch |
+
+Found while testing: playback counted ticks and ran slow; it runs on the clock now.
+
+## Decided so far
+
+2026-11-23, by the owner:
+
+- **The default layout** of round 1 stands: stage, properties at the right, progression and content below. Panels can be rearranged by dragging, as a personal preference.
+- **The content list has two views:** cards and rows.
+- **Editing in place** takes the stage and the side panel, as built. Beside it there is opening the file in a window of its own; both are offered.
+- **The side panel's second tab** for the chosen picture stays.
+- **A set's locations are all alike.** No "chosen" mark; a project can model that with a property.
+- **Free-form values** are allowed wherever a preset is: the default frame and the generator.
+- **The generator makes zooms only,** in steps or smooth. No pan or tilt.
+- **A progression item can be a smooth move** between two frames of one canvas over a time.
+- **The model stays:** the progression belongs to the shot, and what is made inside a shot is an internal file. Moving the progression onto the canvas was considered and dropped, because a progression across several photos needs the shot.
+
+## Changes to specification pages
+
+To be applied to [04](04-shots.md) when the workshop is decided:
+
+- The generator makes a zoom, in steps or smooth; the sentence on pans and tilts from the generator goes (frames at different positions can still be made by hand in the canvas).
+- A progression item is a picture held for a time, or a smooth move from one frame of a canvas to another over a time.
+- The default frame may be free-form values.
 
 ## Not prototyped
 
-Creating a canvas from a photo in the content ("Draw or frame"), duplicating a shot, moving a frame from the shot window without opening the canvas, keyboard handling of the lists, typing coordinates, the windows on a phone or tablet ([U5](ux-plan.md)).
+Creating a canvas from a photo in the content ("Draw or frame"), duplicating a shot, moving a frame from the shot window without opening the canvas, dragging the border between two panels of one place, panels as tabs of one place, keyboard handling of the lists, typing coordinates, the windows on a phone or tablet ([U5](ux-plan.md)).
 
 ## Into the design system
 
-Nothing yet. Candidates: the pointer-based reordering with its ghost (now written twice, in U2's layer list and here), and a popover wider than 280 px.
+Nothing yet. Candidates: the pointer-based reordering with its ghost (now written twice, in U2's layer list and here), panels that can be put elsewhere (the timeline of U4 will want the same), and a popover wider than 280 px.
