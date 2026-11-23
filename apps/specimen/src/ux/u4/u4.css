@@ -1,0 +1,51 @@
+/* Page styles of the UX workshop U4 prototype (the timeline). It builds on the pieces of U3 (u3.css). */
+.u4-stage { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.u4-transport { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); border-top: var(--border-w) solid var(--border-divider); background: var(--surface); }
+.u4-time { margin-left: var(--space-4); color: var(--text-secondary); }
+.u4-time strong { color: var(--text); }
+.u4-card { display: grid; justify-items: center; gap: var(--space-3); max-width: 420px; padding: var(--space-8); border: 2px dashed rgba(255, 255, 255, .45); border-radius: var(--radius-card); text-align: center; color: #fff; }
+.u4-card strong { font-size: var(--font-size-lg, 18px); }
+.u4-card span { opacity: .7; font-size: var(--font-size-xs); }
+.u4-card.is-missing { border-color: var(--danger, #e5484d); }
+.u4-chap { margin-right: var(--space-3); padding: 0 6px; border-radius: 3px; color: #fff; font: 700 11px/18px var(--font-sans); }
+.u4-pad { padding: var(--space-3) var(--space-5); }
+.u4-wrap { flex-wrap: wrap; }
+
+/* The strip. */
+.u4-scroll { flex: 1; min-height: 0; overflow: auto; }
+.u4-lanes { position: relative; padding: 0 16px var(--space-4); box-sizing: content-box; }
+.u4-ruler { position: relative; height: 26px; border-bottom: var(--border-w) solid var(--border-divider); cursor: pointer; touch-action: none; }
+.u4-ruler > span { position: absolute; top: 0; bottom: 0; padding: 4px 0 0 4px; border-left: var(--border-w) solid var(--border-control); color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); white-space: nowrap; pointer-events: none; }
+.u4-chapters { position: relative; height: 22px; margin: 3px 0; }
+.u4-chapters > button { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; overflow: hidden; border: 0; border-left: 3px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 26%, var(--surface)); color: var(--text); font: var(--weight-bold) var(--font-size-xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.u4-chapters > button:hover { background: color-mix(in srgb, var(--c) 42%, var(--surface)); }
+.u4-track { display: flex; gap: 0; height: 104px; }
+.u4-clip { position: relative; flex: none; display: flex; flex-direction: column; box-sizing: border-box; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-control); outline-offset: -1px; cursor: pointer; user-select: none; touch-action: none; }
+.u4-clip:hover { outline-color: var(--text); }
+.u4-clip.is-current { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+.u4-clip.is-group { background: color-mix(in srgb, var(--cat-1) 14%, var(--surface-sunken)); }
+.u4-clip.is-placeholder { outline-style: dashed; background: repeating-linear-gradient(135deg, var(--surface-sunken) 0 8px, var(--surface) 8px 16px); }
+.u4-clip.is-missing { outline-style: dashed; outline-color: var(--danger, #c62828); }
+.u4-clip__cells { flex: 1; min-height: 0; display: flex; gap: 1px; padding: 2px 2px 0; }
+.u4-cell { min-width: 0; display: flex; }
+.u4-cell > .u3-item__art { flex: 1; border-radius: 2px; }
+.u4-cell:hover > .u3-item__art { box-shadow: inset 0 0 0 1px #fff; }
+.u4-cell__none { flex: 1; display: grid; place-items: center; width: 100%; height: 100%; background: transparent; color: var(--text-secondary); }
+.u4-clip__label { flex: none; display: flex; align-items: center; gap: 5px; padding: 2px 8px 2px 3px; font-size: var(--font-size-2xs); line-height: 20px; white-space: nowrap; overflow: hidden; }
+.u4-clip__label b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-medium, 500); }
+.u4-clip__label small { display: inline-flex; align-items: center; gap: 2px; color: var(--text-secondary); }
+.u4-clip__label i { font-style: normal; color: var(--text-secondary); }
+.u4-clip:hover .u3-item__grip::after { opacity: .9; }
+.u4-playhead { position: absolute; top: 0; bottom: var(--space-4); width: 2px; margin-left: 15px; background: var(--over-rec, #ff2d2d); pointer-events: none; z-index: 3; }
+.u4-insert { position: fixed; z-index: 900; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
+
+/* Lists in the side panels. */
+.u4-files { list-style: none; margin: 0; padding: var(--space-2); display: grid; gap: 1px; }
+.u4-file { display: flex; align-items: center; gap: var(--space-4); min-height: 40px; padding: 2px 6px; border-radius: 4px; cursor: pointer; user-select: none; touch-action: none; }
+.u4-file:hover { background: var(--surface-hover); }
+.u4-file.is-on { background: var(--selection); }
+.u4-file.is-missing { color: var(--danger, #c62828); }
+.u4-file > .oc-icon:first-child, .u4-file > svg:first-child { flex: none; color: var(--text-disabled); }
+.u4-file > b { flex: none; min-width: 14px; text-align: center; color: var(--text-secondary); }
+.u4-file--coll { cursor: default; }
+.u4-dot { flex: none; width: 10px; height: 10px; margin: 0 4px; border-radius: 50%; }

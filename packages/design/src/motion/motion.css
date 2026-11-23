@@ -1,0 +1,38 @@
+/* Motion. Every animation here uses the duration and easing tokens, so reduced motion (durations 0ms) turns all of it off. */
+@keyframes oc-fade-in{from{opacity:0}}
+@keyframes oc-pop-in{from{opacity:0;translate:0 -4px}}
+@keyframes oc-pop-up{from{opacity:0;translate:0 4px}}
+@keyframes oc-scale-in{from{opacity:0;scale:.96}}
+@keyframes oc-dialog-in{from{opacity:0;scale:.98}}
+@keyframes oc-toast-in{from{opacity:0;translate:16px 0}}
+@keyframes oc-sheet-in{from{translate:0 100%}}
+@keyframes oc-rise-in{from{opacity:0;translate:0 8px}}
+@keyframes oc-desk-in{from{opacity:0;scale:1.04}}
+@keyframes oc-mini-in{from{opacity:0;scale:.9}}
+.oc-listbox,.oc-menu-host>.oc-menu,.oc-menu-host>.oc-popover,.oc-menu--context{animation:oc-pop-in var(--dur) var(--ease) both}
+.oc-tip.is-open,.oc-tip-host:hover>.oc-tip,.oc-tip-host:focus-within>.oc-tip{animation:oc-fade-in var(--dur-fast) var(--ease) both}
+.oc-launcher{animation:oc-pop-up var(--dur) var(--ease) both;transform-origin:bottom left}
+.oc-scrim{animation:oc-fade-in var(--dur) var(--ease) both}
+.oc-scrim>.oc-dialog{animation:oc-dialog-in var(--dur-slow) var(--ease) both}
+.oc-toast{animation:oc-toast-in var(--dur) var(--ease) both}
+.oc-m-sheet-scrim{animation:oc-fade-in var(--dur) var(--ease) both}
+.oc-m-sheet{animation:oc-sheet-in var(--dur-slow) var(--ease) both}
+.oc-props__body{animation:oc-rise-in var(--dur) var(--ease) both}
+.oc-taskview{animation:oc-fade-in var(--dur) var(--ease) both}
+.oc-taskview__windows{animation:oc-desk-in var(--dur-slow) var(--ease) both}
+.oc-taskview__win{animation:oc-mini-in var(--dur-slow) var(--ease) both}
+.oc-taskview__desk{transition:translate var(--dur) var(--ease)}
+.oc-taskview__desk:hover{translate:0 -2px}
+.oc-window.is-opening{animation:oc-scale-in var(--dur) var(--ease) both}
+.oc-window.is-closing{animation:oc-scale-in var(--dur-fast) var(--ease-in) reverse both;pointer-events:none}
+.oc-window.is-tweening{transition:left var(--dur-slow) var(--ease),top var(--dur-slow) var(--ease),width var(--dur-slow) var(--ease),height var(--dur-slow) var(--ease),border-radius var(--dur-slow) var(--ease)}
+.oc-window.is-minimizing{transition:translate var(--dur) var(--ease-in),scale var(--dur) var(--ease-in),opacity var(--dur) var(--ease-in);pointer-events:none}
+.oc-snap-preview{transition:left var(--dur) var(--ease),top var(--dur) var(--ease),width var(--dur) var(--ease),height var(--dur) var(--ease),opacity var(--dur) var(--ease)}
+.oc-snap-preview{animation:oc-fade-in var(--dur) var(--ease) both}
+.oc-ind{position:absolute;z-index:0;pointer-events:none;box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-sm);background:var(--surface);box-shadow:var(--shadow-xs);transition:left var(--dur) var(--ease),width var(--dur) var(--ease),top var(--dur) var(--ease),height var(--dur) var(--ease)}
+.oc-ind.is-instant{transition:none}
+.oc-has-ind{position:relative}
+.oc-has-ind>button{position:relative;z-index:1}
+.oc-has-ind>[aria-checked="true"],.oc-has-ind>[aria-selected="true"]{border-color:transparent!important;background:transparent!important}
+.oc-tracks__item,.oc-thumb__img,.oc-pin,.oc-cam__view,.oc-app__stage,.oc-grip,.oc-snapgrip,.oc-marquee{animation:none;transition:none}
+.oc-m-tabs>.oc-ind{border-color:var(--selection-border);border-radius:var(--radius-pill);background:var(--selection);box-shadow:none}

@@ -1,0 +1,210 @@
+/* Page styles of the UX workshop U2 prototype (the canvas). Layout and prototype-specific pieces only. */
+.u2 { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--text); font: var(--font-size-sm)/1.4 var(--font-sans); }
+.u2--hosted { position: relative; inset: auto; flex: 1; min-height: 0; min-width: 0; }
+.u2-proto[hidden] { display: none; }
+.u2-proto { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-3) var(--space-5); background: var(--surface-sunken); border-bottom: var(--border-w) solid var(--border-divider); flex: none; }
+.u2-proto__note { color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); }
+.u2-work { position: relative; flex: 1; min-height: 0; display: flex; }
+.u2-editor { flex: 1; min-height: 0; min-width: 0; }
+.u2-editor.is-locked { filter: grayscale(.6); opacity: .55; pointer-events: none; }
+.u2-title { padding: 0 var(--space-3); }
+.u2-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u2-toolopts { display: inline-flex; align-items: center; gap: var(--space-5); margin-left: var(--space-5); padding-left: var(--space-5); border-left: var(--border-w) solid var(--border-divider); }
+
+/* The edit lock: an overlay over the whole tool; everything under it is inert. */
+.u2-lock { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: var(--scrim, rgba(0, 0, 0, .35)); }
+.u2-lock__card { display: grid; gap: var(--space-4); justify-items: start; width: min(380px, calc(100% - 48px)); padding: var(--space-7); border: var(--border-w) solid var(--border-window, var(--border-control)); border-radius: var(--radius-window, 10px); background: var(--surface-raised, var(--surface)); box-shadow: var(--shadow-dialog, 0 12px 40px rgba(0, 0, 0, .35)); }
+.u2-lock__card strong { font-size: var(--font-size-lg); }
+.u2-lock__card p { margin: 0; color: var(--text-secondary); }
+.u2-lock__icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--warning-tint, var(--surface-sunken)); color: var(--warning, var(--text)); }
+
+/* The stage. The world holds everything and is what Crop zooms; the surface is the photo or the paper. */
+.u2-fit { position: absolute; inset: 0; display: grid; place-items: center; padding: 28px; box-sizing: border-box; container-type: size; overflow: hidden; }
+.u2-fit.is-hand, .u2-fit.is-hand * { cursor: grab !important; }
+/* Handles, nodes and pins keep their size on screen whatever the zoom. */
+.u2-handle, .u2-node, .u2-pin, .u2-rot { scale: var(--inv, 1); }
+.u2-pin { transform-origin: 0 100%; }
+.u2-pin:hover, .u2-pin.is-current { scale: calc(var(--inv, 1) * 1.15); }
+.u2-thread { scale: var(--inv, 1); transform-origin: 0 0; }
+.u2-frame__label { scale: var(--inv, 1); transform-origin: 0 100%; }
+.u2-zoomer { display: inline-flex; align-items: center; }
+.u2-zoomer__now { min-width: 52px; height: var(--control-h-sm, 24px); padding: 0 4px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.u2-zoomer__now:hover { background: color-mix(in srgb, var(--text) 14%, transparent); }
+/* Guides: where a moved object is held by something else. */
+.u2-guide { position: absolute; z-index: 8; background: #ff3ea5; pointer-events: none; }
+.u2-guide--v { top: -200%; bottom: -200%; width: 2px; margin-left: -1px; scale: var(--inv, 1) 1; }
+.u2-guide--h { left: -200%; right: -200%; height: 2px; margin-top: -1px; scale: 1 var(--inv, 1); }
+/* Compare: two panes, each fitted to one frame. */
+.u2-compare { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border-divider); }
+.u2-pane { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface-sunken); }
+.u2-pane > header { flex: none; display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); background: var(--surface); border-bottom: var(--border-w) solid var(--border-divider); }
+.u2-pane > header b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; background: var(--text); color: var(--surface); font: 700 11px/1 var(--font-mono); }
+.u2-pane > header .oc-selectbox { flex: 1; min-width: 0; max-width: 320px; }
+.u2-pane > .u2-fit { position: relative; flex: 1; inset: auto; padding: 16px; pointer-events: none; }
+.u2-stage { position: relative; width: min(100cqw, 100cqh * 4 / 3); aspect-ratio: 4 / 3; background: var(--photo-bg, #111); overflow: hidden; touch-action: none; user-select: none; }
+.u2-stage.is-beyond { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
+.u2-stage--outline, .u2-stage--full, .u2-stage--blank { overflow: visible; }
+.u2-world { position: absolute; inset: 0; }
+.u2-surface { position: absolute; left: 50%; top: 50%; translate: -50% -50%; container-type: size; }
+.u2-stage.is-drawing .u2-surface { cursor: crosshair; }
+.u2-surface--ui { pointer-events: none; z-index: 5; }
+.u2-surface--ui .u2-node, .u2-surface--ui .u2-pin, .u2-surface--ui .u2-thread { pointer-events: auto; }
+.u2-photo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+
+/* Objects */
+.u2-obj { position: absolute; box-sizing: border-box; cursor: move; }
+.u2-obj--ellipse { border-radius: 50%; }
+.u2-obj--text.is-editing { cursor: text; outline: 1.5px solid var(--accent); outline-offset: 3px; background: rgba(0, 0, 0, .25); user-select: text; white-space: pre; }
+.u2-obj--text { display: flex; align-items: center; white-space: nowrap; font: 700 calc(var(--fs) * 1cqh)/1 var(--font-sans); text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
+.u2-obj--stencil { display: grid; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .6)); }
+.u2-obj--stencil > svg { width: 100%; height: 100%; }
+.u2-obj--picture { overflow: hidden; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }
+.u2-obj--picture > img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.u2-vec { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.u2-vec__hit { pointer-events: stroke; cursor: move; }
+.u2-stage.is-drawing .u2-obj, .u2-stage.is-drawing .u2-vec__hit { pointer-events: none; }
+/* Selection: a box in the accent colour with a handle on each corner. */
+.u2-sel { position: absolute; box-sizing: border-box; outline: 1.5px solid var(--accent); outline-offset: 3px; pointer-events: none; }
+.u2-handle { position: absolute; width: 9px; height: 9px; border: 1.5px solid var(--accent); background: #fff; pointer-events: auto; }
+.u2-handle--0 { left: -8px; top: -8px; cursor: nwse-resize; } .u2-handle--1 { right: -8px; top: -8px; cursor: nesw-resize; }
+.u2-handle--2 { left: -8px; bottom: -8px; cursor: nesw-resize; } .u2-handle--3 { right: -8px; bottom: -8px; cursor: nwse-resize; }
+
+/* Rotating: a zone just outside each corner. Lines and arrows: a node on each end instead of a box. */
+.u2-rot { position: absolute; width: 18px; height: 18px; pointer-events: auto; }
+.u2-rot--0 { left: -24px; top: -24px; } .u2-rot--1 { right: -24px; top: -24px; } .u2-rot--2 { left: -24px; bottom: -24px; } .u2-rot--3 { right: -24px; bottom: -24px; }
+.u2-node { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 50%; background: #fff; cursor: move; z-index: 3; }
+
+/* Mask: outside the picture is dimmed. Crop: outside the picture is gone. */
+.u2-mask { position: absolute; box-shadow: 0 0 0 9999px var(--over-mask, rgba(0, 0, 0, .62)); pointer-events: none; }
+.u2-mask--solid { box-shadow: 0 0 0 9999px #000; }
+
+/* A frame: an outline in its colour with a dark edge so it reads on any picture. */
+.u2-frame { position: absolute; box-sizing: border-box; border: 2px solid var(--c); outline: 1px solid rgba(0, 0, 0, .7); cursor: grab; display: grid; place-items: center; pointer-events: none; }
+/* A frame itself takes no pointer: it is grabbed by its label, or by its edge where no object lies (worked out in the tool). */
+.u2-frame.is-current { border-width: 3px; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9); z-index: 2; }
+.u2-frame.is-beyond { border-style: dashed; }
+.u2-frame__label { position: absolute; left: -2px; top: -2px; translate: 0 -100%; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--c); color: #fff; font: 700 11px/1.5 var(--font-mono); white-space: nowrap; pointer-events: auto; cursor: grab; }
+.u2-frame__inner { box-sizing: border-box; border: 1px dashed var(--c); display: grid; place-items: end; pointer-events: none; }
+.u2-frame__inner > span { padding: 0 4px; background: var(--c); color: #fff; font: 700 10px/1.4 var(--font-mono); }
+/* The picture: a heavier edge, corner marks and a badge, so it is never mistaken for one frame among others. */
+.u2-frame.is-picture { border-width: 3px; }
+.u2-frame.is-picture > .u2-frame__label { left: -9px; top: -9px; }
+.u2-frame.is-picture::after { content: ""; position: absolute; inset: -9px; pointer-events: none; background:
+  linear-gradient(var(--c), var(--c)) left top / 22px 3px, linear-gradient(var(--c), var(--c)) left top / 3px 22px,
+  linear-gradient(var(--c), var(--c)) right top / 22px 3px, linear-gradient(var(--c), var(--c)) right top / 3px 22px,
+  linear-gradient(var(--c), var(--c)) left bottom / 22px 3px, linear-gradient(var(--c), var(--c)) left bottom / 3px 22px,
+  linear-gradient(var(--c), var(--c)) right bottom / 22px 3px, linear-gradient(var(--c), var(--c)) right bottom / 3px 22px; background-repeat: no-repeat; }
+.u2-frame__label b { display: inline-flex; align-items: center; gap: 3px; margin: -1px -6px -1px 4px; padding: 1px 6px; background: #fff; color: #000; text-transform: uppercase; letter-spacing: .04em; }
+.u2-row--frame.is-picture { box-shadow: inset 3px 0 0 var(--accent); }
+.u2-picture { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; border-radius: 11px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 var(--font-size-xs)/1 var(--font-sans); cursor: pointer; }
+
+/* Inspector */
+.u2-inspector { min-height: 0; }
+.u2-tabs { flex: none; padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
+.u2-tabs .oc-seg { display: flex; } .u2-tabs .oc-seg__opt { flex: 1; justify-content: center; }
+.u2-inspector .oc-props__row { padding-block: 5px; gap: var(--space-5); }
+.u2-inspector .oc-props__body { padding-bottom: var(--space-5); }
+.u2-bar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); }
+.u2-inline { display: inline-flex; align-items: center; gap: var(--space-5); }
+.u2-stack { list-style: none; margin: 0; padding: 0 var(--space-4); display: grid; gap: 1px; }
+.u2-block { display: grid; gap: 1px; }
+.u2-row { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; padding: 0 2px 0 6px; border: var(--border-w) solid transparent; border-radius: var(--radius-control); cursor: default; }
+.u2-row:hover { background: var(--surface-hover); }
+.u2-row.is-current { border-color: var(--selection-border); background: var(--selection); }
+/* Dragging a layer: the entry is lifted out (its place stays as a gap), the others slide to make room, and a copy of
+   it follows the pointer and glides into place on release. */
+.u2-block { touch-action: none; }
+.u2-stack.is-sorting .u2-block { transition: transform 160ms cubic-bezier(.2, .8, .2, 1); }
+.u2-block.is-lifted { visibility: hidden; }
+.u2-ghost { position: fixed; z-index: 900; pointer-events: none; border-radius: var(--radius-control); background: var(--surface-raised, var(--surface)); box-shadow: 0 10px 28px rgba(0, 0, 0, .4), 0 0 0 1px var(--selection-border); scale: 1.02; opacity: .97; }
+.u2-ghost.is-dropping { transition: top 160ms cubic-bezier(.2, .8, .2, 1), scale 160ms, box-shadow 160ms; scale: 1; box-shadow: 0 0 0 1px var(--selection-border); }
+.u2-stack.is-sorting, .u2-stack.is-sorting * { cursor: grabbing !important; user-select: none; }
+.u2-row.is-hidden .u2-row__name { color: var(--text-disabled); }
+.u2-row > .oc-icon { color: var(--text-secondary); }
+.u2-row__twist { flex: none; display: grid; place-items: center; width: 14px; height: 20px; padding: 0; border: 0; background: transparent; color: var(--text-secondary); }
+.u2-row__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u2-row__name small { color: var(--text-secondary); }
+.u2-row--root { margin-top: var(--space-3); border-top: var(--border-w) solid var(--border-divider); border-radius: 0 0 var(--radius-control) var(--radius-control); padding-right: 8px; }
+.u2-row--frame { min-height: 40px; cursor: pointer; }
+.u2-row--frame > i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.u2-row--frame .u2-row__name { display: grid; font-weight: var(--weight-medium, 500); }
+.u2-row--frame .u2-row__name small { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+.u2-chips { display: inline-flex; gap: 4px; }
+.u2-chips--wrap { flex-wrap: wrap; }
+.u2-chips button { min-width: 34px; height: 24px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.u2-chips button:hover { border-color: var(--text); }
+.u2-chips button.is-on { border-color: var(--accent); background: var(--accent); color: var(--text-on-accent, #fff); font-weight: 700; }
+.u2-zoom { display: flex; align-items: center; gap: var(--space-4); width: 100%; }
+.u2-zoom > :first-child { flex: 1; min-width: 0; }
+.u2-zoom b { flex: none; min-width: 48px; text-align: right; font-weight: 500; }
+.u2-stencils { display: grid; grid-template-columns: repeat(6, 32px); gap: 2px; }
+.u2-stencils button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); cursor: pointer; }
+.u2-stencils button:hover { background: var(--surface-hover); }
+.u2-stencils button.is-on { background: var(--selection); box-shadow: inset 0 0 0 1px var(--selection-border); }
+
+/* Rows: the pointing hand on what can be clicked, and a hover that shows on the row's own hover and selection. */
+.u2-row--frame, .u2-comments li, .u2-row__twist, .u2-picture { cursor: pointer; }
+.u2-row .oc-btn--quiet:hover { background: color-mix(in srgb, var(--text) 18%, transparent); }
+
+/* Comments: a numbered pin; its region and its thread show only while it is open. */
+.u2-pin { touch-action: none; }
+.u2-pin { position: absolute; z-index: 6; display: grid; place-items: center; width: 24px; height: 24px; margin: -22px 0 0 2px; padding: 0; border: 2px solid #fff; border-radius: 12px 12px 12px 2px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 11px/1 var(--font-mono); box-shadow: 0 1px 4px rgba(0, 0, 0, .5); cursor: pointer; }
+.u2-pin.is-done { background: var(--text-secondary); }
+.u2-pin--list { position: static; margin: 2px 0 0; flex: none; border-color: transparent; box-shadow: none; }
+.u2-pin--list:hover { scale: 1; }
+.u2-region { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.u2-thread { position: absolute; z-index: 7; width: 268px; margin: 6px 0 0 30px; display: grid; gap: var(--space-4); padding: var(--space-5); border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface-raised, var(--surface)); color: var(--text); box-shadow: var(--shadow-menu, 0 8px 24px rgba(0, 0, 0, .35)); font: var(--font-size-sm)/1.4 var(--font-sans); cursor: default; user-select: text; }
+.u2-thread.is-left { margin-left: -276px; }
+.u2-thread textarea { width: 100%; box-sizing: border-box; resize: none; }
+.u2-thread .u2-bar { padding: 0; }
+.u2-msg p, .u2-comments p { margin: 2px 0 0; }
+.u2-msg + .u2-msg { padding-top: var(--space-4); border-top: var(--border-w) solid var(--border-divider); }
+.u2-msg__who { display: flex; align-items: center; gap: 6px; }
+.u2-msg__who i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-sunken); font: 700 10px/1 var(--font-sans); font-style: normal; }
+.u2-msg__who small, .u2-comments small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u2-comments { list-style: none; margin: 0; padding: 0 var(--space-4); display: grid; gap: 2px; }
+.u2-comments li { display: flex; gap: var(--space-4); padding: var(--space-4); border: var(--border-w) solid transparent; border-radius: var(--radius-control); }
+.u2-comments li:hover { background: var(--surface-hover); }
+.u2-comments li.is-current { border-color: var(--selection-border); background: var(--selection); }
+.u2-comments li.is-done p { color: var(--text-secondary); text-decoration: line-through; }
+.u2-bar--wrap { flex-wrap: wrap; }
+
+/* While comparing, Full is shown but cannot be chosen: it has no frame to compare. */
+.u2-nofull .oc-seg__opt:last-of-type { opacity: .35; pointer-events: none; }
+.u2-pane .u2-frame { pointer-events: none; }
+
+/* Creating an optics preset: the form, and what it sees on example photos */
+.u2p { width: min(1080px, calc(100% - 48px)); height: min(760px, calc(100% - 48px)); }
+.u2p .oc-dialog__body { flex: 1; min-height: 0; color: var(--text); }
+.u2p .oc-dialog__foot { align-items: center; padding-top: var(--space-5); border-top: var(--border-w) solid var(--border-divider); }
+.u2p-grid { display: grid; grid-template-columns: minmax(300px, 4fr) minmax(0, 7fr); gap: var(--space-7); height: 100%; min-height: 0; }
+.u2p-form { display: grid; gap: var(--space-5); align-content: start; overflow: auto; padding-right: var(--space-3); min-height: 0; }
+.u2p-form .oc-selectbox, .u2p-form .oc-input { width: 100%; }
+.u2p-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); align-items: start; }
+.u2p-pair { display: flex; align-items: center; gap: var(--space-3); margin-top: var(--space-3); color: var(--text-secondary); }
+.u2p-pair .oc-input { width: 110px; flex: none; }
+.u2p-form .u2-chips { margin-top: var(--space-4); }
+.u2p-preview { display: flex; flex-direction: column; gap: var(--space-4); min-height: 0; min-width: 0; }
+.u2p-bar { display: flex; align-items: center; gap: var(--space-4); }
+.u2p-note { margin: 0; color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u2p-bad { display: inline-flex; align-items: center; gap: 6px; color: var(--danger); font-size: var(--font-size-xs); }
+.u2p-facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-5); }
+.u2p-facts strong { font: 700 var(--font-size-lg)/1 var(--font-mono); }
+.u2p-facts span { color: var(--text-secondary); }
+.u2p-shot { position: relative; display: block; flex: 1; min-height: 160px; aspect-ratio: 3 / 2; max-height: 100%; align-self: center; width: auto; max-width: 100%; overflow: hidden; background: #000; border-radius: 3px; }
+.u2p-shot.is-beyond { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
+/* One track the size of the box. Without it the row takes the example picture's own height (it is 4:3, the box 3:2),
+   and everything is centred in that taller row: the frame sits too low and "What it sees" cuts it off. */
+.u2p-shot__world { position: absolute; inset: 0; display: grid; grid-template: minmax(0, 1fr) / minmax(0, 1fr); place-items: center; }
+.u2p-shot__world > * { grid-area: 1 / 1; }
+.u2p-shot__world > img { display: block; object-fit: cover; }
+.u2p-shot__mask { box-shadow: 0 0 0 9999px rgba(0, 0, 0, .62); pointer-events: none; }
+.u2p-shot__mask.is-solid { box-shadow: 0 0 0 9999px #000; }
+.u2p-shot__frame { box-sizing: border-box; border: 2px solid var(--cat-2); outline: 1px solid rgba(0, 0, 0, .7); display: grid; place-items: center; }
+.u2p-shot__frame.is-beyond { border-style: dashed; }
+.u2p-shot__frame > i { box-sizing: border-box; border: 1px dashed var(--cat-2); }
+.u2p-shot--small { flex: none; width: 100%; min-height: 0; border-radius: 2px; }
+.u2p-strip { display: flex; gap: var(--space-4); overflow-x: auto; padding-bottom: 2px; flex: none; }
+.u2p-strip button { flex: none; width: 104px; display: grid; gap: 3px; padding: 3px; border: var(--border-w) solid transparent; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); font: var(--font-size-xs)/1.3 var(--font-mono); cursor: pointer; }
+.u2p-strip button:hover { background: var(--surface-hover); }
+.u2p-strip button.is-on { border-color: var(--accent); color: var(--text); font-weight: 700; }

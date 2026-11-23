@@ -1,0 +1,86 @@
+/* Page styles of the UX workshop U5 prototype (phone and tablet). It builds on the pieces of U3 (u3.css). */
+.u3-proto label { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u5-desk { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: center; padding: var(--space-7); background: var(--surface-sunken); }
+.u5-fill { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); color: var(--text); font: var(--font-size-sm)/1.4 var(--font-sans); }
+.u5-fill > .oc-m, .u5-camwrap { flex: 1; min-height: 0; }
+.u5-camwrap { display: flex; flex-direction: column; min-width: 0; }
+.u5-camwrap > .oc-cam, .u5-camwrap > .u2 { flex: 1; min-height: 0; }
+.u5-camwrap:has(.u5-railtabs) { flex-direction: row; }
+.u5-railtabs { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--space-3); padding: var(--space-3); background: #000; border-left: 1px solid #333; }
+.u5-pad { padding: var(--space-4) var(--space-5); }
+.u5-note { margin: 0; padding: var(--space-4) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u5-acts { display: inline-flex; align-items: center; gap: var(--space-2); }
+.u5-mini { width: 44px; height: 32px; object-fit: cover; border-radius: 3px; }
+.u5-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; }
+.u5-toast { position: absolute; left: 50%; bottom: 84px; translate: -50% 0; z-index: 40; max-width: 80%; padding: var(--space-3) var(--space-5); border-radius: 999px; background: var(--surface-inverse, #111); color: var(--text-inverse, #fff); font-size: var(--font-size-xs); box-shadow: var(--shadow-toast); }
+
+/* The shell: the app and the one tab bar, under it or at its right edge. */
+.u5-fill--land { flex-direction: row; }
+.u5-app { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.u5-app > * { flex: 1; min-height: 0; }
+.u5-label { margin: var(--space-5) 0 var(--space-3); font-weight: var(--weight-bold); }
+.u5-label:first-child { margin-top: 0; }
+.u5-note--in { padding-inline: 0; }
+.u5-namer { display: flex; gap: var(--space-3); }
+.u5-namer > :first-child { flex: 1; }
+.u5-bar2 { display: flex; justify-content: center; }
+
+/* Camera: a picture and the sections a layout fills. */
+.u5-cam .oc-cam__view { position: relative; overflow: hidden; }
+.u5-live { position: absolute; inset: 0; }
+.u5-live.is-beyond { background: repeating-linear-gradient(135deg, #1c1c1c 0 8px, #101010 8px 16px); }
+.u5-live.is-beyond > .u3-pic { overflow: visible; scale: var(--k, 1); }
+.u5-flash { position: absolute; inset: 0; background: #fff; opacity: .7; pointer-events: none; }
+.u5-top { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; align-items: center; gap: 6px; }
+.u5-top .oc-cam__btn { height: 36px; }
+.u5-top .oc-cam__btn:not(.oc-cam__btn--text) { width: 36px; }
+.u5-hud { left: 8px; top: 52px; display: inline-flex; align-items: center; gap: 4px; }
+.u5-hud b { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; }
+.u5-hud i { width: 8px; height: 8px; border-radius: 50%; }
+.u5-warn { position: absolute; left: 50%; top: 50%; translate: -50% -50%; display: flex; gap: var(--space-3); width: max-content; max-width: 76%; padding: var(--space-4) var(--space-5); border-radius: var(--radius-control); background: rgba(0, 0, 0, .78); color: #fff; font-size: var(--font-size-xs); }
+.u5-last { position: absolute; left: 8px; bottom: 8px; }
+.u5-last > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.u5-zoom { position: absolute; left: 68px; right: 8px; bottom: 12px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border-radius: 20px; background: rgba(0, 0, 0, .6); color: #fff; font: 700 12px/1 var(--font-mono); }
+.u5-zoom b { flex: none; }
+.u5-zoom .oc-slider { flex: 1; min-width: 0; }
+.u5-rail, .u5-row { gap: 6px; overflow: auto; scrollbar-width: none; }
+.oc-cam--portrait .u5-rail { justify-content: flex-start; padding: 0 8px; height: 56px; }
+.oc-cam--landscape .u5-rail { justify-content: flex-start; width: 64px; padding: 8px 0; }
+.oc-cam--portrait .u5-row { height: 96px; padding: 0 12px; justify-content: space-between; }
+.oc-cam--landscape .u5-row { width: 96px; padding: 10px 0; justify-content: space-between; }
+.u5-rail .oc-cam__btn { min-width: 44px; height: 40px; padding: 0 6px; }
+.oc-cam--landscape .u5-rail .oc-cam__btn { width: 52px; padding: 0; font-size: 11px; }
+.u5-sep { flex: none; width: 1px; height: 24px; margin: 0 4px; background: rgba(255, 255, 255, .4); }
+.oc-cam--landscape .u5-sep { width: 24px; height: 1px; margin: 4px 0; }
+.u5-gap { flex: none; width: 48px; height: 48px; }
+.u5-row .oc-cam__btn--text { width: 48px; height: 48px; padding: 0; flex-direction: column; gap: 0; font-size: 10px; }
+
+/* Media. */
+.u5-grid { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 2px; padding: 2px; }
+.u5-tile { position: relative; aspect-ratio: 1; padding: 0; border: 0; background: var(--photo-bg); overflow: hidden; cursor: pointer; }
+.u5-tile > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.u5-tile.is-on { outline: 3px solid var(--accent); outline-offset: -3px; }
+.u5-tile--stack { box-shadow: inset 0 0 0 2px var(--c); }
+.u5-tile--stack > img { scale: .86; border-radius: 3px; box-shadow: 4px -4px 0 -1px var(--c), 8px -8px 0 -2px var(--c); }
+.u5-count, .u5-name { position: absolute; left: 4px; padding: 0 5px; border-radius: 3px; background: rgba(0, 0, 0, .75); color: #fff; font: 600 10px/16px var(--font-sans); }
+.u5-count { top: 4px; }
+.u5-name { bottom: 4px; right: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+.u5-up { position: absolute; right: 4px; top: 4px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(0, 0, 0, .75); color: #fff; }
+.u5-up.is-stuck { background: var(--danger, #c62828); }
+.u5-tick { position: absolute; left: 5px; top: 5px; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 2px solid #fff; background: rgba(0, 0, 0, .4); color: #fff; }
+.u5-tile.is-on .u5-tick { background: var(--accent); }
+.u5-pic { background: var(--photo-bg); }
+.u5-pic > img { display: block; width: 100%; max-height: 46vh; object-fit: contain; }
+.u5-strip { display: flex; gap: 4px; padding: var(--space-4) var(--space-5); overflow-x: auto; }
+.u5-strip__art { width: 112px; height: 72px; }
+.u5-empty { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u5-gate { display: grid; justify-items: center; gap: var(--space-4); padding: var(--space-8) var(--space-5); text-align: center; }
+.u5-gate h2 { margin: 0; font-size: var(--font-size-lg, 18px); }
+.u5-gate p, .u5-gate small { margin: 0; color: var(--text-secondary); }
+
+/* How a photo shows its collection: the same four marks as in the Studio. */
+.u5-mark { position: absolute; pointer-events: none; background: var(--c); }
+.u5-tile--bar .u5-mark { left: 0; right: 0; bottom: 0; height: 5px; }
+.u5-tile--barleft .u5-mark { left: 0; top: 0; bottom: 0; width: 5px; }
+.u5-tile--dot .u5-mark { left: 6px; bottom: 6px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px rgba(0, 0, 0, .6); }
+.u5-tile--frame .u5-mark { inset: 0; background: transparent; box-shadow: inset 0 0 0 3px var(--c); }

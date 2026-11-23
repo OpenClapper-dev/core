@@ -149,6 +149,22 @@ importers:
         specifier: ~6.0.3
         version: 6.0.3
 
+  apps/specimen:
+    dependencies:
+      '@openclapper/design':
+        specifier: workspace:*
+        version: link:../../packages/design
+      preact:
+        specifier: ^10.27.0
+        version: 10.29.8
+    devDependencies:
+      '@preact/preset-vite':
+        specifier: ^2.10.0
+        version: 2.10.6(@babel/core@7.29.7)(preact@10.29.8)(rollup@4.63.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+      vite:
+        specifier: ^7.0.0
+        version: 7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0)
+
   apps/studio:
     dependencies:
       '@openclapper/fov-math':
@@ -192,6 +208,12 @@ importers:
       vitest:
         specifier: 4.1.11
         version: 4.1.11(@types/node@22.20.1)(vite@7.3.6(@types/node@22.20.1)(lightningcss@1.33.0)(terser@5.51.2)(yaml@2.9.0))
+
+  packages/design:
+    devDependencies:
+      preact:
+        specifier: ^10.27.0
+        version: 10.29.8
 
   packages/fov-math: {}
 

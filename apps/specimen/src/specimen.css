@@ -1,0 +1,28 @@
+/* The specimen app's own frame (navigation, card helpers); not part of the design system. */
+html, body, #root { height: 100%; margin: 0; }
+.sp { display: grid; grid-template-columns: 240px 1fr; height: 100%; background: var(--surface); color: var(--text); }
+.sp-nav { overflow: auto; padding: 12px 8px; border-right: 1px solid var(--border-divider); background: var(--surface-sunken); }
+.sp-nav h2 { margin: 12px 8px 4px; font-size: var(--font-size-2xs); font-weight: var(--weight-semibold); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.sp-nav a { display: block; padding: 4px 8px; border-radius: var(--radius-control); color: var(--text); text-decoration: none; }
+.sp-nav a:hover { background: var(--surface-hover); color: var(--text); }
+.sp-nav a[aria-current="page"] { background: var(--selection); font-weight: var(--weight-bold); }
+.sp-main { overflow: auto; }
+.sp-head { padding: 16px 16px 8px; border-bottom: 1px solid var(--border-divider); }
+.sp-head h1 { margin: 0; font-size: var(--font-size-xl); }
+.sp-head p { margin: 4px 0 0; color: var(--text-secondary); }
+.sp-full { position: fixed; inset: 0; overflow: hidden; }
+.sp-back { position: fixed; left: 8px; bottom: 48px; z-index: 2000; }
+
+/* Card helpers, from the export's guidelines/card.css. */
+.pair { display: grid; grid-template-columns: 1fr 1fr; }
+.half { padding: 14px 16px; background: var(--surface); color: var(--text); min-width: 0; overflow: hidden; }
+.one { padding: 14px 16px; }
+.r { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.l { margin: 0 0 6px; color: var(--text-secondary); font: 500 11px/1 var(--font-mono); }
+.sw { display: grid; gap: 6px; }
+.sw div { display: flex; flex-direction: column; gap: 3px; color: var(--text-secondary); font: 10px/1.25 var(--font-mono); min-width: 0; }
+.sw i { height: 32px; border: 1px solid var(--border-divider); border-radius: 2px; }
+.sw b { color: var(--text); font-weight: 500; }
+:where(.sp-card) table { border-collapse: collapse; width: 100%; font: 11px/1.5 var(--font-mono); }
+:where(.sp-card) td, :where(.sp-card) th { text-align: left; padding: 1px 8px 1px 0; font-weight: 400; white-space: nowrap; }
+:where(.sp-card) th { color: var(--text-secondary); }

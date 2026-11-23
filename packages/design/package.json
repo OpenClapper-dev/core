@@ -1,0 +1,25 @@
+{
+  "name": "@openclapper/design",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./styles.css": "./src/styles.css",
+    "./tokens": "./src/tokens.ts",
+    "./glyphs": "./src/core/glyphs.ts",
+    "./assets/*": "./assets/*"
+  },
+  "scripts": {
+    "tokens": "node tokens/build-tokens.mjs",
+    "typecheck": "tsc -p .",
+    "test": "node --test tokens/*.test.mjs"
+  },
+  "peerDependencies": {
+    "preact": "^10.27.0"
+  },
+  "devDependencies": {
+    "preact": "^10.27.0"
+  }
+}
