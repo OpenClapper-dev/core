@@ -1,6 +1,6 @@
 # 10 · Conclusion: target model and build plan
 
-Workshop [#337](https://github.com/OpenClapper-dev/core/issues/337). Status: **proposal** (2026-11-23), waiting for the owner's decisions.
+Workshop [#337](https://github.com/OpenClapper-dev/core/issues/337). Status: **decided** (2026-11-23).
 
 What the workshops add up to: one data model, one API, what happens to every part of today's app, and the order in which the rebuild is done. The decided pages ([00](00-principles.md)–[09a](09a-places.md), [I1](i1-interjection.md), [U1](ux-1-files.md)–[U6](ux-6-devices.md)) stay the specification; this page does not repeat them, it ties them together. [model.md](model.md) is the overview in one picture.
 
@@ -206,7 +206,9 @@ Each step is a sub-issue of a new build epic and ends with something that can be
 
 B0–B3 give the first end-to-end use (take a photo, see it in the Studio). B4–B7 are the planning tools. B8–B10 bring back what the current app is used for on set.
 
-## Open questions
+## Questions put to the owner
+
+All four are answered under Decided.
 
 1. **Where the build happens.** In this repository on a long-lived branch, with `main` kept releasable until the cutover, or directly on `main` with the current app broken from the first step.
 2. **The order.** As above (the end-to-end photo path first), or the on-set tools (camera with optics frame, lights) first because they are what is used today.
@@ -221,9 +223,11 @@ B0–B3 give the first end-to-end use (take a photo, see it in the Studio). B4�
 - **The order is the proposed one:** the photo path first (B0–B3), then the planning tools (B4–B7), then camera layouts, Hardware and Flows (B8–B10), then the cutover.
 - **A new schema baseline** on newly created databases and buckets; the old migration files go.
 
-Open: how a file's own content is stored (question 4), with the writer's recommendation below.
+- **Tables for what is searched, a JSON body for what is saved whole,** as set out below.
 
-### Recommendation on question 4
+Taken from the proposal with the above: the target data model and API, the map of today's tables, route groups, Studio apps, phone screens, feature pages and packages, the teardown list, and the twelve build steps B0–B11.
+
+### Tables and JSON bodies
 
 Normalise what the server searches, joins or has to keep consistent across rows; keep as one JSON document what is always loaded and saved whole.
 
