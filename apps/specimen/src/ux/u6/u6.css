@@ -202,3 +202,32 @@
 .u6-rec { color: var(--danger, #c62828); }
 .u6-kind { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px 1px 5px; border-radius: 10px; background: color-mix(in srgb, var(--c) 24%, transparent); font-size: var(--font-size-xs); }
 .u6-dash { color: var(--text-disabled); }
+
+/* Hardware on the phone: a table, and cards that expose the controls. */
+.u6-phead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
+.u6-ptable { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+.u6-ptable th { padding: 6px 8px; text-align: left; color: var(--text-secondary); font-weight: var(--weight-bold); border-bottom: var(--border-w) solid var(--border-control); background: var(--surface-sunken); }
+.u6-ptable td { padding: 8px; vertical-align: middle; border-bottom: var(--border-w) solid var(--border-divider); }
+.u6-ptable tbody tr { cursor: pointer; }
+.u6-ptable tbody tr:hover { background: var(--surface-hover); }
+.u6-ptable td:first-child { width: 38%; }
+.u6-ptable td:first-child small { display: block; }
+.u6-ptable .u6-kind { font-size: var(--font-size-2xs); white-space: nowrap; }
+.u6-ptable .oc-badge { white-space: nowrap; }
+.u6-ptable td:first-child strong { font-size: var(--font-size-sm); }
+.u6-ptable small { color: var(--text-secondary); }
+.u6-ptable .u6-batt { min-width: 58px; }
+.u6-ptable th:last-child, .u6-ptable td:last-child { width: 66px; }
+.u6-pcards { display: grid; gap: var(--space-4); padding: var(--space-4); }
+.u6-pcard { display: grid; gap: var(--space-4); padding: var(--space-4); border: var(--border-w) solid var(--border-control); border-left: 5px solid var(--c); border-radius: var(--radius-card); background: var(--surface); }
+.u6-pcard.is-off { background: var(--surface-sunken); }
+.u6-pcard--alone { margin: var(--space-4); }
+.u6-pcard > header { display: flex; align-items: center; gap: var(--space-4); }
+.u6-pcard > header > span { flex: 1; min-width: 0; display: grid; }
+.u6-pcard > header small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-pcard__head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
+.u6-pcard__head .u6-batt { flex: 1; min-width: 90px; }
+.u6-pfield { display: grid; gap: 6px; }
+.u6-pfield > span { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-pfield > span b { color: var(--text); }
+.u6-pcard .u6-feedbig { border-radius: 6px; overflow: hidden; display: grid; place-items: center; min-height: 80px; }
