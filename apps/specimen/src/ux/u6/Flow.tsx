@@ -3,7 +3,7 @@
 // keyframe that cannot move, keyframes that hold values and jump, fade tiles between them, markers, track colours,
 // view options, Select and Insert modes, play, loop and live. A prototype: nothing is sent to a device.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { Button, Checkbox, DropdownMenu, Icon, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, Switch, TextInput, cx, type IconName } from "@openclapper/design";
+import { Button, Checkbox, DropdownMenu, Icon, PropertyList, ResizablePanel, PropertyRow, PropertySection, Segmented, Select, Slider, Switch, TextInput, cx, type IconName } from "@openclapper/design";
 import { ColourButton, type Colour } from "../u1/catalogue";
 
 export interface Key { id: string; t: number; on: boolean; level: number; mode: "white" | "colour"; kelvin: number; colour: string; effect?: string; /** How the values arrive from the keyframe before: a jump, or a fade with a curve. */ fade?: string }
@@ -36,9 +36,13 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
   const [playing, setPlaying] = useState(false);
   const [loop, setLoop] = useState(false);
   const [live, setLive] = useState(true);
-  const [scale, setScale] = useState(touch ? 28 : 46);
+  const [zoom, setScale] = useState(46);
+  const [room, setRoom] = useState(0);
   const [view, setView] = useState({ graph: true, colour: true, labels: !touch });
   const lanes = useRef<HTMLDivElement>(null);
+  // How wide the lanes are, to fit the whole flow into them: always on a phone or tablet, on request in the Studio.
+  useEffect(() => { const el = lanes.current; if (!el) return; const ro = new ResizeObserver(() => setRoom(el.clientWidth)); ro.observe(el); setRoom(el.clientWidth); return () => ro.disconnect(); }, []);
+  const fit = room ? Math.max(8, (room - (touch ? 108 : 206) - 28) / flow.length) : 28, scale = touch ? Math.max(24, fit) : zoom;
   useEffect(() => { if (!playing) return; const t0 = performance.now() - t * 1000; let raf = 0; const tick = () => { const now = (performance.now() - t0) / 1000; if (now >= flow.length) { if (loop) { setT(0); setPlaying(false); setTimeout(() => setPlaying(true), 0); } else { setPlaying(false); setT(0); } } else { setT(now); raf = requestAnimationFrame(tick); } }; raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf); }, [playing, loop, flow.length]);
   const setTrack = (id: string, c: Partial<Track>) => onChange({ ...flow, tracks: flow.tracks.map((x) => (x.id === id ? { ...x, ...c } : x)) });
   const setKey = (track: string, id: string, c: Partial<Key>) => onChange({ ...flow, tracks: flow.tracks.map((x) => (x.id === track ? { ...x, keys: x.keys.map((y) => (y.id === id ? { ...y, ...c } : y)).sort((a, b) => a.t - b.t) } : x)) });
@@ -101,7 +105,7 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
       )}
       {sel?.kind === "track" && track && (
         <PropertySection title="Track" icon="rows">
-          <PropertyRow label="Name"><TextInput size="sm" value={track.name} onInput={(e) => setTrack(track.id, { name: (e.target as HTMLInputElement).value })} /></PropertyRow>
+          <PropertyRow label="Name"><TextInput size="sm" value={track.name} style={{ width: "100%" }} onInput={(e) => setTrack(track.id, { name: (e.target as HTMLInputElement).value })} /></PropertyRow>
           <PropertyRow label="Device type"><Select size="sm" value={track.type} onChange={(v) => setTrack(track.id, { type: v, device: undefined })} options={Object.keys(TYPES).map((x) => ({ value: x, label: x }))} /></PropertyRow>
           <PropertyRow label="Device"><Select size="sm" value={track.device ?? ""} onChange={(v) => setTrack(track.id, { device: v || undefined })} options={[{ value: "", label: "Not assigned: does not play" }, ...TYPES[track.type].devices.map((x) => ({ value: x, label: x }))]} /></PropertyRow>
           <PropertyRow label="Colour"><ColourButton value={track.color} label="Track colour" onChange={(c) => setTrack(track.id, { color: typeof c === "number" ? c : 1 })} /></PropertyRow>
@@ -111,14 +115,14 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
       )}
       {marker && (
         <PropertySection title="Marker" icon="bookmark">
-          <PropertyRow label="Name"><TextInput size="sm" value={marker.name} onInput={(e) => setM({ name: (e.target as HTMLInputElement).value })} /></PropertyRow>
+          <PropertyRow label="Name"><TextInput size="sm" value={marker.name} style={{ width: "100%" }} onInput={(e) => setM({ name: (e.target as HTMLInputElement).value })} /></PropertyRow>
           <div className="u6-pad"><Checkbox checked={marker.out != null} onChange={(v) => setM({ out: v ? Math.min(flow.length, marker.t + 2) : undefined })}>A range, with an end</Checkbox></div>
           <div className="u6-pad"><Button size="sm" variant="quiet" icon="trash" onClick={remove}>Remove the marker</Button></div>
         </PropertySection>
       )}
       {!sel && (
         <PropertySection title="Flow" icon="route">
-          <PropertyRow label="Name"><TextInput size="sm" value={flow.name} onInput={(e) => onChange({ ...flow, name: (e.target as HTMLInputElement).value })} /></PropertyRow>
+          <PropertyRow label="Name"><TextInput size="sm" value={flow.name} style={{ width: "100%" }} onInput={(e) => onChange({ ...flow, name: (e.target as HTMLInputElement).value })} /></PropertyRow>
           <PropertyRow label="Length"><span className="u3-slide"><Slider min={2} max={60} value={flow.length} onChange={(v) => onChange({ ...flow, length: v })} /><b className="oc-num">{flow.length} s</b></span></PropertyRow>
           <p className="u6-note">{mode === "insert" ? "Insert: tap a lane to add a keyframe there." : "Select: tap a keyframe, the strip under a gap, a marker or a track's name."}</p>
         </PropertySection>
@@ -137,7 +141,8 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
         <Button size="sm" variant="quiet" icon="bookmark" title="A marker at the playhead (M)" onClick={() => onChange({ ...flow, markers: [...flow.markers, { id: `m${Date.now()}`, name: "Marker", t: Math.round(t * 10) / 10 }] })}>{touch ? undefined : "Marker"}</Button>
         <Button size="sm" variant="quiet" icon="plus" onClick={() => { const id = `t${Date.now()}`; onChange({ ...flow, tracks: [...flow.tracks, { id, name: `Track ${flow.tracks.length + 1}`, type: "Aputure MC", color: (flow.tracks.length % 8) + 1, keys: [k(`s${Date.now()}`, 0, { level: 0 })] }] }); setSel({ kind: "track", id }); }}>{touch ? undefined : "Track"}</Button>
         <DropdownMenu size="sm" variant="quiet" icon="eye" align="end" items={[{ id: "graph", label: "Intensity graph", checked: view.graph }, { id: "colour", label: "Light colour", checked: view.colour }, { id: "labels", label: "Value labels", checked: view.labels }]} onSelect={(x) => setView({ ...view, [x]: !view[x as "graph"] })} />
-        {!touch && <span className="u3-slide" style={{ flex: "none", width: 110 }}><Slider min={16} max={110} step={2} value={scale} onChange={setScale} /></span>}
+        {!touch && <Button size="sm" variant="quiet" icon="expand" title="Fit the whole flow into the width" onClick={() => setScale(fit)}>Fit</Button>}
+        {!touch && <span className="u3-slide" style={{ flex: "none", width: 110 }}><Slider min={8} max={110} step={2} value={Math.round(scale)} onChange={setScale} /></span>}
         {onRun && <Button size="sm" icon="mobile" onClick={onRun}>Run on phone</Button>}
       </div>
       <div className="u6f-body">
@@ -162,7 +167,7 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
             <i className="u6f-head" style={{ left: pad + t * scale }}><b onPointerDown={scrub} title="Drag to scrub" /></i>
           </div>
         </div>
-        <aside className="u6f-side">{inspector}</aside>
+        <ResizablePanel side={touch ? "bottom" : "right"} defaultSize={touch ? 236 : 300} min={touch ? 120 : 240} max={touch ? 560 : 520} collapsible className="u6f-side" aria-label="What is chosen">{inspector}</ResizablePanel>
       </div>
     </div>
   );
