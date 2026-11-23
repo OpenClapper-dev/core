@@ -125,7 +125,8 @@ export function FlowEditor({ flow, onChange, touch, onRun, frame }: { flow: Flow
           <div className="u6-pad"><Button size="sm" variant="quiet" icon="trash" onClick={remove}>Remove the marker</Button></div>
         </PropertySection>
       )}
-      {!sel && (
+      {!sel && frame && <p className="u6-note">Nothing is chosen. {mode === "insert" ? "Insert: click a lane to add a keyframe there." : "Click a keyframe, the strip under a gap, a marker or a track's name."}</p>}
+      {!sel && !frame && (
         <PropertySection title="Flow" icon="route">
           <PropertyRow label="Name"><TextInput size="sm" value={flow.name} style={{ width: "100%" }} onInput={(e) => onChange({ ...flow, name: (e.target as HTMLInputElement).value })} /></PropertyRow>
           <PropertyRow label="Length"><span className="u3-slide"><Slider min={2} max={60} value={flow.length} onChange={(v) => onChange({ ...flow, length: v })} /><b className="oc-num">{flow.length} s</b></span></PropertyRow>

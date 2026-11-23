@@ -6,7 +6,7 @@ import "../u3/u3.css";
 import "../u5/u5.css";
 import "./u6.css";
 import { useState } from "preact/hooks";
-import { AppIcon, Banner, Button, Dock, DropdownMenu, EmptyState, Icon, List, ListRow, StatusBar, Switch, Toast, Toolbar, ToolbarSpacer, cx, useDockLayout, type IconName } from "@openclapper/design";
+import { AppIcon, Banner, Button, Dock, DropdownMenu, EmptyState, Icon, Slider, StatusBar, Switch, TextInput, Toast, Toolbar, ToolbarSpacer, cx, useDockLayout, type IconName } from "@openclapper/design";
 import { FlowEditor, START_FLOWS, newFlow, type Flow } from "./Flow";
 import Devices from "./Devices";
 import Layouts from "./Layouts";
@@ -20,12 +20,32 @@ function Flows({ flows, setFlows, say }: { flows: Flow[]; setFlows: (f: Flow[]) 
   const [cur, setCur] = useState(flows[0]?.id);
   const flow = flows.find((f) => f.id === cur) ?? flows[0];
   const [panels, setPanels, reset] = useDockLayout("u6-flows", { left: { tabs: ["flows"] }, right: { tabs: ["chosen"] } });
-  const list = <><List>{flows.map((f) => <ListRow key={f.id} size="lg" icon="route" selected={f.id === flow?.id} meta={`${f.length} s · ${f.tracks.length} tracks`} onClick={() => setCur(f.id)}>{f.name}</ListRow>)}</List><p className="u6-note">A flow is a file of the project. It drives controls of devices over time: a light's intensity and colour, a camera's recording.</p></>;
+  const change = (f: Flow) => setFlows(flows.map((x) => (x.id === f.id ? f : x)));
+  // The chosen flow opens in the list: what belongs to the flow itself (its name, its length) sits right under it.
+  const list = (
+    <>
+      <ul className="u6-flowlist">
+        {flows.map((f) => (
+          <li key={f.id} className={cx(f.id === flow?.id && "is-on")}>
+            <button type="button" className="u6-flowlist__row" aria-expanded={f.id === flow?.id} onClick={() => setCur(f.id)}><Icon name={f.id === flow?.id ? "chevron-down" : "chevron-right"} size={12} /><Icon name="route" /><span><strong>{f.name}</strong><small className="oc-num">{f.length} s · {f.tracks.length} tracks</small></span></button>
+            {f.id === flow?.id && (
+              <div className="u6-flowlist__props">
+                <label><span>Name</span><TextInput size="sm" value={f.name} style={{ width: "100%" }} onInput={(e) => change({ ...f, name: (e.target as HTMLInputElement).value })} /></label>
+                <label><span>Length <b className="oc-num">{f.length} s</b></span><Slider min={2} max={60} value={f.length} onChange={(v) => change({ ...f, length: v })} /></label>
+                <span className="u3-bar"><Button size="sm" variant="quiet" icon="copy" onClick={() => { const c = { ...f, id: `f${Date.now()}`, name: `${f.name}, copy` }; setFlows([...flows, c]); setCur(c.id); }}>Duplicate</Button><Button size="sm" variant="quiet" icon="trash" disabled={flows.length < 2} onClick={() => { setFlows(flows.filter((x) => x.id !== f.id)); setCur(flows.find((x) => x.id !== f.id)!.id); }}>Delete</Button></span>
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="u6-note">A flow is a file of the project. It drives controls of devices over time: a light's intensity and colour, a camera's recording.</p>
+    </>
+  );
   return (
     <div className="oc-app u3-win">
       <Toolbar><Icon name="route" size={20} /><strong className="u3-title">{flow ? flow.name : "Flows"}</strong><ToolbarSpacer /><Button size="sm" icon="plus" onClick={() => { const f = newFlow(flows.length + 1); setFlows([...flows, f]); setCur(f.id); }}>New flow</Button><DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={reset} /></Toolbar>
       {/* The list of flows and what is chosen are panels like in every other app; the tracks are the middle. */}
-      {flow ? <FlowEditor key={flow.id} flow={flow} onChange={(f) => setFlows(flows.map((x) => (x.id === f.id ? f : x)))} onRun={() => say(`“${flow.name}” is saved and runs on the phone itself; the Studio follows its position`)}
+      {flow ? <FlowEditor key={flow.id} flow={flow} onChange={change} onRun={() => say(`“${flow.name}” is saved and runs on the phone itself; the Studio follows its position`)}
         frame={(main, inspector) => <Dock layout={panels} onLayoutChange={setPanels} zoneSizes={{ left: 250, right: 300 }} panels={[{ id: "flows", title: "Flows", icon: "route", body: list }, { id: "chosen", title: "Chosen", icon: "info", body: inspector }]}>{main}</Dock>} />
         : <EmptyState icon="route" title="No flow yet" />}
       <StatusBar>{flow && <>{flow.tracks.length} tracks · {flow.tracks.reduce((a, x) => a + x.keys.length, 0)} keyframes · {flow.markers.length} markers · </>}needs the Hardware extension · the same editor runs on the phone and tablet</StatusBar>
