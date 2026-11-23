@@ -25,14 +25,18 @@ export function CameraLayout({ orientation = "portrait", barA, barB, children, c
 
 /** An icon button in a camera bar; a toggle when `pressed` is set. */
 export interface CameraButtonProps {
-  icon: IconName;
+  /** Alone it makes a round button; with children a pill. */
+  icon?: IconName;
   label: string;
+  /** A switch that is on: filled in the accent colour, so its state reads at a glance and in sunlight. */
   pressed?: boolean;
   onClick?: () => void;
+  /** Short text beside or instead of the icon: a lens, a focal length, a count. */
+  children?: ComponentChildren;
 }
 
-export function CameraButton({ icon, label, pressed, onClick }: CameraButtonProps) {
-  return <button type="button" className="oc-cam__btn" aria-label={label} aria-pressed={pressed == null ? undefined : !!pressed} onClick={onClick}><Icon name={icon} size={24} /></button>;
+export function CameraButton({ icon, label, pressed, onClick, children }: CameraButtonProps) {
+  return <button type="button" className={cx("oc-cam__btn", children != null && "oc-cam__btn--text")} aria-label={label} title={label} aria-pressed={pressed == null ? undefined : !!pressed} onClick={onClick}>{icon && <Icon name={icon} size={children != null ? 18 : 24} />}{children}</button>;
 }
 
 /** The shutter button in the camera's control bar. */

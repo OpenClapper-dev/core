@@ -88,6 +88,7 @@ One app for phones and tablets. Its shell follows the same idea as the Studio's:
 - **Tabs are chosen per device.** On each phone or tablet the person picks which apps are tabs and in which order. The choice is stored with the device ([03](03-capture.md), [08](08-extensions.md)), so two devices of one person can differ: a phone as a camera, a tablet for drawing.
 - **Any app with a touch form can be a tab,** on a phone as well as on a tablet. Nothing is withheld by device size; whether drawing on a small screen is comfortable is the person's call. Extensions add their apps to the choice.
 - **Apps are customisable in themselves** where it makes sense, as the camera already is through camera layouts ([03](03-capture.md)). Which other apps get layouts of their own is settled app by app in the UX workshops.
+- **One tab bar for every app,** the camera included: under the screen held upright, at its right edge held in landscape ([U5](ux-5-phone.md)).
 - **Setup cannot be removed.** It is where tabs are chosen, so it is always reachable. It also holds project, account, devices, offline and uploads.
 - **A new device starts with a default set:** Camera, Media, Shots, Setup.
 
