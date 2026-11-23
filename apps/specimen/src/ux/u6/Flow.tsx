@@ -2,6 +2,7 @@
 // today's light sequences (docs/features/lights.md): tracks of one device type with an assigned device, a start
 // keyframe that cannot move, keyframes that hold values and jump, fade tiles between them, markers, track colours,
 // view options, Select and Insert modes, play, loop and live. A prototype: nothing is sent to a device.
+import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Button, Checkbox, DropdownMenu, Icon, PropertyList, ResizablePanel, PropertyRow, PropertySection, Segmented, Select, Slider, Switch, TextInput, cx, type IconName } from "@openclapper/design";
 import { ColourButton, type Colour } from "../u1/catalogue";
@@ -29,7 +30,11 @@ const white = (kelvin: number) => { const u = Math.min(1, Math.max(0, (kelvin - 
 const shows = (key: Key) => (!key.on || key.level === 0 ? "transparent" : key.mode === "colour" ? key.colour : white(key.kelvin));
 type Sel = { kind: "key" | "fade"; track: string; id: string } | { kind: "track" | "marker"; id: string } | null;
 
-export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onChange: (f: Flow) => void; touch?: boolean; onRun?: () => void }) {
+/**
+ * `frame` lets the host place the two parts itself: the Studio puts the inspector into its dock beside its other
+ * panels. Without it (phone and tablet) the inspector is a panel under the tracks.
+ */
+export function FlowEditor({ flow, onChange, touch, onRun, frame }: { flow: Flow; onChange: (f: Flow) => void; touch?: boolean; onRun?: () => void; frame?: (main: ComponentChildren, inspector: ComponentChildren) => ComponentChildren }) {
   const [sel, setSel] = useState<Sel>(null);
   const [mode, setMode] = useState("select");
   const [t, setT] = useState(0);
@@ -129,8 +134,7 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
       )}
     </PropertyList>
   );
-  return (
-    <div className={cx("u6f", touch && "u6f--touch")}>
+  const bar = (
       <div className="u6f-bar">
         <Button size="sm" variant="primary" icon={playing ? "pause" : "play"} label={playing ? "Stop (Space)" : "Play from the playhead (Space)"} onClick={() => setPlaying(!playing)} />
         <span className="oc-num u6-saved">{t.toFixed(1)} / {flow.length} s</span>
@@ -145,7 +149,8 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
         {!touch && <span className="u3-slide" style={{ flex: "none", width: 110 }}><Slider min={8} max={110} step={2} value={Math.round(scale)} onChange={setScale} /></span>}
         {onRun && <Button size="sm" icon="mobile" onClick={onRun}>Run on phone</Button>}
       </div>
-      <div className="u6f-body">
+  );
+  const grid = (
         <div className="u6f-grid" ref={lanes} style={{ "--head": `${head}px`, "--h": `${h}px` }}>
           <div className="u6f-inner" style={{ width: pad + flow.length * scale + 24 }}>
             <div className="u6f-ruler" onPointerDown={scrub}>{Array.from({ length: Math.floor(flow.length / step) + 1 }, (_, i) => <span key={i} style={{ left: pad + i * step * scale }}>{i * step} s</span>)}</div>
@@ -167,6 +172,13 @@ export function FlowEditor({ flow, onChange, touch, onRun }: { flow: Flow; onCha
             <i className="u6f-head" style={{ left: pad + t * scale }}><b onPointerDown={scrub} title="Drag to scrub" /></i>
           </div>
         </div>
+  );
+  if (frame) return <div className="u6f">{frame(<div className="u6f-main">{bar}{grid}</div>, inspector)}</div>;
+  return (
+    <div className={cx("u6f", touch && "u6f--touch")}>
+      {bar}
+      <div className="u6f-body">
+        {grid}
         <ResizablePanel side={touch ? "bottom" : "right"} defaultSize={touch ? 236 : 300} min={touch ? 120 : 240} max={touch ? 560 : 520} collapsible className="u6f-side" aria-label="What is chosen">{inspector}</ResizablePanel>
       </div>
     </div>

@@ -75,6 +75,7 @@ From the owner's reaction to round 1.
 | **Flows on the phone and tablet** | "On the phone", Flows: the same editor in a touch form, on the same flows as the Studio. A flow can be made, changed and played there. The switch at the right draws a tablet instead of a phone |
 | **Hardware on the phone as a table and as cards** | "On the phone", Hardware: a table (device, type as a coloured tag, connection as a coloured mark, battery as a bar); a tap on a row opens the device's own screen with its controls. The switch at the top shows cards instead: one per device across the width with its controls, to use without opening it. The transmitter's card and screen show its picture |
 | **Room for the tracks** | The flow editor fills its screen. On a phone or tablet the whole flow is fitted to the width; in the Studio "Fit" does that on request. What is chosen shows in a panel whose edge is dragged to give the tracks more or less room and which folds away to a rail; inputs in it take the full width |
+| **Flows uses the same panels as every app** | In the Studio the list of flows and what is chosen are panels of the `Dock`: move them, size them against each other, collapse them, stack them as tabs; "Panels back to their places" is in the toolbar's menu. The tracks with their controls are the middle |
 | **A thumb to take hold of** | The playhead of a flow and of the timeline ([U4](ux-4-timeline.md)) has a larger thumb with the grabbing hand; the ruler shows the pointing hand, not the text cursor |
 
 ## Decided so far
