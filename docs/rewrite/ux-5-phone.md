@@ -18,7 +18,7 @@ The frames in the camera are drawn with the real math of [02](02-optics.md) agai
 | **Real lenses only** | The strip 13 / 24 / 120 / Macro: the phone's physical lenses, named by their focal length. No zoom steps between them |
 | **Layout "Viewfinder"** | Adds the optics frame of a preset, drawn against what the lens in use sees. Below: the preset (a sheet to pick one) and its focal lengths (buttons for primes, a slider for a zoom) |
 | **Controls on the frame** | In the bar: zoom to frame (the picture is enlarged so the frame fills the screen), blackout outside the frame, frame upright, reference frame (full frame at 35, 43, 50 mm, cycling) |
-| **A frame wider than the lens** | Lens 120 with a 24 mm frame: a note says the frame sees more than the lens and to take a wider one |
+| **A frame wider than the lens** | Lens 5× with any frame of the presets: the frame becomes the container, the camera's picture sits smaller inside it, and the hatched area is what the lens does not see (round 2; round 1 showed a message) |
 | **A lens without a reported focal length** | Lens "Macro": no optics frame, and the control says why. The camera still works |
 | **A layout of one's own** | "Scout, wide": an aspect frame and no optics. Layouts are made in the Studio ([U6](ux-plan.md)) |
 | **Collection mode** | The stack button beside the shutter: choose a collection or a new one; what is shot goes into it, and a label says which one and how many. Press again to end it |
@@ -69,6 +69,8 @@ From the owner's reaction to round 1. The prototype starts held upright now.
 - **The canvas on phone and tablet is the Studio's editor in a web view,** to be tried as built here.
 - **The phone and tablet app is not a second-class client:** what the Studio shows and lets a person set should be there too, in a touch form.
 - **Camera controls show their state by a filled colour,** not by an outline alone.
+- **A frame wider than the lens is the container.** The camera's picture is drawn smaller inside the frame and the area the lens does not see stays empty, as in today's app. No message in the middle of the picture; the readout notes it.
+- **Today's customisations of a layout are kept** as options of a layout, not as defaults: its labels and readouts, colours, what is shown and where. They are taken stock of and carried over in [U6](ux-plan.md), with the layout editor.
 
 ## Not prototyped
 

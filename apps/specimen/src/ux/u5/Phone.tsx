@@ -93,7 +93,8 @@ export default function U5Phone() {
   const mm = P.primes ? (P.primes.includes(focal) ? focal : P.primes[0]) : Math.min(P.zoom![1], Math.max(P.zoom![0], focal));
   const optics = layout === "viewfinder", aspectOnly = layout === "mine", framed = optics || aspectOnly;
   const base = fromPreset(P, mm, 5), fr: Fr | null = optics && L.eq ? { ...base, format: upright ? [base.format![1], base.format![0]] : base.format, name: `${mm} mm` } : aspectOnly ? { id: "a", name: "2.39:1", color: 6, aspect: 2.39, cx: 0.5, cy: 0.5 } : null;
-  const beyond = fr && L.eq ? (() => { const r = rect(fr, L.eq!); return r.w > 1 || r.h > 1; })() : false;
+  // A frame that sees more than the lens: the frame is the container, the camera's picture sits smaller inside it, and what the lens does not see stays empty.
+  const over = fr && L.eq ? Math.max(1, rect(fr, L.eq).w, rect(fr, L.eq).h) : 1, beyond = over > 1;
   const refFr: Fr | null = optics && L.eq && refMm ? { id: "ref", name: `Full frame ${refMm}`, color: 4, format: [36, 24], mult: 1, squeeze: 1, focal: refMm, cx: 0.5, cy: 0.5 } : null;
   const shoot = () => {
     const id = `n${counter}`, p: Shot = { id, name: `Photo ${String(counter++).padStart(4, "0")}`, pic: L.seed, eq: L.eq, state: "queued", coll: coll ?? undefined, folder: dest ?? undefined, taken: "Just now", frame: optics && fr && L.eq ? `${P.name} · ${mm} mm${upright ? " · upright" : ""}` : undefined };
@@ -128,7 +129,7 @@ export default function U5Phone() {
     <div className={cx("oc-cam", `oc-cam--${land ? "landscape" : "portrait"}`, "u5-cam")}>
       {land && lensRail}
       <div className="oc-cam__view">
-        <div className="u3-box u5-live">{fr ? <Pic seen={{ src: picture(L.seed), eq: L.eq ?? 24, frame: fr, source: "own" }} mode={zoom ? "crop" : black ? "mask" : "outline"} others={refFr ? [refFr] : undefined} label /> : <Pic seen={{ src: picture(L.seed), source: "none" }} />}</div>
+        <div className={cx("u3-box u5-live", beyond && !zoom && "is-beyond")} style={{ "--k": zoom ? 1 : 0.96 / over }}>{fr ? <Pic seen={{ src: picture(L.seed), eq: L.eq ?? 24, frame: fr, source: "own" }} mode={zoom ? "crop" : black ? "mask" : "outline"} others={refFr ? [refFr] : undefined} label /> : <Pic seen={{ src: picture(L.seed), source: "none" }} />}</div>
         {flash && <span className="u5-flash" />}
         <div className="u5-top">
           <CameraButton icon="camera-layout" label="Camera layout" onClick={() => setSheet("layout")}>{lay.name}</CameraButton>
@@ -138,9 +139,8 @@ export default function U5Phone() {
           {framed && <CameraButton icon="contrast" label="Blackout outside the frame" pressed={black} onClick={() => setBlack(!black)} />}
           {optics && <CameraButton icon="rotate" label="Frame upright" pressed={upright} onClick={() => setUpright(!upright)} />}
         </div>
-        <span className="oc-cam__label u5-hud">{L.eq ? `${L.eq} mm lens` : "Macro lens"}{optics && L.eq && <> · {P.name} · {mm} mm</>}{refFr && <> · ref {refMm}</>}{coll && <b><i style={{ background: colorOf(coll) }} />{colls.find((c) => c.id === coll)?.name} · {photos.filter((p) => p.coll === coll).length}</b>}</span>
+        <span className="oc-cam__label u5-hud">{L.eq ? `${L.eq} mm lens` : "Macro lens"}{optics && L.eq && <> · {P.name} · {mm} mm</>}{refFr && <> · ref {refMm}</>}{beyond && <> · wider than this lens</>}{coll && <b><i style={{ background: colorOf(coll) }} />{colls.find((c) => c.id === coll)?.name} · {photos.filter((p) => p.coll === coll).length}</b>}</span>
         {optics && !L.eq && <span className="u5-warn"><Icon name="warning" size={16} />This lens reports no focal length, so no optics frame can be drawn. Aspect frames and the camera work.</span>}
-        {optics && L.eq && beyond && !zoom && <span className="u5-warn"><Icon name="info" size={16} />{mm} mm sees more than the {L.eq} mm lens. Take a wider lens.</span>}
         <button type="button" className="oc-cam__thumb u5-last" aria-label="Last photo" onClick={() => { go("media"); setOpen(last.id); }}><img src={picture(last.pic)} alt="" /></button>
         {optics && L.eq && P.zoom && <div className="u5-zoom"><Slider min={P.zoom[0]} max={P.zoom[1]} value={mm} onChange={setFocal} /><b>{mm} mm</b></div>}
       </div>

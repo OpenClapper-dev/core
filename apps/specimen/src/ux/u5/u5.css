@@ -28,6 +28,8 @@
 /* Camera: a picture and the sections a layout fills. */
 .u5-cam .oc-cam__view { position: relative; overflow: hidden; }
 .u5-live { position: absolute; inset: 0; }
+.u5-live.is-beyond { background: repeating-linear-gradient(135deg, #1c1c1c 0 8px, #101010 8px 16px); }
+.u5-live.is-beyond > .u3-pic { overflow: visible; scale: var(--k, 1); }
 .u5-flash { position: absolute; inset: 0; background: #fff; opacity: .7; pointer-events: none; }
 .u5-top { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; align-items: center; gap: 6px; }
 .u5-top .oc-cam__btn { height: 36px; }
