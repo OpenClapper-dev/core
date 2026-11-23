@@ -203,3 +203,9 @@ Applied to [05](05-composition.md):
 
 - **The preset create flow** with its preview on example photos is right; real example photos are still to come.
 - **U2 is complete.** The tablet is left to the research and test at the start of the build ([05](05-composition.md)).
+
+## After the workshop
+
+2026-11-23, from [U3](ux-3-shot.md): Layers, Frames and Comments are three panels of the design system's `Dock`, tabs of one place to start with. They can be moved, shown side by side, sized against each other and collapsed. Selecting a frame or an object still brings its panel to the front.
+
+The strip of drawing tools is a panel as well (Tools), a slim one: a rail at a side, a bar above or below another panel.

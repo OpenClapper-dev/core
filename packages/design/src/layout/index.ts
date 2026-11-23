@@ -1,4 +1,5 @@
 export * from "./Card";
+export * from "./Dock";
 export * from "./FormField";
 export * from "./PropertyList";
 export * from "./ResizablePanel";

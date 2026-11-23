@@ -1,4 +1,5 @@
 import type { ComponentChildren, JSX } from "preact";
+import { Dock, type DockProps } from "../layout/Dock";
 import { ResizablePanel } from "../layout/ResizablePanel";
 import { cx } from "../util";
 
@@ -17,18 +18,20 @@ export interface EditorLayoutProps extends JSX.HTMLAttributes<HTMLDivElement> {
   inspectorCollapsible?: boolean;
   inspectorCollapsed?: boolean;
   onInspectorCollapsed?: (collapsed: boolean) => void;
+  /** Panels the user arranges around the canvas (see Dock), in place of the fixed inspector. */
+  dock?: Omit<DockProps, "children">;
   statusBar?: ComponentChildren;
 }
 
-export function EditorLayout({ toolbar, toolRail, canvas, inspector, inspectorWidth = 220, inspectorMin = 180, inspectorMax = 640, inspectorCollapsible, inspectorCollapsed, onInspectorCollapsed, statusBar, className, ...rest }: EditorLayoutProps) {
+export function EditorLayout({ toolbar, toolRail, canvas, inspector, inspectorWidth = 220, inspectorMin = 180, inspectorMax = 640, inspectorCollapsible, inspectorCollapsed, onInspectorCollapsed, dock, statusBar, className, ...rest }: EditorLayoutProps) {
   return (
     <div className={cx("oc-app", className)} {...rest}>
       {toolbar}
-      <div className="oc-app__body">
+      {dock ? <Dock {...dock}>{toolRail}<div className="oc-app__canvas">{canvas}</div></Dock> : <div className="oc-app__body">
         {toolRail}
         <div className="oc-app__canvas">{canvas}</div>
         {inspector && <ResizablePanel side="right" defaultSize={inspectorWidth} min={inspectorMin} max={inspectorMax} collapsible={inspectorCollapsible} collapsed={inspectorCollapsed} onCollapsedChange={onInspectorCollapsed}>{inspector}</ResizablePanel>}
-      </div>
+      </div>}
       {statusBar}
     </div>
   );

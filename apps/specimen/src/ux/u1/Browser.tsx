@@ -4,8 +4,8 @@ import "./u1.css";
 import type { ComponentChildren } from "preact";
 import { useMemo, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, BrowserLayout, Breadcrumb, Button, Chip, DropdownMenu, EmptyState, Icon, MapControl, MapPin, PropertyList, PropertyRow, PropertySection, ResizablePanel,
-  SearchInput, Segmented, Select, SidebarNav, StatusBar, Table, TextInput, Toast, Toolbar, ToolbarSpacer, Tree, cx,
+  AppIcon, Badge, BrowserLayout, Breadcrumb, Button, Chip, DropdownMenu, EmptyState, Icon, MapControl, MapPin, PropertyList, PropertyRow, PropertySection,
+  SearchInput, Segmented, Select, SidebarNav, StatusBar, Table, TextInput, Toast, Toolbar, ToolbarSpacer, Tree, cx, useDockLayout,
   type IconName, type TreeNodeData,
 } from "@openclapper/design";
 import { FILES, PROPS, QUERIES, TYPES, type FileRec, type FileType, type PropDef } from "./data";
@@ -113,7 +113,8 @@ export default function U1Browser() {
   const [sort, setSort] = useState("name");
   const [boardBy, setBoardBy] = useState("status");
   const [spread, setSpread] = useState("stack");
-  const [panel, setPanel] = useState("right");
+  // The sidebar and the properties are panels the user arranges; this is where they start.
+  const [panels, setPanels] = useDockLayout("u1", { left: { tabs: ["nav"] }, right: { tabs: ["info"] } });
   const [cards, setCards] = useState("picture");
   const [mark, setMark] = useState("bar");
   const [barAt, setBarAt] = useState("bottom");
@@ -266,7 +267,7 @@ export default function U1Browser() {
   };
   const sections = [...new Set(shared.map((p) => p.section ?? "Properties"))];
   const info = (
-    <ResizablePanel key={panel} side={panel === "bottom" ? "bottom" : "right"} defaultSize={panel === "bottom" ? 240 : 320} min={panel === "bottom" ? 160 : 260} max={panel === "bottom" ? 480 : 560} className={cx("u1-info", `u1-info--${panel}`)} aria-label="Properties">
+    <div className="u1-info">
       {!chosen.length ? <EmptyState icon="info" title={title ?? (entry === "files" ? (folder ? map.get(folder)!.name : "Nachtzug") : here.label)}>{items.length} items. Click one to see its properties. Tick several to edit them together.</EmptyState> : (
         <>
           <header className="u1-info__head">
@@ -290,7 +291,7 @@ export default function U1Browser() {
           </PropertyList>
         </>
       )}
-    </ResizablePanel>
+    </div>
   );
 
   return (
@@ -301,17 +302,15 @@ export default function U1Browser() {
           {ENTRIES.map((e) => <button type="button" key={e.id} role="tab" aria-selected={entry === e.id} className={cx(entry === e.id && "is-on")} onClick={() => go(e.id)}><AppIcon glyph={e.glyph} color={e.color} size={20} />{e.label}</button>)}
         </span>
         <span style={{ flex: 1 }} />
-        {entry !== "project" && <><label>Properties <Segmented label="Properties panel" value={panel} onChange={setPanel} options={[{ value: "right", label: "Right" }, { value: "bottom", label: "Bottom" }, { value: "off", label: "Off" }]} /></label>
-        <label>Collection mark <Segmented label="Collection mark" value={mark} onChange={setMark} options={[{ value: "bar", label: "Bar" }, { value: "dot", label: "Dot" }, { value: "frame", label: "Frame" }]} />{mark === "bar" && <Segmented label="Bar position" value={barAt} onChange={setBarAt} options={[{ value: "bottom", label: "Bottom" }, { value: "left", label: "Left" }]} />}</label>
+        {entry !== "project" && <><label>Collection mark <Segmented label="Collection mark" value={mark} onChange={setMark} options={[{ value: "bar", label: "Bar" }, { value: "dot", label: "Dot" }, { value: "frame", label: "Frame" }]} />{mark === "bar" && <Segmented label="Bar position" value={barAt} onChange={setBarAt} options={[{ value: "bottom", label: "Bottom" }, { value: "left", label: "Left" }]} />}</label>
         <label>Board cards <Segmented label="Board cards" value={cards} onChange={setCards} options={[{ value: "picture", label: "Picture" }, { value: "compact", label: "Compact" }]} /></label></>}
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
-      {entry === "project" ? <div className="u1-body"><ProjectApp say={say} /></div> : <div className={cx("u1-body", `u1-body--${panel}`)}>
-        <BrowserLayout className="u1-browser" sidebarWidth={220} sidebarMin={180} sidebarMax={420} toolbar={toolbar} sidebar={sidebar}
+      {entry === "project" ? <div className="u1-body"><ProjectApp say={say} /></div> : <div className="u1-body">
+        <BrowserLayout className="u1-browser" toolbar={toolbar} dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { left: 220, right: 320, bottom: 240 }, panels: [{ id: "nav", title: entry === "files" ? "Folders" : here.label, icon: here.glyph, body: sidebar }, { id: "info", title: "Properties", icon: "info", body: info }] }}
           statusBar={<StatusBar>{items.length} items{sel.length > 0 && <> · <strong>{sel.length} ticked</strong> <Chip icon="close" onToggle={() => setSel([])}>Clear</Chip></>}{nav in QUERIES && <> · a saved filter: lists what matches now</>}</StatusBar>}>
           {main}
         </BrowserLayout>
-        {panel !== "off" && info}
       </div>}
       {toast && <Toast className="u1-toast" tone="info" onDismiss={() => setToast(null)}>{toast}</Toast>}
     </div>

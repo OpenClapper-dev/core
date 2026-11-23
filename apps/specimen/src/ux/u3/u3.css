@@ -1,0 +1,165 @@
+/* Page styles of the UX workshop U3 prototype (shot, set and location windows). Layout and prototype-specific pieces only. */
+.u3 { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--text); font: var(--font-size-sm)/1.4 var(--font-sans); }
+.u3-proto { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-3) var(--space-5); background: var(--surface-bar, var(--surface-sunken)); border-bottom: var(--border-w) solid var(--border-divider); flex: none; }
+.u3-proto > * { white-space: nowrap; flex: none; }
+.u3-proto__note { color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); }
+.u3-proto__files { display: inline-flex; gap: 2px; margin-left: var(--space-5); }
+.u3-proto__files button { display: inline-flex; align-items: center; gap: var(--space-3); height: var(--control-h); padding: 0 var(--space-4); border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.u3-proto__files button:hover { background: var(--surface-hover); }
+.u3-proto__files button.is-on { background: var(--selection); font-weight: var(--weight-bold); }
+.u3-toast { position: absolute; right: 16px; bottom: 40px; z-index: 50; }
+
+.u3-win { position: relative; }
+.u3-title { padding: 0 var(--space-3); }
+.u3-top { flex: 1; min-height: 0; min-width: 0; display: flex; }
+.u3-top--edit { flex-direction: column; }
+.u3-left { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.sp-full:has(.u3) .sp-back { left: auto; right: 52px; top: 6px; bottom: auto; }
+.u3-bar { display: flex; align-items: center; gap: var(--space-3); }
+.u3-inline { display: inline-flex; align-items: center; gap: var(--space-2); }
+.u3-hint { color: var(--text-secondary); font-size: var(--font-size-xs); margin: 0; }
+.u3-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+
+/* A picture fills the nearest sized box, letterboxed; .u3-box and every thumbnail holder are such boxes. */
+.u3-box, .u3-line__art, .u3-gen__smooth > span, .u3-item__art, .u3-tile__art, .u3-head__art, .u3-pickrow__art, .u3-gen__stage, .u3-gen__strip button > span { container-type: size; display: grid; place-items: center; overflow: hidden; background: var(--photo-bg); }
+.u3-pic { position: relative; display: block; overflow: hidden; width: min(100cqw, 100cqh * var(--a, 1.333)); height: min(100cqh, 100cqw / var(--a, 1.333)); }
+.u3-pic > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; user-select: none; }
+.u3-pic--crop { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
+.u3-pic--none { display: grid; place-items: center; width: 100cqw; height: 100cqh; background: var(--surface-sunken); color: var(--text-secondary); }
+.u3-pic__bars, .u3-pic__mask { position: absolute; box-shadow: 0 0 0 100cqmax var(--over-mask); pointer-events: none; }
+.u3-pic__bars { inset: 0; margin: auto; box-shadow: 0 0 0 100cqmax #000; }
+.u3-pic__frame { position: absolute; box-sizing: border-box; border: 2px solid var(--c); outline: 1px solid rgba(0, 0, 0, .7); display: grid; place-items: center; pointer-events: none; }
+.u3-pic__frame.is-other { border-width: 1px; opacity: .75; }
+.u3-pic__frame > b { position: absolute; left: -2px; top: -2px; translate: 0 -100%; padding: 1px 6px; background: var(--c); color: #fff; font: 700 11px/1.5 var(--font-mono); white-space: nowrap; }
+.u3-pic__frame > i { box-sizing: border-box; border: 1px dashed var(--c); }
+.u3-pic__over { position: absolute; inset: 0; margin: auto; pointer-events: none; }
+.u3-pic--outline > .u3-pic__over, .u3-pic--mask > .u3-pic__over, .u3-pic--full > .u3-pic__over { inset: auto; margin: 0; }
+.u3-overlay { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: #ff2d2d; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.u3-overlay path { vector-effect: non-scaling-stroke; }
+.u3-overlay__arrow { stroke: #fff; }
+
+/* The stage. */
+.u3-stage { padding: var(--space-7); }
+.u3-stage.is-empty { background: var(--surface-sunken); color: var(--text); }
+.u3-box { position: absolute; inset: var(--space-8) var(--space-7); background: transparent; }
+.u3-caption { position: absolute; left: var(--space-5); bottom: var(--space-4); display: inline-flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-4) 2px 2px; border-radius: var(--radius-control); background: rgba(0, 0, 0, .7); color: #fff; font-size: var(--font-size-xs); }
+.u3-caption small { opacity: .7; }
+.u3-stageacts { position: absolute; right: var(--space-5); top: var(--space-4); display: inline-flex; gap: var(--space-3); }
+
+/* The side panel. */
+.u3-top { position: relative; }
+.u3-stage { flex: 1; }
+.u3-tabs { position: sticky; top: 0; z-index: 2; background: var(--surface); flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--border-w) solid var(--border-divider); overflow: hidden; }
+.u3-tabs .oc-seg__opt { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u3-head { flex: none; display: grid; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
+.u3-head__art { height: 132px; border-radius: 3px; }
+.u3-head__type { display: flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u3-head__type small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u3-side .oc-banner { margin: var(--space-3) var(--space-4); }
+.u3-chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.u3-chips--pad { display: flex; padding: var(--space-3) var(--space-5); }
+.u3-chip { display: inline-flex; align-items: center; border-radius: 5px; background: var(--surface-sunken); font-size: var(--font-size-xs); line-height: 20px; white-space: nowrap; }
+.u3-chip button { display: inline-flex; align-items: center; gap: 5px; height: 22px; padding: 0 5px; border: 0; border-radius: 5px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.u3-chip button:hover { background: color-mix(in srgb, var(--text) 14%, transparent); }
+.u3-chip__open { padding: 0 6px 0 1px !important; }
+.u3-chip.is-missing { gap: 5px; padding: 0 2px 0 6px; color: var(--danger, #c62828); border: var(--border-w) dashed currentColor; }
+.u3-internal { list-style: none; margin: 0; padding: var(--space-2) var(--space-4); display: grid; gap: 2px; }
+.u3-internal li { display: flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-2); }
+.u3-internal__name { flex: 1; min-width: 0; display: grid; }
+.u3-internal small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.u3-chipset { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.u3-chipset button { min-width: 30px; height: 22px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.u3-chipset button:hover { background: var(--surface-hover); }
+.u3-chipset button.is-on { background: var(--accent); border-color: var(--accent); color: var(--on-accent, #fff); }
+.u3-slide { display: flex; align-items: center; gap: var(--space-3); min-width: 0; flex: 1; }
+.u3-slide b { flex: none; min-width: 48px; text-align: right; }
+.u3-pop { display: grid; gap: var(--space-4); width: 246px; }
+.u3-pop .oc-seg { justify-self: start; }
+.u3-pos { display: grid; gap: var(--space-3); width: 246px; }
+.u3-pos p { margin: 0; font: var(--font-size-xs)/1.4 var(--font-mono); }
+.u3-pos__map { position: relative; height: 170px; border-radius: 4px; overflow: hidden; cursor: crosshair; }
+.u3-pos__map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.u3-pos__pin { position: absolute; translate: -50% -100%; pointer-events: none; }
+
+/* Below the stage: the progression and the content list. */
+.u3-sec__head { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); min-height: 40px; flex-wrap: wrap; row-gap: var(--space-2); }
+.u3-sec__head > * { flex: none; white-space: nowrap; }
+.u3-sec__count { color: var(--text-secondary); font-size: var(--font-size-xs); margin-right: var(--space-3); }
+.u3-sec__sep { width: 1px; height: 18px; background: var(--border-divider); margin: 0 var(--space-2); }
+.u3-strip { flex: none; display: flex; gap: 6px; padding: var(--space-4) var(--space-5); overflow-x: auto; }
+.u3-strip--prog { gap: 2px; }
+.u3-item, .u3-tile { position: relative; flex: none; display: flex; flex-direction: column; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-divider); cursor: pointer; user-select: none; touch-action: none; }
+.u3-item:hover, .u3-tile:hover { outline-color: var(--text); }
+.u3-item.is-current, .u3-tile.is-current { outline: 2px solid var(--accent); z-index: 1; }
+.u3-item.is-missing, .u3-tile.is-missing { outline-style: dashed; outline-color: var(--danger, #c62828); }
+.u3-item { height: 92px; }
+.u3-item__art { flex: 1; min-height: 0; }
+.u3-item__label { display: flex; justify-content: space-between; gap: 6px; padding: 2px 6px; font-size: var(--font-size-2xs); line-height: 16px; white-space: nowrap; overflow: hidden; }
+.u3-item__label b { overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-medium, 500); }
+.u3-item__label i { font-style: normal; color: var(--text-secondary); }
+.u3-item__flag { position: absolute; left: 3px; top: 3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(0, 0, 0, .7); color: #fff; }
+.u3-item__x { position: absolute; right: 8px; top: 3px; display: none; place-items: center; width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%; background: rgba(0, 0, 0, .75); color: #fff; cursor: pointer; }
+.u3-item:hover .u3-item__x { display: grid; }
+.u3-item__x:hover { background: var(--danger, #c62828); }
+.u3-item__grip { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.u3-item__grip::after { content: ""; position: absolute; right: 2px; top: 30%; bottom: 30%; width: 2px; border-radius: 1px; background: #fff; opacity: 0; box-shadow: 0 0 0 1px rgba(0, 0, 0, .5); }
+.u3-item:hover .u3-item__grip::after { opacity: .9; }
+.u3-item__move { position: absolute; left: 3px; bottom: 23px; display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; border-radius: 8px; background: var(--accent); color: var(--on-accent, #fff); font: 700 10px/15px var(--font-mono); }
+.u3-item.is-move .u3-item__art { background-image: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 35%, transparent)); }
+.u3-lines { list-style: none; margin: 0; padding: var(--space-3) var(--space-4); display: grid; gap: 2px; }
+.u3-line { display: flex; align-items: center; gap: var(--space-4); height: 40px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: 4px; background: var(--surface); outline: var(--border-w) solid transparent; cursor: pointer; user-select: none; touch-action: none; }
+.u3-line > .oc-icon:first-child, .u3-line > svg:first-child { color: var(--text-disabled); flex: none; }
+.u3-line:hover { background: var(--surface-hover); }
+.u3-line.is-current { background: var(--selection); outline-color: var(--accent); }
+.u3-line.is-missing { color: var(--danger, #c62828); }
+.u3-line .u3-tile__menu { position: static; flex: none; }
+.u3-line__art { flex: none; width: 52px; height: 32px; border-radius: 2px; }
+.u3-line__name { flex: 1; min-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u3-line__type { flex: none; display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u3-pair { display: flex; gap: var(--space-3); }
+.u3-pair > * { flex: 1; min-width: 0; }
+.u3-gen__smooth { display: flex; gap: var(--space-5); align-items: center; }
+.u3-gen__smooth > span { flex: none; width: 200px; height: 96px; border-radius: 3px; }
+.u3-gen__smooth > div { flex: 1; display: grid; gap: var(--space-2); }
+.u3-gen__smooth small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u3-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--over-rec, #ff2d2d); pointer-events: none; z-index: 2; }
+.u3-tile { width: 124px; }
+.u3-tile__art { position: relative; height: 78px; }
+.u3-tile__type { position: absolute; left: 3px; bottom: 3px; display: flex; }
+.u3-tile__lock { position: absolute; left: 3px; top: 3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(0, 0, 0, .7); color: #fff; }
+.u3-tile__name { padding: 3px 26px 3px 6px; font-size: var(--font-size-xs); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.u3-tile__menu { position: absolute; right: 0; bottom: 0; }
+.u3-ghost { position: fixed; z-index: 200; pointer-events: none; opacity: .92; rotate: 1.5deg; box-shadow: var(--shadow-window-focused); border-radius: 4px; }
+.u3-ghost > * { width: 100%; height: 100%; }
+
+/* Mounted editor: the bar of the host above the canvas tool. */
+.u3-host { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); background: var(--selection); border-bottom: var(--border-w) solid var(--selection-border, var(--accent)); flex: none; }
+.u3-host > * { flex: none; white-space: nowrap; }
+.u3-host__crumb { display: inline-flex; align-items: center; gap: var(--space-3); }
+.u3-host__note { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--font-size-xs); flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+
+/* Dialogs: picking files, and the generator. */
+.u3-pick { width: min(640px, calc(100vw - 48px)); }
+.u3-pick .oc-dialog__body { display: grid; gap: var(--space-4); }
+.u3-picklist { list-style: none; margin: 0; padding: 0; height: min(52vh, 440px); overflow: auto; border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-control); }
+.u3-pickrow { display: flex; align-items: center; gap: var(--space-4); padding: 4px 8px; cursor: pointer; }
+.u3-pickrow:hover { background: var(--surface-hover); }
+.u3-pickrow.is-on { background: var(--selection); }
+.u3-pickrow__art { flex: none; width: 56px; height: 36px; border-radius: 2px; }
+.u3-pickrow__name { flex: 1; min-width: 0; display: grid; }
+.u3-pickrow__name small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.u3-pickrow--coll { padding-block: 8px; }
+.u3-gen { width: min(1040px, calc(100vw - 48px)); }
+.u3-gen__grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: var(--space-7); }
+.u3-gen__form { display: grid; gap: var(--space-5); align-content: start; }
+.u3-row { display: flex; gap: var(--space-4); }
+.u3-row > * { flex: 1; min-width: 0; }
+.u3-gen__preview { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
+.u3-gen__stage { height: min(46vh, 400px); border-radius: 4px; padding: 0; }
+.u3-gen__stage .u3-pic { width: min(92cqw, 88cqh * var(--a)); height: min(88cqh, 92cqw / var(--a)); overflow: visible; }
+.u3-gen__strip { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.u3-gen__strip button { flex: none; display: grid; gap: 2px; width: 96px; padding: 3px; border: var(--border-w) solid var(--border-divider); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.u3-gen__strip button:hover { border-color: var(--text); }
+.u3-gen__strip button.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.u3-gen__strip button > span { height: 54px; border-radius: 2px; }
+.u3-gen__strip small { font: var(--font-size-2xs)/1.4 var(--font-mono); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

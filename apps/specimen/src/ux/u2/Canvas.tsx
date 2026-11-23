@@ -7,7 +7,7 @@ import type { JSX } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  Button, Checkbox, DropdownMenu, EditorLayout, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextArea, TextInput, Toolbar, ToolbarSpacer, ToolRail, cx,
+  Button, Checkbox, DropdownMenu, EditorLayout, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, StatusBar, Switch, TextArea, TextInput, Toolbar, ToolbarSpacer, ToolRail, cx, dockShow, useDockLayout,
   type IconName,
 } from "@openclapper/design";
 import { picture } from "../u1/pictures";
@@ -43,8 +43,11 @@ const ROTATE = `url("data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="h
 let seq = 100;
 const uid = () => `o${seq++}`;
 
-export default function U2Canvas() {
-  const [objs, setObjs] = useState<Obj[]>(START);
+/** Another app (the shot window, the timeline) can mount the editor in place: it gives the file’s name and its own theme, and the prototype bar is left out. */
+export interface CanvasHost { title: string; theme: string; blank?: boolean; empty?: boolean }
+
+export default function U2Canvas({ host }: { host?: CanvasHost } = {}) {
+  const [objs, setObjs] = useState<Obj[]>(host?.empty ? [] : START);
   const [sel, setSel] = useState<string[]>([]);
   const [rootSel, setRootSel] = useState(false);
   const [open, setOpen] = useState<string[]>([]);
@@ -54,7 +57,7 @@ export default function U2Canvas() {
   const [stencil, setStencil] = useState<IconName>("camera");
   const [penType, setPenType] = useState<PenType>("pen");
   const [editing, setEditing] = useState<string | null>(null);
-  const [surface, setSurface] = useState<{ kind: "photo" | "blank"; colour: Colour; look: Look }>({ kind: "photo", colour: "#f4f1ea", look: NO_LOOK });
+  const [surface, setSurface] = useState<{ kind: "photo" | "blank"; colour: Colour; look: Look }>({ kind: host?.blank ? "blank" : "photo", colour: "#f4f1ea", look: NO_LOOK });
   const [presets, setPresets] = useState<Preset[]>(SEED);
   /** The preset being made: its starting values, or null when the dialog is closed. */
   const [making, setMaking] = useState<Partial<Draft> | null>(null);
@@ -63,15 +66,16 @@ export default function U2Canvas() {
   const [pic, setPic] = useState<string | null>(() => null);
   const [linked, setLinked] = useState(true);
   const [mode, setMode] = useState("outline");
-  const [tab, setTab] = useState("layers");
+  // The inspector's three parts are panels the user arranges: tabs of one place to start with.
+  const [panels, setPanels] = useDockLayout(host ? "u2-hosted-2" : "u2-2", { left: { tabs: ["tools"] }, right: { tabs: ["layers", "frames", "comments"] } });
+  const setTab = (id: string) => setPanels(dockShow(panels, id, false));
   const [locked, setLocked] = useState(false);
-  const [theme, setTheme] = useState("dark");
+  const [own, setTheme] = useState("dark"), theme = host?.theme ?? own;
   const [draft, setDraft] = useState<{ tool: Tool; pts: P[] } | null>(null);
   // The view: how far the canvas is zoomed and where it is pushed to. It changes what is seen, never the canvas.
   const [view, setView] = useState({ z: 1, x: 0, y: 0 });
   const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
   const [snap, setSnap] = useState(true);
-  const [closed, setClosed] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   /** Which comment is getting a new place or region drawn for it. */
   const [redraw, setRedraw] = useState<string | null>(null);
@@ -464,17 +468,22 @@ export default function U2Canvas() {
   const selBox = one && !frozen(one) ? bounds(one) : null;
   const drawing = tool !== "select";
   return (
-    <div ref={root} className="u2" data-theme={theme}>
-      <header className="u2-proto">
+    <div ref={root} className={cx("u2", host && "u2--hosted")} data-theme={theme}>
+      <header className="u2-proto" hidden={!!host}>
         <strong>U2</strong><span className="u2-proto__note">prototype · Canvas</span>
         <span style={{ flex: 1 }} />
         <label><Checkbox checked={locked} onChange={setLocked}>Someone else is editing</Checkbox></label>
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
       <div className="u2-work">
-        <EditorLayout className={cx("u2-editor", locked && "is-locked")} inspectorWidth={340} inspectorMin={280} inspectorMax={820} inspectorCollapsible inspectorCollapsed={closed} onInspectorCollapsed={setClosed} {...(locked ? { inert: true } : {})}
+        <EditorLayout className={cx("u2-editor", locked && "is-locked")} dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { right: 340, left: 320, bottom: 260 }, panels: [
+          { id: "tools", title: "Tools", icon: "brush", slim: true, body: <ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} /> },
+          { id: "layers", title: "Layers", icon: "layers", body: <PropertyList className="u2-inspector">{layersTab}</PropertyList> },
+          { id: "frames", title: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame", body: <PropertyList className="u2-inspector">{framesTab}</PropertyList> },
+          { id: "comments", title: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment", body: <PropertyList className="u2-inspector">{commentsTab}</PropertyList> },
+        ] }} {...(locked ? { inert: true } : {})}
           toolbar={<Toolbar>
-            <strong className="u2-title">Canvas 02</strong>
+            <strong className="u2-title">{host?.title ?? "Canvas 02"}</strong>
             <Button size="sm" variant="quiet" icon="undo" label="Undo" /><Button size="sm" variant="quiet" icon="redo" label="Redo" />
             {drawing && <span className="u2-toolopts"><span className="oc-meta">{TOOLS.find((t) => t.id === tool)!.label}</span>
               {tool === "pen" && <Segmented label="Pen" value={penType} onChange={(v) => setPenType(v as PenType)} options={Object.entries(PENS).map(([k, v]) => ({ value: k, label: v.label }))} />}
@@ -490,9 +499,7 @@ export default function U2Canvas() {
             {photo && frames.length > 1 && <Button size="sm" variant="quiet" icon="columns" selected={compare} onClick={() => { setCompare(!compare); pick(null); setSelC(null); if (!compare && mode === "full") setMode("crop"); }}>Compare</Button>}
             <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
             {photo && <span className={cx(compare && "u2-nofull")} title={compare ? "Full has no frame, so it is not offered while comparing" : undefined}><Segmented label="View mode" value={compare && mode === "full" ? "crop" : mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} /></span>}
-            <Button size="sm" variant="quiet" icon="sidebar" selected={!closed} label={closed ? "Show the inspector" : "Hide the inspector"} onClick={() => setClosed(!closed)} />
           </Toolbar>}
-          toolRail={<ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} />}
           canvas={
             compare && photo ? (
               <div className="u2-compare">
@@ -569,7 +576,6 @@ export default function U2Canvas() {
               </div>
             </div>
           }
-          inspector={<div className="u2-inspector"><div className="u2-tabs"><Segmented label="Inspector" value={tab} onChange={setTab} options={[{ value: "layers", label: "Layers", icon: "layers" }, { value: "frames", label: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame" }, { value: "comments", label: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment" }]} /></div><PropertyList>{tab === "layers" ? layersTab : tab === "frames" ? framesTab : commentsTab}</PropertyList></div>}
           statusBar={<StatusBar>{objs.filter((o) => o.kind !== "group").length} objects{photo && <> · {frames.length} frames{picF && <> · the picture is <strong>{picF.name}</strong></>}{scale < 1 && <> · a frame sees more than the photo: the hatched area is beyond it</>}</>}{compare && <> · Compare: two frames side by side, to look at, not to edit</>}{mode === "crop" && picF && <> · Crop: fitted to the picture's frame{rectOf(picF).inner ? ", bars for the delivery aspect" : ""}</>}{cur && curR?.hfov && <> · <strong>{cur.name}</strong> covers {Math.min(100, curR.w * 100).toFixed(0)} % of the photo's width</>}</StatusBar>} />
         {making && <PresetFlow start={making} onClose={() => setMaking(null)} onCreate={(pr) => {
           // The new preset is there at once: a free-form frame it was made from now belongs to it, otherwise a first frame is added.

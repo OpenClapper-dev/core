@@ -66,6 +66,8 @@ export interface FileRec {
   color?: number | string;
   /** A location's place on the fake map, in percent. */
   pos?: [number, number];
+  /** An internal file: made inside this file (its parent), hidden from the browser, lives and dies with it. */
+  internalOf?: string;
 }
 
 const day = (d: number, h = 10) => `2026-11-${String(d).padStart(2, "0")} ${String(h).padStart(2, "0")}:${String((d * 7) % 60).padStart(2, "0")}`;
