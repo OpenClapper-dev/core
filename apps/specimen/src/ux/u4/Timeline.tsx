@@ -5,6 +5,7 @@
 // Specified in docs/rewrite/06-timeline.md.
 import "../u3/u3.css";
 import "./u4.css";
+import "../u6/u6.css";
 import type { ComponentChildren } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
@@ -179,7 +180,7 @@ export default function U4Timeline() {
 
   // The strip: a ruler, the chapters, and the clips, each as wide as it lasts.
   const step = [1, 2, 5, 10, 15, 30, 60, 120].find((x) => x * scale >= 64) ?? 300, ticks = Array.from({ length: Math.floor(total / step) + 1 }, (_, i) => i * step);
-  const scrub = (e: PointerEvent) => { const el = e.currentTarget as HTMLElement, r = el.getBoundingClientRect(); const to = (m: PointerEvent) => seek((m.clientX - r.left) / scale); to(e); const up = () => { removeEventListener("pointermove", to); removeEventListener("pointerup", up); }; addEventListener("pointermove", to); addEventListener("pointerup", up); };
+  const scrub = (e: PointerEvent) => { e.preventDefault(); const r = (e.currentTarget as HTMLElement).closest(".u4-lanes")!.querySelector(".u4-ruler")!.getBoundingClientRect(); const to = (m: PointerEvent) => seek((m.clientX - r.left) / scale); to(e); const up = () => { removeEventListener("pointermove", to); removeEventListener("pointerup", up); }; addEventListener("pointermove", to); addEventListener("pointerup", up); };
   /** A timeline in the master as a film strip: as many pictures as its width holds, the first and the last always, the rest evenly from between. */
   const film = (b: Block): Seg[] => { const k = Math.max(1, Math.min(b.segs.length, Math.floor((b.len * scale) / 96))), last = b.segs.length - 1; return k === 1 ? [b.segs[0]] : Array.from({ length: k }, (_, i) => b.segs[Math.round((i * last) / (k - 1))]); };
   const fit = () => { const w = view.current?.clientWidth; if (w && total) setScale(Math.max(2, (w - 34) / total)); };
@@ -208,7 +209,7 @@ export default function U4Timeline() {
           })}
           {sort.ghost((i) => <div className="u4-clip is-current" style={{ width: "100%" }}><span className="u4-clip__cells"><span className="u4-cell" style={{ flex: 1 }}><span className="u3-item__art">{blocks[i].segs[0].ref && <Pic seen={see(blocks[i].segs[0].ref!, map, DOCS, blocks[i].segs[0].def)} />}</span></span></span><span className="u4-clip__label"><b>{blocks[i].name}</b></span></div>)}
         </div>
-        <i className="u4-playhead" style={{ left: here * scale }} />
+        <i className="u4-playhead" style={{ left: here * scale }}><b onPointerDown={scrub} title="Drag to scrub" /></i>
       </div>
     </div>
   );
