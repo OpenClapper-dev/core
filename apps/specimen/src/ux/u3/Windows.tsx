@@ -25,11 +25,12 @@ type Pick = { list: "prog" | "content"; i: number };
 /** Where the panels sit when nothing was moved: properties at the right, progression above content below the stage. */
 const PANELS: DockLayout = { right: { tabs: ["props"] }, bottom: { dir: "col", kids: [{ tabs: ["prog"] }, { tabs: ["content"] }] } };
 
-export default function U3Windows() {
+/** Another app (the timeline) can mount the window in place: it names the file and gives its own theme, and the prototype bar is left out. */
+export default function U3Windows({ host }: { host?: { file: string; theme: string } } = {}) {
   const [files, setFiles] = useState<FileRec[]>(START_FILES);
   const [docs, setDocs] = useState<Record<string, Doc>>(DOCS);
   const [progs, setProgs] = useState<Record<string, Prog | undefined>>(START_PROGS);
-  const [cur, setCur] = useState(TABS[0]);
+  const [cur, setCur] = useState(host?.file ?? TABS[0]);
   const [picked, setPick] = useState<Pick | null>(null);
   const [mode, setMode] = useState<Mode>("crop");
   const [tab, setTab] = useState("file");
@@ -41,7 +42,7 @@ export default function U3Windows() {
   const [release, setRelease] = useState<string | null>(null);
   const [binning, setBinning] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [theme, setTheme] = useState("dark");
+  const [own, setTheme] = useState("dark"), theme = host?.theme ?? own;
   const [panels, setPanels, resetPanels] = useDockLayout("u3", PANELS);
   const [lines, setLines] = useState("cards");
   const [scrub, setScrub] = useState(0);
@@ -332,8 +333,8 @@ export default function U3Windows() {
 
   const tabs = [...TABS, ...(TABS.includes(cur) ? [] : [cur])];
   return (
-    <div className="u3" data-theme={theme}>
-      <header className="u3-proto">
+    <div className={cx("u3", host && "u3--hosted")} data-theme={theme}>
+      <header className="u3-proto" hidden={!!host}>
         <strong>U3</strong><span className="u3-proto__note">prototype</span>
         <span className="u3-proto__files" role="tablist" aria-label="Open file">
           {tabs.map((id) => { const f = map.get(id)!; return <button type="button" key={id} role="tab" aria-selected={cur === id} className={cx(cur === id && "is-on")} onClick={() => open(id)}><AppIcon glyph={TYPES[f.type].glyph} color={TYPES[f.type].color} size={20} />{f.name}</button>; })}

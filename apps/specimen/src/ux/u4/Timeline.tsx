@@ -9,12 +9,13 @@ import type { ComponentChildren } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useRef, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Banner, Button, Dock, DropdownMenu, EmptyState, Icon, NumberInput, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, Slider, StatusBar, Switch, TextInput, Toast, Toolbar, ToolbarSpacer, cx, dockShow, useDockLayout,
+  AppIcon, Badge, Banner, Button, Dock, DropdownMenu, EmptyState, Checkbox, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, Slider, StatusBar, Switch, TextInput, Toast, Toolbar, ToolbarSpacer, cx, dockShow, useDockLayout,
   type DockPanel,
 } from "@openclapper/design";
 import { ColourButton, css } from "../u1/catalogue";
 import { TYPES, type FileRec } from "../u1/data";
 import U2Canvas from "../u2/Canvas";
+import U3Windows from "../u3/Windows";
 import { DOCS, START_PROGS, clock, holds, type Ref } from "../u3/model";
 import { Pic, see, type Mode } from "../u3/Pic";
 import { FileChip, FileProps } from "../u3/Props";
@@ -46,7 +47,11 @@ export default function U4Timeline() {
   const [toast, setToast] = useState<string | null>(null);
   const [theme, setTheme] = useState("dark");
   const [panels, setPanels, resetPanels] = useDockLayout("u4", { left: { tabs: ["files", "used", "chapters"] }, right: { tabs: ["clip"] }, bottom: { tabs: ["strip"] } });
-  const track = useRef<HTMLDivElement>(null);
+  // How long a clip holds when a file is added: the account's value, unless this timeline has one of its own.
+  const [accountHold, setAccountHold] = useState(2);
+  const [ownHold, setOwnHold] = useState<Record<string, number | undefined>>({});
+  const newHold = ownHold[cur] ?? accountHold;
+  const track = useRef<HTMLDivElement>(null), view = useRef<HTMLDivElement>(null);
   const say = (m: string) => { setToast(m); setTimeout(() => setToast((x) => (x === m ? null : x)), 3200); };
 
   const map = new Map(files.map((f) => [f.id, f]));
@@ -94,7 +99,7 @@ export default function U4Timeline() {
   const pick = (b: Block, time = b.start) => { setPlaying(false); if (editing && editing !== b.id) setEditing(null); setSel(b.id); setT(time); };
   const go = (id: string) => { setCur(id); setPlaying(false); setEditing(null); setT(0); setSel(id === "master" ? master[0] ?? null : cuts[id][0]?.id ?? null); };
   const insert = (refs: Ref[], index?: number) => {
-    const i = index ?? (clip ? clips.findIndex((c) => c.id === clip.id) + 1 : clips.length), fresh = refs.map((ref) => ({ id: uid(), ref, hold: 2 }));
+    const i = index ?? (clip ? clips.findIndex((c) => c.id === clip.id) + 1 : clips.length), fresh = refs.map((ref) => ({ id: uid(), ref, hold: newHold }));
     setClips([...clips.slice(0, i), ...fresh, ...clips.slice(i)]); setSel(fresh[0].id); say(`${fresh.length === 1 ? nameOf(fresh[0]) : `${fresh.length} clips`} added to the cut`);
   };
   const remove = (id: string) => { if (isMaster) setMaster(master.filter((x) => x !== id)); else setClips(clips.filter((c) => c.id !== id)); setSel(null); setEditing(null); };
@@ -142,13 +147,13 @@ export default function U4Timeline() {
     <div className="u3-top u3-top--edit">
       <div className="u3-host">
         <Button size="sm" icon="arrow-left" onClick={() => setEditing(null)}>Back to the cut</Button>
-        <span className="u3-host__crumb"><AppIcon glyph="timeline" color={6} size={20} />{isMaster ? "Master" : map.get(cur)!.name}<Icon name="chevron-right" size={12} /><AppIcon glyph="brush" color={2} size={20} /><strong>{editBlock.file.name}</strong></span>
+        <span className="u3-host__crumb"><AppIcon glyph="timeline" color={6} size={20} />{isMaster ? "Master" : map.get(cur)!.name}<Icon name="chevron-right" size={12} /><AppIcon glyph={TYPES[editBlock.file.type].glyph} color={TYPES[editBlock.file.type].color} size={20} /><strong>{editBlock.file.name}</strong></span>
         <span className="u3-host__note">{others.length ? <><Icon name="link" size={12} /> You are changing the file itself. Also used in: {others.map((f) => f.name).join(", ")}</> : <><Icon name="file" size={12} /> Used only in this timeline</>}</span>
         <span style={{ flex: 1 }} />
         {others.length > 0 && <Button size="sm" variant="quiet" icon="copy" onClick={() => say(`A copy of “${editBlock.file!.name}” takes its place in this clip; the original stays as it is`)}>Edit a copy instead</Button>}
         <Button size="sm" variant="primary" icon="check" onClick={() => setEditing(null)}>Done</Button>
       </div>
-      <U2Canvas key={editing} host={{ title: editBlock.file.name, theme, blank: !DOCS[editBlock.file.id]?.base }} />
+      {editBlock.file.type === "shot" ? <U3Windows key={editing} host={{ file: editBlock.file.id, theme }} /> : <U2Canvas key={editing} host={{ title: editBlock.file.name, theme, blank: !DOCS[editBlock.file.id]?.base }} />}
     </div>
   ) : (
     <div className="u4-stage">
@@ -173,22 +178,25 @@ export default function U4Timeline() {
   );
 
   // The strip: a ruler, the chapters, and the clips, each as wide as it lasts.
-  const step = scale > 90 ? 1 : scale > 40 ? 2 : 5, ticks = Array.from({ length: Math.floor(total / step) + 1 }, (_, i) => i * step);
+  const step = [1, 2, 5, 10, 15, 30, 60, 120].find((x) => x * scale >= 64) ?? 300, ticks = Array.from({ length: Math.floor(total / step) + 1 }, (_, i) => i * step);
   const scrub = (e: PointerEvent) => { const el = e.currentTarget as HTMLElement, r = el.getBoundingClientRect(); const to = (m: PointerEvent) => seek((m.clientX - r.left) / scale); to(e); const up = () => { removeEventListener("pointermove", to); removeEventListener("pointerup", up); }; addEventListener("pointermove", to); addEventListener("pointerup", up); };
+  /** A timeline in the master as a film strip: as many pictures as its width holds, the first and the last always, the rest evenly from between. */
+  const film = (b: Block): Seg[] => { const k = Math.max(1, Math.min(b.segs.length, Math.floor((b.len * scale) / 96))), last = b.segs.length - 1; return k === 1 ? [b.segs[0]] : Array.from({ length: k }, (_, i) => b.segs[Math.round((i * last) / (k - 1))]); };
+  const fit = () => { const w = view.current?.clientWidth; if (w && total) setScale(Math.max(2, (w - 34) / total)); };
   const strip = !blocks.length ? <p className="u3-note">{isMaster ? "No timeline is in the master yet. Add one from the Timelines panel." : "Nothing in this cut yet. Drag files here from the Files panel."}</p> : (
-    <div className="u4-scroll">
-      <div className="u4-lanes" style={{ width: total * scale + 80 }}>
+    <div className="u4-scroll" ref={view}>
+      <div className="u4-lanes" style={{ width: total * scale }}>
         <div className="u4-ruler" onPointerDown={scrub}>{ticks.map((s) => <span key={s} style={{ left: s * scale }}>{clock(s)}</span>)}</div>
         <div className="u4-chapters">{chapters.map((c, i) => <button type="button" key={c.id} style={{ left: c.start * scale, width: ((chapters[i + 1]?.start ?? total) - c.start) * scale, "--c": css(c.color) }} title={`Chapter “${c.title}”`} onClick={() => pick(blocks.find((b) => b.id === c.id)!)}><Icon name="bookmark" size={10} />{c.title}</button>)}</div>
         <div className="u4-track" ref={track}>
           {blocks.map((b, i) => {
-            const many = b.segs.length > 1, cells = many && spread === "spread" ? b.segs : [b.segs[0]];
+            const many = b.segs.length > 1, cells = isMaster ? film(b) : many && spread === "spread" ? b.segs : [b.segs[0]];
             let s0 = b.start;
             return (
-              <div key={b.id} data-sort role="button" tabIndex={0} className={cx("u4-clip", sel === b.id && "is-current", many && "is-group", b.segs[0].kind === "placeholder" && "is-placeholder", b.segs[0].kind === "missing" && "is-missing")} style={{ width: b.len * scale, ...sort.style(i) }} title={b.name} onPointerDown={sort.start(i)} onClick={() => pick(b)} onDblClick={() => (isMaster ? go(b.id) : b.file?.type === "canvas" ? (pick(b), setEditing(b.id)) : b.file && say(`“${b.file.name}” opens in the ${TYPES[b.file.type].app} app, in a window of its own`))}>
+              <div key={b.id} data-sort role="button" tabIndex={0} className={cx("u4-clip", sel === b.id && "is-current", many && "is-group", b.segs[0].kind === "placeholder" && "is-placeholder", b.segs[0].kind === "missing" && "is-missing")} style={{ width: b.len * scale, ...sort.style(i) }} title={b.name} onPointerDown={sort.start(i)} onClick={() => pick(b)} onDblClick={() => (isMaster ? go(b.id) : b.file && !b.file.binned && (b.file.type === "canvas" || b.file.type === "shot") ? (pick(b), setEditing(b.id)) : b.file && say(`“${b.file.name}” opens in the ${TYPES[b.file.type].app} app, in a window of its own`))}>
                 <span className="u4-clip__cells">
                   {cells.map((s, k) => { const from = s0; s0 += s.dur; return (
-                    <span key={k} className="u4-cell" style={{ flex: cells.length > 1 ? `${s.dur} 1 0px` : 1 }} onClick={(e) => { if (cells.length > 1) { e.stopPropagation(); pick(b, from); } }}>
+                    <span key={k} className="u4-cell" style={{ flex: cells.length > 1 && !isMaster ? `${s.dur} 1 0px` : 1 }} onClick={(e) => { if (cells.length > 1 && !isMaster) { e.stopPropagation(); pick(b, from); } }}>
                       <span className="u3-item__art">{s.ref && s.kind !== "missing" ? <Pic seen={see(s.ref, map, DOCS, s.def)} overlay={s.overlay} /> : <span className="u4-cell__none"><Icon name={s.kind === "placeholder" ? "hourglass" : s.kind === "missing" ? "warning" : "slate"} /></span>}</span>
                     </span>
                   ); })}
@@ -207,11 +215,20 @@ export default function U4Timeline() {
   const stripActions = (
     <>
       <span className="u3-sec__count oc-num">{blocks.length} {isMaster ? "timelines" : "clips"} · {clock(total)}</span>
-      {!isMaster && <Button size="sm" variant="quiet" icon="hourglass" title="A place in the cut where something is still missing" onClick={() => { const c = { id: uid(), hold: 2, title: "Placeholder" }, i = clip ? clips.findIndex((x) => x.id === clip.id) + 1 : clips.length; setClips([...clips.slice(0, i), c, ...clips.slice(i)]); setSel(c.id); setPanels(dockShow(panels, "clip")); }}>Placeholder</Button>}
+      {!isMaster && <Button size="sm" variant="quiet" icon="hourglass" title="A place in the cut where something is still missing" onClick={() => { const c = { id: uid(), hold: newHold, title: "Placeholder" }, i = clip ? clips.findIndex((x) => x.id === clip.id) + 1 : clips.length; setClips([...clips.slice(0, i), c, ...clips.slice(i)]); setSel(c.id); setPanels(dockShow(panels, "clip")); }}>Placeholder</Button>}
       {!isMaster && <Button size="sm" variant="quiet" icon="bookmark" disabled={!clip} selected={!!clip?.marker} title="A chapter starts at the chosen clip" onClick={() => clip && patch(clip.id, { marker: clip.marker ? undefined : { title: "New chapter", color: 3 } })}>Chapter</Button>}
       <span style={{ flex: 1 }} />
-      <Segmented label="Shots with a progression" value={spread} onChange={setSpread} options={[{ value: "spread", label: "Spread", title: "One cell per picture of a progression" }, { value: "collapsed", label: "Collapsed", title: "A progression as one clip showing its first picture" }]} />
-      <span className="u3-slide" style={{ flex: "none", width: 150 }} title="Zoom the strip"><Icon name="zoom-out" size={12} /><Slider min={16} max={160} step={4} value={scale} onChange={setScale} /><Icon name="zoom-in" size={12} /></span>
+      {!isMaster && <Popover align="end" trigger={<Button size="sm" variant="quiet" icon="clock" iconAfter="chevron-down" title="How long a clip holds when a file is added">New clips {newHold} s</Button>}>
+        <div className="u3-pop">
+          <Checkbox checked={ownHold[cur] != null} onChange={(c) => setOwnHold({ ...ownHold, [cur]: c ? accountHold : undefined })}>This timeline has its own value</Checkbox>
+          {ownHold[cur] != null ? <span className="u3-inline">In this timeline <NumberInput size="sm" value={ownHold[cur]!} unit="s" min={0.1} max={60} step={0.5} style={{ width: 96 }} onChange={(v) => setOwnHold({ ...ownHold, [cur]: v })} /></span>
+            : <span className="u3-inline">For your account <NumberInput size="sm" value={accountHold} unit="s" min={0.1} max={60} step={0.5} style={{ width: 96 }} onChange={setAccountHold} /></span>}
+          <p className="u3-hint">A file or a placeholder added to a cut holds this long. Every timeline takes your account's value unless it has its own.</p>
+        </div>
+      </Popover>}
+      {!isMaster && <Segmented label="Shots with a progression" value={spread} onChange={setSpread} options={[{ value: "spread", label: "Spread", title: "One cell per picture of a progression" }, { value: "collapsed", label: "Collapsed", title: "A progression as one clip showing its first picture" }]} />}
+      <Button size="sm" variant="quiet" icon="expand" title="Fit the whole cut into the width of the strip" onClick={fit}>Fit</Button>
+      <span className="u3-slide" style={{ flex: "none", width: 150 }} title="Zoom the strip"><Icon name="zoom-out" size={12} /><Slider min={4} max={160} step={2} value={Math.min(160, Math.max(4, Math.round(scale)))} onChange={setScale} /><Icon name="zoom-in" size={12} /></span>
     </>
   );
 
@@ -285,9 +302,9 @@ export default function U4Timeline() {
           <PropertyRow label="Starts at" value={clock(chosen.start)} numeric />
           {chosen.fixed && <p className="u3-note">The pictures and their timing belong to the shot and are changed there. The clip has no time of its own.</p>}
           <div className="u3-bar u4-pad u4-wrap">
-            {file?.type === "canvas" && !file.binned && <Button size="sm" icon="edit" onClick={() => { pick(chosen); setEditing(chosen.id); }}>Edit here</Button>}
+            {file && !file.binned && (file.type === "canvas" || file.type === "shot") && <Button size="sm" icon="edit" title="Mounts the file's app in this window, in place of the stage. A double-click on the clip does the same" onClick={() => { pick(chosen); setEditing(chosen.id); }}>Edit here</Button>}
             {file?.type === "photo" && !file.binned && <Button size="sm" icon="brush" onClick={() => say(`Makes a canvas on “${file.name}” and points this clip at it: draw on it, give it a look, frame it`)}>Make a canvas from it</Button>}
-            {file && !file.binned && <Button size="sm" variant="quiet" icon="external" onClick={() => say(`“${file.name}” opens in the ${TYPES[file.type].app} app, in a window of its own`)}>Open</Button>}
+            {file && !file.binned && <Button size="sm" variant="quiet" icon="external" title={`Opens the ${TYPES[file.type].app} app in a window of its own`} onClick={() => say(`“${file.name}” opens in the ${TYPES[file.type].app} app, in a window of its own`)}>Open in {TYPES[file.type].app}</Button>}
             {!clip.ref && <Button size="sm" icon="plus" onClick={() => { setPanels(dockShow(panels, "files")); say("Drag a file from the Files panel onto the strip; then remove the placeholder"); }}>Fill it</Button>}
             <Button size="sm" variant="quiet" icon="trash" onClick={() => remove(clip.id)}>Remove</Button>
           </div>

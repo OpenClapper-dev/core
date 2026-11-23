@@ -13,7 +13,7 @@
 
 /* The strip. */
 .u4-scroll { flex: 1; min-height: 0; overflow: auto; }
-.u4-lanes { position: relative; min-width: 100%; padding: 0 var(--space-5) var(--space-4); box-sizing: content-box; }
+.u4-lanes { position: relative; padding: 0 16px var(--space-4); box-sizing: content-box; }
 .u4-ruler { position: relative; height: 22px; border-bottom: var(--border-w) solid var(--border-divider); cursor: text; touch-action: none; }
 .u4-ruler > span { position: absolute; top: 0; bottom: 0; padding: 4px 0 0 4px; border-left: var(--border-w) solid var(--border-control); color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); white-space: nowrap; pointer-events: none; }
 .u4-chapters { position: relative; height: 22px; margin: 3px 0; }
@@ -36,7 +36,7 @@
 .u4-clip__label small { display: inline-flex; align-items: center; gap: 2px; color: var(--text-secondary); }
 .u4-clip__label i { font-style: normal; color: var(--text-secondary); }
 .u4-clip:hover .u3-item__grip::after { opacity: .9; }
-.u4-playhead { position: absolute; top: 0; bottom: var(--space-4); width: 2px; margin-left: calc(var(--space-5) - 1px); background: var(--over-rec, #ff2d2d); pointer-events: none; z-index: 3; }
+.u4-playhead { position: absolute; top: 0; bottom: var(--space-4); width: 2px; margin-left: 15px; background: var(--over-rec, #ff2d2d); pointer-events: none; z-index: 3; }
 .u4-playhead::before { content: ""; position: absolute; top: 0; left: -5px; border: 6px solid transparent; border-top: 8px solid var(--over-rec, #ff2d2d); }
 .u4-insert { position: fixed; z-index: 900; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
 

@@ -1,6 +1,6 @@
 # U4 · Timeline
 
-UX workshop [#360](https://github.com/OpenClapper-dev/core/issues/360) ([plan](ux-plan.md)). Status: **in progress** (round 1, 2026-11-23).
+UX workshop [#360](https://github.com/OpenClapper-dev/core/issues/360) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
 
 The window that opens a timeline, and the master timeline. Specified in [06](06-timeline.md) and [I1](i1-interjection.md).
 
@@ -32,13 +32,27 @@ The window that opens a timeline, and the master timeline. Specified in [06](06-
 
 Limits of the prototype: the mounted canvas tool always opens U2's sample canvas; shots and their progressions are fixed (they are edited in U3's prototype, which does not share its changes with this one); a shot clip only says that it opens the shot's window.
 
-## Open questions for the owner
+## Round 2 (2026-11-23)
 
-1. **Editing a shot from the cut.** A canvas is edited on the stage. A shot clip opens the shot's window. Should the shot window also be mounted in place (its properties in the Clip panel are already there), or is the own window right for shots?
-2. **One track.** The cut is one row of clips. Nothing in the specification asks for more; confirm that a second track is not wanted.
-3. **Dragging files in** adds a clip of 2 s. Should the default hold time be a setting of the timeline or of the account?
-4. **The master's strip** shows each timeline's pictures (spread) or its first picture (collapsed), with the same switch as for progressions. Enough, or should the master show the timelines' own chapters too?
-5. **Replacing a clip's file** (pointing a clip or a placeholder at another file while keeping its place and time) is not built; today a file is dragged in and the old clip removed. Wanted as a drop onto a clip?
+From the owner's reaction to round 1.
+
+| Change | What to try |
+| --- | --- |
+| **Fit** | A button beside the zoom slider: the whole cut fits the width of the strip, without scrolling |
+| **The active tab has colour** | In every `Dock`: the tab in front carries a bar in the accent colour under it (at its side in a rail) |
+| **A shot is edited in place, too** | Double-click a shot clip, or "Edit here" in its panel: the shot window of [U3](ux-3-shot.md) takes the stage, with the same bar as for a canvas. "Open in Shot" (or Canvas, Photo) beside it opens the file's app in a window of its own |
+| **How long a new clip holds** | "New clips … s" in the strip's controls. The value belongs to the account and every timeline takes it; a timeline can be given a value of its own |
+| **The master as a film strip** | A timeline in the master shows as many of its pictures as its width holds: always the first and the last, the rest evenly from between. Zooming in shows more. The Spread and Collapsed switch is for progressions and is not shown in the master |
+
+## Decided so far
+
+2026-11-23, by the owner:
+
+- **A file is edited from the cut in two ways,** for a canvas and for a shot alike: mounted in place (a double-click, or "Edit here"), or opened in its app in a window of its own.
+- **One track.** No second track.
+- **A new clip holds 2 s by default.** The value is an account setting that every timeline inherits and a timeline can override.
+- **The master shows each timeline as a film strip** with its first and last picture and what fits between. It does not show the timelines' own chapters.
+- **No "replace the file of a clip".** A clip that is not wanted is removed and another file is dragged in.
 
 ## Not prototyped
 
