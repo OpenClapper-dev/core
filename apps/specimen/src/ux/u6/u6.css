@@ -45,11 +45,17 @@
 .u6-ctl small { color: #fff; font: 600 9px/1 var(--font-sans); opacity: .85; }
 .u6-last { display: block; flex: none; }
 .u6-last img { display: block; width: 100%; height: 100%; object-fit: cover; }
-/* Readouts: one tag each. */
-.u6-chips { position: absolute; left: 8px; right: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 4px; pointer-events: none; }
-.u6-chips > span { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 10px; background: rgba(0, 0, 0, .72); color: #fff; font: 600 11px/14px var(--font-mono); white-space: nowrap; }
-.u6-chips > span.is-warn { background: var(--warning, #d98a00); color: #000; }
-.u6-chips i { width: 8px; height: 8px; border-radius: 50%; background: var(--cat-4); }
+/* A readout: a tag of its own. */
+.u6-chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 10px; background: rgba(0, 0, 0, .72); color: #fff; font: 600 11px/14px var(--font-mono); white-space: nowrap; }
+.u6-chip.is-warn { background: var(--warning, #d98a00); color: #000; }
+.u6-chip i { width: 8px; height: 8px; border-radius: 50%; background: var(--cat-4); }
+/* Bars over the picture: stacked at their edge inside it, see-through. */
+.u6-over { position: absolute; display: flex; z-index: 2; }
+.u6-over--top { left: 0; right: 0; top: 0; flex-direction: column; } .u6-over--bottom { left: 0; right: 0; bottom: 0; flex-direction: column; }
+.u6-over--left { left: 0; top: 0; bottom: 0; } .u6-over--right { right: 0; top: 0; bottom: 0; }
+.u6-bar.is-over { background: transparent; box-shadow: none; flex-wrap: wrap; gap: 4px; }
+.u6-bar.is-over.is-h { min-height: 30px; padding: 6px 8px; }
+.u6-bar.is-over.is-v { min-width: 30px; }
 .u6-tabs { flex: none; display: flex; align-items: center; justify-content: space-around; height: 56px; background: var(--surface-sunken); color: var(--text-secondary); }
 .u6-tabs.is-side { flex-direction: column; width: 64px; height: auto; }
 .u6-line { position: fixed; z-index: 900; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
@@ -102,8 +108,6 @@
 /* Flows and extensions. */
 .u6-flows { flex: 1; min-height: 0; display: flex; }
 .u6-flows__list { flex: none; width: 250px; border-right: var(--border-w) solid var(--border-divider); overflow: auto; }
-.u6-flows__side { flex: none; width: 300px; border-left: var(--border-w) solid var(--border-divider); overflow: auto; }
-.u6-flows__tracks { flex: 1; min-width: 0; }
 .u6-exts { flex: 1; overflow: auto; display: grid; gap: var(--space-5); align-content: start; max-width: 860px; padding: var(--space-7); }
 .u6-lead { margin: 0; color: var(--text-secondary); }
 .u6-ext { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-5); align-items: start; padding: var(--space-5); border: var(--border-w) solid var(--border-control); border-radius: var(--radius-card); }
@@ -133,3 +137,68 @@
 .u6-lanes > b { position: absolute; }
 .u6-prog { position: relative; }
 .u6-prog > b { position: absolute; top: var(--space-4); bottom: var(--space-4); width: 2px; background: var(--over-rec, #ff2d2d); }
+
+/* The flow editor, shared by the Studio and the phone. */
+.u6f { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--surface); }
+.u6f-bar { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--border-w) solid var(--border-divider); overflow-x: auto; scrollbar-width: none; }
+.u6f-bar > * { flex: none; }
+.u6f-body { flex: 1; min-height: 0; display: flex; }
+.u6f--touch .u6f-body { flex-direction: column; }
+.u6f-grid { flex: 1; min-width: 0; min-height: 0; overflow: auto; }
+.u6f-inner { position: relative; min-height: 100%; }
+.u6f-side { flex: none; width: 300px; border-left: var(--border-w) solid var(--border-divider); overflow: auto; }
+.u6f--touch .u6f-side { width: auto; max-height: 46%; border-left: 0; border-top: var(--border-w) solid var(--border-control); }
+.u6f-ruler { position: sticky; top: 0; z-index: 4; height: 26px; border-bottom: var(--border-w) solid var(--border-control); background: var(--surface-sunken); cursor: pointer; touch-action: none; }
+.u6f-ruler > span { position: absolute; top: 0; bottom: 0; padding: 6px 0 0 4px; border-left: var(--border-w) solid var(--border-control); color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); pointer-events: none; }
+.u6f-markers { position: relative; height: 22px; border-bottom: var(--border-w) solid var(--border-divider); }
+.u6f-markers > button { position: absolute; top: 2px; display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 6px; border: 0; border-left: 2px solid var(--accent); border-radius: 0 3px 3px 0; background: color-mix(in srgb, var(--accent) 22%, var(--surface)); color: var(--text); font: 600 10px/1 var(--font-sans); white-space: nowrap; overflow: hidden; cursor: pointer; }
+.u6f-markers > button.is-range { border-right: 2px solid var(--accent); border-radius: 0; }
+.u6f-markers > button.is-on { background: var(--accent); color: var(--text-on-accent); }
+.u6f-track { position: relative; display: flex; height: var(--h); border-bottom: var(--border-w) solid var(--border-divider); }
+.u6f-track.is-muted { opacity: .45; }
+.u6f-label { position: sticky; left: 0; z-index: 3; flex: none; display: flex; align-items: center; gap: var(--space-3); width: var(--head); padding: 0 var(--space-3); box-sizing: border-box; border: 0; border-left: 4px solid var(--c); border-right: var(--border-w) solid var(--border-divider); background: var(--surface-sunken); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.u6f-label:hover, .u6f-label.is-on { background: var(--selection); }
+.u6f-label > span { flex: 1; min-width: 0; display: grid; }
+.u6f-label b, .u6f-label small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u6f-label small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.u6f-lane { position: absolute; inset: 0; background: color-mix(in srgb, var(--c) 7%, transparent); }
+.u6f-graph { position: absolute; left: 0; top: 0; pointer-events: none; }
+.u6f-graph polyline { fill: none; stroke: var(--c); stroke-width: 2; opacity: .8; }
+.u6f-fade { position: absolute; bottom: 2px; height: 8px; padding: 0; border: 0; border-radius: 4px; background: color-mix(in srgb, var(--text) 12%, transparent); cursor: pointer; }
+.u6f-fade:hover { background: color-mix(in srgb, var(--text) 30%, transparent); }
+.u6f-fade.is-fade { background: linear-gradient(90deg, transparent, var(--c)); }
+.u6f-fade.is-on { box-shadow: 0 0 0 2px var(--accent); }
+.u6f-key { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; padding: 0; border: 2px solid var(--c); border-radius: 50%; background: var(--surface); cursor: grab; touch-action: none; z-index: 2; }
+.u6f--touch .u6f-key { width: 26px; height: 26px; margin: -13px 0 0 -13px; }
+.u6f-key.is-start { border-radius: 4px; cursor: pointer; }
+.u6f-key.is-off { background: transparent !important; border-style: dashed; }
+.u6f-key.is-on { box-shadow: 0 0 0 3px var(--accent); }
+.u6f-key > span { position: absolute; left: 50%; bottom: 100%; translate: -50% -3px; padding: 0 4px; border-radius: 3px; background: var(--surface); color: var(--text); font: 600 10px/14px var(--font-mono); white-space: nowrap; pointer-events: none; }
+/* The playhead: a line and a thumb big enough to take hold of. */
+.u6f-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--over-rec, #ff2d2d); pointer-events: none; z-index: 5; }
+.u6f-head > b, .u4-playhead > b { position: absolute; top: 0; left: -9px; width: 20px; height: 24px; border-radius: 4px 4px 10px 10px; background: var(--over-rec, #ff2d2d); box-shadow: 0 0 0 1px rgba(0, 0, 0, .4); pointer-events: auto; cursor: grab; touch-action: none; }
+.u6f-head > b:active, .u4-playhead > b:active { cursor: grabbing; }
+.u6f-head > b::after, .u4-playhead > b::after { content: ""; position: absolute; left: 6px; right: 6px; top: 6px; height: 8px; border-inline: 2px solid rgba(255, 255, 255, .8); }
+
+/* Devices: a card per device across the width, and a table. */
+.u6-cards { display: grid; gap: var(--space-3); }
+.u6-card { display: flex; align-items: center; gap: var(--space-5); padding: var(--space-4) var(--space-5); border: var(--border-w) solid var(--border-control); border-left: 5px solid var(--c); border-radius: var(--radius-card); background: var(--surface); cursor: pointer; }
+.u6-card:hover { border-color: var(--text); border-left-color: var(--c); }
+.u6-card.is-current { border-color: var(--accent); border-left-color: var(--c); box-shadow: 0 0 0 1px var(--accent); }
+.u6-card.is-off { background: var(--surface-sunken); }
+.u6-card__who { flex: none; width: 250px; display: grid; grid-template-columns: auto 1fr; gap: 6px var(--space-4); align-items: center; }
+.u6-card__who > :nth-child(n + 3) { grid-column: 1 / -1; justify-self: start; }
+.u6-card__who > .u6-batt { justify-self: stretch; }
+.u6-card__icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: color-mix(in srgb, var(--c) 24%, var(--surface)); color: var(--text); }
+.u6-card__name { display: grid; min-width: 0; }
+.u6-card__name strong, .u6-card__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.u6-card__name small, .u6-card__who > small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-card__what { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4) var(--space-6); cursor: default; }
+.u6-field { display: grid; gap: 4px; align-content: end; min-width: 84px; }
+.u6-field > span:first-child { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-field > span:first-child b { color: var(--text); }
+.u6-field--wide { flex: 1 1 170px; max-width: 260px; }
+.u6-lampbig { flex: none; align-self: center; width: 40px; height: 40px; margin-left: auto; border-radius: 50%; border: var(--border-w) solid var(--border-control); }
+.u6-rec { color: var(--danger, #c62828); }
+.u6-kind { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px 1px 5px; border-radius: 10px; background: color-mix(in srgb, var(--c) 24%, transparent); font-size: var(--font-size-xs); }
+.u6-dash { color: var(--text-disabled); }

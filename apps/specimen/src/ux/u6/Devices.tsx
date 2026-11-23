@@ -4,7 +4,7 @@
 // connections (it is the proxy); the controls live here. Specified in docs/rewrite/03-capture.md and 08-extensions.md.
 import { useState } from "preact/hooks";
 import {
-  Badge, Banner, Button, Dialog, Dock, DropdownMenu, EmptyState, Icon, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, Switch, TextInput, Toolbar, ToolbarSpacer, cx, useDockLayout,
+  Badge, Banner, Button, Dialog, Dock, DropdownMenu, EmptyState, Icon, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, Switch, Table, TextInput, Toolbar, ToolbarSpacer, cx, useDockLayout,
   type DockPanel, type IconName,
 } from "@openclapper/design";
 import { ColourButton, type Colour } from "../u1/catalogue";
@@ -13,6 +13,7 @@ type Kind = "phone" | "tablet" | "light" | "battery" | "camera" | "transmitter";
 type Link = "connected" | "near" | "away" | "asleep" | "self";
 interface Dev { id: string; kind: Kind; brand: string; model: string; name: string; link: Link; battery?: number; mins?: number; on?: boolean; level?: number; kelvin?: number; colour?: Colour; effect?: string; poweredBy?: string; rec?: boolean; iso?: string; shutter?: string; tabs?: string[]; layout?: string }
 const KIND: Record<Kind, { label: string; plural: string; icon: IconName; core?: boolean }> = { phone: { label: "Phone", plural: "Phones and tablets", icon: "mobile", core: true }, tablet: { label: "Tablet", plural: "Phones and tablets", icon: "tablet", core: true }, light: { label: "Light", plural: "Lights", icon: "light-fixture" }, battery: { label: "Battery", plural: "Batteries", icon: "battery" }, camera: { label: "Camera", plural: "Cameras", icon: "video" }, transmitter: { label: "Video transmitter", plural: "Video transmitters", icon: "antenna" } };
+const TINT: Record<Kind, number> = { phone: 6, tablet: 6, light: 3, battery: 4, camera: 1, transmitter: 8 };
 const LINK: Record<Link, string> = { connected: "Connected", near: "In range, connecting", away: "Not in range", asleep: "Asleep", self: "Registered" };
 /** The catalogue of supported hardware: brand, model, type. It is part of the app and grows with it. */
 const CATALOGUE: [string, string, Kind][] = [["Aputure", "MC", "light"], ["NEEWER", "FS230B", "light"], ["NEEWER", "FS300B", "light"], ["NEEWER", "PS099S", "battery"], ["Blackmagic", "Pocket Cinema Camera 6K", "camera"], ["Hollyland", "Mars 400S Pro", "transmitter"]];
@@ -31,25 +32,56 @@ const START: Dev[] = [
 export default function Devices({ hardware, say, toExtensions }: { hardware: boolean; say: (m: string) => void; toExtensions: () => void }) {
   const [devs, setDevs] = useState<Dev[]>(START);
   const [sel, setSel] = useState("l1");
-  const [view, setView] = useState("glance");
+  const [view, setView] = useState("cards");
   const [proxy, setProxy] = useState(true);
   const [adding, setAdding] = useState<null | "scan" | "found">(null);
   const [panels, setPanels] = useDockLayout("u6-devices", { right: { tabs: ["device"] } });
   const shown = devs.filter((d) => hardware || KIND[d.kind].core), d = shown.find((x) => x.id === sel) ?? shown[0];
+  const patchId = (id: string, c: Partial<Dev>) => setDevs((all) => all.map((x) => (x.id === id ? { ...x, ...c } : x)));
   const patch = (c: Partial<Dev>) => setDevs(devs.map((x) => (x.id === d.id ? { ...x, ...c } : x)));
   const live = (x: Dev) => x.link === "connected" && proxy;
   const groups = [...new Set(shown.map((x) => KIND[x.kind].plural))];
   const level = (x: Dev) => x.battery != null && <span className={cx("u6-batt", x.battery < 10 ? "is-red" : x.battery < 25 && "is-amber")}><i style={{ width: `${x.battery}%` }} /><b className="oc-num">{x.battery} %</b></span>;
   const power = (x: Dev) => (x.poweredBy === "socket" ? "Socket" : x.poweredBy ? devs.find((b) => b.id === x.poweredBy)?.name : undefined);
-  const tile = (x: Dev) => (
-    <button type="button" key={x.id} className={cx("u6-tile", sel === x.id && "is-current", !KIND[x.kind].core && !live(x) && "is-off")} onClick={() => setSel(x.id)}>
-      <span className="u6-tile__head"><Icon name={KIND[x.kind].icon} size={20} /><strong>{x.name}</strong>{x.kind === "light" && live(x) && <i className="u6-lamp" style={{ background: x.on ? (typeof x.colour === "string" ? x.colour : "#ffe2b8") : "transparent", opacity: x.on ? 0.35 + (x.level ?? 0) / 150 : 1 }} />}</span>
-      <span className="u6-tile__meta">{x.brand} {x.model}</span>
-      <span className={cx("u6-link", `is-${x.link}`)}><i />{KIND[x.kind].core ? (x.id === "p1" ? "This is the proxy" : "Registered") : proxy ? LINK[x.link] : "No proxy"}</span>
-      {level(x)}{x.mins != null && live(x) && <small>{x.mins} min left</small>}
-      {power(x) && <small>Runs on: {power(x)}</small>}{x.kind === "battery" && <small>Powers: {devs.find((l) => l.poweredBy === x.id)?.name ?? "nothing"}</small>}
-    </button>
-  );
+  /** The connection as a coloured mark with an icon: green connected, amber on its way, red out of reach, grey asleep. */
+  const badge = (x: Dev) => (KIND[x.kind].core ? <Badge tone="success" icon="check">{x.id === "p1" && hardware && proxy ? "The proxy" : "Registered"}</Badge> : !proxy ? <Badge tone="danger" icon="warning">No proxy</Badge> : x.link === "connected" ? <Badge tone="success" icon="check">Connected</Badge> : x.link === "near" ? <Badge tone="warning" icon="loader">Connecting</Badge> : x.link === "asleep" ? <Badge icon="moon">Asleep</Badge> : <Badge tone="danger" icon="wifi-off">Not in range</Badge>);
+  const kind = (x: Dev) => <span className="u6-kind" style={{ "--c": `var(--cat-${TINT[x.kind]})` }}><Icon name={KIND[x.kind].icon} />{KIND[x.kind].label}</span>;
+  const relation = (x: Dev) => (power(x) ? `Runs on ${power(x)}` : x.kind === "battery" ? `Powers ${devs.find((l) => l.poweredBy === x.id)?.name ?? "nothing"}` : "");
+  /** A device as a card across the full width: who it is at the left, what it exposes beside it, ready to use. */
+  const card = (x: Dev) => {
+    const dead = !KIND[x.kind].core && !live(x), stop = (e: Event) => e.stopPropagation();
+    return (
+      <article key={x.id} className={cx("u6-card", sel === x.id && "is-current", dead && "is-off")} style={{ "--c": `var(--cat-${TINT[x.kind]})` }} onClick={() => setSel(x.id)}>
+        <div className="u6-card__who">
+          <span className="u6-card__icon"><Icon name={KIND[x.kind].icon} size={24} /></span>
+          <span className="u6-card__name"><strong>{x.name}</strong><small>{x.brand} {x.model}</small></span>
+          {badge(x)}
+          {level(x)}
+          {x.mins != null && !dead && <small className="oc-num">{x.mins} min left</small>}
+        </div>
+        <div className="u6-card__what" onClick={stop}>
+          {x.kind === "light" && <>
+            <label className="u6-field"><span>Power</span><Switch checked={!!x.on} disabled={dead} onChange={(v) => patchId(x.id, { on: v })} aria-label={`Power of ${x.name}`} /></label>
+            <label className="u6-field u6-field--wide"><span>Intensity <b className="oc-num">{x.level} %</b></span><Slider min={0} max={100} value={x.level ?? 0} disabled={dead} onChange={(v) => patchId(x.id, { level: v })} /></label>
+            <label className="u6-field u6-field--wide"><span>White <b className="oc-num">{x.kelvin} K</b></span><Slider min={x.model === "MC" ? 3200 : 2700} max={6500} step={100} value={x.kelvin ?? 5600} disabled={dead} onChange={(v) => patchId(x.id, { kelvin: v, colour: undefined })} /></label>
+            {x.model === "MC" ? <><label className="u6-field"><span>Colour</span><ColourButton value={x.colour ?? "#ffffff"} label={`Colour of ${x.name}`} onChange={(c) => patchId(x.id, { colour: c })} /></label><label className="u6-field"><span>Effect</span><Select size="sm" value={x.effect ?? ""} onChange={(v) => patchId(x.id, { effect: v })} options={[{ value: "", label: "None" }, ...["Fire", "Lightning", "TV", "Pulsing"].map((e) => ({ value: e, label: e }))]} /></label></>
+              : <label className="u6-field"><span>Runs on</span><Select size="sm" value={x.poweredBy ?? "socket"} onChange={(v) => setDevs((all) => all.map((y) => (y.id === x.id ? { ...y, poweredBy: v } : v !== "socket" && y.poweredBy === v ? { ...y, poweredBy: "socket" } : y)))} options={[{ value: "socket", label: "A socket" }, ...devs.filter((b) => b.kind === "battery").map((b) => ({ value: b.id, label: b.name }))]} /></label>}
+            <span className="u6-lampbig" style={{ background: x.on && !dead ? (typeof x.colour === "string" ? x.colour : "#ffe2b8") : "transparent", opacity: x.on ? 0.3 + (x.level ?? 0) / 143 : 1 }} title="What the light shows" />
+          </>}
+          {x.kind === "camera" && <>
+            <label className="u6-field"><span>Recording</span><Button size="sm" variant={x.rec ? "danger" : "secondary"} icon="record" disabled={dead} onClick={() => patchId(x.id, { rec: !x.rec })}>{x.rec ? "Stop" : "Record"}</Button></label>
+            <label className="u6-field"><span>ISO</span><Select size="sm" value={x.iso ?? "800"} onChange={(v) => patchId(x.id, { iso: v })} options={["100", "400", "800", "1250", "3200"].map((e) => ({ value: e, label: e }))} /></label>
+            <label className="u6-field"><span>Shutter</span><Select size="sm" value={x.shutter ?? "180°"} onChange={(v) => patchId(x.id, { shutter: v })} options={["90°", "172.8°", "180°", "270°"].map((e) => ({ value: e, label: e }))} /></label>
+            <span className="u6-field"><span>Timecode</span><b className={cx("oc-num", x.rec && "u6-rec")}>01:04:12:08</b></span><span className="u6-field"><span>Card</span><b className="oc-num">212 GB free</b></span>
+          </>}
+          {x.kind === "battery" && <><span className="u6-field"><span>Output</span><b className="oc-num">14.6 V · 5.2 A · 76 W</b></span><span className="u6-field"><span>Powers</span><b>{devs.find((l) => l.poweredBy === x.id)?.name ?? "Nothing"}</b></span></>}
+          {x.kind === "transmitter" && <span className="u6-field u6-field--wide"><span>Picture</span><Badge icon="mobile">On the phone only</Badge></span>}
+          {KIND[x.kind].core && <><span className="u6-field u6-field--wide"><span>Tabs</span><b>{[...(x.tabs ?? []), "Setup"].join(", ")}</b></span><span className="u6-field"><span>Camera layout</span><b>{x.layout}</b></span><span className="u6-field"><span>Real lenses</span><b>{x.kind === "phone" ? "0.5×, 1×, 5×, Macro" : "1×"}</b></span></>}
+        </div>
+        {!KIND[x.kind].core && <Button size="sm" variant="quiet" icon={x.link === "asleep" ? "sun" : "moon"} label={x.link === "asleep" ? `Wake ${x.name}` : `Put ${x.name} to sleep`} onClick={(e) => { e.stopPropagation(); patchId(x.id, { link: x.link === "asleep" ? "near" : "asleep" }); }} />}
+      </article>
+    );
+  };
   const off = !KIND[d.kind].core && !live(d);
   const body = (
     <>
@@ -115,7 +147,7 @@ export default function Devices({ hardware, say, toExtensions }: { hardware: boo
     <div className="oc-app u3-win">
       <Toolbar>
         <Icon name="mobile" size={20} /><strong className="u3-title">Devices</strong><Badge>{shown.length}</Badge>
-        <Segmented label="View" value={view} onChange={setView} options={[{ value: "glance", label: "At a glance", icon: "grid" }, { value: "list", label: "By type", icon: "list" }]} />
+        <Segmented label="View" value={view} onChange={setView} options={[{ value: "cards", label: "Cards", icon: "rows" }, { value: "table", label: "Table", icon: "list" }]} />
         <ToolbarSpacer />
         {hardware && <button type="button" className={cx("u6-pill", proxy ? "is-preview" : "is-none")} title="The phone that holds the Bluetooth connections. Click to switch it on and off" onClick={() => setProxy(!proxy)}><i />{proxy ? "Pixel 9 Pro is the proxy" : "No proxy: open Proxy on a phone"}</button>}
         {hardware && <Button size="sm" variant="quiet" icon="refresh" disabled={!proxy} onClick={() => say("Every connection is dropped and built up again, one device after another")}>Reconnect all</Button>}
@@ -125,10 +157,8 @@ export default function Devices({ hardware, say, toExtensions }: { hardware: boo
       <Dock panels={dockPanels} layout={panels} onLayoutChange={setPanels} zoneSizes={{ right: 360 }}>
         <div className="u6-main">
           {!hardware && <Banner tone="info" action={<Button size="sm" onClick={toExtensions}>Extensions</Button>}>The Hardware extension adds lights, batteries, cameras and video transmitters to this list. It is off in this project.</Banner>}
-          {groups.map((g) => <section key={g}><h3 className="u6-group">{g}</h3>
-            {view === "glance" ? <div className="u6-tiles">{shown.filter((x) => KIND[x.kind].plural === g).map(tile)}</div>
-              : <ul className="u6-rows">{shown.filter((x) => KIND[x.kind].plural === g).map((x) => <li key={x.id} className={cx(sel === x.id && "is-current")} onClick={() => setSel(x.id)}><Icon name={KIND[x.kind].icon} /><strong>{x.name}</strong><span>{x.brand} {x.model}</span><span className={cx("u6-link", `is-${x.link}`)}><i />{KIND[x.kind].core ? "Registered" : proxy ? LINK[x.link] : "No proxy"}</span>{level(x) || <span />}</li>)}</ul>}
-          </section>)}
+          {view === "table" ? <Table cursor={d?.id} onCursor={setSel} columns={[{ key: "name", label: "Name" }, { key: "type", label: "Type" }, { key: "model", label: "Model" }, { key: "link", label: "Connection" }, { key: "battery", label: "Battery" }, { key: "rel", label: "Power" }]} rows={shown.map((x) => ({ id: x.id, name: <strong>{x.name}</strong>, type: kind(x), model: `${x.brand} ${x.model}`, link: badge(x), battery: level(x) || <span className="u6-dash">–</span>, rel: relation(x) || <span className="u6-dash">–</span> }))} />
+            : groups.map((g) => <section key={g}><h3 className="u6-group">{g}</h3><div className="u6-cards">{shown.filter((x) => KIND[x.kind].plural === g).map(card)}</div></section>)}
         </div>
       </Dock>
       {adding && (

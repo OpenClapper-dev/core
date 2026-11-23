@@ -1,6 +1,6 @@
 # U6 · Devices, layouts, extensions
 
-UX workshop [#362](https://github.com/OpenClapper-dev/core/issues/362) ([plan](ux-plan.md)). Status: **in progress** (round 2, 2026-11-23).
+UX workshop [#362](https://github.com/OpenClapper-dev/core/issues/362) ([plan](ux-plan.md)). Status: **in progress** (round 3, 2026-11-23).
 
 The camera layout editor, the Devices app, and the two extensions with their apps. Specified in [03](03-capture.md), [08](08-extensions.md) and [U5](ux-5-phone.md).
 
@@ -45,7 +45,7 @@ Taken over from today's editor ([viewfinder layouts](../features/viewfinder-layo
 | --- | --- |
 | **Extensions of the project** | Two cards with a switch each and what the extension brings (device types, apps, file types, camera controls). Flows needs Hardware: switching Hardware off switches Flows off |
 | **What a switch changes** | With Hardware off: Devices shows only phones and tablets and says why; the Lights control of a layout is unavailable; Flows shows "needs its extension". Nothing is deleted |
-| **Flows** | A list of flows and an editor: one lane per control of a device (a light's intensity or colour, a camera's recording), steps on a time axis, a playhead, play from the Studio through the proxy or on the phone itself. Low fidelity: the steps are fixed |
+| **Flows** | A list of flows and an editor (rebuilt in round 3) |
 
 ## Round 2 (2026-11-23)
 
@@ -63,6 +63,18 @@ From the owner's reaction to round 1.
 | **The transmitter's picture** | Marked "On the phone only" in the Studio: the device's connection and state show like any other, its picture does not. The catalogue says so too |
 | **Extensions on the phone** | A fifth place, "On the phone": the Hardware tab (the proxy switch, the devices, a device's controls, the transmitter's picture) and the Flows tab (the project's flows, played from the phone) |
 
+## Round 3 (2026-11-23)
+
+| Change | What to try |
+| --- | --- |
+| **Bars over the picture** | Any bar can be switched to "Over the picture": it lies on the camera's picture at its edge and takes no room from it. Switched off, the bar takes its room and the picture gets smaller |
+| **Readouts are controls** | Each readout (project, lens in use, preset and focal length, angle of view, collection, folder, warnings) is a control that is added to a bar, moved and removed like the others. The built-in layouts start with a bar "Readouts" that lies over the picture. The switches in Look are gone |
+| **Devices as cards** | One card per device across the full width: who it is, its connection in colour, its battery, and beside that everything it exposes, ready to use (a light's power, intensity, white, colour, effect or power source; a camera's record, ISO, shutter, timecode; a battery's output; a phone's tabs and layout) |
+| **Devices as a table** | A real table: name, type (a coloured tag), model, connection (a coloured mark), battery (a bar), power |
+| **The flow editor** | Rebuilt as one component for the Studio and for the phone or tablet, following today's sequences: tracks of a device type with an assigned device, colour and mute; a start keyframe that stays at 0; keyframes that hold power, intensity, white or colour and an effect; the strip under a gap that makes it a fade with a curve; markers as points or ranges; the views intensity graph, light colour and value labels; Select and Insert modes (V, I); Space, M, Delete; loop and live |
+| **Flows on the phone and tablet** | "On the phone", Flows: the same editor in a touch form, on the same flows as the Studio. A flow can be made, changed and played there. The switch at the right draws a tablet instead of a phone |
+| **A thumb to take hold of** | The playhead of a flow and of the timeline ([U4](ux-4-timeline.md)) has a larger thumb with the grabbing hand; the ruler shows the pointing hand, not the text cursor |
+
 ## Decided so far
 
 2026-11-23, by the owner:
@@ -73,17 +85,17 @@ From the owner's reaction to round 1.
 - **Readouts on the picture are separate tags,** not one line of text.
 - **Lens names can be fixed per layout or follow the account;** the collection's name prompt and the folder for new photos are account matters.
 - **Whatever can be set on a phone or tablet can be set from the Studio,** and the other way round: tabs and camera layout to begin with.
-- **Flows is carried over** with today's logic in the new design; no redesign in this workshop.
+- **Any bar can lie over the picture** instead of taking room from it. **Readouts are controls** placed in bars; by default they sit in a bar over the picture.
+- **No device profiles.** The setup lives on the device and is editable from both sides; "Take the setup of another device" covers reuse.
+- **Devices has two views:** cards across the full width that expose a device's controls, and a table. State is shown in colour, not as text alone.
+- **Flows is made, changed and played on the phone and tablet as in the Studio:** one editor, the same flows. Its logic is today's.
+- **The prototypes show the design, not the feature list.** What today's app can do stays unless a workshop page says it goes: every control and state the written device drivers offer (Aputure MC, NEEWER FS230B and FS300B, PS099S, the Blackmagic camera, the Hollyland transmitter), and everything today's sequences can do (multi-selection, box selection, keyframe sizes, native and stepped fades, smoothing, track markers, run on phone and the rest of [lights](../features/lights.md)). The build takes its inventory from the current code and docs, in [workshop 10](README.md).
 - **A part of a device can be limited to where it works.** A video transmitter's picture is shown on the phone only; its state shows everywhere. The catalogue declares such limits per model.
 - **Hardware and Flows are apps on the phone and tablet too** and can be tabs.
 
-## Open
-
-**Device profiles.** The owner raised named profiles for phones and tablets (a tab arrangement for "my phone", another for "my tablet"), creatable in the Studio. Today the only thing such a profile would hold is the tabs and the camera layout. Proposal: no profile object for now. The setup lives on the device, is editable from both sides, and "Take the setup of another device" covers reuse. A named profile can be added when a setup holds more than two things. To be confirmed.
-
 ## Not prototyped
 
-Pairing an Aputure mesh, effects with their options, the power overview, dimming curves, editing the steps of a flow, device specs read out again, a layout laid out for a device it was not designed for.
+Pairing an Aputure mesh, effects with their options, dimming curves, device specs read out again, a layout laid out for a device it was not designed for; in the flow editor: selecting several, the box selection, keyframe sizes, markers on one track, ranges drawn by dragging, the native and stepped fades, run on phone as a state.
 
 ## Into the design system
 

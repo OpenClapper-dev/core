@@ -12,18 +12,21 @@ import {
 import { ColourButton, css, type Colour } from "../u1/catalogue";
 import { picture } from "../u1/pictures";
 
-type Ctl = "shutter" | "uploads" | "collection" | "torch" | "reference" | "preset" | "lenses" | "focals" | "fit" | "blackout" | "upright" | "layout" | "folder" | "last" | "lights";
+type Ctl = "r-project" | "r-lens" | "r-optics" | "r-fov" | "r-collection" | "r-folder" | "r-warn" | "shutter" | "uploads" | "collection" | "torch" | "reference" | "preset" | "lenses" | "focals" | "fit" | "blackout" | "upright" | "layout" | "folder" | "last" | "lights";
 type Edge = "top" | "bottom" | "left" | "right";
 type Dist = "start" | "center" | "end" | "between" | "around";
 interface Item { ctl: Ctl; label?: boolean; display?: "list" | "carousel" }
 /** A bar: where it stands, how its controls are spread along it, and the controls in screen order. */
-interface Bar { id: string; name: string; edge: Edge; dist: Dist; items: Item[] }
-interface Look { color: Colour; width: number; tint: string; dim: number; hud: Record<string, boolean> }
+interface Bar { id: string; name: string; edge: Edge; dist: Dist; items: Item[]; /** Lies over the picture and takes no room from it. */ over?: boolean }
+interface Look { color: Colour; width: number; tint: string; dim: number }
 interface Opts { reference: string; lenses: string; names: string }
 export interface Layout { id: string; name: string; builtin?: boolean; device: string; portrait: Bar[]; landscape: Bar[]; look: Look; opts: Opts }
 
 /** Every control a layout can place. Extensions add theirs; the shutter is needed exactly once. */
-const CTL: Record<Ctl, { label: string; short: string; icon: IconName; kind?: "strip"; ext?: boolean }> = {
+const CTL: Record<Ctl, { label: string; short: string; icon: IconName; kind?: "strip" | "readout"; ext?: boolean }> = {
+  // Readouts are controls too: a tag that shows a value. `short` is the sample the preview shows.
+  "r-project": { label: "Readout: project", short: "Nachtzug", icon: "info", kind: "readout" }, "r-lens": { label: "Readout: lens in use", short: "24 mm lens", icon: "info", kind: "readout" }, "r-optics": { label: "Readout: preset and focal length", short: "Full frame primes · 35 mm", icon: "info", kind: "readout" }, "r-fov": { label: "Readout: angle of view", short: "54° × 38°", icon: "info", kind: "readout" },
+  "r-collection": { label: "Readout: collection", short: "Collection 3 · 2", icon: "info", kind: "readout" }, "r-folder": { label: "Readout: folder", short: "Harbour", icon: "info", kind: "readout" }, "r-warn": { label: "Readout: warnings", short: "Wider than this lens", icon: "warning", kind: "readout" },
   shutter: { label: "Shutter", short: "", icon: "circle" }, uploads: { label: "Uploads", short: "Queue", icon: "cloud-upload" }, collection: { label: "Collection mode", short: "Coll.", icon: "layers" }, torch: { label: "Torch", short: "Torch", icon: "flashlight" },
   reference: { label: "Reference frame", short: "Ref.", icon: "user" }, preset: { label: "Optics preset", short: "Optics", icon: "lens" }, lenses: { label: "Phone lenses", short: "", icon: "camera", kind: "strip" }, focals: { label: "Focal lengths", short: "", icon: "ruler", kind: "strip" },
   fit: { label: "Fit to the frame", short: "Fit", icon: "expand" }, blackout: { label: "Blackout", short: "Black", icon: "contrast" }, upright: { label: "Frame upright", short: "Turn", icon: "rotate" },
@@ -31,22 +34,23 @@ const CTL: Record<Ctl, { label: string; short: string; icon: IconName; kind?: "s
 };
 const EDGES: [Edge, string][] = [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]];
 const DISTS: [Dist, string, string][] = [["start", "Start", "Packed at the start of the bar"], ["center", "Centre", "Packed in the middle"], ["end", "End", "Packed at the end"], ["between", "Between", "Spread out, first and last at the ends"], ["around", "Around", "Spread out with room at the ends too"]];
-const HUD: [string, string, string][] = [["project", "Project", "Nachtzug"], ["lens", "Lens in use", "24 mm lens"], ["optics", "Preset and focal length", "Full frame primes · 35 mm"], ["fov", "Angle of view", "54° × 38°"], ["collection", "Collection", "Collection 3 · 2"], ["folder", "Folder", "Harbour"], ["warnings", "Warnings", "Wider than this lens"]];
 export const DEVICES = [{ id: "pixel", name: "Pixel 9 Pro", w: 412, h: 915, lenses: ["0.5×", "1×", "5×"] }, { id: "tablet", name: "Pixel Tablet", w: 800, h: 1280, lenses: ["1×"] }, { id: "generic", name: "Generic phone", w: 400, h: 860, lenses: ["0.5×", "1×", "3×"] }];
 const it = (...c: Ctl[]): Item[] => c.map((ctl) => ({ ctl }));
-const bar = (id: string, edge: Edge, dist: Dist, items: Item[]): Bar => ({ id, name: `Bar ${id.slice(1)}`, edge, dist, items });
-const LOOK: Look = { color: "#ffffff", width: 2, tint: "#000000", dim: 62, hud: { project: false, lens: true, optics: true, fov: false, collection: true, folder: false, warnings: true } };
+const bar = (id: string, edge: Edge, dist: Dist, items: Item[], over?: boolean): Bar => ({ id, name: over ? "Readouts" : `Bar ${id.slice(1)}`, edge, dist, items, over });
+const LOOK: Look = { color: "#ffffff", width: 2, tint: "#000000", dim: 62 };
+/** Readouts start in a bar of their own that lies over the picture. */
+const READ = (...c: Ctl[]) => bar("b0", "top", "start", it(...c), true);
 const ROW = it("uploads", "collection", "shutter", "reference", "torch", "preset"), TOOLS = it("layout", "folder", "fit", "blackout", "upright");
 /** The built-in arrangement follows today's app: upright, lenses above the control row at the bottom; landscape, lenses left and controls right. */
 const viewfinder = (id: string, name: string, builtin?: boolean): Layout => ({ id, name, builtin, device: "pixel", look: LOOK, opts: { reference: "cycle", lenses: "all", names: "account" },
-  portrait: [bar("b1", "top", "between", TOOLS), bar("b2", "bottom", "start", it("lenses", "focals")), bar("b3", "bottom", "between", ROW)],
-  landscape: [bar("b1", "top", "between", TOOLS), bar("b2", "left", "start", it("lenses", "focals")), bar("b3", "right", "between", ROW)] });
+  portrait: [bar("b1", "top", "between", TOOLS), READ("r-lens", "r-optics", "r-collection", "r-warn"), bar("b2", "bottom", "start", it("lenses", "focals")), bar("b3", "bottom", "between", ROW)],
+  landscape: [bar("b1", "top", "between", TOOLS), READ("r-lens", "r-optics", "r-collection", "r-warn"), bar("b2", "left", "start", it("lenses", "focals")), bar("b3", "right", "between", ROW)] });
 const START: Layout[] = [
-  { ...viewfinder("camera", "Camera", true), portrait: [bar("b1", "top", "start", it("layout", "folder")), bar("b2", "bottom", "start", it("lenses")), bar("b3", "bottom", "between", it("uploads", "collection", "shutter", "torch", "last"))], landscape: [bar("b1", "top", "start", it("layout", "folder")), bar("b2", "left", "start", it("lenses")), bar("b3", "right", "between", it("uploads", "collection", "shutter", "torch", "last"))] },
+  { ...viewfinder("camera", "Camera", true), portrait: [bar("b1", "top", "start", it("layout", "folder")), READ("r-lens", "r-collection"), bar("b2", "bottom", "start", it("lenses")), bar("b3", "bottom", "between", it("uploads", "collection", "shutter", "torch", "last"))], landscape: [bar("b1", "top", "start", it("layout", "folder")), READ("r-lens", "r-collection"), bar("b2", "left", "start", it("lenses")), bar("b3", "right", "between", it("uploads", "collection", "shutter", "torch", "last"))] },
   viewfinder("viewfinder", "Viewfinder", true),
-  { ...viewfinder("mine", "Scout, wide"), look: { ...LOOK, color: 2, width: 3, hud: { ...LOOK.hud, project: true, fov: true } },
-    portrait: [bar("b1", "top", "center", [{ ctl: "lenses", display: "carousel" }, { ctl: "focals", display: "carousel" }]), bar("b2", "left", "end", it("fit", "blackout")), bar("b3", "bottom", "around", [...it("last", "collection", "shutter"), { ctl: "torch", label: true }, { ctl: "folder", label: true }])],
-    landscape: [bar("b1", "left", "center", [{ ctl: "lenses", display: "carousel" }, { ctl: "focals", display: "carousel" }]), bar("b2", "bottom", "end", it("fit", "blackout")), bar("b3", "right", "around", [...it("last", "collection", "shutter"), { ctl: "torch", label: true }, { ctl: "folder", label: true }])] },
+  { ...viewfinder("mine", "Scout, wide"), look: { ...LOOK, color: 2, width: 3 },
+    portrait: [READ("r-project", "r-lens", "r-optics", "r-fov", "r-collection", "r-warn"), bar("b1", "top", "center", [{ ctl: "lenses", display: "carousel" }, { ctl: "focals", display: "carousel" }]), bar("b2", "left", "end", it("fit", "blackout")), bar("b3", "bottom", "around", [...it("last", "collection", "shutter"), { ctl: "torch", label: true }, { ctl: "folder", label: true }])],
+    landscape: [READ("r-project", "r-lens", "r-optics", "r-fov", "r-collection", "r-warn"), bar("b1", "left", "center", [{ ctl: "lenses", display: "carousel" }, { ctl: "focals", display: "carousel" }]), bar("b2", "bottom", "end", it("fit", "blackout")), bar("b3", "right", "around", [...it("last", "collection", "shutter"), { ctl: "torch", label: true }, { ctl: "folder", label: true }])] },
 ];
 const upright = (e: Edge) => e === "left" || e === "right";
 
@@ -56,7 +60,7 @@ export default function Layouts({ hardware, say }: { hardware: boolean; say: (m:
   const [land, setLand] = useState(false);
   const [phone, setPhone] = useState("connected");
   const [drag, setDrag] = useState<{ ctl: Ctl; x: number; y: number; line: [number, number, number, number] | null; root: Element } | null>(null);
-  const [panels, setPanels, reset] = useDockLayout("u6-layouts-2", { left: { tabs: ["list"] }, right: { tabs: ["bars", "look", "options"] } });
+  const [panels, setPanels, reset] = useDockLayout("u6-layouts-3", { left: { tabs: ["list"] }, right: { tabs: ["bars", "look", "options"] } });
   const layout = layouts.find((l) => l.id === cur)!, key = land ? "landscape" : "portrait", bars = layout[key], locked = !!layout.builtin;
   const patch = (c: Partial<Layout>) => setLayouts((all) => all.map((l) => (l.id === cur ? { ...l, ...c } : l)));
   const setBars = (b: Bar[]) => patch({ [key]: b });
@@ -101,7 +105,8 @@ export default function Layouts({ hardware, say }: { hardware: boolean; say: (m:
     const c = CTL[i.ctl];
     if (i.ctl === "lights" && !hardware) return null;
     let body;
-    if (i.ctl === "shutter") body = <Shutter />;
+    if (c.kind === "readout") body = <span className={cx("u6-chip", i.ctl === "r-warn" && "is-warn")}>{i.ctl === "r-collection" && <i />}{c.short}</span>;
+    else if (i.ctl === "shutter") body = <Shutter />;
     else if (i.ctl === "last") body = <span className="oc-cam__thumb u6-last"><img src={picture(17)} alt="" /></span>;
     else if (c.kind === "strip") {
       const vals = i.ctl === "lenses" ? (layout.opts.lenses === "main" ? ["1×"] : dev.lenses) : ["24", "35", "50", "85"], now = vals[Math.min(1, vals.length - 1)];
@@ -111,13 +116,15 @@ export default function Layouts({ hardware, say }: { hardware: boolean; say: (m:
     } else body = <span className="u6-ctl"><CameraButton icon={c.icon} label={c.label} pressed={i.ctl === "blackout"} />{i.label && <small>{c.short}</small>}</span>;
     return <span key={i.ctl} data-ctl={i.ctl} className={cx("u6-slot", drag?.ctl === i.ctl && "is-dragged")} title={locked ? c.label : `${c.label}: drag to move it`} onPointerDown={grab(i.ctl)}>{body}</span>;
   };
-  const drawBar = (b: Bar) => <div key={b.id} data-bar={b.id} data-axis={upright(b.edge) ? "y" : "x"} className={cx("u6-bar", upright(b.edge) ? "is-v" : "is-h", `is-${b.dist}`, b.items.some((i) => i.ctl === "shutter") && "has-shutter")}>{b.items.map((i) => draw(i, upright(b.edge)))}{!b.items.length && <small className="u6-bar__empty">{b.name}</small>}</div>;
-  const at = (e: Edge) => bars.filter((b) => b.edge === e).map(drawBar);
+  const drawBar = (b: Bar) => <div key={b.id} data-bar={b.id} data-axis={upright(b.edge) ? "y" : "x"} className={cx("u6-bar", b.over && "is-over", upright(b.edge) ? "is-v" : "is-h", `is-${b.dist}`, b.items.some((i) => i.ctl === "shutter") && "has-shutter")}>{b.items.map((i) => draw(i, upright(b.edge)))}{!b.items.length && <small className="u6-bar__empty">{b.name}</small>}</div>;
+  const at = (e: Edge) => bars.filter((b) => b.edge === e && !b.over).map(drawBar);
+  /** Bars that lie over the picture, stacked at their edge inside it. */
+  const over = EDGES.map(([e]) => { const mine = bars.filter((b) => b.edge === e && b.over); return mine.length > 0 && <div key={e} className={cx("u6-over", `u6-over--${e}`)}>{mine.map(drawBar)}</div>; });
   const view = (
     <div className="oc-cam__view">
       <img className="u6-live" src={picture(12)} alt="" />
       {framed && <span className="u6-frame" style={{ borderColor: css(layout.look.color), borderWidth: layout.look.width, boxShadow: used.includes("blackout") ? `0 0 0 2000px color-mix(in srgb, ${layout.look.tint} ${layout.look.dim}%, transparent)` : undefined }} />}
-      <div className="u6-chips">{HUD.filter(([id]) => layout.look.hud[id] && (framed || !["optics", "fov"].includes(id))).map(([id, , sample]) => <span key={id} className={cx(id === "warnings" && "is-warn")}>{id === "collection" && <i />}{sample}</span>)}</div>
+      {over}
     </div>
   );
   // Upright, top and bottom bars take the full width and the side bars what is left between them; in landscape it is the other way round.
@@ -131,16 +138,17 @@ export default function Layouts({ hardware, say }: { hardware: boolean; say: (m:
   );
 
   const barSection = (b: Bar) => (
-    <PropertySection key={b.id} title={`${b.name} · ${EDGES.find(([e]) => e === b.edge)![1].toLowerCase()} · ${b.items.length}`} icon={upright(b.edge) ? "columns" : "rows"}>
+    <PropertySection key={b.id} title={`${b.name} · ${EDGES.find(([e]) => e === b.edge)![1].toLowerCase()}${b.over ? ", over the picture" : ""} · ${b.items.length}`} icon={upright(b.edge) ? "columns" : "rows"}>
       <PropertyRow label="Name"><TextInput size="sm" value={b.name} disabled={locked} onInput={(e) => patchBar(b.id, { name: (e.target as HTMLInputElement).value })} /></PropertyRow>
       <PropertyRow label="Edge"><Segmented label={`Edge of ${b.name}`} value={b.edge} disabled={locked} onChange={(v) => patchBar(b.id, { edge: v as Edge })} options={EDGES.map(([value, label]) => ({ value, label }))} /></PropertyRow>
+      <div className="u6-pad"><Switch checked={!!b.over} disabled={locked} onChange={(v) => patchBar(b.id, { over: v })}>Over the picture: takes no room from it</Switch></div>
       <PropertyRow label="Controls"><Select size="sm" value={b.dist} onChange={(v) => !locked && patchBar(b.id, { dist: v as Dist })} options={DISTS.map(([value, label, hint]) => ({ value, label: `${label}: ${hint.toLowerCase()}` }))} /></PropertyRow>
       <ul className="u6-items" data-bar={b.id} data-axis="y">
         {b.items.map((i) => { const c = CTL[i.ctl], off = i.ctl === "lights" && !hardware; return (
           <li key={i.ctl} data-ctl={i.ctl} className={cx("u6-item", off && "is-off", drag?.ctl === i.ctl && "is-dragged")} onPointerDown={grab(i.ctl)}>
             <Icon name="grip" size={12} /><Icon name={c.icon} /><span className="u6-item__name">{c.label}{off && <small>needs the Hardware extension</small>}</span>
             {c.kind === "strip" ? <span data-nodrag><Segmented label="Shown as" value={i.display ?? "list"} disabled={locked} onChange={(v) => patchItem(i.ctl, { display: v as "list" | "carousel" })} options={[{ value: "list", label: "All" }, { value: "carousel", label: "Stepped" }]} /></span>
-              : i.ctl !== "shutter" && i.ctl !== "last" && <span data-nodrag><Checkbox checked={!!i.label} disabled={locked} onChange={(v) => patchItem(i.ctl, { label: v })}>Label</Checkbox></span>}
+              : i.ctl !== "shutter" && i.ctl !== "last" && c.kind !== "readout" && <span data-nodrag><Checkbox checked={!!i.label} disabled={locked} onChange={(v) => patchItem(i.ctl, { label: v })}>Label</Checkbox></span>}
             <Button size="sm" variant="quiet" icon="close" label={i.ctl === "shutter" ? "The shutter cannot be removed" : `Remove ${c.label}`} disabled={locked || i.ctl === "shutter"} data-nodrag onClick={() => patchBar(b.id, { items: b.items.filter((y) => y.ctl !== i.ctl) })} />
           </li>
         ); })}
@@ -158,7 +166,7 @@ export default function Layouts({ hardware, say }: { hardware: boolean; say: (m:
       <><List>{layouts.map((l) => <ListRow key={l.id} size="lg" icon={l.builtin ? "lock" : "camera-layout"} selected={l.id === cur} meta={l.builtin ? "Built in" : DEVICES.find((d) => d.id === l.device)?.name} onClick={() => setCur(l.id)}>{l.name}</ListRow>)}</List><p className="u6-note">Layouts belong to your account and follow you into every project. The built-in ones are always there to go back to: duplicate one to change it.</p></>
     ) },
     { id: "bars", title: `Bars · ${bars.length}`, icon: "rows", actions: <DropdownMenu size="sm" icon="plus" label="Bar" items={EDGES.map(([e, l]) => ({ id: e, label: `At the ${l.toLowerCase()}`, disabled: locked }))} onSelect={(e) => { const n = Math.max(0, ...bars.map((b) => Number(b.id.slice(1)) || 0)) + 1; setBars([...bars, bar(`b${n}`, e as Edge, "center", [])]); }} />, body: (
-      <PropertyList key={cur + key}>{bars.map(barSection)}<p className="u6-note">Any number of bars at any edge; bars at one edge stack in the order listed. {land ? "In landscape the left and right bars take the full height, and top and bottom bars the width left between them." : "Upright, the top and bottom bars take the full width, and left and right bars the height left between them."} Drag a control to another place here or in the preview. Each control at most once per orientation.</p></PropertyList>
+      <PropertyList key={cur + key}>{bars.map(barSection)}<p className="u6-note">Any number of bars at any edge; bars at one edge stack in the order listed. {land ? "In landscape the left and right bars take the full height, and top and bottom bars the width left between them." : "Upright, the top and bottom bars take the full width, and left and right bars the height left between them."} A bar can lie over the picture instead of taking room from it. Drag a control to another place here or in the preview. Each control at most once per orientation.</p></PropertyList>
     ) },
     { id: "look", title: "Look", icon: "palette", body: (
       <PropertyList key={cur}>
@@ -170,7 +178,7 @@ export default function Layouts({ hardware, say }: { hardware: boolean; say: (m:
           <PropertyRow label="Tint"><Segmented label="Blackout tint" value={layout.look.tint} disabled={locked} onChange={(v) => patch({ look: { ...layout.look, tint: v } })} options={[{ value: "#000000", label: "Black" }, { value: "#3a0000", label: "Red" }, { value: "#00143a", label: "Blue" }]} /></PropertyRow>
           <PropertyRow label="Strength"><span className="u3-slide"><Slider min={20} max={100} step={2} value={layout.look.dim} disabled={locked} onChange={(v) => patch({ look: { ...layout.look, dim: v } })} /><b className="oc-num">{layout.look.dim} %</b></span></PropertyRow>
         </PropertySection>
-        <PropertySection title="Readouts on the picture" icon="info">{HUD.map(([id, label]) => <div key={id} className="u6-pad"><Switch checked={!!layout.look.hud[id]} disabled={locked} onChange={(v) => patch({ look: { ...layout.look, hud: { ...layout.look.hud, [id]: v } } })}>{label}</Switch></div>)}<p className="u6-note">Each readout is a tag of its own on the picture.</p></PropertySection>
+        <p className="u6-note">Readouts are controls: add them to any bar in the Bars panel. They start in a bar that lies over the picture.</p>
       </PropertyList>
     ) },
     { id: "options", title: "Options", icon: "sliders", body: (

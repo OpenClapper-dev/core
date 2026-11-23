@@ -5,8 +5,9 @@
 import "../u3/u3.css";
 import "../u5/u5.css";
 import "./u6.css";
-import { useEffect, useState } from "preact/hooks";
-import { AppIcon, Banner, Button, EmptyState, Icon, List, ListRow, PropertyList, PropertyRow, PropertySection, Select, Slider, StatusBar, Switch, Toast, Toolbar, ToolbarSpacer, TrackLayout, cx, type IconName } from "@openclapper/design";
+import { useState } from "preact/hooks";
+import { AppIcon, Banner, Button, EmptyState, Icon, List, ListRow, StatusBar, Switch, Toast, Toolbar, ToolbarSpacer, cx, type IconName } from "@openclapper/design";
+import { FlowEditor, START_FLOWS, newFlow, type Flow } from "./Flow";
 import Devices from "./Devices";
 import Layouts from "./Layouts";
 import OnPhone from "./OnPhone";
@@ -14,36 +15,18 @@ import OnPhone from "./OnPhone";
 type Place = "layouts" | "devices" | "flows" | "phone" | "extensions";
 const PLACES: { id: Place; label: string; icon: IconName; color: number }[] = [{ id: "layouts", label: "Camera layouts", icon: "camera-layout", color: 4 }, { id: "devices", label: "Devices", icon: "mobile", color: 6 }, { id: "flows", label: "Flows", icon: "route", color: 8 }, { id: "phone", label: "On the phone", icon: "mobile", color: 3 }, { id: "extensions", label: "Project · Extensions", icon: "extension", color: 0 }];
 
-/** A flow: a timed programme that drives controls of devices. Each lane is one control of one device. */
-const LANES = [
-  { id: "mc-i", label: "MC, window · intensity", color: 3, items: [{ id: "a", start: 0, end: 4, label: "0 → 60 %" }, { id: "b", start: 4, end: 14, label: "hold 60 %" }, { id: "c", start: 14, end: 18, label: "60 → 0 %" }] },
-  { id: "mc-c", label: "MC, window · colour", color: 2, items: [{ id: "d", start: 0, end: 9, label: "3200 K" }, { id: "e", start: 9, end: 12, label: "→ 5600 K" }] },
-  { id: "key", label: "Key · intensity", color: 6, items: [{ id: "f", start: 6, end: 8, label: "0 → 85 %" }, { id: "g", start: 8, end: 20, label: "hold 85 %" }] },
-  { id: "cam", label: "A cam · record", color: 1, items: [{ id: "h", start: 2, end: 19, label: "recording" }] },
-];
-function Flows({ say }: { say: (m: string) => void }) {
-  const [flow, setFlow] = useState("f1");
-  const [sel, setSel] = useState("a");
-  const [t, setT] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [from, setFrom] = useState("studio");
-  useEffect(() => { if (!playing) return; const t0 = performance.now() - t * 1000; let raf = 0; const tick = () => { const now = (performance.now() - t0) / 1000; if (now >= 20) { setPlaying(false); setT(0); } else { setT(now); raf = requestAnimationFrame(tick); } }; raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf); }, [playing]);
-  const item = LANES.flatMap((l) => l.items.map((i) => ({ ...i, lane: l.label }))).find((i) => i.id === sel);
+/** The Flows app in the Studio: the project's flows at the left, the editor beside them. */
+function Flows({ flows, setFlows, say }: { flows: Flow[]; setFlows: (f: Flow[]) => void; say: (m: string) => void }) {
+  const [cur, setCur] = useState(flows[0]?.id);
+  const flow = flows.find((f) => f.id === cur) ?? flows[0];
   return (
     <div className="oc-app u3-win">
-      <Toolbar>
-        <Icon name="route" size={20} /><strong className="u3-title">{flow === "f1" ? "Sunrise through the window" : "Lightning"}</strong>
-        <Button size="sm" variant="primary" icon={playing ? "pause" : "play"} onClick={() => setPlaying(!playing)}>{playing ? "Pause" : "Play"}</Button>
-        <span className="oc-num u6-saved">{t.toFixed(1)} s / 20 s</span>
-        <ToolbarSpacer />
-        <Select size="sm" value={from} onChange={setFrom} options={[{ value: "studio", label: "Plays from the Studio, through the proxy" }, { value: "phone", label: "Plays on the phone itself" }]} />
-      </Toolbar>
+      <Toolbar><Icon name="route" size={20} /><strong className="u3-title">{flow ? flow.name : "Flows"}</strong><ToolbarSpacer /><Button size="sm" icon="plus" onClick={() => { const f = newFlow(flows.length + 1); setFlows([...flows, f]); setCur(f.id); }}>New flow</Button></Toolbar>
       <div className="u6-flows">
-        <aside className="u6-flows__list"><List>{[["f1", "Sunrise through the window", "20 s · 3 devices"], ["f2", "Lightning", "4 s · 1 device"]].map(([id, n, m]) => <ListRow key={id} size="lg" icon="route" selected={flow === id} meta={m} onClick={() => setFlow(id)}>{n}</ListRow>)}</List><p className="u6-note">A flow is a file of the project. It can drive any control a device exposes: a light's intensity, a camera's recording.</p></aside>
-        <TrackLayout className="u6-flows__tracks" lanes={LANES} duration={20} scale={44} tick={2} playhead={t} onSeek={(x) => { setPlaying(false); setT(x); }} selected={sel} onSelect={setSel} />
-        <aside className="u6-flows__side">{item ? <PropertyList><PropertySection title="Step" icon="timeline"><PropertyRow label="Control" value={item.lane} /><PropertyRow label="Does" value={item.label} /><PropertyRow label="From" value={`${item.start} s`} numeric /><PropertyRow label="Lasts" value={`${item.end - item.start} s`} numeric /><PropertyRow label="Curve"><Select size="sm" value="linear" options={[{ value: "linear", label: "Linear" }, { value: "ease", label: "Ease in and out" }]} /></PropertyRow><PropertyRow label="Value"><span className="u3-slide"><Slider min={0} max={100} value={60} /><b className="oc-num">60 %</b></span></PropertyRow></PropertySection><div className="u6-pad"><Button size="sm" variant="quiet" icon="trash" onClick={() => say("Removes the step")}>Remove the step</Button></div></PropertyList> : <EmptyState icon="timeline" title="No step chosen" />}</aside>
+        <aside className="u6-flows__list"><List>{flows.map((f) => <ListRow key={f.id} size="lg" icon="route" selected={f.id === flow?.id} meta={`${f.length} s · ${f.tracks.length} tracks`} onClick={() => setCur(f.id)}>{f.name}</ListRow>)}</List><p className="u6-note">A flow is a file of the project. It drives controls of devices over time: a light's intensity and colour, a camera's recording.</p></aside>
+        {flow ? <FlowEditor key={flow.id} flow={flow} onChange={(f) => setFlows(flows.map((x) => (x.id === f.id ? f : x)))} onRun={() => say(`“${flow.name}” is saved and runs on the phone itself; the Studio follows its position`)} /> : <EmptyState icon="route" title="No flow yet" />}
       </div>
-      <StatusBar>4 controls of 3 devices · needs the Hardware extension · a flow has no clock in common with a shot's progression</StatusBar>
+      <StatusBar>{flow && <>{flow.tracks.length} tracks · {flow.tracks.reduce((a, x) => a + x.keys.length, 0)} keyframes · {flow.markers.length} markers · </>}needs the Hardware extension · the same editor runs on the phone and tablet</StatusBar>
     </div>
   );
 }
@@ -52,6 +35,7 @@ export default function U6Shell() {
   const [place, setPlace] = useState<Place>("layouts");
   const [ext, setExt] = useState({ hardware: true, flows: true });
   const [theme, setTheme] = useState("dark");
+  const [flows, setFlows] = useState<Flow[]>(START_FLOWS);
   const [toast, setToast] = useState<string | null>(null);
   const say = (m: string) => { setToast(m); setTimeout(() => setToast((x) => (x === m ? null : x)), 3000); };
   const EXT: { id: "hardware" | "flows"; label: string; icon: IconName; what: string; brings: [string, string][] }[] = [
@@ -84,8 +68,8 @@ export default function U6Shell() {
         <span style={{ flex: 1 }} />
         <Button size="sm" variant="quiet" icon={theme === "light" ? "moon" : "sun"} label="Switch theme" onClick={() => setTheme(theme === "light" ? "dark" : "light")} />
       </header>
-      {place === "layouts" ? <Layouts hardware={ext.hardware} say={say} /> : place === "devices" ? <Devices hardware={ext.hardware} say={say} toExtensions={() => setPlace("extensions")} /> : place === "phone" ? <OnPhone hardware={ext.hardware} flows={ext.flows} theme={theme} /> : place === "extensions" ? extensions
-        : ext.flows ? <Flows say={say} /> : <div className="oc-app u3-win"><EmptyState icon="route" title="Flows needs its extension" action={<Button onClick={() => setPlace("extensions")}>Extensions of this project</Button>}>The Flows extension is off in this project. Its files stay and show as “needs the Flows extension”.</EmptyState></div>}
+      {place === "layouts" ? <Layouts hardware={ext.hardware} say={say} /> : place === "devices" ? <Devices hardware={ext.hardware} say={say} toExtensions={() => setPlace("extensions")} /> : place === "phone" ? <OnPhone hardware={ext.hardware} flowsOn={ext.flows} flows={flows} setFlows={setFlows} theme={theme} /> : place === "extensions" ? extensions
+        : ext.flows ? <Flows flows={flows} setFlows={setFlows} say={say} /> : <div className="oc-app u3-win"><EmptyState icon="route" title="Flows needs its extension" action={<Button onClick={() => setPlace("extensions")}>Extensions of this project</Button>}>The Flows extension is off in this project. Its files stay and show as “needs the Flows extension”.</EmptyState></div>}
       {toast && <Toast className="u3-toast" tone="info" onDismiss={() => setToast(null)}>{toast}</Toast>}
     </div>
   );

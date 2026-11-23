@@ -2,25 +2,24 @@
 // tabs (docs/rewrite/ux-5-phone.md). Hardware: this phone as the proxy, the devices with their state, a device's
 // controls in a touch form, and the one thing only a phone can show: a video transmitter's picture. Flows: the
 // project's flows, played from the phone itself.
-import { useEffect, useState } from "preact/hooks";
-import { ActionBar, Banner, BottomTabs, HeaderAction, Icon, List, ListRow, PropertyList, PropertyRow, PropertySection, Screen, ScreenHeader, Slider, Switch, TouchButton, cx, type IconName } from "@openclapper/design";
+import { useState } from "preact/hooks";
+import { Banner, BottomTabs, HeaderAction, Icon, List, ListRow, PropertyList, PropertyRow, PropertySection, Screen, ScreenHeader, Segmented, Slider, Switch, cx, type IconName } from "@openclapper/design";
 import { AndroidDevice } from "../../kits/AndroidFrame";
 import { picture } from "../u1/pictures";
+import { FlowEditor, newFlow, type Flow } from "./Flow";
 
 const DEVS: { id: string; name: string; model: string; icon: IconName; link: string; battery?: number }[] = [
   { id: "l1", name: "MC, window", model: "Aputure MC", icon: "light-fixture", link: "Connected", battery: 72 }, { id: "l3", name: "Key", model: "NEEWER FS300B", icon: "light-fixture", link: "Connected" }, { id: "l4", name: "Fill", model: "NEEWER FS230B", icon: "light-fixture", link: "Not in range" },
   { id: "b1", name: "V-mount 1", model: "NEEWER PS099S", icon: "battery", link: "Connected", battery: 64 }, { id: "c1", name: "A cam", model: "Blackmagic Pocket 6K", icon: "video", link: "Connected", battery: 81 }, { id: "t1", name: "Video village", model: "Hollyland Mars 400S Pro", icon: "antenna", link: "Connected" },
 ];
-const LANES: [string, number, [number, number][]][] = [["MC, window · intensity", 3, [[0, 18]]], ["MC, window · colour", 2, [[0, 12]]], ["Key · intensity", 6, [[6, 20]]], ["A cam · record", 1, [[2, 19]]]];
 
-export default function OnPhone({ hardware, flows, theme }: { hardware: boolean; flows: boolean; theme: string }) {
+export default function OnPhone({ hardware, flowsOn, flows, setFlows, theme }: { hardware: boolean; flowsOn: boolean; flows: Flow[]; setFlows: (f: Flow[]) => void; theme: string }) {
+  const [device, setDevice] = useState("phone");
   const [tab, setTab] = useState("hardware");
   const [open, setOpen] = useState<string | null>(null);
   const [proxy, setProxy] = useState(true);
   const [level, setLevel] = useState(60);
   const [on, setOn] = useState(true);
-  const [t, setT] = useState<number | null>(null);
-  useEffect(() => { if (t == null) return; const t0 = performance.now() - t * 1000; let raf = 0; const tick = () => { const now = (performance.now() - t0) / 1000; if (now >= 20) setT(null); else { setT(now); raf = requestAnimationFrame(tick); } }; raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf); }, [t != null]);
   const d = DEVS.find((x) => x.id === open);
   const off = (name: string) => <Screen header={<ScreenHeader title={name} />}><div className="u5-gate"><Icon name="extension" size={24} /><h2>{name} is off in this project</h2><p>Its tab stays, and says so. Switch the extension on in the project's settings.</p></div></Screen>;
   const hardwareScreen = !hardware ? off("Hardware") : d ? (
@@ -36,24 +35,26 @@ export default function OnPhone({ hardware, flows, theme }: { hardware: boolean;
       <List>{DEVS.map((x) => <ListRow key={x.id} size="touch" icon={x.icon} chevron meta={`${x.model} · ${proxy ? x.link : "No proxy"}`} trailing={x.battery != null ? <span className="oc-num">{x.battery} %</span> : undefined} onClick={() => setOpen(x.id)}>{x.name}</ListRow>)}</List>
     </Screen>
   );
-  const flowsScreen = !flows ? off("Flows") : open === "f1" ? (
-    <Screen header={<ScreenHeader title="Sunrise through the window" subtitle="20 s · 4 controls of 3 devices" onBack={() => { setOpen(null); setT(null); }} />} footer={<ActionBar><TouchButton variant="primary" block icon={t != null ? "stop" : "play"} onClick={() => setT(t != null ? null : 0)}>{t != null ? `Stop · ${t.toFixed(1)} s` : "Play on this phone"}</TouchButton></ActionBar>}>
-      <div className="u6-lanes u6-prog">{LANES.map(([label, color, segs]) => <div key={label}>{segs.map(([a, b]) => <i key={a} style={{ left: `${a * 5}%`, width: `${(b - a) * 5}%`, background: `var(--cat-${color})` }} />)}<span>{label}</span></div>)}{t != null && <b style={{ left: `calc(${t * 5}% )` }} />}</div>
-      <p className="u5-note">A flow is made in the Studio. The phone plays it by itself, so it also runs without a connection to the server.</p>
+  const flow = flows.find((f) => f.id === open);
+  const flowsScreen = !flowsOn ? off("Flows") : flow ? (
+    <Screen scroll={false} header={<ScreenHeader title={flow.name} subtitle={`${flow.length} s · ${flow.tracks.length} tracks`} onBack={() => setOpen(null)} />}>
+      <FlowEditor key={flow.id} touch flow={flow} onChange={(f) => setFlows(flows.map((x) => (x.id === f.id ? f : x)))} />
     </Screen>
   ) : (
-    <Screen header={<ScreenHeader title="Flows" subtitle="Nachtzug" />}>
-      <List>{[["f1", "Sunrise through the window", "20 s · 3 devices"], ["f2", "Lightning", "4 s · 1 device"]].map(([id, n, m]) => <ListRow key={id} size="touch" icon="route" chevron meta={m} onClick={() => setOpen(id)}>{n}</ListRow>)}</List>
+    <Screen header={<ScreenHeader title="Flows" subtitle="Nachtzug" actions={<HeaderAction icon="plus" label="New flow" onClick={() => { const f = newFlow(flows.length + 1); setFlows([...flows, f]); setOpen(f.id); }} />} />}>
+      <List>{flows.map((f) => <ListRow key={f.id} size="touch" icon="route" chevron meta={`${f.length} s · ${f.tracks.length} tracks`} onClick={() => setOpen(f.id)}>{f.name}</ListRow>)}</List>
+      <p className="u5-note">Flows are made, changed and played here as in the Studio: the same editor, and the same flows.</p>
     </Screen>
   );
   return (
     <div className="u6-phone">
-      <AndroidDevice width={416} height={860} dark={theme === "dark"}><div className={cx("u5-fill")}><div className="u5-app">{tab === "hardware" ? hardwareScreen : flowsScreen}</div><BottomTabs value={tab} onChange={(v) => { setTab(v); setOpen(null); setT(null); }} tabs={[{ id: "hardware", label: "Hardware", icon: "light-fixture" }, { id: "flows", label: "Flows", icon: "route" }]} /></div></AndroidDevice>
+      <AndroidDevice width={device === "tablet" ? 1040 : 416} height={device === "tablet" ? 780 : 860} dark={theme === "dark"}><div className={cx("u5-fill")}><div className="u5-app">{tab === "hardware" ? hardwareScreen : flowsScreen}</div><BottomTabs value={tab} onChange={(v) => { setTab(v); setOpen(null); }} tabs={[{ id: "hardware", label: "Hardware", icon: "light-fixture" }, { id: "flows", label: "Flows", icon: "route" }]} /></div></AndroidDevice>
       <div className="u6-phone__notes">
         <h3>Extensions on the phone and tablet</h3>
         <p>Hardware and Flows are apps like Media or Shots. With the extension on in the project they can be chosen as tabs on a device (Setup, or the device's entry in the Studio's Devices).</p>
         <p><strong>Hardware:</strong> the switch that makes this phone the proxy, the devices with their state, and a touch form for a device's controls. A video transmitter's picture shows here and only here.</p>
-        <p><strong>Flows:</strong> the project's flows, to play from the phone itself. They are made in the Studio.</p>
+        <p><strong>Flows:</strong> the same editor as in the Studio, in a touch form: make a flow, add tracks and keyframes, set values, play it from the device itself. What is changed here shows in the Studio's Flows and the other way round.</p>
+        <Segmented label="Device" value={device} onChange={setDevice} options={[{ value: "phone", label: "Phone" }, { value: "tablet", label: "Tablet" }]} />
         <p>Only the two extension tabs are drawn here; the rest of the app is in U5.</p>
       </div>
     </div>
