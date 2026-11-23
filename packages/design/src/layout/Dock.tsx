@@ -14,7 +14,7 @@ export interface DockSplit { dir: "row" | "col"; kids: DockNode[]; sizes?: numbe
 export type DockNode = DockGroup | DockSplit;
 /** Where every panel of a window sits: left and right of the middle, and below it. */
 export type DockLayout = Partial<Record<DockZone, DockNode | null>>;
-export interface DockPanel { id: string; title: string; icon?: IconName; /** Controls in the head, after the title. */ actions?: ComponentChildren; body: ComponentChildren }
+export interface DockPanel { id: string; title: string; icon?: IconName; /** The panel's own controls: a row inside the panel, under the head. The head carries only the tabs and the collapse button. */ actions?: ComponentChildren; body: ComponentChildren }
 type Side = "left" | "right" | "top" | "bottom" | "center";
 type Target = { zone: DockZone } | { panel: string; side: Side };
 
@@ -156,11 +156,11 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
       <section key={n.tabs[0]} data-dock-group={n.tabs.join(" ")} className={cx("oc-dock__group", n.collapsed && "is-collapsed", rail && "is-rail")} style={{ flex: n.collapsed ? "none" : `${size ?? 1} 1 0px` }}>
         <header className="oc-dock__head">
           <span className={cx("oc-dock__tabs", n.tabs.length > 1 && "is-many")} role="tablist">
-            {n.tabs.map((t) => { const p = byId.get(t)!; return <button key={t} type="button" role="tab" aria-selected={t === active} className="oc-dock__tab" title={rail ? p.title : "Drag to put this panel elsewhere"} onPointerDown={start(t)} onClick={() => { if (!dragged.current) patch(t, { active: t, collapsed: false }); }}>{p.icon && <Icon name={p.icon} />}<span>{p.title}</span></button>; })}
+            {n.tabs.map((t) => { const p = byId.get(t)!; return <button key={t} type="button" role="tab" aria-selected={t === active} className="oc-dock__tab" title={n.collapsed ? `Open ${p.title}` : "Drag to put this panel elsewhere"} onPointerDown={start(t)} onClick={() => { if (!dragged.current) patch(t, { active: t, collapsed: false }); }}>{p.icon && <Icon name={p.icon} />}<span>{p.title}</span></button>; })}
           </span>
-          {!n.collapsed && panel.actions != null && <span className="oc-dock__actions">{panel.actions}</span>}
-          <button type="button" className="oc-dock__fold" aria-expanded={!n.collapsed} aria-label={n.collapsed ? `Open ${panel.title}` : `Collapse ${panel.title}`} title={n.collapsed ? "Open" : "Collapse"} onClick={() => patch(active, { collapsed: !n.collapsed })}><Icon name={n.collapsed ? "expand" : "minus"} size={12} /></button>
+          {!n.collapsed && <button type="button" className="oc-dock__fold" aria-label={`Collapse ${panel.title}`} title="Collapse" onClick={() => patch(active, { collapsed: true })}><Icon name="minus" size={12} /></button>}
         </header>
+        {!n.collapsed && panel.actions != null && <div className="oc-dock__actions">{panel.actions}</div>}
         {!n.collapsed && <div className="oc-dock__body">{panel.body}</div>}
       </section>
     );

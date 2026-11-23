@@ -72,7 +72,8 @@ The panels of round 2 became a part of the design system (`Dock`) and every prot
 | --- | --- |
 | **The tab is the handle** | A panel is moved by dragging its title. The separate grip is gone |
 | **Share the room** | Drag the border between two panels of one place |
-| **Collapse** | The "–" at the right of a panel's head folds it down to its head; the same button opens it. A collapsed place at the left or right, or beside another panel, becomes a narrow rail with the panels' icons |
+| **A head with names only** | The head of a place carries the panel names and the collapse button, nothing else. A panel's own controls (the progression's timing, the content's view switch) are a row inside the panel, under the head |
+| **Collapse** | The "–" at the right of a panel's head folds it down to its head; a click on its name opens it again. A collapsed place at the left or right, or beside another panel, becomes a narrow rail with the panels' icons |
 | **Panels as tabs** | Drop a panel onto the middle of another, or onto its head ("As a tab"): they share the place and its full size. Click a tab to switch; drag a tab out again onto a half or an edge |
 | **It is remembered** | The arrangement survives a reload (kept in the browser here; an account preference in the product). "Panels back to their places" in the toolbar's menu resets it |
 | **Everywhere** | [U1](ux-1-files.md): the sidebar and the properties are such panels (the "Properties: right, bottom, off" switch of the prototype bar is gone). [U2](ux-2-canvas.md): Layers, Frames and Comments are three panels, tabs of one place to start with; pull Frames below Layers to see both. The canvas tool mounted in the shot window brings its own panels |
