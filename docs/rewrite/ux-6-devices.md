@@ -77,6 +77,8 @@ From the owner's reaction to round 1.
 | **Room for the tracks** | The flow editor fills its screen. On a phone or tablet the whole flow is fitted to the width; in the Studio "Fit" does that on request. What is chosen shows in a panel whose edge is dragged to give the tracks more or less room and which folds away to a rail; inputs in it take the full width |
 | **Flows uses the same panels as every app** | In the Studio the list of flows and what is chosen are panels of the `Dock`: move them, size them against each other, collapse them, stack them as tabs; "Panels back to their places" is in the toolbar's menu. The tracks with their controls are the middle |
 | **A flow's own properties sit under it in the list** | The chosen flow opens in the Flows list: its name, its length, Duplicate and Delete are right under it. The other panel shows only what is chosen in the tracks (a keyframe, a fade, a marker, a track) |
+| **Intensity on the graph** | With the intensity graph shown, a keyframe is dragged up for more and down for less intensity, and sideways for its time, in one move. The start keyframe moves up and down only |
+| **Tracks: order and height** | The grip at the far left of a track reorders the tracks. The lower edge of a track is dragged to make that track taller or lower. The slider in the toolbar gives every track one height; "Fit height" spreads them over the room there is. A track sized by hand keeps its own height until the slider or Fit is used again |
 | **A thumb to take hold of** | The playhead of a flow and of the timeline ([U4](ux-4-timeline.md)) has a larger thumb with the grabbing hand; the ruler shows the pointing hand, not the text cursor |
 
 ## Decided so far

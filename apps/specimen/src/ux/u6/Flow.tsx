@@ -6,9 +6,10 @@ import type { ComponentChildren } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Button, Checkbox, DropdownMenu, Icon, PropertyList, ResizablePanel, PropertyRow, PropertySection, Segmented, Select, Slider, Switch, TextInput, cx, type IconName } from "@openclapper/design";
 import { ColourButton, type Colour } from "../u1/catalogue";
+import { moved as reordered, useSort } from "../u3/sortable";
 
 export interface Key { id: string; t: number; on: boolean; level: number; mode: "white" | "colour"; kelvin: number; colour: string; effect?: string; /** How the values arrive from the keyframe before: a jump, or a fade with a curve. */ fade?: string }
-export interface Track { id: string; name: string; type: string; device?: string; color: number; muted?: boolean; keys: Key[] }
+export interface Track { id: string; name: string; type: string; device?: string; color: number; muted?: boolean; keys: Key[]; /** Its own height in px; without one it takes the height all tracks share. */ height?: number }
 export interface Marker { id: string; name: string; t: number; out?: number }
 export interface Flow { id: string; name: string; length: number; tracks: Track[]; markers: Marker[] }
 /** Device types a track can be of, with the devices of the project that are of that type. */
@@ -44,6 +45,19 @@ export function FlowEditor({ flow, onChange, touch, onRun, frame }: { flow: Flow
   const [zoom, setScale] = useState(46);
   const [room, setRoom] = useState(0);
   const [view, setView] = useState({ graph: true, colour: true, labels: !touch });
+  const [rowH, setRowH] = useState(64);
+  const heightOf = (tr: Track) => Math.max(36, tr.height ?? (view.graph ? rowH : Math.min(rowH, 44)));
+  /** One height for every track: the slider, or what fills the room there is. A track pulled by its lower edge keeps its own. */
+  const even = (px: number) => { setRowH(px); if (flow.tracks.some((x) => x.height != null)) onChange({ ...flow, tracks: flow.tracks.map((x) => ({ ...x, height: undefined })) }); };
+  const fitRows = () => { const el = lanes.current; if (el && flow.tracks.length) even(Math.max(36, Math.floor((el.clientHeight - 52) / flow.tracks.length))); };
+  const resizeTrack = (tr: Track) => (e: PointerEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    const sy = e.clientY, from = heightOf(tr);
+    const move = (m: PointerEvent) => setTrack(tr.id, { height: Math.max(36, Math.min(360, from + m.clientY - sy)) });
+    const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
+    addEventListener("pointermove", move); addEventListener("pointerup", up);
+  };
+  const order = useSort("y", (a, b) => onChange({ ...flow, tracks: reordered(flow.tracks, a, b) }));
   const lanes = useRef<HTMLDivElement>(null);
   // How wide the lanes are, to fit the whole flow into them: always on a phone or tablet, on request in the Studio.
   useEffect(() => { const el = lanes.current; if (!el) return; const ro = new ResizeObserver(() => setRoom(el.clientWidth)); ro.observe(el); setRoom(el.clientWidth); return () => ro.disconnect(); }, []);
@@ -55,9 +69,16 @@ export function FlowEditor({ flow, onChange, touch, onRun, frame }: { flow: Flow
   const scrub = (e: PointerEvent) => { e.preventDefault(); setPlaying(false); const to = (m: PointerEvent) => setT(timeAt(m.clientX)); to(e); const up = () => { removeEventListener("pointermove", to); removeEventListener("pointerup", up); }; addEventListener("pointermove", to); addEventListener("pointerup", up); };
   const moveKey = (track: Track, key: Key) => (e: PointerEvent) => {
     e.stopPropagation(); setSel({ kind: "key", track: track.id, id: key.id });
-    if (key.t === 0) return; // the start keyframe stays
+    // Sideways is time (the start keyframe stays at 0); with the intensity graph shown, up and down is intensity.
+    const lane = (e.currentTarget as HTMLElement).parentElement!.getBoundingClientRect(), hh = heightOf(track), sx = e.clientX, sy = e.clientY, graph = view.graph && !TYPES[track.type].record;
     let moved = false;
-    const move = (m: PointerEvent) => { moved = true; setKey(track.id, key.id, { t: Math.max(0.1, timeAt(m.clientX)) }); };
+    const move = (m: PointerEvent) => {
+      if (!moved && Math.hypot(m.clientX - sx, m.clientY - sy) < 4) return;
+      moved = true;
+      const c: Partial<Key> = key.t === 0 ? {} : { t: Math.max(0.1, timeAt(m.clientX)) };
+      if (graph) { c.level = Math.max(0, Math.min(100, Math.round(((hh - 8 - (m.clientY - lane.top)) / (hh - 16)) * 100))); if (c.level > 0) c.on = true; }
+      setKey(track.id, key.id, c);
+    };
     // The release of a drag is not a click on the lane under it, which would drop the selection.
     const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); if (moved) { const eat = (c: MouseEvent) => c.stopPropagation(); addEventListener("click", eat, { capture: true, once: true }); setTimeout(() => removeEventListener("click", eat, { capture: true }), 0); } };
     addEventListener("pointermove", move); addEventListener("pointerup", up);
@@ -80,7 +101,7 @@ export function FlowEditor({ flow, onChange, touch, onRun, frame }: { flow: Flow
     addEventListener("keydown", key); return () => removeEventListener("keydown", key);
   });
 
-  const head = touch ? 92 : 190, pad = head + 16, h = view.graph ? 64 : 44, step = [1, 2, 5, 10].find((x) => x * scale >= 56) ?? 20;
+  const head = touch ? 92 : 190, pad = head + 16, step = [1, 2, 5, 10].find((x) => x * scale >= 56) ?? 20;
   const track = sel && (sel.kind === "key" || sel.kind === "fade") ? flow.tracks.find((x) => x.id === sel.track) : sel?.kind === "track" ? flow.tracks.find((x) => x.id === sel.id) : undefined;
   const key = sel?.kind === "key" || sel?.kind === "fade" ? track?.keys.find((x) => x.id === sel.id) : undefined;
   const marker = sel?.kind === "marker" ? flow.markers.find((m) => m.id === sel.id) : undefined;
@@ -146,30 +167,35 @@ export function FlowEditor({ flow, onChange, touch, onRun, frame }: { flow: Flow
         <Button size="sm" variant="quiet" icon="bookmark" title="A marker at the playhead (M)" onClick={() => onChange({ ...flow, markers: [...flow.markers, { id: `m${Date.now()}`, name: "Marker", t: Math.round(t * 10) / 10 }] })}>{touch ? undefined : "Marker"}</Button>
         <Button size="sm" variant="quiet" icon="plus" onClick={() => { const id = `t${Date.now()}`; onChange({ ...flow, tracks: [...flow.tracks, { id, name: `Track ${flow.tracks.length + 1}`, type: "Aputure MC", color: (flow.tracks.length % 8) + 1, keys: [k(`s${Date.now()}`, 0, { level: 0 })] }] }); setSel({ kind: "track", id }); }}>{touch ? undefined : "Track"}</Button>
         <DropdownMenu size="sm" variant="quiet" icon="eye" align="end" items={[{ id: "graph", label: "Intensity graph", checked: view.graph }, { id: "colour", label: "Light colour", checked: view.colour }, { id: "labels", label: "Value labels", checked: view.labels }]} onSelect={(x) => setView({ ...view, [x]: !view[x as "graph"] })} />
-        {!touch && <Button size="sm" variant="quiet" icon="expand" title="Fit the whole flow into the width" onClick={() => setScale(fit)}>Fit</Button>}
+        <span className="u6f-sizer" title="The height of every track"><Icon name="rows" size={12} /><Slider min={36} max={220} step={4} value={Math.min(220, rowH)} onChange={even} /></span>
+        <Button size="sm" variant="quiet" icon="rows" title="Spread the tracks over the height there is" onClick={fitRows}>{touch ? undefined : "Fit height"}</Button>
+        {!touch && <Button size="sm" variant="quiet" icon="expand" title="Fit the whole flow into the width" onClick={() => setScale(fit)}>Fit width</Button>}
         {!touch && <span className="u3-slide" style={{ flex: "none", width: 110 }}><Slider min={8} max={110} step={2} value={Math.round(scale)} onChange={setScale} /></span>}
         {onRun && <Button size="sm" icon="mobile" onClick={onRun}>Run on phone</Button>}
       </div>
   );
   const grid = (
-        <div className="u6f-grid" ref={lanes} style={{ "--head": `${head}px`, "--h": `${h}px` }}>
+        <div className="u6f-grid" ref={lanes} style={{ "--head": `${head}px` }}>
           <div className="u6f-inner" style={{ width: pad + flow.length * scale + 24 }}>
             <div className="u6f-ruler" onPointerDown={scrub}>{Array.from({ length: Math.floor(flow.length / step) + 1 }, (_, i) => <span key={i} style={{ left: pad + i * step * scale }}>{i * step} s</span>)}</div>
             <div className="u6f-markers">{flow.markers.map((m) => <button type="button" key={m.id} className={cx(sel?.kind === "marker" && sel.id === m.id && "is-on", m.out != null && "is-range")} style={{ left: pad + m.t * scale, width: m.out != null ? (m.out - m.t) * scale : undefined }} onClick={() => { setSel({ kind: "marker", id: m.id }); setT(m.t); }}><Icon name="bookmark" size={10} />{m.name}</button>)}</div>
-            {flow.tracks.map((tr) => {
-              const c = `var(--cat-${tr.color})`, pts = tr.keys.flatMap((x, i) => { const prev = tr.keys[i - 1], y = (v: Key) => h - 8 - ((v.on ? v.level : 0) / 100) * (h - 16); return prev && !x.fade ? [`${pad + x.t * scale},${y(prev)}`, `${pad + x.t * scale},${y(x)}`] : [`${pad + x.t * scale},${y(x)}`]; });
+            {flow.tracks.map((tr, n) => {
+              const h = heightOf(tr), c = `var(--cat-${tr.color})`, pts = tr.keys.flatMap((x, i) => { const prev = tr.keys[i - 1], y = (v: Key) => h - 8 - ((v.on ? v.level : 0) / 100) * (h - 16); return prev && !x.fade ? [`${pad + x.t * scale},${y(prev)}`, `${pad + x.t * scale},${y(x)}`] : [`${pad + x.t * scale},${y(x)}`]; });
               const last = tr.keys[tr.keys.length - 1];
               return (
-                <div key={tr.id} className={cx("u6f-track", tr.muted && "is-muted")} style={{ "--c": c }}>
+                <div key={tr.id} data-sort className={cx("u6f-track", tr.muted && "is-muted")} style={{ "--c": c, "--h": `${h}px`, ...order.style(n) }} onPointerDown={(e) => { if ((e.target as HTMLElement).closest(".u6f-grab")) order.start(n)(e); }}>
+                  <i className="u6f-grab" role="button" aria-label={`Move the track ${tr.name}`} title="Drag to reorder the tracks"><Icon name="grip" size={12} /></i>
                   <button type="button" className={cx("u6f-label", sel?.kind === "track" && sel.id === tr.id && "is-on")} onClick={() => setSel({ kind: "track", id: tr.id })}><Icon name={TYPES[tr.type].icon} /><span><b>{tr.name}</b><small>{tr.device ?? "Not assigned"}</small></span>{tr.muted && <Icon name="eye-off" size={12} />}</button>
                   <div className="u6f-lane" onClick={(e) => { if (mode === "insert" || e.altKey) addKey(tr, timeAt(e.clientX)); else setSel(null); }}>
                     {view.graph && !TYPES[tr.type].record && <svg className="u6f-graph" width={pad + flow.length * scale} height={h}><polyline points={[...pts, `${pad + flow.length * scale},${h - 8 - ((last.on ? last.level : 0) / 100) * (h - 16)}`].join(" ")} /></svg>}
                     {tr.keys.slice(1).map((x, i) => <button type="button" key={`f${x.id}`} className={cx("u6f-fade", x.fade && "is-fade", sel?.kind === "fade" && sel.id === x.id && "is-on")} style={{ left: pad + tr.keys[i].t * scale + 8, width: (x.t - tr.keys[i].t) * scale - 16 }} title={x.fade ? `Fade (${x.fade})` : "Jump: click to make it a fade"} onClick={(e) => { e.stopPropagation(); if (!x.fade) setKey(tr.id, x.id, { fade: "linear" }); setSel({ kind: "fade", track: tr.id, id: x.id }); }} />)}
                     {tr.keys.map((x) => <button type="button" key={x.id} className={cx("u6f-key", x.t === 0 && "is-start", !x.on && "is-off", sel?.kind === "key" && sel.id === x.id && sel.track === tr.id && "is-on")} style={{ left: pad + x.t * scale, top: view.graph ? h - 8 - ((x.on ? x.level : 0) / 100) * (h - 16) : h / 2, background: view.colour ? shows(x) : undefined }} onClick={(e) => e.stopPropagation()} onPointerDown={moveKey(tr, x)}>{view.labels && <span>{TYPES[tr.type].record ? (x.on ? "rec" : "stop") : x.on ? `${x.level} %` : "off"}{x.effect ? ` · ${x.effect}` : ""}</span>}</button>)}
                   </div>
+                  <i className="u6f-resize" role="separator" aria-orientation="horizontal" title="Drag to make this track taller or lower" onPointerDown={resizeTrack(tr)} />
                 </div>
               );
             })}
+            {order.ghost((n) => <div className="u6f-trackghost" style={{ "--c": `var(--cat-${flow.tracks[n].color})` }}><Icon name="grip" size={12} /><Icon name={TYPES[flow.tracks[n].type].icon} /><b>{flow.tracks[n].name}</b></div>)}
             <i className="u6f-head" style={{ left: pad + t * scale }}><b onPointerDown={scrub} title="Drag to scrub" /></i>
           </div>
         </div>
