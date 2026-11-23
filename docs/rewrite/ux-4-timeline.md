@@ -52,6 +52,8 @@ From the owner's reaction to round 1.
 - **One track.** No second track.
 - **A new clip holds 2 s by default.** The value is an account setting that every timeline inherits and a timeline can override.
 - **The master shows each timeline as a film strip** with its first and last picture and what fits between. It does not show the timelines' own chapters.
+- **The edit lock is one lock per file, whichever window edits it.** Editing a canvas or a shot in place from a timeline (or from a shot window) takes the same lock as editing it in its own app: everyone else sees the file read-only everywhere. The other way round, a file that someone is editing cannot be edited in place either; the host shows who has it. For the build: the lock belongs to the file, not to the app or the window.
+- **Editing a timeline locks the timeline only,** not the files its clips point at. Locking those as well can become a project setting, off by default.
 - **No "replace the file of a clip".** A clip that is not wanted is removed and another file is dragged in.
 
 ## Not prototyped

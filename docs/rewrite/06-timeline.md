@@ -98,7 +98,7 @@ Rules that hold whichever way is chosen:
 
 - **The edit is to the file,** not to the clip. The host says where else the file is used and offers to duplicate it first.
 - **The file's app saves,** as it does on its own (automatically, with its render). The timeline saves only its own list.
-- **The edit lock applies:** a file someone else is editing is read-only in the timeline too.
+- **The edit lock applies, and it is one lock per file.** Editing a file in place takes the same lock as editing it in its own app, so nobody else can edit it anywhere meanwhile; a file someone else is editing is read-only in the timeline too. Editing a timeline locks the timeline, not the files its clips point at; locking those as well may become a project setting, off by default ([U4](ux-4-timeline.md)).
 - **Playback and editing do not mix.** Starting an edit pauses and pins the playhead to the clip; moving the playhead away ends the edit, which saves first. Until the new render is stored, the strip shows the live picture.
 - **The editor owns the keys** while it is active.
 - A photo cannot be edited: editing a photo clip makes a canvas from it.
