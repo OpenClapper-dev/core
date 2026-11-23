@@ -33,7 +33,7 @@ The app grew out of a viewfinder helper. A photo cannot exist without a rig and 
 | 09 | Shells and app catalogue | [#336](https://github.com/OpenClapper-dev/core/issues/336) | [09-shells.md](09-shells.md) | decided |
 | 09a | Places (Motiv, address, geography) | [#352](https://github.com/OpenClapper-dev/core/issues/352) | [09a-places.md](09a-places.md) | decided |
 | I1 | Interjection after 06: collections, progression, internal files, master timeline | — | [i1-interjection.md](i1-interjection.md) | decided |
-| 10 | Conclusion: target model and build plan | [#337](https://github.com/OpenClapper-dev/core/issues/337) | 10-conclusion.md | not started |
+| 10 | Conclusion: target model and build plan | [#337](https://github.com/OpenClapper-dev/core/issues/337) | [10-conclusion.md](10-conclusion.md) | proposal |
 
 Workshops 01–03 are the root of the entanglement and come first; 04–06 build on them; 07–09 depend on a stable block list. After the specification workshops a second series of **UX workshops** follows ([ux-plan.md](ux-plan.md)). They prototype the interface in the specimen app, feed the design track’s D4 and may reopen a decision. Workshop 10 comes after them.
 
