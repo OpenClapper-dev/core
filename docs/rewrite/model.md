@@ -56,7 +56,7 @@ Everything a user makes is a file ([07](07-organisation.md)). A file belongs to 
 ## Rules that hold everywhere
 
 - **References, not ownership.** A removed file leaves a missing reference; it never breaks the thing that pointed at it. The one exception is an internal file, which lives and dies with its parent.
-- **Nothing is stored on a reference.** A shot's entry, a progression's item and a timeline's clip are a pointer (plus a hold time where time matters). What a picture looks like is the file's business. The bounded exception is a progression's overlay and default frame.
+- **Nothing is stored on a reference.** A shot's entry, a progression's item and a timeline's clip are a pointer (plus a time where time matters; a progression's item may point at two frames of one canvas and move between them). What a picture looks like is the file's business. The bounded exception is a progression's overlay and default frame.
 - **Frames live inside a canvas.** A frame is free-form, from an optics preset, or an aspect ratio.
 - **A photo's angle of view** comes from its EXIF; the live picture's from what the camera reports. Real lenses only, no digital zoom.
 - **View modes** (Mask, Outline, Crop, Full) are a window's choice, never stored.

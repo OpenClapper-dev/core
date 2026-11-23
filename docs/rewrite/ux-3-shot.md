@@ -1,6 +1,6 @@
 # U3 · Shot, set, location
 
-UX workshop [#359](https://github.com/OpenClapper-dev/core/issues/359) ([plan](ux-plan.md)). Status: **in progress** (round 3, 2026-11-23).
+UX workshop [#359](https://github.com/OpenClapper-dev/core/issues/359) ([plan](ux-plan.md)). Status: **decided** (2026-11-23), after three rounds.
 
 The three windows that open a shot, a set and a location. Specified in [04](04-shots.md), [09a](09a-places.md), [I1](i1-interjection.md) and [06](06-timeline.md) (hosting another app in place).
 
@@ -80,7 +80,7 @@ The panels of round 2 became a part of the design system (`Dock`) and every prot
 | **It is remembered** | The arrangement survives a reload (kept in the browser here; an account preference in the product). "Panels back to their places" in the toolbar's menu resets it |
 | **Everywhere** | [U1](ux-1-files.md): the sidebar and the properties are such panels (the "Properties: right, bottom, off" switch of the prototype bar is gone). [U2](ux-2-canvas.md): Layers, Frames and Comments are three panels, tabs of one place to start with; pull Frames below Layers to see both. The canvas tool mounted in the shot window brings its own panels |
 
-## Decided so far
+## Decided
 
 2026-11-23, by the owner:
 
@@ -97,7 +97,7 @@ The panels of round 2 became a part of the design system (`Dock`) and every prot
 
 ## Changes to specification pages
 
-To be applied to [04](04-shots.md) when the workshop is decided:
+Applied to [04](04-shots.md) and [model.md](model.md):
 
 - The generator makes a zoom, in steps or smooth; the sentence on pans and tilts from the generator goes (frames at different positions can still be made by hand in the canvas).
 - A progression item is a picture held for a time, or a smooth move from one frame of a canvas to another over a time.

@@ -1,6 +1,6 @@
 # 04 · Shots and planning
 
-Workshop [#331](https://github.com/OpenClapper-dev/core/issues/331). Status: **decided** (2026-11-19; progression added in the [interjection](i1-interjection.md)).
+Workshop [#331](https://github.com/OpenClapper-dev/core/issues/331). Status: **decided** (2026-11-19; progression added in the [interjection](i1-interjection.md); zoom generator and smooth moves from UX workshop [U3](ux-3-shot.md), 2026-11-23).
 
 What a shot is once photos stand on their own: an intent with a list of referenced files.
 
@@ -57,7 +57,7 @@ A shot is not always static. Its **progression** shows roughly how it develops: 
 
 | Part | Meaning |
 | --- | --- |
-| Items | An ordered list of pictures, each with a hold time. A picture is a photo, a canvas, or one frame of a canvas ([05](05-composition.md)) |
+| Items | An ordered list of pictures, each with a time. A picture is a photo, a canvas, or one frame of a canvas ([05](05-composition.md)). An item holds its picture for its time, or is a **smooth move** from one frame of a canvas to another frame of the same canvas over that time |
 | Timing | Per item, or one total length split across the items (evenly or weighted to the first and last) |
 | Overlay | Optional: one drawing shown over every item |
 | Default frame | Optional: one frame applied to items that can take it |
@@ -68,7 +68,7 @@ A shot is not always static. Its **progression** shows roughly how it develops: 
 - **The timing belongs to the progression.** A timeline that shows the shot plays it as the progression says.
 - **The overlay** is an internal canvas of the shot ([I1](i1-interjection.md)), drawn over every item and stretched to the item's picture. It has no ranges: it shows on every item or it is hidden.
 - **The default frame** is a set of frame values (free-form, an optics preset with a focal length, or an aspect ratio). It is applied, centred, to items that have an angle of view and no frame of their own: a photo, or a canvas with a base photo. An item that is one frame of a canvas keeps that frame; a blank canvas is not touched.
-- **Framing series in one step.** From one photo and either an optics preset or free values, a generator makes an internal canvas with that photo as its base, one frame per focal length (per prime of the preset, or in steps across its zoom range, or the values typed in), and one item per frame. Pans and tilts are the same canvas with frames at different positions.
+- **A zoom in one step.** From one photo and either an optics preset or free-form values, a generator makes an internal canvas with that photo as its base. In steps: one frame per focal length (the ticked primes of a preset, common stops or every so many millimetres across a range, or a typed list) and one item per frame. Smooth: a start and an end frame and one item that moves between them over a time, optionally eased. The generator makes zooms only: a pan or a tilt cannot be derived from one photo, because the perspective changes. Frames at different positions can still be made by hand in the canvas.
 - A progression has nothing to do with a flow (the lights extension). A flow may later be written to match one; they do not share a clock.
 
 ### Thumbnail
@@ -145,5 +145,11 @@ Shots and properties are core.
 - **A shot can carry one progression:** a timed order of pictures (photo, canvas, one frame of a canvas), separate from the content list, built from the timeline's components, with its own timing. This replaces the first record's "no steps; a progression is several entries or a timeline".
 - **A progression can have one overlay and one default frame** across all its items, in the bounded form described above.
 - **A framing series** is one internal canvas with a frame per focal length, made by a generator.
+
+2026-11-23, in UX workshop [U3](ux-3-shot.md), by the owner:
+
+- **The generator makes zooms only,** in steps or smooth, from a preset or free-form values. No pan or tilt.
+- **A progression item can be a smooth move** between two frames of one canvas over a time.
+- **The progression stays on the shot.** Moving it onto the canvas was considered and dropped.
 - **The thumbnail** is the progression's first picture, else the first photo or canvas in the content.
 - **No built-in note or description** on any file.
