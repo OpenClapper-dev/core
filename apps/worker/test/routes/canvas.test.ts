@@ -81,6 +81,19 @@ describe("the edit lock", () => {
   });
 });
 
+describe("live updates", () => {
+  test("a project's canvases are watched in realtime unless it says every 5 seconds; another value is refused", async () => {
+    await newProject();
+    const live = async () => (await ok<{ projects: { id: string; canvas_live: string }[] }>(api(u.token, "GET", "/api/projects"))).projects.find((p) => p.id === project)!.canvas_live;
+    expect(await live()).toBe("realtime");
+    await ok(api(u.token, "PUT", `/api/projects/${project}`, { name: `P ${project}`, canvas_live: "gradual" }));
+    expect(await live()).toBe("gradual");
+    await ok(api(u.token, "PUT", `/api/projects/${project}`, { name: `Q ${project}` }));
+    expect(await live()).toBe("gradual");
+    await ok(api(u.token, "PUT", `/api/projects/${project}`, { name: `Q ${project}`, canvas_live: "often" }), 400);
+  });
+});
+
 describe("renders", () => {
   test("uploaded, read back, refused for another account, copied with the canvas and removed when purged", async () => {
     await newProject();

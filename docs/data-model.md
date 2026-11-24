@@ -8,6 +8,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Stor
 
 | File | What |
 | --- | --- |
+| `0006_canvas_live.sql` | `projects.canvas_live`: how watchers of the project's canvases see them change, `realtime` (default) or `gradual` (step B5 follow-up, #377) |
 | `0005_canvas.sql` | `frames` (every frame of every canvas: preset, focal length, the picture mark) and `renders` (a canvas's render and thumbnail) (step B5, #377) |
 | `0004_name_counters.sql` | `name_counters`: the running number of each naming pattern, per project and file type (step B4, #376) |
 | `0003_devices.sql` | `devices`: a device file's owner and hardware fingerprint (step B3, #375) |
@@ -20,7 +21,7 @@ A new numbered file for every change; an applied one is never edited.
 
 **Tenancy** (epic #107). `users(id, email UNIQUE NOCASE, name, password_hash, status active|blocked, failed_logins, locked_until, created_at, updated_at)` (`failed_logins` and `locked_until` are unused since the lockout was dropped, #224): `password_hash` is `pbkdf2-sha256$<iterations>$<salt>$<hash>`, or `!`, which never verifies (sign-in disabled). `sessions(id, user_id → users CASCADE, client dashboard|mobile, expires_at, last_used_at, created_at)`: the id is the SHA-256 (hex) of the opaque token; the token itself is never stored; `dashboard` is the Studio (the value predates the rename and is kept, not migrated). `workspaces(id, name, owner_user_id → users, kind personal|shared, created_at, updated_at)` and `workspace_members(workspace_id → CASCADE, user_id → CASCADE, role owner|admin|editor|viewer)`, primary key (workspace, user). Access is decided by `workspace_members` alone; `owner_user_id` is bookkeeping and nullable, so organisations can own workspaces later (an added `owner_org_id`). `kind`: each user's own workspace is `personal` (where their new projects go by default); the ones they create to share are `shared`.
 
-`projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, created_at, updated_at)`: a project is a root of files and a hard scope.
+`projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, canvas_live realtime|gradual, created_at, updated_at)`: a project is a root of files and a hard scope. `canvas_live` is the project's choice of live updates for its canvases ([canvas](features/canvas.md)).
 
 `files(id, project_id → projects CASCADE, home_of → users CASCADE, type, name, container → files SET NULL, internal_of → files CASCADE, fixed, created_at, updated_at, created_by → users SET NULL, deleted_at, deleted_with, lock_by → users SET NULL, lock_holder, lock_until, body JSON, body_version)`: everything a user makes ([organisation](rewrite/07-organisation.md)).
 
