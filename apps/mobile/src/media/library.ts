@@ -24,7 +24,7 @@ export function useCanvases(): MediaCanvas[] {
   const lib = store.use();
   const project = currentProject();
   if (!lib || lib.projectId !== project?.id) return [];
-  return lib.files.filter((f) => f.type === "canvas").map((f) => ({ id: f.id, name: f.name, container: f.container, updated: f.updated_at ?? f.created_at, file: f })).sort((a, b) => b.updated.localeCompare(a.updated));
+  return lib.files.filter((f) => f.type === "canvas" && !f.internal_of).map((f) => ({ id: f.id, name: f.name, container: f.container, updated: f.updated_at ?? f.created_at, file: f })).sort((a, b) => b.updated.localeCompare(a.updated));
 }
 /** The project's optics presets, by id (a canvas's frames are measured with them). */
 export function usePresets(): Map<string, PresetBody> {
@@ -39,6 +39,21 @@ export function useDefinitions(): { id: string; name: string; def: PropertyDef }
   if (!lib || lib.projectId !== project?.id) return [];
   return lib.files.filter((f) => f.type === "property" && f.body).map((f) => ({ id: f.id, name: f.name, def: f.body as unknown as PropertyDef })).sort((a, b) => a.def.order - b.def.order);
 }
+/** The project's shots, sets or locations (docs/features/shots.md), by name. */
+export function usePlaces(type: "shot" | "set" | "location"): FileRec[] {
+  const lib = store.use();
+  const project = currentProject();
+  if (!lib || lib.projectId !== project?.id) return [];
+  return lib.files.filter((f) => f.type === type && !f.internal_of).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+/** Every file of the loaded library, by id (a shot's pictures, a reference's name). */
+export function useLibraryMap(): Map<string, FileRec> {
+  const lib = store.use();
+  return new Map((lib?.files ?? []).map((f) => [f.id, f]));
+}
+/** Puts a file the server answered with into the copy on the phone (a shot after its lists changed). */
+export const takeFile = (file: FileRec) => store.set((l) => (l ? { ...l, files: l.files.some((f) => f.id === file.id) ? l.files.map((f) => (f.id === file.id ? { ...f, ...file, values: file.values ?? f.values } : f)) : [file, ...l.files] } : l));
+
 /** A file of the loaded library by id (for the names of references). */
 export const libraryFile = (id: string) => store.get()?.files.find((f) => f.id === id) ?? null;
 /** Stored values of a file of the library. */
@@ -71,8 +86,13 @@ export function loadLibrary(): Promise<void> {
       const root = { project_id: project.id };
       // Photos with their property values; folders, collections and the property definitions with their bodies.
       // Canvases without their bodies (those can be large): a canvas's page loads its own.
-      const [photos, holders] = await Promise.all([listFiles(root, { type: "photo,canvas", values: true }), listFiles(root, { type: "folder,collection,property,preset", body: true })]);
-      store.set({ projectId: project.id, files: [...holders.filter((f) => !f.fixed), ...photos], loaded: new Date().toISOString() });
+      // Shots, sets and locations with their lists (references) and bodies; canvases made inside a shot too (internal).
+      const [photos, holders, places] = await Promise.all([
+        listFiles(root, { type: "photo,canvas", values: true, refs: true, internal: true }),
+        listFiles(root, { type: "folder,collection,property,preset", body: true }),
+        listFiles(root, { type: "shot,set,location", body: true, refs: true, values: true }),
+      ]);
+      store.set({ projectId: project.id, files: [...holders.filter((f) => !f.fixed), ...photos, ...places], loaded: new Date().toISOString() });
       if (settings.get().keepProject) void keepOnPhone();
     } catch (e) { log("warn", "media load failed", e); }
   })().finally(() => { loading = null; for (const cb of loadListeners) cb(false); });

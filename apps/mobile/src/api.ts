@@ -117,10 +117,10 @@ export type Root = { project_id: string } | { home: true };
 const rootQuery = (r: Root) => ("home" in r ? "home=1" : `project_id=${encodeURIComponent(r.project_id)}`);
 
 /** The live files of a root, every page of them. */
-export async function listFiles(root: Root, q: { type?: string; container?: string; body?: boolean; values?: boolean } = {}): Promise<FileRec[]> {
+export async function listFiles(root: Root, q: { type?: string; container?: string; body?: boolean; values?: boolean; refs?: boolean; internal?: boolean } = {}): Promise<FileRec[]> {
   const out: FileRec[] = [];
   for (let offset = 0; ; ) {
-    const params = [rootQuery(root), q.type && `type=${q.type}`, q.container && `container=${q.container}`, q.body && "body=1", q.values && "values=1", "limit=2000", `offset=${offset}`].filter(Boolean).join("&");
+    const params = [rootQuery(root), q.type && `type=${q.type}`, q.container && `container=${q.container}`, q.body && "body=1", q.values && "values=1", q.refs && "refs=1", q.internal && "internal=1", "limit=2000", `offset=${offset}`].filter(Boolean).join("&");
     const page = await call<{ files: FileRec[]; more: boolean }>(`/api/files?${params}`);
     out.push(...page.files);
     if (!page.more || !page.files.length) return out;
@@ -128,7 +128,7 @@ export async function listFiles(root: Root, q: { type?: string; container?: stri
   }
 }
 export const getFile = (id: string) => call<{ file: FileRec }>(`/api/files/${id}`).then((r) => r.file);
-export const putFile = (id: string, f: Partial<Pick<FileRec, "name" | "container" | "body">> & { type: string } & ({ project_id: string } | { home: true })) =>
+export const putFile = (id: string, f: Partial<Pick<FileRec, "name" | "container" | "body" | "internal_of">> & { type: string; refs?: { kind: string; to: string; data?: Record<string, unknown> | null }[] } & ({ project_id: string } | { home: true })) =>
   call<{ file: FileRec }>(`/api/files/${id}`, { method: "PUT", body: f }).then((r) => r.file);
 export const moveFiles = (ids: string[], container: string | null) => call<unknown>("/api/files/move", { method: "POST", body: { ids, container } });
 /** Property values of one file (null removes one) → the file's values after. */
