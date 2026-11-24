@@ -57,7 +57,9 @@ export default {
       const identity = await identify(request, env);
       if (!identity) return json({ error: "unauthorized" }, 401);
       if (request.method !== "GET" && request.method !== "HEAD") {
-        if (!(await provider.allow(identity, "write", env))) throw new HttpError(403, "not allowed for this account");
+        // Adding photos is its own capability: a provider may allow changes and still refuse more storage.
+        const capability = request.method === "PUT" && url.pathname.startsWith("/api/photos/") ? "upload" : "write";
+        if (!(await provider.allow(identity, capability, env))) throw new HttpError(403, "not allowed for this account");
       }
       const tenant = await loadTenant(env, identity.userId);
       return await router.handle(request.method, url.pathname, { request, env, url, identity, tenant });

@@ -21,7 +21,7 @@ for (const t of [PHOTO, COLLECTION, DEFINITION, NOTE]) registerFileType(t);
 test("the registry knows the core types and refuses a second type of the same name", () => {
   assert.equal(fileType("folder"), FOLDER);
   assert.equal(fileType("canvas"), undefined);
-  assert.deepEqual(containerTypes(), ["folder", "t-collection"]);
+  assert.deepEqual(containerTypes(), ["folder", "collection", "t-collection"]);
   registerFileType(FOLDER);
   assert.throws(() => registerFileType({ ...FOLDER }), /registered twice/);
   assert.throws(() => registerFileType({ ...FOLDER, type: "Bad Name" }), /lower-case/);
@@ -105,4 +105,23 @@ test("preferences: known keys with valid values, in an account home", async () =
   assert.match(err(checkFile(PREFERENCES, { colour: "red" }, 1, null))!, /no "colour"/);
   assert.match(placementError(PREFERENCES, null, "project")!, /belongs to an account home/);
   assert.equal(placementError(PREFERENCES, null, "home"), null);
+});
+
+test("photos and collections", async () => {
+  const { PHOTO, COLLECTION } = await import("./types.ts");
+  assert.equal(err(checkFile(PHOTO, { exif: { Make: "FUJIFILM", FocalLength: 23, SubjectArea: [1, 2] }, readout: { make: "FUJIFILM", model: "X-T5" } }, 1, null)), null);
+  assert.match(err(checkFile(PHOTO, { exif: { Nested: { a: 1 } }, readout: {} }, 1, null))!, /exif values/);
+  assert.match(err(checkFile(PHOTO, { exif: {}, readout: { owner: "x" } }, 1, null))!, /readout holds/);
+  assert.match(err(checkFile(PHOTO, { exif: {}, readout: {}, note: "x" }, 1, null))!, /no "note"/);
+  assert.equal(PHOTO.made, "upload");
+  assert.equal(err(checkFile(COLLECTION, COLLECTION.empty(), 1, null)), null);
+  assert.equal(err(checkFile(COLLECTION, { color: "#12ab9F", order: "manual", manual: [id] }, 1, null)), null);
+  assert.match(err(checkFile(COLLECTION, { color: 9, order: "time" }, 1, null))!, /color must be/);
+  assert.match(err(checkFile(COLLECTION, { color: 2, order: "name" }, 1, null))!, /order must be/);
+  const coll = { type: "collection", fixed: null };
+  assert.equal(placementError(PHOTO, coll, "project"), null);
+  assert.match(placementError(FOLDER, coll, "project")!, /holds only photos/);
+  assert.match(placementError(COLLECTION, coll, "project")!, /holds only photos/);
+  assert.equal(placementError(COLLECTION, { type: "folder", fixed: null }, "project"), null);
+  assert.equal(canBeInternal(PHOTO), true);
 });

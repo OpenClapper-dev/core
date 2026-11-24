@@ -1,8 +1,8 @@
 /**
  * Storage monitoring (epic #67, issue #214): one snapshot a day into storage_daily, read by the
  * admin plane: the bound bucket's total from an R2 listing, and a row per workspace for what its
- * photos occupy (binned ones included). The per-workspace rows wait for the rewrite's media step
- * (B2, #374): until photos are stored again there is nothing to count.
+ * photos occupy, binned ones included. Images shared by copies of a photo are counted once;
+ * `objects` is the number of stored photos (each with up to three images).
  */
 import type { Env } from "./index.ts";
 
@@ -27,8 +27,10 @@ async function bucketTotal(bucket: R2Bucket): Promise<{ bytes: number; objects: 
 
 /** Writes (or rewrites) the day's rows. Never throws past the cron: the caller logs. */
 export async function snapshotStorage(env: Pick<Env, "DB" | "SHOTS_BUCKET">, day = utcDay()): Promise<StorageSnapshot> {
-  // Per workspace: nothing yet. The rewrite stores photos from step B2 (#374), which brings these rows back.
-  const results: { ws: string; photos: number; bytes: number; unsized: number }[] = [];
+  const { results } = await env.DB.prepare(`SELECT ws, count(*) AS photos, coalesce(sum(bytes), 0) AS bytes, sum(bytes IS NULL) AS unsized FROM (
+         SELECT pr.workspace_id AS ws, ph.object_id, max(coalesce(ph.original_bytes, 0) + coalesce(ph.preview_bytes, 0) + coalesce(ph.thumbnail_bytes, 0)) AS bytes
+         FROM photos ph JOIN files f ON f.id = ph.file_id JOIN projects pr ON pr.id = f.project_id GROUP BY pr.workspace_id, ph.object_id
+       ) GROUP BY ws`).all<{ ws: string; photos: number; bytes: number; unsized: number }>();
   const total = await bucketTotal(env.SHOTS_BUCKET);
   const row = env.DB.prepare("INSERT OR REPLACE INTO storage_daily (day, workspace_id, bytes, objects, unsized) VALUES (?1, ?2, ?3, ?4, ?5)");
   await env.DB.batch([

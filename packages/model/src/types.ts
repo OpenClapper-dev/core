@@ -76,3 +76,45 @@ export const PREFERENCES: FileType = {
 };
 
 registerFileType(PREFERENCES);
+
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/**
+ * A still image (docs/rewrite/01-media.md). It is made by uploading it (the photo routes), never
+ * through the general file route, and what it stores about itself is read-only: the raw EXIF tags
+ * of the original and a readout of the device and lens. Its other facts (sizes, time taken, angle
+ * of view) are columns of the photos table.
+ */
+export const PHOTO: FileType = {
+  type: "photo", label: "Photo", plural: "Photos", roots: ["project"], version: 1, made: "upload",
+  empty: () => ({ exif: {}, readout: {} }),
+  check(body) {
+    for (const k of Object.keys(body)) if (k !== "exif" && k !== "readout") return `a photo has no "${k}"`;
+    if (!isRecord(body.exif)) return "exif must be an object";
+    for (const v of Object.values(body.exif)) if (!(typeof v === "string" || typeof v === "number" || (Array.isArray(v) && v.every((x) => typeof x === "number")))) return "exif values are text, numbers or lists of numbers";
+    if (!isRecord(body.readout)) return "readout must be an object";
+    for (const [k, v] of Object.entries(body.readout)) if (!["make", "model", "lens"].includes(k) || typeof v !== "string" || v.length > 120) return "readout holds make, model and lens as text";
+    return null;
+  },
+};
+
+/**
+ * Photos that belong together (docs/rewrite/i1-interjection.md): contains only photos and does not
+ * nest. It has a colour (one of the eight categorical ones, or any colour as #rrggbb), given at
+ * random when it is made, and an order for the media library: by time taken, or set by hand.
+ */
+export const COLLECTION: FileType = {
+  type: "collection", label: "Collection", plural: "Collections", roots: ["project"], holds: ["photo"], version: 1,
+  empty: () => ({ color: 1, order: "time" }),
+  check(body) {
+    for (const k of Object.keys(body)) if (!["color", "order", "manual"].includes(k)) return `a collection has no "${k}"`;
+    const c = body.color;
+    if (!((typeof c === "number" && Number.isInteger(c) && c >= 1 && c <= 8) || (typeof c === "string" && HEX.test(c)))) return "color must be 1 to 8, or a colour as #rrggbb";
+    if (body.order !== "time" && body.order !== "manual") return "order must be time or manual";
+    if (body.manual !== undefined && !(Array.isArray(body.manual) && body.manual.length <= 5000 && body.manual.every((x) => typeof x === "string" && UUID.test(x)))) return "manual must be a list of photo ids";
+    return null;
+  },
+};
+
+registerFileType(PHOTO);
+registerFileType(COLLECTION);

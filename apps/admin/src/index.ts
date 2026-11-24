@@ -63,7 +63,6 @@ const router = new Router<Ctx>();
 
 router.on("GET", "/api/whoami", async ({ admin, env }) => json({ email: admin, ...BUILD, instance: env.INSTANCE_LABEL ?? "" }));
 
-// `bytes` and `unsized` are zero until photos are stored again (rewrite step B2, #374).
 router.on("GET", "/api/overview", async ({ env }) => {
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const row = await env.DB.prepare(
@@ -74,7 +73,8 @@ router.on("GET", "/api/overview", async ({ env }) => {
        (SELECT count(*) FROM projects) AS projects,
        (SELECT count(*) FROM files f WHERE f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL) AS files,
        (SELECT count(*) FROM files f WHERE f.type = 'photo' AND f.deleted_at IS NULL) AS photos,
-       0 AS bytes, 0 AS unsized`,
+       (SELECT coalesce(sum(b), 0) FROM (SELECT max(coalesce(original_bytes, 0) + coalesce(preview_bytes, 0) + coalesce(thumbnail_bytes, 0)) AS b FROM photos GROUP BY object_id)) AS bytes,
+       0 AS unsized`,
   ).bind(since).first();
   return json({ overview: row });
 });
@@ -183,7 +183,7 @@ router.on("DELETE", "/api/users/:id", async (ctx, { id }) => {
   return json({ deleted: uid });
 });
 
-/** Every workspace with its owner and size. Storage is zero until photos are stored again (rewrite step B2, #374). */
+/** Every workspace with its owner, size and storage (images shared by copies count once). */
 router.on("GET", "/api/workspaces", async ({ env }) => {
   const { results } = await env.DB.prepare(
     `SELECT w.id, w.name, w.kind, w.created_at, o.email AS owner_email,
@@ -191,8 +191,11 @@ router.on("GET", "/api/workspaces", async ({ env }) => {
        (SELECT count(*) FROM projects p WHERE p.workspace_id = w.id) AS projects,
        (SELECT count(*) FROM files f JOIN projects p ON p.id = f.project_id WHERE p.workspace_id = w.id AND f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL) AS files,
        (SELECT count(*) FROM files f JOIN projects p ON p.id = f.project_id WHERE p.workspace_id = w.id AND f.type = 'photo' AND f.deleted_at IS NULL) AS photos,
-       0 AS bytes, 0 AS unsized
-     FROM workspaces w LEFT JOIN users o ON o.id = w.owner_user_id ORDER BY w.created_at`,
+       coalesce(ph.bytes, 0) AS bytes, 0 AS unsized
+     FROM workspaces w LEFT JOIN users o ON o.id = w.owner_user_id LEFT JOIN (SELECT ws, count(*) AS photos, coalesce(sum(bytes), 0) AS bytes, sum(bytes IS NULL) AS unsized FROM (
+         SELECT pr.workspace_id AS ws, ph.object_id, max(coalesce(ph.original_bytes, 0) + coalesce(ph.preview_bytes, 0) + coalesce(ph.thumbnail_bytes, 0)) AS bytes
+         FROM photos ph JOIN files f ON f.id = ph.file_id JOIN projects pr ON pr.id = f.project_id GROUP BY pr.workspace_id, ph.object_id
+       ) GROUP BY ws) ph ON ph.ws = w.id ORDER BY w.created_at`,
   ).all();
   return json({ workspaces: results });
 });
