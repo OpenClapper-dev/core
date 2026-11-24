@@ -17,7 +17,7 @@ Studio shot view → stage **Framing** (`R`; `apps/studio/src/RigExplorer.tsx`; 
 - **Foot**: the facts (FF-equivalent, horizontal and vertical FOV, "sees more than this photo", "vignetting" when the rig darkens the corners at that lens, issue #266), a hint, and the **lens strip** with the frame at the current centre for every lens of the rig (a lens with vignetting is labelled in amber and its thumb shows the falloff).
 - **Compare A / B**: two rigs side by side as before; A uses the current centre.
 - **Stacked** (issue #47, `StackedFrames.tsx`): one photo with any number of rig + lens frames on it, each in its own colour (the fixed compose palette, so it reads on any photo; click a swatch for the next colour). **+ Frame** adds one (it starts as a copy of the last), × removes it. **Rig names** labels each frame with its rig and lens, at a chosen corner, inside or outside the frame. Frames share the Framing view's centre (clamped per frame); a frame wider than the photo shrinks the photo and draws dashed. Nothing is saved.
-- Uploaded and drawn images ([new shot](new-shot.md)) have no rig: the stage says there is nothing to re-frame.
+- Uploaded and drawn images ([new shot](media.md)) have no rig: the stage says there is nothing to re-frame.
 
 ## Who uses a framing
 

@@ -9,7 +9,7 @@
  * then, so a page's own letter never swallows a section jump.
  */
 
-export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin";
+export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin" | "photo";
 
 export interface Scope {
   label: string;
@@ -27,6 +27,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   files: { label: "Files", with: [] },
   desktop: { label: "Desktop icons", with: [] },
   bin: { label: "Recycle bin", with: [] },
+  photo: { label: "Photo", with: [] },
 };
 
 export interface Shortcut {
@@ -50,6 +51,7 @@ export const SHORTCUTS = [
   { scope: "global", action: "palette", keys: ["Mod+k"], label: "Go to… (command palette)" },
   { scope: "global", action: "sheet", keys: ["?"], label: "All shortcuts" },
   { scope: "global", action: "goFiles", keys: ["f"], chord: "g", label: "Open Files" },
+  { scope: "global", action: "goMedia", keys: ["m"], chord: "g", label: "Open Media" },
   { scope: "global", action: "goProject", keys: ["p"], chord: "g", label: "Open Project" },
   { scope: "global", action: "goSettings", keys: [","], chord: "g", label: "Open Settings" },
   { scope: "global", action: "back", keys: ["Escape"], info: true, label: "Close or back out one level" },
@@ -76,14 +78,14 @@ export const SHORTCUTS = [
   { scope: "files", action: "down", keys: ["j", "ArrowDown"], label: "Next file" },
   { scope: "files", action: "up", keys: ["k", "ArrowUp"], label: "Previous file" },
   { scope: "files", action: "open", keys: ["Enter"], label: "Open the file (a folder: go into it)" },
-  { scope: "files", action: "parent", keys: ["Backspace", "Alt+ArrowUp"], label: "Up to the folder above" },
+  { scope: "files", action: "parent", keys: ["Backspace", "Alt+ArrowUp"], label: "Up to the folder above (in Media: back from a collection)" },
   { scope: "files", action: "rename", keys: ["F2"], label: "Rename" },
   { scope: "files", action: "remove", keys: ["Delete"], label: "Move to the recycle bin" },
   { scope: "files", action: "newFolder", keys: ["Shift+N"], label: "New folder here" },
   { scope: "files", action: "all", keys: ["Mod+a"], label: "Tick everything listed (Ctrl-click ticks one, Shift-click a range)" },
   { scope: "files", action: "clear", keys: ["Escape"], pass: true, label: "Clear the ticks" },
-  { scope: "files", action: "drag", keys: ["Drag"], info: true, label: "Onto a folder, the tree or the path: move there · onto the desktop: into the Desktop folder · onto the recycle bin: delete · onto the taskbar: pin" },
-  { scope: "files", action: "menu", keys: ["Right-click"], info: true, label: "Open, rename, duplicate, move, shortcut on the desktop, pin, recycle bin" },
+  { scope: "files", action: "drag", keys: ["Drag"], info: true, label: "Onto a folder, a collection, the tree or the path: move there · onto the desktop: into the Desktop folder · onto the recycle bin: delete · onto the taskbar: pin · image files from the computer: import" },
+  { scope: "files", action: "menu", keys: ["Right-click"], info: true, label: "Open, rename, duplicate, collections (group, add to, take out, ungroup), move, shortcut on the desktop, pin, recycle bin" },
 
   // ---- Desktop icons
   { scope: "desktop", action: "open", keys: ["Enter"], label: "Open the selected icon (or double-click it)" },
@@ -104,6 +106,11 @@ export const SHORTCUTS = [
   { scope: "bin", action: "all", keys: ["Mod+a"], label: "Select everything listed" },
   { scope: "bin", action: "restore", keys: ["r"], label: "Restore the selected entries (or double-click one)" },
   { scope: "bin", action: "purge", keys: ["Delete"], label: "Delete the selected entries for good" },
+
+  // ---- Photo
+  { scope: "photo", action: "prev", keys: ["ArrowLeft"], label: "Previous photo" },
+  { scope: "photo", action: "next", keys: ["ArrowRight"], label: "Next photo" },
+  { scope: "photo", action: "full", keys: ["f"], label: "Preview or full size" },
 ] as const satisfies readonly Shortcut[];
 
 type Entry = (typeof SHORTCUTS)[number];

@@ -42,6 +42,8 @@ export const create = (r: Root, type: string, more: { id?: string; name?: string
   return change(r, () => api.createFile(r, id, { type, ...rest }));
 };
 export const rename = (f: FileRec, name: string) => change(rootOf(f), () => api.putFile(f.id, { name }));
+/** Save a file's body (a collection's colour or order); the type's rules are checked by the server. */
+export const saveBody = (f: FileRec, body: Record<string, unknown>) => change(rootOf(f), () => api.putFile(f.id, { body }));
 export const move = (r: Root, ids: string[], container: string | null) => change(r, () => api.moveFiles(ids, container));
 export const bin = (r: Root, ids: string[]) => change(r, () => api.binFiles(ids));
 export const restore = (r: Root, ids: string[]) => change(r, () => api.restoreFiles(ids));

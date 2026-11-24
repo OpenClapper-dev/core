@@ -25,7 +25,7 @@ function useClock(): string {
 }
 
 /** What a project's taskbar starts with. */
-export const DEFAULT_PINS: Pin[] = [{ app: "files" }, { app: "project" }];
+export const DEFAULT_PINS: Pin[] = [{ app: "files" }, { app: "media" }, { app: "project" }];
 const pinId = (p: Pin) => ("app" in p ? `app:${p.app}` : `file:${p.file}`);
 const PIN_DRAG = "application/x-oc-pin";
 

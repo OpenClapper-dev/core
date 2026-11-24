@@ -94,3 +94,9 @@ button.oc-chip:hover,.oc-chip.is-hover{background:var(--surface-hover)}
 .oc-color__row{display:flex;align-items:center;gap:var(--space-4)}
 .oc-color__now{flex:none;width:var(--control-h-sm);height:var(--control-h-sm);border-radius:var(--radius-control);box-shadow:inset 0 0 0 1px var(--border-control)}
 .oc-color__row .oc-input{flex:1;font-family:var(--font-mono)}
+.oc-colorchooser{display:grid;gap:var(--space-4)}
+.oc-swatches{display:flex;flex-wrap:wrap;gap:6px}
+.oc-swatches>*{position:relative;display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;color:var(--text-secondary);cursor:pointer}
+.oc-swatches>.is-on{box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--text)}
+.oc-swatches>:focus-visible{outline:0;box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--focus)}
+.oc-swatches__own{border:var(--border-w) dashed var(--border-control)!important}

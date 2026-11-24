@@ -23,9 +23,11 @@ export interface Prefs {
   icons: Record<string, Record<string, { c: number; r: number }>>;
   /** The recycle bin has an icon on the desktop. */
   binOnDesktop: boolean;
+  /** How a collection's colour is drawn on its photos and its tile: a bar below or to the left, a dot, or a frame. */
+  collectionMark: "bar" | "barleft" | "dot" | "frame";
 }
 
-export const DEFAULT_PREFS: Prefs = { theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true };
+export const DEFAULT_PREFS: Prefs = { theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar" };
 export type PrefsState = "local" | "loading" | "saved" | "saving" | "unsaved";
 
 let prefs: Prefs = { ...DEFAULT_PREFS, theme: getTheme() };
