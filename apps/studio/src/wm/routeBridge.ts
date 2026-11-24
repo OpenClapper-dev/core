@@ -1,73 +1,31 @@
-import { launch, type AppId } from "../apps/registry";
-import { parseRoute, routeHash, type Route } from "../router";
+import { appDef, launch } from "../apps/registry";
 import * as wm from "./wm";
-import type { ResourceRef, Win } from "./wm";
+import type { Win } from "./wm";
 
 /**
- * URL ⇄ windows (epic #72). In: a hash is a launch command — on boot (after the desktop is
- * restored) and on every hashchange it opens or focuses the window for it, so deep links keep
- * working. Out: the address bar shows the focused window's route (replaceState, no history
- * entries); the desktop itself is `#/`.
+ * URL ⇄ windows. In: a hash is a launch command, `#/<app>[/<rest>]`: on boot (after the desktop is
+ * restored) and on every hashchange it opens or focuses that app's window, so deep links work.
+ * Out: the address bar shows the focused window's route (replaceState, no history entries); the
+ * desktop itself is `#/`.
  */
-
-export interface LaunchIntent { app: AppId; resource?: ResourceRef | null; state?: unknown }
-
-/** Every Route variant to the window that shows it. */
-export function routeToLaunch(r: Route): LaunchIntent {
-  switch (r.page) {
-    case "shots": return { app: "gallery", state: { viewId: r.viewId } };
-    case "shot": return { app: "shot", resource: { type: "shot", id: r.shotId }, state: { stage: r.stage } };
-    case "plan": return { app: "plan", state: { dayId: r.dayId } };
-    case "metadata": return { app: "metadata", state: { field: r.field } };
-    case "timeline": return { app: "timeline", state: { timelineId: r.timelineId, at: r.at ?? null } };
-    case "settings": return { app: "settings", state: { tab: r.tab } };
-    case "library": return { app: r.section, state: { id: r.id } };
-    case "files": return { app: "files", state: { folderId: r.folderId } };
-    case "trash": return { app: "trash" };
-    case "devices": return { app: "devices" };
-    case "sequences": return { app: "sequences" };
-  }
-}
-
-/** The route of a window whose app has not reported one yet. */
-export function defaultRoute(w: Pick<Win, "app" | "resource">): Route | null {
-  const id = w.resource?.id ?? null;
-  switch (w.app as AppId) {
-    case "gallery": return { page: "shots", viewId: null };
-    case "shot": return id ? { page: "shot", shotId: id, stage: "photo" } : null;
-    case "plan": return { page: "plan", dayId: null };
-    case "metadata": return { page: "metadata", field: "location" };
-    case "timeline": return { page: "timeline", timelineId: null };
-    case "settings": return { page: "settings", tab: "general" };
-    case "files": return { page: "files", folderId: null };
-    case "trash": return { page: "trash" };
-    case "devices": return { page: "devices" };
-    case "sequences": return { page: "sequences" };
-    case "projects": case "fields": case "rigs": case "locations": case "viewfinder": return { page: "library", section: w.app as "projects", id: null };
-    default: return null;
-  }
-}
-
 export const DESKTOP_HASH = "#/";
 const isDesktopHash = (h: string) => h === "" || h === "#" || h === DESKTOP_HASH;
 
-/** Open (or focus) the window a hash addresses; the desktop hash opens nothing. */
+/** Open (or focus) the window a hash addresses; the desktop hash, or an app this build does not have, opens nothing. */
 export function openHash(hash: string) {
   if (isDesktopHash(hash)) return;
-  launch(routeToLaunch(parseRoute(hash)));
+  const [app, ...rest] = hash.replace(/^#\/?/, "").split("/");
+  const def = appDef(decodeURIComponent(app));
+  if (!def) return;
+  launch({ app: def.id, ...def.fromRoute?.(rest.join("/")) });
 }
 
-/** The hash for a window: what its app last reported, else its default. */
-export function windowHash(w: Win): string {
-  if (w.route) return w.route;
-  const r = defaultRoute(w);
-  return r ? routeHash(r) : DESKTOP_HASH;
-}
+/** The hash for a window: its app, and what the app last reported after it. */
+export const windowHash = (w: Win): string => `#/${w.app}${w.route ? `/${w.route}` : ""}`;
 
 /**
- * Keep the address bar on the focused window, and open windows for typed or pasted hashes.
- * Writes only when the focused window or its route changes, so a silent in-app write (the cut
- * position) is not overwritten by unrelated window moves.
+ * Keep the address bar on the focused window, and open windows for typed or pasted hashes. Writes
+ * only when the focused window or its route changes.
  */
 export function startRouteBridge(): () => void {
   let last: string | null = null;

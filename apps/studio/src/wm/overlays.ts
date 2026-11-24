@@ -1,10 +1,10 @@
 import { useEffect, useState } from "preact/hooks";
 
 /**
- * The shell's global overlays (Go to…, the shortcut sheet, New shot), opened from any app: the
+ * The shell's global overlays (Go to…, the shortcut sheet, the task view, the launcher), opened from any app: the
  * shell renders them above every window.
  */
-export type OverlayId = "palette" | "sheet" | "newShot" | "taskview";
+export type OverlayId = "palette" | "sheet" | "taskview" | "launcher";
 let open: OverlayId | null = null;
 const listeners = new Set<(o: OverlayId | null) => void>();
 export function openOverlay(o: OverlayId | null) { open = o; for (const cb of listeners) cb(o); }

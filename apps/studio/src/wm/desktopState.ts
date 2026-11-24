@@ -1,43 +1,34 @@
-import type { Win, WmSnapshot, Workspace } from "./wm";
+import type { Desk, Win, WmSnapshot } from "./wm";
 
 /**
- * Per-project desktop persistence: window geometry and taskbar pins, per browser in
- * localStorage["desktop.<projectId>"], saved debounced. Geometry is viewport-dependent, so it
- * stays client-side (folders and icons are server-side, phase 3). Everything funnels through
- * load/save so a server backend could replace this without touching callers.
+ * Per-project window layout: geometry, z-order and the desks, per browser in
+ * localStorage["desktop.<projectId>"], saved debounced. Geometry depends on the screen, so it stays
+ * with the browser (docs/rewrite/09-shells.md); pins and icon places are preferences of the account.
  */
 
-/** 2 added workspaces (epic #90); a version-1 layout still loads, its windows on one workspace. */
-const VERSION = 2;
-interface Stored { v: number; windows: Omit<Win, "state">[]; zTop: number; focusedId: string | null; pins: string[]; workspaces?: Workspace[]; active?: string }
+/** 3: the rebuild (desks; app ids of the new catalogue). Layouts of the first app are not read. */
+const VERSION = 3;
+interface Stored { v: number; windows: Omit<Win, "state">[]; zTop: number; focusedId: string | null; desks?: Desk[]; active?: string }
 
 const key = (projectId: string) => `desktop.${projectId}`;
 
-/** The stored desktop, or null for a fresh one (also on an unknown version or parse failure). */
+/** The stored layout, or null for a fresh one (also on another version or a parse failure). */
 export function load(projectId: string): WmSnapshot | null {
   try {
     const raw = localStorage.getItem(key(projectId));
     if (!raw) return null;
     const s = JSON.parse(raw) as Stored;
-    if ((s.v !== VERSION && s.v !== 1) || !Array.isArray(s.windows)) return null;
-    const workspaces = s.v === VERSION && Array.isArray(s.workspaces) ? s.workspaces.filter((w) => w && typeof w.id === "string" && typeof w.name === "string") : undefined;
-    return { windows: s.windows as Win[], zTop: s.zTop ?? 0, focusedId: s.focusedId ?? null, pins: Array.isArray(s.pins) ? s.pins : [], workspaces, active: s.v === VERSION ? s.active : undefined };
+    if (s.v !== VERSION || !Array.isArray(s.windows)) return null;
+    const desks = Array.isArray(s.desks) ? s.desks.filter((d) => d && typeof d.id === "string" && typeof d.name === "string") : undefined;
+    return { windows: s.windows as Win[], zTop: s.zTop ?? 0, focusedId: s.focusedId ?? null, desks, active: s.active };
   } catch { return null; }
 }
 
 let timer: ReturnType<typeof setTimeout> | undefined;
 let pending: (() => void) | null = null;
 function write(projectId: string, snap: WmSnapshot) {
-  const s: Stored = {
-    v: VERSION,
-    // Launch-intent state is transient; a restored window re-derives it.
-    windows: snap.windows.map(({ state: _state, ...w }) => w),
-    zTop: snap.zTop,
-    focusedId: snap.focusedId,
-    pins: snap.pins,
-    workspaces: snap.workspaces,
-    active: snap.active,
-  };
+  // Launch-intent state is transient; a restored window re-derives it.
+  const s: Stored = { v: VERSION, windows: snap.windows.map(({ state: _state, ...w }) => w), zTop: snap.zTop, focusedId: snap.focusedId, desks: snap.desks, active: snap.active };
   try { localStorage.setItem(key(projectId), JSON.stringify(s)); } catch { /* private mode: layout kept for this session */ }
 }
 

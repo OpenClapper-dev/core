@@ -9,10 +9,10 @@ import { version } from "../../package.json";
 const commit = (() => { try { return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); } catch { return "dev"; } })();
 const build = { __OPENCLAPPER_VERSION__: JSON.stringify(version), __OPENCLAPPER_COMMIT__: JSON.stringify(commit) };
 
-// @openclapper/ui lives outside this root, where Vite watches single files; a git branch switch replaces
-// them and those watches are lost until a restart. Watching the folder survives that.
-const uiSrc = fileURLToPath(new URL("../../packages/ui/src", import.meta.url));
-const watchUi = { name: "openclapper-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
+// The design system and the shared model live outside this root, where Vite watches single files; a
+// git branch switch replaces them and those watches are lost until a restart. Watching the folders survives that.
+const shared = ["../../packages/design/src", "../../packages/model/src"].map((p) => fileURLToPath(new URL(p, import.meta.url)));
+const watchShared = { name: "openclapper-watch-shared", configureServer(server: { watcher: { add(path: string): unknown } }) { for (const p of shared) server.watcher.add(p); } };
 
 export default defineConfig(({ command }) => {
   // Which icon set index.html links (public/icons/<set>/): green on the dev server; in builds the
@@ -21,12 +21,12 @@ export default defineConfig(({ command }) => {
   const ownSet = /^[a-z0-9-]+$/.test(instance) && existsSync(fileURLToPath(new URL(`./public/icons/${instance}`, import.meta.url)));
   process.env.VITE_ICON_SET = command !== "build" ? "dev" : ownSet ? instance : "prod";
   return {
-    plugins: [preact(), watchUi],
+    plugins: [preact(), watchShared],
     define: build,
     build: { outDir: "dist", emptyOutDir: true, sourcemap: false },
     server: {
       // Local dev: proxy API calls to `wrangler dev` (apps/worker; sign in as dev@localhost, make init).
-      // ws: the live layout preview socket (/api/preview/socket).
+      // ws: the phone link's socket.
       proxy: { "/api": { target: "http://localhost:8787", ws: true }, "/health": "http://localhost:8787" },
     },
   };

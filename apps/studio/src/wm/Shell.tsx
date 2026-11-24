@@ -1,32 +1,27 @@
+import type { JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import type { ShootingDay } from "../api";
-import { appDef, launch, type AppId } from "../apps/registry";
-import { CommandPalette, ShortcutSheet, type Command } from "../CommandPalette";
-import * as data from "../data";
-import { projectDays } from "../Inspector";
-import { NewShotDialog } from "../NewShot";
+import { Button, CommandPalette, Desktop, Dialog, EmptyState, ProjectPicker, SignIn, Spinner, type IconName } from "@openclapper/design";
+import { ApiError } from "../api";
+import { appDef, apps, launch } from "../apps/registry";
+import { ShortcutList } from "../apps/SettingsApp";
+import { Hosts, contextMenu, prompt, toast, toastError } from "../hosts";
+import { envOf, useInstance } from "../instance";
 import { bind, useKeys } from "../keys";
+import { usePrefs } from "../prefs";
 import { setProjectId, switchProject, useProjectId } from "../project";
-import { ProjectGate } from "../Projects";
-import { routeHash } from "../router";
-import { SignInPage } from "../SignIn";
-import { useSettings } from "../settings";
-import { Button, ConfirmHost, Empty, Loading, Presence, setTheme, toast, ToastHost, useTheme } from "@openclapper/ui";
-import { boot, signOut, useUser } from "../user";
-import { requestClose } from "./closeGuards";
-import { Desktop } from "./Desktop";
+import { clearProjects, loadProjects, saveProject, useProjects } from "../projects";
+import { THEMES, setTheme, useTheme } from "../theme";
+import { boot, signIn, signOut, useUser } from "../user";
+import { requestClose, setCloser } from "./closeGuards";
 import * as desktopState from "./desktopState";
 import { setFocusSource } from "./keyboard";
 import { closeOverlay, openOverlay, useOverlay } from "./overlays";
 import { openHash, startRouteBridge } from "./routeBridge";
+import { SplitGrip } from "./SplitGrip";
 import { Taskbar } from "./Taskbar";
 import { TaskView } from "./TaskView";
-import { SplitGrip } from "./SplitGrip";
-import { WindowGhosts } from "./WindowGhosts";
 import { Window } from "./Window";
-import { goToWorkspace } from "./switchWorkspace";
 import * as wm from "./wm";
-import { startBakery } from "../compose/baker";
 
 setFocusSource(wm.getFocusedId);
 
@@ -36,52 +31,52 @@ wm.subscribe(() => { if (desktopOf) desktopState.save(desktopOf, wm.snapshot());
 
 /**
  * Swap the wm store to a project's desktop: write out the old one, restore the new one as it was
- * left (windows of apps this build no longer knows are dropped; min sizes come from the registry).
+ * left (windows of apps this build does not know are dropped; min sizes come from the registry).
  */
 function showDesktop(projectId: string) {
   desktopState.flush();
   desktopOf = projectId;
   const stored = desktopState.load(projectId);
-  if (stored) wm.hydrate({ ...stored, windows: stored.windows.filter((w) => appDef(w.app)).map((w) => ({ ...w, min: appDef(w.app)!.minSize })) });
+  // A restored window opens where it was: its route (a tab, a folder) is read back as its launch state.
+  if (stored) wm.hydrate({ ...stored, windows: stored.windows.filter((w) => appDef(w.app)).map((w) => { const def = appDef(w.app)!; return { ...w, min: def.minSize, state: w.route ? def.fromRoute?.(w.route).state : undefined }; }) });
   else wm.reset();
 }
 
+const Boot = ({ children }: { children: JSX.Element }) => <div className="st-root"><div className="oc-boot">{children}</div><Hosts /></div>;
+
 /**
- * The Studio (main.tsx): the sign-in page until someone is signed in (epic #107), then their
- * desktop. Keyed by the user, so another account starts from a fresh data cache.
+ * The Studio (main.tsx): the sign-in page until someone is signed in, then their desktop. Keyed by
+ * the user, so another account starts from fresh data.
  */
 export function Shell() {
   const user = useUser();
+  const instance = useInstance();
+  const [busy, setBusy] = useState(false);
+  const [wrong, setWrong] = useState<string | null>(null);
   useEffect(() => { void boot(); }, []);
   if (user.status === "signed-in") return <SignedIn key={user.me.user.id} />;
-  return (
-    <div class="wm-root wm-root--bare">
-      {user.status === "signed-out" ? <SignInPage />
-        : user.status === "error" ? <Empty icon="cloud-alert" title="Could not reach OpenClapper" actions={<Button onClick={() => void boot()}>Try again</Button>}>{user.message}</Empty>
-        : <Loading />}
-      <ToastHost />
-    </div>
-  );
+  if (user.status === "error") return <Boot><EmptyState icon="cloud-off" title="Could not reach OpenClapper" action={<Button onClick={() => void boot()}>Try again</Button>}>{user.message}</EmptyState></Boot>;
+  if (user.status === "checking") return <Boot><Spinner /></Boot>;
+  const submit = async ({ email, password }: { email: string; password: string }) => {
+    setBusy(true);
+    setWrong(null);
+    try { await signIn(email.trim(), password); }
+    catch (e) { setWrong(e instanceof ApiError && e.status === 401 ? "Email or password is not right" : (e as Error).message); }
+    finally { setBusy(false); }
+  };
+  return <div className="st-root"><SignIn env={envOf(instance)} error={wrong ?? undefined} loading={busy} onSubmit={(v) => void submit(v)} /><Hosts /></div>;
 }
 
-/**
- * The desktop shell (epic #72): loads the data cache, asks for a project when none is chosen,
- * then shows that project's desktop — windows, snap preview, taskbar — with the global overlays
- * (Go to…, shortcuts, confirm, toasts) above it.
- */
+/** Loads the projects, asks for one when none is chosen, then shows that project's desktop. */
 function SignedIn() {
-  const d = data.useData();
+  const { list, error } = useProjects();
   const projectId = useProjectId();
-  const loaded = data.loaded(d);
-  const valid = loaded && !!projectId && d.projects!.some((p) => p.id === projectId) ? projectId : null;
+  const user = useUser();
+  const instance = useInstance();
+  const valid = list && projectId && list.some((p) => p.id === projectId) ? projectId : null;
   const [ready, setReady] = useState<string | null>(null);
 
-  useEffect(() => {
-    data.clear();
-    void data.load();
-    // The sign-in page's #/register is no deep link into the desktop.
-    if (location.hash === "#/register") history.replaceState(null, "", "#/");
-  }, []);
+  useEffect(() => { clearProjects(); void loadProjects(); }, []);
   useEffect(() => {
     if (!valid) return;
     const first = ready === null;
@@ -91,167 +86,143 @@ function SignedIn() {
     setReady(valid);
   }, [valid]);
   useEffect(() => (ready ? startRouteBridge() : undefined), [!!ready]);
-  // Steps with layers need a flattened image for the phone (epic #275): baked in the background.
-  useEffect(() => (ready ? startBakery() : undefined), [!!ready]);
   useEffect(() => {
     const flush = () => desktopState.flush();
     window.addEventListener("pagehide", flush);
     return () => window.removeEventListener("pagehide", flush);
   }, []);
 
-  if (!loaded) {
+  if (!list) return <Boot>{error ? <EmptyState icon="cloud-off" title="Could not load" action={<Button onClick={() => void loadProjects()}>Try again</Button>}>{error}</EmptyState> : <Spinner />}</Boot>;
+  if (!valid) {
+    const me = user.status === "signed-in" ? user.me : null;
+    const wsName = (id: string) => me?.workspaces.find((w) => w.id === id)?.name ?? "";
+    const create = async () => {
+      const name = await prompt({ title: "New project", label: "Name", confirmLabel: "Create" });
+      if (!name) return;
+      try { setProjectId((await saveProject(crypto.randomUUID(), name)).id); }
+      catch (e) { if (e instanceof ApiError && e.status === 409 && typeof e.body.existing_id === "string") setProjectId(e.body.existing_id); else toastError(e); }
+    };
     return (
-      <div class="wm-root wm-root--bare">
-        {d.error ? <Empty icon="cloud-alert" title="Could not load" actions={<Button onClick={() => void data.load()}>Try again</Button>}>{d.error}</Empty> : <Loading />}
-        <ToastHost />
+      <div className="st-root">
+        <ProjectPicker env={envOf(instance)} user={me?.user.name ?? me?.user.email} projects={list.map((p) => ({ id: p.id, name: p.name, meta: `${wsName(p.workspace_id)} · ${p.file_count} file${p.file_count === 1 ? "" : "s"}` }))}
+          onPick={setProjectId} onNew={() => void create()} onSignOut={() => void signOut()} />
+        <Hosts />
       </div>
     );
-  }
-  if (!valid) {
-    return <div class="wm-root wm-root--bare"><ProjectGate projects={d.projects!} onChange={data.setProjects} onActivate={setProjectId} /><ConfirmHost /><ToastHost /></div>;
   }
   return <DesktopShell projectId={valid} ready={ready === valid} />;
 }
 
 function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean }) {
-  const area = useRef<HTMLDivElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   const windows = wm.useAllWindows();
-  const activeWs = wm.useActiveWs();
+  const activeDesk = wm.useActiveDesk();
   const split = wm.useSplit();
-  const settings = useSettings();
-  // The stage background (Settings › Appearance): the global choice replaces the theme's on the page;
-  // an app's own choice is set on its windows (Window `stageBg`).
-  useEffect(() => {
-    const root = document.documentElement.style;
-    if (settings.stageBg) root.setProperty("--photo-bg", settings.stageBg); else root.removeProperty("--photo-bg");
-  }, [settings.stageBg]);
   const focusedId = wm.useFocusedId();
-  const preview = wm.useSnapPreview();
+  const zone = wm.useSnapPreview();
   const overlay = useOverlay();
-  const [days, setDays] = useState<ShootingDay[]>([]);
-  const pd = data.useProjectData(projectId);
+  const prefs = usePrefs();
   const [theme] = useTheme();
   const user = useUser();
-  // Windows animate their opening only once the desktop stands (motion.css): not the whole set a
-  // project restores on load or on a switch.
-  const [settled, setSettled] = useState(false);
-  useEffect(() => {
-    setSettled(false);
-    if (!ready) return;
-    let raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => setSettled(true)); });
-    return () => cancelAnimationFrame(raf);
-  }, [ready, projectId]);
+  const { list } = useProjects();
+  // A closed window fades first (the frame's own animation), then leaves the store.
+  const [closing, setClosing] = useState<string[]>([]);
+  useEffect(() => { setCloser((id) => setClosing((c) => (c.includes(id) ? c : [...c, id]))); return () => setCloser(wm.close); }, []);
 
   useEffect(() => {
-    const el = area.current!;
+    const el = root.current!.querySelector<HTMLElement>(".oc-desktop__area")!;
     const fit = () => wm.setViewport({ w: el.clientWidth, h: el.clientHeight });
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+  useEffect(() => { root.current!.querySelector<HTMLElement>(".oc-desktop__area")!.style.setProperty("--oc-split", String(split)); }, [split]);
 
-  useEffect(() => { if (overlay === "palette") void projectDays(projectId).then(setDays).catch(() => {}); }, [overlay]);
-  const openPalette = () => openOverlay("palette");
-  const app = (id: AppId, state?: unknown) => () => { launch({ app: id, state }); };
   const focusedWin = () => windows.find((w) => w.id === focusedId) ?? null;
-  /** Workspace n (1-based) from a digit key, by its physical key. */
-  const wsOfKey = (e: KeyboardEvent) => wm.getWorkspaces()[Number(e.code.slice(5)) - 1];
+  /** Desktop n (1-based) from a digit key, by its physical key. */
+  const deskOfKey = (e: KeyboardEvent) => wm.getDesks()[Number(e.code.slice(5)) - 1];
   const onFocused = (fn: (id: string) => void) => () => { const w = focusedWin(); if (w) fn(w.id); };
+  const snapTo = (half: "left" | "right") => onFocused((id) => wm.setSnap(id, focusedWin()?.snap === half && focusedWin()?.mode === "snapped" ? null : half));
+  const open = (app: string, state?: unknown) => () => { launch({ app, state }); };
 
   useKeys(bind("global", {
-    palette: openPalette,
+    palette: () => openOverlay("palette"),
     sheet: () => openOverlay("sheet"),
-    goShots: app("gallery"),
-    goTimeline: app("timeline"),
-    goPlan: app("plan"),
-    goMetadata: app("metadata"),
-    goFiles: app("files"),
-    goLibrary: app("projects"),
-    goMap: app("gallery", { layout: "map" }),
-  }), !overlay);
+    goProject: open("project"),
+    goSettings: open("settings"),
+  }), !overlay || overlay === "launcher");
   useKeys(bind("wm", {
     next: () => wm.cycle(1),
     prev: () => wm.cycle(-1),
     close: onFocused((id) => void requestClose(id)),
     minimize: onFocused(wm.minimize),
     maximize: onFocused(wm.toggleMax),
-    snapLeft: onFocused((id) => wm.setSnap(id, focusedWin()?.snap === "left" && focusedWin()?.mode === "snapped" ? null : "left")),
-    snapRight: onFocused((id) => wm.setSnap(id, focusedWin()?.snap === "right" && focusedWin()?.mode === "snapped" ? null : "right")),
+    snapLeft: snapTo("left"),
+    snapRight: snapTo("right"),
     desktop: () => wm.toggleDesktop(),
     taskView: () => openOverlay("taskview"),
-    wsNext: () => goToWorkspace(1),
-    wsPrev: () => goToWorkspace(-1),
-    wsNew: () => { wm.addWorkspace({ go: true }); },
-    wsGo: (e) => { const ws = wsOfKey(e); if (ws) goToWorkspace(ws.id); else return false; },
-    wsMove: (e) => { const w = focusedWin(); const ws = wsOfKey(e); if (!w || !ws) return false; wm.moveToWorkspace(w.id, ws.id); },
+    deskNext: () => wm.switchDesk(1),
+    deskPrev: () => wm.switchDesk(-1),
+    deskNew: () => { wm.addDesk({ go: true }); },
+    deskGo: (e) => { const d = deskOfKey(e); if (d) wm.switchDesk(d.id); else return false; },
+    deskMove: (e) => { const w = focusedWin(); const d = deskOfKey(e); if (!w || !d) return false; wm.moveToDesk(w.id, d.id); },
   }), !overlay);
 
-  const actions: Command[] = [
-    { id: "a-gallery", group: "Open", icon: "view-grid-outline", title: "Gallery", keys: "G S", run: app("gallery") },
-    { id: "a-timeline", group: "Open", icon: "filmstrip", title: "Timeline", keys: "G T", run: app("timeline") },
-    { id: "a-plan", group: "Open", icon: "calendar-clock", title: "Plan", keys: "G P", run: app("plan") },
-    { id: "a-metadata", group: "Open", icon: "tag-multiple-outline", title: "Metadata", keys: "G D", run: app("metadata") },
-    { id: "a-files", group: "Open", icon: "folder-multiple-outline", title: "Files", keys: "G F", run: app("files") },
-    { id: "a-map", group: "Open", icon: "map-outline", title: "Map", keys: "G M", run: app("gallery", { layout: "map" }) },
-    { id: "a-lib", group: "Open", icon: "bookshelf", title: "Library: projects, fields, rigs, locations", keys: "G L", run: app("projects") },
-    { id: "a-devices", group: "Open", icon: "access-point", title: "Devices", sub: "Lights through the phone proxy", run: app("devices") },
-    { id: "a-sequences", group: "Open", icon: "chart-timeline-variant", title: "Sequences", sub: "Keyframed light sequences", run: app("sequences") },
-    { id: "a-settings", group: "Open", icon: "cog-outline", title: "Settings", sub: "Theme, frame mode, new shots", run: app("settings") },
-    { id: "a-newshot", group: "Actions", icon: "image-plus", title: "New shot", sub: "Upload images or draw a sketch", run: () => openOverlay("newShot") },
-    { id: "a-theme", group: "Actions", icon: "theme-light-dark", title: "Toggle theme", sub: `Now ${theme === "auto" ? "Auto" : theme === "sun" ? "Sun" : "Set"}`, run: () => setTheme(theme === "set" ? "sun" : "set") },
-    { id: "a-desktop", group: "Actions", icon: "monitor", title: "Show the desktop", keys: "⌘Alt D", run: () => wm.toggleDesktop() },
-    { id: "a-taskview", group: "Actions", icon: "view-dashboard-outline", title: "Task view", sub: "Workspaces and their windows", keys: "⌘Alt V", run: () => openOverlay("taskview") },
-    { id: "a-newws", group: "Actions", icon: "monitor-multiple", title: "New workspace", keys: "⌘Alt N", run: () => { wm.addWorkspace({ go: true }); } },
-    { id: "a-reload", group: "Actions", icon: "refresh", title: "Reload data", run: data.reload },
-    { id: "a-keys", group: "Actions", icon: "keyboard-outline", title: "Keyboard shortcuts", keys: "?", run: () => openOverlay("sheet") },
-    { id: "a-account", group: "Open", icon: "account-circle-outline", title: "Account and workspaces", sub: "Members, roles, sign out", run: () => launch({ app: "settings", state: { tab: "account" } }) },
-    { id: "a-signout", group: "Actions", icon: "logout", title: "Sign out", sub: user.status === "signed-in" ? user.me.user.email : undefined, run: () => void signOut() },
+  // Go to… (⌘K): apps, open windows, projects, and the shell's own actions.
+  type Command = { id: string; label: string; icon?: IconName; kbd?: string; group: string; run: () => void };
+  const nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  const commands: Command[] = [
+    ...apps().map((a): Command => ({ id: `app-${a.id}`, group: "Open", icon: a.glyph, label: a.about ? `${a.name} · ${a.about}` : a.name, run: open(a.id) })),
+    ...windows.map((w): Command => ({ id: `win-${w.id}`, group: "Windows", icon: appDef(w.app)?.glyph, label: w.title, run: () => wm.focus(w.id) })),
+    ...(list ?? []).filter((p) => p.id !== projectId).map((p): Command => ({ id: `proj-${p.id}`, group: "Switch project", icon: "slate", label: p.name, run: () => void switchProject(p.id).then((ok) => ok && toast(`Now working on ${p.name}`)) })),
+    { id: "a-theme", group: "Actions", icon: "palette", label: `Theme: switch to ${nextTheme === "auto" ? "the system's" : nextTheme}`, run: () => setTheme(nextTheme) },
+    { id: "a-desktop", group: "Actions", icon: "desktop", label: "Show the desktop", kbd: "⌘+Alt+D", run: () => wm.toggleDesktop() },
+    { id: "a-taskview", group: "Actions", icon: "layers", label: "Task view", kbd: "⌘+Alt+V", run: () => openOverlay("taskview") },
+    { id: "a-newdesk", group: "Actions", icon: "plus", label: "New desktop", kbd: "⌘+Alt+N", run: () => { wm.addDesk({ go: true }); } },
+    { id: "a-keys", group: "Actions", icon: "keyboard", label: "Keyboard shortcuts", kbd: "?", run: () => openOverlay("sheet") },
+    { id: "a-reload", group: "Actions", icon: "refresh", label: "Reload the Studio", run: () => location.reload() },
+    { id: "a-signout", group: "Actions", icon: "logout", label: `Sign out${user.status === "signed-in" ? ` · ${user.me.user.email}` : ""}`, run: () => void signOut() },
   ];
 
+  const pct = (n: number) => `${n * 100}%`;
+  const snapPreview: JSX.CSSProperties | undefined = zone === "max" ? { inset: 0 } : zone === "left" ? { left: 0, top: 0, bottom: 0, width: pct(split) } : zone === "right" ? { right: 0, top: 0, bottom: 0, width: pct(1 - split) } : undefined;
+  const desktopMenu = (e: MouseEvent) => {
+    if (e.target !== e.currentTarget) return;
+    contextMenu(e, [
+      { id: "taskview", label: "Task view", icon: "layers", kbd: "⌘Alt V", run: () => openOverlay("taskview") },
+      { id: "newdesk", label: "New desktop", icon: "plus", kbd: "⌘Alt N", run: () => { wm.addDesk({ go: true }); } },
+      { separator: true },
+      { id: "theme", label: `Theme: switch to ${nextTheme === "auto" ? "the system's" : nextTheme}`, icon: "palette", run: () => setTheme(nextTheme) },
+      { id: "settings", label: "Settings…", icon: "settings", run: open("settings") },
+    ]);
+  };
+
   return (
-    <div class={settled ? "wm-root is-settled" : "wm-root"} data-taskbar={settings.taskbarPosition}>
-      <div ref={area} class="wm-area" style={{ "--wm-split": String(split) }}>
-        <Desktop projectId={projectId} />
-        {/* Every workspace's windows stay mounted (apps keep their state); the others are hidden. */}
+    <div ref={root} className="st-root">
+      <Desktop taskbarEdge={prefs.taskbarEdge} snapPreview={snapPreview} taskbar={<Taskbar projectId={projectId} />}
+        icons={<div className="st-desk" onPointerDown={(e) => { if (e.target === e.currentTarget) wm.focusDesktop(); }} onContextMenu={desktopMenu} />}
+        overlay={<>
+          {overlay === "taskview" && <TaskView onClose={closeOverlay} />}
+          {overlay === "palette" && <div data-overlay><CommandPalette fixed items={commands} placeholder="Go to an app, a window, a project, or run an action" onClose={closeOverlay} onSelect={(id) => { closeOverlay(); commands.find((c) => c.id === id)?.run(); }} /></div>}
+          {overlay === "sheet" && <Dialog fixed data-overlay className="st-sheet" title="Keyboard shortcuts" onClose={closeOverlay}><ShortcutList /></Dialog>}
+        </>}>
+        {/* Every desktop's windows stay mounted (apps keep their state); the others are hidden. */}
         {ready && windows.map((w) => {
           const def = appDef(w.app);
           if (!def) return null;
-          const Comp = def.component;
+          const App = def.component;
           return (
-            <Window key={w.id} win={w} icon={def.icon} focused={w.id === focusedId} away={w.ws !== activeWs} stageBg={settings.stageBgApps[w.app]}>
-              <Comp win={w} focused={w.id === focusedId} resource={w.resource} setTitle={(t) => wm.setTitle(w.id, t)}
-                replaceRoute={(r) => wm.setRoute(w.id, routeHash(r))}
-                open={(intent) => launch(intent)} close={() => void requestClose(w.id)} />
+            <Window key={w.id} win={w} def={def} focused={w.id === focusedId} away={w.desk !== activeDesk} closing={closing.includes(w.id)}
+              onClosed={() => { setClosing((c) => c.filter((x) => x !== w.id)); wm.close(w.id); }}>
+              <App win={w} focused={w.id === focusedId} resource={w.resource} projectId={projectId} setTitle={(t) => wm.setTitle(w.id, t)} setRoute={(r) => wm.setRoute(w.id, r)}
+                open={(intent) => { launch(intent); }} close={() => void requestClose(w.id)} />
             </Window>
           );
         })}
-        <WindowGhosts activeWs={activeWs} />
         <SplitGrip />
-        {/* Always there, so it can fade in and out (motion.css); data-zone none hides it. */}
-        <div class={preview ? `wm-snap-preview wm-snap-preview--${preview}` : "wm-snap-preview"} data-zone={preview ?? "none"} />
-      </div>
-      <Taskbar projectId={projectId} onPalette={openPalette} />
-      {/* Overlays fade out (Presence): the palette, the shortcut sheet, the task view, New shot. */}
-      <Presence show={overlay === "palette"}>{overlay === "palette" && (
-        <CommandPalette shots={pd.scoped} locations={pd.locations} views={pd.views} projects={pd.data.projects ?? []} days={days} actions={actions} onClose={closeOverlay}
-          onOpenShot={(s) => launch({ app: "shot", resource: { type: "shot", id: s.id }, state: { stage: "photo", list: [s.id] } })}
-          onLocation={(l) => launch({ app: "gallery", state: { locationId: l.id } })}
-          onView={(v) => launch({ app: "gallery", state: { viewId: v.id } })}
-          onProject={(p) => void switchProject(p.id).then((ok) => ok && toast(`Now working on ${p.name}`))}
-          onDay={(day) => launch({ app: "plan", state: { dayId: day.id } })} />
-      )}</Presence>
-      <Presence show={overlay === "sheet"}>{overlay === "sheet" && <ShortcutSheet onClose={closeOverlay} />}</Presence>
-      <Presence show={overlay === "taskview"}>{overlay === "taskview" && <TaskView onClose={closeOverlay} />}</Presence>
-      <Presence show={overlay === "newShot"}>{overlay === "newShot" && <NewShotDialog projectId={projectId} locations={pd.locations} onLocations={data.setLocationsOf(projectId)} onClose={closeOverlay}
-        onCreated={(list) => {
-          data.created(list);
-          closeOverlay();
-          const first = list[0];
-          if (first) launch({ app: "shot", resource: { type: "shot", id: first.id }, state: { stage: "photo", list: list.map((x) => x.id), line: "Just created" } });
-        }} />}</Presence>
-      <ConfirmHost />
-      <ToastHost />
+      </Desktop>
+      <Hosts />
     </div>
   );
 }

@@ -11,15 +11,12 @@
     "test": "node --test src/*.test.ts src/wm/*.test.ts"
   },
   "dependencies": {
-    "@openclapper/fov-math": "workspace:*",
-    "@openclapper/ui": "workspace:*",
-    "@openclapper/vocab": "workspace:*",
-    "leaflet": "^1.9.4",
+    "@openclapper/design": "workspace:*",
+    "@openclapper/model": "workspace:*",
     "preact": "^10.27.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.0",
-    "@types/leaflet": "^1.9.0",
     "vite": "^7.0.0"
   }
 }

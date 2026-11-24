@@ -1,6 +1,6 @@
 # Architecture
 
-> **Mid-rewrite (epic [#371](https://github.com/OpenClapper-dev/core/issues/371)).** The rebuild lands on `main` step by step ([build order](rewrite/10-conclusion.md#build-order-proposal)). Since step B0 the Worker serves the new model (files, [api](api.md)); the Studio and the phone app described below are still the first app's and do not work against it until their steps land. Production runs the last release, v0.16.0.
+> **Mid-rewrite (epic [#371](https://github.com/OpenClapper-dev/core/issues/371)).** The rebuild lands on `main` step by step ([build order](rewrite/10-conclusion.md#build-order-proposal)). Since step B0 the Worker serves the new model (files, [api](api.md)) and since B1 the Studio is rebuilt on it; the phone app and the data flow described below are still the first app's until their steps land. Production runs the last release, v0.16.0.
 
 Single-user tool for film location scouting and shoot planning. A phone (Android, Expo) is the viewfinder and camera; a Cloudflare Worker stores everything; a web app, the Studio, is where shots are reviewed, organised and shoots are planned.
 
@@ -9,7 +9,7 @@ Single-user tool for film location scouting and shoot planning. A phone (Android
 | Path | Stack | Role |
 | --- | --- | --- |
 | `apps/worker` | Cloudflare Worker, D1 (SQLite), R2, a daily cron | JSON API, image proxy, serves the Studio as static assets. Hand-written router (`packages/service-kit/src/http.ts`), routes registered in `src/routes.ts`. The cron (`scheduled` in `src/index.ts`) empties what has been in the recycle bin for 30 days, drops expired sessions and snapshots storage for the admin board ([monitoring](features/monitoring.md)). |
-| `apps/studio` | Vite + Preact + Leaflet, plain CSS (component library and design-system classes from `@openclapper/ui`, layouts in `src/styles.css`), a desktop shell (window manager with workspaces in `src/wm/`, one app per page in `src/apps/`, shared data store `src/data.ts`), hash routes as launch commands | Web UI: a desktop per project with windows, workspaces, a taskbar, folders and a recycle bin ([desktop](features/desktop.md), [files](features/files.md)). Built into `dist/`, served by the Worker. |
+| `apps/studio` | Vite + Preact on the design system `@openclapper/design`, a desktop shell (window manager with virtual desktops in `src/wm/`, one app per file in `src/apps/`), hash routes as launch commands | Web UI, being rebuilt: a desktop per project with windows, a taskbar and a launcher ([desktop](features/desktop.md)). Built into `dist/`, served by the Worker. |
 | `apps/mobile` | Expo SDK 57, React Native 0.86, react-native-vision-camera; runs as a **development build** (OpenClapper Dev) or an APK, not in Expo Go | Viewfinder, capture, review, shots, day mode; 5 tabs plus pushed screens ([phone app](features/phone-app.md)). Own component library in `src/ui/`. |
 | `apps/admin` | Cloudflare Worker + Preact page on the shared web design system (`@openclapper/ui`) | The admin plane: user management across the instance, on its own hostname behind its own Cloudflare Access app; same D1/R2, never migrates ([admin](features/admin.md)). |
 | `packages/service-kit` | Pure TS | What both Workers share: router and request checks, Access verification, password hashing. |

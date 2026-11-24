@@ -63,7 +63,7 @@ pnpm dev:studio
 `dev:init` never overwrites existing files. It creates:
 - an empty `apps/studio/dist`: `wrangler dev` refuses to start without it
 
-Both Vite dev servers (Studio, admin board) watch the `packages/ui/src` folder as a whole: files outside an app's root are otherwise watched one by one, and a git branch switch replaces them, so later edits to the ui package went unseen until a restart.
+The Vite dev servers watch their shared packages' folders as a whole (the Studio `packages/design/src` and `packages/model/src`, the admin board `packages/ui/src`): files outside an app's root are otherwise watched one by one, and a git branch switch replaces them, so later edits to a shared package went unseen until a restart.
 
 Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start fresh, then `make init`). Local data is separate from production: say which one you mean. A checkout from before the rewrite's schema baseline (step B0, #372) holds the first app's database, on which the new baseline fails: delete that folder once and run `make init`.
 

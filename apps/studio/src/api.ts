@@ -1,478 +1,61 @@
-/** Same-origin API; the session cookie is sent automatically. */
-import type { AppIdV, DesktopArea, DesktopItemKind, FileResourceType, TrashEntry, TrashType, DeviceSpecs, ViewfinderLayout, Framing, PhotoSource, Drawing, Extra, FieldDef, FieldDefinition, FilterGroup, Presentation, ClipGroup, ShotStep, StepInput, VignettePoint, Layer, LayerInput, StepBake, LightSequence, SequenceMarker, SequenceTrack } from "@openclapper/vocab";
-export type { Layer, LayerInput, ShotStep, StepBake, StepInput } from "@openclapper/vocab";
-export type { ClipGroup } from "@openclapper/vocab";
-export type { FieldDefinition };
-export type ShotState = "unreviewed" | "approved" | "archived";
+/** Same-origin API (docs/api.md); the session cookie is sent automatically. */
 
-/** One image of a shot. Rig/lens framing and GPS are per photo (a sequence can change lens). */
-export interface Photo {
-  id: string;
-  shot_id: string;
-  ordinal: number;
-  timestamp: string;
-  /** Both null when captured without GPS. */
-  lat: number | null;
-  lon: number | null;
-  gps_accuracy_m: number | null;
-  /** Moved by hand after capture. */
-  position_corrected: boolean;
-  preset_id: string | null;
-  preset_name: string | null;
-  lens_mm: number;
-  width: number | null;
-  height: number | null;
-  framing: Record<string, unknown> | null;
-  device: Record<string, unknown> | null;
-  /** camera = captured on the phone (rig framing); upload / drawn = made in the Studio, no rig or lens (lens_mm 0). */
-  source: PhotoSource;
-  /** Saved re-framings (issue #29), in order. */
-  framings: Framing[];
-  /** The framing every view shows; null = as captured. */
-  root_framing_id: string | null;
-  image_url: string;
-  created_at: string;
-}
-/** The unit of scouting metadata: one photo, or a whole sequence. */
-export interface Shot {
-  id: string;
-  project_id: string;
-  project_name: string | null;
-  /** The project bakes approved shots only (epic #275); see vocab `bakeWaits`. */
-  bake_approved_only: boolean;
-  location_id: string | null;
-  location_name: string | null;
-  /** A spot within the location (issue #44); always one of the shot's location. */
-  spot_id: string | null;
-  spot_name: string | null;
-  name: string | null;
-  int_ext: string | null;
-  light: string[];
-  artificial: boolean;
-  weather: string | null;
-  shot_size: string | null;
-  camera_support: string | null;
-  movement: string[];
-  state: ShotState;
-  extra: Extra;
-  /** Markdown subset (packages/vocab markdown.ts). */
-  description: string | null;
-  /** Maps and filters use the place's pin instead of the photos' GPS (the photos keep theirs). */
-  position_from_location: boolean;
-  /** The place's pin: the spot's, else the location's; null when neither has one. */
-  location_position: { lat: number; lon: number } | null;
-  captured_at: string;
-  created_at: string;
-  updated_at: string | null;
-  /** Ordered; never empty. */
-  photos: Photo[];
-  /** Free canvases on the shot, in display order, without their drawing data (fetchSketch has it). */
-  sketches: Sketch[];
-  /** The stored steps (issue #266), raw rows; empty = the photos are the steps. Resolve with `steps()` in format.ts. */
-  steps: ShotStep[];
-  /** The composition (epic #275): the shot's own layers in stack order, without shapes (fetchShotLayers has them). */
-  layers: Layer[];
-  /** One flattened image per step, made by the Studio; fresh when its hash matches `bakeHash`. */
-  bakes: StepBake[];
-}
-/** A free canvas on the shot (floor plan, lighting diagram, …). */
-export interface Sketch {
-  /** A timeline clip's own sketch has no shot (issue #31); shots only embed their own. */
-  id: string; shot_id: string; timeline_id?: string | null; clip_id?: string | null; name: string; kind: string | null; description: string | null;
-  drawing?: Drawing; aspect: number; position: number; render_url: string | null; created_at: string; updated_at: string | null;
-}
-export interface Project { id: string; workspace_id: string; name: string; notes: string | null; created_at: string; updated_at: string | null; shot_count: number; /** Bakes for the phone wait until a shot is approved (epic #275). */ bake_approved_only: boolean; /** Extra-field definitions the project uses, in order. */ field_ids: string[] }
-export interface Preset {
-  id: string;
-  name: string;
-  camera_id: string | null;
-  format_id: string | null;
-  sensor_width_mm: number;
-  sensor_height_mm: number;
-  speedbooster_factor: number;
-  lens_min_mm: number | null;
-  lens_max_mm: number | null;
-  /** Lens vignetting per focal length (issue #266, vocab vignetting.ts); [] = none. */
-  vignetting: VignettePoint[];
-  created_at: string;
-  updated_at: string | null;
-}
-export interface Location {
-  id: string;
-  /** Locations belong to one project. */
-  project_id: string;
-  name: string;
-  /** The location's pin; both null when none is set. */
-  lat: number | null;
-  lon: number | null;
-  created_at: string;
-  updated_at: string | null;
-  shot_count: number;
-  approved_count: number;
-}
-/** A named place within a location, with an optional pin (issue #44). */
-export interface Spot { id: string; location_id: string; name: string; lat: number | null; lon: number | null; created_at: string; updated_at: string | null; shot_count: number }
-export interface SavedView { id: string; project_id: string; name: string; filter: FilterGroup; created_at: string; updated_at: string | null }
-/** null / [] / false = not specified. */
-export interface ShotTags {
-  name: string | null; light: string[]; artificial: boolean; weather: string | null; int_ext: string | null; location_id: string | null; spot_id: string | null; extra: Extra;
-  shot_size: string | null; camera_support: string | null; movement: string[]; description: string | null; position_from_location: boolean;
-}
+export interface Me { user: { id: string; email: string; name: string | null }; workspaces: { id: string; name: string; role: WorkspaceRole; personal: boolean }[] }
+export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
+export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number }
+export interface ServerBuild { version: string; commit: string; instance: string }
 
+/** An API answer that is not 2xx: the server's message and status, plus what else its body carried. */
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public body: unknown = null) { super(message); }
+  status: number;
+  body: Record<string, unknown>;
+  constructor(status: number, message: string, body: Record<string, unknown> = {}) {
+    super(message);
+    this.status = status;
+    this.body = body;
+  }
 }
 
-/** What a 401 does: user.ts swaps the desktop for the sign-in page. */
 let onUnauthorized = () => {};
+/** Called when any request answers 401: the session ended, so the shell shows the sign-in page again. */
 export function setUnauthorizedHandler(fn: () => void) { onUnauthorized = fn; }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { accept: "application/json", ...init.headers }, credentials: "same-origin" });
-  if (res.redirected) {
-    // A login page in front of the app (an access proxy put on its hostname) answered: reload to go through it.
-    location.reload();
-    throw new ApiError(401, "session expired");
+  let res: Response;
+  try {
+    res = await fetch(path, { credentials: "same-origin", ...init });
+  } catch {
+    throw new ApiError(0, "The server cannot be reached");
   }
   if (res.status === 401) {
     onUnauthorized();
-    throw new ApiError(401, "signed out");
+    throw new ApiError(401, "Signed out");
   }
   const text = await res.text();
-  let body: unknown = null;
-  try { body = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
-  if (!res.ok) throw new ApiError(res.status, (body as { error?: string } | null)?.error ?? `HTTP ${res.status}`, body);
+  let body: Record<string, unknown> = {};
+  try { body = text ? (JSON.parse(text) as Record<string, unknown>) : {}; } catch { /* not JSON: a proxy's error page */ }
+  if (!res.ok) throw new ApiError(res.status, typeof body.error === "string" ? body.error : `Request failed (${res.status})`, body);
   return body as T;
 }
-const get = <T,>(path: string) => request<T>(path);
-const send = <T,>(method: string, path: string, body?: unknown) =>
-  request<T>(path, { method, headers: body === undefined ? {} : { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
 
-// ---------------------------------------------------------------- sign-in and workspaces (epic #107)
+export const get = <T>(path: string) => request<T>(path);
+export const send = <T>(method: string, path: string, body?: unknown) =>
+  request<T>(path, { method, headers: body === undefined ? undefined : { "content-type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
 
-export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
-export interface Me {
-  user: { id: string; email: string; name: string | null };
-  workspaces: { id: string; name: string; role: WorkspaceRole; personal: boolean }[];
-}
-export interface Workspace { id: string; name: string; role: WorkspaceRole; personal: boolean; member_count: number; project_count: number; created_at: string }
-export interface Member { user_id: string; email: string; name: string | null; role: WorkspaceRole; created_at: string }
-
-export interface ServerBuild {
-  version: string;
-  commit: string;
-  /** "" on production, the instance's label otherwise ("staging"): instance.ts. */
-  instance?: string;
-}
-/** Which version the server runs (public, no session needed). */
 export const fetchServerBuild = () => get<ServerBuild & { ok: true }>("/api/ping");
 
-/** The signed-in user, or null when nobody is (no 401 handling: this is how the Studio finds out). */
+/** Who this browser is, or null when nobody is signed in. */
 export async function fetchMe(): Promise<Me | null> {
-  const res = await fetch("/api/me", { headers: { accept: "application/json" }, credentials: "same-origin" });
+  const res = await fetch("/api/me", { credentials: "same-origin" }).catch(() => null);
+  if (!res) throw new ApiError(0, "The server cannot be reached");
   if (res.status === 401) return null;
-  if (!res.ok) throw new ApiError(res.status, `HTTP ${res.status}`);
+  if (!res.ok) throw new ApiError(res.status, `Request failed (${res.status})`);
   return (await res.json()) as Me;
 }
 
-/** Signs in; the session comes back as an HttpOnly cookie. A wrong password is an ApiError with the server's message. */
-export async function signIn(email: string, password: string): Promise<void> {
-  const res = await fetch("/api/auth/login", { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, credentials: "same-origin", body: JSON.stringify({ email, password, client: "studio" }) });
-  if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { error?: string } | null;
-    throw new ApiError(res.status, body?.error ?? `HTTP ${res.status}`, body);
-  }
-}
+export const signIn = (email: string, password: string) => send<unknown>("POST", "/api/auth/login", { email, password, client: "studio" }).then(() => undefined);
 export const signOut = () => fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).then(() => undefined);
-/** Changes the signed-in user's password (issue #148); every other session of the account ends. A wrong current password is a 403. */
-export const changePassword = (current: string, password: string) => send<null>("POST", "/api/auth/password", { current, password });
-
-export const fetchWorkspaces = () => get<{ workspaces: Workspace[] }>("/api/workspaces").then((r) => r.workspaces);
-export const putWorkspace = (id: string, name: string) => send<{ workspace: { id: string; name: string } }>("PUT", `/api/workspaces/${id}`, { name });
-export const fetchMembers = (workspaceId: string) => get<{ members: Member[] }>(`/api/workspaces/${workspaceId}/members`).then((r) => r.members);
-export const putMember = (workspaceId: string, email: string, role: Exclude<WorkspaceRole, "owner">) =>
-  send<{ member: { user_id: string; role: WorkspaceRole } }>("POST", `/api/workspaces/${workspaceId}/members`, { email, role });
-export const deleteMember = (workspaceId: string, userId: string) => send<{ removed: string }>("DELETE", `/api/workspaces/${workspaceId}/members/${userId}`);
-
-/** The 409 body of an upsert whose name is taken carries the id of the row that has it. */
-export const existingIdOf = (err: unknown): string | undefined =>
-  err instanceof ApiError && err.status === 409 ? (err.body as { existing_id?: string } | null)?.existing_id : undefined;
-
-type Cursor = { before: string; before_id: string } | null;
-interface ShotsPage { shots: Shot[]; next: Cursor }
-
-/** Every shot of every project; the UI narrows to the active project itself, so switching projects is instant. */
-export async function fetchAllShots(): Promise<Shot[]> {
-  const all: Shot[] = [];
-  let cursor: Cursor = null;
-  for (;;) {
-    const q: string = cursor ? `?limit=500&before=${encodeURIComponent(cursor.before)}&before_id=${cursor.before_id}` : "?limit=500";
-    const page: ShotsPage = await get<ShotsPage>(`/api/shots${q}`);
-    all.push(...page.shots);
-    if (!page.next) break;
-    cursor = page.next;
-  }
-  return all;
-}
 
 export const fetchProjects = () => get<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
-/** Upsert; a 409 carries body.existing_id when another project already has the name. */
-export const putProject = (p: { id: string; name: string; notes: string | null; workspace_id?: string; bake_approved_only?: boolean }) =>
-  send<{ project: Project }>("PUT", `/api/projects/${p.id}`, { name: p.name, notes: p.notes, workspace_id: p.workspace_id, bake_approved_only: p.bake_approved_only }).then((r) => r.project);
-/** Listeners told when a project was created somewhere other than Library › Projects (App refreshes its list). */
-const projectCreated = new Set<(p: Project) => void>();
-export function onProjectCreated(cb: (p: Project) => void): () => void { projectCreated.add(cb); return () => { projectCreated.delete(cb); }; }
-/**
- * Create a project by name from a picker (move a shot, bulk edit). A name that already exists
- * resolves to that project instead of failing, so typing an existing name is harmless.
- */
-export async function createProjectNamed(name: string): Promise<Project> {
-  try {
-    const p = await putProject({ id: crypto.randomUUID(), name: name.trim(), notes: null });
-    for (const cb of projectCreated) cb(p);
-    return p;
-  } catch (err) {
-    const existing = existingIdOf(err);
-    if (!existing) throw err;
-    const found = (await fetchProjects()).find((p) => p.id === existing);
-    if (!found) throw err;
-    return found;
-  }
-}
-export const deleteProject = (id: string) => send<{ deleted: string }>("DELETE", `/api/projects/${id}`).then(() => undefined);
-
-export const fetchFields = () => get<{ fields: FieldDefinition[] }>("/api/fields").then((r) => r.fields);
-export const putField = (id: string, projectId: string, definition: FieldDef) => send<{ field: FieldDefinition }>("PUT", `/api/fields/${id}`, { project_id: projectId, definition }).then((r) => r.field);
-export const deleteField = (id: string) => send<{ deleted: string }>("DELETE", `/api/fields/${id}`).then(() => undefined);
-/** Creates new keys, replaces existing ones; returns the full list. */
-export const importFields = (projectId: string, fields: unknown[]) => send<{ fields: FieldDefinition[]; created: number; updated: number }>("POST", "/api/fields/import", { project_id: projectId, fields });
-export const putProjectFields = (projectId: string, fieldIds: string[]) => send<{ field_ids: string[] }>("PUT", `/api/projects/${projectId}/fields`, { field_ids: fieldIds }).then((r) => r.field_ids);
-
-/** A shooting day of a project with its planned shots in order. */
-export interface DayShot { shot_id: string; planned_time: string | null; notes: string | null }
-export interface ShootingDay { id: string; project_id: string; date: string; title: string | null; notes: string | null; created_at: string; updated_at: string | null; shots: DayShot[] }
-export const fetchDays = (projectId: string) => get<{ days: ShootingDay[] }>(`/api/days?project_id=${projectId}`).then((r) => r.days);
-export const putDay = (d: Omit<ShootingDay, "created_at" | "updated_at">) =>
-  send<{ day: ShootingDay }>("PUT", `/api/days/${d.id}`, { project_id: d.project_id, date: d.date, title: d.title, notes: d.notes, shots: d.shots }).then((r) => r.day);
-export const deleteDay = (id: string) => send<{ deleted: string }>("DELETE", `/api/days/${id}`).then(() => undefined);
-
-/**
- * A rough cut of a project out of its photos (issue #12, part 2). A clip without a photo is a
- * placeholder (issue #31): `title` says what is wanted there; step and presentation are null.
- */
-export interface TimelineClip { id: string; photo_id: string | null; shot_id: string | null; /** The step of its shot it shows (that step's layers come along); null = the photo with the shot's layers on every step. */ step_id: string | null; presentation: Presentation | null; duration_ms: number; notes: string | null; title: string | null; /** A placeholder with a sketch is a sketch clip. */ sketch_id: string | null; /** The sequence block it belongs to (issue #37). */ group_id: string | null }
-export interface Timeline {
-  id: string; project_id: string; name: string; notes: string | null; /** Forces one presentation mode on every clip; null = per clip. */ lock_mode: Presentation["mode"] | null; created_at: string; updated_at: string | null; clips: TimelineClip[];
-  /** Sequence blocks' length settings (issue #37); the server recomputes a "total" block's clip durations. */
-  groups: ClipGroup[];
-  /** The clips' own layers and sketches (made inline, issues #31, #275), without shapes or drawings; read-only for the PUT. */
-  layers: Layer[]; sketches: Sketch[];
-}
-export const fetchTimelines = (projectId: string) => get<{ timelines: Timeline[] }>(`/api/timelines?project_id=${projectId}`).then((r) => r.timelines);
-/** Replaces the whole timeline. Clips of photos that left the project are dropped by the server. */
-export const putTimeline = (t: Omit<Timeline, "created_at" | "updated_at">) =>
-  send<{ timeline: Timeline }>("PUT", `/api/timelines/${t.id}`, { project_id: t.project_id, name: t.name, notes: t.notes, lock_mode: t.lock_mode, groups: t.groups, clips: t.clips.map((c) => ({ id: c.id, photo_id: c.photo_id, step_id: c.step_id, presentation: c.presentation, duration_ms: c.duration_ms, notes: c.notes, title: c.title, sketch_id: c.sketch_id, group_id: c.group_id })) }).then((r) => r.timeline);
-/** A clip's own re-frame, layer or sketch becomes the shot's (issues #31, #275). */
-export const promoteClip = (timelineId: string, clipId: string, body: { what: "framing" | "layer" | "sketch"; name?: string; layer_id?: string; shot_id?: string; sketch_id?: string }) =>
-  send<{ timeline: Timeline; shot: Shot }>("POST", `/api/timelines/${timelineId}/clips/${clipId}/promote`, body);
-export const deleteTimeline = (id: string) => send<{ deleted: string }>("DELETE", `/api/timelines/${id}`).then(() => undefined);
-
-export const fetchPresets = () => get<{ presets: Preset[] }>("/api/presets").then((r) => r.presets);
-export const putPreset = (p: Omit<Preset, "created_at" | "updated_at">) =>
-  send<{ preset: Preset }>("PUT", `/api/presets/${p.id}`, {
-    name: p.name, camera_id: p.camera_id, format_id: p.format_id, sensor_width_mm: p.sensor_width_mm, sensor_height_mm: p.sensor_height_mm,
-    vignetting: p.vignetting,
-    speedbooster_factor: p.speedbooster_factor, lens_min_mm: p.lens_min_mm, lens_max_mm: p.lens_max_mm,
-  }).then((r) => r.preset);
-export const deletePreset = (id: string) => send<{ deleted: string }>("DELETE", `/api/presets/${id}`).then(() => undefined);
-
-/** A shot made in the Studio (issue #27): images uploaded or drawn here, sent like a phone upload. */
-export interface NewShotPhoto { id: string; blob: Blob; width: number; height: number; source: "upload" | "drawn"; timestamp: string }
-export async function createShot(m: { id: string; project_id: string; name: string | null; location_id: string | null; state: ShotState; description: string | null }, photos: NewShotPhoto[]): Promise<Shot> {
-  const form = new FormData();
-  form.append("metadata", JSON.stringify({
-    ...m, light: [], artificial: false, movement: [], extra: {},
-    photos: photos.map((p, i) => ({ id: p.id, ordinal: i, timestamp: p.timestamp, source: p.source, width: p.width, height: p.height, lat: null, lon: null })),
-  }));
-  for (const p of photos) form.append(`photo.${p.id}`, p.blob, `${p.id}.${p.blob.type === "image/png" ? "png" : "jpg"}`);
-  const r = await request<{ shot: Shot }>("/api/shots", { method: "POST", body: form });
-  // The upload keeps tags of an existing shot; a description is set with a follow-up PATCH.
-  return m.description ? patchShot(r.shot.id, { description: m.description }) : r.shot;
-}
-export const deleteShot = (id: string) => send<{ deleted: string }>("DELETE", `/api/shots/${id}`).then(() => undefined);
-export const patchShot = (id: string, patch: Partial<ShotTags> & { state?: ShotState; project_id?: string }) => send<{ shot: Shot }>("PATCH", `/api/shots/${id}`, patch).then((r) => r.shot);
-export type BulkSet = Partial<Omit<ShotTags, "extra">> & { state?: ShotState; project_id?: string };
-/** Bulk edit: only the given fields change; `extra` is per top-level key (null clears). Sent 500 shots per request. */
-export async function patchShots(ids: string[], set: BulkSet, extra: Extra = {}): Promise<Shot[]> {
-  const out: Shot[] = [];
-  for (let i = 0; i < ids.length; i += 500) out.push(...(await send<{ shots: Shot[] }>("PATCH", "/api/shots", { ids: ids.slice(i, i + 500), set, extra })).shots);
-  return out;
-}
-
-// ---------- Framings (issue #29) ----------
-export interface FramingSave { photo_id: string; name: string; rig_id: string | null; lens_mm: number; frame: { width_fraction: number; height_fraction: number; x: number; y: number }; root?: boolean }
-/** Create or update a framing; `root` also makes it the photo's root. Returns the shot. */
-export const putFraming = (id: string, f: FramingSave) => send<{ shot: Shot }>("PUT", `/api/framings/${id}`, f).then((r) => r.shot);
-export const deleteFraming = (id: string) => send<{ shot: Shot }>("DELETE", `/api/framings/${id}`).then((r) => r.shot);
-/** null = back to as captured. */
-export const setRootFraming = (photoId: string, framingId: string | null) => send<{ shot: Shot }>("PUT", `/api/photos/${photoId}/root`, { framing_id: framingId }).then((r) => r.shot);
-
-// ---------------------------------------------------------------- steps, merge, extract (issue #266)
-
-/** Replace the shot's stored steps; `[]` makes the photos the steps again. */
-export const putSteps = (shotId: string, steps: StepInput[]) => send<{ shot: Shot }>("PUT", `/api/shots/${shotId}/steps`, { steps }).then((r) => r.shot);
-/** Move photos of other shots (same project) into this one; emptied source shots are deleted for good. */
-export const movePhotos = (shotId: string, photoIds: string[], steps?: StepInput[]) => send<{ shot: Shot; removed_shot_ids: string[] }>("POST", `/api/shots/${shotId}/photos`, { photo_ids: photoIds, steps });
-/** Copy one photo out as a shot of its own (own image and framings, the layers the step shows; `framing_id` becomes its root). */
-export const extractPhoto = (shotId: string, photoId: string, o: { id?: string; framing_id?: string | null; step_id?: string | null } = {}) => send<{ shot: Shot }>("POST", `/api/shots/${shotId}/photos/${photoId}/extract`, o).then((r) => r.shot);
-
-/** Correct a photo's position by hand; `allInShot` moves every photo of its shot. Returns the updated shot. */
-export const patchPhotoPosition = (id: string, lat: number, lon: number, allInShot: boolean) =>
-  send<{ shot: Shot }>("PATCH", `/api/photos/${id}`, { lat, lon, all_in_shot: allInShot }).then((r) => r.shot);
-
-// ---------- Layers and bakes (epic #275) ----------
-
-/** The shot's own layers with their shapes. */
-export const fetchShotLayers = (shotId: string) => get<{ layers: Layer[] }>(`/api/shots/${shotId}/layers`).then((r) => r.layers);
-/** One layer with its shapes (a clip's own, say). */
-export const fetchLayer = (id: string) => get<{ layer: Layer }>(`/api/layers/${id}`).then((r) => r.layer);
-export const putLayer = (id: string, l: LayerInput) => send<{ layer: Layer; shot: Shot }>("PUT", `/api/layers/${id}`, l);
-export const deleteLayer = (id: string) => send<{ deleted: string; shot: Shot }>("DELETE", `/api/layers/${id}`);
-/** Copy a layer as another clip's own (a duplicated clip gets its own). */
-export const copyLayer = (from: string, to: string, owner: ClipOwner) => send<{ layer: Layer }>("POST", `/api/layers/${from}/copy`, { id: to, ...owner }).then((r) => r.layer);
-/** Upload a step's flattened image with the hash of what it was made from. */
-export async function putBake(shotId: string, key: string, hash: string, image: Blob): Promise<Shot> {
-  const form = new FormData();
-  form.append("metadata", JSON.stringify({ hash }));
-  form.append("image", image, "bake.jpg");
-  return request<{ shot: Shot }>(`/api/shots/${shotId}/bakes/${key}`, { method: "PUT", body: form }).then((r) => r.shot);
-}
-
-// ---------- Sketches ----------
-
-export const fetchSketch = (id: string) => get<{ sketch: Sketch & { drawing: Drawing } }>(`/api/sketches/${id}`).then((r) => r.sketch);
-
-/** Multipart save: the metadata JSON plus the flattened render the Studio produced. */
-async function putComposed<T>(path: string, metadata: unknown, render: Blob | null): Promise<T> {
-  const form = new FormData();
-  form.append("metadata", JSON.stringify(metadata));
-  if (render) form.append("render", render, "render");
-  return request<T>(path, { method: "PUT", body: form });
-}
-export interface SketchSave { shot_id: string; name: string; kind: string | null; description: string | null; drawing: Drawing; aspect: number; position?: number }
-export const putSketch = (id: string, m: SketchSave, render: Blob | null) => putComposed<{ sketch: Sketch & { drawing: Drawing }; shot: Shot }>(`/api/sketches/${id}`, m, render);
-export const patchSketch = (id: string, m: { name?: string; kind?: string | null; description?: string | null; position?: number }) => send<{ sketch: Sketch; shot: Shot }>("PATCH", `/api/sketches/${id}`, m);
-export const deleteSketch = (id: string) => send<{ deleted: string; shot: Shot }>("DELETE", `/api/sketches/${id}`);
-
-// ---------- A timeline clip's own sketch (issue #31) ----------
-export interface ClipOwner { timeline_id: string; clip_id: string }
-export const putClipSketch = (id: string, m: Omit<SketchSave, "shot_id"> & ClipOwner, render: Blob | null) => putComposed<{ sketch: Sketch & { drawing: Drawing }; shot: null }>(`/api/sketches/${id}`, m, render);
-export const deleteClipSketch = (id: string) => send<{ deleted: string; shot: null }>("DELETE", `/api/sketches/${id}`);
-/** Copy a sketch as another clip's own (a duplicated clip gets its own drawing). */
-export const copySketch = (from: string, to: string, owner: ClipOwner) => send<{ sketch: Sketch }>("POST", `/api/sketches/${from}/copy`, { id: to, ...owner }).then((r) => r.sketch);
-
-export const fetchLocations = () => get<{ locations: Location[] }>("/api/locations").then((r) => r.locations);
-/** Upsert; a 409 carries body.existing_id when another location already has the name. */
-export const putLocation = (l: { id: string; project_id: string; name: string; lat?: number | null; lon?: number | null }) =>
-  send<{ location: Location }>("PUT", `/api/locations/${l.id}`, l.lat === undefined ? { project_id: l.project_id, name: l.name } : { project_id: l.project_id, name: l.name, lat: l.lat, lon: l.lon }).then((r) => r.location);
-export const deleteLocation = (id: string) => send<{ deleted: string }>("DELETE", `/api/locations/${id}`).then(() => undefined);
-
-export const fetchSpots = () => get<{ spots: Spot[] }>("/api/spots").then((r) => r.spots);
-/** Upsert; `location_id` only counts on create. A name clash within the location answers 409 + existing_id. */
-export const putSpot = (s: { id: string; location_id: string; name: string; lat?: number | null; lon?: number | null }) =>
-  send<{ spot: Spot }>("PUT", `/api/spots/${s.id}`, s.lat === undefined ? { location_id: s.location_id, name: s.name } : { location_id: s.location_id, name: s.name, lat: s.lat, lon: s.lon }).then((r) => r.spot);
-export const deleteSpot = (id: string) => send<{ deleted: string }>("DELETE", `/api/spots/${id}`).then(() => undefined);
-
-export const fetchViews = () => get<{ views: SavedView[] }>("/api/views").then((r) => r.views);
-export const putView = (v: { id: string; project_id: string; name: string; filter: FilterGroup }) => send<{ view: SavedView }>("PUT", `/api/views/${v.id}`, { project_id: v.project_id, name: v.name, filter: v.filter }).then((r) => r.view);
-export const deleteView = (id: string) => send<{ deleted: string }>("DELETE", `/api/views/${id}`).then(() => undefined);
-
-// ---------- Folders and desktop shortcuts (epic #72) ----------
-
-/** kind "desktop": the project's Desktop folder (one, at the root, fixed name; its files sit on the desktop). */
-export interface Folder { id: string; project_id: string; parent_id: string | null; name: string; kind: "normal" | "desktop"; created_at: string; updated_at: string | null }
-/** A resource's folder; a resource without one sits at the root. */
-export interface FolderItem { resource_type: FileResourceType; resource_id: string; folder_id: string; created_at: string }
-export interface DesktopItem {
-  id: string; project_id: string; kind: DesktopItemKind;
-  resource_type: FileResourceType | null; resource_id: string | null; folder_id: string | null; app_id: AppIdV | null;
-  /** Shown instead of the resource's live name. */
-  label: string | null;
-  x: number; y: number;
-  /** On the desktop (at x/y) or pinned to the taskbar (by position). */
-  area: DesktopArea; position: number | null;
-  created_at: string; updated_at: string | null;
-}
-export interface FilesPayload { folders: Folder[]; items: FolderItem[]; desktop: DesktopItem[] }
-
-/** One project's folders, placements and desktop shortcuts. */
-export const fetchFiles = (projectId: string) => get<FilesPayload>(`/api/files?project_id=${encodeURIComponent(projectId)}`);
-/** Create, rename or move (parent_id: null = root, absent = keep). 409 + existing_id when the name is taken there. */
-export const putFolder = (f: { id: string; project_id: string; name: string; parent_id?: string | null }) =>
-  send<{ folder: Folder }>("PUT", `/api/folders/${f.id}`, f).then((r) => r.folder);
-/** Moves the folder to the recycle bin with everything in it. */
-export const deleteFolder = (id: string) => send<{ deleted: string; binned: true }>("DELETE", `/api/folders/${id}`);
-/** Put a resource into a folder, or back at the root with null. */
-export const placeItem = (type: FileResourceType, id: string, folderId: string | null) =>
-  send<{ item: FolderItem | null }>("PUT", `/api/folder-items/${type}/${id}`, { folder_id: folderId }).then((r) => r.item);
-/** Create or move a shortcut or pin (target and area never change). 409 + existing_id when the target is already in that area. */
-export const putDesktopItem = (d: Omit<DesktopItem, "created_at" | "updated_at" | "area" | "position"> & { area?: DesktopArea; position?: number | null }) =>
-  send<{ item: DesktopItem }>("PUT", `/api/desktop/${d.id}`, d).then((r) => r.item);
-export const deleteDesktopItem = (id: string) => send<{ deleted: string }>("DELETE", `/api/desktop/${id}`).then(() => undefined);
-
-/** The recycle bin (epic #90): deletes move files there; restore, purge one, or empty it. */
-export type { TrashEntry, TrashType };
-export const fetchTrash = (projectId: string) => get<{ entries: TrashEntry[] }>(`/api/trash?project_id=${encodeURIComponent(projectId)}`).then((r) => r.entries);
-export const restoreTrash = (type: TrashType, id: string) => send<{ restored: string; name?: string }>("POST", `/api/trash/${type}/${id}/restore`);
-export const purgeTrash = (type: TrashType, id: string) => send<{ purged: string }>("DELETE", `/api/trash/${type}/${id}`).then(() => undefined);
-export const emptyTrash = (projectId: string) => send<{ purged: number }>("DELETE", `/api/trash?project_id=${encodeURIComponent(projectId)}`).then((r) => r.purged);
-
-/** A viewfinder layout made here for the phone (issue #49). */
-export interface LayoutRecord { id: string; name: string; layout: ViewfinderLayout; device_id: string | null; created_at: string; updated_at: string | null }
-export const fetchLayouts = () => get<{ layouts: LayoutRecord[] }>("/api/viewfinder-layouts").then((r) => r.layouts);
-export const putLayout = (l: { id: string; name: string; layout: ViewfinderLayout; device_id?: string | null }) => send<{ layout: LayoutRecord }>("PUT", `/api/viewfinder-layouts/${l.id}`, { name: l.name, layout: l.layout, device_id: l.device_id }).then((r) => r.layout);
-export const deleteLayout = (id: string) => send<{ deleted: string }>("DELETE", `/api/viewfinder-layouts/${id}`).then(() => undefined);
-
-/** Device specs (issue #68): phones read out in Library › Viewfinder; the id is the phone's own. */
-export interface DeviceRecord { id: string; name: string; specs: DeviceSpecs; created_at: string; updated_at: string | null }
-export const fetchDevices = () => get<{ devices: DeviceRecord[] }>("/api/devices").then((r) => r.devices);
-export const putDevice = (d: { id: string; name: string; specs: DeviceSpecs }) => send<{ device: DeviceRecord }>("PUT", `/api/devices/${d.id}`, { name: d.name, specs: d.specs }).then((r) => r.device);
-export const deleteDevice = (id: string) => send<{ deleted: string }>("DELETE", `/api/devices/${id}`).then(() => undefined);
-
-// ---------------------------------------------------------------- lights (epic #206, #307)
-
-/** A paired light or battery, as the phone synced it; controlled through the phone (lightProxy.ts). */
-export interface ServerFixture {
-  id: string; workspace_id: string; label: string; kind_id: string; address: string;
-  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null;
-  /** The battery fixture a light without its own runs on (#294); null: a socket or not set. */
-  powered_by: string | null;
-  /** 1 while put to sleep (#318): the proxy makes no connection attempts. */
-  asleep: number;
-  created_at: string; updated_at: string | null;
-}
-export const fetchFixtures = () => get<{ fixtures: ServerFixture[] }>("/api/fixtures").then((r) => r.fixtures);
-/** Creates or edits a fixture; the phone picks it up on `lights.sync` (#307). */
-/** The whole record, mesh fields included: the PUT replaces them, and an MC without them would lose its pairing. */
-export const putFixture = (f: { id: string; label: string; kind_id: string; address: string; mesh_network_id?: string | null; mesh_unicast?: number | null; mesh_elements?: number | null }) =>
-  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${f.id}`, {
-    label: f.label, kind_id: f.kind_id, address: f.address,
-    mesh_network_id: f.mesh_network_id ?? null, mesh_unicast: f.mesh_unicast ?? null, mesh_elements: f.mesh_elements ?? null,
-  }).then((r) => r.fixture);
-/** Puts a device to sleep or wakes it (#318); the phone takes it on `lights.sync`. */
-export const setFixtureSleep = (id: string, asleep: boolean) =>
-  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${id}/sleep`, { asleep }).then((r) => r.fixture);
-/** The battery a light runs on (#294), or null for a socket. */
-export const setFixturePower = (id: string, poweredBy: string | null) =>
-  send<{ fixture: ServerFixture }>("PUT", `/api/fixtures/${id}/power`, { powered_by: poweredBy }).then((r) => r.fixture);
-export const deleteFixture = (id: string) => send<{ deleted: string }>("DELETE", `/api/fixtures/${id}`).then(() => undefined);
-
-/** Light sequences (#304), per project; the editor's model (vocab LightSequence) with snake-case envelope fields. */
-interface ServerLightSequence { id: string; project_id: string; name: string; duration_ms: number; loop: boolean; tracks: SequenceTrack[]; markers?: SequenceMarker[]; updated_at: string | null; created_at: string }
-const sequenceFromServer = (s: ServerLightSequence): LightSequence => ({ id: s.id, name: s.name, durationMs: s.duration_ms, loop: s.loop, tracks: s.tracks, markers: s.markers ?? [], updatedAt: s.updated_at ?? s.created_at });
-export const fetchLightSequences = (projectId: string) =>
-  get<{ light_sequences: ServerLightSequence[] }>(`/api/light-sequences?project_id=${encodeURIComponent(projectId)}`).then((r) => r.light_sequences.map(sequenceFromServer));
-export const putLightSequence = (projectId: string, s: LightSequence) =>
-  send<{ light_sequence: ServerLightSequence }>("PUT", `/api/light-sequences/${s.id}`, { project_id: projectId, name: s.name, duration_ms: s.durationMs, loop: s.loop, tracks: s.tracks, markers: s.markers ?? [] })
-    .then((r) => sequenceFromServer(r.light_sequence));
-export const deleteLightSequence = (id: string) => send<{ deleted: string }>("DELETE", `/api/light-sequences/${id}`).then(() => undefined);
+export const putProject = (id: string, body: { name: string; workspace_id?: string }) => send<{ project: Project }>("PUT", `/api/projects/${id}`, body).then((r) => r.project);
+export const deleteProject = (id: string) => send<{ deleted: string }>("DELETE", `/api/projects/${id}`);

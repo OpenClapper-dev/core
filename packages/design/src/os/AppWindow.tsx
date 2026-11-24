@@ -1,4 +1,4 @@
-import type { ComponentChildren, JSX } from "preact";
+import type { ComponentChildren, JSX, Ref } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "../core/Icon";
 import { cx } from "../util";
@@ -30,13 +30,18 @@ export interface AppWindowProps extends Omit<JSX.HTMLAttributes<HTMLElement>, "t
   onMaximize?: () => void;
   onBarPointerDown?: (e: JSX.TargetedPointerEvent<HTMLElement>) => void;
   onBarDoubleClick?: () => void;
+  onBarContextMenu?: (e: JSX.TargetedMouseEvent<HTMLElement>) => void;
+  /** The frame element, for a shell that moves and sizes the window itself while it is dragged. */
+  frameRef?: Ref<HTMLElement>;
+  /** Extra parts inside the frame, above the content: a shell's own resize handles. */
+  frame?: ComponentChildren;
   style?: JSX.CSSProperties;
   children?: ComponentChildren;
 }
 
 // Geometry changes (maximise, restore, snap) are animated with a FLIP from the old box to the new one.
 // Minimise shrinks toward minimizeTarget (a DOMRect-like box, e.g. the taskbar button) before hiding.
-export function AppWindow({ title, icon, focused, state = "normal", closing, onClosed, minimizeTarget, toolbar, statusBar, resizable = true, onFocus, onClose, onMinimize, onMaximize, onBarPointerDown, onBarDoubleClick, children, className, style, ...rest }: AppWindowProps) {
+export function AppWindow({ title, icon, focused, state = "normal", closing, onClosed, minimizeTarget, toolbar, statusBar, resizable = true, onFocus, onClose, onMinimize, onMaximize, onBarPointerDown, onBarDoubleClick, onBarContextMenu, frameRef, frame, children, className, style, ...rest }: AppWindowProps) {
   const max = state === "max";
   const ref = useRef<HTMLElement>(null);
   const prevBox = useRef<Box | null>(null);
@@ -103,10 +108,10 @@ export function AppWindow({ title, icon, focused, state = "normal", closing, onC
     prevShown.current = shownState;
   }
   return (
-    <section ref={ref} role="dialog" aria-label={title}
+    <section ref={(el) => { ref.current = el; if (typeof frameRef === "function") frameRef(el); else if (frameRef) (frameRef as { current: HTMLElement | null }).current = el; }} role="dialog" aria-label={title}
       className={cx("oc-window", focused && "is-focused", shownState !== "normal" && !tween && `oc-window--${shownState}`, opening && "is-opening", closing && "is-closing", minStyle && "is-minimizing", tween && tween.phase === "to" && "is-tweening", tween && "is-flip", className)}
       style={tweenStyle ? { ...style, ...tweenStyle } : minStyle ? { ...style, ...minStyle } : style} onPointerDown={onFocus} {...rest}>
-      <header className="oc-window__bar" onPointerDown={onBarPointerDown} onDblClick={onBarDoubleClick || onMaximize}>
+      <header className="oc-window__bar" onPointerDown={onBarPointerDown} onContextMenu={onBarContextMenu} onDblClick={(e) => { if (!(e.target as HTMLElement).closest("button")) (onBarDoubleClick || onMaximize)?.(); }}>
         {icon}<span className="oc-window__title">{title}</span>
         <span className="oc-window__controls" onPointerDown={(e) => e.stopPropagation()}>
           {onMinimize && <button type="button" className="oc-window__ctl" aria-label="Minimise" onClick={onMinimize}><Icon name="minus" size={12} /></button>}
@@ -117,6 +122,7 @@ export function AppWindow({ title, icon, focused, state = "normal", closing, onC
       {toolbar}
       <div className="oc-window__content">{children}</div>
       {statusBar}
+      {frame}
       {resizable && <span className="oc-window__handle" aria-hidden="true" />}
     </section>
   );
