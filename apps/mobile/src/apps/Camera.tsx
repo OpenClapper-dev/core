@@ -14,7 +14,8 @@ import { addCapture } from "../media/pipeline";
 import { imageSource } from "../media/cache";
 import { queue, queuedUri, useQueueCounts } from "../media/queue";
 import { usePrefs } from "../prefs";
-import { useProject } from "../projects";
+import { useExtensionsOn, useProject } from "../projects";
+import { cameraControlView } from "../camera/controls";
 import { openApp } from "../shell/nav";
 import { persisted } from "../store";
 import { allLayouts, chooseLayout, useLayout } from "../camera/layouts";
@@ -63,6 +64,9 @@ function Camera({ active }: { active: boolean }) {
   const [flash, setFlash] = useState(false);
   const [foreground, setForeground] = useState(AppState.currentState === "active");
   const [sheet, setSheet] = useState<"frame" | "folder" | "layout" | "name-start" | "name-end" | null>(null);
+  // An extension's control open over the camera (its own sheet).
+  const [extOpen, setExtOpen] = useState<string | null>(null);
+  const extensionsOn = useExtensionsOn();
   const [viewBox, setViewBox] = useState({ w: 0, h: 0 });
   const counts = useQueueCounts();
   const q = queue.use();
@@ -156,6 +160,8 @@ function Camera({ active }: { active: boolean }) {
   };
   const control = (i: LayoutItem, vertical: boolean) => {
     const c = CONTROLS[i.control];
+    // Unknown here (a newer layout), or an extension's control while the project has it off: left out.
+    if (!c || (c.extension && !extensionsOn.includes(c.extension))) return null;
     if (c.kind === "readout") { const r = readout(i.control); return r ? <Text key={i.control} style={[s.tag, r.warn && s.tagWarn]} numberOfLines={1}>{r.text}</Text> : null; }
     if (c.kind === "shutter") return (
       <Pressable key="shutter" accessibilityRole="button" accessibilityLabel="Take a photo" disabled={!ready || busy || preview} onPress={() => void shoot()}
@@ -197,7 +203,7 @@ function Camera({ active }: { active: boolean }) {
           {last && <Image source={queuedUri(last) ? { uri: queuedUri(last)! } : imageSource(last.id, "thumbnail")} style={StyleSheet.absoluteFill} />}
         </Pressable>
       );
-      default: return null;
+      default: return cameraControlView(i.control) ? btn(extOpen === i.control, () => setExtOpen(i.control)) : null;
     }
   };
   const drawBar = (b: Bar) => {
@@ -252,6 +258,7 @@ function Camera({ active }: { active: boolean }) {
       {sheet === "frame" && project && <FrameSheet project={project.id} current={frame} presets={presets} onClose={() => setSheet(null)} />}
       {sheet === "folder" && project && <FolderSheet project={project.id} current={folder} folders={lib.holders.filter((h) => h.type === "folder")} onClose={() => setSheet(null)} />}
       {sheet === "layout" && <LayoutSheet current={layout.id} onClose={() => setSheet(null)} />}
+      {extOpen && (() => { const V = cameraControlView(extOpen)?.Sheet; return V ? <V onClose={() => setExtOpen(null)} /> : null; })()}
       {(sheet === "name-start" || sheet === "name-end") && project && <NameSheet title={sheet === "name-start" ? "A name for the new collection" : `A name for “${mode?.name ?? "the collection"}”`} initial={sheet === "name-end" ? mode?.name ?? "" : ""}
         onClose={() => setSheet(null)} onDone={(n) => { setSheet(null); if (sheet === "name-start") void startCollection(project.id, folder, n || undefined); else void endCollection(n); }} />}
     </View>

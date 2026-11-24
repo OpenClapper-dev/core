@@ -24,6 +24,7 @@ A camera layout says which controls the phone's camera shows and where, per orie
 | `collection` | button | Collection mode |
 | `folder` | button | The folder for new photos |
 | `torch`, `uploads`, `last`, `layout` | button | Torch; the queue (with its count); the last photo; the layout picker |
+| `hardware` (Hardware extension) | button | The device cards over the camera ([hardware](hardware.md)). Offered in the editor only while the project has the extension on; placed and switched off, it is greyed in the editor and left out on the phone |
 | `read-project`, `read-lens`, `read-frame`, `read-fov`, `read-collection`, `read-folder`, `read-warnings` | readout | Tags on the picture: the project, the lens in use, the preset and focal length, the angle of view, the collection, the folder, warnings (coloured) |
 
   A button may carry its short `label` under the icon. A stepped strip has full-size back and on buttons (stacked in an upright bar).

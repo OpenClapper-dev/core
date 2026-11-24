@@ -34,6 +34,9 @@ What depends on the switch:
 | Device kinds beyond phone and tablet, with the rules for their bodies | `registerDeviceKind` (`packages/model/src/extensions.ts`); the device file type checks a registered kind with its rules |
 | Studio apps | `registerApp` with `extension` (`apps/studio/src/apps/registry.ts`) |
 | Phone apps | `registerApp` with `extension` (`apps/mobile/src/apps/registry.ts`) |
+| Camera controls | `registerCameraControl` (`packages/model/src/layout.ts`), what a tap does on the phone `registerCameraControlView` (`apps/mobile/src/camera/controls.ts`, a sheet over the camera) |
+| Devices app | `registerDeviceView` and `registerPhoneTab` (`apps/studio/src/devices.ts`) |
+| Sync tasks on the phone | `onSync` (`apps/mobile/src/sync.ts`), registered after the upload queue |
 | Channels on the phone link | Any channel name other than `link` and `layout` is carried unread ([camera layouts](camera-layouts.md), "The phone link") |
 | Worker routes and tables | `registerExtensionRoutes` (`apps/worker/src/extensions.ts`); tables of its own, no column on a core table |
 
@@ -43,4 +46,4 @@ The Worker registers every extension whatever the projects switch: an extension'
 
 | Extension | Needs | Brings |
 | --- | --- | --- |
-| Hardware | — | Lights, batteries, cameras, video transmitters in the device registry; pairing; the phone as proxy; Devices across types; Hardware on the phone; the camera control Hardware |
+| Hardware ([hardware](hardware.md)) | — | Lights, batteries, cameras, video transmitters in the device registry; pairing; the phone as proxy; Devices across types; Hardware on the phone; the camera control Hardware |
