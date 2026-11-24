@@ -182,6 +182,9 @@ importers:
       '@openclapper/design':
         specifier: workspace:*
         version: link:../../packages/design
+      '@openclapper/fov-math':
+        specifier: workspace:*
+        version: link:../../packages/fov-math
       '@openclapper/model':
         specifier: workspace:*
         version: link:../../packages/model
