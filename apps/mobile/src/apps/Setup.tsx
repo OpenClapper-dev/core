@@ -21,7 +21,8 @@ import { appOf, catalogue, registerApp } from "./registry";
  * the debug log. Pages of their own open over the hub; back returns to it.
  */
 type Page = "project" | "account" | "password" | "device" | "tabs" | "camera" | "look" | "offline" | "log";
-const extraRows: { id: string; icon: IconName; label: string; meta: () => string; open: () => void }[] = [];
+/** `useMeta` is a hook: it may subscribe to what the row reports. */
+const extraRows: { id: string; icon: IconName; label: string; useMeta: () => string; open: () => void }[] = [];
 /** Another module's row in the hub (the upload queue adds Uploads). */
 export const addSetupRow = (row: (typeof extraRows)[number]) => { extraRows.push(row); };
 /** Opens a page of Setup from elsewhere (the camera's uploads chip). */
@@ -62,13 +63,15 @@ function Hub({ open }: { open: (p: Page | string) => void }) {
   const dev = device.use();
   const prefs = usePrefs();
   const local = settings.use();
+  // The rows are fixed once the app is loaded, so these hooks run in the same order every time.
+  const extraMetas = extraRows.map((r) => ({ r, meta: r.useMeta() }));
   const tabCount = dev.tabs.filter((t) => appOf(t)).length + (dev.tabs.includes("setup") ? 0 : 1);
   const rows: { id: string; icon: IconName; label: string; meta: string; open?: () => void }[] = [
     { id: "project", icon: "film", label: "Project", meta: project?.name ?? "None chosen" },
     { id: "account", icon: "user", label: "Account", meta: email ?? "Not signed in" },
     { id: "device", icon: "mobile", label: "This device", meta: dev.file?.name ?? reportedModel() },
     { id: "tabs", icon: "apps", label: "Tabs on this device", meta: `${tabCount} tabs` },
-    ...extraRows.map((r) => ({ id: r.id, icon: r.icon, label: r.label, meta: r.meta(), open: r.open })),
+    ...extraMetas.map(({ r, meta }) => ({ id: r.id, icon: r.icon, label: r.label, meta, open: r.open })),
     { id: "camera", icon: "camera", label: "Camera", meta: prefs.lensNames === "phone" ? "Lenses by the phone's names" : "Lenses by focal length" },
     { id: "look", icon: "palette", label: "Appearance", meta: prefs.theme === "auto" ? "Theme follows the phone" : prefs.theme === "dark" ? "Dark" : "Light" },
     { id: "offline", icon: "cloud-off", label: "Offline", meta: local.offlineMode ? "Offline mode is on" : local.keepProject ? "Project kept on this device" : "Off" },

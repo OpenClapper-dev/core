@@ -26,6 +26,7 @@ One app, five installs side by side, each with its own package id, storage and i
 | Preferences | `prefs.ts` | The account's `preferences` file, shared with the Studio. The phone sets theme, collection mark, lens names, asking for a collection's name, originals on Wi-Fi; a save merges only what was changed here into the file as it is on the server, so the Studio's keys stay. A copy per account works offline |
 | This device | `device.ts` | The `device` file of the account (below) |
 | Offline mode, keeping the project, debug log | `settings.ts` | This phone only |
+| Upload queue, Media's copy, image cache | `media/` | [Capture](capture.md#upload-queue-srcmediaqueuets-rules-in-stepsts-tested) |
 
 Everything is kept in the key-value store scoped to the server the build talks to (`src/kv.ts`).
 
@@ -41,6 +42,20 @@ The app registers its device itself (`POST /api/devices/register`, [api](../api.
 
 Each lens keeps the 35 mm equivalent the camera reports (`focal35`; none means no optics frame on it) and its name as the phone calls it (0.5×, 1×, 5×). Renaming the device and changing its tabs save to the file (`PUT /api/files/:id`); offline they wait for the next sync.
 
+## Camera
+
+The base camera: [capture](capture.md).
+
+## Media (`src/apps/Media.tsx`, `src/media/library.ts`)
+
+- The active project's photos, collections and folders (`GET /api/files`), kept on the phone so Media opens at once and offline; photos still in the queue are merged in with a badge (waiting, preview sent, stuck). Reloads when the tab comes to the front, on pull, at every sync and when an upload's preview arrived.
+- **All photos or folders** (a switch at the top): every photo of the project, or the folders with what sits at the top level below them; a folder opens with its subfolders, collections and photos.
+- **Collections stacked or spread** (the header button): a stack in its colour with the count and name, opening on its photos; spread out, each photo carries its collection's mark (Setup, Appearance: bar, bar left, dot or frame, the Studio's preference).
+- **Import** from the phone (the download button): [capture](capture.md#what-a-capture-produces-srcmediapipelinets).
+- **Choose several** (the tick): make a collection of them, named "Collection n", in a random one of the eight colours, where they are. Needs a connection.
+- **A photo**: its preview, name (rename), facts (taken, size, lens readout, angle of view, device), where it is (folder, collection), the collection (put in, take out), the recycle bin. A photo not yet announced to the server is deleted for good instead, after asking. A stuck one shows the server's error with Retry and Discard.
+- Images come from the phone when it has them (sent from here, or the project kept on the device), else from the server (`GET /api/photos/:id/image`, cached by `expo-image`).
+
 ## Setup (`src/apps/Setup.tsx`)
 
 | Page | What |
@@ -49,9 +64,10 @@ Each lens keeps the 35 mm equivalent the camera reports (`focal35`; none means n
 | Account | Signed in as; change password (every other session ends); sign out (the queue stays on the phone) or sign in |
 | This device | Name (rename), model, kind, screen, the real lenses with what they report |
 | Tabs on this device | The tabs in order (up, down, off); Setup locked; the apps not on the device to add |
+| Uploads | The queue photo by photo with its state, Retry and Discard for a stuck one, Send now; originals on Wi-Fi only |
 | Camera | Lens names (the phone's or focal lengths); a collection's name (by the pattern, ask at start, ask at end) |
 | Appearance | Theme (like the phone, Light, Dark); how a photo shows its collection (bar, bar left, dot, frame) |
-| Offline | Offline mode: no requests at all |
+| Offline | Offline mode: no requests at all; keep the project on this device (its thumbnails and previews, for Media without a connection; originals stay on the server) |
 | Debug log | Record, share as text, clear |
 
 The footer names the version and the server.

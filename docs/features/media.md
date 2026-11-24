@@ -11,6 +11,8 @@ A photo is a still image that exists on its own: it belongs to one project and t
 - **Angle of view** (`photoAov` in `packages/fov-math`, computed by the server when the photo is added): from EXIF `FocalLengthIn35mmFilm` with the picture's own aspect ratio, else from `FocalLength` and the focal-plane resolution, else none. A photo cropped in another program keeps its EXIF, so its angle of view is then wrong without warning ([02](../rewrite/02-optics.md)).
 - **A copy** of a photo (Duplicate) is a new photo that shares the stored images: it costs no storage. The images go when the last photo using them is purged from the bin.
 
+On the phone: Media and import in [phone app](phone-app.md#media-srcappsmediatsx-srcmedialibraryts) and [capture](capture.md).
+
 ## Importing in the Studio (`media.ts`)
 
 - **Import** in the toolbar of Media and Files, or drop image files from the computer onto either window (onto a folder or a collection to put them there). JPEG, PNG and WebP; HEIC cannot be drawn by the browser and comes from the phone. Other files are left out, with a toast saying why.

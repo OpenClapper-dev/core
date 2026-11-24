@@ -22,12 +22,10 @@ The shared packages are imported as TypeScript source (`"exports": { ".": "./src
 
 ## Data flow
 
-1. **Capture** (`apps/mobile/src/screens/Viewfinder.tsx`): photo + GPS fix + framing snapshot (rig, lens, FOV, frame fractions). The image is resized to 1280 px JPEG.
-2. **Draft**: goes to the Tag screen (`screens/Tag.tsx`), or straight to the queue with direct upload. Sequences collect several photos into one draft. Drafts are persisted (see [capture](features/capture.md)).
-3. **Queue** (`src/uploads.ts`): photos copied to `pending-photos/`, entry stored in the kv-store. `flush()` syncs projects, field definitions and locations first, then posts each shot.
-4. **Upload**: `POST /api/shots` (multipart, idempotent). Worker writes each photo to R2 (`photos/<photoId>.jpg`) and the shot + photo rows to D1 in one batch.
-5. **Studio** loads all shots (`fetchAllShots`, paginated) and filters client-side by the active project. Images come through `GET /api/photos/:id/image`.
-6. **Planning** (Studio Plan) stores shooting days; the phone's Day tab reads them and can keep a day offline.
+1. **Capture** (`apps/mobile/src/apps/Camera.tsx`, `src/media/pipeline.ts`): the camera's JPEG is kept as the original; preview (about 2048 px) and thumbnail (about 400 px) are made on the phone and the EXIF is read. Import from the phone and from the Studio run the same steps.
+2. **Queue** (`src/media/queue.ts`): one photo per entry with its three files, persisted on the phone. Sync creates projects made on the phone first.
+3. **Upload**: `PUT /api/photos/:id` (what is known; the server computes the angle of view from the EXIF), then thumbnail, preview and original, each on its own and idempotent. R2 keys `photos/<object_id>/<part>.<ext>`, the file and its photo row in D1 ([api](api.md#photos-photosts)).
+4. **Studio** lists a project's files (`GET /api/files`) and shows them in Media; images come through `GET /api/photos/:id/image`.
 
 The phone uses the **deployed** Worker, even in the dev loop. The Studio dev server proxies to a local Worker.
 

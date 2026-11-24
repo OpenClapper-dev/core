@@ -18,6 +18,7 @@ import { apply as applySettings } from "./src/settings";
 import { handleBack } from "./src/shell/back";
 import { LoginForm, ProjectGate, SignInGate } from "./src/shell/Gates";
 import { initialLogin, login as loginState, skipped } from "./src/shell/signin";
+import { setTabOpener } from "./src/shell/nav";
 import { startSync } from "./src/sync";
 import { ConfirmHost, Icon, makeStyles, PALETTES, resolveTheme, SIZE, ThemeProvider, ToastHost, type, useTheme } from "./src/ui";
 
@@ -67,6 +68,7 @@ function App() {
   // The tab in front was taken off this device: the first tab instead.
   const current = tabs.find((t) => t.id === tab) ?? tabs[0];
   const go = (id: string) => { setTab(id); setOpened((o) => (o.includes(id) ? o : [...o, id])); };
+  useEffect(() => { setTabOpener((id) => { if (!tabs.some((t) => t.id === id)) return false; go(id); return true; }); return () => setTabOpener(null); }, [tabs]);
 
   // Android back: a screen that can go back takes it; then the first tab; then out of the app.
   useEffect(() => {

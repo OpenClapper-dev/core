@@ -1,3 +1,4 @@
+import { File, UploadType } from "expo-file-system";
 import { getSession, getToken, setSession } from "./auth";
 import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
@@ -29,18 +30,17 @@ const WEB_PAGE = "the server answered with a web page (a Wi-Fi login?)";
 /** Whether a request can be made at all: configured, signed in, not in offline mode. */
 export const canCall = () => isConfigured && !isOfflineMode() && !!getToken();
 
-/** One request. `body` is sent as JSON unless it is binary (an image). */
-export async function call<T>(path: string, init: { method?: string; body?: unknown; type?: string } = {}): Promise<T> {
+/** One request; `body` is sent as JSON. */
+export async function call<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   if (!isConfigured) throw new ApiError(0, "API not configured in this build");
   if (isOfflineMode()) throw new ApiError(0, "offline mode is on");
   if (!getToken()) throw new ApiError(401, "not signed in");
   const started = Date.now();
   const method = init.method ?? "GET";
-  const binary = init.body instanceof ArrayBuffer || init.body instanceof Uint8Array || (typeof Blob !== "undefined" && init.body instanceof Blob);
-  const headers = authHeaders(init.body === undefined ? {} : { "content-type": binary ? init.type ?? "application/octet-stream" : "application/json" });
+  const headers = authHeaders(init.body === undefined ? {} : { "content-type": "application/json" });
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { method, headers, body: init.body === undefined ? undefined : binary ? (init.body as BodyInit) : JSON.stringify(init.body) });
+    res = await fetch(`${API_URL}${path}`, { method, headers, body: init.body === undefined ? undefined : JSON.stringify(init.body) });
   } catch (err) {
     log("warn", "api network error", { method, path, ms: Date.now() - started, error: err });
     markOnline(false);
@@ -138,9 +138,33 @@ export interface PhotoMeta {
 }
 /** What is known about a photo; idempotent (sent again, nothing changes). */
 export const putPhoto = (id: string, meta: PhotoMeta) => call<{ file: FileRec }>(`/api/photos/${id}`, { method: "PUT", body: meta }).then((r) => r.file);
-/** One of a photo's images as raw bytes; stored once, a second upload answers `already`. */
-export const putPhotoPart = (id: string, part: ImageSize, bytes: ArrayBuffer, type: string) =>
-  call<{ already?: boolean }>(`/api/photos/${id}/${part}`, { method: "PUT", body: bytes, type });
+/**
+ * One of a photo's images, a file on the phone sent as it is by the native uploader (streamed from
+ * disk, also for a large original); stored once, a second upload answers `already`. Answers as call().
+ */
+export async function putPhotoPart(id: string, part: ImageSize, file: File, type: string): Promise<void> {
+  if (!isConfigured) throw new ApiError(0, "API not configured in this build");
+  if (isOfflineMode()) throw new ApiError(0, "offline mode is on");
+  if (!getToken()) throw new ApiError(401, "not signed in");
+  const path = `/api/photos/${id}/${part}`;
+  const started = Date.now();
+  let res: { status: number; body: string };
+  try {
+    res = await file.upload(`${API_URL}${path}`, { httpMethod: "PUT", uploadType: UploadType.BINARY_CONTENT, headers: authHeaders({ "content-type": type }) });
+  } catch (err) {
+    log("warn", "upload network error", { path, ms: Date.now() - started, error: err });
+    markOnline(false);
+    throw err;
+  }
+  markOnline(true);
+  log(res.status < 400 ? "debug" : "warn", "upload", { path, status: res.status, ms: Date.now() - started, bytes: file.size });
+  if (res.status === 401) { setSession(null); throw new ApiError(401, "session expired, please sign in again"); }
+  if (res.status >= 400) {
+    let msg = `HTTP ${res.status}`;
+    try { msg = (JSON.parse(res.body) as { error?: string }).error ?? msg; } catch { /* not JSON */ }
+    throw new ApiError(res.status, msg);
+  }
+}
 /** Where an image of a photo is; load it with `authHeaders()`. */
 export const imageUrl = (id: string, size: ImageSize = "preview") => `${API_URL}/api/photos/${id}/image?size=${size}`;
 
