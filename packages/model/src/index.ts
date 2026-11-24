@@ -9,3 +9,4 @@ export * from "./properties.ts";
 export * from "./filters.ts";
 export * from "./canvas.ts";
 export * from "./shot.ts";
+export * from "./timeline.ts";

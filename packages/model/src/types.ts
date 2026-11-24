@@ -6,6 +6,7 @@ import { registerFileType, type Body, type FileType, type Ref } from "./files.ts
 import { canvasError, emptyCanvas, presetError, remapCanvas } from "./canvas.ts";
 import { filterError } from "./filters.ts";
 import { emptyShot, placeError, shotError } from "./shot.ts";
+import { emptyTimeline, remapTimeline, timelineError } from "./timeline.ts";
 import { defaultPattern, definitionError, MAX_DIGITS } from "./properties.ts";
 
 const noKeys = (body: Body, what: string): string | null => {
@@ -264,5 +265,18 @@ export const PRESET: FileType = {
   check: (body) => presetError(body),
 };
 
+/**
+ * A timeline (06-timeline.md): a rough cut of clips in order, edited by one person at a time. The clips are in
+ * the body; each clip with a file keeps a "clip" reference, which shows a photo, a canvas or a shot (`refTargets`).
+ */
+export const TIMELINE: FileType = {
+  type: "timeline", label: "Timeline", plural: "Timelines", roots: ["project"], refs: ["clip"], version: 1, lockable: true,
+  refTargets: { clip: ["photo", "canvas", "shot"] },
+  empty: () => emptyTimeline() as unknown as Body,
+  check: (body, refs) => timelineError(body, refs),
+  remap: (body, ids) => remapTimeline(body, ids),
+};
+
 registerFileType(CANVAS);
+registerFileType(TIMELINE);
 registerFileType(PRESET);
