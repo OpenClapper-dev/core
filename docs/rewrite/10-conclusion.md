@@ -250,3 +250,5 @@ Findings of the build that the plan asked for or that change it. The specificati
 - **B0, references:** a file's references travel with the file (`refs` in its save) and are stored in `refs`; a type's rules say which kinds it keeps. The server keeps a reference to a file it cannot find, and reports it as missing.
 - **B0, shortcuts:** a file type of their own (`shortcut`: an app, or one reference to a file), since the Desktop folder's icons include shortcuts ([07](07-organisation.md)).
 - **B0, types:** the shared model is a new package, `packages/model`; `packages/vocab` stays for the first app's clients until they are rebuilt and goes at the cutover. Each build step registers the file types it builds.
+- **B0, object metadata repair:** removed from the admin plane (owner, 2026-11-24). It existed to mend the first app's bucket after a copy; the rebuild starts on new buckets.
+- **Where the build runs** (owner, 2026-11-24): everything is built and tried locally; staging gets the rebuild once, when all steps are done, not after each step. Staging and local data may be dropped at any time: what was needed from production is saved.
