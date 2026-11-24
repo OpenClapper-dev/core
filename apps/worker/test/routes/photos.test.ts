@@ -48,6 +48,14 @@ describe("adding a photo", () => {
     expect((await ok<{ file: PhotoFile }>(api(u.token, "PUT", `/api/photos/${uuid()}`, meta({ container: coll })), 201)).file.container).toBeNull();
   });
 
+  test("the frame it was taken with is kept as a fact; one that does not fit is dropped, the photo kept", async () => {
+    const frame = { kind: "free", format: [24.89, 13.87], multiplier: 1, squeeze: 1, delivery: 2.39, focal: 35, portrait: false, presetName: "Alexa 35" };
+    const with_ = (await ok<{ file: PhotoFile & { photo: { frame: unknown } } }>(api(u.token, "PUT", `/api/photos/${uuid()}`, meta({ frame })), 201)).file;
+    expect(with_.photo.frame).toEqual(frame);
+    const bad = (await ok<{ file: PhotoFile & { photo: { frame: unknown } } }>(api(u.token, "PUT", `/api/photos/${uuid()}`, meta({ frame: { kind: "aspect" } })), 201)).file;
+    expect(bad.photo.frame).toBeNull();
+  });
+
   test("what is strict: the project, the origin, the size", async () => {
     await ok(api(u.token, "PUT", `/api/photos/${uuid()}`, meta({ project_id: uuid() })), 400);
     await ok(api(u.token, "PUT", `/api/photos/${uuid()}`, meta({ origin: "drawn" })), 400);

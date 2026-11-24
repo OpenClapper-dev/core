@@ -64,6 +64,8 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   // Originals wait for Wi-Fi on the phone; thumbnail and preview go at once.
   originalsOnWifi: (v) => typeof v === "boolean",
   // How long a clip added to a timeline holds, unless the timeline says otherwise (docs/features/timeline.md).
+  // A canvas made from a photo starts with the frame the photo was taken with (docs/features/camera-layouts.md).
+  canvasTakesFrame: (v) => typeof v === "boolean",
   clipHoldMs: (v) => typeof v === "number" && Number.isInteger(v) && v >= 100 && v <= 3_600_000,
   // The taskbar's pins per project: apps by id, files by id.
   pins: (v) => isRecord(v) && Object.entries(v).every(([project, list]) => UUID.test(project) && Array.isArray(list) && list.length <= 60

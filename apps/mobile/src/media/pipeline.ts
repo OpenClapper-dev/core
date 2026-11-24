@@ -43,7 +43,8 @@ async function sizeOf(uri: string, exif: Exif): Promise<{ width: number; height:
 }
 
 /** A photo just taken: the camera's JPEG, its size as delivered, the lens it was taken with. */
-export async function addCapture(projectId: string, jpeg: Uint8Array, size: { width: number; height: number }, lens: Lens | null): Promise<string> {
+/** `more`: the folder or collection it goes into (collection mode, the folder for new photos) and the frame on the screen as a fact. */
+export async function addCapture(projectId: string, jpeg: Uint8Array, size: { width: number; height: number }, lens: Lens | null, more: { container?: string | null; frame?: Record<string, unknown> | null } = {}): Promise<string> {
   const id = randomUUID();
   const original = queueFile(`${id}-original.jpg`);
   original.write(jpeg);
@@ -55,7 +56,8 @@ export async function addCapture(projectId: string, jpeg: Uint8Array, size: { wi
     meta: {
       project_id: projectId, origin: "capture", media_type: "image/jpeg", taken_at: new Date().toISOString(), width: d.upright.width, height: d.upright.height,
       // No name: the server gives one from the project's naming pattern when the photo arrives.
-      container: null, exif,
+      container: more.container ?? null, exif,
+      ...(more.frame ? { frame: more.frame } : {}),
       readout: { ...readout, ...(lens ? { lens: `${lens.name}${lens.focal35 ? ` · ${lens.focal35} mm` : ""}` } : {}) },
       device_id: device.get().file?.id ?? null,
     },

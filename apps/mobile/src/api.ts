@@ -141,6 +141,8 @@ export type ImageSize = "thumbnail" | "preview" | "original";
 export interface PhotoMeta {
   project_id: string; origin: "capture" | "import"; media_type?: string; taken_at?: string; width: number; height: number;
   name?: string; container?: string | null; exif?: Record<string, unknown>; readout?: Record<string, string>; device_id?: string | null;
+  /** The frame on the screen when it was taken (a fact of the photo). */
+  frame?: Record<string, unknown>;
 }
 /** What is known about a photo; idempotent (sent again, nothing changes). */
 export const putPhoto = (id: string, meta: PhotoMeta) => call<{ file: FileRec }>(`/api/photos/${id}`, { method: "PUT", body: meta }).then((r) => r.file);
@@ -184,5 +186,6 @@ export interface DeviceReport {
   fingerprint: string; kind: "phone" | "tablet"; make: string; model: string;
   lenses: { id: string; name: string; focal35: number | null; zoom: number | null }[];
   screen: { portrait: { w: number; h: number }; landscape: { w: number; h: number } } | null; app: string;
+  camera?: { portrait: { w: number; h: number }; landscape: { w: number; h: number } };
 }
 export const registerDevice = (r: DeviceReport) => call<{ file: FileRec }>("/api/devices/register", { method: "POST", body: r }).then((x) => x.file);

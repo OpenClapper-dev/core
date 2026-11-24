@@ -27,9 +27,11 @@ export interface Prefs {
   collectionMark: "bar" | "barleft" | "dot" | "frame";
   /** How long a clip added to a timeline holds, unless the timeline has a value of its own. */
   clipHoldMs: number;
+  /** A canvas made from a photo starts with the frame the photo was taken with. */
+  canvasTakesFrame: boolean;
 }
 
-export const DEFAULT_PREFS: Prefs = { theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000 };
+export const DEFAULT_PREFS: Prefs = { theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
 export type PrefsState = "local" | "loading" | "saved" | "saving" | "unsaved";
 
 let prefs: Prefs = { ...DEFAULT_PREFS, theme: getTheme() };
