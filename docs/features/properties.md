@@ -67,3 +67,7 @@ Evaluated by the clients on what they loaded (`evaluate`), the same code everywh
 - **Filter** (toolbar): the builder above the list (`FilterBuilder.tsx`) with nested all/any groups and the operators of each field's kind; the list follows as it is built, across the whole project. "Save as a filter" makes a filter file (with the search text and types); a filter file opens in the browser, lists what matches now, and its changes are saved with "Save". The sidebar lists the project's filters.
 - **Board** (the third view): lanes by a single-choice property the listed files carry, plus "No value"; dragging a file, or the ticked ones, to a lane sets it (a dependent choice refuses a lane its parent does not allow). Lanes as columns or rows, in S · M · L or Fit, remembered per entry. Files that do not carry the property are counted, not shown.
 - **Shots** (the app): the browser set to shots, the shot list as a table with the shot properties as columns, "New shot" (named by the pattern), the board, filters in the sidebar. A shot opens in a window of its own from step B6; until then double-clicking shows its properties. Files also makes shots (New, Shot).
+
+## On the phone
+
+A photo's page lists its properties with touch controls and keeps edits made offline until they are sent ([phone app](phone-app.md#media-srcappsmediatsx-srcmedialibraryts)). New photos are named by the server.

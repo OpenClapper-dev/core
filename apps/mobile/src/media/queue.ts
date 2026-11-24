@@ -21,7 +21,8 @@ import { nextStep, rejected, type Step } from "./steps";
  */
 export interface QueuedPhoto {
   id: string;
-  meta: PhotoMeta & { name: string };
+  /** Without a name until the server names it by the project's pattern (an import keeps its file name). */
+  meta: PhotoMeta;
   /** File names in the queue folder; the original keeps its type. */
   original: string; preview: string; thumbnail: string;
   step: Step;
@@ -30,6 +31,9 @@ export interface QueuedPhoto {
   error: string | null;
   added: string;
 }
+
+/** What a queued photo is called until the server names it. */
+export const queuedName = (p: QueuedPhoto) => p.meta.name ?? "New photo";
 
 export const queue = persisted<QueuedPhoto[]>("queue.v1", [], Array.isArray);
 export const queueDir = (): Directory => { const d = dataDir("queue"); if (!d.exists) d.create({ intermediates: true }); return d; };

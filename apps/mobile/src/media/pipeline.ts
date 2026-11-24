@@ -5,7 +5,6 @@ import { readExif, readoutOf, takenAt, uprightSize, type Exif } from "@openclapp
 import { device } from "../device";
 import type { Lens } from "../lenses";
 import { log } from "../log";
-import { persisted } from "../store";
 import { enqueue, queueFile } from "./queue";
 
 /**
@@ -15,9 +14,6 @@ import { enqueue, queueFile } from "./queue";
  */
 const PREVIEW = 2048, THUMB = 400;
 
-/** New photos are named by a running number on this phone until projects have naming patterns (B4). */
-const counter = persisted<number>("photoCounter.v1", 0);
-const nextName = () => { counter.set((n) => n + 1); return `Photo ${String(counter.get()).padStart(4, "0")}`; };
 
 /** Makes an upright JPEG of at most `edge` px on its long side (the manipulator applies the EXIF orientation). */
 async function derive(uri: string, upright: { width: number; height: number }, edge: number, quality: number) {
@@ -58,7 +54,8 @@ export async function addCapture(projectId: string, jpeg: Uint8Array, size: { wi
     id, original: original.name, preview: d.preview, thumbnail: d.thumbnail, step: "meta", rejections: 0, stuck: false, error: null, added: new Date().toISOString(),
     meta: {
       project_id: projectId, origin: "capture", media_type: "image/jpeg", taken_at: new Date().toISOString(), width: d.upright.width, height: d.upright.height,
-      name: nextName(), container: null, exif,
+      // No name: the server gives one from the project's naming pattern when the photo arrives.
+      container: null, exif,
       readout: { ...readout, ...(lens ? { lens: `${lens.name}${lens.focal35 ? ` · ${lens.focal35} mm` : ""}` } : {}) },
       device_id: device.get().file?.id ?? null,
     },
@@ -88,7 +85,7 @@ export async function addImports(projectId: string, picked: { uri: string; name:
         meta: {
           project_id: projectId, origin: "import", media_type: type, width: d.upright.width, height: d.upright.height,
           taken_at: takenAt(exif) ?? (a.lastModified ? new Date(a.lastModified).toISOString() : new Date().toISOString()),
-          name: a.name.replace(/\.[^.]+$/, "").slice(0, 120) || nextName(), container, exif, readout: readoutOf(exif), device_id: null,
+          ...(a.name.replace(/\.[^.]+$/, "").trim() ? { name: a.name.replace(/\.[^.]+$/, "").trim().slice(0, 120) } : {}), container, exif, readout: readoutOf(exif), device_id: null,
         },
       });
       added++;

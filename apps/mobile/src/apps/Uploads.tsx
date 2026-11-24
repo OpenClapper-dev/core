@@ -6,7 +6,7 @@ import { projects } from "../projects";
 import { settings, setSettings } from "../settings";
 import { cacheBytes } from "../media/cache";
 import { keepOnPhone } from "../media/library";
-import { discard, flush, queue, queuedUri, retry, useQueueCounts } from "../media/queue";
+import { discard, flush, queue, queuedName, queuedUri, retry, useQueueCounts } from "../media/queue";
 import { stateOf } from "../media/steps";
 import { Block, Button, confirm, Header, Hint, Icon, ListRow, Screen, toast, Toggle, useTheme } from "../ui";
 import { addOfflineSection, addSetupPage, addSetupRow, openSetup } from "./Setup";
@@ -32,7 +32,7 @@ function UploadsPage({ back }: { back: () => void }) {
         const st = stateOf(x);
         const uri = queuedUri(x);
         return (
-          <ListRow key={x.id} title={x.meta.name}
+          <ListRow key={x.id} title={queuedName(x)}
             meta={`${STATE[st]}${x.error && st === "stuck" ? `: ${x.error}` : ""} · ${names.find((p) => p.id === x.meta.project_id)?.name ?? "another project"}`}
             trailing={st === "stuck" ? (
               <>
