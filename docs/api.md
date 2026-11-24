@@ -111,7 +111,8 @@ A device is a phone or tablet running the app ([capture](rewrite/03-capture.md))
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| POST | `/api/devices/register` | `{ fingerprint, kind: phone \| tablet, make, model, lenses, screen, app }` → `{ file }`. The record is found by the caller and the fingerprint (on Android `ANDROID_ID`): `201` the first time (named after the model, tabs Camera, Media, Shots, Setup), else `200` with what is reported replaced and the name and tabs kept; a device in the recycle bin comes back (`restored: true`). The same fingerprint under another account is another record |
+| POST | `/api/devices/register` | `{ fingerprint, kind: phone \| tablet, make, model, lenses, screen, camera?, app }` → `{ file }`. `camera`: the camera's area per orientation (kept when not sent). The record is found by the caller and the fingerprint (on Android `ANDROID_ID`): `201` the first time (named after the model, tabs Camera, Media, Shots, Setup), else `200` with what is reported replaced and the name, tabs and camera layout kept; a device in the recycle bin comes back (`restored: true`). The same fingerprint under another account is another record |
+| GET | `/api/link?role=phone\|studio` | WebSocket (`426` without the upgrade) into the caller's phone link: channels `link` (hello, presence, readout), `layout` (preview, stop, exit) and extensions' channels carried unread ([camera layouts](features/camera-layouts.md)) |
 
 Bulk routes take at most 500 ids, all of one root; an id the caller cannot reach makes the whole request `404`.
 
