@@ -1,4 +1,4 @@
-import type { Curve, EffectId, EffectSettings } from "@openclapper/vocab";
+import type { Curve, EffectId, EffectSettings } from "@openclapper/ext-hardware";
 
 /**
  * NEEWER "Infinity" lights (FS230B, FS300B), decoded from an HCI snoop of the NEEWER app (#207,

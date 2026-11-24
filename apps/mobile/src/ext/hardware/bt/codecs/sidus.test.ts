@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { EFFECTS } from "@openclapper/vocab";
+import { EFFECTS } from "@openclapper/ext-hardware";
 import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, programFade, statusRequest } from "./sidus.ts";
 
 const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");

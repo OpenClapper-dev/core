@@ -20,7 +20,7 @@ export interface Fixture {
 }
 
 /** One change to a fixture, and what it reports: shared with the Studio, which controls the lights through the proxy (#307). */
-import type { LightCommand as Command, Telemetry } from "@openclapper/vocab";
+import type { LightCommand as Command, Telemetry } from "@openclapper/ext-hardware";
 export type { Command, Telemetry };
 
 /** One open Bluetooth connection, as ble/link.ts gives it to a driver (a fake one in tests). */

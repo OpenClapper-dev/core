@@ -1,4 +1,4 @@
-import { effectSettingsOf, type Curve, type EffectId, type EffectSettings } from "@openclapper/vocab";
+import { effectSettingsOf, type Curve, type EffectId, type EffectSettings } from "@openclapper/ext-hardware";
 
 /**
  * Aputure's light commands inside the mesh (#213): one access message with the Telink vendor

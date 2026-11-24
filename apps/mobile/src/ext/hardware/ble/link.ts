@@ -1,6 +1,6 @@
 import { BleManager } from "@sfourdrinier/react-native-ble-plx";
-import { fromBase64, toBase64 } from "../fixtures/bytes.ts";
-import type { Link } from "../fixtures/types.ts";
+import { fromBase64, toBase64 } from "../bt/bytes.ts";
+import type { Link } from "../bt/types.ts";
 
 /**
  * The only file that talks to the Bluetooth library (lights, epic #206): drivers, the hub and

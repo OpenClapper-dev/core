@@ -69,6 +69,11 @@ export interface DeviceKind {
   plural: string;
   /** Null when the body is valid for this kind. */
   check(body: Record<string, unknown>): string | null;
+  /**
+   * Parts of the body only the extension's own routes change (a mesh address, the battery that powers a light):
+   * a save through the general file route keeps their stored values.
+   */
+  guarded?: readonly string[];
 }
 
 const kinds = new Map<string, DeviceKind>();
@@ -80,3 +85,10 @@ export function registerDeviceKind(k: DeviceKind): void {
 }
 export const deviceKind = (kind: unknown): DeviceKind | undefined => (typeof kind === "string" ? kinds.get(kind) : undefined);
 export const deviceKinds = (): DeviceKind[] => [...kinds.values()];
+
+/** A device body as the general file route may save it: the kind never changes, guarded parts keep their stored values. */
+export function keepGuarded(before: Record<string, unknown>, after: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...after, kind: before.kind };
+  for (const k of kinds.get(String(before.kind))?.guarded ?? []) { if (k in before) out[k] = before[k]; else delete out[k]; }
+  return out;
+}

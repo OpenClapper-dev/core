@@ -1,4 +1,4 @@
-import { fixtureKind } from "@openclapper/vocab";
+import { fixtureKind } from "@openclapper/ext-hardware";
 import { minutesLeft, PowerSmoother } from "../batteryEstimate.ts";
 import { toHex } from "../bytes.ts";
 import { NEEWER_NOTIFY, NEEWER_SERVICE, NEEWER_WRITE } from "../codecs/neewer.ts";

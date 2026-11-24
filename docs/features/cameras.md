@@ -1,5 +1,7 @@
 # Cameras
 
+> **First app (v0.16.0).** The rebuild's page is [hardware](hardware.md) (step B9, [#381](https://github.com/OpenClapper-dev/core/issues/381)); the driver and protocol details below still hold. Code moved: `packages/vocab/src/{lighting,lightProxy,cameraControl,lightSequence,sequencePlayer}.ts` → `packages/ext-hardware/src/`, `apps/mobile/src/fixtures/` → `apps/mobile/src/ext/hardware/bt/`, `src/ble/` → `src/ext/hardware/ble/`.
+
 Control a Blackmagic Pocket Cinema Camera over Bluetooth from the Studio, through the phone proxy like the lights ([lights](lights.md#the-phone-as-proxy-studio-devices-307); issue [#318](https://github.com/OpenClapper-dev/core/issues/318)). First camera: the owner's Pocket Cinema Camera 6K (the original).
 
 **Status:** pairing, connection and readback work on the owner's Pocket 6K (2026-11-08), and so does false colour per output. Step 2 adds every control; it is not tried on the camera yet.
@@ -23,7 +25,7 @@ Blackmagic's own documents: "Blackmagic Camera Control" (Aug 2025, SDI camera co
   - Several messages may come in one indication. `encodeCcu`/`decodeCcu` match the documentation's examples byte for byte.
 - **Parameters**: `CCU_PARAMS` names every documented one: lens, video, audio, output, display, tally, reference, configuration, colour correction, media/transport, PTZ, metadata.
 
-## Pairing and connection (`apps/mobile/src/fixtures/drivers/bmdCamera.ts`)
+## Pairing and connection (`apps/mobile/src/ext/hardware/bt/drivers/bmdCamera.ts`)
 
 1. On the camera: Setup → Bluetooth on.
 2. In the Studio: Devices → Add device. The phone's scan matches the camera by its service (or a "Pocket Cinema" name). Add it as a Blackmagic Pocket Cinema Camera 6K.

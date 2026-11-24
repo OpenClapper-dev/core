@@ -1,7 +1,7 @@
 import {
   BMD_DEVICE_NAME, BMD_INCOMING, BMD_OUTGOING, BMD_PROTOCOL_VERSION, BMD_SERVICE, BMD_STATUS, BMD_TIMECODE, ccuKey, decodeCcu, encodeCcu, timecodeOf,
   type CameraTelemetry,
-} from "@openclapper/vocab";
+} from "@openclapper/ext-hardware";
 import { toHex } from "../bytes.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
 
