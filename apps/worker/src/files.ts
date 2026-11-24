@@ -320,8 +320,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const stored = await findFile(ctx, fid, "editor");
     if (stored?.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
     const t = typeOf(stored?.type ?? b.type);
-    if (t.made && !stored) throw new HttpError(400, `a ${t.label.toLowerCase()} is made by uploading it`);
-    if (t.made && (b.body !== undefined || b.refs !== undefined)) throw new HttpError(400, `what a ${t.label.toLowerCase()} stores about itself cannot be changed`);
+    if (t.made && !stored) throw new HttpError(400, `a ${t.label.toLowerCase()} is made by ${t.made === "upload" ? "uploading it" : "registering itself"}`);
+    if (t.made === "upload" && (b.body !== undefined || b.refs !== undefined)) throw new HttpError(400, `what a ${t.label.toLowerCase()} stores about itself cannot be changed`);
     if (stored && b.type !== undefined && b.type !== stored.type) throw new HttpError(400, "a file's type never changes");
     if (stored && ((b.project_id !== undefined && b.project_id !== stored.project_id) || (b.home !== undefined && b.home !== (stored.home_of !== null)))) {
       throw new HttpError(400, "a file never moves to another project or account home");

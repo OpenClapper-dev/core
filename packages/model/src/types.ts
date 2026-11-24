@@ -51,6 +51,12 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   binOnDesktop: (v) => typeof v === "boolean",
   // How a collection's colour is drawn on its photos (docs/rewrite/ux-1-files.md).
   collectionMark: (v) => oneOf(v, ["bar", "barleft", "dot", "frame"]),
+  // The camera's lenses by the phone's own names (0.5×, 1×) or by focal length (docs/rewrite/ux-5-phone.md).
+  lensNames: (v) => oneOf(v, ["phone", "focal"]),
+  // Collection mode asks for a name when a collection starts, when it ends, or never.
+  askCollectionName: (v) => oneOf(v, ["never", "start", "end"]),
+  // Originals wait for Wi-Fi on the phone; thumbnail and preview go at once.
+  originalsOnWifi: (v) => typeof v === "boolean",
   // The taskbar's pins per project: apps by id, files by id.
   pins: (v) => isRecord(v) && Object.entries(v).every(([project, list]) => UUID.test(project) && Array.isArray(list) && list.length <= 60
     && list.every((p) => isRecord(p) && Object.keys(p).length === 1 && (typeof p.app === "string" ? APP_ID.test(p.app) : typeof p.file === "string" && UUID.test(p.file)))),
@@ -120,3 +126,47 @@ export const COLLECTION: FileType = {
 
 registerFileType(PHOTO);
 registerFileType(COLLECTION);
+
+const KINDS = ["phone", "tablet"] as const;
+const short = (v: unknown, max = 120) => typeof v === "string" && v.length <= max;
+const size = (v: unknown) => isRecord(v) && Number.isInteger(v.w) && Number.isInteger(v.h) && (v.w as number) > 0 && (v.h as number) > 0 && (v.w as number) < 20000 && (v.h as number) < 20000;
+
+/** One of a device's real lenses as its camera reports it (docs/rewrite/03-capture.md). */
+export interface DeviceLens {
+  /** The camera's own id for the lens. */
+  id: string;
+  /** The phone's own name for it (0.5×, 1×, 5×); the app shows it or the focal length, as the person prefers. */
+  name: string;
+  /** The 35 mm-equivalent focal length the camera reports; null when it reports none (no optics frame on that lens). */
+  focal35: number | null;
+  /** The zoom factor of the logical camera at which this lens takes over, where the camera reports one. */
+  zoom: number | null;
+}
+
+/**
+ * A registered piece of hardware (docs/rewrite/03-capture.md): in the core a phone or tablet running
+ * the app. It registers itself (the device route), tied to a fingerprint of the hardware, and keeps
+ * what it reports current: model, real lenses, screen. Which apps are its tabs is the person's
+ * choice, from the phone or the Studio. It lives in the account home and is made only by
+ * registering; its body can be changed (its tabs).
+ */
+export const DEVICE: FileType = {
+  type: "device", label: "Device", plural: "Devices", roots: ["home"], version: 1, made: "register",
+  empty: () => ({ kind: "phone", make: "", model: "", lenses: [], screen: null, tabs: [], app: "" }),
+  check(body) {
+    for (const k of Object.keys(body)) if (!["kind", "make", "model", "lenses", "screen", "tabs", "app"].includes(k)) return `a device has no "${k}"`;
+    if (!(KINDS as readonly unknown[]).includes(body.kind)) return "kind must be phone or tablet";
+    if (!short(body.make) || !short(body.model) || !short(body.app, 60)) return "make, model and app are text";
+    if (!Array.isArray(body.lenses) || body.lenses.length > 16) return "lenses must be a list of at most 16";
+    for (const l of body.lenses) {
+      if (!isRecord(l) || !short(l.id, 60) || !short(l.name, 20)) return "a lens has an id and a name";
+      if (!(l.focal35 === null || (typeof l.focal35 === "number" && l.focal35 > 0 && l.focal35 < 2000))) return "a lens's focal35 is a positive number or null";
+      if (!(l.zoom === null || (typeof l.zoom === "number" && l.zoom > 0 && l.zoom < 1000))) return "a lens's zoom is a positive number or null";
+    }
+    if (!(body.screen === null || (isRecord(body.screen) && size(body.screen.portrait) && size(body.screen.landscape)))) return "screen holds portrait and landscape sizes";
+    if (!Array.isArray(body.tabs) || body.tabs.length > 20 || !body.tabs.every((t) => typeof t === "string" && APP_ID.test(t))) return "tabs must be a list of app ids";
+    return null;
+  },
+};
+
+registerFileType(DEVICE);

@@ -43,7 +43,7 @@ A file as the API gives it:
 | --- | --- |
 | `id` | UUID, chosen by the client |
 | `project_id`, `home` | Its root: a project, or (`project_id: null`, `home: true`) the caller's account home |
-| `type` | A registered file type. So far `folder`, `shortcut`, `preferences` (a person's preferences, in their account home), `photo` and `collection`; each build step adds the types it builds |
+| `type` | A registered file type. So far `folder`, `shortcut`, `preferences` (a person's preferences, in their account home), `photo`, `collection` and `device` (a phone or tablet, in its owner's account home); each build step adds the types it builds |
 | `name` | Free text, up to 120 characters, not unique |
 | `container` | The folder or collection it sits in; `null` at the top level |
 | `internal_of` | The file it was made inside ([internal files](rewrite/i1-interjection.md)); such a file sits in no container and is left out of lists |
@@ -80,6 +80,14 @@ A photo is a file made by uploading it ([media](rewrite/01-media.md)): first wha
 | GET | `/api/photos/:id/image?size=thumbnail\|preview\|original` | Default `preview`. `404` until that image arrived. Its stored type, `nosniff`, an ETag, `private, max-age=31536000, immutable`; `If-None-Match` answers `304`, a failed `If-Match` `412` |
 
 A **copy** of a photo (`duplicate`) shares the stored images: it costs no storage. Images are removed when the last photo using them is purged.
+
+## Devices (`devices.ts`)
+
+A device is a phone or tablet running the app ([capture](rewrite/03-capture.md)): a file of the type `device` in its owner's account home, made only by registering itself. Its body holds what it reports (`kind`, `make`, `model`, `lenses` with the 35 mm equivalent and zoom of each real lens, `screen`, `app`) and the person's choice of `tabs`, which can be changed through `PUT /api/files/:id` from the phone or the Studio.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/api/devices/register` | `{ fingerprint, kind: phone \| tablet, make, model, lenses, screen, app }` → `{ file }`. The record is found by the caller and the fingerprint (on Android `ANDROID_ID`): `201` the first time (named after the model, tabs Camera, Media, Shots, Setup), else `200` with what is reported replaced and the name and tabs kept; a device in the recycle bin comes back (`restored: true`). The same fingerprint under another account is another record |
 
 Bulk routes take at most 500 ids, all of one root; an id the caller cannot reach makes the whole request `404`.
 

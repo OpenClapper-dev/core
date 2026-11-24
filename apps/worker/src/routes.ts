@@ -5,6 +5,7 @@
 import { provider } from "@openclapper/auth-provider";
 import { BUILD, json, Router } from "@openclapper/service-kit";
 import type { PublicCtx } from "./authn/provider.ts";
+import { registerDeviceRoutes } from "./devices.ts";
 import { registerFileRoutes } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { registerPhotoRoutes } from "./photos.ts";
@@ -49,5 +50,6 @@ router.on("GET", "/api/me", async ({ env, identity }) => {
 registerProjectRoutes(router);
 registerFileRoutes(router);
 registerPhotoRoutes(router);
+registerDeviceRoutes(router);
 registerPreviewRoutes(router);
 registerWorkspaceRoutes(router);

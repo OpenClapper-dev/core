@@ -8,6 +8,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Stor
 
 | File | What |
 | --- | --- |
+| `0003_devices.sql` | `devices`: a device file's owner and hardware fingerprint (step B3, #375) |
 | `0002_photos.sql` | `photos`: a photo's facts and stored images (step B2, #374) |
 | `0001_rewrite_baseline.sql` | The baseline of the rewrite (step B0, #372): accounts and tenancy, `projects`, `files`, `refs`, `property_values`, and the admin plane's tables. For databases created new: it carries nothing over, and it fails on purpose on a database of the first app |
 
@@ -36,6 +37,8 @@ A new numbered file for every change; an applied one is never edited.
 `refs(from_file → files CASCADE, kind, position, to_file, data JSON | null)`, primary key (from_file, kind, position): one row per pointer from a file to a file. `kind` is what it is for (`content`, `item`, `clip`, `overlay`, `base`, `placed`, `property`, `target`), `position` its place in the file's list, `data` what the kind needs besides (an item's time, the frame it shows). `to_file` has no foreign key on purpose: a removed file leaves a missing reference, and a restore brings every use back. Indexed on `to_file` for "where is this used".
 
 `photos(file_id → files CASCADE, object_id, origin capture|import, media_type, taken_at, width, height, original_bytes, preview_bytes, preview_type, thumbnail_bytes, thumbnail_type, aov_horizontal, aov_vertical, aov_source, device_id, frame JSON)`: what the server searches and counts about a photo ([media](rewrite/01-media.md)). The raw EXIF and the device readout are in the file's body. `object_id` names the stored images, in R2 under `photos/<object_id>/original|preview|thumbnail.<ext>`; a copy of a photo has the same `object_id`, and the images go when the last row with it is purged. A size that is null: that image has not arrived. `device_id` is filled from step B3, `frame` from B8.
+
+`devices(file_id → files CASCADE, user_id → users CASCADE, fingerprint, seen_at)`, unique on (user, fingerprint): ties a device file to the hardware it stands for, so a reinstall finds its record and two phones of one model are two devices. What the device reports is the file's body.
 
 `property_values(file_id → files CASCADE, definition_id → files CASCADE, value JSON)`, primary key (file, definition): a property's value on a file. The definition is a file in the project's Settings folder. Written from step B4.
 

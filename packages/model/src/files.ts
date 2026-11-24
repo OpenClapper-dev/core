@@ -69,8 +69,11 @@ export interface FileType {
   onlyIn?: Fixed;
   /** The kinds of reference a file of this type keeps, sent with the file. Absent: none. */
   refs?: readonly RefKind[];
-  /** Made only by its own routes (a photo by uploading it); the general file route then changes its name and place, never its body. */
-  made?: "upload";
+  /**
+   * Made only by its own routes, never through the general file route: a photo by uploading it (its
+   * body never changes afterwards), a device by registering itself (its body can be changed).
+   */
+  made?: "upload" | "register";
   /** The version of the body this code writes. Starts at 1; raised when the shape changes. */
   version: number;
   /** The body of a new file. */
