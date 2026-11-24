@@ -125,3 +125,14 @@ test("photos and collections", async () => {
   assert.equal(placementError(COLLECTION, { type: "folder", fixed: null }, "project"), null);
   assert.equal(canBeInternal(PHOTO), true);
 });
+
+test("devices", async () => {
+  const { DEVICE } = await import("./types.ts");
+  const ok = { kind: "phone", make: "Google", model: "Pixel 9", lenses: [{ id: "0", name: "1×", focal35: 25, zoom: 1 }, { id: "2", name: "0.5×", focal35: null, zoom: null }], screen: { portrait: { w: 412, h: 915 }, landscape: { w: 915, h: 412 } }, tabs: ["camera", "media"], app: "0.16.0" };
+  assert.equal(err(checkFile(DEVICE, ok, 1, null)), null);
+  assert.match(err(checkFile(DEVICE, { ...ok, kind: "watch" }, 1, null))!, /phone or tablet/);
+  assert.match(err(checkFile(DEVICE, { ...ok, lenses: [{ id: "0", name: "1×", focal35: -1, zoom: 1 }] }, 1, null))!, /focal35/);
+  assert.match(err(checkFile(DEVICE, { ...ok, tabs: ["Camera!"] }, 1, null))!, /app ids/);
+  assert.equal(DEVICE.made, "register");
+  assert.match(placementError(DEVICE, null, "project")!, /account home/);
+});
