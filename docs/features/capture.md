@@ -20,7 +20,7 @@ The phone takes photos. A capture is one photo: queued at once, visible in Media
 | EXIF | Read with `@openclapper/model` `readExif`, the same reader as the Studio; the upright size from the delivered size and the orientation |
 | Preview, thumbnail | Made with `expo-image-manipulator`: about 2048 px (JPEG 0.86) and about 400 px (0.8), upright |
 | Facts | `origin: capture`, taken now, the readout (make and model from EXIF, the lens used as "1× · 24 mm"), the device's file id |
-| Name | "Photo 0001", a running number on the phone until naming patterns (B4) |
+| Name | None: the server names the photo by the project's naming pattern when it arrives ("Photo 0001"; [properties](properties.md#naming-patterns)); until then the phone shows "New photo". An import keeps its file name |
 
 The angle of view is computed by the server from the EXIF ([api](../api.md#photos-photosts)).
 

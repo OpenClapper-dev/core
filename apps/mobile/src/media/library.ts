@@ -1,4 +1,5 @@
 import { randomUUID } from "expo-crypto";
+import type { PropertyDef } from "@openclapper/model";
 import { binFiles, canCall, getFile, listFiles, moveFiles, putFile, type FileRec, type PhotoFacts } from "../api";
 import { log } from "../log";
 import { currentProject } from "../projects";
@@ -6,7 +7,7 @@ import { settings } from "../settings";
 import { persisted } from "../store";
 import { onSync } from "../sync";
 import { fetchImage, isCached } from "./cache";
-import { editQueued, onUploaded, queue, queuedUri, type QueuedPhoto } from "./queue";
+import { editQueued, onUploaded, queue, queuedName, queuedUri, type QueuedPhoto } from "./queue";
 import { stateOf, type QueueState } from "./steps";
 
 /**
@@ -15,6 +16,20 @@ import { stateOf, type QueueState } from "./steps";
  */
 export interface Library { projectId: string; files: FileRec[]; loaded: string }
 const store = persisted<Library | null>("library.v1", null);
+
+/** The project's property definitions, as Media loaded them. */
+export function useDefinitions(): { id: string; name: string; def: PropertyDef }[] {
+  const lib = store.use();
+  const project = currentProject();
+  if (!lib || lib.projectId !== project?.id) return [];
+  return lib.files.filter((f) => f.type === "property" && f.body).map((f) => ({ id: f.id, name: f.name, def: f.body as unknown as PropertyDef })).sort((a, b) => a.def.order - b.def.order);
+}
+/** A file of the loaded library by id (for the names of references). */
+export const libraryFile = (id: string) => store.get()?.files.find((f) => f.id === id) ?? null;
+/** Stored values of a file of the library. */
+export const storedValues = (id: string): Record<string, unknown> => store.get()?.files.find((f) => f.id === id)?.values ?? {};
+/** Applies values the server answered with to the copy on the phone. */
+export const takeValues = (id: string, values: Record<string, unknown>) => store.set((l) => (l ? { ...l, files: l.files.map((f) => (f.id === id ? { ...f, values } : f)) } : l));
 
 /** A photo as Media shows it, from the server or still on the phone. */
 export interface MediaPhoto {
@@ -39,7 +54,8 @@ export function loadLibrary(): Promise<void> {
   loading = (async () => {
     try {
       const root = { project_id: project.id };
-      const [photos, holders] = await Promise.all([listFiles(root, { type: "photo" }), listFiles(root, { type: "folder,collection", body: true })]);
+      // Photos with their property values; folders, collections and the property definitions with their bodies.
+      const [photos, holders] = await Promise.all([listFiles(root, { type: "photo", values: true }), listFiles(root, { type: "folder,collection,property", body: true })]);
       store.set({ projectId: project.id, files: [...holders.filter((f) => !f.fixed), ...photos], loaded: new Date().toISOString() });
       if (settings.get().keepProject) void keepOnPhone();
     } catch (e) { log("warn", "media load failed", e); }
@@ -58,7 +74,7 @@ onUploaded((_id, done) => {
 function asFile(q: QueuedPhoto): FileRec {
   const m = q.meta;
   return {
-    id: q.id, project_id: m.project_id, type: "photo", name: m.name, container: m.container ?? null, internal_of: null, fixed: null,
+    id: q.id, project_id: m.project_id, type: "photo", name: m.name ?? "Photo", container: m.container ?? null, internal_of: null, fixed: null,
     created_at: q.added, updated_at: q.added, created_by: null, deleted_at: null, body_version: 1,
     photo: { origin: m.origin, media_type: m.media_type ?? null, taken_at: m.taken_at ?? q.added, width: m.width, height: m.height, stored: { thumbnail: 1, preview: 1, original: 1 }, angle_of_view: null, device_id: m.device_id ?? null },
   };
@@ -81,7 +97,7 @@ export function useLibrary(): { photos: MediaPhoto[]; holders: Holder[]; loaded:
 }
 
 function fromQueue(x: QueuedPhoto): MediaPhoto {
-  return { id: x.id, name: x.meta.name, container: x.meta.container ?? null, taken: x.meta.taken_at ?? x.added, width: x.meta.width, height: x.meta.height, photo: null, queued: { state: stateOf(x), error: x.error, uri: queuedUri(x) } };
+  return { id: x.id, name: queuedName(x), container: x.meta.container ?? null, taken: x.meta.taken_at ?? x.added, width: x.meta.width, height: x.meta.height, photo: null, queued: { state: stateOf(x), error: x.error, uri: queuedUri(x) } };
 }
 
 /** Whether the server knows the photo already (its first step went through). */

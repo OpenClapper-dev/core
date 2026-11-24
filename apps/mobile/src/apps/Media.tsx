@@ -14,6 +14,7 @@ import { useBack } from "../shell/back";
 import { onOpen } from "../shell/nav";
 import { persisted } from "../store";
 import { Banner, Block, Button, catColor, confirm, Empty, FieldRow, FIXED, Header, Hint, Icon, ListRow, makeStyles, num, RADIUS, Screen, SectionLabel, Seg, Sheet, toast, type, useRefreshControl, useTheme } from "../ui";
+import { PhotoProperties } from "./PhotoProperties";
 import { registerApp } from "./registry";
 
 /**
@@ -214,6 +215,7 @@ function PhotoPage({ photo: p, holders, back }: { photo: MediaPhoto; holders: Ho
       <Block><SectionLabel>Where it is</SectionLabel></Block>
       <FieldRow label="Folder" value={folder?.name ?? "Top level of the project"} />
       <FieldRow label="Collection" value={coll?.name ?? "None"} />
+      <PhotoProperties fileId={p.id} type="photo" />
       <Sheet visible={sheet} title="Collection" onClose={() => setSheet(false)} doneLabel={null}>
         {coll && <ListRow icon="close" title="Take out of its collection" trailing={null} onPress={() => void place(folderId ?? null)} />}
         {colls.filter((c) => c.id !== coll?.id).map((c) => <CollRow key={c.id} c={c} onPress={() => void place(c.id)} />)}

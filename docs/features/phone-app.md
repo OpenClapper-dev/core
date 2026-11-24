@@ -53,8 +53,10 @@ The base camera: [capture](capture.md).
 - **Collections stacked or spread** (the header button): a stack in its colour with the count and name, opening on its photos; spread out, each photo carries its collection's mark (Setup, Appearance: bar, bar left, dot or frame, the Studio's preference).
 - **Import** from the phone (the download button): [capture](capture.md#what-a-capture-produces-srcmediapipelinets).
 - **Choose several** (the tick): make a collection of them, named "Collection n", in a random one of the eight colours, where they are. Needs a connection.
-- **A photo**: its preview, name (rename), facts (taken, size, lens readout, angle of view, device), where it is (folder, collection), the collection (put in, take out), the recycle bin. A photo not yet announced to the server is deleted for good instead, after asking. A stuck one shows the server's error with Retry and Discard.
+- **A photo**: its preview, name (rename), facts (taken, size, lens readout, angle of view, device), where it is (folder, collection), its project properties (`apps/PhotoProperties.tsx`, below), the collection (put in, take out), the recycle bin. A photo not yet announced to the server is deleted for good instead, after asking. A stuck one shows the server's error with Retry and Discard.
 - Images come from the phone when it has them (sent from here, or the project kept on the device), else from the server (`GET /api/photos/:id/image`, cached by `expo-image`).
+
+**Properties on a photo** (`apps/PhotoProperties.tsx`, `media/values.ts`): the project's properties shown on photos, in their sections, from the catalogue Media loads with the library. Text, numbers (with unit), dates (YYYY-MM-DD) and positions ("latitude, longitude") are typed and saved when the field is left; yes / no is a switch of three; a choice, several choices or a reference opens a sheet (a dependent choice offers what its parent allows, references list the files they may point at). A value shows at once and waits on the phone until the server has it (offline, or for a photo still in the queue); one the server refuses is dropped with a message.
 
 ## Setup (`src/apps/Setup.tsx`)
 
