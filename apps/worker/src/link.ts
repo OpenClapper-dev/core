@@ -10,13 +10,14 @@ import type { Ctx, Env } from "./index.ts";
  *
  * - `link`: phone → room `{ type: "hello", device: { id, name } }` (kept on the socket); Studio → phones
  *   `{ type: "readout" }` (register again now: the device file is read again); room → Studio tabs
- *   `{ type: "presence", phones: [{ id, name }], previewing }` on every change.
+ *   `{ type: "presence", phones: [{ id, name }], previewing }` on every change; room → phones `{ type: "presence", studios }`
+ *   (how many Studio tabs are open).
  * - `layout`: Studio → phones `{ type: "preview", layout, orientation, device? }` (a camera layout shown on the
  *   phone without saving it; validated; kept for a phone that connects later), `{ type: "stop" }`; phone → Studio
  *   `{ type: "exit" }` (the person left the preview on the phone). The last Studio tab gone ends a preview.
  *
- * Any other channel is an extension's: its messages go from the Studio to the phones and back unread (at most
- * 64 KiB each). The class keeps its first name (PreviewRoom): renaming a Durable Object class is a migration.
+ * Any other channel is an extension's: its messages go unread from the Studio to the phones, and from a phone to the
+ * Studio tabs and the other phones (a tablet controls hardware through the phone that holds it), at most 64 KiB each. The class keeps its first name (PreviewRoom): renaming a Durable Object class is a migration.
  */
 type Role = "phone" | "studio";
 interface Hello { id: string; name: string }
@@ -77,7 +78,9 @@ export class PreviewRoom extends DurableObject<Env> {
       return;
     }
     // An extension's channel: carried to the other side, unread.
-    if (CHANNEL.test(msg.ch)) this.send(from === "studio" ? "phone" : "studio", msg);
+    if (!CHANNEL.test(msg.ch)) return;
+    if (from === "studio") this.send("phone", msg);
+    else { this.send("studio", msg); this.send("phone", msg, undefined, ws); }
   }
 
   async webSocketClose(ws: WebSocket, code: number) {
@@ -102,9 +105,9 @@ export class PreviewRoom extends DurableObject<Env> {
     return this.ctx.getWebSockets(role).filter((w) => w !== closing && w.readyState === WebSocket.OPEN);
   }
 
-  private send(role: Role, msg: unknown, closing?: WebSocket) {
+  private send(role: Role, msg: unknown, closing?: WebSocket, except?: WebSocket) {
     const data = JSON.stringify(msg);
-    for (const w of this.open(role, closing)) { try { w.send(data); } catch { /* gone */ } }
+    for (const w of this.open(role, closing)) { if (w === except) continue; try { w.send(data); } catch { /* gone */ } }
   }
 
   private async presence(closing?: WebSocket) {
@@ -112,5 +115,6 @@ export class PreviewRoom extends DurableObject<Env> {
     // A phone that has not said hello yet (just connected) shows without an id.
     const phones = this.open("phone", closing).map((w) => (w.deserializeAttachment() as Hello | null) ?? { id: null, name: "" });
     this.send("studio", { ch: "link", type: "presence", phones, previewing }, closing);
+    this.send("phone", { ch: "link", type: "presence", studios: this.open("studio", closing).length }, closing);
   }
 }

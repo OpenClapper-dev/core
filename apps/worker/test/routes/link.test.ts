@@ -52,4 +52,19 @@ describe("phone link", () => {
     phone.ws.close();
     studio.ws.close();
   });
+
+  test("a phone's extension message reaches the other phones, not itself; phones hear how many Studio tabs are open", async () => {
+    const a = await socket("phone");
+    const b = await socket("phone");
+    const studio = await socket("studio");
+    await until(() => a.got.some((m) => m.ch === "link" && m.type === "presence" && m.studios === 1));
+    a.ws.send(JSON.stringify({ ch: "hardware", type: "state", from: "a" }));
+    await until(() => b.got.some((m) => m.ch === "hardware" && m.from === "a"));
+    await until(() => studio.got.some((m) => m.ch === "hardware" && m.from === "a"));
+    expect(a.got.some((m) => m.ch === "hardware")).toBe(false);
+    studio.ws.close();
+    await until(() => a.got.some((m) => m.ch === "link" && m.type === "presence" && m.studios === 0));
+    a.ws.close();
+    b.ws.close();
+  });
 });

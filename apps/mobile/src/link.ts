@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { AppState } from "react-native";
 import { authHeaders, canCall } from "./api";
 import { API_URL } from "./config";
@@ -21,6 +22,19 @@ const channels = new Map<string, Set<(m: Msg) => void>>();
 /** A camera layout the Studio shows on this phone while it is changed there; nothing is saved. */
 export const previewLayout = persisted<{ layout: unknown; orientation: "portrait" | "landscape" } | null>("linkPreview.v1", null);
 
+/** Whether the link is open, and how many Studio tabs are (as the room last said; null: not heard yet). */
+let status: { open: boolean; studios: number | null } = { open: false, studios: null };
+const statusListeners = new Set<() => void>();
+const setStatus = (s: Partial<typeof status>) => { status = { ...status, ...s }; for (const cb of statusListeners) cb(); };
+export const linkStatus = () => status;
+export function useLinkStatus() {
+  const [s, set] = useState(status);
+  useEffect(() => { const cb = () => set(status); statusListeners.add(cb); cb(); return () => { statusListeners.delete(cb); }; }, []);
+  return s;
+}
+/** Called whenever the link opens (an extension says what it has). */
+export function onLinkOpen(fn: () => void): () => void { const cb = () => { if (status.open) fn(); }; statusListeners.add(cb); return () => { statusListeners.delete(cb); }; }
+
 export function sendLink(msg: Msg) { if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); }
 /** Hears the messages of one channel; returns the way to stop. */
 export function onChannel(ch: string, fn: (m: Msg) => void): () => void {
@@ -42,17 +56,18 @@ function open() {
   // React Native's WebSocket takes headers: the session goes as it does for every call.
   const s = new (WebSocket as unknown as new (url: string, protocols: string[] | null, opts: { headers: Record<string, string> }) => WebSocket)(`${API_URL.replace(/^http/, "ws")}/api/link?role=phone`, null, { headers: authHeaders() });
   ws = s;
-  s.onopen = () => { tries = 0; hello(); };
+  s.onopen = () => { tries = 0; hello(); setStatus({ open: true }); };
   s.onmessage = (e) => {
     let m: Msg;
     try { m = JSON.parse(String(e.data)) as Msg; } catch { return; }
     if (m.ch === "layout" && m.type === "preview") previewLayout.set({ layout: m.layout, orientation: m.orientation === "landscape" ? "landscape" : "portrait" });
     else if (m.ch === "layout" && m.type === "stop") previewLayout.set(null);
     else if (m.ch === "link" && m.type === "readout") void syncDevice().then(hello);
+    else if (m.ch === "link" && m.type === "presence") setStatus({ studios: typeof m.studios === "number" ? m.studios : null });
     for (const fn of channels.get(m.ch) ?? []) fn(m);
   };
   s.onclose = () => {
-    if (ws === s) ws = null;
+    if (ws === s) { ws = null; setStatus({ open: false, studios: null }); }
     // A preview never outlives the link: the phone's own layout comes back.
     previewLayout.set(null);
     if (AppState.currentState === "active" && canCall()) retry = setTimeout(open, [2000, 5000, 15000, 30000][Math.min(tries++, 3)]);

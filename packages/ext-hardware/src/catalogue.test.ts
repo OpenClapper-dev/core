@@ -85,3 +85,20 @@ test("requests on the channel are checked", () => {
   assert.deepEqual(parseHardwareRequest({ type: "scan", on: true }), { type: "scan", on: true });
   assert.equal(parseHardwareRequest({ type: "nope" }), null);
 });
+
+test("effect options become controls and map onto the settings", async () => {
+  const { effectOptions, effectCommand, optionShown } = await import("./effects.ts");
+  const mc = modelOf("aputure-mc")!;
+  const opts = effectOptions(mc, "pulsing");
+  assert.deepEqual(opts.map((o) => o.control.id), ["colorMode", "colorKelvin", "colorHue", "colorSat", "frequency", "speed"]);
+  let s: import("./lighting.ts").EffectSettings = { color: { h: 0, s: 1 } };
+  s = opts[2].write(s, 120);
+  assert.deepEqual(s.color, { h: 120, s: 1 });
+  assert.equal(optionShown(opts[1], s), false);
+  s = opts[0].write(s, 0);
+  assert.equal(optionShown(opts[1], s), true);
+  const nw = effectOptions(modelOf("neewer-fs230b")!, "nw_candle").map((o) => o.control.id);
+  assert.deepEqual(nw, ["intensityMin", "intensityMax", "kelvin", "frequency", "ember"]);
+  assert.deepEqual(effectCommand("tv"), { op: "effect", effect: "tv", settings: { choice: 0, frequency: 5 } });
+  assert.deepEqual(effectCommand(null), { op: "effect", effect: null });
+});
