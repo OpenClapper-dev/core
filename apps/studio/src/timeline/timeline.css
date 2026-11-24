@@ -1,0 +1,54 @@
+/* The Timeline window (docs/features/timeline.md): stage with its transport, the strip, the side panels. Builds on shots.css. */
+.tl-stage { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.tl-stage > .sh-stage.is-empty { background: var(--photo-bg); }
+.tl-transport { flex: none; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); border-top: var(--border-w) solid var(--border-divider); background: var(--surface); }
+.tl-time { margin-left: var(--space-4); color: var(--text-secondary); }
+.tl-time strong { color: var(--text); }
+.tl-card { display: grid; justify-items: center; gap: var(--space-3); max-width: 420px; padding: var(--space-8); border: 2px dashed color-mix(in srgb, var(--over-paper) 45%, transparent); border-radius: var(--radius-card, 8px); text-align: center; color: var(--over-paper); }
+.tl-card strong { font-size: var(--font-size-lg, 18px); }
+.tl-card span { opacity: .7; font-size: var(--font-size-xs); }
+.tl-card.is-missing { border-color: var(--danger); }
+.tl-chap { margin-right: var(--space-3); padding: 0 6px; border-radius: 3px; color: var(--over-paper); font: 700 11px/18px var(--font-sans); }
+.tl-viewing { display: inline-flex; align-items: center; gap: var(--space-3); padding-inline: var(--space-3); color: var(--text-secondary); }
+.tl-swatch { width: 22px; height: 22px; flex: none; border: var(--border-w) solid var(--border-control); border-radius: 50%; cursor: pointer; }
+
+/* The strip. */
+.tl-scroll { flex: 1; min-height: 0; overflow: auto; }
+.tl-lanes { position: relative; padding: 0 16px var(--space-4); box-sizing: content-box; }
+.tl-ruler { position: relative; height: 26px; border-bottom: var(--border-w) solid var(--border-divider); cursor: pointer; touch-action: none; }
+.tl-ruler > span { position: absolute; top: 0; bottom: 0; padding: 4px 0 0 4px; border-left: var(--border-w) solid var(--border-control); color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); white-space: nowrap; pointer-events: none; }
+.tl-chapters { position: relative; height: 22px; margin: 3px 0; }
+.tl-chapters > button { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; overflow: hidden; border: 0; border-left: 3px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 26%, var(--surface)); color: var(--text); font: var(--weight-bold) var(--font-size-xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.tl-chapters > button:hover { background: color-mix(in srgb, var(--c) 42%, var(--surface)); }
+.tl-track { display: flex; height: 104px; }
+.tl-clip { position: relative; flex: none; display: flex; flex-direction: column; box-sizing: border-box; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-control); outline-offset: -1px; cursor: pointer; user-select: none; touch-action: none; }
+.tl-clip:hover { outline-color: var(--text); }
+.tl-clip.is-current { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+.tl-clip.is-group { background: color-mix(in srgb, var(--cat-1) 14%, var(--surface-sunken)); }
+.tl-clip.is-placeholder { outline-style: dashed; background: repeating-linear-gradient(135deg, var(--surface-sunken) 0 8px, var(--surface) 8px 16px); }
+.tl-clip.is-missing { outline-style: dashed; outline-color: var(--danger); }
+.tl-clip.is-target { outline: 3px solid var(--accent); outline-offset: -3px; background: var(--selection); }
+.tl-clip__cells { flex: 1; min-height: 0; display: flex; gap: 1px; padding: 2px 2px 0; }
+.tl-cell { min-width: 0; display: flex; }
+.tl-cell > .sh-item__art { flex: 1; border-radius: 2px; }
+.tl-cell:hover > .sh-item__art { box-shadow: inset 0 0 0 1px var(--over-paper); }
+.tl-cell__none { flex: 1; display: grid; place-items: center; width: 100%; height: 100%; background: transparent; color: var(--text-secondary); }
+.tl-clip__label { flex: none; display: flex; align-items: center; gap: 5px; padding: 2px 8px 2px 3px; font-size: var(--font-size-2xs); line-height: 20px; white-space: nowrap; overflow: hidden; }
+.tl-clip__label b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-medium, 500); }
+.tl-clip__label small { display: inline-flex; align-items: center; gap: 2px; color: var(--text-secondary); }
+.tl-clip__label i { font-style: normal; color: var(--text-secondary); }
+.tl-clip:hover .sh-item__grip::after { opacity: .9; }
+.tl-playhead { position: absolute; top: 0; bottom: var(--space-4); width: 2px; margin-left: 15px; background: var(--over-rec); pointer-events: none; z-index: 3; }
+.tl-playhead > b { position: absolute; top: 0; left: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--over-rec); pointer-events: auto; cursor: ew-resize; }
+.tl-insert { position: fixed; z-index: 900; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
+
+/* Lists in the side panels. */
+.tl-files { list-style: none; margin: 0; padding: var(--space-2); display: grid; gap: 1px; }
+.tl-file { display: flex; align-items: center; gap: var(--space-4); min-height: 40px; padding: 2px 6px; border-radius: 4px; cursor: pointer; user-select: none; touch-action: none; }
+.tl-file:hover { background: var(--surface-hover); }
+.tl-file.is-on { background: var(--selection); }
+.tl-file.is-missing { color: var(--danger); }
+.tl-file > b { flex: none; min-width: 14px; text-align: center; color: var(--text-secondary); }
+.tl-file > .oc-icon:first-child { flex: none; color: var(--text-disabled); }
+.tl-file--coll { cursor: default; }
+.tl-dot { flex: none; width: 10px; height: 10px; margin: 0 4px; border-radius: 50%; }

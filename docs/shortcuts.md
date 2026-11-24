@@ -85,3 +85,25 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | → | Next photo |
 | F | Preview or full size |
 
+## Timeline
+
+| Keys | What |
+| --- | --- |
+| Space | Play or pause |
+| ← | Previous clip |
+| → | Next clip |
+| Home | First clip |
+| End | Last clip |
+| Alt ← | Move the chosen clips earlier |
+| Alt → | Move the chosen clips later |
+| - | Hold the chosen clips 0.5 s shorter |
+| + | Hold the chosen clips 0.5 s longer |
+| D | Type the chosen clip's hold time |
+| P | A placeholder after the chosen clip |
+| C | A chapter starts at the chosen clip (or no more) |
+| Delete | Remove the chosen clips |
+| ⌘A | Choose every clip |
+| ⌘Z | Undo |
+| Mod+Shift+Z | Redo |
+| ⇧Click | Choose several clips: Shift adds a range, Ctrl one more |
+
