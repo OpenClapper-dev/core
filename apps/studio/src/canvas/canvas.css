@@ -39,6 +39,8 @@
 .cv-world { position: absolute; inset: 0; }
 .cv-surface { position: absolute; left: 50%; top: 50%; translate: -50% -50%; container-type: size; }
 .cv-stage.is-drawing .cv-surface { cursor: crosshair; }
+/* Transparent paper (a shot's overlay): a checkerboard shows there is nothing under the drawing. */
+.cv-surface.is-clear { background: repeating-conic-gradient(var(--surface-sunken) 0 25%, var(--surface) 0 50%) 0 0 / 16px 16px; }
 .cv-surface--ui { pointer-events: none; z-index: 5; }
 .cv-surface--ui .cv-node, .cv-surface--ui .cv-pin, .cv-surface--ui .cv-thread { pointer-events: auto; }
 .cv-photo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }

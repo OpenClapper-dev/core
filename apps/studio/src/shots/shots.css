@@ -1,0 +1,141 @@
+/* The shot, set and location windows (docs/features/shots.md): stage, side panel, progression and content. */
+
+/* A picture fills the nearest sized box, letterboxed: the stage's box and every thumbnail holder. */
+.sh-box { container-type: size; display: grid; place-items: center; overflow: hidden; background: var(--photo-bg); }
+.sh-pic { position: relative; display: block; overflow: hidden; width: min(100cqw, 100cqh * var(--a, 1.333)); height: min(100cqh, 100cqw / var(--a, 1.333)); }
+.sh-pic > img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; max-width: none; user-select: none; }
+.sh-pic--none { display: grid; place-items: center; width: 100cqw; height: 100cqh; background: var(--surface-sunken); color: var(--text-secondary); }
+/* Beyond the photo: the area a frame sees that the photo does not show. */
+.sh-pic.is-beyond { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
+.sh-pic__bars, .sh-pic__mask { position: absolute; pointer-events: none; }
+.sh-pic__mask { box-shadow: 0 0 0 100cqmax var(--over-mask); }
+.sh-pic__bars { inset: 0; margin: auto; box-shadow: 0 0 0 100cqmax #000; }
+.sh-pic__frame { position: absolute; box-sizing: border-box; border: 2px solid var(--c); outline: 1px solid var(--over-frame-outline, rgba(0, 0, 0, .7)); display: grid; place-items: center; pointer-events: none; }
+.sh-pic__frame.is-other { border-width: 1px; opacity: .75; }
+.sh-pic__frame > b { position: absolute; left: -2px; top: -2px; translate: 0 -100%; padding: 1px 6px; background: var(--c); color: var(--over-paper); font: 700 11px/1.5 var(--font-mono); white-space: nowrap; }
+.sh-pic__frame > i { box-sizing: border-box; border: 1px dashed var(--c); }
+.sh-pic__overbox { position: absolute; pointer-events: none; }
+.sh-pic__over { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* The stage. */
+.sh-stage { position: relative; flex: 1; min-height: 0; min-width: 0; }
+.sh-stage.is-empty { display: grid; place-items: center; background: var(--surface-sunken); }
+.sh-stage > .sh-box { position: absolute; inset: var(--space-8) var(--space-7); background: transparent; }
+.sh-caption { position: absolute; left: var(--space-5); bottom: var(--space-4); display: inline-flex; align-items: center; gap: var(--space-3); max-width: calc(100% - 2 * var(--space-5)); padding: 2px var(--space-4) 2px 2px; border-radius: var(--radius-control); background: var(--over-mask); color: var(--over-paper); font-size: var(--font-size-xs); white-space: nowrap; overflow: hidden; }
+.sh-caption small { opacity: .75; }
+.sh-stageacts { position: absolute; right: var(--space-5); top: var(--space-4); display: inline-flex; gap: var(--space-3); }
+
+/* The side panel. */
+.sh-tabs { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); background: var(--surface); border-bottom: var(--border-w) solid var(--border-divider); overflow: hidden; }
+.sh-tabs .oc-seg__opt { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-head { display: grid; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
+.sh-head__art { height: 132px; border-radius: 3px; }
+.sh-head__type { display: flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.sh-head__type small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-side .oc-banner { margin: var(--space-3) var(--space-4); }
+.sh-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: var(--space-3) var(--space-5); }
+.sh-internal { list-style: none; margin: 0; padding: var(--space-2) var(--space-4); display: grid; gap: 2px; }
+.sh-internal li { display: flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-2); }
+.sh-internal__name { flex: 1; min-width: 0; display: grid; }
+.sh-internal small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.sh-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+
+/* A panel's own row of controls, under its head. */
+.sh-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); flex-wrap: wrap; row-gap: var(--space-2); border-bottom: var(--border-w) solid var(--border-divider); }
+.sh-row > * { flex: none; white-space: nowrap; }
+.sh-count { color: var(--text-secondary); font-size: var(--font-size-xs); margin-right: var(--space-3); }
+.sh-sep { width: 1px; height: 18px; background: var(--border-divider); margin: 0 var(--space-2); }
+
+/* The content as cards. */
+.sh-strip { display: flex; gap: 6px; padding: var(--space-4) var(--space-5); overflow-x: auto; }
+.sh-tile, .sh-item { position: relative; flex: none; display: flex; flex-direction: column; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-divider); cursor: pointer; user-select: none; touch-action: none; }
+.sh-tile:hover, .sh-item:hover { outline-color: var(--text); }
+.sh-tile.is-current, .sh-item.is-current { outline: 2px solid var(--accent); z-index: 1; }
+.sh-tile.is-missing, .sh-item.is-missing { outline-style: dashed; outline-color: var(--danger); }
+.sh-tile { width: 124px; }
+.sh-tile__art { position: relative; height: 78px; }
+.sh-tile__type { position: absolute; left: 3px; bottom: 3px; display: flex; }
+.sh-tile__lock { position: absolute; left: 3px; top: 3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--over-mask); color: var(--over-paper); }
+.sh-tile__name { padding: 3px 26px 3px 6px; font-size: var(--font-size-xs); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-tile__menu { position: absolute; right: 0; bottom: 0; }
+.sh-ghost { position: fixed; z-index: 60; pointer-events: none; opacity: .9; box-shadow: var(--shadow-dialog, 0 8px 24px rgba(0, 0, 0, .35)); }
+
+/* The content as rows. */
+.sh-lines { list-style: none; margin: 0; padding: var(--space-3) var(--space-4); display: grid; gap: 2px; }
+.sh-line { display: flex; align-items: center; gap: var(--space-4); height: 40px; padding: 0 var(--space-2) 0 var(--space-3); border-radius: 4px; background: var(--surface); outline: var(--border-w) solid transparent; cursor: pointer; user-select: none; touch-action: none; }
+.sh-line > .oc-icon:first-child { color: var(--text-disabled); flex: none; }
+.sh-line:hover { background: var(--surface-hover); }
+.sh-line.is-current { background: var(--selection); outline-color: var(--accent); }
+.sh-line.is-missing { color: var(--danger); }
+.sh-line .sh-tile__menu { position: static; flex: none; }
+.sh-line__art { flex: none; width: 52px; height: 32px; border-radius: 2px; }
+.sh-line__name { flex: 1; min-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sh-line__type { flex: none; display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+
+/* Editing a canvas in place: the host's bar above the canvas tool. */
+.sh-edit { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
+.sh-host { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); background: var(--selection); border-bottom: var(--border-w) solid var(--selection-border, var(--accent)); flex: none; }
+.sh-host > * { flex: none; white-space: nowrap; }
+.sh-host__crumb { display: inline-flex; align-items: center; gap: var(--space-3); }
+.sh-host__note { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--font-size-xs); flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.sh-edit > .cv, .sh-edit > .cv-standalone { flex: 1; min-height: 0; }
+
+/* Picking files. */
+.sh-pick { width: min(640px, calc(100vw - 48px)); }
+.sh-pick .oc-dialog__body { display: grid; gap: var(--space-4); }
+.sh-bar { display: flex; align-items: center; gap: var(--space-3); }
+.sh-picklist { list-style: none; margin: 0; padding: 0; height: min(52vh, 440px); overflow: auto; border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-control); }
+.sh-pickrow { display: flex; align-items: center; gap: var(--space-4); padding: 4px 8px; cursor: pointer; }
+.sh-pickrow:hover { background: var(--surface-hover); }
+.sh-pickrow.is-on { background: var(--selection); }
+.sh-pickrow__art { flex: none; width: 56px; height: 36px; border-radius: 2px; }
+.sh-pickrow__name { flex: 1; min-width: 0; display: grid; }
+.sh-pickrow__name small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.sh-pickrow--coll { padding-block: 8px; }
+.sh-hint { color: var(--text-secondary); font-size: var(--font-size-xs); margin: 0; }
+
+/* The progression: a small timeline, each picture as wide as it holds. */
+.sh-strip--prog { gap: 2px; }
+.sh-item { height: 84px; }
+.sh-item__art { flex: 1; min-height: 0; }
+.sh-item__label { display: flex; justify-content: space-between; gap: 6px; padding: 2px 6px; font-size: var(--font-size-2xs); line-height: 16px; white-space: nowrap; overflow: hidden; }
+.sh-item__label b { overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-medium, 500); }
+.sh-item__label i { font-style: normal; color: var(--text-secondary); }
+.sh-item__flag { position: absolute; left: 3px; top: 3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--over-mask); color: var(--over-paper); }
+.sh-item__x { position: absolute; right: 8px; top: 3px; display: none; place-items: center; width: 16px; height: 16px; padding: 0; border: 0; border-radius: 50%; background: var(--over-mask); color: var(--over-paper); cursor: pointer; }
+.sh-item:hover .sh-item__x { display: grid; }
+.sh-item__x:hover { background: var(--danger); }
+.sh-item__grip { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.sh-item__grip::after { content: ""; position: absolute; right: 2px; top: 30%; bottom: 30%; width: 2px; border-radius: 1px; background: var(--over-paper); opacity: 0; box-shadow: 0 0 0 1px var(--over-mask); }
+.sh-item:hover .sh-item__grip::after { opacity: .9; }
+.sh-item__move { position: absolute; left: 3px; bottom: 23px; display: inline-flex; align-items: center; gap: 3px; padding: 0 5px; border-radius: 8px; background: var(--accent); color: var(--text-on-accent); font: 700 10px/15px var(--font-mono); }
+.sh-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--over-rec); pointer-events: none; z-index: 2; }
+
+/* Choosers in popovers and forms. */
+.sh-pop { display: grid; gap: var(--space-4); width: 260px; }
+.sh-pop .oc-seg { justify-self: start; }
+.sh-pair { display: flex; gap: var(--space-3); }
+.sh-pair > * { flex: 1; min-width: 0; }
+.sh-chipset { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.sh-chipset button { min-width: 30px; height: 22px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.sh-chipset button:hover { background: var(--surface-hover); }
+.sh-chipset button.is-on { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
+
+/* The generator. */
+.sh-gen { width: min(1040px, calc(100vw - 48px)); }
+.sh-gen__grid { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: var(--space-7); }
+.sh-gen__form { display: grid; gap: var(--space-5); align-content: start; }
+.sh-gen__preview { display: grid; gap: var(--space-4); align-content: start; min-width: 0; }
+.sh-gen__stage { height: min(46vh, 400px); border-radius: 4px; }
+.sh-gen__stage .sh-pic { width: min(92cqw, 88cqh * var(--a)); height: min(88cqh, 92cqw / var(--a)); overflow: visible; }
+.sh-gen__strip { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
+.sh-gen__strip button { flex: none; display: grid; gap: 2px; width: 96px; padding: 3px; border: var(--border-w) solid var(--border-divider); border-radius: 4px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+.sh-gen__strip button:hover { border-color: var(--text); }
+.sh-gen__strip button.is-on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.sh-gen__strip button > span { height: 54px; border-radius: 2px; }
+.sh-gen__strip small { font: var(--font-size-2xs)/1.4 var(--font-mono); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-gen__smooth { display: flex; gap: var(--space-5); align-items: center; }
+.sh-gen__smooth > span { flex: none; width: 200px; height: 96px; border-radius: 3px; }
+.sh-gen__smooth > div { flex: 1; display: grid; gap: var(--space-2); }
+.sh-gen__smooth small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.sh-cover { width: 100%; height: 100%; }

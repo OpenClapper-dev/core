@@ -465,7 +465,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
             <>
               <PropertyRow label="Base photo">{photoPicker(null, (id) => { setSurface({ kind: "photo" }); props.onBase(id); }, "Put a photo underneath…")}</PropertyRow>
               <PropertyRow label="Shape"><Select size="sm" value={String(BLANK_ASPECTS.find((a) => Math.abs(a.ratio - surface.aspect) < 0.001)?.ratio ?? "")} onChange={(v) => setSurface({ ...surface, aspect: Number(v) })} options={BLANK_ASPECTS.map((a) => ({ value: String(a.ratio), label: a.label }))} /></PropertyRow>
-              <PropertyRow label="Colour"><ColourButton value={surface.color} label="Paper colour" onChange={(c) => setSurface({ ...surface, color: c })} /></PropertyRow>
+              <PropertyRow label="Colour"><span className="cv-inline">{surface.color !== null && <ColourButton value={surface.color} label="Paper colour" onChange={(c) => setSurface({ ...surface, color: c })} />}<Checkbox checked={surface.color === null} onChange={(c) => setSurface({ ...surface, color: c ? null : 0 })}>Transparent</Checkbox></span></PropertyRow>
             </>
           )}
         </PropertySection>
@@ -687,7 +687,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
               onPointerCancel={(e) => { touches.current.delete(e.pointerId); if (act.current?.type === "pinch" || act.current?.type === "pan") act.current = null; }}>
               <div className={cx("cv-stage", `cv-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", tool === "eraser" && "is-erasing", scale < 1 && "is-beyond")} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, "--inv": 1 / view.z }}>
                 <div className="cv-world" style={{ transform: crop, transformOrigin: "0 0" }}>
-                  <div ref={box} className="cv-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : colorCss(surface.kind === "blank" ? surface.color : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={() => setEraserAt(null)}>
+                  <div ref={box} className={cx("cv-surface", surface.kind === "blank" && surface.color === null && "is-clear")} style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : surface.kind === "blank" && surface.color === null ? undefined : colorCss(surface.kind === "blank" ? surface.color ?? 0 : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={() => setEraserAt(null)}>
                     {photoImg}
                     {objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw(o))}
                     {draft && drawDraft({ tool: draft.tool, pts: draft.pts, pen: penType, stroke, width: strokeW })}

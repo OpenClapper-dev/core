@@ -87,12 +87,15 @@ export type Root = { project: string } | "home";
 export const rootQuery = (r: Root) => (r === "home" ? "home=1" : `project_id=${r.project}`);
 const rootBody = (r: Root) => (r === "home" ? { home: true } : { project_id: r.project });
 
-export const fetchFiles = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&body=1&refs=1&values=1`).then((x) => x.files);
+/** Every live file of a root, internal files too (each list shows them only inside their parent). */
+export const fetchFiles = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&body=1&refs=1&values=1&internal=1`).then((x) => x.files);
 /** Property values of one file (null removes one) → the file's values after. */
 export const putValues = (id: string, values: Record<string, unknown>) => send<{ values: Record<string, unknown> }>("PUT", `/api/files/${id}/properties`, { values }).then((x) => x.values);
 /** The same values on many files (bulk edit). */
 export const setValuesOn = (ids: string[], values: Record<string, unknown>) => send<unknown>("POST", "/api/properties/set", { ids, values });
 export const fetchBin = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&bin=1`).then((x) => x.files);
+/** Make an internal file a file of its root (one-way): at the top level, or in a container. */
+export const releaseFile = (id: string, container: string | null = null) => send<{ file: FileRec }>("POST", `/api/files/${id}/release`, { container }).then((x) => x.file);
 export const fetchUses = (id: string) => get<{ uses: FileUse[] }>(`/api/files/${id}/uses`).then((x) => x.uses);
 export const putFile = (id: string, body: Record<string, unknown>) => send<{ file: FileRec }>("PUT", `/api/files/${id}`, body).then((x) => x.file);
 export const createFile = (r: Root, id: string, body: Record<string, unknown>) => putFile(id, { ...rootBody(r), ...body });

@@ -47,6 +47,8 @@ describe("shots", () => {
     await put(s, { refs: [{ kind: "item", to: c, data: { ms: 1000 } }, { kind: "overlay", to: c }] });
     const listed = await ok<{ files: { id: string }[] }>(api(u.token, "GET", `/api/files?project_id=${project}&type=canvas`));
     expect(listed.files.map((f) => f.id)).not.toContain(c);
+    const all = await ok<{ files: { id: string }[] }>(api(u.token, "GET", `/api/files?project_id=${project}&type=canvas&internal=1`));
+    expect(all.files.map((f) => f.id)).toContain(c);
     // A copy of the shot takes a copy of its canvas and points at it.
     const copy = uuid();
     await post(`/api/files/${s}/duplicate`, { id: copy });

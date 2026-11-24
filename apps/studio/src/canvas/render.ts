@@ -44,7 +44,7 @@ export async function renderCanvas(inp: RenderInput, longEdge: number, crop?: Cr
   cv.width = W; cv.height = H;
   const g = cv.getContext("2d")!;
   // The surface.
-  if (body.surface.kind === "blank") { g.fillStyle = paint(body.surface.color); g.fillRect(0, 0, W, H); }
+  if (body.surface.kind === "blank") { if (body.surface.color !== null) { g.fillStyle = paint(body.surface.color); g.fillRect(0, 0, W, H); } }
   else {
     g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
     const img = base ? await load(base.src) : null;

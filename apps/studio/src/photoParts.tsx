@@ -2,6 +2,7 @@ import { ColorChooser, CollectionTag, PropertyRow, PropertySection, Segmented } 
 import { renderUrl, type FileRec } from "./api";
 import { bodyOf, collectionOf, photosOf, setColor, setOrder, tintOf } from "./collections";
 import { imageUrl } from "./media";
+import { coverOf } from "./shots/Cover";
 
 const bytes = (n: number | null) => (n == null ? "not yet" : n < 1024 * 1024 ? `${Math.round(n / 1024)} KB` : `${(n / (1024 * 1024)).toFixed(1)} MB`);
 const when = (iso: string) => new Date(iso).toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -65,6 +66,14 @@ export function thumbOf(f: FileRec, files: readonly FileRec[]): string | null {
   if (f.type === "photo") return f.photo?.stored.thumbnail ? imageUrl(f.id, "thumbnail") : null;
   if (f.type === "collection") { const first = photosOf(f, files).find((x) => x.photo?.stored.thumbnail); return first ? imageUrl(first.id, "thumbnail") : null; }
   // A canvas shows its thumbnail once it was saved (the editor uploads it with every save).
-  if (f.type === "canvas") return f.updated_at && f.updated_at !== f.created_at ? renderUrl(f, "thumbnail") : null;
-  return null;
+  if (f.type === "canvas") {
+    if (f.updated_at && f.updated_at !== f.created_at) return renderUrl(f, "thumbnail");
+    // Never saved in the editor (a generated canvas): its base photo stands in.
+    const base = f.refs?.find((r) => r.kind === "base")?.to, photo = base ? files.find((x) => x.id === base) : undefined;
+    return photo ? thumbOf(photo, files) : null;
+  }
+  // A shot, a set or a location: its cover's own thumbnail (cards draw it through its frame, CoverArt).
+  const c = coverOf(f, new Map(files.map((x) => [x.id, x])));
+  const to = c ? files.find((x) => x.id === c.to) : undefined;
+  return to && to.type !== f.type ? thumbOf(to, files) : null;
 }
