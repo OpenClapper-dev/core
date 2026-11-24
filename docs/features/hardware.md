@@ -44,6 +44,19 @@ The phone provisions Aputure lights into a Bluetooth Mesh network of its own; th
 
 The core's phone link carries the channel unread. Requests (to the proxy phone): `command { device, command }`, `hello`, `sync`, `reconnect`, `scan { on }`, `provision { device, fresh? }`; the phone checks each (`parseHardwareRequest`). Reports: `state { phone, proxy, devices }` (link, telemetry and light state per device), `scan.state`, `provision.state`. A change made on one client holds back the device's reports for 1.5 s, so a slider does not jump back.
 
+## On the phone (`apps/mobile/src/ext/hardware/`)
+
+The app **Hardware** (a tab like any other while the project has the extension on):
+
+- **The proxy switch** "This phone holds the connections": while on (and the app in front, screen kept awake; Android stops Bluetooth in the background), the phone holds every awake device and runs what comes on the `hardware` channel, from the Studio, the account's other phones, and its own screens. It reports every device at most every 200 ms. Its subtitle says how many Studio tabs are attached. A phone with the switch off controls through the phone that has it on, like the Studio.
+- **Table or cards** (kept on the phone): a row per device with its type as a coloured tag, its connection as a coloured mark, its charge as a bar (a COB light shows the battery it runs on); a card shows the first controls ready to use. A tap opens the device.
+- **A device's screen**: every control of its model by group, drawn from the catalogue (switches, sliders, choices, numbers, text, buttons; the colour, the effects with their options, the camera's outputs), its reported values (for the camera every parameter and the incoming log), a mesh light's pairing (Pair with OpenClapper, Run setup again, Pair again after a reset), what it runs on or powers, sleep and wake, rename, remove. A transmitter's screen shows its **picture** (`ui/Picture.tsx` on the native `modules/video-link`, Android only).
+- **Add a device**: the proxy phone scans for 10 s; the list shows what it found, likely models first; pick the model, name it. An Aputure light is then paired into the phone's network (needs a connection: its address is stored as it is paired). The transmitter is added from the catalogue, without a scan.
+- **Key backup** (header): the recovery passphrase (at least 12 characters) and per network: backed up, in use on another phone (take it back), not on this phone (restore with the passphrase).
+- **Sync** (a step after the upload queue): mesh networks, then the devices, then the sealed keys of anything paired offline.
+
+Kept from the first app (`hub.ts`, `bt/hubCore.ts`): one connection attempt at a time, only to devices seen advertising (a presence scan runs while one is missing), retries after 1, 2, 5, 15, 30 s, links closed in the background and reopened in front, Reconnect all.
+
 ## On the server
 
 Routes in `apps/worker/src/ext/hardware/routes.ts` ([api](../api.md), "Hardware"); table `hw_mesh_networks` (migration `0009_hardware.sql`).

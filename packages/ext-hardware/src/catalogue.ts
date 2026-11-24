@@ -85,7 +85,7 @@ function lightControls(k: FixtureKind): Control[] {
   }
   if (c.hsi) out.push({ id: "colour", label: "Colour", group: "Light", kind: "colour" });
   if (c.effects?.length) out.push({ id: "effect", label: "Effect", group: "Effects", kind: "effect" });
-  if (c.effects?.some((e) => TRIGGER_EFFECTS.includes(e))) out.push({ id: "trigger", label: "Strike now", group: "Effects", kind: "button", icon: "flash", hint: "Lightning strikes once." });
+  if (c.effects?.some((e) => TRIGGER_EFFECTS.includes(e))) out.push({ id: "trigger", label: "Strike now", group: "Effects", kind: "button", icon: "sun-high", hint: "Lightning strikes once." });
   if (c.curves) out.push({ id: "curve", label: "Dimming curve", group: "Settings", kind: "choice", display: "segmented", options: CURVES.map((v, i) => ({ value: i, label: CURVE_LABELS[v] })) });
   if (c.smoothing) out.push({ id: "smooth", label: "Smooth changes", group: "Settings", kind: "switch", hint: "The light eases between values by itself; off, it takes them at once." });
   return out;

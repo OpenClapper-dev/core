@@ -23,3 +23,4 @@ export * from "./sequencePlayer.ts";
 export * from "./catalogue.ts";
 export * from "./device.ts";
 export * from "./protocol.ts";
+export * from "./effects.ts";

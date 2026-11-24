@@ -42,9 +42,9 @@ One connection between a person's Studio tabs and their phones and tablets: `GET
 
 | Channel | Messages |
 | --- | --- |
-| `link` | phone: `hello { device: { id, name } }`; Studio: `readout` (the phones register again); to the Studio tabs: `presence { phones: [{ id, name }], previewing }` on every change |
+| `link` | phone: `hello { device: { id, name } }`; Studio: `readout` (the phones register again); to the Studio tabs: `presence { phones: [{ id, name }], previewing }` on every change; to the phones: `presence { studios }` (how many Studio tabs are open) |
 | `layout` | Studio: `preview { layout, orientation, device? }` (a layout shown on the phone without saving it; checked; kept for a phone that connects later), `stop`; phone: `exit`. The last Studio tab gone ends a preview |
-| any other | An extension's: carried from the Studio to the phones and back, unread |
+| any other | An extension's ([extensions](extensions.md)): carried unread from the Studio to the phones, and from a phone to the Studio tabs and the other phones |
 
 ## The Camera layouts app (`apps/studio/src/apps/LayoutsApp.tsx`)
 
