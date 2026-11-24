@@ -9,7 +9,7 @@
  * then, so a page's own letter never swallows a section jump.
  */
 
-export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin" | "photo";
+export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin" | "photo" | "timeline";
 
 export interface Scope {
   label: string;
@@ -28,6 +28,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   desktop: { label: "Desktop icons", with: [] },
   bin: { label: "Recycle bin", with: [] },
   photo: { label: "Photo", with: [] },
+  timeline: { label: "Timeline", with: [] },
 };
 
 export interface Shortcut {
@@ -111,6 +112,25 @@ export const SHORTCUTS = [
   { scope: "photo", action: "prev", keys: ["ArrowLeft"], label: "Previous photo" },
   { scope: "photo", action: "next", keys: ["ArrowRight"], label: "Next photo" },
   { scope: "photo", action: "full", keys: ["f"], label: "Preview or full size" },
+
+  // ---- Timeline (docs/features/timeline.md)
+  { scope: "timeline", action: "play", keys: [" "], display: "Space", label: "Play or pause" },
+  { scope: "timeline", action: "prev", keys: ["ArrowLeft"], label: "Previous clip" },
+  { scope: "timeline", action: "next", keys: ["ArrowRight"], label: "Next clip" },
+  { scope: "timeline", action: "first", keys: ["Home"], label: "First clip" },
+  { scope: "timeline", action: "last", keys: ["End"], label: "Last clip" },
+  { scope: "timeline", action: "moveEarlier", keys: ["Alt+ArrowLeft"], label: "Move the chosen clips earlier" },
+  { scope: "timeline", action: "moveLater", keys: ["Alt+ArrowRight"], label: "Move the chosen clips later" },
+  { scope: "timeline", action: "shorter", keys: ["-"], label: "Hold the chosen clips 0.5 s shorter" },
+  { scope: "timeline", action: "longer", keys: ["+", "="], display: "+", label: "Hold the chosen clips 0.5 s longer" },
+  { scope: "timeline", action: "hold", keys: ["d"], label: "Type the chosen clip's hold time" },
+  { scope: "timeline", action: "placeholder", keys: ["p"], label: "A placeholder after the chosen clip" },
+  { scope: "timeline", action: "chapter", keys: ["c"], label: "A chapter starts at the chosen clip (or no more)" },
+  { scope: "timeline", action: "remove", keys: ["Delete", "Backspace"], display: "Delete", label: "Remove the chosen clips" },
+  { scope: "timeline", action: "all", keys: ["Mod+a"], label: "Choose every clip" },
+  { scope: "timeline", action: "undo", keys: ["Mod+z"], label: "Undo" },
+  { scope: "timeline", action: "redo", keys: ["Mod+Z", "Mod+y"], display: "Mod+Shift+Z", label: "Redo" },
+  { scope: "timeline", action: "pick", keys: ["Shift+Click"], info: true, label: "Choose several clips: Shift adds a range, Ctrl one more" },
 ] as const satisfies readonly Shortcut[];
 
 type Entry = (typeof SHORTCUTS)[number];

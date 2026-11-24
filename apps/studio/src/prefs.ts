@@ -25,9 +25,11 @@ export interface Prefs {
   binOnDesktop: boolean;
   /** How a collection's colour is drawn on its photos and its tile: a bar below or to the left, a dot, or a frame. */
   collectionMark: "bar" | "barleft" | "dot" | "frame";
+  /** How long a clip added to a timeline holds, unless the timeline has a value of its own. */
+  clipHoldMs: number;
 }
 
-export const DEFAULT_PREFS: Prefs = { theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar" };
+export const DEFAULT_PREFS: Prefs = { theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000 };
 export type PrefsState = "local" | "loading" | "saved" | "saving" | "unsaved";
 
 let prefs: Prefs = { ...DEFAULT_PREFS, theme: getTheme() };

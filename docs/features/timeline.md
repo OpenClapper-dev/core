@@ -26,3 +26,20 @@ A **timeline** is a rough cut, for deciding: one track of clips in order, each h
 ## The master timeline (`projects.master`)
 
 Every project has one: an ordered list of the project's timelines (`PUT /api/projects/:id` with `master`, ids; each once), played end to end. Timelines not in it stay outside it; a timeline that is gone is skipped where the master is shown.
+
+## The Timeline window (`apps/studio/src/apps/TimelineApp.tsx`, `src/timeline/`)
+
+One window per timeline (Files: New, Timeline; a double-click on one). The U4 layout: the **stage** with the transport under it; the **Cut** below (the strip); at the left **Files**, **In use** and **Chapters**; at the right the chosen **Clip**. Panels move, size, collapse and stack as everywhere (`Dock`).
+
+- **The stage** plays what is under the playhead: a picture through its frame in Outline, Mask, Crop or Full (the window's choice); a progression's pictures at its timing with its default frame and overlay, a smooth zoom moving; a placeholder or a missing file as a card. The caption names the chapter and the clip (and the picture of a progression). Transport: to the start, previous and next clip, play and pause (on the clock; at the end it stops and goes back to the start), the time.
+- **The strip**: a ruler (click or drag to move the playhead; the knob scrubs), a lane of chapters (each from its marker to the next), the clips, each as wide as it lasts. Zoom with the slider or Ctrl + wheel; **Fit** shows the whole cut. A shot with a progression is **Spread** (a cell per picture; a click on a cell goes to that picture) or **Collapsed** (its first picture); its length is the progression's in both, and it has no edge to pull. Others: pull the right edge to change the time, drag to reorder.
+- **Choosing**: a click chooses a clip and puts the playhead at its start; Shift adds a range, Ctrl one more. With several chosen, the Clip panel sets one hold time for all, ± 0.5 s, moves them together (Alt + arrows) or removes them.
+- **Files**: the project's shots, photos, canvases and collections, with a search and a type filter; a collection opens to its photos (never a clip itself), a canvas with frames opens to its frames. Drag a row into the strip (a line shows where it lands; over a **placeholder** it fills it, keeping its time and chapter), double-click it, or press its plus to add it after the chosen clips. A new clip holds the timeline's value, else the account's ("New clips … s": "This timeline has its own value"; the account's value is the `clipHoldMs` preference, 2 s to start with).
+- **In use**: the files this cut uses, with how often, and the placeholders; a click goes to the next clip that uses it.
+- **Chapters**: each with its start and length; a click goes there. "Chapter" (C) starts one at the chosen clip, or ends it; its title and colour are set in the Clip panel.
+- **The Clip panel**: the picture, the file's name (a placeholder's title is typed here), the hold time with ± 0.5 s (D focuses it), where it starts; a shot with a progression says it plays its progression. **Open in …** (or a double-click on the clip) opens the file's app in a window of its own; **Make a canvas from it** (a photo) makes a canvas on the photo next to it and points the clip at it; **Fill it** (a placeholder); **Remove**. Then where else the file is used, and its properties.
+- **Missing files**: the clip keeps its place, shown dashed; the Clip panel offers to restore the file.
+- **Undo and redo** (Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y; the buttons in the Cut's row): up to 100 steps, changes close together are one.
+- **Keys**: Space, ← →, Home, End, Alt+← →, - and +, D, P (a placeholder after the chosen clip), C, Delete, Ctrl+A ([shortcuts](../shortcuts.md)).
+- **The edit lock**: the window takes it when it opens; others see the timeline read-only with who edits it, and Edit when it is free; **Stop editing** saves and lets it go. A watching window reads the timeline again every 5 s. Changes save 0.6 s after the last one (status bar: Saved, Changed, Saving…, Not saved).
+- **The address** keeps the playhead: `#/timeline/<id>?t=12.5`.

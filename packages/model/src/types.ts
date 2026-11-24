@@ -62,6 +62,8 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   askCollectionName: (v) => oneOf(v, ["never", "start", "end"]),
   // Originals wait for Wi-Fi on the phone; thumbnail and preview go at once.
   originalsOnWifi: (v) => typeof v === "boolean",
+  // How long a clip added to a timeline holds, unless the timeline says otherwise (docs/features/timeline.md).
+  clipHoldMs: (v) => typeof v === "number" && Number.isInteger(v) && v >= 100 && v <= 3_600_000,
   // The taskbar's pins per project: apps by id, files by id.
   pins: (v) => isRecord(v) && Object.entries(v).every(([project, list]) => UUID.test(project) && Array.isArray(list) && list.length <= 60
     && list.every((p) => isRecord(p) && Object.keys(p).length === 1 && (typeof p.app === "string" ? APP_ID.test(p.app) : typeof p.file === "string" && UUID.test(p.file)))),
