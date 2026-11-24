@@ -13,7 +13,7 @@ Parked with their own issues under the `monitoring` label: request metering per 
 
 The app Worker's daily cron (`scheduled` in `apps/worker/src/index.ts`, 03:17 UTC, next to the recycle-bin and session purges) runs `snapshotStorage` (`apps/worker/src/storage-stats.ts`), which writes the day's rows into `storage_daily`:
 
-- one row per workspace with photos: `bytes`, `objects` (its photos), `unsized` (photos without a recorded size). Binned photos count: they occupy the bucket until the bin is emptied. The rebuild writes these rows again from step B2 (#374); until then only the bucket row is written.
+- one row per workspace with photos: `bytes`, `objects` (its photos), `unsized` (photos without a recorded size). Binned photos count: they occupy the bucket until the bin is emptied.
 - one row with `workspace_id = ''`: the bound bucket's total bytes and object count from an R2 listing (one Class A operation per 1 000 objects). It also covers renders and orphans that no photo row accounts for, so it is larger than the sum of the workspace rows.
 
 Days are UTC. Running the cron twice in a day rewrites the rows (`INSERT OR REPLACE`). The table is never purged: 365 rows a year per key. A failing snapshot is logged and never stops the other cron jobs.

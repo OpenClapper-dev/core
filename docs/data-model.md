@@ -2,12 +2,13 @@
 
 > **Mid-rewrite (epic [#371](https://github.com/OpenClapper-dev/core/issues/371)).** This is the schema on `main`: the baseline of the rebuild, which each build step extends ([target model](rewrite/10-conclusion.md#target-data-model)). The first app's schema is in the history up to release v0.16.0.
 
-D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Stored images will live in the R2 bucket `openclapper-media` from step B2.
+D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Stored images live in the R2 bucket `openclapper-media` (see `photos`).
 
 ## Migrations
 
 | File | What |
 | --- | --- |
+| `0002_photos.sql` | `photos`: a photo's facts and stored images (step B2, #374) |
 | `0001_rewrite_baseline.sql` | The baseline of the rewrite (step B0, #372): accounts and tenancy, `projects`, `files`, `refs`, `property_values`, and the admin plane's tables. For databases created new: it carries nothing over, and it fails on purpose on a database of the first app |
 
 A new numbered file for every change; an applied one is never edited.
@@ -34,6 +35,8 @@ A new numbered file for every change; an applied one is never edited.
 
 `refs(from_file → files CASCADE, kind, position, to_file, data JSON | null)`, primary key (from_file, kind, position): one row per pointer from a file to a file. `kind` is what it is for (`content`, `item`, `clip`, `overlay`, `base`, `placed`, `property`, `target`), `position` its place in the file's list, `data` what the kind needs besides (an item's time, the frame it shows). `to_file` has no foreign key on purpose: a removed file leaves a missing reference, and a restore brings every use back. Indexed on `to_file` for "where is this used".
 
+`photos(file_id → files CASCADE, object_id, origin capture|import, media_type, taken_at, width, height, original_bytes, preview_bytes, preview_type, thumbnail_bytes, thumbnail_type, aov_horizontal, aov_vertical, aov_source, device_id, frame JSON)`: what the server searches and counts about a photo ([media](rewrite/01-media.md)). The raw EXIF and the device readout are in the file's body. `object_id` names the stored images, in R2 under `photos/<object_id>/original|preview|thumbnail.<ext>`; a copy of a photo has the same `object_id`, and the images go when the last row with it is purged. A size that is null: that image has not arrived. `device_id` is filled from step B3, `frame` from B8.
+
 `property_values(file_id → files CASCADE, definition_id → files CASCADE, value JSON)`, primary key (file, definition): a property's value on a file. The definition is a file in the project's Settings folder. Written from step B4.
 
 ## What is a table and what is a body
@@ -44,7 +47,7 @@ D1 takes at most 2 000 000 bytes per string and per row. A body is therefore lim
 
 ## Monitoring
 
-`storage_daily(day YYYY-MM-DD UTC, workspace_id, bytes, objects, unsized)`, primary key (day, workspace): the app Worker's daily cron writes one row per workspace with photos (from step B2 on; none until then) and one row with `workspace_id = ''` for the bound bucket's total from an R2 listing. No foreign key: the history outlives a deleted workspace. `admin_settings(key, value JSON, updated_at, updated_by)`: the admin plane's own settings, written by the admin Worker (the operator's storage marks). `cf_usage_daily(day, metric, value, taken_at)`: the Cloudflare analytics the admin Worker's cron keeps beyond the API's window, key/value so a new metric needs no migration. See [monitoring](features/monitoring.md).
+`storage_daily(day YYYY-MM-DD UTC, workspace_id, bytes, objects, unsized)`, primary key (day, workspace): the app Worker's daily cron writes one row per workspace with photos (`bytes`: its stored images, each shared image once; `objects`: its photos) and one row with `workspace_id = ''` for the bound bucket's total from an R2 listing. No foreign key: the history outlives a deleted workspace. `admin_settings(key, value JSON, updated_at, updated_by)`: the admin plane's own settings, written by the admin Worker (the operator's storage marks). `cf_usage_daily(day, metric, value, taken_at)`: the Cloudflare analytics the admin Worker's cron keeps beyond the API's window, key/value so a new metric needs no migration. See [monitoring](features/monitoring.md).
 
 `admin_audit(id, at, operator_email, action, target_user_id, target_email, detail JSON)`: the admin plane's audit trail (#224). `action` is `user.create`, `user.update`, `user.password`, `user.delete` or `settings.update`; `target_email` is the account's email at the time; `detail` what changed (never a password). Each row goes in the same D1 batch as the change it records. No foreign key: the trail outlives a deleted account. Indexed on `(at DESC, id DESC)` for the newest-first pages.
 

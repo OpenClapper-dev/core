@@ -43,7 +43,7 @@ A file as the API gives it:
 | --- | --- |
 | `id` | UUID, chosen by the client |
 | `project_id`, `home` | Its root: a project, or (`project_id: null`, `home: true`) the caller's account home |
-| `type` | A registered file type. So far `folder`, `shortcut` and `preferences` (a person's preferences, in their account home); each build step adds the types it builds |
+| `type` | A registered file type. So far `folder`, `shortcut`, `preferences` (a person's preferences, in their account home), `photo` and `collection`; each build step adds the types it builds |
 | `name` | Free text, up to 120 characters, not unique |
 | `container` | The folder or collection it sits in; `null` at the top level |
 | `internal_of` | The file it was made inside ([internal files](rewrite/i1-interjection.md)); such a file sits in no container and is left out of lists |
@@ -51,11 +51,12 @@ A file as the API gives it:
 | `created_at`, `updated_at`, `created_by`, `deleted_at` | System properties; `deleted_at` is set while the file is in the recycle bin |
 | `lock` | `{ by, until }` while someone edits it, else `null`. The routes that take and release it come with the canvas (step B5) |
 | `body_version`, `body` | The type's own document and the version of its shape. `body` is in single-file answers, and in lists only with `body=1` |
+| `photo` | A photo's facts, on every answer about a photo: `origin`, `media_type`, `taken_at`, `width`, `height` (upright), `stored` (bytes of `thumbnail`, `preview`, `original`; null until it arrived), `angle_of_view` (`{ horizontal, vertical, source }` or null), `device_id` |
 | `refs` | Single-file answers, and lists with `refs=1`: the file's references in order, `[{ kind, to, data, missing }]`. `missing` is true when the file pointed at is gone, binned or not of this root |
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/files` | `?project_id=` or `?home=1` (exactly one). The live files of the root that are not internal, by name. Narrowed by `container` (an id, or `top`), `type` (comma-separated), `q` (part of the name; case is folded for ASCII only) and `internal_of`. `bin=1` lists the bin's entries instead, newest first, each with `binned_with` (how many files went along). `body=1` adds the bodies, `refs=1` each file's `refs`. Not paged yet |
+| GET | `/api/files` | `?project_id=` or `?home=1` (exactly one). The live files of the root that are not internal, by name. Narrowed by `container` (an id, or `top`), `type` (comma-separated), `q` (part of the name; case is folded for ASCII only) and `internal_of`. `bin=1` lists the bin's entries instead, newest first, each with `binned_with` (how many files went along). `body=1` adds the bodies, `refs=1` each file's `refs`. `limit` (at most 2000) and `offset` page it; the answer says `more` |
 | GET | `/api/files/:id` | `{ file }` with `body` and `refs`. A binned file answers too |
 | GET | `/api/files/:id/uses` | `{ uses: [{ id, type, name, internal_of, kind }] }`: the live files of the root that point at it |
 | PUT | `/api/files/:id` | Upsert. `{ type, project_id \| home: true, name?, container?, internal_of?, body?, body_version?, refs? }`. `type`, the root and `internal_of` are set when the file is made and never change (`400`). What is absent is kept; a new file gets "New <type>" and the type's empty body. `container: null` is the top level. `refs`, when sent, replaces the file's references. Body and references are checked together by the type's rules (`400` with what is wrong); a body sent at an older `body_version` is upgraded, a newer one refused. `201` when made, `200` when changed, `409` while it is in the bin. A fixed folder cannot be renamed or moved |
@@ -65,7 +66,20 @@ A file as the API gives it:
 | POST | `/api/files/purge` | `{ ids }`, each in the bin (`400` otherwise). Deleted for good, with what went along |
 | DELETE | `/api/bin` | `?project_id=` or `?home=1`. Empties the root's bin → `{ purged }` (entries) |
 | POST | `/api/files/:id/duplicate` | `{ id, name?, container? }`: `id` is the copy's. Copies the file with what is inside it, its internal files, their references and property values; a reference to a file that was copied along points at the copy. Default name "<name> copy", default place next to the original. Sent again with the same `id` it answers `200` with the copy that exists. At most 500 files in one copy |
+| PUT | `/api/files/:id` with a photo | Only its name and place change; a photo is never made here, nor its body changed (400) |
 | POST | `/api/files/:id/release` | `{ container? }`. Makes an internal file a file of its root; one-way |
+
+## Photos (`photos.ts`)
+
+A photo is a file made by uploading it ([media](rewrite/01-media.md)): first what is known about it, then its three images, each on its own and in any order. The adding client makes the thumbnail (about 400 px) and the preview (about 2048 px); the original is the untouched file. A photo is usable as soon as its preview is there. Every step can be sent again and answers the same, so a client may retry anything.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| PUT | `/api/photos/:id` | `{ project_id, origin: capture \| import, media_type?, taken_at?, width, height, name?, container?, exif?, readout?, device_id? }` → `{ file }`, `201`. `width`/`height`: the original as shown (upright). `exif`: the raw tags by name (text, numbers, lists of numbers; others are dropped). `readout`: `make`, `model`, `lens`. The angle of view is computed here from `FocalLengthIn35mmFilm`, else `FocalLength` with the focal-plane resolution (`packages/fov-math` `photoAov`). A `container` that is gone or cannot hold photos is dropped (the photo comes in at the top level), a missing `taken_at` is the time of the upload. Sent again for a photo that exists: nothing changes, `200`. An id of another file: `409` |
+| PUT | `/api/photos/:id/thumbnail`, `/preview`, `/original` | The body is the image. Thumbnail up to 400 KB, preview up to 4 MB, JPEG or WebP; original up to 60 MB, JPEG, PNG, WebP or HEIC. The type is read from the bytes (`415` otherwise). Stored once: a second upload is not read and answers `200` with `already: true`. Asks the auth provider for `upload` |
+| GET | `/api/photos/:id/image?size=thumbnail\|preview\|original` | Default `preview`. `404` until that image arrived. Its stored type, `nosniff`, an ETag, `private, max-age=31536000, immutable`; `If-None-Match` answers `304`, a failed `If-Match` `412` |
+
+A **copy** of a photo (`duplicate`) shares the stored images: it costs no storage. Images are removed when the last photo using them is purged.
 
 Bulk routes take at most 500 ids, all of one root; an id the caller cannot reach makes the whole request `404`.
 

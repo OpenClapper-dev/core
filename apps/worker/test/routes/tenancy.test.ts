@@ -12,7 +12,7 @@
  */
 import { beforeAll, describe, expect, test } from "vitest";
 import { publicRouter, router } from "../../src/routes.ts";
-import { api, buildWorld, folderBody, idsOf, newUser, ok, shortcutBody, snapshot, uuid, type User, type World } from "./helpers.ts";
+import { api, buildWorld, folderBody, idsOf, jpeg, newUser, ok, putImage, shortcutBody, snapshot, uuid, type User, type World } from "./helpers.ts";
 
 interface IdCase {
   kind: "id";
@@ -53,6 +53,11 @@ const ROUTES: Record<string, Case> = {
   "DELETE /api/bin": { kind: "id", path: (a) => `/api/bin?project_id=${a.project}` },
   "POST /api/files/:id/duplicate": { kind: "id", path: (a) => `/api/files/${a.folder}/duplicate`, body: () => ({ id: uuid() }) },
   "POST /api/files/:id/release": { kind: "id", path: (a) => `/api/files/${a.internal}/release`, body: () => ({}) },
+
+  // B names B's own project for A's photo id: refused on the photo, never a takeover.
+  "PUT /api/photos/:id": { kind: "id", path: (a) => `/api/photos/${a.photo}`, body: (_a, actor) => ({ project_id: actor.project, origin: "import", width: 10, height: 10 }) },
+  "PUT /api/photos/:id/:part": { kind: "exempt", why: "the body is raw bytes, which the generic case cannot send; the photo tests check another workspace's upload is refused" },
+  "GET /api/photos/:id/image": { kind: "id", path: (a) => `/api/photos/${a.photo}/image` },
 
   "GET /api/preview/socket": { kind: "exempt", why: "no id: the room is picked by the caller's own user id (preview.ts)" },
 
@@ -131,6 +136,15 @@ describe("another workspace's resources", () => {
     }
   });
 
+  test("another workspace's photo takes no image of B's", async () => {
+    const w = await fresh();
+    const other = uuid();
+    await ok(api(a.token, "PUT", `/api/photos/${other}`, { project_id: w.project, origin: "import", width: 10, height: 10 }), 201);
+    const before = await snapshot();
+    await ok(putImage(b.token, other, "preview", jpeg("b's")), 404);
+    expect(await snapshot()).toBe(before);
+  });
+
   test("an account home is its owner's alone", async () => {
     const w = await fresh();
     const before = await snapshot();
@@ -155,6 +169,7 @@ describe("another workspace's resources", () => {
     const cases: [string, string, string, (a: World) => unknown][] = [
       ["a new project in A's workspace", "PUT", "/api/projects/{new}", (w) => ({ name: "x", workspace_id: w.workspace })],
       ["a new file in A's project", "PUT", "/api/files/{new}", (w) => folderBody({ project_id: w.project }, "x")],
+      ["a new photo in A's project", "PUT", "/api/photos/{new}", (w) => ({ project_id: w.project, origin: "import", width: 10, height: 10 })],
       ["B's new file in A's folder", "PUT", "/api/files/{new}", (w) => folderBody({ project_id: bWorld.project }, "x", { container: w.folder })],
       ["B's file put into A's folder", "PUT", "/api/files/{b.shortcut}", (w) => ({ container: w.folder })],
       ["B's new internal file of A's file", "PUT", "/api/files/{new}", (w) => shortcutBody(bWorld.project, "x", { internal_of: w.link })],

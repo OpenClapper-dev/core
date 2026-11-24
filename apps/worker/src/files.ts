@@ -4,6 +4,7 @@ import {
 } from "@openclapper/model";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
+import { copyPhotos, objectsOf, removeOrphans } from "./photos.ts";
 import { assertAccess, assertProjectRef, assertRank, type Access, type Role } from "./tenancy.ts";
 
 /**
@@ -21,9 +22,15 @@ interface FileRow {
   id: string; project_id: string | null; home_of: string | null; type: string; name: string; container: string | null; internal_of: string | null;
   fixed: string | null; created_at: string; updated_at: string | null; created_by: string | null; deleted_at: string | null; deleted_with: string | null;
   lock_by: string | null; lock_until: string | null; body_version: number; body?: string; ws?: string | null; binned_with?: number;
+  // A photo's facts (LEFT JOIN photos); all null for any other file.
+  ph_origin?: string | null; ph_media_type?: string | null; ph_taken_at?: string | null; ph_width?: number | null; ph_height?: number | null;
+  ph_original?: number | null; ph_preview?: number | null; ph_thumbnail?: number | null; ph_aov_h?: number | null; ph_aov_v?: number | null; ph_aov_source?: string | null; ph_device?: string | null;
 }
 /** Everything but the body: a list never carries bodies unless asked. */
 const COLS = "f.id, f.project_id, f.home_of, f.type, f.name, f.container, f.internal_of, f.fixed, f.created_at, f.updated_at, f.created_by, f.deleted_at, f.deleted_with, f.lock_by, f.lock_until, f.body_version";
+/** A photo's facts next to its file: joined into every list and single read, so Media needs one request. */
+const PHOTO_COLS = "ph.origin AS ph_origin, ph.media_type AS ph_media_type, ph.taken_at AS ph_taken_at, ph.width AS ph_width, ph.height AS ph_height, ph.original_bytes AS ph_original, ph.preview_bytes AS ph_preview, ph.thumbnail_bytes AS ph_thumbnail, ph.aov_horizontal AS ph_aov_h, ph.aov_vertical AS ph_aov_v, ph.aov_source AS ph_aov_source, ph.device_id AS ph_device";
+const PHOTO_JOIN = "LEFT JOIN photos ph ON ph.file_id = f.id";
 
 interface Root { kind: RootKind; projectId: string | null; userId: string | null }
 const rootOf = (f: FileRow): Root => ({ kind: f.home_of ? "home" : "project", projectId: f.project_id, userId: f.home_of });
@@ -31,6 +38,8 @@ const sameRoot = (a: Root, b: Root) => a.projectId === b.projectId && a.userId =
 /** SQL: the row is of the root bound at ?n and ?n+1 (`IS` also matches the NULL of the other kind). */
 const inRoot = (alias: string, n: number) => `${alias}.project_id IS ?${n} AND ${alias}.home_of IS ?${n + 1}`;
 
+/** The most files one page of a list holds. */
+const MAX_PAGE = 2000;
 const now = () => new Date().toISOString();
 const list = (ids: readonly string[]) => JSON.stringify(ids);
 const parseBody = (f: FileRow): Body => JSON.parse(f.body ?? "{}") as Body;
@@ -44,6 +53,15 @@ function toApi(f: FileRow, withBody: boolean) {
     body_version: f.body_version,
     ...(withBody ? { body: parseBody(f) } : {}),
     ...(f.binned_with !== undefined ? { binned_with: f.binned_with } : {}),
+    ...(f.ph_origin ? {
+      photo: {
+        origin: f.ph_origin, media_type: f.ph_media_type, taken_at: f.ph_taken_at, width: f.ph_width, height: f.ph_height,
+        // Which images are stored, with their sizes in bytes; one that has not arrived yet is null.
+        stored: { thumbnail: f.ph_thumbnail ?? null, preview: f.ph_preview ?? null, original: f.ph_original ?? null },
+        angle_of_view: f.ph_aov_source ? { horizontal: f.ph_aov_h, vertical: f.ph_aov_v, source: f.ph_aov_source } : null,
+        device_id: f.ph_device ?? null,
+      },
+    } : {}),
   };
 }
 
@@ -56,7 +74,10 @@ function checkAccess(a: Access, f: FileRow | null, min: Role): FileRow {
   return f;
 }
 
-const ONE = `SELECT ${COLS}, f.body, p.workspace_id AS ws FROM files f LEFT JOIN projects p ON p.id = f.project_id WHERE f.id = ?1`;
+const ONE = `SELECT ${COLS}, f.body, p.workspace_id AS ws, ${PHOTO_COLS} FROM files f LEFT JOIN projects p ON p.id = f.project_id ${PHOTO_JOIN} WHERE f.id = ?1`;
+
+/** A file's row for the routes of one type (photos): as loadFile. */
+export const accessFile = (a: Access, id: string, min: Role): Promise<FileRow> => loadFile(a, id, min);
 
 async function loadFile(a: Access, id: string, min: Role): Promise<FileRow> {
   return checkAccess(a, await a.env.DB.prepare(ONE).bind(id).first<FileRow>(), min);
@@ -157,7 +178,7 @@ async function refsOf(env: Env, f: FileRow): Promise<(Ref & { missing: boolean }
   return results.map((r) => ({ kind: r.kind, to: r.to_file, data: r.data ? (JSON.parse(r.data) as Record<string, unknown>) : null, missing: r.missing === 1 }));
 }
 
-async function fileOut(env: Env, id: string) {
+export async function fileOut(env: Env, id: string) {
   const f = (await env.DB.prepare(ONE).bind(id).first<FileRow>())!;
   return { ...toApi(f, true), refs: await refsOf(env, f) };
 }
@@ -189,13 +210,15 @@ const DOWN = `WITH RECURSIVE down(id) AS (
 /**
  * Deletes binned rows for good. `where` selects them (alias `f`); everything that went to the bin
  * with a selected file goes too. The one place rows leave the table, so what a type keeps outside
- * the database (a photo's stored images, from step B2) is removed here as well.
+ * the database is removed here as well: a photo's stored images, once no other photo shares them.
  */
 async function purge(env: Env, where: string, binds: unknown[]): Promise<number> {
   const { results } = await env.DB.prepare(`SELECT f.id FROM files f WHERE f.deleted_at IS NOT NULL AND (${where})`).bind(...binds).all<{ id: string }>();
   for (let i = 0; i < results.length; i += 500) {
     const ids = list(results.slice(i, i + 500).map((r) => r.id));
+    const photos = await objectsOf(env, ids);
     await env.DB.prepare("DELETE FROM files WHERE deleted_at IS NOT NULL AND (id IN (SELECT value FROM json_each(?1)) OR deleted_with IN (SELECT value FROM json_each(?1)))").bind(ids).run();
+    await removeOrphans(env, photos);
   }
   return results.length;
 }
@@ -222,6 +245,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
    * internal. `container` (an id, or `top`), `type` (comma-separated), `q` (in the name) and
    * `internal_of` narrow it; `bin=1` lists the bin's entries instead, newest first, each with how
    * many files went along (`binned_with`); `body=1` adds the bodies, `refs=1` each file's references.
+   * A photo comes with its facts (`photo`). `limit` (at most 2000) and `offset` page the list; `more`
+   * says whether files follow.
    */
   r.on("GET", "/api/files", async (ctx) => {
     const { env, url } = ctx;
@@ -246,11 +271,16 @@ export function registerFileRoutes(r: Router<Ctx>) {
     // instr, not LIKE: D1 caps a LIKE pattern at 50 bytes. lower() folds ASCII only.
     if (text) where.push(`instr(lower(f.name), lower(${bind(text.slice(0, MAX_FILE_NAME))})) > 0`);
     const withBody = q.get("body") === "1";
-    const { results } = await env.DB.prepare(
-      `SELECT ${COLS}${withBody ? ", f.body" : ""}${bin ? ", (SELECT count(*) FROM files x WHERE x.deleted_with = f.id AND x.deleted_at IS NOT NULL) AS binned_with" : ""}
-       FROM files f WHERE ${where.join(" AND ")} ORDER BY ${bin ? "f.deleted_at DESC, f.id" : "f.name COLLATE NOCASE, f.id"}`,
+    const limit = q.has("limit") ? Math.min(MAX_PAGE, Math.max(1, Number(q.get("limit")) || MAX_PAGE)) : null;
+    const offset = Math.max(0, Number(q.get("offset")) || 0);
+    const page = limit === null ? "" : ` LIMIT ${limit + 1} OFFSET ${offset}`;
+    const { results: found } = await env.DB.prepare(
+      `SELECT ${COLS}, ${PHOTO_COLS}${withBody ? ", f.body" : ""}${bin ? ", (SELECT count(*) FROM files x WHERE x.deleted_with = f.id AND x.deleted_at IS NOT NULL) AS binned_with" : ""}
+       FROM files f ${PHOTO_JOIN} WHERE ${where.join(" AND ")} ORDER BY ${bin ? "f.deleted_at DESC, f.id" : "f.name COLLATE NOCASE, f.id"}${page}`,
     ).bind(...binds).all<FileRow>();
-    if (q.get("refs") !== "1") return json({ files: results.map((f) => toApi(f, withBody)) });
+    const more = limit !== null && found.length > limit;
+    const results = more ? found.slice(0, limit) : found;
+    if (q.get("refs") !== "1") return json({ files: results.map((f) => toApi(f, withBody)), more });
     // One query for the references of everything listed, whatever the count.
     const refs = (await env.DB.prepare(
       `SELECT r.from_file, r.kind, r.to_file, r.data, NOT EXISTS (SELECT 1 FROM files t WHERE t.id = r.to_file AND t.deleted_at IS NULL AND ${inRoot("t", 2)}) AS missing
@@ -258,7 +288,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
     ).bind(list(results.map((f) => f.id)), root.projectId, root.userId).all<{ from_file: string; kind: Ref["kind"]; to_file: string; data: string | null; missing: number }>()).results;
     const byFile = new Map<string, unknown[]>();
     for (const r of refs) byFile.set(r.from_file, [...(byFile.get(r.from_file) ?? []), { kind: r.kind, to: r.to_file, data: r.data ? JSON.parse(r.data) : null, missing: r.missing === 1 }]);
-    return json({ files: results.map((f) => ({ ...toApi(f, withBody), refs: byFile.get(f.id) ?? [] })) });
+    return json({ files: results.map((f) => ({ ...toApi(f, withBody), refs: byFile.get(f.id) ?? [] })), more });
   });
 
   /** One file with its body and its references. A binned file answers too: the bin shows what it holds. */
@@ -290,6 +320,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const stored = await findFile(ctx, fid, "editor");
     if (stored?.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
     const t = typeOf(stored?.type ?? b.type);
+    if (t.made && !stored) throw new HttpError(400, `a ${t.label.toLowerCase()} is made by uploading it`);
+    if (t.made && (b.body !== undefined || b.refs !== undefined)) throw new HttpError(400, `what a ${t.label.toLowerCase()} stores about itself cannot be changed`);
     if (stored && b.type !== undefined && b.type !== stored.type) throw new HttpError(400, "a file's type never changes");
     if (stored && ((b.project_id !== undefined && b.project_id !== stored.project_id) || (b.home !== undefined && b.home !== (stored.home_of !== null)))) {
       throw new HttpError(400, "a file never moves to another project or account home");
@@ -475,6 +507,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
          SELECT m.value, r.kind, r.position, ${mapped("r.to_file")}, r.data FROM refs r JOIN json_each(?1) m ON m.key = r.from_file`,
       ).bind(map),
       env.DB.prepare("INSERT INTO property_values (file_id, definition_id, value) SELECT m.value, v.definition_id, v.value FROM property_values v JOIN json_each(?1) m ON m.key = v.file_id").bind(map),
+      copyPhotos(env, map),
     ];
     // Bodies that name files by id (a canvas's placed pictures) follow the copies.
     const remapping = tree.filter((f) => fileType(f.type)?.remap);

@@ -70,6 +70,8 @@ export interface World {
   link: string; internal: string;
   /** A folder in the recycle bin, and a folder in the user's account home. */
   binned: string; home: string;
+  /** A photo with its three images stored. */
+  photo: string;
 }
 
 /** The body of a PUT for a new folder. */
@@ -83,7 +85,7 @@ export async function buildWorld(user: User): Promise<World> {
   const t = user.token;
   const mark = `mark${uuid().slice(0, 8)}`;
   const id = () => uuid();
-  const w = { user, mark, workspace: id(), project: id(), folder: id(), shortcut: id(), link: id(), internal: id(), binned: id(), home: id() } as World;
+  const w = { user, mark, workspace: id(), project: id(), folder: id(), shortcut: id(), link: id(), internal: id(), binned: id(), home: id(), photo: id() } as World;
   memberUser ??= await newUser({ signIn: false });
   w.member = memberUser.id;
   w.memberEmail = memberUser.email;
@@ -98,7 +100,25 @@ export async function buildWorld(user: User): Promise<World> {
   await ok(api(t, "PUT", `/api/files/${w.binned}`, folderBody(p, `${mark} binned`)));
   await ok(api(t, "POST", "/api/files/bin", { ids: [w.binned] }));
   await ok(api(t, "PUT", `/api/files/${w.home}`, folderBody({ home: true }, `${mark} home`)));
+  await addPhoto(t, w.project, w.photo, { name: `${mark} photo` });
   return w;
+}
+
+/** A few bytes with a JPEG header: the Worker checks the magic bytes and the size, never decodes. */
+export const jpeg = (marker = "img") => new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new TextEncoder().encode(marker)]);
+/** The PNG signature and a marker. */
+export const png = (marker = "png") => new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new TextEncoder().encode(marker)]);
+
+/** One image of a photo, as the clients send it: the raw bytes. */
+export function putImage(token: string, id: string, part: "thumbnail" | "preview" | "original", bytes: Uint8Array): Promise<Response> {
+  return exports.default.fetch(new Request(`${BASE}/api/photos/${id}/${part}`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, "content-type": "application/octet-stream" }, body: bytes }));
+}
+
+/** A photo as a client adds one: what is known about it, then its three images. */
+export async function addPhoto(token: string, project: string, id = uuid(), extra: Record<string, unknown> = {}, parts: ("thumbnail" | "preview" | "original")[] = ["thumbnail", "preview", "original"]): Promise<string> {
+  await ok(api(token, "PUT", `/api/photos/${id}`, { project_id: project, origin: "import", media_type: "image/jpeg", taken_at: "2026-11-01T10:00:00Z", width: 4000, height: 3000, exif: { FocalLengthIn35mmFilm: 24, Make: "Test" }, readout: { make: "Test", model: "Cam" }, ...extra }), [200, 201]);
+  for (const p of parts) await ok(putImage(token, id, p, jpeg(`${id}-${p}`)), [200, 201]);
+  return id;
 }
 
 /** The ids of a world (everything another user must never see). */
