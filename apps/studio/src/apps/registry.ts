@@ -5,6 +5,7 @@ import type { ResourceRef, Size, Win } from "../wm/wm";
 import { BinApp } from "./BinApp";
 import { FilesApp, MediaApp, ShotsApp, filesFromRoute, mediaFromRoute } from "./FilesApp";
 import { PhotoApp } from "./PhotoApp";
+import { CanvasApp } from "./CanvasApp";
 import { PresetsApp } from "./PresetsApp";
 import { ProjectApp } from "./ProjectApp";
 import { SettingsApp } from "./SettingsApp";
@@ -57,6 +58,8 @@ const APPS: AppDef[] = [
     fromRoute: (rest) => ({ resource: rest ? { type: "photo", id: rest } : null }), about: "One photo with its facts" },
   { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: true, opens: ["folder", "collection", "filter"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
     fromRoute: filesFromRoute, about: "Folders of the project and of your home" },
+  { id: "canvas", name: "Canvas", glyph: "brush", color: 7, tier: "core", singleton: false, opens: ["canvas"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 720, h: 480 }, component: CanvasApp,
+    fromRoute: (rest) => ({ resource: rest ? { type: "canvas", id: rest } : null }), about: "Draw, place photos and frame them" },
   { id: "presets", name: "Optics presets", glyph: "lens", color: 6, tier: "standard", singleton: true, opens: ["preset"], defaultSize: { w: 1000, h: 640 }, minSize: { w: 560, h: 380 }, component: PresetsApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "preset", id: rest } : null }), about: "Cameras with their lenses, for frames on a canvas" },
   { id: "bin", name: "Recycle bin", glyph: "trash", color: 0, tier: "core", singleton: true, defaultSize: { w: 900, h: 560 }, minSize: { w: 520, h: 320 }, component: BinApp, about: "What was deleted, for 30 days" },

@@ -1,5 +1,5 @@
 import { ColorChooser, CollectionTag, PropertyRow, PropertySection, Segmented } from "@openclapper/design";
-import type { FileRec } from "./api";
+import { renderUrl, type FileRec } from "./api";
 import { bodyOf, collectionOf, photosOf, setColor, setOrder, tintOf } from "./collections";
 import { imageUrl } from "./media";
 
@@ -64,5 +64,7 @@ export function CollectionSections({ c, files }: { c: FileRec; files: readonly F
 export function thumbOf(f: FileRec, files: readonly FileRec[]): string | null {
   if (f.type === "photo") return f.photo?.stored.thumbnail ? imageUrl(f.id, "thumbnail") : null;
   if (f.type === "collection") { const first = photosOf(f, files).find((x) => x.photo?.stored.thumbnail); return first ? imageUrl(first.id, "thumbnail") : null; }
+  // A canvas shows its thumbnail once it was saved (the editor uploads it with every save).
+  if (f.type === "canvas") return f.updated_at && f.updated_at !== f.created_at ? renderUrl(f, "thumbnail") : null;
   return null;
 }

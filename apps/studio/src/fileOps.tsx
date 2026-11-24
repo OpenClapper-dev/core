@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
 import { Button, Dialog, Tree, type TreeNodeData } from "@openclapper/design";
-import { MAX_FILE_NAME, fileType, placementError } from "@openclapper/model";
+import { MAX_FILE_NAME, emptyCanvas, fileType, placementError } from "@openclapper/model";
 import type { FileRec, Root } from "./api";
 import { appDef, appFor, launch } from "./apps/registry";
 import { kindOf, targetOf } from "./fileKinds";
@@ -50,6 +50,29 @@ export async function newFolder(root: Root, container: string | null): Promise<F
   const name = await prompt({ title: "New folder", label: "Name", value: "New folder", confirmLabel: "Create", check: nameCheck });
   if (!name) return null;
   try { return await store.create(root, "folder", { name, container }); } catch (e) { toastError(e); return null; }
+}
+
+/** A new blank canvas (16:9), opened at once; named by the project's pattern. */
+export async function newCanvas(root: Root, container: string | null): Promise<void> {
+  try {
+    const id = crypto.randomUUID();
+    const f = await store.create(root, "canvas", { id, container, body: emptyCanvas() as unknown as Record<string, unknown> });
+    launch({ app: "canvas", resource: { type: "canvas", id }, title: f.name });
+  } catch (e) { toastError(e); }
+}
+
+/**
+ * A canvas with a photo as its base, opened at once (docs/rewrite/05-composition.md): where the photo
+ * is, or next to its collection (a collection holds photos only).
+ */
+export async function canvasFromPhoto(photo: FileRec, files: ReadonlyMap<string, FileRec>): Promise<void> {
+  try {
+    const id = crypto.randomUUID(), at = photo.container ? files.get(photo.container) : undefined;
+    const container = at?.type === "collection" ? at.container : photo.container;
+    const body = { ...emptyCanvas(), surface: { kind: "photo" } };
+    const f = await store.create(store.rootOf(photo), "canvas", { id, container, body: body as unknown as Record<string, unknown>, refs: [{ kind: "base", to: photo.id }] });
+    launch({ app: "canvas", resource: { type: "canvas", id }, title: f.name });
+  } catch (e) { toastError(e); }
 }
 
 export async function renameFile(f: FileRec): Promise<void> {

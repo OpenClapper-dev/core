@@ -232,6 +232,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     contextMenu(e, [
       !many && { id: "open", label: "Open", icon: "external", kbd: "↵", run: () => open(f) },
       !many && f.type === "shortcut" && t && "file" in t && { id: "reveal", label: "Show what it points at", icon: "folder-open", run: () => { go({ folder: t.file.container }); setCur(t.file.id); } },
+      !many && f.type === "photo" && !home && { id: "canvas", label: "Make a canvas", icon: "brush", run: () => void ops.canvasFromPhoto(f, map) },
       !many && f.type === "photo" && !!f.photo?.stored.original && { id: "orig", label: "Download the original", icon: "download", run: () => { const a = document.createElement("a"); a.href = imageUrl(f.id, "original"); a.download = f.name; a.click(); } },
       !many && { id: "rename", label: "Rename…", icon: "edit", kbd: "F2", disabled: !!f.fixed, run: () => void ops.renameFile(f) },
       !many && { id: "copy", label: "Duplicate", icon: "copy", disabled: !!f.fixed, run: () => void ops.duplicateFile(f) },
@@ -254,6 +255,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       !home && { id: "import", label: "Import photos…", icon: "upload", run: () => picker.current?.click() },
       !media && !shotsOnly && { id: "new", label: "New folder", icon: "folder-plus", kbd: "⇧N", run: () => void ops.newFolder(root, here) },
       !media && !home && { id: "newshot", label: "New shot", icon: "slate", run: () => void newShot() },
+      !media && !home && !shotsOnly && { id: "newcanvas", label: "New canvas", icon: "brush", run: () => void ops.newCanvas(root, here) },
       { separator: true },
       { id: "all", label: "Select everything listed", icon: "check", kbd: "⌘A", disabled: !ids.length, run: () => setSel(ids) },
     ]);
@@ -357,7 +359,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       <Segmented label="View" value={view} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }, ...(!home ? [{ value: "board", icon: "columns" as const, title: "Board: lanes by a property" }] : [])]} />
       {!home && !shotsOnly && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
       {shotsOnly && <Button size="sm" variant="primary" icon="plus" onClick={() => void newShot()}>New shot</Button>}
-      {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }] : [])]} onSelect={(id) => void (id === "shot" ? newShot() : ops.newFolder(root, here))} />}
+      {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }, { id: "canvas", label: "Canvas", icon: "brush" as const }] : [])]} onSelect={(id) => void (id === "shot" ? newShot() : id === "canvas" ? ops.newCanvas(root, here) : ops.newFolder(root, here))} />}
       <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={resetPanels} />
       <input ref={picker} type="file" accept={IMAGE_TYPES} multiple hidden onChange={(e) => { const t = e.currentTarget; if (t.files?.length) importAll(t.files); t.value = ""; }} />
     </Toolbar>
