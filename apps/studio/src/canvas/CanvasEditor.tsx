@@ -601,6 +601,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
     return <div className={cx("cv-obj", d.tool === "comment" ? "cv-region" : `cv-obj--${d.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: d.tool === "comment" ? undefined : `calc(${d.width * 0.13}cqw) solid ${colorCss(d.stroke)}`, pointerEvents: "none" }} />;
   };
   const selBox = one && !frozen(one) ? bounds(one) : null;
+  // A viewer: what changes the canvas cannot be used and looks it (muted like a disabled control); comments stay readable.
+  const ro = locked ? { inert: true, className: "cv-readonly" } : {};
   const drawing = tool !== "select";
   const photoImg = photo && base ? <img className="cv-photo" src={base.src} alt="" draggable={false} style={{ filter: lookFilter(surface.kind === "photo" ? surface.look : undefined) }} /> : null;
   const label = (f: Frame) => (f.kind === "preset" ? presets.find((q) => q.id === f.preset)?.name ?? "preset" : f.kind === "free" ? "free-form" : "aspect");
@@ -608,10 +610,10 @@ export function CanvasEditor(props: CanvasEditorProps) {
     <div ref={root} className={cx("cv", props.hosted && "cv--hosted")}>
       <div className="cv-work">
         <EditorLayout className="cv-editor" dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { right: 340, left: 320, bottom: 260 }, panels: [
-          { id: "tools", title: "Tools", icon: "brush", slim: true, body: <div {...(locked ? { inert: true } : {})}><ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 7), { separator: true }, ...TOOLS.slice(7, 10), { separator: true }, TOOLS[10]]} /></div> },
-          { id: "layers", title: "Layers", icon: "layers", body: <PropertyList className="cv-inspector" {...(locked ? { inert: true } : {})}>{layersTab}</PropertyList> },
-          { id: "frames", title: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame", body: <PropertyList className="cv-inspector" {...(locked ? { inert: true } : {})}>{framesTab}</PropertyList> },
-          { id: "comments", title: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment", body: <PropertyList className="cv-inspector" {...(locked ? { inert: true } : {})}>{commentsTab}</PropertyList> },
+          { id: "tools", title: "Tools", icon: "brush", slim: true, body: <div {...ro}><ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 7), { separator: true }, ...TOOLS.slice(7, 10), { separator: true }, TOOLS[10]]} /></div> },
+          { id: "layers", title: "Layers", icon: "layers", body: <PropertyList {...ro} className={cx("cv-inspector", locked && "cv-readonly")}>{layersTab}</PropertyList> },
+          { id: "frames", title: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame", body: <PropertyList {...ro} className={cx("cv-inspector", locked && "cv-readonly")}>{framesTab}</PropertyList> },
+          { id: "comments", title: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment", body: <PropertyList className="cv-inspector">{commentsTab}</PropertyList> },
         ] }}
           toolbar={<Toolbar>
             <strong className="cv-title">{props.title}</strong>
@@ -632,7 +634,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
             </span>}
             <ToolbarSpacer />
             <span className="cv-zoomer"><Button size="sm" variant="quiet" icon="minus" label="Zoom out (−)" onClick={() => zoomAt(view.z / 1.25)} /><button type="button" className="cv-zoomer__now" title="Fit the canvas into the view (0)" onClick={() => setView({ z: 1, x: 0, y: 0 })}>{Math.round(view.z * 100)} %</button><Button size="sm" variant="quiet" icon="plus" label="Zoom in (+)" onClick={() => zoomAt(view.z * 1.25)} /></span>
-            <Button size="sm" variant="quiet" icon="crosshair" selected={snap} title={snap ? "Snapping is on. Click to switch it off (or hold Ctrl while moving)" : "Snapping is off. Click to switch it on"} onClick={() => setSnap(!snap)}>Snap</Button>
+            <Button size="sm" variant="quiet" icon="crosshair" disabled={locked} selected={snap} title={snap ? "Snapping is on. Click to switch it off (or hold Ctrl while moving)" : "Snapping is off. Click to switch it on"} onClick={() => setSnap(!snap)}>Snap</Button>
             {photo && shownFrames.length > 1 && <Button size="sm" variant="quiet" icon="columns" selected={compare} onClick={() => { setCompare(!compare); pick(null); setSelC(null); if (!compare && mode === "full") setMode("crop"); }}>Compare</Button>}
             <Button size="sm" variant="quiet" icon="comment" selected={showC} aria-label={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} title={showC ? "Hide comments on the canvas" : "Show comments on the canvas"} onClick={() => setShowC(!showC)}>{comments.filter((c) => !c.resolved).length || ""}</Button>
             {photo && <span className={cx(compare && "cv-nofull")} title={compare ? "Full has no frame, so it is not offered while comparing" : undefined}><Segmented label="View mode" value={compare && mode === "full" ? "crop" : mode} onChange={setMode} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} /></span>}
@@ -705,13 +707,13 @@ export function CanvasEditor(props: CanvasEditorProps) {
                     {showC && comments.filter((c) => !c.resolved || showDone || c.id === selC).map((c) => { const on = selC === c.id, px = c.x + (c.w ?? 0), flip = px > 0.62; return [
                       on && c.w != null && <span key={`${c.id}r`} className="cv-region" style={{ left: `${c.x * 100}%`, top: `${c.y * 100}%`, width: `${c.w * 100}%`, height: `${(c.h ?? 0) * 100}%` }} />,
                       <button type="button" key={c.id} className={cx("cv-pin", on && "is-current", c.resolved && "is-done")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} title={`${props.nameOf(c.author)}: ${c.text} (drag to move)`} onPointerMove={move}
-                        onPointerDown={(e) => { e.stopPropagation(); if (locked) return; capture(e); act.current = { type: "pin", id: c.id, start: at(e), orig: [c.x, c.y], moved: false }; }}
+                        onPointerDown={(e) => { e.stopPropagation(); if (locked) { openC(on ? null : c.id); return; } capture(e); act.current = { type: "pin", id: c.id, start: at(e), orig: [c.x, c.y], moved: false }; }}
                         onPointerUp={() => { const a = act.current; up(); if (a?.type === "pin" && !a.moved) openC(on ? null : c.id); }}>{c.resolved ? <Icon name="check" size={12} /> : c.n}</button>,
                       on && (
                         <div key={`${c.id}t`} className={cx("cv-thread", flip && "is-left")} style={{ left: `${px * 100}%`, top: `${c.y * 100}%` }} onPointerDown={(e) => e.stopPropagation()}>
                           {[c, ...c.replies].map((m, i) => <div key={i} className="cv-msg"><span className="cv-msg__who"><i>{props.nameOf(m.author)[0]}</i><strong>{props.nameOf(m.author)}</strong><small>{when(m.at)}</small></span><p>{m.text}</p></div>)}
-                          <TextArea rows={2} value={reply} placeholder="Reply…" onInput={(e) => setReply(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && reply.trim()) { e.preventDefault(); setComments(comments.map((x) => (x.id === c.id ? { ...x, replies: [...x.replies, { author: me.id, at: new Date().toISOString(), text: reply.trim() }] } : x))); setReply(""); } }} />
-                          <div className="cv-bar"><Button size="sm" variant="quiet" icon="crop" title="Give the comment a new point or region: click or drag on the canvas" onClick={() => { setRedraw(c.id); setSelC(null); setTool("comment"); }}>{c.w != null ? "Redraw region" : "Set a region"}</Button><Button size="sm" variant="quiet" icon="check" onClick={() => { setComments(comments.map((x) => (x.id === c.id ? { ...x, resolved: !x.resolved } : x))); if (!c.resolved) setSelC(null); }}>{c.resolved ? "Reopen" : "Resolve"}</Button><span style={{ flex: 1 }} /><Button size="sm" variant="quiet" icon="trash" label="Delete the comment" onClick={() => { setComments(comments.filter((x) => x.id !== c.id)); setSelC(null); }} /></div>
+                          {!locked && <><TextArea rows={2} value={reply} placeholder="Reply…" onInput={(e) => setReply(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && reply.trim()) { e.preventDefault(); setComments(comments.map((x) => (x.id === c.id ? { ...x, replies: [...x.replies, { author: me.id, at: new Date().toISOString(), text: reply.trim() }] } : x))); setReply(""); } }} />
+                          <div className="cv-bar"><Button size="sm" variant="quiet" icon="crop" title="Give the comment a new point or region: click or drag on the canvas" onClick={() => { setRedraw(c.id); setSelC(null); setTool("comment"); }}>{c.w != null ? "Redraw region" : "Set a region"}</Button><Button size="sm" variant="quiet" icon="check" onClick={() => { setComments(comments.map((x) => (x.id === c.id ? { ...x, resolved: !x.resolved } : x))); if (!c.resolved) setSelC(null); }}>{c.resolved ? "Reopen" : "Resolve"}</Button><span style={{ flex: 1 }} /><Button size="sm" variant="quiet" icon="trash" label="Delete the comment" onClick={() => { setComments(comments.filter((x) => x.id !== c.id)); setSelC(null); }} /></div></>}
                         </div>
                       ),
                     ]; })}

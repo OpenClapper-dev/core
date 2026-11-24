@@ -176,6 +176,11 @@
 /* The editor alone in the phone and tablet app's web view (embed.tsx). */
 .cv-standalone { position: fixed; inset: 0; display: flex; background: var(--surface); }
 .cv-standalone > .cv { position: relative; inset: auto; flex: 1; }
+/* A viewer's panels that change the canvas: muted the way the design system shows a disabled control. */
+.cv-readonly, .cv-readonly * { color: var(--text-disabled) !important; }
+.cv-readonly :is(.oc-btn, .oc-input, button, input, select, textarea) { border-style: dashed; border-color: var(--border-control); background: transparent; box-shadow: none; }
+.cv-readonly :is(img, canvas, [class*="swatch"]) { opacity: .4; }
+.cv-readonly .oc-switch__track { border-style: dashed !important; border-color: var(--border-control) !important; background: transparent !important; }
 .cv-viewing { display: inline-flex; align-items: center; gap: var(--space-3); padding-inline: var(--space-3); color: var(--text-secondary); }
 .cv-eraser { position: absolute; translate: -50% -50%; border-radius: 50%; border: 1.5px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .7), inset 0 0 0 1px rgba(0, 0, 0, .4); pointer-events: none; }
 .cv-stage.is-erasing .cv-surface { cursor: none; }
