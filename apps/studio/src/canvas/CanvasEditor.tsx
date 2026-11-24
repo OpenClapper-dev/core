@@ -71,7 +71,7 @@ export interface CanvasEditorProps {
    * Who edits. This window (onStop saves, lets the canvas go and turns the window into a viewer), or not:
    * then the canvas is shown read-only as it changes; by is who edits it (null: nobody, onEdit takes it).
    */
-  access: { editing: true; onStop: () => void } | { editing: false; by: string | null; onEdit: () => void; onCopy: () => void };
+  access: { editing: true; onStop: () => void } | { editing: false; by: string | null; onEdit: () => void };
   undo?: { can: boolean; run: () => void }; redo?: { can: boolean; run: () => void };
   /** The stroke or box being drawn, as it grows (null when it ends): the editor hands it on for viewers. */
   onDraft?: (d: Draft | null) => void;
@@ -618,8 +618,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
             {access.editing
               ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the canvas go and keep watching it: someone else can edit it now" onClick={access.onStop}>Stop editing</Button>
               : <span className="cv-viewing"><Icon name="eye" size={14} /><span>{access.by === "You" ? "Editing in another window of yours" : access.by ? `${access.by} is editing` : "Nobody is editing"}</span>
-                  <Button size="sm" variant="primary" icon="edit" disabled={!!access.by} title={access.by ? "Only one can edit a canvas at a time" : "Edit the canvas: others see it read-only meanwhile"} onClick={access.onEdit}>Edit</Button>
-                  <Button size="sm" variant="quiet" icon="copy" onClick={access.onCopy}>Edit a copy</Button></span>}
+                  <Button size="sm" variant="primary" icon="edit" disabled={!!access.by} title={access.by ? "Only one can edit a canvas at a time" : "Edit the canvas: others see it read-only meanwhile"} onClick={access.onEdit}>Edit</Button></span>}
             <Button size="sm" variant="quiet" icon="undo" label="Undo (Ctrl+Z)" disabled={locked || !props.undo?.can} onClick={() => props.undo?.run()} /><Button size="sm" variant="quiet" icon="redo" label="Redo (Ctrl+Shift+Z)" disabled={locked || !props.redo?.can} onClick={() => props.redo?.run()} />
             {drawing && <span className="cv-toolopts"><span className="oc-meta">{TOOLS.find((t) => t.id === tool)!.label}</span>
               {tool === "eraser" && <><Segmented label="Eraser" value={eraseMode} onChange={(v) => setEraseMode(v as EraseMode)} options={[{ value: "partial", label: "Cuts strokes" }, { value: "whole", label: "Whole objects" }]} /><span className="cv-zoom" style={{ width: 150 }}><Slider min={6} max={80} step={2} value={eraseSize} onChange={setEraseSize} /><b className="oc-num">{eraseSize}</b></span></>}

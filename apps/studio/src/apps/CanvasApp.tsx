@@ -18,7 +18,7 @@ import { usePeople } from "../people";
 import { PresetFlow, type draftOf } from "../PresetFlow";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
-import { launch, type AppProps } from "./registry";
+import type { AppProps } from "./registry";
 
 const SAVE_AFTER_MS = 700;
 const RENEW_MS = 20_000;
@@ -221,16 +221,12 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted, li
     schedule();
     send({ doc: true });
   };
-  const copy = async () => {
-    try { const c = await api.duplicateFile(file.id, { id: crypto.randomUUID() }); await loadRoot({ project: projectId }); launch({ app: "canvas", resource: { type: "canvas", id: c.id }, title: c.name }); }
-    catch (e) { toastError(e); }
-  };
 
   return (
     <>
       <CanvasEditor body={doc} rev={rev} base={base} presets={presets} photos={photos} photoSrc={(pid) => imageUrl(pid, "preview")}
         onChange={change} onBase={setBase} active={active} hosted={hosted} title={file.name} me={me} nameOf={nameOf}
-        access={editing ? { editing: true, onStop: () => void stop() } : { editing: false, by: lockedBy, onEdit: () => void take(), onCopy: () => void copy() }}
+        access={editing ? { editing: true, onStop: () => void stop() } : { editing: false, by: lockedBy, onEdit: () => void take() }}
         onDraft={(d) => send({ draft: d })} remoteDraft={editing ? null : remoteDraft}
         undo={{ can: history.current.past.length > 0, run: () => jump("past") }} redo={{ can: history.current.future.length > 0, run: () => jump("future") }}
         onNewPreset={(start, then) => setFlow({ start: start ? { format: start.format, formatName: null, multiplier: start.multiplier, squeeze: start.squeeze, delivery: start.delivery, lenses: "primes", primes: [start.focal] } : undefined, done: (pid, body) => then(pid, start && focalsOf(body.lenses).includes(start.focal) ? start.focal : focalsOf(body.lenses)[0]) })}
