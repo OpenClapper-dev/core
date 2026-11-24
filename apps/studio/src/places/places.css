@@ -1,0 +1,19 @@
+/* Maps: the browser's map view and the pin editor (docs/features/shots.md, "Places"). */
+.pl-view { position: relative; width: 100%; height: 100%; min-height: 240px; }
+.pl-map { position: absolute; inset: 0; background: var(--surface-sunken); font: inherit; }
+.pl-map--edit { position: relative; inset: auto; height: min(60vh, 460px); border-radius: var(--radius-control); cursor: crosshair; }
+.pl-dialog { width: min(760px, calc(100vw - 48px)); }
+.pl-coords { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.pl-note { position: absolute; left: 56px; top: var(--space-4); z-index: 500; padding: 2px var(--space-4); border-radius: var(--radius-control); background: var(--surface); color: var(--text-secondary); font-size: var(--font-size-xs); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+/* Dark theme: the tiles are turned dark too, so the map does not glare. */
+[data-theme="dark"] .pl-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
+.pl-map .leaflet-control-attribution { background: var(--surface); color: var(--text-secondary); }
+.pl-map .leaflet-control-attribution a { color: var(--text); }
+.pl-map .leaflet-bar a { background: var(--surface); color: var(--text); border-color: var(--border-divider); }
+.pl-map .leaflet-popup-content-wrapper, .pl-map .leaflet-popup-tip { background: var(--surface-raised, var(--surface)); color: var(--text); }
+.pl-pop { display: grid; gap: var(--space-2); justify-items: start; font: var(--font-size-sm)/1.4 var(--font-sans); }
+.pl-pop small { color: var(--text-secondary); font: var(--font-size-2xs)/1.4 var(--font-mono); }
+.pl-pin { display: block; width: 22px; height: 30px; background: var(--c); clip-path: path("M11 30C11 30 0 17.5 0 11A11 11 0 0 1 22 11C22 17.5 11 30 11 30Z"); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .5)); }
+.pl-pin::after { content: ""; position: absolute; left: 7px; top: 7px; width: 8px; height: 8px; border-radius: 50%; background: var(--over-paper); }
+.pl-pin { position: relative; }
+.pl-pin.is-on { transform: scale(1.25); transform-origin: 50% 100%; }

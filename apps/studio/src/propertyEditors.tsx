@@ -6,7 +6,9 @@ import { AppIcon, Button, Combobox, colorCss, DropdownMenu, Icon, NumberInput, P
 import { allowedOptions, isEmptyValue, shownOn, valueError, type PropertyDef } from "@openclapper/model";
 import type { FileRec } from "./api";
 import { kindOf } from "./fileKinds";
-import { toastError } from "./hosts";
+import { openFile } from "./fileOps";
+import { openDialog, toastError } from "./hosts";
+import { PinDialog } from "./places/map";
 import { setValues, type Definition } from "./props";
 
 const MIXED = Symbol("mixed");
@@ -48,7 +50,13 @@ function Editor({ def, value, parent, files, onChange }: { def: PropertyDef; val
     case "date": return <CommitText value={typeof v === "string" ? v : ""} placeholder={hint ?? "YYYY-MM-DD"} invalid={(t) => !!valueError(def, t.trim())} onCommit={(t) => onChange(t.trim() || null)} />;
     case "position": {
       const p = v as { lat: number; lng: number } | null;
-      return <CommitText value={p ? `${p.lat}, ${p.lng}` : ""} placeholder={hint ?? "Latitude, longitude or a map link"} invalid={(t) => !parsePosition(t)} onCommit={(t) => onChange(t.trim() ? parsePosition(t) : null)} />;
+      // Typed (or pasted from a map link), or placed on a map.
+      return (
+        <span className="st-inline">
+          <CommitText value={p ? `${p.lat}, ${p.lng}` : ""} placeholder={hint ?? "Latitude, longitude or a map link"} invalid={(t) => !parsePosition(t)} onCommit={(t) => onChange(t.trim() ? parsePosition(t) : null)} />
+          <Button size="sm" variant="quiet" icon="pin" label={p ? "Move the pin on a map" : "Place a pin on a map"} onClick={() => openDialog((close) => <PinDialog title="Position on the map" value={mixed ? null : p} onSave={(at) => { close(); onChange(at); }} onClose={close} />)} />
+        </span>
+      );
     }
     case "yesno": return <Select size="sm" value={v === true ? "yes" : v === false ? "no" : ""} onChange={(x) => onChange(x === "" ? null : x === "yes")} options={[{ value: "", label: hint ?? "–" }, { value: "yes", label: "Yes" }, { value: "no", label: "No" }]} />;
     case "choice": {
@@ -77,7 +85,11 @@ function Editor({ def, value, parent, files, onChange }: { def: PropertyDef; val
         <span className="st-tags">
           {mixed && <span className="st-note">Mixed</span>}
           {list.map((id) => { const f = byId.get(id); const k = f ? kindOf(f.type) : null; return (
-            <button type="button" key={id} className="st-tag" title="Remove" onClick={() => onChange(list.filter((x) => x !== id))}>{k && <AppIcon glyph={k.glyph} color={k.color} size={16} />}{f?.name ?? "Missing file"}<Icon name="close" size={12} /></button>
+            // The chip opens the file; its cross takes it out of the value.
+            <span key={id} className="st-tag st-tag--ref">
+              <button type="button" className="st-tag__open" title={f ? `Open ${f.name}` : "The file is gone"} disabled={!f} onClick={() => f && openFile(f, byId)}>{k && <AppIcon glyph={k.glyph} color={k.color} size={16} />}{f?.name ?? "Missing file"}</button>
+              <button type="button" className="st-tag__x" aria-label={`Remove ${f?.name ?? "the missing file"}`} onClick={() => onChange(list.filter((x) => x !== id))}><Icon name="close" size={12} /></button>
+            </span>
           ); })}
           {(def.many || !list.length) && (
             <Combobox size="sm" value="" placeholder={candidates.length ? `Pick ${targets.length === 1 ? `a ${kindOf(targets[0]).label.toLowerCase()}` : "a file"}` : `No ${targets.length === 1 ? kindOf(targets[0]).plural.toLowerCase() : "files"} yet`}

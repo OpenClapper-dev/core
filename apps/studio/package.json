@@ -14,10 +14,12 @@
     "@openclapper/design": "workspace:*",
     "@openclapper/fov-math": "workspace:*",
     "@openclapper/model": "workspace:*",
+    "leaflet": "1.9.4",
     "preact": "^10.27.0"
   },
   "devDependencies": {
     "@preact/preset-vite": "^2.10.0",
+    "@types/leaflet": "^1.9.22",
     "vite": "^7.0.0"
   }
 }

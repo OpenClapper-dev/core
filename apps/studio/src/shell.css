@@ -110,6 +110,11 @@ body.wm-gesture { user-select: none; }
 .st-tag { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 0 4px 0 6px; border: var(--border-w) solid var(--border-divider); border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: var(--font-size-xs); line-height: 18px; white-space: nowrap; cursor: pointer; }
 .st-tag:hover { border-color: var(--border-control); }
 .st-tag--static { cursor: default; padding-right: 6px; }
+/* A reference: the chip opens the file, its cross takes it out of the value. */
+.st-tag--ref { padding: 0; gap: 0; cursor: default; }
+.st-tag--ref button { display: inline-flex; align-items: center; gap: 5px; height: 18px; padding: 0 4px 0 6px; border: 0; border-radius: 10px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.st-tag--ref button:hover:not(:disabled) { background: var(--surface-hover); }
+.st-tag--ref .st-tag__x { padding: 0 4px; }
 .st-tag i { flex: none; width: 7px; height: 7px; border-radius: 50%; }
 /* The filter builder above the list (FilterBuilder.tsx). */
 .st-filterbar { display: grid; gap: var(--space-4); margin: 0 0 var(--space-5); padding: var(--space-5); border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-card); background: var(--surface-sunken); }

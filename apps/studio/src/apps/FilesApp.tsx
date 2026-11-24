@@ -19,6 +19,7 @@ import { dropStuck, importFiles, imageUrl, retryUploads, useUploads } from "../m
 import { usePeople } from "../people";
 import { CollectionSections, PhotoFactsSections, thumbOf } from "../photoParts";
 import { CoverArt, coverOf } from "../shots/Cover";
+import { MapView, positionOf } from "../places/map";
 import { presetsIn } from "../optics";
 import { usePrefs, type Pin } from "../prefs";
 import { useProjects } from "../projects";
@@ -27,11 +28,13 @@ import { pinsOf, togglePin as togglePinIn } from "../wm/Taskbar";
 import { BinView } from "./BinView";
 import { appDef, launch, type AppProps } from "./registry";
 
-type View = "list" | "grid" | "board";
+type View = "list" | "grid" | "board" | "map";
 type SortKey = "name" | "type" | "created" | "taken";
 interface Sort { key: SortKey; dir: "asc" | "desc" }
 /** Which of the browser's entries this window is (docs/rewrite/09-shells.md): the same browser, set to all files or to photos. */
-export type Entry = "files" | "media" | "shots";
+export type Entry = "files" | "media" | "shots" | "sets" | "locations";
+/** The entries set to one file type: the shot list, the sets, the locations. */
+const TYPED: Partial<Record<Entry, string>> = { shots: "shot", sets: "set", locations: "location" };
 /** Media's side bar: everything, the collections, the photos in none, or one collection's photos. */
 type MediaNav = "all" | "collections" | "loose" | `coll:${string}`;
 interface Launch { folder?: string | null; home?: boolean; bin?: boolean; collection?: string; filter?: string }
@@ -57,8 +60,12 @@ export const mediaFromRoute = (rest: string): { state: Launch } => ({ state: { c
 
 /** The Media app: the one browser, set to photos and collections. */
 export const MediaApp = (p: AppProps) => <FilesApp {...p} entry="media" />;
-/** The Shots app: the one browser, set to shots (properties only until step B6). */
+/** The Shots app: the one browser, set to shots. */
 export const ShotsApp = (p: AppProps) => <FilesApp {...p} entry="shots" />;
+/** The Sets app: the one browser, set to sets (the places in the story). */
+export const SetsApp = (p: AppProps) => <FilesApp {...p} entry="sets" />;
+/** The Locations app: the one browser, set to locations (the real places), with the map. */
+export const LocationsApp = (p: AppProps) => <FilesApp {...p} entry="locations" />;
 
 /**
  * The file browser (docs/rewrite/ux-1-files.md) in its entries: **Files**, the folder trees of a
@@ -68,7 +75,10 @@ export const ShotsApp = (p: AppProps) => <FilesApp {...p} entry="shots" />;
  */
 export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }: AppProps & { entry?: Entry }) {
   const media = entry === "media";
-  const shotsOnly = entry === "shots";
+  // Shots, Sets, Locations: the browser set to one type, flat, with that type's properties as columns.
+  const only = TYPED[entry] ?? null;
+  const shotsOnly = !!only;
+  const onlyKind = only ? kindOf(only) : null;
   const asked = win.state as Launch | undefined;
   const [home, setHome] = useState(!media && !!asked?.home);
   const [folder, setFolder] = useState<string | null>(asked?.folder ?? null);
@@ -101,7 +111,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const setBoard = (b: BoardLayout) => { setBoardState(b); remember(`${entry}.board`, b); };
   const [types, setTypes] = useState<string[]>([]);
   const [sort, setSortState] = useState<Sort>(() => remembered(`${entry}.sort`, media ? { key: "taken", dir: "desc" } : { key: "name", dir: "asc" }));
-  const [view, setViewState] = useState<View>(() => remembered(`${entry}.view`, media ? "grid" : "list"));
+  const [view, setViewState] = useState<View>(() => remembered(`${entry}.view`, media ? "grid" : entry === "locations" ? "map" : "list"));
   const defs: Definition[] = useMemo(() => definitionsIn(files), [files]);
   const [spread, setSpreadState] = useState<boolean>(() => remembered("media.spread", false));
   const setSort = (s: Sort) => { setSortState(s); remember(`${entry}.sort`, s); };
@@ -135,7 +145,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const mark = prefs.collectionMark;
 
   useEffect(() => {
-    if (shotsOnly) { setTitle(`Shots · ${savedFilter ? savedFilter.name : rootLabel}`); setRoute(savedFilter ? `filter/${savedFilter.id}` : ""); return; }
+    if (shotsOnly) { setTitle(`${onlyKind!.plural} · ${savedFilter ? savedFilter.name : rootLabel}`); setRoute(savedFilter ? `filter/${savedFilter.id}` : ""); return; }
     if (savedFilter && !media) { setTitle(`Files · ${savedFilter.name}`); setRoute(`filter/${savedFilter.id}`); return; }
     if (media) { setTitle(`Media · ${openColl ? openColl.name : mnav === "collections" ? "Collections" : mnav === "loose" ? "Not in a collection" : rootLabel}`); setRoute(openColl ? openColl.id : ""); return; }
     setTitle(nav === "bin" ? "Files · Recycle bin" : `Files · ${path.length ? path[path.length - 1].name : rootLabel}`);
@@ -152,7 +162,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       out = mnav === "collections" ? all.filter((f) => f.type === "collection" && !f.internal_of)
         : mnav === "loose" ? loose
         : spread || q ? photos : [...all.filter((f) => f.type === "collection" && !f.internal_of), ...loose];
-    } else if (shotsOnly) out = all.filter((f) => f.type === "shot" && !f.internal_of);
+    } else if (shotsOnly) out = all.filter((f) => f.type === only && !f.internal_of);
     else out = all.filter((f) => !f.internal_of && (flat ? !f.fixed && !SETTINGS_TYPES.includes(f.type) : f.container === here));
     if (types.length) out = out.filter((f) => types.includes(f.type));
     if (q) out = out.filter((f) => matchesSearch(q, texts(f)));
@@ -183,7 +193,9 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       toast("Saved as a filter: open it again from where it sits");
     } catch (e) { toastError(e); }
   };
-  const newShot = async () => { try { const id = crypto.randomUUID(); await store.create(root, "shot", { id, container: shotsOnly ? null : here }); setCur(id); } catch (e) { toastError(e); } };
+  /** A new shot, set or location, named by its pattern; current at once (double-click opens it). */
+  const newOf = async (type: string) => { try { const id = crypto.randomUUID(); await store.create(root, type, { id, container: shotsOnly ? null : here }); setCur(id); } catch (e) { toastError(e); } };
+  const newShot = () => newOf("shot");
   const open = (f: FileRec) => {
     if (f.type === "collection" && media) { setMnav(`coll:${f.id}`); setQ(""); clear(); return; }
     if (kindOf(f.type).holds && !media) { go({ folder: f.id }); return; }
@@ -254,7 +266,9 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     contextMenu(e, [
       !home && { id: "import", label: "Import photos…", icon: "upload", run: () => picker.current?.click() },
       !media && !shotsOnly && { id: "new", label: "New folder", icon: "folder-plus", kbd: "⇧N", run: () => void ops.newFolder(root, here) },
-      !media && !home && { id: "newshot", label: "New shot", icon: "slate", run: () => void newShot() },
+      !media && !home && (!only || only === "shot") && { id: "newshot", label: "New shot", icon: "slate", run: () => void newShot() },
+      !media && !home && (!only || only === "set") && { id: "newset", label: "New set", icon: "home", run: () => void newOf("set") },
+      !media && !home && (!only || only === "location") && { id: "newlocation", label: "New location", icon: "location", run: () => void newOf("location") },
       !media && !home && !shotsOnly && { id: "newcanvas", label: "New canvas", icon: "brush", run: () => void ops.newCanvas(root, here) },
       { separator: true },
       { id: "all", label: "Select everything listed", icon: "check", kbd: "⌘A", disabled: !ids.length, run: () => setSel(ids) },
@@ -307,6 +321,9 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     clear: () => { if (sel.length || cur) clear(); else return false; },
   }), nav === "all");
 
+  // The map is offered where it can show something: Locations always, elsewhere once a file here has a position.
+  const mapped = !home && (entry === "locations" || items.some((f) => positionOf(f, defs)));
+  const shownView: View = view === "map" && !mapped ? "list" : view;
   // ---- Sidebar.
   const collections = all.filter((f) => f.type === "collection" && !f.internal_of).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   // Saved filters of the project: opened in this window, where they list what matches now.
@@ -316,7 +333,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const sidebar = shotsOnly ? (
     <div className="st-side">
       <SidebarNav value={savedFilter ? `filter:${savedFilter.id}` : "all"} onChange={(id) => (id === "all" ? (resetFilter(), clear()) : pickFilter(id))} sections={[
-        { items: [{ id: "all", label: "All shots", icon: "slate", count: all.filter((f) => f.type === "shot").length }] },
+        { items: [{ id: "all", label: `All ${onlyKind!.plural.toLowerCase()}`, icon: onlyKind!.glyph, count: all.filter((f) => f.type === only && !f.internal_of).length }] },
         ...filterNav,
       ]} />
     </div>
@@ -356,10 +373,10 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       {!media && !shotsOnly && allTypes.length > 1 && <DropdownMenu size="sm" variant="quiet" icon="filter" label={types.length ? count(types.length, "type") : "Types"} align="end"
         items={allTypes.map((t) => ({ id: t.type, label: t.plural, checked: types.includes(t.type) }))} onSelect={(id) => setTypes(types.includes(id) ? types.filter((t) => t !== id) : [...types, id])} />}
       {media && mnav === "all" && !q && <Segmented label="Collections" value={spread ? "spread" : "stack"} onChange={(v) => setSpread(v === "spread")} options={[{ value: "stack", icon: "layers", title: "Collections as one tile" }, { value: "spread", icon: "grid", title: "Collections spread out" }]} />}
-      <Segmented label="View" value={view} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }, ...(!home ? [{ value: "board", icon: "columns" as const, title: "Board: lanes by a property" }] : [])]} />
+      <Segmented label="View" value={shownView} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }, ...(!home ? [{ value: "board", icon: "columns" as const, title: "Board: lanes by a property" }] : []), ...(mapped ? [{ value: "map", icon: "pin" as const, title: "Map: the files with a position" }] : [])]} />
       {!home && !shotsOnly && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
-      {shotsOnly && <Button size="sm" variant="primary" icon="plus" onClick={() => void newShot()}>New shot</Button>}
-      {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }, { id: "canvas", label: "Canvas", icon: "brush" as const }] : [])]} onSelect={(id) => void (id === "shot" ? newShot() : id === "canvas" ? ops.newCanvas(root, here) : ops.newFolder(root, here))} />}
+      {shotsOnly && <Button size="sm" variant="primary" icon="plus" onClick={() => void newOf(only!)}>New {onlyKind!.label.toLowerCase()}</Button>}
+      {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }, { id: "set", label: "Set", icon: "home" as const }, { id: "location", label: "Location", icon: "location" as const }, { id: "canvas", label: "Canvas", icon: "brush" as const }] : [])]} onSelect={(id) => void (id === "shot" || id === "set" || id === "location" ? newOf(id) : id === "canvas" ? ops.newCanvas(root, here) : ops.newFolder(root, here))} />}
       <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={resetPanels} />
       <input ref={picker} type="file" accept={IMAGE_TYPES} multiple hidden onChange={(e) => { const t = e.currentTarget; if (t.files?.length) importAll(t.files); t.value = ""; }} />
     </Toolbar>
@@ -397,7 +414,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     return <span className="st-name">{thumb ? <img className="st-mini" src={thumb} alt="" loading="lazy" /> : icon(f, 20)}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}{up && <UploadBadge state={up} />}</span>;
   };
   // The Shots list shows the shot properties as columns: the shot list as a table.
-  const columnDefs = shotsOnly ? defs.filter((d) => d.def.attached.some((a) => a.type === "shot" && !a.hidden)) : [];
+  const columnDefs = shotsOnly ? defs.filter((d) => d.def.attached.some((a) => a.type === only && !a.hidden)) : [];
   const valueCell = (d: Definition, f: FileRec) => {
     const v = f.values?.[d.id];
     if (v === undefined) return <span className="st-note">–</span>;
@@ -411,8 +428,9 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const main = error && !files ? <EmptyState icon="cloud-off" title="Could not load the files" action={<Button onClick={() => void store.loadRoot(root).catch(toastError)}>Try again</Button>}>{error}</EmptyState>
     : !files ? null
     : !items.length ? empty
-    : view === "board" && !home ? <Board projectId={projectId} items={items} defs={defs} layout={board} onLayout={setBoard} selected={sel} card={card} />
-    : view === "list" ? (
+    : shownView === "map" ? <MapView items={items} defs={defs} current={cur} onCurrent={setCur} onOpen={open} />
+    : shownView === "board" && !home ? <Board projectId={projectId} items={items} defs={defs} layout={board} onLayout={setBoard} selected={sel} card={card} />
+    : shownView === "list" ? (
       <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => rowDrag(map.get(id)!)}
         columns={media
           ? [{ key: "name", label: "Name", sortable: true }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 130 }, { key: "size", label: "Size", numeric: true, width: 110 }]
