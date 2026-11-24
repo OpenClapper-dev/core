@@ -20,7 +20,8 @@ const nameTaken = (e: unknown) => e instanceof ApiError && e.status === 409;
 export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const asked = (win.state as { tab?: string } | undefined)?.tab;
   const [tab, setTab] = useState<Tab>(TABS.includes(asked as Tab) ? (asked as Tab) : "general");
-  useEffect(() => { if (TABS.includes(asked as Tab)) setTab(asked as Tab); }, [win.stateSeq]);
+  // Launched again (a link, the palette): the tab it names, or the first one.
+  useEffect(() => { if (win.stateSeq) setTab(TABS.includes(asked as Tab) ? (asked as Tab) : TABS[0]); }, [win.stateSeq]);
   const { list } = useProjects();
   const user = useUser();
   const projects = list ?? [];

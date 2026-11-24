@@ -8,7 +8,7 @@ import { clearFiles } from "../files";
 import { Hosts, prompt, toast, toastError, type MenuEntry } from "../hosts";
 import { envOf, useInstance } from "../instance";
 import { bind, useKeys } from "../keys";
-import { usePrefs } from "../prefs";
+import { forgetPrefs, loadPrefs, usePrefs } from "../prefs";
 import { setProjectId, switchProject, useProjectId } from "../project";
 import { clearProjects, loadProjects, saveProject, useProjects } from "../projects";
 import { THEMES, setTheme, useTheme } from "../theme";
@@ -56,6 +56,9 @@ export function Shell() {
   const [busy, setBusy] = useState(false);
   const [wrong, setWrong] = useState<string | null>(null);
   useEffect(() => { void boot(); }, []);
+  // The preferences are the account's: read when someone is signed in, forgotten when nobody is.
+  const who = user.status === "signed-in" ? user.me.user.id : null;
+  useEffect(() => { if (who) void loadPrefs(who); else if (user.status === "signed-out") forgetPrefs(); }, [who, user.status]);
   if (user.status === "signed-in") return <SignedIn key={user.me.user.id} />;
   if (user.status === "error") return <Boot><EmptyState icon="cloud-off" title="Could not reach OpenClapper" action={<Button onClick={() => void boot()}>Try again</Button>}>{user.message}</EmptyState></Boot>;
   if (user.status === "checking") return <Boot><Spinner /></Boot>;

@@ -85,3 +85,13 @@ export const restoreFiles = (ids: string[]) => send<{ restored: string[]; to_top
 export const purgeFiles = (ids: string[]) => send<unknown>("POST", "/api/files/purge", { ids });
 export const emptyBin = (r: Root) => send<{ purged: number }>("DELETE", `/api/bin?${rootQuery(r)}`);
 export const duplicateFile = (id: string, body: { id: string; name?: string; container?: string | null }) => send<{ file: FileRec }>("POST", `/api/files/${id}/duplicate`, body).then((x) => x.file);
+
+export interface Workspace { id: string; name: string; role: WorkspaceRole; personal: boolean; member_count: number; project_count: number; created_at: string }
+export interface Member { user_id: string; email: string; name: string | null; role: WorkspaceRole; created_at: string }
+export const fetchWorkspaces = () => get<{ workspaces: Workspace[] }>("/api/workspaces").then((r) => r.workspaces);
+export const putWorkspace = (id: string, name: string) => send<unknown>("PUT", `/api/workspaces/${id}`, { name });
+export const fetchMembers = (workspaceId: string) => get<{ members: Member[] }>(`/api/workspaces/${workspaceId}/members`).then((r) => r.members);
+export const putMember = (workspaceId: string, email: string, role: Exclude<WorkspaceRole, "owner">) => send<unknown>("POST", `/api/workspaces/${workspaceId}/members`, { email, role });
+export const deleteMember = (workspaceId: string, userId: string) => send<unknown>("DELETE", `/api/workspaces/${workspaceId}/members/${userId}`);
+/** 204 on success; a wrong current password is 403 (not 401, which would read as signed out). */
+export const changePassword = (current: string, password: string) => send<unknown>("POST", "/api/auth/password", { current, password });

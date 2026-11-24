@@ -43,7 +43,7 @@ A file as the API gives it:
 | --- | --- |
 | `id` | UUID, chosen by the client |
 | `project_id`, `home` | Its root: a project, or (`project_id: null`, `home: true`) the caller's account home |
-| `type` | A registered file type. Step B0 has `folder` and `shortcut`; each build step adds the types it builds |
+| `type` | A registered file type. So far `folder`, `shortcut` and `preferences` (a person's preferences, in their account home); each build step adds the types it builds |
 | `name` | Free text, up to 120 characters, not unique |
 | `container` | The folder or collection it sits in; `null` at the top level |
 | `internal_of` | The file it was made inside ([internal files](rewrite/i1-interjection.md)); such a file sits in no container and is left out of lists |

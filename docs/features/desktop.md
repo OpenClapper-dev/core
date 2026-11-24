@@ -49,11 +49,17 @@ An app declares its name, glyph and colour, tier, whether it is one window in al
 | Files | `apps/FilesApp.tsx` | The file browser: folders of the project and of the account home ([files](files.md)) |
 | Recycle bin | `apps/BinApp.tsx` | What was deleted: restore, delete permanently, empty |
 | Project | `apps/ProjectApp.tsx` | This project (name, facts, delete) and all projects (open, new, rename, delete). Properties, naming patterns and extensions join with their steps |
-| Settings | `apps/SettingsApp.tsx` | Appearance (theme, taskbar), account (who is signed in, workspaces, sign out), shortcuts, about |
+| Settings | `apps/SettingsApp.tsx`, `apps/AccountPage.tsx` | Appearance (theme, taskbar, the bin on the desktop), Account (who is signed in, change password, workspaces with members and roles), shortcuts, about |
 
 ## Preferences (`prefs.ts`, `theme.ts`)
 
-Taskbar position, alignment and pins, the places of the desktop icons and whether the bin has one are one preferences object behind `prefs.ts`. For now it is kept in the browser; the last part of step B1 moves it into a file of the account home, so it follows the account ([09 · shells](../rewrite/09-shells.md)). The theme is `localStorage["theme"]` (`light` | `dark`, absent: as the system) and is set before the first paint by the inline script of `index.html`.
+Theme, taskbar position and alignment, the pins, the places of the desktop icons and whether the bin has one are the person's **preferences**: one file of the type `preferences` in their account home ([09 · shells](../rewrite/09-shells.md)), so they follow the account to every browser. `prefs.ts` is the only module that knows where they are kept:
+
+- On sign-in the copy this browser kept for the account is used at once, then the account's file is read and wins. An account without one gets it on first sign-in.
+- A change is saved 600 ms later. When the server cannot be reached the change stays in the browser's copy and Settings › Appearance says so; it is saved when the server answers again.
+- Window layouts are not preferences: they depend on the screen and stay with the browser.
+- The theme is also `localStorage["theme"]` (`light` | `dark`, absent: as the system), read by the inline script of `index.html` before the first paint.
+- The file shows in Files under the account home; opening it opens Settings.
 
 ## URL and keys
 

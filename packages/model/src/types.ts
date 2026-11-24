@@ -38,3 +38,41 @@ export const SHORTCUT: FileType = {
 
 registerFileType(FOLDER);
 registerFileType(SHORTCUT);
+
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const oneOf = (v: unknown, list: readonly string[]) => typeof v === "string" && list.includes(v);
+
+/** What a person's preferences may hold; every key is optional, a missing one means the default. */
+const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
+  theme: (v) => oneOf(v, ["auto", "light", "dark"]),
+  taskbarEdge: (v) => oneOf(v, ["bottom", "top", "left", "right"]),
+  taskbarAlign: (v) => oneOf(v, ["start", "center"]),
+  binOnDesktop: (v) => typeof v === "boolean",
+  // The taskbar's pins per project: apps by id, files by id.
+  pins: (v) => isRecord(v) && Object.entries(v).every(([project, list]) => UUID.test(project) && Array.isArray(list) && list.length <= 60
+    && list.every((p) => isRecord(p) && Object.keys(p).length === 1 && (typeof p.app === "string" ? APP_ID.test(p.app) : typeof p.file === "string" && UUID.test(p.file)))),
+  // Where each desktop icon sits, per project: a file's id (or "bin") to its cell of the icon grid.
+  icons: (v) => isRecord(v) && Object.entries(v).every(([project, cells]) => UUID.test(project) && isRecord(cells) && Object.keys(cells).length <= 500
+    && Object.entries(cells).every(([id, c]) => (id === "bin" || UUID.test(id)) && isRecord(c) && Number.isInteger(c.c) && Number.isInteger(c.r) && (c.c as number) >= 0 && (c.r as number) >= 0 && (c.c as number) < 1000 && (c.r as number) < 1000)),
+};
+
+/**
+ * A person's preferences (docs/rewrite/09-shells.md): one file in their account home, so theme,
+ * taskbar, pins and the places of the desktop's icons follow the account to every browser. Window
+ * layouts are not in it: they depend on the screen and stay with the browser.
+ */
+export const PREFERENCES: FileType = {
+  type: "preferences", label: "Preferences", plural: "Preferences", roots: ["home"], version: 1,
+  empty: () => ({}),
+  check(body) {
+    for (const [k, v] of Object.entries(body)) {
+      const ok = PREFERENCE_RULES[k];
+      if (!ok) return `preferences have no "${k}"`;
+      if (!ok(v)) return `${k} is not valid`;
+    }
+    return null;
+  },
+};
+
+registerFileType(PREFERENCES);

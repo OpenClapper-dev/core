@@ -10,6 +10,7 @@ import { appDef } from "./apps/registry";
 const LOOK: Record<string, { glyph: IconName; color: number }> = {
   folder: { glyph: "folder", color: 5 },
   shortcut: { glyph: "shortcut", color: 0 },
+  preferences: { glyph: "settings", color: 0 },
 };
 
 export interface Kind { label: string; plural: string; glyph: IconName; color: number; holds: boolean }
