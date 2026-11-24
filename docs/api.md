@@ -86,6 +86,7 @@ A new project starts with the default properties in its Settings folder (`PUT /a
 | --- | --- | --- |
 | POST | `/api/files/:id/lock` | `{ holder }` (the editing window's token) → `{ lock: { by, until } }`: taken when free, run out or this window's; renewed the same way (it holds 60 s). `423` with `lock` when someone else holds it. Lockable types only (a canvas) |
 | DELETE | `/api/files/:id/lock?holder=` | Lets go; only the holder's call changes anything. `204` |
+| GET | `/api/canvases/:id/live?holder=` | WebSocket (`426` without the upgrade) to the canvas's `CanvasRoom` (`live.ts`): the editor when the window `holder` holds the lock, else a viewer (viewer access is enough). `409` when the project's `canvas_live` is `gradual`. Editor sends `doc { body, base }`, `draft { draft }`, `saved`, `held`; viewers get those and `editor { by }` (a user id or null). Other messages, and anything a viewer sends, are dropped |
 | PUT | `/api/canvases/:id/render`, `/thumbnail` | The body is the image (PNG, JPEG, WebP; 12 MB and 600 KB). Replaces the one stored |
 | GET | `/api/web?to=<path>` | The bearer session (the phone's) as the cookie of the same session, and a `302` to that path of this site (for the Studio in the phone's web view). `400` for a path that is not of this site or without a bearer token |
 | GET | `/api/canvases/:id/image?size=render\|thumbnail` | Default `render`. An ETag; with `?v=` (the file's `updated_at`) cached for good, else revalidated. `404` until made |

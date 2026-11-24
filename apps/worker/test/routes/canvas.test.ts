@@ -92,6 +92,31 @@ describe("live updates", () => {
     expect(await live()).toBe("gradual");
     await ok(api(u.token, "PUT", `/api/projects/${project}`, { name: `Q ${project}`, canvas_live: "often" }), 400);
   });
+
+  test("the live socket: the lock's window is the editor, others watch; what the editor sends reaches them", async () => {
+    await newProject();
+    const c = uuid();
+    await put(c, { type: "canvas", project_id: project, body: { surface: { kind: "blank", aspect: 1.5, color: 0 }, objects: [], frames: [], picture: null, linkCentres: true, comments: [] } }, 201);
+    const live = (holder: string) => api(u.token, "GET", `/api/canvases/${c}/live?holder=${holder}`, undefined, { Upgrade: "websocket" });
+    expect((await api(u.token, "GET", `/api/canvases/${c}/live?holder=wviewer000001`)).status).toBe(426);
+    expect((await api(other.token, "GET", `/api/canvases/${c}/live?holder=wviewer000001`, undefined, { Upgrade: "websocket" })).status).toBe(404);
+    await ok(api(u.token, "POST", `/api/files/${c}/lock`, { holder: "weditor000001" }));
+    const inbox: unknown[] = [];
+    const viewer = (await live("wviewer000001")).webSocket!;
+    viewer.accept();
+    viewer.addEventListener("message", (e) => { inbox.push(JSON.parse(String(e.data))); });
+    const editor = (await live("weditor000001")).webSocket!;
+    editor.accept();
+    const body = { surface: { kind: "blank", aspect: 1.5, color: 0 }, objects: [], frames: [], picture: null, linkCentres: true, comments: [] };
+    editor.send(JSON.stringify({ type: "doc", body, base: null }));
+    viewer.send(JSON.stringify({ type: "doc", body: { forged: true }, base: null }));
+    editor.send(JSON.stringify({ type: "draft", draft: null }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(inbox).toEqual([{ type: "editor", by: null }, { type: "editor", by: u.id }, { type: "doc", body, base: null }, { type: "draft", draft: null }]);
+    editor.close(1000); viewer.close(1000);
+    await ok(api(u.token, "PUT", `/api/projects/${project}`, { name: `P ${project}`, canvas_live: "gradual" }));
+    expect((await live("wviewer000001")).status).toBe(409);
+  });
 });
 
 describe("renders", () => {

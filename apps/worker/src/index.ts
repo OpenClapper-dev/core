@@ -18,6 +18,7 @@ export interface Env {
   SHOTS_BUCKET: R2Bucket;
   /** Live layout preview rooms, one per user (preview.ts, issue #50). */
   PREVIEW: DurableObjectNamespace<import("./preview.ts").PreviewRoom>;
+  CANVAS_LIVE: DurableObjectNamespace<import("./live.ts").CanvasRoom>;
   /** PBKDF2 iterations for new password hashes (password.ts); default and maximum 100 000. */
   PBKDF2_ITERATIONS?: string;
   /** Which instance this is when it is not production ("staging"): shown by the Studio so the two are never mixed up. */
@@ -25,6 +26,7 @@ export interface Env {
 }
 
 export { PreviewRoom } from "./preview.ts";
+export { CanvasRoom } from "./live.ts";
 
 export interface Ctx {
   request: Request;
