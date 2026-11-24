@@ -28,6 +28,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/capture.md](features/capture.md) | Phone camera: real lenses, what a capture produces, import, the upload queue |
 | [features/viewfinder-layouts.md](features/viewfinder-layouts.md) | Viewfinder layouts: the model, the Studio editor, how the phone renders them |
 | [features/review-and-tagging.md](features/review-and-tagging.md) | Tags (light model, INT/EXT, weather, location, spot), the shot view, Metadata board, History on the phone, view modes (mask/frame/fit/raw) |
+| [features/properties.md](features/properties.md) | Properties (catalogue, values, dependent choices, references), naming patterns, search, filters (rebuild, B4) |
 | [features/extra-fields.md](features/extra-fields.md) | User-defined fields as JSON, AI import, per-project selection |
 | [features/positions.md](features/positions.md) | GPS modes (High · Low · Off), photos without a position, manual pin correction, location pins and shots synced to them |
 | [features/rig-explorer.md](features/rig-explorer.md) | Framing: re-frame a photo (other rig + lens, moved), saved framings, the root frame, Compare A / B |

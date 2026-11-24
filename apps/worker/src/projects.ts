@@ -1,13 +1,13 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
-import { clearProject, fixedFolders, liveFiles } from "./files.ts";
+import { clearProject, fixedFolders, liveFiles, NOT_SETTINGS } from "./files.ts";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces } from "./tenancy.ts";
 
 interface ProjectRow { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number }
 
-/** A project with how many live files it holds; its two fixed folders and internal files are not counted. */
+/** A project with how many live files it holds; its two fixed folders, what is in Settings and internal files are not counted. */
 const LIST_SQL = `SELECT pr.id, pr.name, pr.workspace_id, pr.created_at, pr.updated_at,
-  (SELECT count(*) FROM files f WHERE f.project_id = pr.id AND f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL) AS file_count
+  (SELECT count(*) FROM files f WHERE f.project_id = pr.id AND f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL AND ${NOT_SETTINGS("f")}) AS file_count
   FROM projects pr`;
 
 /**
@@ -23,7 +23,7 @@ export function registerProjectRoutes(r: Router<Ctx>) {
 
   // Names are unique case-insensitively within a workspace: a clash answers 409 + existing_id so the
   // client can adopt that project. A new project goes to `workspace_id` (default: the caller's own
-  // workspace) and gets its fixed folders; an existing one never changes workspace.
+  // workspace) and gets its fixed folders and the default properties; an existing one never changes workspace.
   r.on("PUT", "/api/projects/:id", async (ctx, { id }) => {
     const { env, request, tenant } = ctx;
     const pid = assertUuid(id, "id");

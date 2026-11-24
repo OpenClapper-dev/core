@@ -4,6 +4,7 @@ import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper
 import { accessFile, fileOut } from "./files.ts";
 import { assertBodySize, imageExt, preconditionFailed, sniffImageType, type ImageType } from "./images.ts";
 import type { Ctx, Env } from "./index.ts";
+import { nextName } from "./properties.ts";
 import { assertProjectRef } from "./tenancy.ts";
 
 /**
@@ -110,10 +111,12 @@ export function registerPhotoRoutes(r: Router<Ctx>) {
     const width = pixels(b.width, "width"), height = pixels(b.height, "height");
     const mediaType = typeof b.media_type === "string" && MEDIA_TYPES.includes(b.media_type) ? b.media_type : "image/jpeg";
     const taken = typeof b.taken_at === "string" && !Number.isNaN(Date.parse(b.taken_at)) ? new Date(b.taken_at).toISOString() : new Date().toISOString();
-    const name = typeof b.name === "string" && b.name.trim() ? b.name.trim().slice(0, MAX_FILE_NAME) : "Photo";
     const exif = readExif(b.exif), readout = readReadout(b.readout);
     const aov = photoAov(exif, width, height);
     const deviceId = typeof b.device_id === "string" && /^[0-9a-f-]{36}$/i.test(b.device_id) ? b.device_id.toLowerCase() : null;
+    // Without a name, the project's naming pattern for photos gives one; its photo tokens read the device and the lens.
+    const name = typeof b.name === "string" && b.name.trim() ? b.name.trim().slice(0, MAX_FILE_NAME)
+      : await nextName(env, projectId, "photo", { device: readout.model ?? null, focal: typeof exif.FocalLengthIn35mmFilm === "number" ? exif.FocalLengthIn35mmFilm : null });
     // The folder or collection it was taken into may be gone meanwhile: then it comes in at the top level.
     let container: string | null = null;
     if (typeof b.container === "string" && /^[0-9a-f-]{36}$/i.test(b.container)) {

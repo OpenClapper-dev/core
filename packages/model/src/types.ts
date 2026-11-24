@@ -3,6 +3,8 @@
  * a type that is not registered here yet cannot be saved.
  */
 import { registerFileType, type Body, type FileType, type Ref } from "./files.ts";
+import { filterError } from "./filters.ts";
+import { defaultPattern, definitionError, MAX_DIGITS } from "./properties.ts";
 
 const noKeys = (body: Body, what: string): string | null => {
   const extra = Object.keys(body);
@@ -170,3 +172,49 @@ export const DEVICE: FileType = {
 };
 
 registerFileType(DEVICE);
+
+/**
+ * A property definition (docs/rewrite/07-organisation.md, "Properties in detail"): one entry of the
+ * project's catalogue, a file in the Settings folder. Its name is the property's name; its values on
+ * files are rows of `property_values` (properties.ts has the rules).
+ */
+export const PROPERTY: FileType = {
+  type: "property", label: "Property", plural: "Properties", roots: ["project"], onlyIn: "settings", version: 1,
+  empty: () => ({ field: "text", attached: [], order: 0 }),
+  check: (body) => definitionError(body),
+};
+
+/** How new files of one type are named (04-shots.md, "Names"): a pattern with tokens and the digits of its counter. A file in Settings, one per file type. */
+export const NAMING: FileType = {
+  type: "naming", label: "Naming pattern", plural: "Naming patterns", roots: ["project"], onlyIn: "settings", version: 1,
+  empty: () => ({ for: "shot", ...defaultPattern("shot") }),
+  check(body) {
+    for (const k of Object.keys(body)) if (!["for", "pattern", "digits"].includes(k)) return `a naming pattern has no "${k}"`;
+    if (typeof body.for !== "string" || !/^[a-z][a-z0-9-]{0,39}$/.test(body.for)) return "for names a file type";
+    if (typeof body.pattern !== "string" || body.pattern.length > 80) return "pattern is a text of at most 80 characters";
+    if (!Number.isInteger(body.digits) || (body.digits as number) < 1 || (body.digits as number) > MAX_DIGITS) return `digits is 1 to ${MAX_DIGITS}`;
+    return null;
+  },
+};
+
+/** A saved query over the project's files (filters.ts); opening it lists what matches now. */
+export const FILTER: FileType = {
+  type: "filter", label: "Filter", plural: "Filters", roots: ["project"], version: 1,
+  empty: () => ({ match: "all", rules: [] }),
+  check: (body) => filterError(body),
+};
+
+/**
+ * A shot (04-shots.md): an intent, a file with properties. Step B4 brings it with properties only, so
+ * a shot list can be made and filled; its content list and progression come with step B6.
+ */
+export const SHOT: FileType = {
+  type: "shot", label: "Shot", plural: "Shots", roots: ["project"], version: 1,
+  empty: () => ({}),
+  check: (body) => noKeys(body, "shot"),
+};
+
+registerFileType(PROPERTY);
+registerFileType(NAMING);
+registerFileType(FILTER);
+registerFileType(SHOT);

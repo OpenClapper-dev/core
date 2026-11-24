@@ -1,10 +1,11 @@
 import {
-  BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, FIXED_FOLDERS, fileType, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
+  BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
   nameError, placementError, type Body, type FileType, type Ref, type RootKind,
 } from "@openclapper/model";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
 import { copyPhotos, objectsOf, removeOrphans } from "./photos.ts";
+import { nextName, refitValues, searchTexts, templateStatements, valuesOf } from "./properties.ts";
 import { assertAccess, assertProjectRef, assertRank, type Access, type Role } from "./tenancy.ts";
 
 /**
@@ -195,10 +196,14 @@ function writeRefs(env: Env, id: string, refs: Ref[]): D1PreparedStatement[] {
   return stmts;
 }
 
-/** The fixed folders of a new project, in the batch that creates it. */
+/** The fixed folders of a new project and the default property template in its Settings, in the batch that creates it. */
 export function fixedFolders(env: Env, projectId: string, userId: string): D1PreparedStatement[] {
-  return Object.entries(FIXED_FOLDERS).map(([fixed, name]) =>
-    env.DB.prepare("INSERT INTO files (id, project_id, type, name, fixed, created_by) VALUES (?1, ?2, 'folder', ?3, ?4, ?5)").bind(crypto.randomUUID(), projectId, name, fixed, userId));
+  const ids = Object.fromEntries(Object.keys(FIXED_FOLDERS).map((k) => [k, crypto.randomUUID()]));
+  return [
+    ...Object.entries(FIXED_FOLDERS).map(([fixed, name]) =>
+      env.DB.prepare("INSERT INTO files (id, project_id, type, name, fixed, created_by) VALUES (?1, ?2, 'folder', ?3, ?4, ?5)").bind(ids[fixed], projectId, name, fixed, userId)),
+    ...templateStatements(env, projectId, ids.settings, userId),
+  ];
 }
 
 /** Live ids, the given ones first, with everything inside them and their internal files. */
@@ -217,6 +222,11 @@ async function purge(env: Env, where: string, binds: unknown[]): Promise<number>
   for (let i = 0; i < results.length; i += 500) {
     const ids = list(results.slice(i, i + 500).map((r) => r.id));
     const photos = await objectsOf(env, ids);
+    // The "property" references that a purged definition's values kept go with the values.
+    await env.DB.prepare(
+      `DELETE FROM refs WHERE kind = 'property' AND json_extract(data, '$.property') IN
+         (SELECT id FROM files WHERE type = 'property' AND deleted_at IS NOT NULL AND (id IN (SELECT value FROM json_each(?1)) OR deleted_with IN (SELECT value FROM json_each(?1))))`,
+    ).bind(ids).run();
     await env.DB.prepare("DELETE FROM files WHERE deleted_at IS NOT NULL AND (id IN (SELECT value FROM json_each(?1)) OR deleted_with IN (SELECT value FROM json_each(?1)))").bind(ids).run();
     await removeOrphans(env, photos);
   }
@@ -228,9 +238,12 @@ export async function purgeExpired(env: Env, at = Date.now()): Promise<number> {
   return purge(env, "f.deleted_with IS NULL AND f.deleted_at < ?1", [new Date(at - BIN_RETENTION_DAYS * 86_400_000).toISOString()]);
 }
 
-/** Before a project is deleted: how many live files it holds besides its fixed folders. */
+/** Not in the project's Settings folder: its definitions and patterns are not files a person counts. */
+export const NOT_SETTINGS = (alias: string) => `(${alias}.container IS NULL OR ${alias}.container NOT IN (SELECT s.id FROM files s WHERE s.project_id = ${alias}.project_id AND s.fixed = 'settings'))`;
+
+/** Before a project is deleted: how many live files it holds besides its fixed folders and their settings. */
 export async function liveFiles(env: Env, projectId: string): Promise<number> {
-  return (await env.DB.prepare("SELECT count(*) AS n FROM files WHERE project_id = ?1 AND deleted_at IS NULL AND fixed IS NULL").bind(projectId).first<{ n: number }>())?.n ?? 0;
+  return (await env.DB.prepare(`SELECT count(*) AS n FROM files WHERE project_id = ?1 AND deleted_at IS NULL AND fixed IS NULL AND ${NOT_SETTINGS("files")}`).bind(projectId).first<{ n: number }>())?.n ?? 0;
 }
 
 /** Empties a project's bin and removes its fixed folders: what is left of an empty project before its row goes. */
@@ -267,20 +280,28 @@ export function registerFileRoutes(r: Router<Ctx>) {
     }
     const types = q.get("type");
     if (types) where.push(`f.type IN (SELECT value FROM json_each(${bind(list(types.split(",").map((t) => typeOf(t.trim()).type)))}))`);
-    const text = q.get("q")?.trim();
-    // instr, not LIKE: D1 caps a LIKE pattern at 50 bytes. lower() folds ASCII only.
-    if (text) where.push(`instr(lower(f.name), lower(${bind(text.slice(0, MAX_FILE_NAME))})) > 0`);
+    // Search looks at names and property values, with case and accents folded (shared matchesSearch);
+    // it filters in the Worker, so the list is read whole and paged afterwards.
+    const text = q.get("q")?.trim().slice(0, 200);
     const withBody = q.get("body") === "1";
     const limit = q.has("limit") ? Math.min(MAX_PAGE, Math.max(1, Number(q.get("limit")) || MAX_PAGE)) : null;
     const offset = Math.max(0, Number(q.get("offset")) || 0);
-    const page = limit === null ? "" : ` LIMIT ${limit + 1} OFFSET ${offset}`;
-    const { results: found } = await env.DB.prepare(
+    const page = limit === null || text ? "" : ` LIMIT ${limit + 1} OFFSET ${offset}`;
+    const { results: all } = await env.DB.prepare(
       `SELECT ${COLS}, ${PHOTO_COLS}${withBody ? ", f.body" : ""}${bin ? ", (SELECT count(*) FROM files x WHERE x.deleted_with = f.id AND x.deleted_at IS NOT NULL) AS binned_with" : ""}
        FROM files f ${PHOTO_JOIN} WHERE ${where.join(" AND ")} ORDER BY ${bin ? "f.deleted_at DESC, f.id" : "f.name COLLATE NOCASE, f.id"}${page}`,
     ).bind(...binds).all<FileRow>();
+    let found = all;
+    if (text) {
+      const texts = await searchTexts(env, root.projectId, all);
+      found = all.filter((f) => matchesSearch(text, texts.get(f.id) ?? [f.name]));
+      if (limit !== null) found = found.slice(offset, offset + limit + 1);
+    }
     const more = limit !== null && found.length > limit;
     const results = more ? found.slice(0, limit) : found;
-    if (q.get("refs") !== "1") return json({ files: results.map((f) => toApi(f, withBody)), more });
+    const values = q.get("values") === "1" ? await valuesOf(env, results.map((f) => f.id)) : null;
+    const out = (f: FileRow) => (values ? { ...toApi(f, withBody), values: values.get(f.id) ?? {} } : toApi(f, withBody));
+    if (q.get("refs") !== "1") return json({ files: results.map(out), more });
     // One query for the references of everything listed, whatever the count.
     const refs = (await env.DB.prepare(
       `SELECT r.from_file, r.kind, r.to_file, r.data, NOT EXISTS (SELECT 1 FROM files t WHERE t.id = r.to_file AND t.deleted_at IS NULL AND ${inRoot("t", 2)}) AS missing
@@ -288,13 +309,13 @@ export function registerFileRoutes(r: Router<Ctx>) {
     ).bind(list(results.map((f) => f.id)), root.projectId, root.userId).all<{ from_file: string; kind: Ref["kind"]; to_file: string; data: string | null; missing: number }>()).results;
     const byFile = new Map<string, unknown[]>();
     for (const r of refs) byFile.set(r.from_file, [...(byFile.get(r.from_file) ?? []), { kind: r.kind, to: r.to_file, data: r.data ? JSON.parse(r.data) : null, missing: r.missing === 1 }]);
-    return json({ files: results.map((f) => ({ ...toApi(f, withBody), refs: byFile.get(f.id) ?? [] })), more });
+    return json({ files: results.map((f) => ({ ...out(f), refs: byFile.get(f.id) ?? [] })), more });
   });
 
   /** One file with its body and its references. A binned file answers too: the bin shows what it holds. */
   r.on("GET", "/api/files/:id", async (ctx, { id }) => {
     const f = await loadFile(ctx, assertUuid(id, "id"), "viewer");
-    return json({ file: { ...toApi(f, true), refs: await refsOf(ctx.env, f) } });
+    return json({ file: { ...toApi(f, true), refs: await refsOf(ctx.env, f), values: (await valuesOf(ctx.env, [f.id])).get(f.id) ?? {} } });
   });
 
   /** Where a file is used: the live files of its root that point at it, and for what. */
@@ -329,7 +350,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const root = stored ? rootOf(stored) : await rootFrom(ctx, b.project_id, b.home, "editor", true);
     const wrongName = b.name === undefined ? null : nameError(b.name);
     if (wrongName) throw new HttpError(400, wrongName);
-    const name = b.name === undefined ? stored?.name ?? defaultName(t) : (b.name as string).trim();
+    // A new file of a project without a name gets one from its type's naming pattern (04-shots.md).
+    const name = b.name !== undefined ? (b.name as string).trim() : stored ? stored.name : root.projectId ? await nextName(env, root.projectId, t.type) : defaultName(t);
     if (stored && b.internal_of !== undefined && b.internal_of !== stored.internal_of) throw new HttpError(400, "internal_of is set when a file is made; release it to make it a project file");
     const internalOf = stored ? stored.internal_of : b.internal_of == null ? null : assertUuid(b.internal_of, "internal_of");
     const container = b.container === undefined ? stored?.container ?? null : b.container === null ? null : assertUuid(b.container, "container");
@@ -367,6 +389,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     }
     if (save?.refs) stmts.push(...writeRefs(env, fid, save.refs));
     await env.DB.batch(stmts);
+    // A changed definition: values that no longer fit it are fitted or dropped.
+    if (t.type === "property" && stored && save && root.projectId) await refitValues(env, root.projectId, fid);
     return json({ file: await fileOut(env, fid) }, stored ? 200 : 201);
   });
 
@@ -509,6 +533,15 @@ export function registerFileRoutes(r: Router<Ctx>) {
       env.DB.prepare("INSERT INTO property_values (file_id, definition_id, value) SELECT m.value, v.definition_id, v.value FROM property_values v JOIN json_each(?1) m ON m.key = v.file_id").bind(map),
       copyPhotos(env, map),
     ];
+    // Reference values that name files copied along point at the copies, like references do.
+    const { results: refValues } = await env.DB.prepare(
+      `SELECT v.file_id, v.definition_id, v.value FROM property_values v JOIN files d ON d.id = v.definition_id
+       WHERE v.file_id IN (SELECT value FROM json_each(?1)) AND json_extract(d.body, '$.field') = 'reference'`,
+    ).bind(list(tree.map((f) => f.id))).all<{ file_id: string; definition_id: string; value: string }>();
+    for (const v of refValues) {
+      const next = (JSON.parse(v.value) as string[]).map((x) => ids.get(x) ?? x);
+      if (JSON.stringify(next) !== v.value) stmts.push(env.DB.prepare("UPDATE property_values SET value = ?3 WHERE file_id = ?1 AND definition_id = ?2").bind(ids.get(v.file_id), v.definition_id, JSON.stringify(next)));
+    }
     // Bodies that name files by id (a canvas's placed pictures) follow the copies.
     const remapping = tree.filter((f) => fileType(f.type)?.remap);
     if (remapping.length) {

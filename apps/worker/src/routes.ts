@@ -11,6 +11,7 @@ import type { Ctx } from "./index.ts";
 import { registerPhotoRoutes } from "./photos.ts";
 import { registerPreviewRoutes } from "./preview.ts";
 import { registerProjectRoutes } from "./projects.ts";
+import { registerPropertyRoutes } from "./properties.ts";
 import { registerWorkspaceRoutes } from "./workspaces.ts";
 
 /** Routes that run without a user: the provider's /api/auth/* and a liveness probe that also says which version and instance run. */
@@ -49,6 +50,7 @@ router.on("GET", "/api/me", async ({ env, identity }) => {
 });
 registerProjectRoutes(router);
 registerFileRoutes(router);
+registerPropertyRoutes(router);
 registerPhotoRoutes(router);
 registerDeviceRoutes(router);
 registerPreviewRoutes(router);
