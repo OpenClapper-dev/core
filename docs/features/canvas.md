@@ -46,4 +46,9 @@ One window per canvas (`#/canvas/<id>`), opened from Files (double-click), made 
 - **Saving**: automatic, 0.7 s after the last change, with the body and its references (base and placed); then the render (2048 px on the long side) and the thumbnail (400 px) are drawn in the browser (`canvas/render.ts`, the editor's geometry on a 2D canvas) and uploaded. The status bar says Changed, Saving…, Saved or Not saved. Pen strokes keep a point every few pixels and coordinates are rounded to four decimals, so a body stays small.
 - **Undo and redo** (Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y): the window's own history of bodies, a drag being one step, up to 100.
 - **The lock**: the window takes it when it opens (its own token, so a second window of the same person is someone else), renews it every 20 s and lets it go when it closes. Someone else's lock shows the tool read-only under a card with who has it, Check again, and Open a copy to edit.
-- Thumbnails of canvases show in Files once a canvas was saved.
+- Thumbnails of canvases show in Files once a canvas was saved. A canvas with a picture has its thumbnail cropped to the picture (Crop); the render is always the whole surface.
+
+## On the phone and the tablet
+
+- **Media** lists the project's canvases as tiles of their thumbnails (with a brush), in All photos and in their folders. A canvas's page shows its render with the view modes of a canvas that has a picture (Crop, Mask, Outline, Full; the screen's choice), computed with the same frame math as the Studio (`fov-math`, `frameOptics` in the model), and Edit.
+- **Canvas** is a tab (Setup, Tabs on this device; best on a tablet): the canvases as tiles, a new one (needs a connection), and the **editor in a web view**: the Studio's embed page (`#/embed/canvas/<id>`), signed in through `GET /api/web` ([api](../api.md)). It holds the lock and saves like the Studio. Touch: two fingers zoom and pan; once a stylus was used, a finger pans and never draws; pen strokes take every point the pen reports. Research and what is to be tested: [tablet canvas](../rewrite/tablet-canvas.md).

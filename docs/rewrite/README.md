@@ -80,3 +80,5 @@ Runs in parallel, starting after workshop 00. The foundation (tokens, atoms, OS 
 - Apps come from one catalogue and declare what they open and the parts others can mount. The Studio keeps its desktop shell; Files, Media and Shots share one browser. On phones and tablets the person chooses per device which apps are tabs. Preferences follow the account ([09](09-shells.md)).
 - Places are two file types: Set (the story place, Motiv) and Location (the real place, Drehort), related many-to-many through a new reference field type. A position field type and a map view of the file browser are part of the rebuild; photos still record no position ([09a](09a-places.md)).
 - Internal files: a file created inside another (a shot's generated canvas, a progression's overlay) is hidden from the file browser and lives with its parent ([I1](i1-interjection.md)).
+
+Build notes: [tablet canvas](tablet-canvas.md) (research and the embedded editor, B5).

@@ -58,6 +58,10 @@ The base camera: [capture](capture.md).
 
 **Properties on a photo** (`apps/PhotoProperties.tsx`, `media/values.ts`): the project's properties shown on photos, in their sections, from the catalogue Media loads with the library. Text, numbers (with unit), dates (YYYY-MM-DD) and positions ("latitude, longitude") are typed and saved when the field is left; yes / no is a switch of three; a choice, several choices or a reference opens a sheet (a dependent choice offers what its parent allows, references list the files they may point at). A value shows at once and waits on the phone until the server has it (offline, or for a photo still in the queue); one the server refuses is dropped with a message.
 
+## Canvas (`src/apps/Canvases.tsx`, `CanvasView.tsx`)
+
+Canvases in Media and the Canvas tab, with the Studio's editor in a web view: [canvas](canvas.md#on-the-phone-and-the-tablet).
+
 ## Setup (`src/apps/Setup.tsx`)
 
 | Page | What |

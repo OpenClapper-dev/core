@@ -3,6 +3,9 @@ import { render } from "preact";
 import "@openclapper/design/styles.css";
 import "./shell.css";
 import "./theme";
+import { EmbedCanvas, embedOf } from "./embed";
 import { Shell } from "./wm/Shell";
 
-render(<Shell />, document.getElementById("app")!);
+// The canvas editor alone, for the phone and tablet app's web view; else the desktop.
+const embed = embedOf(location.hash);
+render(embed ? <EmbedCanvas id={embed.id} theme={embed.theme} /> : <Shell />, document.getElementById("app")!);

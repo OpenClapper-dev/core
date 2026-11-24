@@ -110,6 +110,8 @@ export interface FileRec {
   body_version: number; body?: Record<string, unknown>; photo?: PhotoFacts;
   /** Property values by definition id (lists read with values=1, single files always). */
   values?: Record<string, unknown>;
+  /** The file's references (single files always). */
+  refs?: { kind: string; to: string; data: Record<string, unknown> | null; missing?: boolean }[];
 }
 export type Root = { project_id: string } | { home: true };
 const rootQuery = (r: Root) => ("home" in r ? "home=1" : `project_id=${encodeURIComponent(r.project_id)}`);
@@ -169,6 +171,10 @@ export async function putPhotoPart(id: string, part: ImageSize, file: File, type
     throw new ApiError(res.status, msg);
   }
 }
+/** A canvas's render or thumbnail, versioned by the file's last change; load it with `authHeaders()`. */
+export const canvasImageUrl = (f: Pick<FileRec, "id" | "updated_at" | "created_at">, size: "render" | "thumbnail" = "thumbnail") => `${API_URL}/api/canvases/${f.id}/image?size=${size}&v=${encodeURIComponent(f.updated_at ?? f.created_at)}`;
+/** The address that opens a page of the Studio in a web view, signed in with this session (GET /api/web). */
+export const webUrl = (path: string) => `${API_URL}/api/web?to=${encodeURIComponent(path)}`;
 /** Where an image of a photo is; load it with `authHeaders()`. */
 export const imageUrl = (id: string, size: ImageSize = "preview") => `${API_URL}/api/photos/${id}/image?size=${size}`;
 

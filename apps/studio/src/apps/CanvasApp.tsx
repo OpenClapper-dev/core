@@ -7,7 +7,7 @@ import { canvasRefs, focalsOf, type CanvasBody, type PresetBody } from "@opencla
 import * as api from "../api";
 import type { FileRec } from "../api";
 import { CanvasEditor, type PlaceablePhoto } from "../canvas/CanvasEditor";
-import type { BasePhoto } from "../canvas/geometry";
+import { pictureOf, rectOf, type BasePhoto } from "../canvas/geometry";
 import { renderCanvas } from "../canvas/render";
 import { loadRoot, useRoot } from "../files";
 import { toastError } from "../hosts";
@@ -43,7 +43,7 @@ export function CanvasApp({ win, projectId, setTitle, setRoute, focused }: AppPr
   return <Editing key={file.id} active={focused} file={file} files={files} projectId={projectId} me={{ id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" }} nameOf={(u) => (u === me?.id ? "You" : people.get(u) ?? "Someone")} />;
 }
 
-function Editing({ file, files, projectId, me, nameOf, active }: { file: FileRec; files: FileRec[]; projectId: string; me: { id: string; name: string }; nameOf: (u: string) => string; active: boolean }) {
+export function Editing({ file, files, projectId, me, nameOf, active, hosted }: { file: FileRec; files: FileRec[]; projectId: string; me: { id: string; name: string }; nameOf: (u: string) => string; active: boolean; hosted?: boolean }) {
   // The window's own token for the lock: a second window of the same person is someone else.
   const holder = useMemo(() => `w${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`, []);
   const [doc, setDoc] = useState<CanvasBody>(() => file.body as unknown as CanvasBody);
@@ -92,7 +92,12 @@ function Editing({ file, files, projectId, me, nameOf, active }: { file: FileRec
     try {
       await api.putFileLocked(file.id, { body: b, refs: canvasRefs(b, bid) }, holder);
       const input = { body: b, base: baseOf(bid ? byId.get(bid) : undefined), photoSrc: (pid: string) => imageUrl(pid, "preview") };
-      const [render, thumb] = [await renderCanvas(input, 2048), await renderCanvas(input, 400)];
+      // A canvas with a picture is shown cropped to it in a thumbnail (05-composition.md).
+      const ctxF = { base: input.base, presets: new Map(presetsIn(files).map((p) => [p.id, p.body])) };
+      const pf = pictureOf(b, ctxF), pr = pf ? rectOf(pf, ctxF) : null;
+      const box = pr ? (pr.inner ?? pr) : null;
+      const crop = pf && box && box.w <= 1 && box.h <= 1 ? { x: pf.cx - box.w / 2, y: pf.cy - box.h / 2, w: box.w, h: box.h } : undefined;
+      const [render, thumb] = [await renderCanvas(input, 2048), await renderCanvas(input, 400, crop)];
       await api.putRender(file.id, "render", render, holder);
       await api.putRender(file.id, "thumbnail", thumb, holder);
       setStatus(pending.current ? "waiting" : "saved");
@@ -137,7 +142,7 @@ function Editing({ file, files, projectId, me, nameOf, active }: { file: FileRec
   return (
     <>
       <CanvasEditor body={doc} rev={rev} base={base} presets={presets} photos={photos} photoSrc={(pid) => imageUrl(pid, "preview")}
-        onChange={change} onBase={setBase} active={active} title={file.name} me={me} nameOf={nameOf}
+        onChange={change} onBase={setBase} active={active} hosted={hosted} title={file.name} me={me} nameOf={nameOf}
         lock={lockedBy ? { by: lockedBy, onRetry: () => void take(), onCopy: () => void copy() } : null}
         undo={{ can: history.current.past.length > 0, run: () => jump("past") }} redo={{ can: history.current.future.length > 0, run: () => jump("future") }}
         onNewPreset={(start, then) => setFlow({ start: start ? { format: start.format, formatName: null, multiplier: start.multiplier, squeeze: start.squeeze, delivery: start.delivery, lenses: "primes", primes: [start.focal] } : undefined, done: (pid, body) => then(pid, start && focalsOf(body.lenses).includes(start.focal) ? start.focal : focalsOf(body.lenses)[0]) })}

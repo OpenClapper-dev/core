@@ -27,11 +27,18 @@ const glyph = (name: string, colour: string) => {
 };
 
 export interface RenderInput { body: CanvasBody; base: BasePhoto | null; photoSrc: (id: string) => string }
+/** A part of the surface, in fractions of it: what a thumbnail of a canvas with a picture shows (Crop). */
+export interface Crop { x: number; y: number; w: number; h: number }
 
-/** Draws the canvas at `longEdge` pixels on its long side, as a JPEG (photo surface) or PNG (blank). */
-export async function renderCanvas(inp: RenderInput, longEdge: number): Promise<Blob> {
+/**
+ * Draws the canvas at `longEdge` pixels on its long side, as a JPEG (photo surface) or PNG (blank); with
+ * `crop`, only that part of the surface, at `longEdge` on its long side.
+ */
+export async function renderCanvas(inp: RenderInput, longEdge: number, crop?: Crop): Promise<Blob> {
   const { body, base } = inp;
   const aspect = body.surface.kind === "photo" ? base?.aspect ?? 4 / 3 : body.surface.aspect;
+  const want = longEdge;
+  if (crop) longEdge = Math.min(4096, Math.round(longEdge / Math.max(crop.w, crop.h)));
   const W = Math.round(aspect >= 1 ? longEdge : longEdge * aspect), H = Math.round(aspect >= 1 ? longEdge / aspect : longEdge);
   const cv = document.createElement("canvas");
   cv.width = W; cv.height = H;
@@ -103,5 +110,13 @@ export async function renderCanvas(inp: RenderInput, longEdge: number): Promise<
     }
     g.restore();
   }
-  return new Promise((resolve, reject) => cv.toBlob((b) => (b ? resolve(b) : reject(new Error("the render could not be made"))), body.surface.kind === "photo" ? "image/jpeg" : "image/png", 0.9));
+  let out = cv;
+  if (crop) {
+    const sw = crop.w * W, sh = crop.h * H;
+    out = document.createElement("canvas");
+    const k = want / Math.max(sw, sh);
+    out.width = Math.max(1, Math.round(sw * k)); out.height = Math.max(1, Math.round(sh * k));
+    out.getContext("2d")!.drawImage(cv, crop.x * W, crop.y * H, sw, sh, 0, 0, out.width, out.height);
+  }
+  return new Promise((resolve, reject) => out.toBlob((b) => (b ? resolve(b) : reject(new Error("the render could not be made"))), body.surface.kind === "photo" ? "image/jpeg" : "image/png", 0.9));
 }

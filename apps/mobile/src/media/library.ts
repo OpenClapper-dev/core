@@ -1,5 +1,5 @@
 import { randomUUID } from "expo-crypto";
-import type { PropertyDef } from "@openclapper/model";
+import type { PresetBody, PropertyDef } from "@openclapper/model";
 import { binFiles, canCall, getFile, listFiles, moveFiles, putFile, type FileRec, type PhotoFacts } from "../api";
 import { log } from "../log";
 import { currentProject } from "../projects";
@@ -16,6 +16,21 @@ import { stateOf, type QueueState } from "./steps";
  */
 export interface Library { projectId: string; files: FileRec[]; loaded: string }
 const store = persisted<Library | null>("library.v1", null);
+
+/** A canvas as Media shows it: a tile of its thumbnail. */
+export interface MediaCanvas { id: string; name: string; container: string | null; updated: string; file: FileRec }
+/** The project's canvases, newest change first. */
+export function useCanvases(): MediaCanvas[] {
+  const lib = store.use();
+  const project = currentProject();
+  if (!lib || lib.projectId !== project?.id) return [];
+  return lib.files.filter((f) => f.type === "canvas").map((f) => ({ id: f.id, name: f.name, container: f.container, updated: f.updated_at ?? f.created_at, file: f })).sort((a, b) => b.updated.localeCompare(a.updated));
+}
+/** The project's optics presets, by id (a canvas's frames are measured with them). */
+export function usePresets(): Map<string, PresetBody> {
+  const lib = store.use();
+  return new Map((lib?.files ?? []).filter((f) => f.type === "preset" && f.body).map((f) => [f.id, f.body as unknown as PresetBody]));
+}
 
 /** The project's property definitions, as Media loaded them. */
 export function useDefinitions(): { id: string; name: string; def: PropertyDef }[] {
@@ -55,7 +70,8 @@ export function loadLibrary(): Promise<void> {
     try {
       const root = { project_id: project.id };
       // Photos with their property values; folders, collections and the property definitions with their bodies.
-      const [photos, holders] = await Promise.all([listFiles(root, { type: "photo", values: true }), listFiles(root, { type: "folder,collection,property", body: true })]);
+      // Canvases without their bodies (those can be large): a canvas's page loads its own.
+      const [photos, holders] = await Promise.all([listFiles(root, { type: "photo,canvas", values: true }), listFiles(root, { type: "folder,collection,property,preset", body: true })]);
       store.set({ projectId: project.id, files: [...holders.filter((f) => !f.fixed), ...photos], loaded: new Date().toISOString() });
       if (settings.get().keepProject) void keepOnPhone();
     } catch (e) { log("warn", "media load failed", e); }
