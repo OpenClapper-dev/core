@@ -5,7 +5,7 @@
  * so this is where accounts are made. Same D1 as the app, whose migrations it never runs.
  */
 import {
-  AccessError, assertEnum, assertNumber, assertString, assertUuid, BOOTSTRAP_USER_ID, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
+  AccessError, assertEnum, assertNumber, assertString, assertUuid, BUILD, hashPassword, HttpError, json, readJson, Router, targetIterations, verifyAccessJwt,
 } from "@openclapper/service-kit";
 import { auditEntry, listAudit, type AuditAction } from "./audit.ts";
 import { configured, MAX_DAYS, overlay, snapshotCloudflare } from "./cloudflare.ts";
@@ -64,6 +64,7 @@ const router = new Router<Ctx>();
 
 router.on("GET", "/api/whoami", async ({ admin, env }) => json({ email: admin, ...BUILD, instance: env.INSTANCE_LABEL ?? "" }));
 
+// `bytes` and `unsized` are zero until photos are stored again (rewrite step B2, #374).
 router.on("GET", "/api/overview", async ({ env }) => {
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
   const row = await env.DB.prepare(
@@ -72,10 +73,9 @@ router.on("GET", "/api/overview", async ({ env }) => {
        (SELECT count(DISTINCT user_id) FROM sessions WHERE last_used_at > ?1) AS active_30d,
        (SELECT count(*) FROM workspaces) AS workspaces,
        (SELECT count(*) FROM projects) AS projects,
-       (SELECT count(*) FROM shots WHERE deleted_at IS NULL) AS shots,
-       (SELECT count(*) FROM photos) AS photos,
-       (SELECT coalesce(sum(size_bytes), 0) FROM photos) AS bytes,
-       (SELECT count(*) FROM photos WHERE size_bytes IS NULL) AS unsized`,
+       (SELECT count(*) FROM files f WHERE f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL) AS files,
+       (SELECT count(*) FROM files f WHERE f.type = 'photo' AND f.deleted_at IS NULL) AS photos,
+       0 AS bytes, 0 AS unsized`,
   ).bind(since).first();
   return json({ overview: row });
 });
@@ -165,12 +165,11 @@ router.on("POST", "/api/users/:id/password", async (ctx, { id }) => {
 
 /**
  * Delete an account. Refused while a workspace it owns has projects (their data would go with it;
- * move or delete those first) and for the bootstrap user. Its devices, layouts and empty workspaces go.
+ * move or delete those first). Its account home and its empty workspaces go with it.
  */
 router.on("DELETE", "/api/users/:id", async (ctx, { id }) => {
   const { env } = ctx;
   const uid = assertUuid(id, "id");
-  if (uid === BOOTSTRAP_USER_ID) throw new HttpError(400, "the bootstrap user owns the data from before accounts and stays");
   const email = await userEmail(env, uid);
   if (email === null) throw new HttpError(404, "user not found");
   const owned = await env.DB.prepare(
@@ -178,8 +177,6 @@ router.on("DELETE", "/api/users/:id", async (ctx, { id }) => {
   ).bind(uid).first<{ n: number }>();
   if (owned && owned.n > 0) throw new HttpError(409, `the account's workspaces still hold ${owned.n} project(s)`);
   await env.DB.batch([
-    env.DB.prepare("DELETE FROM viewfinder_layouts WHERE user_id = ?1").bind(uid),
-    env.DB.prepare("DELETE FROM devices WHERE user_id = ?1").bind(uid),
     env.DB.prepare("DELETE FROM workspaces WHERE owner_user_id = ?1").bind(uid),
     env.DB.prepare("DELETE FROM users WHERE id = ?1").bind(uid),
     audit(ctx, "user.delete", { userId: uid, email }),
@@ -187,17 +184,16 @@ router.on("DELETE", "/api/users/:id", async (ctx, { id }) => {
   return json({ deleted: uid });
 });
 
-/** Every workspace with its owner, size and storage (`unsized`: photos from before size_bytes was recorded). */
+/** Every workspace with its owner and size. Storage is zero until photos are stored again (rewrite step B2, #374). */
 router.on("GET", "/api/workspaces", async ({ env }) => {
   const { results } = await env.DB.prepare(
-    `WITH ph AS (SELECT p.workspace_id AS ws, count(*) AS photos, coalesce(sum(x.size_bytes), 0) AS bytes, sum(x.size_bytes IS NULL) AS unsized
-                 FROM photos x JOIN shots s ON s.id = x.shot_id JOIN projects p ON p.id = s.project_id GROUP BY p.workspace_id)
-     SELECT w.id, w.name, w.kind, w.created_at, o.email AS owner_email,
+    `SELECT w.id, w.name, w.kind, w.created_at, o.email AS owner_email,
        (SELECT count(*) FROM workspace_members m WHERE m.workspace_id = w.id) AS members,
        (SELECT count(*) FROM projects p WHERE p.workspace_id = w.id) AS projects,
-       (SELECT count(*) FROM shots s JOIN projects p ON p.id = s.project_id WHERE p.workspace_id = w.id AND s.deleted_at IS NULL) AS shots,
-       coalesce(ph.photos, 0) AS photos, coalesce(ph.bytes, 0) AS bytes, coalesce(ph.unsized, 0) AS unsized
-     FROM workspaces w LEFT JOIN users o ON o.id = w.owner_user_id LEFT JOIN ph ON ph.ws = w.id ORDER BY w.created_at`,
+       (SELECT count(*) FROM files f JOIN projects p ON p.id = f.project_id WHERE p.workspace_id = w.id AND f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL) AS files,
+       (SELECT count(*) FROM files f JOIN projects p ON p.id = f.project_id WHERE p.workspace_id = w.id AND f.type = 'photo' AND f.deleted_at IS NULL) AS photos,
+       0 AS bytes, 0 AS unsized
+     FROM workspaces w LEFT JOIN users o ON o.id = w.owner_user_id ORDER BY w.created_at`,
   ).all();
   return json({ workspaces: results });
 });

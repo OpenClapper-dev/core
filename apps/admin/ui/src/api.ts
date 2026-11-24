@@ -1,8 +1,8 @@
 /** The admin Worker's API (apps/admin/src/index.ts); same origin, behind its own Cloudflare Access app. */
 
-export interface Overview { users: number; blocked: number; active_30d: number; workspaces: number; projects: number; shots: number; photos: number; bytes: number; unsized: number }
+export interface Overview { users: number; blocked: number; active_30d: number; workspaces: number; projects: number; files: number; photos: number; bytes: number; unsized: number }
 export interface AdminUser { id: string; email: string; name: string | null; status: "active" | "blocked"; created_at: string; no_password: boolean; sessions: number; last_seen: string | null; workspaces: number }
-export interface AdminWorkspace { id: string; name: string; kind: "personal" | "shared"; created_at: string; owner_email: string | null; members: number; projects: number; shots: number; photos: number; bytes: number; unsized: number }
+export interface AdminWorkspace { id: string; name: string; kind: "personal" | "shared"; created_at: string; owner_email: string | null; members: number; projects: number; files: number; photos: number; bytes: number; unsized: number }
 
 export class ApiError extends Error {
   status: number;

@@ -58,11 +58,11 @@ export async function storageReport(db: D1Database, days: number): Promise<Stora
   const [snap, live, marks] = await Promise.all([
     db.prepare("SELECT day, workspace_id, bytes, objects, unsized FROM storage_daily WHERE day >= ?1 ORDER BY day").bind(since)
       .all<{ day: string; workspace_id: string; bytes: number; objects: number; unsized: number }>(),
+    // Photos per workspace; their bytes are zero until photos are stored again (rewrite step B2, #374).
     db.prepare(
-      `WITH ph AS (SELECT p.workspace_id AS ws, count(*) AS photos, coalesce(sum(x.size_bytes), 0) AS bytes, sum(x.size_bytes IS NULL) AS unsized
-                   FROM photos x JOIN shots s ON s.id = x.shot_id JOIN projects p ON p.id = s.project_id GROUP BY p.workspace_id)
-       SELECT w.id, w.name, w.kind, o.email AS owner_email, coalesce(ph.photos, 0) AS photos, coalesce(ph.bytes, 0) AS bytes, coalesce(ph.unsized, 0) AS unsized
-       FROM workspaces w LEFT JOIN users o ON o.id = w.owner_user_id LEFT JOIN ph ON ph.ws = w.id ORDER BY bytes DESC, w.created_at`,
+      `SELECT w.id, w.name, w.kind, o.email AS owner_email,
+         (SELECT count(*) FROM files f JOIN projects p ON p.id = f.project_id WHERE p.workspace_id = w.id AND f.type = 'photo') AS photos, 0 AS bytes, 0 AS unsized
+       FROM workspaces w LEFT JOIN users o ON o.id = w.owner_user_id ORDER BY w.created_at`,
     ).all<StorageReport["workspaces"][number]>(),
     readMarks(db),
   ]);

@@ -5,12 +5,13 @@
  */
 import { provider } from "@openclapper/auth-provider";
 import { HttpError, json } from "@openclapper/service-kit";
+import { purgeExpired } from "./files.ts";
 import type { Identity } from "./authn/provider.ts";
 import { purgeExpiredSessions } from "./authn/sessions.ts";
 import { isPublic, publicRouter, router } from "./routes.ts";
 import { snapshotStorage } from "./storage-stats.ts";
 import { loadTenant, type Tenant } from "./tenancy.ts";
-import { purgeExpired } from "./trash.ts";
+
 
 export interface Env {
   DB: D1Database;
@@ -56,8 +57,7 @@ export default {
       const identity = await identify(request, env);
       if (!identity) return json({ error: "unauthorized" }, 401);
       if (request.method !== "GET" && request.method !== "HEAD") {
-        const capability = request.method === "POST" && url.pathname === "/api/shots" ? "upload" : "write";
-        if (!(await provider.allow(identity, capability, env))) throw new HttpError(403, "not allowed for this account");
+        if (!(await provider.allow(identity, "write", env))) throw new HttpError(403, "not allowed for this account");
       }
       const tenant = await loadTenant(env, identity.userId);
       return await router.handle(request.method, url.pathname, { request, env, url, identity, tenant });
@@ -72,7 +72,7 @@ export default {
    * sessions, snapshot storage for the admin board. Each job on its own: one failing never stops the others.
    */
   async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(purgeExpired(env).then((n) => console.log(`recycle bin: purged ${n} item(s)`)));
+    ctx.waitUntil(purgeExpired(env).then((n) => console.log(`recycle bin: purged ${n} file(s)`)));
     ctx.waitUntil(purgeExpiredSessions(env).then((n) => console.log(`sessions: purged ${n} expired`)));
     ctx.waitUntil(snapshotStorage(env).then(
       (s) => console.log(`storage: ${s.day} ${s.bytes} bytes in ${s.objects} objects, ${s.workspaces} workspace(s)`),

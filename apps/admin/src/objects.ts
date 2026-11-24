@@ -49,16 +49,11 @@ const same = (a: ObjectMetadata, b: ObjectMetadata) => {
  * place (the same body and content type, the derived metadata), unless `check` only counts them.
  * Unknown objects are left alone.
  */
-export async function repairPage(db: D1Database, bucket: R2Bucket, cursor: string | null, check: boolean): Promise<RepairPage> {
+export async function repairPage(_db: D1Database, bucket: R2Bucket, cursor: string | null, check: boolean): Promise<RepairPage> {
   const listed = await bucket.list({ limit: PAGE, cursor: cursor ?? undefined, include: ["customMetadata"] });
-  const photoKeys = listed.objects.map((o) => o.key).filter((k) => k.startsWith("photos/"));
-  const rows = photoKeys.length
-    ? (await db.prepare(
-        `SELECT p.r2_object_key AS k, p.id AS photo_id, p.shot_id, pr.workspace_id
-           FROM photos p JOIN shots s ON s.id = p.shot_id JOIN projects pr ON pr.id = s.project_id
-          WHERE p.r2_object_key IN (SELECT value FROM json_each(?1))`,
-      ).bind(JSON.stringify(photoKeys)).all<PhotoRow>()).results
-    : [];
+  // The rewrite stores photos from step B2 (#374), which says what a photo's object carries; until
+  // then no photo row exists and every object under photos/ counts as unknown.
+  const rows: PhotoRow[] = [];
   const byKey = new Map(rows.map((r) => [r.k, r]));
   const page: RepairPage = { checked: 0, repaired: 0, unknown: 0, examples: [], cursor: listed.truncated ? listed.cursor : null };
   for (const o of listed.objects) {

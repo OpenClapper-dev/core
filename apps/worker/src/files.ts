@@ -1,258 +1,496 @@
-import { FILE_RESOURCE_TYPES, MAX_FOLDER_DEPTH, MAX_FOLDER_NAME, validateDesktopItem, type DesktopArea, type DesktopItemKind, type FileResourceType } from "@openclapper/vocab";
-import { assertEnum, assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
+import {
+  BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, FIXED_FOLDERS, fileType, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
+  nameError, placementError, type Body, type FileType, type Ref, type RootKind,
+} from "@openclapper/model";
+import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
-import { accessIfExists, assertAccess, assertProjectRef } from "./tenancy.ts";
-import { binFolder } from "./trash.ts";
+import { assertAccess, assertProjectRef, assertRank, type Access, type Role } from "./tenancy.ts";
 
 /**
- * Folders and desktop shortcuts (epic #72). Everything here is interactive, so validation is
- * strict; reads are lenient about stale placements and shortcuts (a resource deleted elsewhere is
- * swept by its delete route, and the Studio ignores what it cannot resolve).
+ * Files (docs/rewrite/07-organisation.md, 10-conclusion.md): one set of routes for every type. A
+ * file is one row with the same columns whatever it is, plus its body, which `@openclapper/model`
+ * checks on every save. A file belongs to a project (access by workspace role) or to the caller's
+ * account home (only theirs).
+ *
+ * The recycle bin: binning marks a file and takes along everything inside it and its internal
+ * files (`deleted_with`); restoring brings them back together. References are left alone, so a
+ * binned file shows as missing where it was used and is back everywhere once restored.
  */
 
-interface FolderRow { id: string; project_id: string; parent_id: string | null; name: string; kind: "normal" | "desktop"; created_at: string; updated_at: string | null }
-/** The columns a client sees (the bin markers stay server-side). */
-const FOLDER_COLS = "id, project_id, parent_id, name, kind, created_at, updated_at";
-/** The Desktop folder's name: fixed, at the root of every project. */
-export const DESKTOP_FOLDER = "Desktop";
-interface ItemRow { resource_type: FileResourceType; resource_id: string; folder_id: string; created_at: string }
-interface DesktopRow {
-  id: string; project_id: string; kind: DesktopItemKind; resource_type: FileResourceType | null; resource_id: string | null;
-  folder_id: string | null; app_id: string | null; label: string | null; x: number; y: number; area: DesktopArea; position: number | null; created_at: string; updated_at: string | null;
+interface FileRow {
+  id: string; project_id: string | null; home_of: string | null; type: string; name: string; container: string | null; internal_of: string | null;
+  fixed: string | null; created_at: string; updated_at: string | null; created_by: string | null; deleted_at: string | null; deleted_with: string | null;
+  lock_by: string | null; lock_until: string | null; body_version: number; body?: string; ws?: string | null; binned_with?: number;
+}
+/** Everything but the body: a list never carries bodies unless asked. */
+const COLS = "f.id, f.project_id, f.home_of, f.type, f.name, f.container, f.internal_of, f.fixed, f.created_at, f.updated_at, f.created_by, f.deleted_at, f.deleted_with, f.lock_by, f.lock_until, f.body_version";
+
+interface Root { kind: RootKind; projectId: string | null; userId: string | null }
+const rootOf = (f: FileRow): Root => ({ kind: f.home_of ? "home" : "project", projectId: f.project_id, userId: f.home_of });
+const sameRoot = (a: Root, b: Root) => a.projectId === b.projectId && a.userId === b.userId;
+/** SQL: the row is of the root bound at ?n and ?n+1 (`IS` also matches the NULL of the other kind). */
+const inRoot = (alias: string, n: number) => `${alias}.project_id IS ?${n} AND ${alias}.home_of IS ?${n + 1}`;
+
+const now = () => new Date().toISOString();
+const list = (ids: readonly string[]) => JSON.stringify(ids);
+const parseBody = (f: FileRow): Body => JSON.parse(f.body ?? "{}") as Body;
+
+function toApi(f: FileRow, withBody: boolean) {
+  const locked = f.lock_until !== null && f.lock_until > now();
+  return {
+    id: f.id, project_id: f.project_id, home: f.home_of !== null, type: f.type, name: f.name, container: f.container, internal_of: f.internal_of, fixed: f.fixed,
+    created_at: f.created_at, updated_at: f.updated_at, created_by: f.created_by, deleted_at: f.deleted_at,
+    lock: locked ? { by: f.lock_by, until: f.lock_until } : null,
+    body_version: f.body_version,
+    ...(withBody ? { body: parseBody(f) } : {}),
+    ...(f.binned_with !== undefined ? { binned_with: f.binned_with } : {}),
+  };
 }
 
-/** Where each file type lives and which column names its project. */
-export const RESOURCE_TABLE: Record<FileResourceType, string> = {
-  shot: "shots", timeline: "timelines", day: "shooting_days", view: "views", location: "locations", field: "field_definitions",
+/** A file's row when the caller may see it with at least `min`; another root's file answers like a missing one. */
+function checkAccess(a: Access, f: FileRow | null, min: Role): FileRow {
+  if (!f) throw new HttpError(404, "file not found");
+  if (f.home_of) {
+    if (f.home_of !== a.tenant.userId) throw new HttpError(404, "file not found");
+  } else assertRank(a, f.ws, min, "file not found");
+  return f;
+}
+
+const ONE = `SELECT ${COLS}, f.body, p.workspace_id AS ws FROM files f LEFT JOIN projects p ON p.id = f.project_id WHERE f.id = ?1`;
+
+async function loadFile(a: Access, id: string, min: Role): Promise<FileRow> {
+  return checkAccess(a, await a.env.DB.prepare(ONE).bind(id).first<FileRow>(), min);
+}
+
+/** For upserts: null when there is no such file yet, else as loadFile (a PUT never takes over another root's file). */
+async function findFile(a: Access, id: string, min: Role): Promise<FileRow | null> {
+  const row = await a.env.DB.prepare(ONE).bind(id).first<FileRow>();
+  return row ? checkAccess(a, row, min) : null;
+}
+
+/** The rows of a bulk request: every id must exist, be the caller's to change, and all be of one root. */
+async function loadFiles(a: Access, ids: string[]): Promise<{ rows: FileRow[]; root: Root }> {
+  const { results } = await a.env.DB.prepare(
+    `SELECT ${COLS}, p.workspace_id AS ws FROM files f LEFT JOIN projects p ON p.id = f.project_id WHERE f.id IN (SELECT value FROM json_each(?1))`,
+  ).bind(list(ids)).all<FileRow>();
+  const byId = new Map(results.map((r) => [r.id, r]));
+  const rows = ids.map((id) => checkAccess(a, byId.get(id) ?? null, "editor"));
+  const root = rootOf(rows[0]);
+  if (rows.some((r) => !sameRoot(rootOf(r), root))) throw new HttpError(400, "the files belong to more than one project");
+  return { rows, root };
+}
+
+/** The JSON object of a request; anything else (an array, a string) is the client's mistake. */
+async function readObject(request: Request): Promise<Record<string, unknown>> {
+  const b = await readJson<unknown>(request);
+  if (typeof b !== "object" || b === null || Array.isArray(b)) throw new HttpError(400, "expected a JSON object");
+  return b as Record<string, unknown>;
+}
+
+function assertIds(v: unknown): string[] {
+  if (!Array.isArray(v) || v.length === 0) throw new HttpError(400, "ids must be a non-empty array");
+  if (v.length > MAX_BULK) throw new HttpError(400, `at most ${MAX_BULK} files at once`);
+  return [...new Set(v.map((id, i) => assertUuid(id, `ids[${i}]`)))];
+}
+
+/** The root a list or a new file names: `project_id`, or `home` for the caller's account home. */
+async function rootFrom(ctx: Ctx, projectId: unknown, home: unknown, min: Role, inBody: boolean): Promise<Root> {
+  const wantsHome = home === true || home === "1" || home === "true";
+  if ((projectId == null) === !wantsHome) throw new HttpError(400, "name a root: project_id, or home");
+  if (wantsHome) return { kind: "home", projectId: null, userId: ctx.tenant.userId };
+  const pid = assertUuid(projectId, "project_id");
+  if (inBody) await assertProjectRef(ctx, pid, min);
+  else await assertAccess(ctx, "project", pid, min);
+  return { kind: "project", projectId: pid, userId: null };
+}
+
+const typeOf = (name: unknown): FileType => {
+  const t = fileType(name);
+  if (!t) throw new HttpError(400, `type must be one of: ${fileTypes().map((x) => x.type).join(", ")}`);
+  return t;
 };
 
-/** The project of a live (not binned) resource, or null. */
-async function resourceProject(env: Env, type: FileResourceType, id: string): Promise<string | null> {
-  const row = await env.DB.prepare(`SELECT project_id FROM ${RESOURCE_TABLE[type]} WHERE id = ?1 AND deleted_at IS NULL`).bind(id).first<{ project_id: string | null }>();
-  return row?.project_id ?? null;
+/**
+ * Whether `files` may sit in `containerId` (null: the top level): the model's placement rules, and
+ * for containers the tree's own: nothing goes inside itself, and containers nest at most
+ * MAX_CONTAINER_DEPTH deep. Three queries however many files.
+ */
+async function assertPlace(env: Env, root: Root, containerId: string | null, files: { id: string; type: FileType; isNew?: boolean }[]): Promise<void> {
+  let facts: { type: string; fixed: string | null } | null = null;
+  if (containerId) {
+    const c = await env.DB.prepare("SELECT f.type, f.fixed, f.project_id, f.home_of, f.deleted_at, f.internal_of FROM files f WHERE f.id = ?1").bind(containerId).first<FileRow>();
+    if (!c || c.deleted_at || c.internal_of || !sameRoot(rootOf(c), root)) throw new HttpError(400, "container: no such folder or collection here");
+    facts = { type: c.type, fixed: c.fixed };
+  }
+  for (const f of files) {
+    const wrong = placementError(f.type, facts, root.kind);
+    if (wrong) throw new HttpError(400, wrong);
+  }
+  const holders = files.filter((f) => f.type.holds);
+  if (!containerId || !holders.length) return;
+  const up = (await env.DB.prepare(
+    `WITH RECURSIVE up(id, container, n) AS (
+       SELECT id, container, 1 FROM files WHERE id = ?1
+       UNION ALL SELECT f.id, f.container, up.n + 1 FROM files f JOIN up ON f.id = up.container WHERE up.n < 64)
+     SELECT id FROM up`,
+  ).bind(containerId).all<{ id: string }>()).results.map((r) => r.id);
+  if (holders.some((f) => up.includes(f.id))) throw new HttpError(400, "a folder cannot go inside itself");
+  const stored = holders.filter((f) => !f.isNew).map((f) => f.id);
+  const height = stored.length
+    ? (await env.DB.prepare(
+        `WITH RECURSIVE down(id, n) AS (
+           SELECT value, 1 FROM json_each(?1)
+           UNION ALL SELECT f.id, down.n + 1 FROM files f JOIN down ON f.container = down.id
+             WHERE f.deleted_at IS NULL AND f.type IN (SELECT value FROM json_each(?2)) AND down.n < 64)
+         SELECT max(n) AS h FROM down`,
+      ).bind(list(stored), list(containerTypes())).first<{ h: number }>())?.h ?? 1
+    : 1;
+  if (up.length + height > MAX_CONTAINER_DEPTH) throw new HttpError(400, `folders nest at most ${MAX_CONTAINER_DEPTH} deep`);
 }
+
+/** A file's own references in their order; `missing` when what one points at is gone, binned or not of this root. */
+async function refsOf(env: Env, f: FileRow): Promise<(Ref & { missing: boolean })[]> {
+  const { results } = await env.DB.prepare(
+    `SELECT r.kind, r.to_file, r.data, NOT EXISTS (SELECT 1 FROM files t WHERE t.id = r.to_file AND t.deleted_at IS NULL AND ${inRoot("t", 2)}) AS missing
+     FROM refs r WHERE r.from_file = ?1 AND r.kind != 'property' ORDER BY r.position`,
+  ).bind(f.id, f.project_id, f.home_of).all<{ kind: Ref["kind"]; to_file: string; data: string | null; missing: number }>();
+  return results.map((r) => ({ kind: r.kind, to: r.to_file, data: r.data ? (JSON.parse(r.data) as Record<string, unknown>) : null, missing: r.missing === 1 }));
+}
+
+async function fileOut(env: Env, id: string) {
+  const f = (await env.DB.prepare(ONE).bind(id).first<FileRow>())!;
+  return { ...toApi(f, true), refs: await refsOf(env, f) };
+}
+
+/** The statements that replace a file's own references (everything but what property values keep). */
+function writeRefs(env: Env, id: string, refs: Ref[]): D1PreparedStatement[] {
+  const stmts = [env.DB.prepare("DELETE FROM refs WHERE from_file = ?1 AND kind != 'property'").bind(id)];
+  if (refs.length) {
+    stmts.push(env.DB.prepare(
+      `INSERT INTO refs (from_file, kind, position, to_file, data)
+       SELECT ?1, json_extract(value, '$.kind'), key, json_extract(value, '$.to'), json_extract(value, '$.data') FROM json_each(?2)`,
+    ).bind(id, JSON.stringify(refs)));
+  }
+  return stmts;
+}
+
+/** The fixed folders of a new project, in the batch that creates it. */
+export function fixedFolders(env: Env, projectId: string, userId: string): D1PreparedStatement[] {
+  return Object.entries(FIXED_FOLDERS).map(([fixed, name]) =>
+    env.DB.prepare("INSERT INTO files (id, project_id, type, name, fixed, created_by) VALUES (?1, ?2, 'folder', ?3, ?4, ?5)").bind(crypto.randomUUID(), projectId, name, fixed, userId));
+}
+
+/** Live ids, the given ones first, with everything inside them and their internal files. */
+const DOWN = `WITH RECURSIVE down(id) AS (
+    SELECT value FROM json_each(?1)
+    UNION SELECT f.id FROM files f JOIN down ON f.container = down.id WHERE f.deleted_at IS NULL
+    UNION SELECT f.id FROM files f JOIN down ON f.internal_of = down.id WHERE f.deleted_at IS NULL)`;
 
 /**
- * The statements that drop a deleted (or moved) resource's placement and shortcuts. Each delete
- * route runs them next to its own DELETE; `ids` is a JSON array. With `keepProject`, shortcuts on
- * that project's desktop stay (a shot moved there).
+ * Deletes binned rows for good. `where` selects them (alias `f`); everything that went to the bin
+ * with a selected file goes too. The one place rows leave the table, so what a type keeps outside
+ * the database (a photo's stored images, from step B2) is removed here as well.
  */
-export function fileRefCleanup(env: Env, type: FileResourceType, ids: string, keepProject?: string): D1PreparedStatement[] {
-  return [
-    env.DB.prepare("DELETE FROM folder_items WHERE resource_type = ?1 AND resource_id IN (SELECT value FROM json_each(?2))").bind(type, ids),
-    keepProject
-      ? env.DB.prepare("DELETE FROM desktop_items WHERE resource_type = ?1 AND resource_id IN (SELECT value FROM json_each(?2)) AND project_id != ?3").bind(type, ids, keepProject)
-      : env.DB.prepare("DELETE FROM desktop_items WHERE resource_type = ?1 AND resource_id IN (SELECT value FROM json_each(?2))").bind(type, ids),
-  ];
+async function purge(env: Env, where: string, binds: unknown[]): Promise<number> {
+  const { results } = await env.DB.prepare(`SELECT f.id FROM files f WHERE f.deleted_at IS NOT NULL AND (${where})`).bind(...binds).all<{ id: string }>();
+  for (let i = 0; i < results.length; i += 500) {
+    const ids = list(results.slice(i, i + 500).map((r) => r.id));
+    await env.DB.prepare("DELETE FROM files WHERE deleted_at IS NOT NULL AND (id IN (SELECT value FROM json_each(?1)) OR deleted_with IN (SELECT value FROM json_each(?1)))").bind(ids).run();
+  }
+  return results.length;
 }
 
-/** Ancestors of a folder, itself first: their ids and the folder's depth (top level = 1). */
-async function ancestry(env: Env, folderId: string): Promise<{ ids: string[]; depth: number }> {
-  const { results } = await env.DB.prepare(
-    `WITH RECURSIVE up(id, parent_id, n) AS (
-       SELECT id, parent_id, 1 FROM folders WHERE id = ?1 AND deleted_at IS NULL
-       UNION ALL SELECT f.id, f.parent_id, up.n + 1 FROM folders f JOIN up ON f.id = up.parent_id WHERE up.n < 64)
-     SELECT id, n FROM up`,
-  ).bind(folderId).all<{ id: string; n: number }>();
-  return { ids: results.map((r) => r.id), depth: results.length };
+/** The cron: purge what has been in the bin longer than BIN_RETENTION_DAYS. Returns the entries purged. */
+export async function purgeExpired(env: Env, at = Date.now()): Promise<number> {
+  return purge(env, "f.deleted_with IS NULL AND f.deleted_at < ?1", [new Date(at - BIN_RETENTION_DAYS * 86_400_000).toISOString()]);
 }
 
-/** Levels in a folder's subtree, itself included (a folder without subfolders = 1). */
-async function subtreeHeight(env: Env, folderId: string): Promise<number> {
-  const row = await env.DB.prepare(
-    `WITH RECURSIVE down(id, n) AS (
-       SELECT ?1, 1
-       UNION ALL SELECT f.id, down.n + 1 FROM folders f JOIN down ON f.parent_id = down.id WHERE f.deleted_at IS NULL AND down.n < 64)
-     SELECT max(n) AS h FROM down`,
-  ).bind(folderId).first<{ h: number }>();
-  return row?.h ?? 1;
+/** Before a project is deleted: how many live files it holds besides its fixed folders. */
+export async function liveFiles(env: Env, projectId: string): Promise<number> {
+  return (await env.DB.prepare("SELECT count(*) AS n FROM files WHERE project_id = ?1 AND deleted_at IS NULL AND fixed IS NULL").bind(projectId).first<{ n: number }>())?.n ?? 0;
 }
 
-/** The id of another folder with this name in the same directory, if any. */
-async function nameClash(env: Env, projectId: string, parentId: string | null, name: string, self: string): Promise<string | null> {
-  const row = await env.DB.prepare("SELECT id FROM folders WHERE project_id = ?1 AND ifnull(parent_id, '') = ifnull(?2, '') AND name = ?3 COLLATE NOCASE AND id != ?4 AND deleted_at IS NULL")
-    .bind(projectId, parentId, name, self).first<{ id: string }>();
-  return row?.id ?? null;
+/** Empties a project's bin and removes its fixed folders: what is left of an empty project before its row goes. */
+export async function clearProject(env: Env, projectId: string): Promise<void> {
+  await purge(env, "f.project_id = ?1", [projectId]);
+  await env.DB.prepare("DELETE FROM files WHERE project_id = ?1").bind(projectId).run();
 }
 
 export function registerFileRoutes(r: Router<Ctx>) {
   /**
-   * One payload for the Files app and the desktop: the project's live folders (the Desktop folder
-   * among them, created here on first use), placements in them, and the desktop and taskbar items.
+   * The files of one root: `project_id`, or `home=1`. Without more, every live file that is not
+   * internal. `container` (an id, or `top`), `type` (comma-separated), `q` (in the name) and
+   * `internal_of` narrow it; `bin=1` lists the bin's entries instead, newest first, each with how
+   * many files went along (`binned_with`); `body=1` adds the bodies.
    */
   r.on("GET", "/api/files", async (ctx) => {
     const { env, url } = ctx;
-    const pid = assertUuid(url.searchParams.get("project_id"), "project_id");
-    await assertAccess(ctx, "project", pid, "viewer");
-    await ensureDesktopFolder(env, pid);
-    const [folders, items, desktop] = await Promise.all([
-      env.DB.prepare(`SELECT ${FOLDER_COLS} FROM folders WHERE project_id = ?1 AND deleted_at IS NULL ORDER BY name COLLATE NOCASE`).bind(pid).all<FolderRow>(),
-      env.DB.prepare("SELECT i.* FROM folder_items i JOIN folders f ON f.id = i.folder_id WHERE f.project_id = ?1 AND f.deleted_at IS NULL").bind(pid).all<ItemRow>(),
-      env.DB.prepare("SELECT * FROM desktop_items WHERE project_id = ?1 ORDER BY area, position, created_at").bind(pid).all<DesktopRow>(),
-    ]);
-    return json({ folders: folders.results, items: items.results, desktop: desktop.results });
+    const q = url.searchParams;
+    const root = await rootFrom(ctx, q.get("project_id"), q.get("home"), "viewer", false);
+    const binds: unknown[] = [root.projectId, root.userId];
+    const where = [inRoot("f", 1)];
+    const bind = (v: unknown) => `?${binds.push(v)}`;
+    const bin = q.get("bin") === "1";
+    if (bin) where.push("f.deleted_at IS NOT NULL AND (f.deleted_with IS NULL OR NOT EXISTS (SELECT 1 FROM files t WHERE t.id = f.deleted_with AND t.deleted_at IS NOT NULL))");
+    else {
+      where.push("f.deleted_at IS NULL");
+      const internalOf = q.get("internal_of");
+      where.push(internalOf ? `f.internal_of = ${bind(assertUuid(internalOf, "internal_of"))}` : "f.internal_of IS NULL");
+      const container = q.get("container");
+      if (container === "top") where.push("f.container IS NULL");
+      else if (container) where.push(`f.container = ${bind(assertUuid(container, "container"))}`);
+    }
+    const types = q.get("type");
+    if (types) where.push(`f.type IN (SELECT value FROM json_each(${bind(list(types.split(",").map((t) => typeOf(t.trim()).type)))}))`);
+    const text = q.get("q")?.trim();
+    // instr, not LIKE: D1 caps a LIKE pattern at 50 bytes. lower() folds ASCII only.
+    if (text) where.push(`instr(lower(f.name), lower(${bind(text.slice(0, MAX_FILE_NAME))})) > 0`);
+    const withBody = q.get("body") === "1";
+    const { results } = await env.DB.prepare(
+      `SELECT ${COLS}${withBody ? ", f.body" : ""}${bin ? ", (SELECT count(*) FROM files x WHERE x.deleted_with = f.id AND x.deleted_at IS NOT NULL) AS binned_with" : ""}
+       FROM files f WHERE ${where.join(" AND ")} ORDER BY ${bin ? "f.deleted_at DESC, f.id" : "f.name COLLATE NOCASE, f.id"}`,
+    ).bind(...binds).all<FileRow>();
+    return json({ files: results.map((f) => toApi(f, withBody)) });
+  });
+
+  /** One file with its body and its references. A binned file answers too: the bin shows what it holds. */
+  r.on("GET", "/api/files/:id", async (ctx, { id }) => {
+    const f = await loadFile(ctx, assertUuid(id, "id"), "viewer");
+    return json({ file: { ...toApi(f, true), refs: await refsOf(ctx.env, f) } });
+  });
+
+  /** Where a file is used: the live files of its root that point at it, and for what. */
+  r.on("GET", "/api/files/:id/uses", async (ctx, { id }) => {
+    const f = await loadFile(ctx, assertUuid(id, "id"), "viewer");
+    const { results } = await ctx.env.DB.prepare(
+      `SELECT DISTINCT u.id, u.type, u.name, u.internal_of, r.kind FROM refs r JOIN files u ON u.id = r.from_file
+       WHERE r.to_file = ?1 AND u.deleted_at IS NULL AND ${inRoot("u", 2)} ORDER BY u.name COLLATE NOCASE, u.id`,
+    ).bind(f.id, f.project_id, f.home_of).all();
+    return json({ uses: results });
   });
 
   /**
-   * Upsert a folder: JSON { project_id (create only; never changes), name, parent_id? }. parent_id
-   * absent keeps the current parent, null moves to the root. Rejects cycles, depth > 8 and folders
-   * of another project; a name taken in the directory answers 409 + existing_id.
+   * Upsert a file: JSON { type, project_id | home (both on create only), name?, container?,
+   * internal_of? (create only), body?, body_version?, refs? }. What is absent is kept; a new file
+   * gets its type's default name and empty body. `container` null is the top level. `refs`, when
+   * sent, replaces the file's references. A file's type and root never change.
    */
-  r.on("PUT", "/api/folders/:id", async (ctx, { id }) => {
-    const { env, request } = ctx;
+  r.on("PUT", "/api/files/:id", async (ctx, { id }) => {
+    const { env, request, tenant } = ctx;
     const fid = assertUuid(id, "id");
-    const b = await readJson<Record<string, unknown>>(request);
-    const name = assertString(b.name, "name", MAX_FOLDER_NAME);
-    await accessIfExists(ctx, "folder", fid, "editor");
-    const stored = await env.DB.prepare("SELECT project_id, parent_id, name, kind, deleted_at FROM folders WHERE id = ?1").bind(fid).first<{ project_id: string; parent_id: string | null; name: string; kind: string; deleted_at: string | null }>();
-    if (stored?.deleted_at) throw new HttpError(409, "the folder is in the recycle bin; restore it first");
-    const projectId = stored?.project_id ?? assertUuid(b.project_id, "project_id");
-    if (stored && b.project_id !== undefined && b.project_id !== stored.project_id) throw new HttpError(400, "a folder cannot move to another project");
-    if (!stored) await assertProjectRef(ctx, projectId);
-    const parentId = b.parent_id === undefined ? stored?.parent_id ?? null : b.parent_id === null ? null : assertUuid(b.parent_id, "parent_id");
-    // The Desktop folder is fixed: always "Desktop", always at the top level.
-    if (stored?.kind === "desktop" && (name !== stored.name || parentId !== null)) throw new HttpError(400, "the Desktop folder cannot be renamed or moved");
-    if (parentId) {
-      const parent = await env.DB.prepare("SELECT project_id FROM folders WHERE id = ?1 AND deleted_at IS NULL").bind(parentId).first<{ project_id: string }>();
-      if (!parent) throw new HttpError(400, "parent_id: folder not found");
-      if (parent.project_id !== projectId) throw new HttpError(400, "parent_id: folder of another project");
-      const up = await ancestry(env, parentId);
-      if (up.ids.includes(fid)) throw new HttpError(400, "parent_id: a folder cannot go inside itself");
-      const height = stored ? await subtreeHeight(env, fid) : 1;
-      if (up.depth + height > MAX_FOLDER_DEPTH) throw new HttpError(400, `folders nest at most ${MAX_FOLDER_DEPTH} deep`);
+    const b = await readObject(request);
+    const stored = await findFile(ctx, fid, "editor");
+    if (stored?.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
+    const t = typeOf(stored?.type ?? b.type);
+    if (stored && b.type !== undefined && b.type !== stored.type) throw new HttpError(400, "a file's type never changes");
+    if (stored && ((b.project_id !== undefined && b.project_id !== stored.project_id) || (b.home !== undefined && b.home !== (stored.home_of !== null)))) {
+      throw new HttpError(400, "a file never moves to another project or account home");
     }
-    const clash = await nameClash(env, projectId, parentId, name, fid);
-    if (clash) return json({ error: "a folder with this name already exists here", existing_id: clash }, 409);
-    const now = new Date().toISOString();
-    await env.DB.prepare(
-      `INSERT INTO folders (id, project_id, parent_id, name, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
-       ON CONFLICT(id) DO UPDATE SET parent_id = ?3, name = ?4, updated_at = ?5`,
-    ).bind(fid, projectId, parentId, name, now).run();
-    const row = await env.DB.prepare(`SELECT ${FOLDER_COLS} FROM folders WHERE id = ?1`).bind(fid).first<FolderRow>();
-    return json({ folder: row });
-  });
+    const root = stored ? rootOf(stored) : await rootFrom(ctx, b.project_id, b.home, "editor", true);
+    const wrongName = b.name === undefined ? null : nameError(b.name);
+    if (wrongName) throw new HttpError(400, wrongName);
+    const name = b.name === undefined ? stored?.name ?? defaultName(t) : (b.name as string).trim();
+    if (stored && b.internal_of !== undefined && b.internal_of !== stored.internal_of) throw new HttpError(400, "internal_of is set when a file is made; release it to make it a project file");
+    const internalOf = stored ? stored.internal_of : b.internal_of == null ? null : assertUuid(b.internal_of, "internal_of");
+    const container = b.container === undefined ? stored?.container ?? null : b.container === null ? null : assertUuid(b.container, "container");
+    if (internalOf && container) throw new HttpError(400, "an internal file sits in no container");
+    if (stored?.fixed && (name !== stored.name || container !== stored.container)) throw new HttpError(400, `the ${stored.name} folder cannot be renamed or moved`);
 
-  /** Moves a folder to the recycle bin with everything in it (see trash.ts); the Desktop folder stays. */
-  r.on("DELETE", "/api/folders/:id", async (ctx, { id }) => {
-    const fid = assertUuid(id, "id");
-    await assertAccess(ctx, "folder", fid, "editor");
-    return json(await binFolder(ctx.env, fid));
-  });
-
-  /** Put a resource into a folder: JSON { folder_id: uuid | null }; null puts it back at the root. */
-  r.on("PUT", "/api/folder-items/:type/:id", async (ctx, { type, id }) => {
-    const { env, request } = ctx;
-    const t = assertEnum(type, "type", FILE_RESOURCE_TYPES);
-    const rid = assertUuid(id, "id");
-    // The folder must be of the resource's project (checked below), so one check covers both.
-    await assertAccess(ctx, t, rid, "editor");
-    const b = await readJson<Record<string, unknown>>(request);
-    if (b.folder_id === null) {
-      await env.DB.prepare("DELETE FROM folder_items WHERE resource_type = ?1 AND resource_id = ?2").bind(t, rid).run();
-      return json({ item: null });
+    if (!stored && internalOf) {
+      if (!canBeInternal(t) || !t.roots.includes(root.kind)) throw new HttpError(400, `a ${t.label.toLowerCase()} cannot be an internal file`);
+      const parent = await env.DB.prepare("SELECT f.project_id, f.home_of, f.deleted_at FROM files f WHERE f.id = ?1").bind(internalOf).first<FileRow>();
+      if (!parent || parent.deleted_at || !sameRoot(rootOf(parent), root)) throw new HttpError(400, "internal_of: no such file here");
+    } else if (!stored || container !== stored.container) {
+      await assertPlace(env, root, container, [{ id: fid, type: t, isNew: !stored }]);
     }
-    const folderId = assertUuid(b.folder_id, "folder_id");
-    const folder = await env.DB.prepare("SELECT project_id FROM folders WHERE id = ?1 AND deleted_at IS NULL").bind(folderId).first<{ project_id: string }>();
-    if (!folder) throw new HttpError(400, "folder_id: folder not found");
-    const owner = await resourceProject(env, t, rid);
-    if (!owner) throw new HttpError(404, `${t} not found`);
-    if (owner !== folder.project_id) throw new HttpError(400, `folder_id: the ${t} belongs to another project`);
-    await env.DB.prepare(
-      `INSERT INTO folder_items (resource_type, resource_id, folder_id) VALUES (?1, ?2, ?3)
-       ON CONFLICT(resource_type, resource_id) DO UPDATE SET folder_id = ?3`,
-    ).bind(t, rid, folderId).run();
-    const row = await env.DB.prepare("SELECT * FROM folder_items WHERE resource_type = ?1 AND resource_id = ?2").bind(t, rid).first<ItemRow>();
-    return json({ item: row });
-  });
 
-  /**
-   * Upsert a desktop item: JSON { project_id (create only), kind, resource_type + resource_id |
-   * folder_id | app_id, label?, area? (desktop | taskbar, create only), position? (taskbar order), x, y }.
-   * What it points at and its area never change after creation (409); a target that already has an
-   * item in this area answers 409 + existing_id.
-   */
-  r.on("PUT", "/api/desktop/:id", async (ctx, { id }) => {
-    const { env, request } = ctx;
-    const did = assertUuid(id, "id");
-    const b = await readJson<Record<string, unknown>>(request);
-    const bad = validateDesktopItem(b);
-    if (bad) throw new HttpError(400, bad);
-    const kind = b.kind as DesktopItemKind;
-    const target = {
-      resource_type: kind === "resource" ? (b.resource_type as FileResourceType) : null,
-      resource_id: kind === "resource" ? assertUuid(b.resource_id, "resource_id") : null,
-      folder_id: kind === "folder" ? assertUuid(b.folder_id, "folder_id") : null,
-      app_id: kind === "app" ? (b.app_id as string) : null,
-    };
-    const label = typeof b.label === "string" ? b.label.trim() : null;
-    const area: DesktopArea = b.area === "taskbar" ? "taskbar" : "desktop";
-    const position = typeof b.position === "number" ? b.position : null;
-    const now = new Date().toISOString();
-    const stored = await env.DB.prepare("SELECT * FROM desktop_items WHERE id = ?1").bind(did).first<DesktopRow>();
+    // The body and the references are checked together, so whichever was not sent is read back.
+    let save: { body: Body; version: number; refs: Ref[] | null } | null = null;
+    if (!stored || b.body !== undefined || b.refs !== undefined) {
+      const body = b.body !== undefined ? b.body : stored ? parseBody(stored) : t.empty();
+      const version = b.body !== undefined ? b.body_version : stored ? stored.body_version : t.version;
+      const refs = b.refs !== undefined ? b.refs : stored ? await refsOf(env, stored) : [];
+      const checked = checkFile(t, body, version, refs);
+      if (!checked.ok) throw new HttpError(400, checked.error);
+      save = { body: checked.body, version: checked.version, refs: b.refs !== undefined || !stored ? checked.refs : null };
+    }
+
+    const at = now();
+    const stmts: D1PreparedStatement[] = [];
     if (stored) {
-      await assertAccess(ctx, "project", stored.project_id, "editor");
-      if (b.project_id !== undefined && b.project_id !== stored.project_id) throw new HttpError(400, "a shortcut cannot move to another project");
-      const same = stored.kind === kind && stored.resource_type === target.resource_type && stored.resource_id === target.resource_id && stored.folder_id === target.folder_id && stored.app_id === target.app_id
-        && (b.area === undefined || stored.area === area);
-      if (!same) return json({ error: "a shortcut's target and area cannot change; delete it and make a new one" }, 409);
-      await env.DB.prepare("UPDATE desktop_items SET label = ?1, x = ?2, y = ?3, position = ?4, updated_at = ?5 WHERE id = ?6").bind(label, b.x, b.y, position, now, did).run();
+      stmts.push(env.DB.prepare("UPDATE files SET name = ?2, container = ?3, updated_at = ?4, body = coalesce(?5, body), body_version = coalesce(?6, body_version) WHERE id = ?1")
+        .bind(fid, name, container, at, save ? JSON.stringify(save.body) : null, save?.version ?? null));
     } else {
-      const projectId = assertUuid(b.project_id, "project_id");
-      await assertProjectRef(ctx, projectId);
-      if (target.folder_id) {
-        const folder = await env.DB.prepare("SELECT project_id FROM folders WHERE id = ?1 AND deleted_at IS NULL").bind(target.folder_id).first<{ project_id: string }>();
-        if (!folder) throw new HttpError(400, "folder_id: folder not found");
-        if (folder.project_id !== projectId) throw new HttpError(400, "folder_id: folder of another project");
-      }
-      if (target.resource_type && target.resource_id) {
-        const owner = await resourceProject(env, target.resource_type, target.resource_id);
-        if (!owner) throw new HttpError(404, `${target.resource_type} not found`);
-        if (owner !== projectId) throw new HttpError(400, `resource_id: the ${target.resource_type} belongs to another project`);
-      }
-      const dup = await env.DB.prepare(
-        `SELECT id FROM desktop_items WHERE project_id = ?1 AND kind = ?2 AND ifnull(resource_type, '') = ifnull(?3, '') AND ifnull(resource_id, '') = ifnull(?4, '')
-           AND ifnull(folder_id, '') = ifnull(?5, '') AND ifnull(app_id, '') = ifnull(?6, '') AND area = ?7`,
-      ).bind(projectId, kind, target.resource_type, target.resource_id, target.folder_id, target.app_id, area).first<{ id: string }>();
-      if (dup) return json({ error: area === "taskbar" ? "this is already pinned" : "this is already on the desktop", existing_id: dup.id }, 409);
-      try {
-        await env.DB.prepare(
-          `INSERT INTO desktop_items (id, project_id, kind, resource_type, resource_id, folder_id, app_id, label, x, y, area, position, updated_at)
-           VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
-        ).bind(did, projectId, kind, target.resource_type, target.resource_id, target.folder_id, target.app_id, label, b.x, b.y, area, position, now).run();
-      } catch (e) {
-        // Two clients (or two tabs) adding the same target at once: the second one is a duplicate too.
-        if (!String(e).includes("desktop_target_idx")) throw e;
-        const won = await env.DB.prepare(
-          `SELECT id FROM desktop_items WHERE project_id = ?1 AND kind = ?2 AND ifnull(resource_type, '') = ifnull(?3, '') AND ifnull(resource_id, '') = ifnull(?4, '')
-             AND ifnull(folder_id, '') = ifnull(?5, '') AND ifnull(app_id, '') = ifnull(?6, '') AND area = ?7`,
-        ).bind(projectId, kind, target.resource_type, target.resource_id, target.folder_id, target.app_id, area).first<{ id: string }>();
-        return json({ error: "this is already there", existing_id: won?.id ?? null }, 409);
-      }
+      stmts.push(env.DB.prepare(
+        "INSERT INTO files (id, project_id, home_of, type, name, container, internal_of, created_by, created_at, body, body_version) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+      ).bind(fid, root.projectId, root.userId, t.type, name, container, internalOf, tenant.userId, at, JSON.stringify(save!.body), save!.version));
     }
-    const row = await env.DB.prepare("SELECT * FROM desktop_items WHERE id = ?1").bind(did).first<DesktopRow>();
-    return json({ item: row });
+    if (save?.refs) stmts.push(...writeRefs(env, fid, save.refs));
+    await env.DB.batch(stmts);
+    return json({ file: await fileOut(env, fid) }, stored ? 200 : 201);
   });
 
-  r.on("DELETE", "/api/desktop/:id", async (ctx, { id }) => {
-    const { env } = ctx;
-    const did = assertUuid(id, "id");
-    const item = await env.DB.prepare("SELECT project_id FROM desktop_items WHERE id = ?1").bind(did).first<{ project_id: string }>();
-    if (!item) throw new HttpError(404, "shortcut not found");
-    await assertAccess(ctx, "project", item.project_id, "editor");
-    const res = await env.DB.prepare("DELETE FROM desktop_items WHERE id = ?1").bind(did).run();
-    if (!res.meta.changes) throw new HttpError(404, "shortcut not found");
-    return json({ deleted: did });
+  /** Move files into a folder or collection of their root, or to its top level: JSON { ids, container: id | null }. All or none. */
+  r.on("POST", "/api/files/move", async (ctx) => {
+    const { env, request } = ctx;
+    const b = await readObject(request);
+    const ids = assertIds(b.ids);
+    const container = b.container === null ? null : assertUuid(b.container, "container");
+    const { rows, root } = await loadFiles(ctx, ids);
+    for (const f of rows) {
+      if (f.deleted_at) throw new HttpError(409, `"${f.name}" is in the recycle bin`);
+      if (f.fixed) throw new HttpError(400, `the ${f.name} folder cannot be moved`);
+      if (f.internal_of) throw new HttpError(400, `"${f.name}" is an internal file; release it first`);
+    }
+    await assertPlace(env, root, container, rows.filter((f) => f.container !== container).map((f) => ({ id: f.id, type: typeOf(f.type) })));
+    await env.DB.prepare("UPDATE files SET container = ?2, updated_at = ?3 WHERE id IN (SELECT value FROM json_each(?1))").bind(list(ids), container, now()).run();
+    return json({ moved: ids, container });
   });
-}
 
-/**
- * Every project has one Desktop folder at its root (what sits on the desktop as a real item). It
- * is made on first use; a top-level folder already called "Desktop" becomes it.
- */
-async function ensureDesktopFolder(env: Env, projectId: string): Promise<void> {
-  if (await env.DB.prepare("SELECT 1 FROM folders WHERE project_id = ?1 AND kind = 'desktop'").bind(projectId).first()) return;
-  const adopted = await env.DB.prepare("UPDATE folders SET kind = 'desktop', name = ?2 WHERE project_id = ?1 AND parent_id IS NULL AND name = ?2 COLLATE NOCASE AND deleted_at IS NULL")
-    .bind(projectId, DESKTOP_FOLDER).run();
-  if (adopted.meta.changes) return;
-  await env.DB.prepare("INSERT OR IGNORE INTO folders (id, project_id, parent_id, name, kind) VALUES (?1, ?2, NULL, ?3, 'desktop')").bind(crypto.randomUUID(), projectId, DESKTOP_FOLDER).run();
+  /**
+   * Move files to the recycle bin: JSON { ids }. Each takes along what is inside it and its
+   * internal files. A file that is binned already is left as it is, so a repeated request is harmless.
+   */
+  r.on("POST", "/api/files/bin", async (ctx) => {
+    const { env, request } = ctx;
+    const ids = assertIds((await readObject(request)).ids);
+    const { rows } = await loadFiles(ctx, ids);
+    const fixed = rows.find((f) => f.fixed);
+    if (fixed) throw new HttpError(400, `the ${fixed.name} folder cannot be deleted`);
+    // Outermost first: a file binned in the same request as the folder it is in goes with the folder.
+    const { results } = await env.DB.prepare(
+      `WITH RECURSIVE up(start, id, n) AS (
+         SELECT value, value, 0 FROM json_each(?1)
+         UNION ALL SELECT up.start, coalesce(f.container, f.internal_of), up.n + 1 FROM files f JOIN up ON f.id = up.id
+           WHERE coalesce(f.container, f.internal_of) IS NOT NULL AND up.n < 64)
+       SELECT start, max(n) AS depth FROM up GROUP BY start ORDER BY depth`,
+    ).bind(list(ids)).all<{ start: string }>();
+    const at = now();
+    await env.DB.batch(results.map((x) => env.DB.prepare(
+      `${DOWN} UPDATE files SET deleted_at = ?2, deleted_with = CASE WHEN id = ?3 THEN NULL ELSE ?3 END WHERE deleted_at IS NULL AND id IN (SELECT id FROM down)`,
+    ).bind(list([x.start]), at, x.start)));
+    return json({ binned: ids });
+  });
+
+  /**
+   * Restore binned files: JSON { ids }. Each comes back where it was with everything that went
+   * along; when its folder is gone or still binned it comes back at the top level (`to_top`).
+   */
+  r.on("POST", "/api/files/restore", async (ctx) => {
+    const { env, request } = ctx;
+    const ids = assertIds((await readObject(request)).ids);
+    const { rows } = await loadFiles(ctx, ids);
+    const binned = rows.filter((f) => f.deleted_at);
+    const near = [...new Set(binned.flatMap((f) => [f.container, f.internal_of, f.deleted_with]).filter((x): x is string => !!x))];
+    const state = new Map((await env.DB.prepare("SELECT id, deleted_at FROM files WHERE id IN (SELECT value FROM json_each(?1))").bind(list(near)).all<{ id: string; deleted_at: string | null }>())
+      .results.map((x) => [x.id, x.deleted_at]));
+    // Live now, or coming back in this very request (a file and the folder it was in, named together).
+    const coming = new Set(binned.map((f) => f.id));
+    const live = (id: string | null) => id !== null && (state.get(id) === null || coming.has(id));
+    const stmts: D1PreparedStatement[] = [];
+    const toTop: string[] = [];
+    const at = now();
+    for (const f of binned) {
+      if (f.deleted_with && coming.has(f.deleted_with)) continue;
+      if (f.deleted_with && state.get(f.deleted_with)) throw new HttpError(400, `"${f.name}" went to the bin with another file; restore that one`);
+      if (f.internal_of && !live(f.internal_of)) throw new HttpError(409, `"${f.name}" belongs to a file that is in the bin; restore that one`);
+      const back = f.container && live(f.container) ? f.container : null;
+      if (f.container && !back) toTop.push(f.id);
+      stmts.push(
+        env.DB.prepare("UPDATE files SET deleted_at = NULL, deleted_with = NULL, container = ?2, updated_at = ?3 WHERE id = ?1").bind(f.id, back, at),
+        env.DB.prepare("UPDATE files SET deleted_at = NULL, deleted_with = NULL WHERE deleted_with = ?1").bind(f.id),
+      );
+    }
+    if (stmts.length) await env.DB.batch(stmts);
+    return json({ restored: ids, to_top: toTop });
+  });
+
+  /** Delete binned files for good: JSON { ids }, each an entry of the bin. */
+  r.on("POST", "/api/files/purge", async (ctx) => {
+    const { env, request } = ctx;
+    const ids = assertIds((await readObject(request)).ids);
+    const { rows } = await loadFiles(ctx, ids);
+    const liveOne = rows.find((f) => !f.deleted_at);
+    if (liveOne) throw new HttpError(400, `"${liveOne.name}" is not in the recycle bin`);
+    await purge(env, "f.id IN (SELECT value FROM json_each(?1))", [list(ids)]);
+    return json({ purged: ids });
+  });
+
+  /** Empty the bin of a root (`project_id`, or `home=1`). */
+  r.on("DELETE", "/api/bin", async (ctx) => {
+    const q = ctx.url.searchParams;
+    const root = await rootFrom(ctx, q.get("project_id"), q.get("home"), "editor", false);
+    const n = await purge(ctx.env, `f.deleted_with IS NULL AND ${inRoot("f", 1)}`, [root.projectId, root.userId]);
+    // What is left went to the bin with a file that is gone already.
+    await ctx.env.DB.prepare(`DELETE FROM files AS f WHERE f.deleted_at IS NOT NULL AND ${inRoot("f", 1)}`).bind(root.projectId, root.userId).run();
+    return json({ purged: n });
+  });
+
+  /**
+   * Copy a file: JSON { id (the copy's), name?, container? }. The copy takes along what is inside
+   * the file and its internal files, their references and property values; a reference to a file
+   * that was copied along points at the copy, any other at the same file as before. Sent again with
+   * the same id it answers with the copy already made.
+   */
+  r.on("POST", "/api/files/:id/duplicate", async (ctx, { id }) => {
+    const { env, request, tenant } = ctx;
+    const src = await loadFile(ctx, assertUuid(id, "id"), "editor");
+    const b = await readObject(request);
+    const copyId = assertUuid(b.id, "id");
+    if (await findFile(ctx, copyId, "editor")) return json({ file: await fileOut(env, copyId) });
+    if (src.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
+    if (src.fixed) throw new HttpError(400, `the ${src.name} folder cannot be copied`);
+    const wrongName = b.name === undefined ? null : nameError(b.name);
+    if (wrongName) throw new HttpError(400, wrongName);
+    const tail = " copy";
+    const name = b.name === undefined ? `${src.name.slice(0, MAX_FILE_NAME - tail.length)}${tail}` : (b.name as string).trim();
+    const container = b.container === undefined ? src.container : b.container === null ? null : assertUuid(b.container, "container");
+    if (src.internal_of && container) throw new HttpError(400, "an internal file sits in no container");
+    const t = typeOf(src.type);
+    if (container !== src.container) await assertPlace(env, rootOf(src), container, [{ id: src.id, type: t }]);
+
+    const tree = (await env.DB.prepare(`${DOWN} SELECT f.id, f.type FROM files f WHERE f.id IN (SELECT id FROM down)`).bind(list([src.id])).all<{ id: string; type: string }>()).results;
+    if (tree.length > MAX_BULK) throw new HttpError(400, `at most ${MAX_BULK} files in one copy; this one has ${tree.length}`);
+    const ids = new Map(tree.map((f) => [f.id, f.id === src.id ? copyId : crypto.randomUUID()]));
+    const map = JSON.stringify(Object.fromEntries(ids));
+    const mapped = (col: string) => `coalesce((SELECT c.value FROM json_each(?1) c WHERE c.key = ${col}), ${col})`;
+    const at = now();
+    const stmts = [
+      env.DB.prepare(
+        `INSERT INTO files (id, project_id, home_of, type, name, container, internal_of, created_by, created_at, body, body_version)
+         SELECT m.value, f.project_id, f.home_of, f.type, f.name, ${mapped("f.container")}, ${mapped("f.internal_of")}, ?2, ?3, f.body, f.body_version
+         FROM files f JOIN json_each(?1) m ON m.key = f.id`,
+      ).bind(map, tenant.userId, at),
+      env.DB.prepare("UPDATE files SET name = ?2, container = ?3 WHERE id = ?1").bind(copyId, name, container),
+      env.DB.prepare(
+        `INSERT INTO refs (from_file, kind, position, to_file, data)
+         SELECT m.value, r.kind, r.position, ${mapped("r.to_file")}, r.data FROM refs r JOIN json_each(?1) m ON m.key = r.from_file`,
+      ).bind(map),
+      env.DB.prepare("INSERT INTO property_values (file_id, definition_id, value) SELECT m.value, v.definition_id, v.value FROM property_values v JOIN json_each(?1) m ON m.key = v.file_id").bind(map),
+    ];
+    // Bodies that name files by id (a canvas's placed pictures) follow the copies.
+    const remapping = tree.filter((f) => fileType(f.type)?.remap);
+    if (remapping.length) {
+      const { results } = await env.DB.prepare("SELECT id, type, body FROM files WHERE id IN (SELECT value FROM json_each(?1))").bind(list(remapping.map((f) => f.id))).all<FileRow>();
+      for (const f of results) stmts.push(env.DB.prepare("UPDATE files SET body = ?2 WHERE id = ?1").bind(ids.get(f.id), JSON.stringify(fileType(f.type)!.remap!(parseBody(f), ids))));
+    }
+    await env.DB.batch(stmts);
+    return json({ file: await fileOut(env, copyId) }, 201);
+  });
+
+  /**
+   * Make an internal file a file of its root: JSON { container? }. One-way; the file it was made in
+   * keeps pointing at it and no data moves (docs/rewrite/i1-interjection.md).
+   */
+  r.on("POST", "/api/files/:id/release", async (ctx, { id }) => {
+    const { env, request } = ctx;
+    const f = await loadFile(ctx, assertUuid(id, "id"), "editor");
+    const b = await readObject(request);
+    if (f.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
+    if (!f.internal_of) throw new HttpError(400, "this is not an internal file");
+    const container = b.container == null ? null : assertUuid(b.container, "container");
+    await assertPlace(env, rootOf(f), container, [{ id: f.id, type: typeOf(f.type) }]);
+    await env.DB.prepare("UPDATE files SET internal_of = NULL, container = ?2, updated_at = ?3 WHERE id = ?1").bind(f.id, container, now()).run();
+    return json({ file: await fileOut(env, f.id) });
+  });
 }

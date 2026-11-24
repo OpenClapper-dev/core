@@ -77,7 +77,7 @@ export function App() {
         <div class="admin__tiles">
           <Tile label="Accounts" value={overview.users} sub={`${overview.active_30d} active in 30 days${overview.blocked ? ` · ${overview.blocked} blocked` : ""}`} />
           <Tile label="Workspaces" value={overview.workspaces} sub={`${overview.projects} projects`} />
-          <Tile label="Shots" value={overview.shots} sub={`${overview.photos} photos`} />
+          <Tile label="Files" value={overview.files} sub={`${overview.photos} photos`} />
           <Tile label="Storage" value={bytes(overview.bytes)} sub={overview.unsized ? `+ ${overview.unsized} photos from before sizes were recorded` : "photos in R2"} />
         </div>
       )}
