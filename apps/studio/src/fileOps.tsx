@@ -1,4 +1,6 @@
 import { useState } from "preact/hooks";
+import { takenFrame } from "./canvas/geometry";
+import { getPrefs } from "./prefs";
 import { Button, Dialog, Tree, type TreeNodeData } from "@openclapper/design";
 import { MAX_FILE_NAME, emptyCanvas, fileType, placementError } from "@openclapper/model";
 import type { FileRec, Root } from "./api";
@@ -69,7 +71,7 @@ export async function canvasFromPhoto(photo: FileRec, files: ReadonlyMap<string,
   try {
     const id = crypto.randomUUID(), at = photo.container ? files.get(photo.container) : undefined;
     const container = at?.type === "collection" ? at.container : photo.container;
-    const body = { ...emptyCanvas(), surface: { kind: "photo" } };
+    const body = { ...emptyCanvas(), surface: { kind: "photo" }, ...takenFrame(photo, new Set([...files.values()].filter((x) => x.type === "preset" && !x.deleted_at).map((x) => x.id)), getPrefs().canvasTakesFrame) };
     const f = await store.create(store.rootOf(photo), "canvas", { id, container, body: body as unknown as Record<string, unknown>, refs: [{ kind: "base", to: photo.id }] });
     launch({ app: "canvas", resource: { type: "canvas", id }, title: f.name });
   } catch (e) { toastError(e); }

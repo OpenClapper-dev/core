@@ -65,3 +65,19 @@ export const clampCentre = (c: number, size: number) => (size >= 1 ? 0.5 : Math.
 
 /** The frame the canvas stands for, when it can be drawn. */
 export const pictureOf = (b: CanvasBody, ctx: FrameCtx) => { const f = b.frames.find((x) => x.id === b.picture && x.visible); return f && rectOf(f, ctx) ? f : null; };
+
+/**
+ * A canvas made from a photo starts with the frame the photo was taken with, marked as its picture (docs/rewrite/
+ * 05-composition.md), unless the account switched that off: from its preset while the preset is there, else from
+ * the factors the photo copied.
+ */
+export function takenFrame(photo: { photo?: { frame?: (Partial<CanvasFrame> & { kind: CanvasFrame["kind"]; presetName?: string }) | null } }, presetIds: ReadonlySet<string>, on: boolean): Pick<CanvasBody, "frames" | "picture"> | Record<string, never> {
+  const f = photo.photo?.frame;
+  if (!on || !f) return {};
+  const base = { id: "taken", color: 1 as const, cx: 0.5, cy: 0.5, visible: true, portrait: !!f.portrait };
+  let frame: CanvasFrame;
+  if (f.kind === "aspect") frame = { ...base, kind: "aspect", name: "As taken", aspect: f.aspect ?? 1.78, size: f.size ?? 1 };
+  else if (f.kind === "preset" && f.preset && presetIds.has(f.preset)) frame = { ...base, kind: "preset", name: `${f.presetName ? `${f.presetName} · ` : ""}${f.focal} mm`, preset: f.preset, focal: f.focal };
+  else frame = { ...base, kind: "free", name: `${f.presetName ? `${f.presetName} · ` : ""}${f.focal} mm`, format: f.format ?? [36, 24], multiplier: f.multiplier ?? 1, squeeze: f.squeeze ?? 1, delivery: f.delivery ?? null, focal: f.focal };
+  return { frames: [frame], picture: "taken" };
+}

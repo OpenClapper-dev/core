@@ -26,12 +26,12 @@ interface FileRow {
   lock_by: string | null; lock_until: string | null; body_version: number; body?: string; ws?: string | null; binned_with?: number;
   // A photo's facts (LEFT JOIN photos); all null for any other file.
   ph_origin?: string | null; ph_media_type?: string | null; ph_taken_at?: string | null; ph_width?: number | null; ph_height?: number | null;
-  ph_original?: number | null; ph_preview?: number | null; ph_thumbnail?: number | null; ph_aov_h?: number | null; ph_aov_v?: number | null; ph_aov_source?: string | null; ph_device?: string | null;
+  ph_original?: number | null; ph_preview?: number | null; ph_thumbnail?: number | null; ph_aov_h?: number | null; ph_aov_v?: number | null; ph_aov_source?: string | null; ph_device?: string | null; ph_frame?: string | null;
 }
 /** Everything but the body: a list never carries bodies unless asked. */
 const COLS = "f.id, f.project_id, f.home_of, f.type, f.name, f.container, f.internal_of, f.fixed, f.created_at, f.updated_at, f.created_by, f.deleted_at, f.deleted_with, f.lock_by, f.lock_until, f.body_version";
 /** A photo's facts next to its file: joined into every list and single read, so Media needs one request. */
-const PHOTO_COLS = "ph.origin AS ph_origin, ph.media_type AS ph_media_type, ph.taken_at AS ph_taken_at, ph.width AS ph_width, ph.height AS ph_height, ph.original_bytes AS ph_original, ph.preview_bytes AS ph_preview, ph.thumbnail_bytes AS ph_thumbnail, ph.aov_horizontal AS ph_aov_h, ph.aov_vertical AS ph_aov_v, ph.aov_source AS ph_aov_source, ph.device_id AS ph_device";
+const PHOTO_COLS = "ph.origin AS ph_origin, ph.media_type AS ph_media_type, ph.taken_at AS ph_taken_at, ph.width AS ph_width, ph.height AS ph_height, ph.original_bytes AS ph_original, ph.preview_bytes AS ph_preview, ph.thumbnail_bytes AS ph_thumbnail, ph.aov_horizontal AS ph_aov_h, ph.aov_vertical AS ph_aov_v, ph.aov_source AS ph_aov_source, ph.device_id AS ph_device, ph.frame AS ph_frame";
 const PHOTO_JOIN = "LEFT JOIN photos ph ON ph.file_id = f.id";
 
 interface Root { kind: RootKind; projectId: string | null; userId: string | null }
@@ -62,6 +62,8 @@ function toApi(f: FileRow, withBody: boolean) {
         stored: { thumbnail: f.ph_thumbnail ?? null, preview: f.ph_preview ?? null, original: f.ph_original ?? null },
         angle_of_view: f.ph_aov_source ? { horizontal: f.ph_aov_h, vertical: f.ph_aov_v, source: f.ph_aov_source } : null,
         device_id: f.ph_device ?? null,
+        // The frame it was taken with, if the camera showed one.
+        frame: f.ph_frame ? (JSON.parse(f.ph_frame) as Record<string, unknown>) : null,
       },
     } : {}),
   };

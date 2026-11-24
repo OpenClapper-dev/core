@@ -51,6 +51,9 @@ export function SettingsApp({ win, setTitle, setRoute }: AppProps) {
           <SettingsGroup title="Media">
             <FormField label="How a collection's colour shows on its photos"><span><Segmented label="Collection mark" value={prefs.collectionMark} onChange={(v) => setPrefs({ collectionMark: v as typeof prefs.collectionMark })} options={[{ value: "bar", label: "Bar below" }, { value: "barleft", label: "Bar left" }, { value: "dot", label: "Dot" }, { value: "frame", label: "Frame" }]} /></span></FormField>
           </SettingsGroup>
+          <SettingsGroup title="Canvas">
+            <Switch checked={prefs.canvasTakesFrame} onChange={(v) => setPrefs({ canvasTakesFrame: v })}>A canvas made from a photo starts with the frame the photo was taken with</Switch>
+          </SettingsGroup>
           <SettingsGroup title="Desktop">
             <Switch checked={prefs.binOnDesktop} onChange={(v) => setPrefs({ binOnDesktop: v })}>Recycle bin on the desktop</Switch>
           </SettingsGroup>

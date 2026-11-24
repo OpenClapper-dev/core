@@ -2,6 +2,7 @@
 // plays the cut under the playhead; below it the strip (a ruler, the chapters, the clips, each as wide as it lasts);
 // around it the project's files, the files in use, the chapters and the chosen clips. One person edits a timeline
 // at a time (the edit lock); others watch it read-only. Edits save on their own and can be undone.
+import { takenFrame } from "../canvas/geometry";
 import "../shots/shots.css";
 import "../timeline/timeline.css";
 import type { ComponentChildren } from "preact";
@@ -23,7 +24,7 @@ import { bind, useKeys } from "../keys";
 import { useEditLock } from "../lock";
 import { presetsIn } from "../optics";
 import { usePeople } from "../people";
-import { setPrefs, usePrefs } from "../prefs";
+import { getPrefs, setPrefs, usePrefs } from "../prefs";
 import { definitionsIn } from "../props";
 import { PropertySections } from "../propertyEditors";
 import { useProjects } from "../projects";
@@ -191,7 +192,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
     if (!photo || readonly) return;
     try {
       const id = crypto.randomUUID();
-      await api.createFile({ project: projectId }, id, { type: "canvas", container: photo.container && map.get(photo.container)?.type === "collection" ? map.get(photo.container)!.container : photo.container, body: { ...emptyCanvas(), surface: { kind: "photo" } }, refs: [{ kind: "base", to: photo.id }] });
+      await api.createFile({ project: projectId }, id, { type: "canvas", container: photo.container && map.get(photo.container)?.type === "collection" ? map.get(photo.container)!.container : photo.container, body: { ...emptyCanvas(), surface: { kind: "photo" }, ...takenFrame(photo, new Set([...files].filter((x) => x.type === "preset" && !x.deleted_at).map((x) => x.id)), getPrefs().canvasTakesFrame) }, refs: [{ kind: "base", to: photo.id }] });
       await store.loadRoot({ project: projectId });
       patch([b.clip.id], { file: id, frame: undefined });
       toast(`“${photo.name}” is now a canvas in this clip: draw on it, give it a look, frame it`, { tone: "info" });

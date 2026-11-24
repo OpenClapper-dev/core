@@ -23,8 +23,10 @@ interface DeviceState {
   file: { id: string; name: string; body: Record<string, unknown> } | null;
   /** The tabs as this phone shows them (the file's, or chosen here). */
   tabs: string[];
-  /** Tabs or name changed here and not saved yet. */
-  dirty: { tabs?: boolean; name?: boolean };
+  /** The camera layout in use (the file's, or chosen here): a built-in id or a layout's id. */
+  layout?: string;
+  /** Tabs, name or layout changed here and not saved yet. */
+  dirty: { tabs?: boolean; name?: boolean; layout?: boolean };
 }
 export const device = persisted<DeviceState>("device.v1", { userId: null, file: null, tabs: DEFAULT_TABS, dirty: {} });
 
@@ -39,6 +41,16 @@ function readLenses() {
 }
 addOnCameraDevicesChangedListener(() => readLenses());
 setTimeout(readLenses, 0);
+
+/** The camera's area (bars and picture, without the tab bar) per orientation, as the camera last measured it: the Studio previews layouts at it. */
+export const cameraArea = persisted<{ portrait: { w: number; h: number } | null; landscape: { w: number; h: number } | null }>("cameraArea.v1", { portrait: null, landscape: null });
+/** The camera reports its area as laid out; a change is sent with the next registration. */
+export function measureCamera(landscape: boolean, w: number, h: number) {
+  const size = { w: Math.round(w), h: Math.round(h) }, key = landscape ? "landscape" : "portrait", cur = cameraArea.get()[key];
+  if (size.w < 100 || size.h < 100 || (cur && cur.w === size.w && cur.h === size.h)) return;
+  cameraArea.set((a) => ({ ...a, [key]: size }));
+  void syncDevice();
+}
 
 /** On Android ANDROID_ID: stable across reinstalls, new after a factory reset, one per signing key. Elsewhere a random id kept on the phone. */
 const fallbackId = persisted<string | null>("deviceFallbackId.v1", null);
@@ -59,6 +71,8 @@ function report(): DeviceReport {
     model: (k.Model ?? k.model ?? "").slice(0, 120),
     lenses: lenses.get().lenses.map(deviceLens),
     screen: short > 0 ? { portrait: { w: short, h: long }, landscape: { w: long, h: short } } : null,
+    // Both orientations once both were measured; until then the other one is the first turned round.
+    ...(() => { const a = cameraArea.get(), p = a.portrait ?? (a.landscape && { w: a.landscape.h, h: a.landscape.w }), l = a.landscape ?? (a.portrait && { w: a.portrait.h, h: a.portrait.w }); return p && l ? { camera: { portrait: p, landscape: l } } : {}; })(),
     app: APP_VERSION.slice(0, 60),
   };
 }
@@ -69,6 +83,7 @@ const take = (f: FileRec) => device.set((d) => ({
   ...d, userId: signedInUserId(),
   file: { id: f.id, name: d.dirty.name && d.file ? d.file.name : f.name, body: f.body ?? {} },
   tabs: d.dirty.tabs ? d.tabs : Array.isArray(f.body?.tabs) ? (f.body!.tabs as string[]) : d.tabs,
+  layout: d.dirty.layout ? d.layout : typeof f.body?.layout === "string" ? f.body.layout : d.layout,
 }));
 
 let running: Promise<void> | null = null;
@@ -86,9 +101,9 @@ export function syncDevice(): Promise<void> {
     if (device.get().userId !== user) device.set({ userId: user, file: null, tabs: device.get().tabs, dirty: { tabs: device.get().dirty.tabs } });
     try {
       take(await registerDevice(report()));
-      const { file, dirty, tabs } = device.get();
-      if (file && (dirty.tabs || dirty.name)) {
-        const saved = await putFile(file.id, { type: "device", home: true, name: file.name, body: { ...file.body, tabs } });
+      const { file, dirty, tabs, layout } = device.get();
+      if (file && (dirty.tabs || dirty.name || dirty.layout)) {
+        const saved = await putFile(file.id, { type: "device", home: true, name: file.name, body: { ...file.body, tabs, ...(layout ? { layout } : {}) } });
         device.set((d) => ({ ...d, dirty: {} }));
         take(saved);
       }
@@ -100,6 +115,12 @@ export function syncDevice(): Promise<void> {
 /** The person's choice of tabs on this device, in order; Setup is always there and not part of it. */
 export function setTabs(tabs: string[]) {
   device.set((d) => ({ ...d, tabs: [...tabs.filter((t) => t !== "setup"), "setup"], dirty: { ...d.dirty, tabs: true } }));
+  void syncDevice();
+}
+
+/** The camera layout this device uses (a built-in id or a layout's id); also set from the Studio. */
+export function setDeviceLayout(id: string) {
+  device.set((d) => ({ ...d, layout: id, dirty: { ...d.dirty, layout: true } }));
   void syncDevice();
 }
 

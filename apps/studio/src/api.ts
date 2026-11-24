@@ -1,4 +1,5 @@
 /** Same-origin API (docs/api.md); the session cookie is sent automatically. */
+import type { FrameValues } from "@openclapper/model";
 
 export interface Me { user: { id: string; email: string; name: string | null }; workspaces: { id: string; name: string; role: WorkspaceRole; personal: boolean }[] }
 export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
@@ -74,6 +75,8 @@ export interface FileRec {
 }
 export interface PhotoFacts {
   origin: "capture" | "import"; media_type: string; taken_at: string; width: number; height: number;
+  /** The frame it was taken with (the camera's, a fact): frame values, a preset's factors copied with its name. */
+  frame?: (FrameValues & { presetName?: string }) | null;
   /** Bytes of each stored image; null until it arrived. */
   stored: { thumbnail: number | null; preview: number | null; original: number | null };
   angle_of_view: { horizontal: number; vertical: number; source: "exif-35mm" | "exif-sensor" } | null;

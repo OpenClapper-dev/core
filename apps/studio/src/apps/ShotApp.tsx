@@ -2,6 +2,8 @@
 // with the chosen picture, the file's properties beside it, and below the content list and, for a shot, its
 // progression (a small timeline with timing, a default frame, an overlay and the zoom generator). A canvas is edited
 // in place: the canvas tool takes the stage. What is made inside a shot is an internal file of it.
+import { takenFrame } from "../canvas/geometry";
+import { getPrefs } from "../prefs";
 import "../shots/shots.css";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
@@ -148,7 +150,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   const newCanvas = async (photo?: FileRec, afterIndex?: number) => {
     try {
       const id = crypto.randomUUID();
-      const body = photo ? { ...emptyCanvas(), surface: { kind: "photo" } } : emptyCanvas();
+      const body = photo ? { ...emptyCanvas(), surface: { kind: "photo" }, ...takenFrame(photo, new Set([...files].filter((x) => x.type === "preset" && !x.deleted_at).map((x) => x.id)), getPrefs().canvasTakesFrame) } : emptyCanvas();
       await api.createFile({ project: projectId }, id, { type: "canvas", internal_of: f.id, body, ...(photo ? { refs: [{ kind: "base", to: photo.id }] } : {}) });
       const at = afterIndex == null ? doc.content.length : afterIndex + 1;
       change({ ...doc, content: [...doc.content.slice(0, at), id, ...doc.content.slice(at)] });

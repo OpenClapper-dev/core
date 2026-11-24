@@ -1,5 +1,5 @@
 import { photoAov } from "@openclapper/fov-math";
-import { MAX_FILE_NAME, fileType, placementError } from "@openclapper/model";
+import { MAX_FILE_NAME, captureFrameError, fileType, placementError } from "@openclapper/model";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import { accessFile, fileOut } from "./files.ts";
 import { assertBodySize, imageExt, preconditionFailed, sniffImageType, type ImageType } from "./images.ts";
@@ -89,7 +89,8 @@ export async function removeOrphans(env: Env, gone: PhotoRow[]): Promise<void> {
 export function registerPhotoRoutes(r: Router<Ctx>) {
   /**
    * Add a photo, or say again that it exists: JSON { project_id, origin, media_type, taken_at, width,
-   * height, name?, container?, exif?, readout?, device_id? }. Sent again for a photo that exists it
+   * height, name?, container?, exif?, readout?, device_id?, frame? }. `frame`: the frame it was taken with
+   * (frame values, a preset's factors copied with its name); one that does not fit is left out, never refused. Sent again for a photo that exists it
    * changes nothing and answers with the photo as it is. The angle of view is computed here from the
    * EXIF tags, one rule for every client (packages/fov-math).
    */
@@ -123,12 +124,14 @@ export function registerPhotoRoutes(r: Router<Ctx>) {
       const c = await env.DB.prepare("SELECT type, fixed FROM files WHERE id = ?1 AND project_id = ?2 AND deleted_at IS NULL AND internal_of IS NULL").bind(b.container.toLowerCase(), projectId).first<{ type: string; fixed: string | null }>();
       if (c && !placementError(fileType("photo")!, c, "project")) container = b.container.toLowerCase();
     }
+    // An upload is taken leniently: a frame that does not fit the rules is dropped, the photo is kept.
+    const frame = b.frame !== undefined && b.frame !== null && !captureFrameError(b.frame) ? JSON.stringify(b.frame) : null;
     const now = new Date().toISOString();
     await env.DB.batch([
       env.DB.prepare("INSERT INTO files (id, project_id, type, name, container, created_by, created_at, body, body_version) VALUES (?1, ?2, 'photo', ?3, ?4, ?5, ?6, ?7, 1)")
         .bind(pid, projectId, name, container, tenant.userId, now, JSON.stringify({ exif, readout })),
-      env.DB.prepare("INSERT INTO photos (file_id, object_id, origin, media_type, taken_at, width, height, aov_horizontal, aov_vertical, aov_source, device_id) VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)")
-        .bind(pid, b.origin, mediaType, taken, width, height, aov?.horizontal ?? null, aov?.vertical ?? null, aov?.source ?? null, deviceId),
+      env.DB.prepare("INSERT INTO photos (file_id, object_id, origin, media_type, taken_at, width, height, aov_horizontal, aov_vertical, aov_source, device_id, frame) VALUES (?1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)")
+        .bind(pid, b.origin, mediaType, taken, width, height, aov?.horizontal ?? null, aov?.vertical ?? null, aov?.source ?? null, deviceId, frame),
     ]);
     return json({ file: await fileOut(env, pid) }, 201);
   });

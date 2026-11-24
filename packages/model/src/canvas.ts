@@ -248,3 +248,16 @@ export function frameOptics(f: CanvasFrame, presets: ReadonlyMap<string, PresetB
   if (!f.format || !f.focal) return null;
   return { format: f.format, multiplier: f.multiplier ?? 1, squeeze: f.squeeze ?? 1, focal: f.focal, delivery: f.delivery ?? null, portrait: f.portrait };
 }
+
+/**
+ * The frame a photo was taken with (docs/rewrite/03-capture.md, "Controls on top"): its frame values, for a
+ * preset with the factors copied and the preset's name, so the photo reads the same after the preset changed.
+ */
+export type CaptureFrame = FrameValues & { presetName?: string };
+/** Null when a photo's frame at capture is valid. */
+export function captureFrameError(v: unknown): string | null {
+  if (!isObj(v)) return "a frame is an object";
+  const { presetName, ...rest } = v;
+  if (presetName !== undefined && (typeof presetName !== "string" || presetName.length > 120)) return "the preset's name is at most 120 characters";
+  return frameValuesError(rest);
+}

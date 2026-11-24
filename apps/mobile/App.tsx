@@ -20,6 +20,7 @@ import { LoginForm, ProjectGate, SignInGate } from "./src/shell/Gates";
 import { initialLogin, login as loginState, skipped } from "./src/shell/signin";
 import { setTabOpener } from "./src/shell/nav";
 import { startSync } from "./src/sync";
+import { startLink } from "./src/link";
 import { ConfirmHost, Icon, makeStyles, PALETTES, resolveTheme, SIZE, ThemeProvider, ToastHost, type, useTheme } from "./src/ui";
 
 // Offline mode and logging take effect before the first request; the sign-in gate is decided once.
@@ -64,7 +65,7 @@ function App() {
   const prefs = usePrefs();
   const themeName = resolveTheme(prefs.theme, os);
 
-  useEffect(() => { startSync(); }, []);
+  useEffect(() => { startSync(); startLink(); }, []);
   // The tab in front was taken off this device: the first tab instead.
   const current = tabs.find((t) => t.id === tab) ?? tabs[0];
   const go = (id: string) => { setTab(id); setOpened((o) => (o.includes(id) ? o : [...o, id])); };

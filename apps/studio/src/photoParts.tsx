@@ -23,6 +23,7 @@ export function PhotoFactsSections({ f, map }: { f: FileRec; map: ReadonlyMap<st
         <PropertyRow label="Size" value={`${p.width} × ${p.height}`} unit="px" numeric />
         <PropertyRow label="Angle of view" value={p.angle_of_view ? `${deg(p.angle_of_view.horizontal)} × ${deg(p.angle_of_view.vertical)}` : "unknown"} numeric={!!p.angle_of_view} />
         {p.angle_of_view && <PropertyRow label="From" value={p.angle_of_view.source === "exif-35mm" ? "EXIF, 35 mm equivalent" : "EXIF, focal length and sensor"} />}
+        {p.frame && <PropertyRow label="Frame when taken" value={p.frame.kind === "aspect" ? `${Number((p.frame.aspect ?? 1).toFixed(2))}:1` : `${p.frame.presetName ? `${p.frame.presetName} · ` : ""}${p.frame.focal} mm${p.frame.portrait ? ", upright" : ""}`} />}
         {coll && <PropertyRow label="Collection"><CollectionTag tint={tintOf(coll)!}>{coll.name}</CollectionTag></PropertyRow>}
       </PropertySection>
       <PropertySection title="Device" icon="camera">
