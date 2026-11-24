@@ -1,0 +1,181 @@
+/* The canvas tool (from UX workshop U2, apps/specimen/src/ux/u2). */
+/* Page styles of the UX workshop U2 prototype (the canvas). Layout and prototype-specific pieces only. */
+.cv { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--surface); color: var(--text); font: var(--font-size-sm)/1.4 var(--font-sans); }
+.cv--hosted { position: relative; inset: auto; flex: 1; min-height: 0; min-width: 0; }
+.cv-work { position: relative; flex: 1; min-height: 0; display: flex; }
+.cv-editor { flex: 1; min-height: 0; min-width: 0; }
+.cv-editor.is-locked { filter: grayscale(.6); opacity: .55; pointer-events: none; }
+.cv-title { padding: 0 var(--space-3); }
+.cv-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.cv-toolopts { display: inline-flex; align-items: center; gap: var(--space-5); margin-left: var(--space-5); padding-left: var(--space-5); border-left: var(--border-w) solid var(--border-divider); }
+
+/* The edit lock: an overlay over the whole tool; everything under it is inert. */
+.cv-lock { position: absolute; inset: 0; z-index: 30; display: grid; place-items: center; background: var(--scrim, rgba(0, 0, 0, .35)); }
+.cv-lock__card { display: grid; gap: var(--space-4); justify-items: start; width: min(380px, calc(100% - 48px)); padding: var(--space-7); border: var(--border-w) solid var(--border-window, var(--border-control)); border-radius: var(--radius-window, 10px); background: var(--surface-raised, var(--surface)); box-shadow: var(--shadow-dialog, 0 12px 40px rgba(0, 0, 0, .35)); }
+.cv-lock__card strong { font-size: var(--font-size-lg); }
+.cv-lock__card p { margin: 0; color: var(--text-secondary); }
+.cv-lock__icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--warning-tint, var(--surface-sunken)); color: var(--warning, var(--text)); }
+
+/* The stage. The world holds everything and is what Crop zooms; the surface is the photo or the paper. */
+.cv-fit { position: absolute; inset: 0; display: grid; place-items: center; padding: 28px; box-sizing: border-box; container-type: size; overflow: hidden; }
+.cv-fit.is-hand, .cv-fit.is-hand * { cursor: grab !important; }
+/* Handles, nodes and pins keep their size on screen whatever the zoom. */
+.cv-handle, .cv-node, .cv-pin, .cv-rot { scale: var(--inv, 1); }
+.cv-pin { transform-origin: 0 100%; }
+.cv-pin:hover, .cv-pin.is-current { scale: calc(var(--inv, 1) * 1.15); }
+.cv-thread { scale: var(--inv, 1); transform-origin: 0 0; }
+.cv-frame__label { scale: var(--inv, 1); transform-origin: 0 100%; }
+.cv-zoomer { display: inline-flex; align-items: center; }
+.cv-zoomer__now { min-width: 52px; height: var(--control-h-sm, 24px); padding: 0 4px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.cv-zoomer__now:hover { background: color-mix(in srgb, var(--text) 14%, transparent); }
+/* Guides: where a moved object is held by something else. */
+.cv-guide { position: absolute; z-index: 8; background: #ff3ea5; pointer-events: none; }
+.cv-guide--v { top: -200%; bottom: -200%; width: 2px; margin-left: -1px; scale: var(--inv, 1) 1; }
+.cv-guide--h { left: -200%; right: -200%; height: 2px; margin-top: -1px; scale: 1 var(--inv, 1); }
+/* Compare: two panes, each fitted to one frame. */
+.cv-compare { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border-divider); }
+.cv-pane { position: relative; display: flex; flex-direction: column; min-width: 0; background: var(--surface-sunken); }
+.cv-pane > header { flex: none; display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); background: var(--surface); border-bottom: var(--border-w) solid var(--border-divider); }
+.cv-pane > header b { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 4px; background: var(--text); color: var(--surface); font: 700 11px/1 var(--font-mono); }
+.cv-pane > header .oc-selectbox { flex: 1; min-width: 0; max-width: 320px; }
+.cv-pane > .cv-fit { position: relative; flex: 1; inset: auto; padding: 16px; pointer-events: none; }
+.cv-stage { position: relative; width: min(100cqw, 100cqh * var(--aspect, 4 / 3)); aspect-ratio: var(--aspect, 4 / 3); background: var(--photo-bg, #111); overflow: hidden; touch-action: none; user-select: none; }
+.cv-stage.is-beyond { background: repeating-linear-gradient(135deg, #2a2a2a 0 6px, #1b1b1b 6px 12px); }
+.cv-stage--outline, .cv-stage--full, .cv-stage--blank { overflow: visible; }
+.cv-world { position: absolute; inset: 0; }
+.cv-surface { position: absolute; left: 50%; top: 50%; translate: -50% -50%; container-type: size; }
+.cv-stage.is-drawing .cv-surface { cursor: crosshair; }
+.cv-surface--ui { pointer-events: none; z-index: 5; }
+.cv-surface--ui .cv-node, .cv-surface--ui .cv-pin, .cv-surface--ui .cv-thread { pointer-events: auto; }
+.cv-photo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+
+/* Objects */
+.cv-obj { position: absolute; box-sizing: border-box; cursor: move; }
+.cv-obj--ellipse { border-radius: 50%; }
+.cv-obj--text.is-editing { cursor: text; outline: 1.5px solid var(--accent); outline-offset: 3px; background: rgba(0, 0, 0, .25); user-select: text; white-space: pre; }
+.cv-obj--text { display: flex; align-items: center; white-space: nowrap; font: 700 calc(var(--fs) * 1cqh)/1 var(--font-sans); text-shadow: 0 0 2px rgba(0, 0, 0, .55); }
+.cv-obj--stencil { display: grid; filter: drop-shadow(0 0 1px rgba(0, 0, 0, .6)); }
+.cv-obj--stencil > svg { width: 100%; height: 100%; }
+.cv-obj--picture { overflow: hidden; box-shadow: 0 0 0 1px rgba(255, 255, 255, .7); }
+.cv-obj--picture > img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+.cv-vec { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cv-vec__hit { pointer-events: stroke; cursor: move; }
+.cv-stage.is-drawing .cv-obj, .cv-stage.is-drawing .cv-vec__hit { pointer-events: none; }
+/* Selection: a box in the accent colour with a handle on each corner. */
+.cv-sel { position: absolute; box-sizing: border-box; outline: 1.5px solid var(--accent); outline-offset: 3px; pointer-events: none; }
+.cv-handle { position: absolute; width: 9px; height: 9px; border: 1.5px solid var(--accent); background: #fff; pointer-events: auto; }
+.cv-handle--0 { left: -8px; top: -8px; cursor: nwse-resize; } .cv-handle--1 { right: -8px; top: -8px; cursor: nesw-resize; }
+.cv-handle--2 { left: -8px; bottom: -8px; cursor: nesw-resize; } .cv-handle--3 { right: -8px; bottom: -8px; cursor: nwse-resize; }
+
+/* Rotating: a zone just outside each corner. Lines and arrows: a node on each end instead of a box. */
+.cv-rot { position: absolute; width: 18px; height: 18px; pointer-events: auto; }
+.cv-rot--0 { left: -24px; top: -24px; } .cv-rot--1 { right: -24px; top: -24px; } .cv-rot--2 { left: -24px; bottom: -24px; } .cv-rot--3 { right: -24px; bottom: -24px; }
+.cv-node { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; box-sizing: border-box; border: 2px solid var(--accent); border-radius: 50%; background: #fff; cursor: move; z-index: 3; }
+
+/* Mask: outside the picture is dimmed. Crop: outside the picture is gone. */
+.cv-mask { position: absolute; box-shadow: 0 0 0 9999px var(--over-mask, rgba(0, 0, 0, .62)); pointer-events: none; }
+.cv-mask--solid { box-shadow: 0 0 0 9999px #000; }
+
+/* A frame: an outline in its colour with a dark edge so it reads on any picture. */
+.cv-frame { position: absolute; box-sizing: border-box; border: 2px solid var(--c); outline: 1px solid rgba(0, 0, 0, .7); cursor: grab; display: grid; place-items: center; pointer-events: none; }
+/* A frame itself takes no pointer: it is grabbed by its label, or by its edge where no object lies (worked out in the tool). */
+.cv-frame.is-current { border-width: 3px; box-shadow: 0 0 0 2px rgba(255, 255, 255, .9); z-index: 2; }
+.cv-frame.is-beyond { border-style: dashed; }
+.cv-frame__label { position: absolute; left: -2px; top: -2px; translate: 0 -100%; z-index: 2; display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; background: var(--c); color: #fff; font: 700 11px/1.5 var(--font-mono); white-space: nowrap; pointer-events: auto; cursor: grab; }
+.cv-frame__inner { box-sizing: border-box; border: 1px dashed var(--c); display: grid; place-items: end; pointer-events: none; }
+.cv-frame__inner > span { padding: 0 4px; background: var(--c); color: #fff; font: 700 10px/1.4 var(--font-mono); }
+/* The picture: a heavier edge, corner marks and a badge, so it is never mistaken for one frame among others. */
+.cv-frame.is-picture { border-width: 3px; }
+.cv-frame.is-picture > .cv-frame__label { left: -9px; top: -9px; }
+.cv-frame.is-picture::after { content: ""; position: absolute; inset: -9px; pointer-events: none; background:
+  linear-gradient(var(--c), var(--c)) left top / 22px 3px, linear-gradient(var(--c), var(--c)) left top / 3px 22px,
+  linear-gradient(var(--c), var(--c)) right top / 22px 3px, linear-gradient(var(--c), var(--c)) right top / 3px 22px,
+  linear-gradient(var(--c), var(--c)) left bottom / 22px 3px, linear-gradient(var(--c), var(--c)) left bottom / 3px 22px,
+  linear-gradient(var(--c), var(--c)) right bottom / 22px 3px, linear-gradient(var(--c), var(--c)) right bottom / 3px 22px; background-repeat: no-repeat; }
+.cv-frame__label b { display: inline-flex; align-items: center; gap: 3px; margin: -1px -6px -1px 4px; padding: 1px 6px; background: #fff; color: #000; text-transform: uppercase; letter-spacing: .04em; }
+.cv-row--frame.is-picture { box-shadow: inset 3px 0 0 var(--accent); }
+.cv-picture { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; border-radius: 11px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 var(--font-size-xs)/1 var(--font-sans); cursor: pointer; }
+
+/* Inspector */
+.cv-inspector { min-height: 0; }
+.cv-tabs { flex: none; padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
+.cv-tabs .oc-seg { display: flex; } .cv-tabs .oc-seg__opt { flex: 1; justify-content: center; }
+.cv-inspector .oc-props__row { padding-block: 5px; gap: var(--space-5); }
+.cv-inspector .oc-props__body { padding-bottom: var(--space-5); }
+.cv-bar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); }
+.cv-inline { display: inline-flex; align-items: center; gap: var(--space-5); }
+.cv-stack { list-style: none; margin: 0; padding: 0 var(--space-4); display: grid; gap: 1px; }
+.cv-block { display: grid; gap: 1px; }
+.cv-row { display: flex; align-items: center; gap: var(--space-3); min-height: 32px; padding: 0 2px 0 6px; border: var(--border-w) solid transparent; border-radius: var(--radius-control); cursor: default; }
+.cv-row:hover { background: var(--surface-hover); }
+.cv-row.is-current { border-color: var(--selection-border); background: var(--selection); }
+/* Dragging a layer: the entry is lifted out (its place stays as a gap), the others slide to make room, and a copy of
+   it follows the pointer and glides into place on release. */
+.cv-block { touch-action: none; }
+.cv-stack.is-sorting .cv-block { transition: transform 160ms cubic-bezier(.2, .8, .2, 1); }
+.cv-block.is-lifted { visibility: hidden; }
+.cv-ghost { position: fixed; z-index: 900; pointer-events: none; border-radius: var(--radius-control); background: var(--surface-raised, var(--surface)); box-shadow: 0 10px 28px rgba(0, 0, 0, .4), 0 0 0 1px var(--selection-border); scale: 1.02; opacity: .97; }
+.cv-ghost.is-dropping { transition: top 160ms cubic-bezier(.2, .8, .2, 1), scale 160ms, box-shadow 160ms; scale: 1; box-shadow: 0 0 0 1px var(--selection-border); }
+.cv-stack.is-sorting, .cv-stack.is-sorting * { cursor: grabbing !important; user-select: none; }
+.cv-row.is-hidden .cv-row__name { color: var(--text-disabled); }
+.cv-row > .oc-icon { color: var(--text-secondary); }
+.cv-row__twist { flex: none; display: grid; place-items: center; width: 14px; height: 20px; padding: 0; border: 0; background: transparent; color: var(--text-secondary); }
+.cv-row__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-row__name small { color: var(--text-secondary); }
+.cv-row--root { margin-top: var(--space-3); border-top: var(--border-w) solid var(--border-divider); border-radius: 0 0 var(--radius-control) var(--radius-control); padding-right: 8px; }
+.cv-row--frame { min-height: 40px; cursor: pointer; }
+.cv-row--frame > i { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+.cv-row--frame .cv-row__name { display: grid; font-weight: var(--weight-medium, 500); }
+.cv-row--frame .cv-row__name small { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
+.cv-chips { display: inline-flex; gap: 4px; }
+.cv-chips--wrap { flex-wrap: wrap; }
+.cv-chips button { min-width: 34px; height: 24px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.cv-chips button:hover { border-color: var(--text); }
+.cv-chips button.is-on { border-color: var(--accent); background: var(--accent); color: var(--text-on-accent, #fff); font-weight: 700; }
+.cv-zoom { display: flex; align-items: center; gap: var(--space-4); width: 100%; }
+.cv-zoom > :first-child { flex: 1; min-width: 0; }
+.cv-zoom b { flex: none; min-width: 48px; text-align: right; font-weight: 500; }
+.cv-stencils { display: grid; grid-template-columns: repeat(6, 32px); gap: 2px; }
+.cv-stencils button { display: grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); cursor: pointer; }
+.cv-stencils button:hover { background: var(--surface-hover); }
+.cv-stencils button.is-on { background: var(--selection); box-shadow: inset 0 0 0 1px var(--selection-border); }
+
+/* Rows: the pointing hand on what can be clicked, and a hover that shows on the row's own hover and selection. */
+.cv-row--frame, .cv-comments li, .cv-row__twist, .cv-picture { cursor: pointer; }
+.cv-row .oc-btn--quiet:hover { background: color-mix(in srgb, var(--text) 18%, transparent); }
+
+/* Comments: a numbered pin; its region and its thread show only while it is open. */
+.cv-pin { touch-action: none; }
+.cv-pin { position: absolute; z-index: 6; display: grid; place-items: center; width: 24px; height: 24px; margin: -22px 0 0 2px; padding: 0; border: 2px solid #fff; border-radius: 12px 12px 12px 2px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 11px/1 var(--font-mono); box-shadow: 0 1px 4px rgba(0, 0, 0, .5); cursor: pointer; }
+.cv-pin.is-done { background: var(--text-secondary); }
+.cv-pin--list { position: static; margin: 2px 0 0; flex: none; border-color: transparent; box-shadow: none; }
+.cv-pin--list:hover { scale: 1; }
+.cv-region { position: absolute; box-sizing: border-box; border: 1.5px dashed var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.cv-thread { position: absolute; z-index: 7; width: 268px; margin: 6px 0 0 30px; display: grid; gap: var(--space-4); padding: var(--space-5); border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface-raised, var(--surface)); color: var(--text); box-shadow: var(--shadow-menu, 0 8px 24px rgba(0, 0, 0, .35)); font: var(--font-size-sm)/1.4 var(--font-sans); cursor: default; user-select: text; }
+.cv-thread.is-left { margin-left: -276px; }
+.cv-thread textarea { width: 100%; box-sizing: border-box; resize: none; }
+.cv-thread .cv-bar { padding: 0; }
+.cv-msg p, .cv-comments p { margin: 2px 0 0; }
+.cv-msg + .cv-msg { padding-top: var(--space-4); border-top: var(--border-w) solid var(--border-divider); }
+.cv-msg__who { display: flex; align-items: center; gap: 6px; }
+.cv-msg__who i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-sunken); font: 700 10px/1 var(--font-sans); font-style: normal; }
+.cv-msg__who small, .cv-comments small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.cv-comments { list-style: none; margin: 0; padding: 0 var(--space-4); display: grid; gap: 2px; }
+.cv-comments li { display: flex; gap: var(--space-4); padding: var(--space-4); border: var(--border-w) solid transparent; border-radius: var(--radius-control); }
+.cv-comments li:hover { background: var(--surface-hover); }
+.cv-comments li.is-current { border-color: var(--selection-border); background: var(--selection); }
+.cv-comments li.is-done p { color: var(--text-secondary); text-decoration: line-through; }
+.cv-bar--wrap { flex-wrap: wrap; }
+
+/* While comparing, Full is shown but cannot be chosen: it has no frame to compare. */
+.cv-nofull .oc-seg__opt:last-of-type { opacity: .35; pointer-events: none; }
+.cv-pane .cv-frame { pointer-events: none; }
+
+.cv-swatch { width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%; box-shadow: 0 0 0 1px var(--border-control); cursor: pointer; }
+.cv-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: var(--space-3); max-height: 340px; overflow: auto; width: 400px; max-width: 100%; }
+.cv-photos button { display: grid; gap: 2px; padding: 3px; border: var(--border-w) solid transparent; border-radius: var(--radius-control); background: transparent; color: var(--text-secondary); font: var(--font-size-2xs)/1.2 var(--font-sans); text-align: left; cursor: pointer; }
+.cv-photos button:hover { background: var(--surface-hover); }
+.cv-photos button.is-on { border-color: var(--accent); color: var(--text); }
+.cv-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 2px; }
+.cv-photos span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cv-inline { display: inline-flex; align-items: center; gap: var(--space-4); }

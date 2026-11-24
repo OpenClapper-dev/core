@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { Button, EmptyState, PropertyList, Spinner, StatusBar, TextInput, Toolbar, ToolbarSpacer, ViewerLayout, useDockLayout } from "@openclapper/design";
 import { collectionOf, photosOf } from "../collections";
+import { canvasFromPhoto } from "../fileOps";
 import * as store from "../files";
 import { toastError } from "../hosts";
 import { bind, useKeys } from "../keys";
@@ -54,6 +55,7 @@ export function PhotoApp({ win, resource, projectId, setTitle, setRoute }: AppPr
           <TextInput size="sm" value={name} aria-label="Name" maxLength={120} style={{ width: 240 }} onInput={(e) => setName(e.currentTarget.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { setName(f.name); e.currentTarget.blur(); } }} />
           <ToolbarSpacer />
           <Button size="sm" variant="quiet" selected={full} disabled={!p.stored.original || p.media_type === "image/heic"} onClick={() => setFull(!full)}>{full ? "Full size" : "Preview"}</Button>
+          <Button size="sm" variant="quiet" icon="brush" onClick={() => void canvasFromPhoto(f, map)}>Make a canvas</Button>
           <Button size="sm" variant="quiet" icon="download" label="Download the original" disabled={!p.stored.original} onClick={() => { const a = document.createElement("a"); a.href = imageUrl(f.id, "original"); a.download = f.name; a.click(); }} />
         </Toolbar>
       )}

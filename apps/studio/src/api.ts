@@ -110,3 +110,23 @@ export const putMember = (workspaceId: string, email: string, role: Exclude<Work
 export const deleteMember = (workspaceId: string, userId: string) => send<unknown>("DELETE", `/api/workspaces/${workspaceId}/members/${userId}`);
 /** 204 on success; a wrong current password is 403 (not 401, which would read as signed out). */
 export const changePassword = (current: string, password: string) => send<unknown>("POST", "/api/auth/password", { current, password });
+
+// ---------- Canvases and the edit lock (docs/features/canvas.md) ----------
+
+export interface Lock { by: string; until: string }
+/** Takes or renews the edit lock for an editing window; null when someone else holds it (with who). */
+export async function takeLock(id: string, holder: string): Promise<{ ok: true; lock: Lock } | { ok: false; lock: Lock }> {
+  try { return { ok: true, lock: (await send<{ lock: Lock }>("POST", `/api/files/${id}/lock`, { holder })).lock }; }
+  catch (e) { if (e instanceof ApiError && e.status === 423) return { ok: false, lock: e.body.lock as Lock }; throw e; }
+}
+/** Lets go of the lock; sent with keepalive so it also goes out while the page closes. */
+export const releaseLock = (id: string, holder: string) =>
+  fetch(`/api/files/${id}/lock?holder=${encodeURIComponent(holder)}`, { method: "DELETE", credentials: "same-origin", keepalive: true }).then(() => undefined, () => undefined);
+/** A save that holds the lock: the window's token goes along. */
+export const putFileLocked = (id: string, body: Record<string, unknown>, holder: string) =>
+  request<{ file: FileRec }>(`/api/files/${id}`, { method: "PUT", headers: { "content-type": "application/json", "x-lock-holder": holder }, body: JSON.stringify(body) }).then((x) => x.file);
+/** A canvas's render or thumbnail. */
+export const putRender = (id: string, part: "render" | "thumbnail", image: Blob, holder: string) =>
+  request<{ file: FileRec }>(`/api/canvases/${id}/${part}`, { method: "PUT", headers: { "content-type": image.type || "application/octet-stream", "x-lock-holder": holder }, body: image }).then((x) => x.file);
+/** Where a canvas's render or thumbnail is, versioned by the file's last change so a new one is fetched. */
+export const renderUrl = (f: Pick<FileRec, "id" | "updated_at" | "created_at">, size: "render" | "thumbnail" = "render") => `/api/canvases/${f.id}/image?size=${size}&v=${encodeURIComponent(f.updated_at ?? f.created_at)}`;

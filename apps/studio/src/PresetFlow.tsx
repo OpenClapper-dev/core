@@ -37,7 +37,7 @@ export function OpticsPreview({ example, optics, mode, small }: { example: Examp
   );
 }
 
-export function PresetFlow({ projectId, files, container, start, title = "New optics preset", onCreated, onClose }: { projectId: string; files: readonly FileRec[] | null; container?: string | null; start?: Partial<Draft>; title?: string; onCreated?: (id: string) => void; onClose: () => void }) {
+export function PresetFlow({ projectId, files, container, start, title = "New optics preset", onCreated, onClose }: { projectId: string; files: readonly FileRec[] | null; container?: string | null; start?: Partial<Draft>; title?: string; onCreated?: (id: string, body: PresetBody) => void; onClose: () => void }) {
   const [d, setD] = useState<Draft>({ ...EMPTY, ...start });
   const examples = examplesIn(files);
   const [scene, setScene] = useState(examples[0].id);
@@ -58,7 +58,7 @@ export function PresetFlow({ projectId, files, container, start, title = "New op
   const known = FORMATS.find((f) => f.w === d.format[0] && f.h === d.format[1]);
   const createIt = async () => {
     setBusy(true);
-    try { const id = crypto.randomUUID(); await create({ project: projectId }, "preset", { id, name: d.name.trim(), container: container ?? null, body: body as unknown as Record<string, unknown> }); onCreated?.(id); onClose(); }
+    try { const id = crypto.randomUUID(); await create({ project: projectId }, "preset", { id, name: d.name.trim(), container: container ?? null, body: body as unknown as Record<string, unknown> }); onCreated?.(id, body); onClose(); }
     catch (e) { toastError(e); setBusy(false); }
   };
 
