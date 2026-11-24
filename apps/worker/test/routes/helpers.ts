@@ -72,6 +72,8 @@ export interface World {
   binned: string; home: string;
   /** A photo with its three images stored. */
   photo: string;
+  /** A blank canvas with its render stored. */
+  canvas: string;
 }
 
 /** The body of a PUT for a new folder. */
@@ -85,7 +87,7 @@ export async function buildWorld(user: User): Promise<World> {
   const t = user.token;
   const mark = `mark${uuid().slice(0, 8)}`;
   const id = () => uuid();
-  const w = { user, mark, workspace: id(), project: id(), folder: id(), shortcut: id(), link: id(), internal: id(), binned: id(), home: id(), photo: id() } as World;
+  const w = { user, mark, workspace: id(), project: id(), folder: id(), shortcut: id(), link: id(), internal: id(), binned: id(), home: id(), photo: id(), canvas: id() } as World;
   memberUser ??= await newUser({ signIn: false });
   w.member = memberUser.id;
   w.memberEmail = memberUser.email;
@@ -101,11 +103,17 @@ export async function buildWorld(user: User): Promise<World> {
   await ok(api(t, "POST", "/api/files/bin", { ids: [w.binned] }));
   await ok(api(t, "PUT", `/api/files/${w.home}`, folderBody({ home: true }, `${mark} home`)));
   await addPhoto(t, w.project, w.photo, { name: `${mark} photo` });
+  await ok(api(t, "PUT", `/api/files/${w.canvas}`, { type: "canvas", project_id: w.project, name: `${mark} canvas` }));
+  await ok(putRender(t, w.canvas, "render", png("render")));
   return w;
 }
 
 /** A few bytes with a JPEG header: the Worker checks the magic bytes and the size, never decodes. */
 export const jpeg = (marker = "img") => new Uint8Array([0xff, 0xd8, 0xff, 0xe0, ...new TextEncoder().encode(marker)]);
+/** A canvas render or thumbnail upload. */
+export function putRender(token: string, id: string, part: "render" | "thumbnail", bytes: Uint8Array, headers: Record<string, string> = {}): Promise<Response> {
+  return exports.default.fetch(new Request(`http://openclapper.test/api/canvases/${id}/${part}`, { method: "PUT", headers: { Authorization: `Bearer ${token}`, "content-type": "application/octet-stream", ...headers }, body: bytes }));
+}
 /** The PNG signature and a marker. */
 export const png = (marker = "png") => new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, ...new TextEncoder().encode(marker)]);
 

@@ -43,7 +43,7 @@ A file as the API gives it:
 | --- | --- |
 | `id` | UUID, chosen by the client |
 | `project_id`, `home` | Its root: a project, or (`project_id: null`, `home: true`) the caller's account home |
-| `type` | A registered file type. So far `folder`, `shortcut`, `preferences` (a person's preferences, in their account home), `photo`, `collection`, `device` (a phone or tablet, in its owner's account home), `property` and `naming` (a property definition and a naming pattern, only in the project's Settings folder), `filter` (a saved query) and `shot` (properties only until step B6); each build step adds the types it builds |
+| `type` | A registered file type. So far `folder`, `shortcut`, `preferences` (a person's preferences, in their account home), `photo`, `collection`, `device` (a phone or tablet, in its owner's account home), `property` and `naming` (a property definition and a naming pattern, only in the project's Settings folder), `filter` (a saved query), `shot` (properties only until step B6), `canvas` and `preset` (an optics preset; [canvas](features/canvas.md)); each build step adds the types it builds |
 | `name` | Free text, up to 120 characters, not unique |
 | `container` | The folder or collection it sits in; `null` at the top level |
 | `internal_of` | The file it was made inside ([internal files](rewrite/i1-interjection.md)); such a file sits in no container and is left out of lists |
@@ -79,6 +79,17 @@ Values of a project's properties on its files ([properties](features/properties.
 | POST | `/api/properties/set` | Bulk edit: `{ ids, values }` (files of one project, at most 500) → `{ values: { <file id>: values } }`. All or none |
 
 A new project starts with the default properties in its Settings folder (`PUT /api/projects/:id`); they are not counted in `file_count` and do not keep a project from being deleted.
+
+## Canvases and the edit lock (`canvas.ts`)
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/api/files/:id/lock` | `{ holder }` (the editing window's token) → `{ lock: { by, until } }`: taken when free, run out or this window's; renewed the same way (it holds 60 s). `423` with `lock` when someone else holds it. Lockable types only (a canvas) |
+| DELETE | `/api/files/:id/lock?holder=` | Lets go; only the holder's call changes anything. `204` |
+| PUT | `/api/canvases/:id/render`, `/thumbnail` | The body is the image (PNG, JPEG, WebP; 12 MB and 600 KB). Replaces the one stored |
+| GET | `/api/canvases/:id/image?size=render\|thumbnail` | Default `render`. An ETag; with `?v=` (the file's `updated_at`) cached for good, else revalidated. `404` until made |
+
+While a lockable file is held by someone else, `PUT /api/files/:id` and a render upload answer `423`; send the holder as `x-lock-holder`. Saving a canvas keeps its frames in `frames`. Saving an optics preset follows the additive rule (`400` with the lenses in use); binning one that frames use is `409` (archive it). Copies take a canvas's frames and renders along; purging removes the renders.
 
 ## Photos (`photos.ts`)
 

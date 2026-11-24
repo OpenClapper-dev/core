@@ -1,0 +1,105 @@
+/**
+ * Canvases and optics presets (step B5, #377): a canvas on a photo with frames, the frames table and
+ * the additive rule of presets, the edit lock, renders, copies and purges.
+ */
+import { env } from "cloudflare:workers";
+import { beforeAll, describe, expect, test } from "vitest";
+import { addPhoto, api, newUser, ok, png, putRender, uuid, type User } from "./helpers.ts";
+
+let u: User, other: User;
+let project: string;
+beforeAll(async () => { u = await newUser(); other = await newUser(); });
+
+async function newProject() { const id = uuid(); await ok(api(u.token, "PUT", `/api/projects/${id}`, { name: `P ${id}` }), 201); return (project = id); }
+const put = (id: string, body: unknown, status: number | number[] = [200, 201], headers: Record<string, string> = {}) => ok<{ file: { body: Record<string, unknown>; lock: unknown; updated_at: string }; error: string }>(api(u.token, "PUT", `/api/files/${id}`, body, headers), status);
+const preset = { format: [36, 24], formatName: "Full frame (135)", multiplier: 1, squeeze: 1, delivery: null, lenses: { kind: "primes", primes: [24, 35, 50] }, archived: false };
+const frame = (p: string, focal: number, id = `f${focal}`) => ({ id, name: `${focal} mm`, color: 1, kind: "preset", preset: p, focal, portrait: false, cx: 0.5, cy: 0.5, visible: true });
+const canvasOn = (photo: string, frames: unknown[], picture: string | null = null) => ({
+  type: "canvas", project_id: project, body: { surface: { kind: "photo" }, objects: [], frames, picture, linkCentres: true, comments: [] }, refs: [{ kind: "base", to: photo }],
+});
+
+describe("frames and presets", () => {
+  test("a canvas on a photo keeps its frames; a preset's lens in use cannot go, the preset cannot be binned, only archived", async () => {
+    await newProject();
+    const p = uuid(), photo = await addPhoto(u.token, project), c = uuid();
+    await put(p, { type: "preset", project_id: project, name: "FF primes", body: preset }, 201);
+    await put(c, canvasOn(photo, [frame(p, 35), frame(p, 24)], "f35"), 201);
+    const rows = (await env.DB.prepare("SELECT frame_id, preset_id, focal, is_picture FROM frames WHERE canvas_id = ?1 ORDER BY focal").bind(c).all()).results;
+    expect(rows).toEqual([{ frame_id: "f24", preset_id: p, focal: 24, is_picture: 0 }, { frame_id: "f35", preset_id: p, focal: 35, is_picture: 1 }]);
+    expect((await put(p, { body: { ...preset, lenses: { kind: "primes", primes: [24, 50] } } }, 400)).error).toMatch(/35 mm is used/);
+    await put(p, { body: { ...preset, lenses: { kind: "primes", primes: [24, 35, 85] } } }, 200);
+    expect((await put(p, { body: { ...preset, squeeze: 2 } }, 400)).error).toMatch(/cannot change/);
+    expect((await ok<{ error: string }>(api(u.token, "POST", "/api/files/bin", { ids: [p] }), 409)).error).toMatch(/archive it instead/);
+    await put(p, { body: { ...preset, lenses: { kind: "primes", primes: [24, 35, 85] }, archived: true } }, 200);
+    // The frames go with their canvas's body: then the lens is free again.
+    await put(c, canvasOn(photo, [frame(p, 24)], null), 200);
+    await put(p, { body: { ...preset, lenses: { kind: "primes", primes: [24] }, archived: true } }, 200);
+  });
+
+  test("a frame from a preset needs a photo; the canvas checks its references", async () => {
+    await newProject();
+    const photo = await addPhoto(u.token, project);
+    expect((await put(uuid(), { type: "canvas", project_id: project, body: { ...canvasOn(photo, []).body } }, 400)).error).toMatch(/base reference/);
+    expect((await put(uuid(), { type: "canvas", project_id: project, body: { surface: { kind: "blank", aspect: 1.5, color: "#ffffff" }, objects: [], frames: [frame(uuid(), 35)], picture: null, linkCentres: true, comments: [] } }, 400)).error).toMatch(/base photo/);
+  });
+});
+
+describe("the edit lock", () => {
+  test("one window at a time: others cannot save while it holds the lock; it can be renewed and let go", async () => {
+    await newProject();
+    const c = uuid();
+    await put(c, { type: "canvas", project_id: project }, 201);
+    const lock = (holder: string, status = 200) => ok<{ lock: { by: string; until: string } }>(api(u.token, "POST", `/api/files/${c}/lock`, { holder }), status);
+    expect((await lock("window-aaaa")).lock.by).toBe(u.id);
+    await lock("window-aaaa");
+    await lock("window-bbbb", 423);
+    expect((await put(c, { name: "Mine" }, 423, { "x-lock-holder": "window-bbbb" })).error).toMatch(/someone else/);
+    await put(c, { name: "Mine" }, 200, { "x-lock-holder": "window-aaaa" });
+    expect((await ok<{ file: { lock: { by: string } } }>(api(u.token, "GET", `/api/files/${c}`))).file.lock.by).toBe(u.id);
+    expect((await putRender(u.token, c, "render", png(), { "x-lock-holder": "window-bbbb" })).status).toBe(423);
+    // Another window cannot let go of it; its holder can.
+    expect((await api(u.token, "DELETE", `/api/files/${c}/lock?holder=window-bbbb`)).status).toBe(204);
+    await lock("window-bbbb", 423);
+    expect((await api(u.token, "DELETE", `/api/files/${c}/lock?holder=window-aaaa`)).status).toBe(204);
+    await lock("window-bbbb");
+  });
+
+  test("a lock that ran out is free", async () => {
+    await newProject();
+    const c = uuid();
+    await put(c, { type: "canvas", project_id: project }, 201);
+    await env.DB.prepare("UPDATE files SET lock_by = ?2, lock_holder = 'gone-window', lock_until = ?3 WHERE id = ?1").bind(c, u.id, new Date(Date.now() - 1000).toISOString()).run();
+    await put(c, { name: "Free" }, 200);
+    await ok(api(u.token, "POST", `/api/files/${c}/lock`, { holder: "window-cccc" }), 200);
+  });
+
+  test("only lockable types take a lock", async () => {
+    await newProject();
+    const f = uuid();
+    await put(f, { type: "folder", project_id: project }, 201);
+    await ok(api(u.token, "POST", `/api/files/${f}/lock`, { holder: "window-aaaa" }), 400);
+  });
+});
+
+describe("renders", () => {
+  test("uploaded, read back, refused for another account, copied with the canvas and removed when purged", async () => {
+    await newProject();
+    const c = uuid();
+    await put(c, { type: "canvas", project_id: project }, 201);
+    expect((await api(u.token, "GET", `/api/canvases/${c}/image`)).status).toBe(404);
+    expect((await putRender(u.token, c, "render", png("one"))).status).toBe(201);
+    expect((await putRender(u.token, c, "thumbnail", png("thumb"))).status).toBe(201);
+    expect((await putRender(other.token, c, "render", png("evil"))).status).toBe(404);
+    expect((await putRender(u.token, c, "render", new TextEncoder().encode("not an image"))).status).toBe(415);
+    const got = await api(u.token, "GET", `/api/canvases/${c}/image`);
+    expect(got.status).toBe(200);
+    expect(new TextDecoder().decode(new Uint8Array(await got.arrayBuffer())).endsWith("one")).toBe(true);
+    const copy = uuid();
+    await ok(api(u.token, "POST", `/api/files/${c}/duplicate`, { id: copy }), 201);
+    expect((await api(u.token, "GET", `/api/canvases/${copy}/image?size=thumbnail`)).status).toBe(200);
+    await ok(api(u.token, "POST", "/api/files/bin", { ids: [c] }));
+    await ok(api(u.token, "POST", "/api/files/purge", { ids: [c] }));
+    expect(await env.SHOTS_BUCKET.get(`canvases/${c}/render`)).toBeNull();
+    expect(await env.SHOTS_BUCKET.get(`canvases/${copy}/render`)).not.toBeNull();
+  });
+});

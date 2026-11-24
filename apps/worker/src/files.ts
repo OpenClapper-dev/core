@@ -1,9 +1,10 @@
 import {
   BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
-  nameError, placementError, type Body, type FileType, type Ref, type RootKind,
+  nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind,
 } from "@openclapper/model";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
+import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys } from "./canvas.ts";
 import { copyPhotos, objectsOf, removeOrphans } from "./photos.ts";
 import { nextName, refitValues, searchTexts, templateStatements, valuesOf } from "./properties.ts";
 import { assertAccess, assertProjectRef, assertRank, type Access, type Role } from "./tenancy.ts";
@@ -222,6 +223,7 @@ async function purge(env: Env, where: string, binds: unknown[]): Promise<number>
   for (let i = 0; i < results.length; i += 500) {
     const ids = list(results.slice(i, i + 500).map((r) => r.id));
     const photos = await objectsOf(env, ids);
+    const renders = await renderKeys(env, JSON.stringify((await env.DB.prepare("SELECT id FROM files WHERE deleted_at IS NOT NULL AND (id IN (SELECT value FROM json_each(?1)) OR deleted_with IN (SELECT value FROM json_each(?1)))").bind(ids).all<{ id: string }>()).results.map((r) => r.id)));
     // The "property" references that a purged definition's values kept go with the values.
     await env.DB.prepare(
       `DELETE FROM refs WHERE kind = 'property' AND json_extract(data, '$.property') IN
@@ -229,6 +231,7 @@ async function purge(env: Env, where: string, binds: unknown[]): Promise<number>
     ).bind(ids).run();
     await env.DB.prepare("DELETE FROM files WHERE deleted_at IS NOT NULL AND (id IN (SELECT value FROM json_each(?1)) OR deleted_with IN (SELECT value FROM json_each(?1)))").bind(ids).run();
     await removeOrphans(env, photos);
+    await removeRenders(env, renders);
   }
   return results.length;
 }
@@ -357,6 +360,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const container = b.container === undefined ? stored?.container ?? null : b.container === null ? null : assertUuid(b.container, "container");
     if (internalOf && container) throw new HttpError(400, "an internal file sits in no container");
     if (stored?.fixed && (name !== stored.name || container !== stored.container)) throw new HttpError(400, `the ${stored.name} folder cannot be renamed or moved`);
+    // One editor at a time: a file someone else holds is read-only (canvas.ts).
+    if (stored) await assertNotLocked(ctx, fid, t.type);
 
     if (!stored && internalOf) {
       if (!canBeInternal(t) || !t.roots.includes(root.kind)) throw new HttpError(400, `a ${t.label.toLowerCase()} cannot be an internal file`);
@@ -376,6 +381,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
       if (!checked.ok) throw new HttpError(400, checked.error);
       save = { body: checked.body, version: checked.version, refs: b.refs !== undefined || !stored ? checked.refs : null };
     }
+    // An optics preset changes additively only: lenses frames use stay.
+    if (t.type === "preset" && stored && save && b.body !== undefined) await assertPresetChange(env, fid, parseBody(stored) as unknown as PresetBody, save.body as unknown as PresetBody);
 
     const at = now();
     const stmts: D1PreparedStatement[] = [];
@@ -388,6 +395,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
       ).bind(fid, root.projectId, root.userId, t.type, name, container, internalOf, tenant.userId, at, JSON.stringify(save!.body), save!.version));
     }
     if (save?.refs) stmts.push(...writeRefs(env, fid, save.refs));
+    // A canvas's frames are kept where the server can find them (is a preset's lens in use).
+    if (t.type === "canvas" && save) stmts.push(...frameStatements(env, fid, save.body as unknown as CanvasBody));
     await env.DB.batch(stmts);
     // A changed definition: values that no longer fit it are fitted or dropped.
     if (t.type === "property" && stored && save && root.projectId) await refitValues(env, root.projectId, fid);
@@ -421,6 +430,9 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const { rows } = await loadFiles(ctx, ids);
     const fixed = rows.find((f) => f.fixed);
     if (fixed) throw new HttpError(400, `the ${fixed.name} folder cannot be deleted`);
+    // An optics preset that frames use is archived instead, also when it would go with a folder.
+    const inside = (await env.DB.prepare(`${DOWN} SELECT f.id, f.type, f.name FROM files f WHERE f.type = 'preset' AND f.id IN (SELECT id FROM down)`).bind(list(ids)).all<{ id: string; type: string; name: string }>()).results;
+    await assertPresetsFree(env, inside);
     // Outermost first: a file binned in the same request as the folder it is in goes with the folder.
     const { results } = await env.DB.prepare(
       `WITH RECURSIVE up(start, id, n) AS (
@@ -532,6 +544,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
       ).bind(map),
       env.DB.prepare("INSERT INTO property_values (file_id, definition_id, value) SELECT m.value, v.definition_id, v.value FROM property_values v JOIN json_each(?1) m ON m.key = v.file_id").bind(map),
       copyPhotos(env, map),
+      copyFrames(env, map),
     ];
     // Reference values that name files copied along point at the copies, like references do.
     const { results: refValues } = await env.DB.prepare(
@@ -549,6 +562,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
       for (const f of results) stmts.push(env.DB.prepare("UPDATE files SET body = ?2 WHERE id = ?1").bind(ids.get(f.id), JSON.stringify(fileType(f.type)!.remap!(parseBody(f), ids))));
     }
     await env.DB.batch(stmts);
+    const canvases = tree.filter((f) => f.type === "canvas");
+    if (canvases.length) await copyRenders(env, new Map(canvases.map((f) => [f.id, ids.get(f.id)!])));
     return json({ file: await fileOut(env, copyId) }, 201);
   });
 
