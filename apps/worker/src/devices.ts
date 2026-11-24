@@ -9,7 +9,7 @@ export const DEFAULT_TABS = ["camera", "media", "shots", "setup"];
 /**
  * Devices register themselves (docs/rewrite/03-capture.md). A phone calls this on start with its
  * fingerprint and what it reports; the answer is its device file. The person's own choices (the
- * name, the tabs) are kept; what the hardware reports is replaced. A device in the bin comes back.
+ * name, the tabs, the camera layout) are kept; what the hardware reports is replaced (the camera's area only when sent). A device in the bin comes back.
  */
 export function registerDeviceRoutes(r: Router<Ctx>) {
   r.on("POST", "/api/devices/register", async (ctx) => {
@@ -21,8 +21,9 @@ export function registerDeviceRoutes(r: Router<Ctx>) {
     const known = await env.DB.prepare("SELECT d.file_id, f.body, f.deleted_at FROM devices d JOIN files f ON f.id = d.file_id WHERE d.user_id = ?1 AND d.fingerprint = ?2")
       .bind(tenant.userId, fp).first<{ file_id: string; body: string; deleted_at: string | null }>();
     const before = known ? (JSON.parse(known.body) as Record<string, unknown>) : null;
-    const reported = { kind: b.kind, make: b.make ?? "", model: b.model ?? "", lenses: b.lenses ?? [], screen: b.screen ?? null, app: b.app ?? "" };
-    const body = { ...reported, tabs: before?.tabs ?? DEFAULT_TABS };
+    const reported = { kind: b.kind, make: b.make ?? "", model: b.model ?? "", lenses: b.lenses ?? [], screen: b.screen ?? null, camera: b.camera ?? before?.camera ?? null, app: b.app ?? "" };
+    // The person's choices stay: the tabs and the camera layout (set on the phone or from the Studio).
+    const body = { ...reported, tabs: before?.tabs ?? DEFAULT_TABS, layout: before?.layout ?? "viewfinder" };
     const checked = checkFile(fileType("device")!, body, 1, null);
     if (!checked.ok) throw new HttpError(400, checked.error);
     const now = new Date().toISOString();

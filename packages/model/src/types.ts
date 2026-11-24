@@ -7,6 +7,7 @@ import { canvasError, emptyCanvas, presetError, remapCanvas } from "./canvas.ts"
 import { filterError } from "./filters.ts";
 import { emptyShot, placeError, shotError } from "./shot.ts";
 import { emptyTimeline, remapTimeline, timelineError } from "./timeline.ts";
+import { BUILTIN_LAYOUTS, copyLayout, layoutError } from "./layout.ts";
 import { defaultPattern, definitionError, MAX_DIGITS } from "./properties.ts";
 
 const noKeys = (body: Body, what: string): string | null => {
@@ -159,9 +160,9 @@ export interface DeviceLens {
  */
 export const DEVICE: FileType = {
   type: "device", label: "Device", plural: "Devices", roots: ["home"], version: 1, made: "register",
-  empty: () => ({ kind: "phone", make: "", model: "", lenses: [], screen: null, tabs: [], app: "" }),
+  empty: () => ({ kind: "phone", make: "", model: "", lenses: [], screen: null, camera: null, tabs: [], app: "", layout: "viewfinder" }),
   check(body) {
-    for (const k of Object.keys(body)) if (!["kind", "make", "model", "lenses", "screen", "tabs", "app"].includes(k)) return `a device has no "${k}"`;
+    for (const k of Object.keys(body)) if (!["kind", "make", "model", "lenses", "screen", "camera", "tabs", "app", "layout"].includes(k)) return `a device has no "${k}"`;
     if (!(KINDS as readonly unknown[]).includes(body.kind)) return "kind must be phone or tablet";
     if (!short(body.make) || !short(body.model) || !short(body.app, 60)) return "make, model and app are text";
     if (!Array.isArray(body.lenses) || body.lenses.length > 16) return "lenses must be a list of at most 16";
@@ -172,11 +173,26 @@ export const DEVICE: FileType = {
     }
     if (!(body.screen === null || (isRecord(body.screen) && size(body.screen.portrait) && size(body.screen.landscape)))) return "screen holds portrait and landscape sizes";
     if (!Array.isArray(body.tabs) || body.tabs.length > 20 || !body.tabs.every((t) => typeof t === "string" && APP_ID.test(t))) return "tabs must be a list of app ids";
+    // The camera's area per orientation (bars and picture, without the tab bar): the layout editor previews at it.
+    if (!(body.camera === undefined || body.camera === null || (isRecord(body.camera) && size(body.camera.portrait) && size(body.camera.landscape)))) return "camera holds portrait and landscape sizes";
+    // The camera layout in use: a built-in one or a layout file of the account home.
+    if (!(body.layout === undefined || body.layout === "camera" || body.layout === "viewfinder" || (typeof body.layout === "string" && UUID.test(body.layout)))) return "layout is camera, viewfinder or a layout's id";
     return null;
   },
 };
 
 registerFileType(DEVICE);
+
+/**
+ * A camera layout (03-capture.md, ux-6-devices.md): bars of controls per orientation, a look and options. A
+ * file of the account home, like the devices it is designed for; the built-in Camera and Viewfinder are not files.
+ */
+export const LAYOUT: FileType = {
+  type: "layout", label: "Camera layout", plural: "Camera layouts", roots: ["home"], version: 1,
+  empty: () => copyLayout(BUILTIN_LAYOUTS.viewfinder.body) as unknown as Body,
+  check: (body) => layoutError(body),
+};
+registerFileType(LAYOUT);
 
 /**
  * A property definition (docs/rewrite/07-organisation.md, "Properties in detail"): one entry of the

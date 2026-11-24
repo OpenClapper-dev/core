@@ -68,7 +68,7 @@ const ROUTES: Record<string, Case> = {
   "GET /api/web": { kind: "exempt", why: "no resource: it hands the caller's own bearer session to a web view as a cookie; canvas.test.ts checks it" },
   "POST /api/devices/register": { kind: "exempt", why: "no id: a device is found by the caller's own user and the fingerprint; devices.test.ts checks that another account with the same fingerprint gets a record of its own" },
 
-  "GET /api/preview/socket": { kind: "exempt", why: "no id: the room is picked by the caller's own user id (preview.ts)" },
+  "GET /api/link": { kind: "exempt", why: "no id: the room is picked by the caller's own user id (link.ts)" },
 
   "GET /api/workspaces": { kind: "list", paths: () => ["/api/workspaces"] },
   "PUT /api/workspaces/:id": { kind: "id", path: (a) => `/api/workspaces/${a.workspace}`, body: (a) => ({ name: named(a, "ws") }) },
