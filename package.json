@@ -12,6 +12,7 @@
     "dev:init": "bash scripts/dev-init.sh",
     "dev:worker": "pnpm -C apps/worker dev",
     "dev:studio": "pnpm -C apps/studio dev",
+    "dev:seed": "node scripts/seed-local.mjs",
     "dev:mobile": "bash scripts/mobile.sh",
     "wrangler": "wrangler",
     "dev:admin": "pnpm -C apps/admin dev",

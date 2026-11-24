@@ -48,6 +48,9 @@ export function SettingsApp({ win, setTitle, setRoute }: AppProps) {
             <FormField label="Apps and windows" hint="Along a side bar, the start is its top."><span><Segmented label="Taskbar alignment" value={prefs.taskbarAlign} onChange={(v) => setPrefs({ taskbarAlign: v as "start" | "center" })} options={[{ value: "start", label: "At the start" }, { value: "center", label: "Centred" }]} /></span></FormField>
           </SettingsGroup>
           <p className="st-note">{saved === "unsaved" ? "Not saved to your account yet: the server could not be reached. It is kept in this browser and saved when it answers again." : "These follow your account to every browser. Window layouts stay with the browser, because they depend on the screen."}</p>
+          <SettingsGroup title="Media">
+            <FormField label="How a collection's colour shows on its photos"><span><Segmented label="Collection mark" value={prefs.collectionMark} onChange={(v) => setPrefs({ collectionMark: v as typeof prefs.collectionMark })} options={[{ value: "bar", label: "Bar below" }, { value: "barleft", label: "Bar left" }, { value: "dot", label: "Dot" }, { value: "frame", label: "Frame" }]} /></span></FormField>
+          </SettingsGroup>
           <SettingsGroup title="Desktop">
             <Switch checked={prefs.binOnDesktop} onChange={(v) => setPrefs({ binOnDesktop: v })}>Recycle bin on the desktop</Switch>
           </SettingsGroup>

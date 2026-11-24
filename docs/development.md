@@ -67,6 +67,8 @@ The Vite dev servers watch their shared packages' folders as a whole (the Studio
 
 Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start fresh, then `make init`). Local data is separate from production: say which one you mean. A checkout from before the rewrite's schema baseline (step B0, #372) holds the first app's database, on which the new baseline fails: delete that folder once and run `make init`.
 
+Demo data: `pnpm dev:seed [count]` (Worker running) adds 30 photos by default to a project "Stock demo", with stock pictures from picsum.photos in three sizes, stated EXIF (so each has an angle of view), and three collections. Ids come from the seed, so a re-run adds nothing twice. It signs in as `dev@localhost` (or `SEED_EMAIL` / `SEED_PASSWORD`) and refuses any API other than localhost.
+
 API smoke tests with `curl` against `localhost:8787` sign in first, as everywhere (`dev@localhost` / `openclapper-local-dev`, from `make init`):
 
 ```sh

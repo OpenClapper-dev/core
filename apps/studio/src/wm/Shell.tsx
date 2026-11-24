@@ -155,6 +155,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     palette: () => openOverlay("palette"),
     sheet: () => openOverlay("sheet"),
     goFiles: open("files"),
+    goMedia: open("media"),
     goProject: open("project"),
     goSettings: open("settings"),
   }), !overlay || overlay === "launcher");

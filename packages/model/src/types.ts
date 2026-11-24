@@ -49,6 +49,8 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   taskbarEdge: (v) => oneOf(v, ["bottom", "top", "left", "right"]),
   taskbarAlign: (v) => oneOf(v, ["start", "center"]),
   binOnDesktop: (v) => typeof v === "boolean",
+  // How a collection's colour is drawn on its photos (docs/rewrite/ux-1-files.md).
+  collectionMark: (v) => oneOf(v, ["bar", "barleft", "dot", "frame"]),
   // The taskbar's pins per project: apps by id, files by id.
   pins: (v) => isRecord(v) && Object.entries(v).every(([project, list]) => UUID.test(project) && Array.isArray(list) && list.length <= 60
     && list.every((p) => isRecord(p) && Object.keys(p).length === 1 && (typeof p.app === "string" ? APP_ID.test(p.app) : typeof p.file === "string" && UUID.test(p.file)))),

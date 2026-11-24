@@ -93,3 +93,14 @@ body.wm-gesture { user-select: none; }
 .st-ws__who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .st-ws__gap { width: 24px; }
 .st-ws__invite { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+
+/* Media: small pictures in lists, the picture of the chosen photo, the photo's stage. */
+.st-mini { width: 22px; height: 16px; flex: none; object-fit: cover; border-radius: 2px; background: var(--photo-bg); }
+.st-info__pic { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; border-radius: 3px; background: var(--photo-bg); cursor: zoom-in; }
+.st-pad { padding: var(--space-3) var(--space-5); }
+.st-dot { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 50%; }
+.st-ghost > .oc-filecard { width: 100%; height: 100%; background: var(--surface-raised); }
+.st-scroll.is-drop { box-shadow: inset 0 0 0 2px var(--accent); background: var(--marquee); }
+.st-center { display: grid; place-items: center; }
+.st-stage { position: absolute; inset: 0; display: grid; place-items: center; background: var(--photo-bg); }
+.st-stage > img { max-width: 100%; max-height: 100%; object-fit: contain; }

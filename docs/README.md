@@ -31,7 +31,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/extra-fields.md](features/extra-fields.md) | User-defined fields as JSON, AI import, per-project selection |
 | [features/positions.md](features/positions.md) | GPS modes (High · Low · Off), photos without a position, manual pin correction, location pins and shots synced to them |
 | [features/rig-explorer.md](features/rig-explorer.md) | Framing: re-frame a photo (other rig + lens, moved), saved framings, the root frame, Compare A / B |
-| [features/new-shot.md](features/new-shot.md) | New shot in the Studio from uploaded images or a drawn sketch |
+| [features/media.md](features/media.md) | Photos and collections: the three stored images, facts and angle of view, import in the Studio, the Media and Photo apps |
 | [features/compose.md](features/compose.md) | Shot descriptions, the drawing model, sketches (floor plans, diagrams); Studio editor, phone viewer, renders |
 | [features/schedule.md](features/schedule.md) | Shooting days, daylight phases, forecast, shootable windows |
 | [features/timeline.md](features/timeline.md) | Timelines: rough cuts of steps and clip layers with hold times, playback (Studio only) |

@@ -65,6 +65,15 @@ export interface FileRec {
   id: string; project_id: string | null; home: boolean; type: string; name: string; container: string | null; internal_of: string | null; fixed: string | null;
   created_at: string; updated_at: string | null; created_by: string | null; deleted_at: string | null; lock: { by: string | null; until: string } | null;
   body_version: number; body?: Record<string, unknown>; refs?: FileRef[]; binned_with?: number;
+  /** A photo's facts; absent on any other file. */
+  photo?: PhotoFacts;
+}
+export interface PhotoFacts {
+  origin: "capture" | "import"; media_type: string; taken_at: string; width: number; height: number;
+  /** Bytes of each stored image; null until it arrived. */
+  stored: { thumbnail: number | null; preview: number | null; original: number | null };
+  angle_of_view: { horizontal: number; vertical: number; source: "exif-35mm" | "exif-sensor" } | null;
+  device_id: string | null;
 }
 export interface FileRef { kind: string; to: string; data: Record<string, unknown> | null; missing?: boolean }
 export interface FileUse { id: string; type: string; name: string; internal_of: string | null; kind: string }

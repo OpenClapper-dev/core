@@ -10,6 +10,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ⌘K | Go to… (command palette) |
 | ? | All shortcuts |
 | G F | Open Files |
+| G M | Open Media |
 | G P | Open Project |
 | G , | Open Settings |
 | Esc | Close or back out one level |
@@ -41,14 +42,14 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | J / ↓ | Next file |
 | K / ↑ | Previous file |
 | ↵ | Open the file (a folder: go into it) |
-| ⌫ / Alt ↑ | Up to the folder above |
+| ⌫ / Alt ↑ | Up to the folder above (in Media: back from a collection) |
 | F2 | Rename |
 | Del | Move to the recycle bin |
 | ⇧N | New folder here |
 | ⌘A | Tick everything listed (Ctrl-click ticks one, Shift-click a range) |
 | Esc | Clear the ticks |
-| Drag | Onto a folder, the tree or the path: move there · onto the desktop: into the Desktop folder · onto the recycle bin: delete · onto the taskbar: pin |
-| Right-click | Open, rename, duplicate, move, shortcut on the desktop, pin, recycle bin |
+| Drag | Onto a folder, a collection, the tree or the path: move there · onto the desktop: into the Desktop folder · onto the recycle bin: delete · onto the taskbar: pin · image files from the computer: import |
+| Right-click | Open, rename, duplicate, collections (group, add to, take out, ungroup), move, shortcut on the desktop, pin, recycle bin |
 
 ## Desktop icons
 
@@ -75,4 +76,12 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ⌘A | Select everything listed |
 | R | Restore the selected entries (or double-click one) |
 | Del | Delete the selected entries for good |
+
+## Photo
+
+| Keys | What |
+| --- | --- |
+| ← | Previous photo |
+| → | Next photo |
+| F | Preview or full size |
 

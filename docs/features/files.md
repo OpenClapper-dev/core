@@ -7,7 +7,7 @@ Everything a user makes is a file ([07 · organisation](../rewrite/07-organisati
 ## Model
 
 - **Two roots:** a project, and the signed-in person's **account home** (files that follow them into every project). Nothing moves between the two, or between projects.
-- **Containers:** a folder holds any files and nests up to 8 deep. A file sits in one container or at the top level. Names are free text and need not be unique.
+- **Containers:** a folder holds any files and nests up to 8 deep; a collection holds only photos and does not nest ([media](media.md)). A file sits in one container or at the top level. Names are free text and need not be unique.
 - **Fixed folders** of a project, made with it: **Desktop** (what is in it shows as icons on the desktop) and **Settings** (properties and naming patterns, from step B4). They cannot be renamed, moved, copied or deleted, and carry a lock.
 - **Shortcuts** are files of their own: one opens an app, or points at a file elsewhere. A shortcut whose target is in the bin or gone is not shown on the desktop and says so in Files; it works again once the target is restored.
 - **Preferences** are a file too: one of the type `preferences` in the account home ([desktop](desktop.md#preferences-prefsts-themets)).
@@ -53,4 +53,4 @@ Everything a user makes is a file ([07 · organisation](../rewrite/07-organisati
 
 - A shortcut is a file: removing one moves it to the recycle bin like anything else, instead of only taking the icon away.
 - Names need not be unique, so nothing is renamed "(restored)".
-- A new project's desktop starts empty; the first app seeded shortcuts per browser. The taskbar starts with Files and Project pinned.
+- A new project's desktop starts empty; the first app seeded shortcuts per browser. The taskbar starts with Files, Media and Project pinned.

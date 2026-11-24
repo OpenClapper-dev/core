@@ -1,32 +1,40 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Breadcrumb, BrowserLayout, Button, Chip, DropdownMenu, EmptyState, FileCard, FileGrid, Icon, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, SidebarNav,
-  StatusBar, Table, TextInput, Toolbar, ToolbarSpacer, Tree, useDockLayout,
+  AppIcon, Badge, Breadcrumb, BrowserLayout, Button, Chip, CollectionTag, DropdownMenu, EmptyState, FileCard, FileGrid, Icon, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, SidebarNav,
+  StatusBar, Table, TextInput, Toolbar, ToolbarSpacer, Tree, UploadBadge, moved, useDockLayout, useSort,
 } from "@openclapper/design";
 import { fileTypes } from "@openclapper/model";
 import { fetchUses, type FileRec, type FileUse, type Root } from "../api";
+import { addToCollection, collectionOf, groupInto, photosOf, setOrder, takeOut, tintOf, ungroup } from "../collections";
 import { kindOf, lookOf, targetOf } from "../fileKinds";
 import * as ops from "../fileOps";
 import * as store from "../files";
-import { contextMenu, toastError } from "../hosts";
+import { contextMenu, toast, toastError, type MenuEntry } from "../hosts";
 import { bind, useKeys } from "../keys";
+import { dropStuck, importFiles, imageUrl, retryUploads, useUploads } from "../media";
 import { usePeople } from "../people";
+import { CollectionSections, PhotoFactsSections, thumbOf } from "../photoParts";
 import { usePrefs, type Pin } from "../prefs";
-import { pinsOf, togglePin as togglePinIn } from "../wm/Taskbar";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
+import { pinsOf, togglePin as togglePinIn } from "../wm/Taskbar";
 import { BinView } from "./BinView";
-import { appDef, type AppProps } from "./registry";
+import { appDef, launch, type AppProps } from "./registry";
 
 type View = "list" | "grid";
-type SortKey = "name" | "type" | "created";
+type SortKey = "name" | "type" | "created" | "taken";
 interface Sort { key: SortKey; dir: "asc" | "desc" }
-interface Launch { folder?: string | null; home?: boolean; bin?: boolean }
+/** Which of the browser's entries this window is (docs/rewrite/09-shells.md): the same browser, set to all files or to photos. */
+export type Entry = "files" | "media";
+/** Media's side bar: everything, the collections, the photos in none, or one collection's photos. */
+type MediaNav = "all" | "collections" | "loose" | `coll:${string}`;
+interface Launch { folder?: string | null; home?: boolean; bin?: boolean; collection?: string }
 
 const remembered = <T,>(key: string, fallback: T): T => { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; } };
 const remember = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 const count = (n: number, one = "item") => `${n} ${one}${n === 1 ? "" : "s"}`;
+const IMAGE_TYPES = "image/jpeg,image/png,image/webp";
 
 /** What follows `#/files` in the address bar, as a launch. */
 export function filesFromRoute(rest: string): { state: Launch } {
@@ -35,21 +43,35 @@ export function filesFromRoute(rest: string): { state: Launch } {
   if (a === "home") return { state: { home: true, folder: b || null } };
   return { state: { folder: a || null } };
 }
+/** What follows `#/media`: a collection's id, or nothing. */
+export const mediaFromRoute = (rest: string): { state: Launch } => ({ state: { collection: rest || undefined } });
+
+/** The Media app: the one browser, set to photos and collections. */
+export const MediaApp = (p: AppProps) => <FilesApp {...p} entry="media" />;
 
 /**
- * The Files app (docs/rewrite/ux-1-files.md): the folder tree of a project and of the account home,
- * the files of the open folder as a list or a grid, search across the whole root, and a properties
- * panel. Clicking makes a file the current one; ticking selects files for acting on several.
+ * The file browser (docs/rewrite/ux-1-files.md) in its entries: **Files**, the folder trees of a
+ * project and of the account home; **Media**, the project's photos and collections. A list or a
+ * grid, search, a properties panel; clicking makes a file the current one, ticking selects files
+ * for acting on several. Photos are imported by dropping image files or with Import.
  */
-export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
+export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }: AppProps & { entry?: Entry }) {
+  const media = entry === "media";
   const asked = win.state as Launch | undefined;
-  const [home, setHome] = useState(!!asked?.home);
+  const [home, setHome] = useState(!media && !!asked?.home);
   const [folder, setFolder] = useState<string | null>(asked?.folder ?? null);
   const [nav, setNav] = useState<"all" | "bin">(asked?.bin ? "bin" : "all");
-  useEffect(() => { if (asked && win.stateSeq) { setHome(!!asked.home); setFolder(asked.folder ?? null); setNav(asked.bin ? "bin" : "all"); clear(); } }, [win.stateSeq]);
+  const [mnav, setMnav] = useState<MediaNav>(asked?.collection ? `coll:${asked.collection}` : "all");
+  useEffect(() => {
+    if (!asked || !win.stateSeq) return;
+    if (media) setMnav(asked.collection ? `coll:${asked.collection}` : "all");
+    else { setHome(!!asked.home); setFolder(asked.folder ?? null); setNav(asked.bin ? "bin" : "all"); }
+    clear();
+  }, [win.stateSeq]);
 
   const root: Root = home ? "home" : { project: projectId };
   const { files, bin, error } = store.useRoot(root);
+  const uploads = useUploads();
   const user = useUser();
   const me = user.status === "signed-in" ? user.me.user : null;
   const project = useProjects().list?.find((p) => p.id === projectId);
@@ -60,46 +82,71 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
 
   const [q, setQ] = useState("");
   const [types, setTypes] = useState<string[]>([]);
-  const [sort, setSortState] = useState<Sort>(() => remembered("files.sort", { key: "name", dir: "asc" }));
-  const [view, setViewState] = useState<View>(() => remembered("files.view", "list"));
-  const setSort = (s: Sort) => { setSortState(s); remember("files.sort", s); };
-  const setView = (v: View) => { setViewState(v); remember("files.view", v); };
+  const [sort, setSortState] = useState<Sort>(() => remembered(`${entry}.sort`, media ? { key: "taken", dir: "desc" } : { key: "name", dir: "asc" }));
+  const [view, setViewState] = useState<View>(() => remembered(`${entry}.view`, media ? "grid" : "list"));
+  const [spread, setSpreadState] = useState<boolean>(() => remembered("media.spread", false));
+  const setSort = (s: Sort) => { setSortState(s); remember(`${entry}.sort`, s); };
+  const setView = (v: View) => { setViewState(v); remember(`${entry}.view`, v); };
+  const setSpread = (v: boolean) => { setSpreadState(v); remember("media.spread", v); };
   // Two different things: the current file (one click; what the panel shows) and the ticked files (for acting on several).
   const [cur, setCur] = useState<string | null>(null);
   const [sel, setSel] = useState<string[]>([]);
   const clear = () => { setSel([]); setCur(null); };
   const [dropOn, setDropOn] = useState<string | null>(null);
-  const [panels, setPanels, resetPanels] = useDockLayout("files", { left: { tabs: ["nav"] }, right: { tabs: ["info"] } });
+  const [panels, setPanels, resetPanels] = useDockLayout(entry, { left: { tabs: ["nav"] }, right: { tabs: ["info"] } });
   const search = useRef<HTMLSpanElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
 
   const all = files ?? [];
   const map = useMemo(() => store.byId(all), [files]);
-  // A folder that is gone (binned elsewhere) leaves the window at the top level.
-  const here = folder && map.get(folder) && kindOf(map.get(folder)!.type).holds ? folder : null;
-  useEffect(() => { if (files && folder && !here) setFolder(null); }, [files, folder, here]);
+  // A folder or collection that is gone (binned elsewhere) leaves the window at the top level.
+  const here = !media && folder && map.get(folder) && kindOf(map.get(folder)!.type).holds ? folder : null;
+  useEffect(() => { if (files && folder && !here && !media) setFolder(null); }, [files, folder, here]);
+  const openColl = mnav.startsWith("coll:") ? map.get(mnav.slice(5)) : undefined;
+  useEffect(() => { if (files && mnav.startsWith("coll:") && !openColl) setMnav("all"); }, [files, mnav, openColl]);
   const path = store.pathOf(all, here);
   const flat = q !== "" || types.length > 0;
+  const mark = prefs.collectionMark;
 
   useEffect(() => {
+    if (media) { setTitle(`Media · ${openColl ? openColl.name : mnav === "collections" ? "Collections" : mnav === "loose" ? "Not in a collection" : rootLabel}`); setRoute(openColl ? openColl.id : ""); return; }
     setTitle(nav === "bin" ? "Files · Recycle bin" : `Files · ${path.length ? path[path.length - 1].name : rootLabel}`);
     setRoute(nav === "bin" ? "bin" : `${home ? "home" : ""}${home && here ? "/" : ""}${here ?? ""}`);
-  }, [nav, home, here, rootLabel, path.map((f) => f.name).join("/")]);
+  }, [media, mnav, openColl?.name, nav, home, here, rootLabel, path.map((f) => f.name).join("/")]);
 
+  const takenOf = (f: FileRec) => f.photo?.taken_at ?? f.created_at;
   const items = useMemo(() => {
-    let out = all.filter((f) => !f.internal_of && (flat ? !f.fixed : f.container === here));
+    let out: FileRec[];
+    if (media) {
+      const photos = all.filter((f) => f.type === "photo" && !f.internal_of);
+      const loose = photos.filter((f) => !collectionOf(f, map));
+      if (openColl) return photosOf(openColl, all).filter((f) => !q || f.name.toLowerCase().includes(q.toLowerCase()));
+      out = mnav === "collections" ? all.filter((f) => f.type === "collection" && !f.internal_of)
+        : mnav === "loose" ? loose
+        : spread || q ? photos : [...all.filter((f) => f.type === "collection" && !f.internal_of), ...loose];
+    } else out = all.filter((f) => !f.internal_of && (flat ? !f.fixed : f.container === here));
     if (types.length) out = out.filter((f) => types.includes(f.type));
     if (q) { const n = q.toLowerCase(); out = out.filter((f) => f.name.toLowerCase().includes(n)); }
-    const k = (f: FileRec) => (sort.key === "type" ? kindOf(f.type).label : sort.key === "created" ? f.created_at : "") + "\u0000" + f.name;
+    // A collection is as old as its newest photo, so it sits among them by time.
+    const newest = (f: FileRec) => (f.type === "collection" ? photosOf(f, all).map(takenOf).sort().pop() ?? f.created_at : takenOf(f));
+    const k = (f: FileRec) => (sort.key === "type" ? kindOf(f.type).label : sort.key === "created" ? f.created_at : sort.key === "taken" ? newest(f) : "") + "\u0000" + f.name;
     const dir = sort.dir === "asc" ? 1 : -1;
-    // Containers first, whatever the order: a folder is where one goes, not what one looks for.
-    return [...out].sort((a, b) => Number(kindOf(b.type).holds) - Number(kindOf(a.type).holds) || dir * k(a).localeCompare(k(b), undefined, { numeric: true, sensitivity: "base" }));
-  }, [files, here, q, types.join(), sort.key, sort.dir, flat]);
+    // Folders first, whatever the order: a folder is where one goes, not what one looks for.
+    const first = (f: FileRec) => Number(f.type !== "photo" && kindOf(f.type).holds && !media);
+    return [...out].sort((a, b) => first(b) - first(a) || dir * k(a).localeCompare(k(b), undefined, { numeric: true, sensitivity: "base" }));
+  }, [files, here, q, types.join(), sort.key, sort.dir, flat, media, mnav, spread, openColl]);
   const ids = items.map((f) => f.id);
   const chosen = (sel.length ? sel : cur ? [cur] : []).map((id) => map.get(id)).filter((f): f is FileRec => !!f);
   const one = chosen.length === 1 ? chosen[0] : null;
+  const photosIn = (list: FileRec[]) => list.filter((f) => f.type === "photo");
 
   const go = (to: { home?: boolean; folder?: string | null }) => { if (to.home !== undefined) setHome(to.home); setFolder(to.folder ?? null); setNav("all"); setQ(""); setTypes([]); clear(); };
-  const open = (f: FileRec) => { if (kindOf(f.type).holds) go({ folder: f.id }); else ops.openFile(f, map); };
+  const open = (f: FileRec) => {
+    if (f.type === "collection" && media) { setMnav(`coll:${f.id}`); setQ(""); clear(); return; }
+    if (kindOf(f.type).holds && !media) { go({ folder: f.id }); return; }
+    if (f.type === "photo") { launch({ app: "photo", resource: { type: "photo", id: f.id }, title: f.name, state: { list: ids.filter((id) => map.get(id)?.type === "photo") } }); return; }
+    ops.openFile(f, map);
+  };
   const tick = (id: string) => setSel((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
   const pick = (id: string, e: MouseEvent) => {
     if (e.metaKey || e.ctrlKey) tick(id);
@@ -112,6 +159,27 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const pins = pinsOf(projectId, prefs.pins);
   const togglePin = (f: FileRec) => togglePinIn(projectId, prefs.pins, { file: f.id } as Pin);
 
+  // ---- Import: image files dropped from the computer, or chosen with Import, go into what is open.
+  const importTo = () => (media ? openColl?.id ?? null : here);
+  const importAll = (list: FileList | File[]) => {
+    if (home) { toast("Photos belong to a project; open the project to import them", { tone: "info" }); return; }
+    const { queued, refused } = importFiles(root, list, importTo());
+    if (queued.length) toast(`Importing ${count(queued.length, "photo")}`);
+    if (refused.length) toast(refused.length === 1 ? `“${refused[0].name}”: ${refused[0].why}` : `${refused.length} files left out: ${refused[0].why}`, { tone: "warning" });
+  };
+  const fromComputer = (e: DragEvent) => !!e.dataTransfer?.types.includes("Files") && !ops.hasDrag(e);
+
+  // ---- Menus.
+  const collectionEntries = (list: FileRec[]): (MenuEntry | false)[] => {
+    const photos = photosIn(list);
+    if (home || !photos.length) return [];
+    return [
+      { separator: true },
+      { id: "group", label: photos.length > 1 ? `Group ${photos.length} into a collection…` : "Make a collection of it…", icon: "layers", run: () => void groupInto(root, all, photos).then(clear) },
+      { id: "addto", label: "Add to collection…", icon: "plus", run: () => addToCollection(root, all, photos) },
+      photos.some((f) => collectionOf(f, map)) && { id: "out", label: "Take out of the collection", icon: "arrow-up", run: () => void takeOut(root, all, photos).then(clear) },
+    ];
+  };
   const fileMenu = (f: FileRec, e: MouseEvent) => {
     if (!sel.includes(f.id)) setCur(f.id);
     const list = group(f), many = list.length > 1;
@@ -120,9 +188,12 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
     contextMenu(e, [
       !many && { id: "open", label: "Open", icon: "external", kbd: "↵", run: () => open(f) },
       !many && f.type === "shortcut" && t && "file" in t && { id: "reveal", label: "Show what it points at", icon: "folder-open", run: () => { go({ folder: t.file.container }); setCur(t.file.id); } },
+      !many && f.type === "photo" && !!f.photo?.stored.original && { id: "orig", label: "Download the original", icon: "download", run: () => { const a = document.createElement("a"); a.href = imageUrl(f.id, "original"); a.download = f.name; a.click(); } },
       !many && { id: "rename", label: "Rename…", icon: "edit", kbd: "F2", disabled: !!f.fixed, run: () => void ops.renameFile(f) },
       !many && { id: "copy", label: "Duplicate", icon: "copy", disabled: !!f.fixed, run: () => void ops.duplicateFile(f) },
-      !many && kindOf(f.type).holds && { id: "newin", label: "New folder inside", icon: "folder-plus", run: () => void ops.newFolder(root, f.id) },
+      !many && f.type === "folder" && { id: "newin", label: "New folder inside", icon: "folder-plus", run: () => void ops.newFolder(root, f.id) },
+      !many && f.type === "collection" && { id: "ungroup", label: "Ungroup", icon: "layers", run: () => void ungroup(root, all, f) },
+      ...collectionEntries(list),
       { separator: true },
       { id: "move", label: "Move to…", icon: "folder", run: () => ops.moveFilesTo(root, all, list, rootLabel) },
       { id: "top", label: "Move to the top level", icon: "arrow-up", disabled: list.every((x) => x.container === null), run: () => void ops.moveFiles(root, all, list, null) },
@@ -136,26 +207,42 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const emptyMenu = (e: MouseEvent) => {
     if ((e.target as HTMLElement).closest("tr, .oc-filecard")) return;
     contextMenu(e, [
-      { id: "new", label: "New folder", icon: "folder-plus", kbd: "⇧N", run: () => void ops.newFolder(root, here) },
+      !home && { id: "import", label: "Import photos…", icon: "upload", run: () => picker.current?.click() },
+      !media && { id: "new", label: "New folder", icon: "folder-plus", kbd: "⇧N", run: () => void ops.newFolder(root, here) },
       { separator: true },
       { id: "all", label: "Select everything listed", icon: "check", kbd: "⌘A", disabled: !ids.length, run: () => setSel(ids) },
     ]);
   };
 
-  // Dragging: rows and cards carry the ticked files (or themselves); folders, the tree and the path take them.
+  // ---- Dragging: rows and cards carry the ticked files (or themselves); folders, collections, the tree and the path take them.
   const dragStart = (f: FileRec) => (e: DragEvent) => ops.setDrag(e, group(f).map((x) => x.id));
   const dropTarget = (key: string, container: string | null, toHome = home) => ({
-    onDragOver: (e: DragEvent) => { if (!ops.hasDrag(e)) return; e.preventDefault(); e.stopPropagation(); e.dataTransfer!.dropEffect = "move"; if (dropOn !== key) setDropOn(key); },
+    onDragOver: (e: DragEvent) => {
+      if (fromComputer(e) && !toHome) { e.preventDefault(); e.stopPropagation(); e.dataTransfer!.dropEffect = "copy"; if (dropOn !== key) setDropOn(key); return; }
+      if (!ops.hasDrag(e)) return;
+      e.preventDefault(); e.stopPropagation(); e.dataTransfer!.dropEffect = "move"; if (dropOn !== key) setDropOn(key);
+    },
     onDragLeave: (e: DragEvent) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setDropOn((d) => (d === key ? null : d)); },
     onDrop: (e: DragEvent) => {
       e.preventDefault(); e.stopPropagation(); setDropOn(null);
-      const moved = (ops.readDrag(e) ?? []).map((id) => map.get(id)).filter((f): f is FileRec => !!f);
+      if (fromComputer(e)) {
+        if (toHome) return;
+        const { queued, refused } = importFiles(root, e.dataTransfer!.files, container);
+        if (queued.length) toast(`Importing ${count(queued.length, "photo")}`);
+        if (refused.length) toast(refused.length === 1 ? `“${refused[0].name}”: ${refused[0].why}` : `${refused.length} files left out: ${refused[0].why}`, { tone: "warning" });
+        return;
+      }
+      const dragged = (ops.readDrag(e) ?? []).map((id) => map.get(id)).filter((f): f is FileRec => !!f);
       if (toHome !== home) return; // nothing crosses between a project and an account home
-      if (moved.length) void ops.moveFiles(root, all, moved, container).then((ok) => ok && clear());
+      if (dragged.length) void ops.moveFiles(root, all, dragged, container).then((ok) => ok && clear());
     },
   });
-  const rowDrag = (f: FileRec) => ({
-    draggable: !f.fixed, onDragStart: dragStart(f), onContextMenu: (e: MouseEvent) => fileMenu(f, e),
+  // A collection opened with its order set by hand: its photos are reordered by dragging them.
+  const handOrder = !!openColl && (openColl.body as { order?: string } | undefined)?.order === "manual" && !q;
+  const sort_ = useSort("x", (from, to) => { if (openColl) void setOrder(openColl, all, "manual", moved(ids, from, to)); });
+  const rowDrag = (f: FileRec, i?: number) => ({
+    ...(handOrder && i !== undefined ? { "data-sort": true, style: sort_.style(i), onPointerDown: sort_.start(i), draggable: false } : { draggable: !f.fixed, onDragStart: dragStart(f) }),
+    onContextMenu: (e: MouseEvent) => fileMenu(f, e),
     ...(kindOf(f.type).holds ? dropTarget(f.id, f.id) : {}),
     className: dropOn === f.id ? "is-drop" : undefined,
   });
@@ -165,16 +252,24 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
     down: () => { const i = cur ? ids.indexOf(cur) : -1; if (ids.length) setCur(ids[Math.min(ids.length - 1, i + 1)]); },
     up: () => { const i = cur ? ids.indexOf(cur) : ids.length; if (ids.length) setCur(ids[Math.max(0, i - 1)]); },
     open: () => { if (one) open(one); else return false; },
-    parent: () => { if (here) go({ folder: map.get(here)?.container ?? null }); else return false; },
+    parent: () => { if (here) go({ folder: map.get(here)?.container ?? null }); else if (openColl) setMnav("all"); else return false; },
     rename: () => { if (one) void ops.renameFile(one); else return false; },
     remove: () => { if (chosen.length) { void ops.binFiles(root, chosen); clear(); } else return false; },
-    newFolder: () => void ops.newFolder(root, here),
+    newFolder: () => { if (!media) void ops.newFolder(root, here); else return false; },
     all: () => setSel(ids),
     clear: () => { if (sel.length || cur) clear(); else return false; },
   }), nav === "all");
 
-  // ---- Sidebar: the two roots as trees, then the bin.
-  const sidebar = (
+  // ---- Sidebar.
+  const collections = all.filter((f) => f.type === "collection" && !f.internal_of).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const sidebar = media ? (
+    <div className="st-side">
+      <SidebarNav value={mnav} onChange={(id) => { setMnav(id as MediaNav); clear(); }} sections={[
+        { items: [{ id: "all", label: "All media", icon: "image", count: all.filter((f) => f.type === "photo").length }, { id: "collections", label: "Collections", icon: "layers", count: collections.length }, { id: "loose", label: "Not in a collection", icon: "file" }] },
+        ...(collections.length ? [{ label: "Collections", items: collections.map((c) => ({ id: `coll:${c.id}`, label: c.name, icon: "layers" as const, count: photosOf(c, all).length })) }] : []),
+      ]} />
+    </div>
+  ) : (
     <div className="st-side">
       <Tree nodes={[{ id: "root", label: project?.name ?? "Project", icon: "slate", children: ops.folderNodes(home ? [] : all, null) }]} defaultExpanded={["root"]} expanded={home ? [] : ["root", ...path.map((f) => f.id)]}
         selected={nav === "all" && !home ? here ?? "root" : undefined} onSelect={(id) => go({ home: false, folder: id === "root" ? null : id })}
@@ -188,18 +283,24 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
 
   // ---- Toolbar.
   const allTypes = fileTypes().filter((t) => all.some((f) => f.type === t.type && !f.fixed));
+  const crumbs = media
+    ? [{ id: "all", label: "Media" }, ...(openColl ? [{ id: openColl.id, label: openColl.name }] : mnav === "collections" ? [{ id: "collections", label: "Collections" }] : mnav === "loose" ? [{ id: "loose", label: "Not in a collection" }] : [])]
+    : [{ id: "root", label: rootLabel }, ...path.map((f) => ({ id: f.id, label: f.name }))];
   const toolbar = nav === "bin" ? null : (
     <Toolbar>
-      <Breadcrumb items={[{ id: "root", label: rootLabel }, ...path.map((f) => ({ id: f.id, label: f.name }))]} onNavigate={(id) => go({ folder: id === "root" ? null : id })}
-        itemProps={(id) => ({ ...dropTarget(`crumb-${id}`, id === "root" ? null : id), className: dropOn === `crumb-${id}` ? "is-drop" : undefined })} />
-      {flat && <Badge>{home ? "whole home" : "whole project"}</Badge>}
+      <Breadcrumb items={crumbs} onNavigate={(id) => (media ? (id === "all" ? setMnav("all") : undefined) : go({ folder: id === "root" ? null : id }))}
+        itemProps={(id) => (media ? undefined : { ...dropTarget(`crumb-${id}`, id === "root" ? null : id), className: dropOn === `crumb-${id}` ? "is-drop" : undefined })} />
+      {flat && !media && <Badge>{home ? "whole home" : "whole project"}</Badge>}
       <ToolbarSpacer />
       <span ref={search}><SearchInput size="sm" value={q} onChange={setQ} placeholder="Names" style={{ width: 170 }} /></span>
-      {allTypes.length > 1 && <DropdownMenu size="sm" variant="quiet" icon="filter" label={types.length ? count(types.length, "type") : "Types"} align="end"
+      {!media && allTypes.length > 1 && <DropdownMenu size="sm" variant="quiet" icon="filter" label={types.length ? count(types.length, "type") : "Types"} align="end"
         items={allTypes.map((t) => ({ id: t.type, label: t.plural, checked: types.includes(t.type) }))} onSelect={(id) => setTypes(types.includes(id) ? types.filter((t) => t !== id) : [...types, id])} />}
+      {media && mnav === "all" && !q && <Segmented label="Collections" value={spread ? "spread" : "stack"} onChange={(v) => setSpread(v === "spread")} options={[{ value: "stack", icon: "layers", title: "Collections as one tile" }, { value: "spread", icon: "grid", title: "Collections spread out" }]} />}
       <Segmented label="View" value={view} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }]} />
-      <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }]} onSelect={() => void ops.newFolder(root, here)} />
+      {!home && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
+      {!media && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }]} onSelect={() => void ops.newFolder(root, here)} />}
       <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={resetPanels} />
+      <input ref={picker} type="file" accept={IMAGE_TYPES} multiple hidden onChange={(e) => { const t = e.currentTarget; if (t.files?.length) importAll(t.files); t.value = ""; }} />
     </Toolbar>
   );
 
@@ -207,35 +308,54 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const icon = (f: FileRec, size: number) => { const l = lookOf(f, map); return <AppIcon glyph={l.glyph} color={l.color} size={size} off={l.broken} />; };
   const where = (f: FileRec) => (f.container ? map.get(f.container)?.name ?? "" : "Top level");
   const facts = (f: FileRec) => {
+    if (f.type === "collection") return count(photosOf(f, all).length, "photo");
+    if (f.type === "photo") { const c = collectionOf(f, map); return c && (media ? !openColl : true) ? c.name : f.photo ? new Date(f.photo.taken_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "Photo"; }
     if (kindOf(f.type).holds) return count(all.filter((c) => c.container === f.id).length);
     if (f.type === "shortcut") { const t = targetOf(f, map); return !t ? "Points at something that is gone" : "app" in t ? `Opens ${appDef(t.app)?.name}` : `To ${kindOf(t.file.type).label.toLowerCase()} “${t.file.name}”`; }
     return kindOf(f.type).label;
   };
+  const uploadOf = (f: FileRec) => uploads.get(f.id)?.state ?? (f.type === "photo" && f.photo && !f.photo.stored.original ? (f.photo.stored.preview ? "preview" : "waiting") : undefined);
+  const card = (f: FileRec, i: number) => {
+    const thumb = thumbOf(f, all);
+    const coll = f.type === "collection" ? f : collectionOf(f, map);
+    const stack = f.type === "collection" ? photosOf(f, all) : null;
+    return (
+      <FileCard key={f.id} name={f.name} meta={facts(f)} art={thumb ? <img src={thumb} alt="" draggable={false} loading="lazy" /> : icon(f, 48)} picture={!!thumb}
+        badge={f.fixed ? <Icon name="lock" size={12} /> : lookOf(f, map).shortcut ? <Icon name="shortcut" size={12} /> : thumb && f.type !== "photo" ? icon(f, 20) : undefined}
+        stack={stack ? { srcs: stack.filter((p) => p.photo?.stored.thumbnail).slice(0, 40).map((p) => imageUrl(p.id, "thumbnail")), count: stack.length } : undefined}
+        tint={coll && !(openColl && f.type === "photo") ? tintOf(coll) : undefined} mark={mark} upload={uploadOf(f)}
+        title={f.type === "photo" && coll && f.type !== coll.type ? `In the collection “${coll.name}”` : undefined}
+        selected={sel.includes(f.id)} current={cur === f.id} dropTarget={dropOn === f.id} onClick={(e) => pick(f.id, e)} onTick={() => tick(f.id)} onOpen={() => open(f)} {...rowDrag(f, i)} />
+    );
+  };
+  const nameCell = (f: FileRec) => {
+    const thumb = thumbOf(f, all);
+    const up = uploadOf(f);
+    return <span className="st-name">{thumb ? <img className="st-mini" src={thumb} alt="" loading="lazy" /> : icon(f, 20)}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}{up && <UploadBadge state={up} />}</span>;
+  };
+  const collCell = (f: FileRec) => { const c = f.type === "collection" ? f : collectionOf(f, map); return c ? <CollectionTag tint={tintOf(c)!}>{f.type === "collection" ? count(photosOf(f, all).length, "photo") : c.name}</CollectionTag> : <span className="st-note">–</span>; };
+  const empty = media
+    ? <EmptyState icon={q ? "search" : "image"} title={q ? "Nothing matches" : openColl ? "This collection is empty" : "No photos yet"} action={!q ? <Button variant="primary" icon="upload" onClick={() => picker.current?.click()}>Import photos</Button> : undefined}>{q ? "" : "Drop image files here (JPEG, PNG, WebP), or use Import. The original is kept as it is."}</EmptyState>
+    : <EmptyState icon={q ? "search" : "folder-open"} title={q || types.length ? "Nothing matches" : "Nothing here yet"} action={!flat ? <Button icon="folder-plus" onClick={() => void ops.newFolder(root, here)}>New folder</Button> : undefined}>{q ? "Search looks at names, in every folder." : !flat ? "Drop files or images here, or make a folder." : ""}</EmptyState>;
   const main = error && !files ? <EmptyState icon="cloud-off" title="Could not load the files" action={<Button onClick={() => void store.loadRoot(root).catch(toastError)}>Try again</Button>}>{error}</EmptyState>
     : !files ? null
-    : !items.length ? <EmptyState icon={q ? "search" : "folder-open"} title={q || types.length ? "Nothing matches" : "Nothing here yet"} action={!flat ? <Button icon="folder-plus" onClick={() => void ops.newFolder(root, here)}>New folder</Button> : undefined}>{q ? "Search looks at names, in every folder." : !flat ? "Drop files here, or make a folder." : ""}</EmptyState>
+    : !items.length ? empty
     : view === "list" ? (
-      <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => rowDrag(map.get(id)!)}
-        columns={[{ key: "name", label: "Name", sortable: true }, { key: "type", label: "Type", sortable: true, width: 140 }, ...(flat ? [{ key: "where", label: "In" }] : []), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]}
+      <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => rowDrag(map.get(id)!)}
+        columns={media
+          ? [{ key: "name", label: "Name", sortable: true }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 130 }, { key: "size", label: "Size", numeric: true, width: 110 }]
+          : [{ key: "name", label: "Name", sortable: true }, { key: "type", label: "Type", sortable: true, width: 140 }, ...(flat ? [{ key: "where", label: "In" }] : []), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]}
         rows={items.map((f) => ({
-          id: f.id,
-          name: <span className="st-name">{icon(f, 20)}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}</span>,
-          type: kindOf(f.type).label, where: where(f), created: day(f.created_at),
+          id: f.id, name: nameCell(f), type: kindOf(f.type).label, where: where(f), created: day(f.created_at), coll: collCell(f),
+          taken: f.photo ? day(f.photo.taken_at) : "", size: f.photo ? `${f.photo.width} × ${f.photo.height}` : "",
         }))} />
-    ) : (
-      <FileGrid ticking={sel.length > 0}>
-        {items.map((f) => (
-          <FileCard key={f.id} name={f.name} meta={facts(f)} art={icon(f, 48)} badge={f.fixed ? <Icon name="lock" size={12} /> : lookOf(f, map).shortcut ? <Icon name="shortcut" size={12} /> : undefined}
-            selected={sel.includes(f.id)} current={cur === f.id} dropTarget={dropOn === f.id} onClick={(e) => pick(f.id, e)} onTick={() => tick(f.id)} onOpen={() => open(f)} {...rowDrag(f)} className={undefined} />
-        ))}
-      </FileGrid>
-    );
+    ) : <FileGrid ticking={sel.length > 0}>{items.map(card)}{handOrder && sort_.ghost((from) => <div className="st-ghost">{card(items[from], -1)}</div>)}</FileGrid>;
 
   // ---- Properties: nothing chosen, one file, or several.
   const info = (
     <div className="st-info">
-      {!chosen.length ? <EmptyState icon="info" title={path.length ? path[path.length - 1].name : rootLabel}>{count(items.length)}. Click one to see its properties. Tick several to act on them together.</EmptyState>
-        : one ? <OneFile key={one.id} f={one} map={map} facts={facts(one)} where={where(one)} who={(id) => (id === me?.id ? "You" : (id && people.get(id)) || "Someone else")} onOpen={() => open(one)} icon={icon(one, 48)} />
+      {!chosen.length ? <EmptyState icon="info" title={media ? (openColl?.name ?? "Media") : path.length ? path[path.length - 1].name : rootLabel}>{count(items.length)}. Click one to see its properties. Tick several to act on them together.</EmptyState>
+        : one ? <OneFile key={one.id} f={one} files={all} map={map} facts={facts(one)} where={where(one)} who={(id) => (id === me?.id ? "You" : (id && people.get(id)) || "Someone else")} onOpen={() => open(one)} icon={icon(one, 48)} />
         : (
           <>
             <header className="st-info__head">
@@ -243,6 +363,8 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
               <span className="st-note">{[...new Set(chosen.map((f) => kindOf(f.type).plural))].join(", ")}</span>
             </header>
             <div className="st-info__acts">
+              {!home && photosIn(chosen).length > 0 && <Button size="sm" icon="layers" onClick={() => void groupInto(root, all, photosIn(chosen)).then(clear)}>Group into a collection…</Button>}
+              {!home && photosIn(chosen).length > 0 && <Button size="sm" icon="plus" onClick={() => addToCollection(root, all, photosIn(chosen))}>Add to collection…</Button>}
               <Button size="sm" icon="folder" onClick={() => ops.moveFilesTo(root, all, chosen, rootLabel)}>Move to…</Button>
               <Button size="sm" variant="danger" icon="trash" onClick={() => { void ops.binFiles(root, chosen); clear(); }}>To the recycle bin</Button>
             </div>
@@ -251,36 +373,48 @@ export function FilesApp({ win, projectId, setTitle, setRoute }: AppProps) {
     </div>
   );
 
+  const waiting = [...uploads.values()];
+  const stuck = waiting.filter((u) => u.state === "stuck");
   return (
     <BrowserLayout toolbar={toolbar}
-      dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { left: 220, right: 300, bottom: 220 }, panels: [{ id: "nav", title: "Folders", icon: "folder", body: sidebar }, ...(nav === "all" ? [{ id: "info", title: "Properties", icon: "info" as const, body: info }] : [])] }}
-      statusBar={nav === "bin" ? undefined : <StatusBar>{count(items.length)}{sel.length > 0 && <> · <strong>{sel.length} ticked</strong> <Chip icon="close" onToggle={() => setSel([])}>Clear</Chip></>}</StatusBar>}>
-      {nav === "bin" ? <BinView root={root} /> : <div className="st-scroll" {...dropTarget("here", here)} onContextMenu={emptyMenu} onClick={(e) => { if (e.target === e.currentTarget) clear(); }}>{main}</div>}
+      dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { left: 220, right: 300, bottom: 220 }, panels: [{ id: "nav", title: media ? "Media" : "Folders", icon: media ? "image" : "folder", body: sidebar }, ...(nav === "all" ? [{ id: "info", title: "Properties", icon: "info" as const, body: info }] : [])] }}
+      statusBar={nav === "bin" ? undefined : (
+        <StatusBar>
+          {count(items.length)}{sel.length > 0 && <> · <strong>{sel.length} ticked</strong> <Chip icon="close" onToggle={() => setSel([])}>Clear</Chip></>}
+          {waiting.length > 0 && <> · {count(waiting.length - stuck.length, "upload")} running</>}
+          {stuck.length > 0 && <> · <strong>{stuck.length} stuck</strong> ({stuck[0].error}) <Chip icon="refresh" onToggle={retryUploads}>Try again</Chip> <Chip icon="close" onToggle={dropStuck}>Give up</Chip></>}
+          {handOrder && <> · drag photos to set their order</>}
+        </StatusBar>
+      )}>
+      {nav === "bin" ? <BinView root={root} /> : <div className={`st-scroll${dropOn === "here" ? " is-drop" : ""}`} {...dropTarget("here", importTo())} onContextMenu={emptyMenu} onClick={(e) => { if (e.target === e.currentTarget) clear(); }}>{main}</div>}
     </BrowserLayout>
   );
 }
 
-/** The properties of one file: its name (editable), what it is, its system properties, and where it is used. */
-function OneFile({ f, map, facts, where, who, onOpen, icon }: { f: FileRec; map: ReadonlyMap<string, FileRec>; facts: string; where: string; who: (id: string | null) => string; onOpen: () => void; icon: preact.ComponentChildren }) {
+/** The properties of one file: its name (editable), what it is, its facts or settings, its system properties, and where it is used. */
+function OneFile({ f, files, map, facts, where, who, onOpen, icon }: { f: FileRec; files: readonly FileRec[]; map: ReadonlyMap<string, FileRec>; facts: string; where: string; who: (id: string | null) => string; onOpen: () => void; icon: preact.ComponentChildren }) {
   const [name, setName] = useState(f.name);
   const [uses, setUses] = useState<FileUse[] | null>(null);
   useEffect(() => { setName(f.name); }, [f.name]);
   useEffect(() => { let on = true; void fetchUses(f.id).then((u) => { if (on) setUses(u); }, () => {}); return () => { on = false; }; }, [f.id, f.updated_at]);
   const commit = () => { const to = name.trim(); if (!to || to === f.name) { setName(f.name); return; } void store.rename(f, to).catch((e) => { toastError(e); setName(f.name); }); };
   const k = kindOf(f.type);
+  const thumb = f.type === "photo" && f.photo?.stored.preview ? imageUrl(f.id, "preview") : thumbOf(f, files);
   return (
     <>
       <header className="st-info__head">
-        <span className="st-info__icon">{icon}</span>
+        {thumb ? <img className="st-info__pic" src={thumb} alt="" onDblClick={onOpen} /> : <span className="st-info__icon">{icon}</span>}
         <TextInput value={name} disabled={!!f.fixed} aria-label="Name" maxLength={120} onInput={(e) => setName(e.currentTarget.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { setName(f.name); e.currentTarget.blur(); } }} />
         <span className="st-info__type"><AppIcon glyph={k.glyph} color={k.color} size={20} />{k.label}{f.fixed && " · fixed folder"}<span style={{ flex: 1 }} /><Button size="sm" variant="quiet" onClick={onOpen}>Open</Button></span>
       </header>
       <PropertyList>
-        <PropertySection title={k.label} icon="info">
-          <PropertyRow label={k.holds ? "Holds" : f.type === "shortcut" ? "Opens" : "Kind"} value={facts} />
+        {f.type === "photo" ? <PhotoFactsSections f={f} map={map} /> : f.type === "collection" ? <CollectionSections c={f} files={files} /> : (
+          <PropertySection title={k.label} icon="info">
+            <PropertyRow label={k.holds ? "Holds" : f.type === "shortcut" ? "Opens" : "Kind"} value={facts} />
+          </PropertySection>
+        )}
+        <PropertySection title="System" icon="clock" defaultOpen={f.type !== "photo"}>
           <PropertyRow label="In" value={where} overflow="truncate" />
-        </PropertySection>
-        <PropertySection title="System" icon="clock">
           <PropertyRow label="Created" value={day(f.created_at)} />
           <PropertyRow label="Created by" value={who(f.created_by)} />
           {f.updated_at && <PropertyRow label="Changed" value={day(f.updated_at)} />}

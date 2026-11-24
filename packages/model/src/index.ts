@@ -4,3 +4,4 @@
  */
 export * from "./files.ts";
 export * from "./types.ts";
+export * from "./exif.ts";

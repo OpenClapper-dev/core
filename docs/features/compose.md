@@ -54,4 +54,4 @@ leaving the field) and a **Compose** section listing the layer and sketch names 
 ## Not done
 
 - Nothing is drawn or edited on the phone.
-- Creating a shot from a sketch or an external image is [new shot](new-shot.md).
+- Creating a shot from a sketch or an external image is [new shot](media.md).
