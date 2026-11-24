@@ -45,3 +45,13 @@ One connection between a person's Studio tabs and their phones and tablets: `GET
 | `link` | phone: `hello { device: { id, name } }`; Studio: `readout` (the phones register again); to the Studio tabs: `presence { phones: [{ id, name }], previewing }` on every change |
 | `layout` | Studio: `preview { layout, orientation, device? }` (a layout shown on the phone without saving it; checked; kept for a phone that connects later), `stop`; phone: `exit`. The last Studio tab gone ends a preview |
 | any other | An extension's: carried from the Studio to the phones and back, unread |
+
+## The Camera layouts app (`apps/studio/src/apps/LayoutsApp.tsx`)
+
+- **Layouts** panel: the built-in Camera and Viewfinder (read-only: "Duplicate to change") and the account's own; **New layout** starts from the Viewfinder.
+- **The preview** draws the camera as the device the layout is designed for: its camera's area per orientation (else its screen, else a usual phone of 412 × 760), its real lenses with the layout's lens names, the bars around the picture (upright: top and bottom bars take the full width, side bars the height left; landscape the other way round), bars over the picture stacked at their edge inside it, readouts as tags (a warning in colour), stepped strips as back, value, on, a sample frame with the look when a frame control is placed. **Upright** and **Landscape** are arranged separately.
+- **Dragging**: a control is dragged to another place in its bar or into another bar, in the preview or in the Bars panel; a line shows where it lands.
+- **Bars** panel: per bar its name, edge, over the picture, distribution, its controls (a button's label, a strip all or stepped, the lens strip fit or fill, remove; the shutter cannot be removed and its bar cannot go while it is there), "Add a control" (what is not placed yet), remove the bar; "+ Bar" at an edge.
+- **Look** panel: the frame's colour and width, the blackout's tint and whether it is on when the camera opens. **Options** panel: the device it is designed for, the reference frame (steps through 35, 43, 50 mm, or on and off at one), phone lenses (every real lens, the main one, or those picked from the device's lenses), lens names (as set for the account, the phone's, focal lengths).
+- **Saving**: 0.6 s after the last change, and only while the layout is valid; until then a banner says what is missing ("Not saved yet").
+- **The phone link pill**: no phone (or the link offline), "<phone> connected", "Previewing on <phone>". A click starts the live preview: the phone shows the layout as it is changed, in the orientation shown; a click again, closing the app or the phone leaving the preview ends it. Nothing is saved on the phone.

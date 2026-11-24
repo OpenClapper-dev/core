@@ -11,31 +11,31 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object
 const LOCAL_ID = /^[a-z0-9_-]{1,40}$/i;
 const COLOUR = /^(#[0-9a-f]{6}|rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*(0|1|0?\.\d+)\s*\))$/i;
 
-/** What a control is: a button (may carry its label), a strip of values (all at once or stepped), the shutter, or a readout on the picture. */
+/** What a control is (with the design system's glyph that draws it): a button (may carry its label), a strip of values (all at once or stepped), the shutter, or a readout on the picture. */
 type ControlKind = "button" | "strip" | "shutter" | "readout";
 export const CONTROLS = {
-  shutter: { label: "Shutter", kind: "shutter" },
-  lenses: { label: "Phone lenses", kind: "strip" },
-  frame: { label: "Frame", short: "Frame", kind: "button" },
-  focal: { label: "Focal lengths", kind: "strip" },
-  fit: { label: "Zoom to frame", short: "Fit", kind: "button" },
-  blackout: { label: "Blackout", short: "Black", kind: "button" },
-  upright: { label: "Frame upright", short: "Upright", kind: "button" },
-  reference: { label: "Reference frame", short: "Ref", kind: "button" },
-  collection: { label: "Collection mode", short: "Collect", kind: "button" },
-  folder: { label: "Folder for new photos", short: "Folder", kind: "button" },
-  torch: { label: "Torch", short: "Torch", kind: "button" },
-  uploads: { label: "Uploads", short: "Uploads", kind: "button" },
-  last: { label: "Last photo", short: "Last", kind: "button" },
-  layout: { label: "Layout", short: "Layout", kind: "button" },
-  "read-project": { label: "Project", kind: "readout" },
-  "read-lens": { label: "Lens in use", kind: "readout" },
-  "read-frame": { label: "Preset and focal length", kind: "readout" },
-  "read-fov": { label: "Angle of view", kind: "readout" },
-  "read-collection": { label: "Collection", kind: "readout" },
-  "read-folder": { label: "Folder", kind: "readout" },
-  "read-warnings": { label: "Warnings", kind: "readout" },
-} as const satisfies Record<string, { label: string; short?: string; kind: ControlKind }>;
+  shutter: { label: "Shutter", icon: "camera", kind: "shutter" },
+  lenses: { label: "Phone lenses", icon: "lens", kind: "strip" },
+  frame: { label: "Frame", icon: "frame", short: "Frame", kind: "button" },
+  focal: { label: "Focal lengths", icon: "focus", kind: "strip" },
+  fit: { label: "Zoom to frame", icon: "expand", short: "Fit", kind: "button" },
+  blackout: { label: "Blackout", icon: "contrast", short: "Black", kind: "button" },
+  upright: { label: "Frame upright", icon: "rotate", short: "Upright", kind: "button" },
+  reference: { label: "Reference frame", icon: "user", short: "Ref", kind: "button" },
+  collection: { label: "Collection mode", icon: "layers", short: "Collect", kind: "button" },
+  folder: { label: "Folder for new photos", icon: "folder", short: "Folder", kind: "button" },
+  torch: { label: "Torch", icon: "flashlight", short: "Torch", kind: "button" },
+  uploads: { label: "Uploads", icon: "cloud-upload", short: "Uploads", kind: "button" },
+  last: { label: "Last photo", icon: "image", short: "Last", kind: "button" },
+  layout: { label: "Layout", icon: "camera-layout", short: "Layout", kind: "button" },
+  "read-project": { label: "Project", icon: "slate", kind: "readout" },
+  "read-lens": { label: "Lens in use", icon: "lens", kind: "readout" },
+  "read-frame": { label: "Preset and focal length", icon: "frame", kind: "readout" },
+  "read-fov": { label: "Angle of view", icon: "crosshair", kind: "readout" },
+  "read-collection": { label: "Collection", icon: "layers", kind: "readout" },
+  "read-folder": { label: "Folder", icon: "folder", kind: "readout" },
+  "read-warnings": { label: "Warnings", icon: "warning", kind: "readout" },
+} as const satisfies Record<string, { label: string; icon: string; short?: string; kind: ControlKind }>;
 export type ControlId = keyof typeof CONTROLS;
 export const CONTROL_IDS = Object.keys(CONTROLS) as ControlId[];
 
