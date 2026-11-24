@@ -3,7 +3,7 @@ import type { IconName } from "@openclapper/design";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
 import { BinApp } from "./BinApp";
-import { FilesApp, MediaApp, filesFromRoute, mediaFromRoute } from "./FilesApp";
+import { FilesApp, MediaApp, ShotsApp, filesFromRoute, mediaFromRoute } from "./FilesApp";
 import { PhotoApp } from "./PhotoApp";
 import { ProjectApp } from "./ProjectApp";
 import { SettingsApp } from "./SettingsApp";
@@ -50,9 +50,11 @@ export interface AppDef {
 const APPS: AppDef[] = [
   { id: "media", name: "Media", glyph: "image", color: 4, tier: "core", singleton: true, defaultSize: { w: 1100, h: 700 }, minSize: { w: 560, h: 360 }, component: MediaApp,
     fromRoute: mediaFromRoute, about: "Photos and collections; import" },
+  { id: "shots", name: "Shots", glyph: "slate", color: 1, tier: "core", singleton: true, defaultSize: { w: 1100, h: 680 }, minSize: { w: 560, h: 360 }, component: ShotsApp,
+    fromRoute: filesFromRoute, about: "The shot list: shots with their properties, as a list or a board" },
   { id: "photo", name: "Photo", glyph: "image", color: 4, tier: "core", singleton: false, opens: ["photo"], defaultSize: { w: 1100, h: 760 }, minSize: { w: 480, h: 360 }, component: PhotoApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "photo", id: rest } : null }), about: "One photo with its facts" },
-  { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: true, opens: ["folder", "collection"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
+  { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: true, opens: ["folder", "collection", "filter"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
     fromRoute: filesFromRoute, about: "Folders of the project and of your home" },
   { id: "bin", name: "Recycle bin", glyph: "trash", color: 0, tier: "core", singleton: true, defaultSize: { w: 900, h: 560 }, minSize: { w: 520, h: 320 }, component: BinApp, about: "What was deleted, for 30 days" },
   { id: "project", name: "Project", glyph: "slate", color: 2, tier: "core", singleton: true, defaultSize: { w: 860, h: 600 }, minSize: { w: 520, h: 360 }, component: ProjectApp,

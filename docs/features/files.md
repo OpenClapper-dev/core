@@ -54,3 +54,5 @@ Everything a user makes is a file ([07 · organisation](../rewrite/07-organisati
 - A shortcut is a file: removing one moves it to the recycle bin like anything else, instead of only taking the icon away.
 - Names need not be unique, so nothing is renamed "(restored)".
 - A new project's desktop starts empty; the first app seeded shortcuts per browser. The taskbar starts with Files, Media and Project pinned.
+
+Properties, search over values, filters as files, the board view, bulk edit and the Shots entry of the browser: [properties](properties.md).

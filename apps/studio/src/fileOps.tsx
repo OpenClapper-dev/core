@@ -38,6 +38,8 @@ export function openFile(f: FileRec, files: ReadonlyMap<string, FileRec>) {
     return;
   }
   if (kindOf(f.type).holds) { launch({ app: "files", state: { folder: f.id, home: f.home } }); return; }
+  // A filter opens in the file browser, which lists what matches it now.
+  if (f.type === "filter") { launch({ app: "files", state: { filter: f.id } }); return; }
   const app = appFor(f.type);
   // An app that is one window in all opens as itself; any other opens a window for this file.
   if (app) launch(app.singleton ? { app: app.id } : { app: app.id, resource: { type: f.type, id: f.id }, title: f.name });

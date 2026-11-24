@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Breadcrumb, BrowserLayout, Button, Chip, CollectionTag, DropdownMenu, EmptyState, FileCard, FileGrid, Icon, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, SidebarNav,
+  AppIcon, Badge, Breadcrumb, BrowserLayout, Button, Chip, CollectionTag, colorCss, DropdownMenu, EmptyState, FileCard, FileGrid, Icon, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, SidebarNav,
   StatusBar, Table, TextInput, Toolbar, ToolbarSpacer, Tree, UploadBadge, moved, useDockLayout, useSort,
 } from "@openclapper/design";
-import { fileTypes } from "@openclapper/model";
+import { evaluate, fileTypes, matchesSearch, valueText, type FilterBody, type FilterGroup } from "@openclapper/model";
+import { Board, BOARD_DEFAULT, type BoardLayout } from "../Board";
+import { FilterBuilder, filterFields, ruleCount } from "../FilterBuilder";
+import { PropertySections } from "../propertyEditors";
+import { definitionsIn, type Definition } from "../props";
 import { fetchUses, type FileRec, type FileUse, type Root } from "../api";
 import { addToCollection, collectionOf, groupInto, photosOf, setOrder, takeOut, tintOf, ungroup } from "../collections";
 import { kindOf, lookOf, targetOf } from "../fileKinds";
@@ -21,14 +25,16 @@ import { pinsOf, togglePin as togglePinIn } from "../wm/Taskbar";
 import { BinView } from "./BinView";
 import { appDef, launch, type AppProps } from "./registry";
 
-type View = "list" | "grid";
+type View = "list" | "grid" | "board";
 type SortKey = "name" | "type" | "created" | "taken";
 interface Sort { key: SortKey; dir: "asc" | "desc" }
 /** Which of the browser's entries this window is (docs/rewrite/09-shells.md): the same browser, set to all files or to photos. */
-export type Entry = "files" | "media";
+export type Entry = "files" | "media" | "shots";
 /** Media's side bar: everything, the collections, the photos in none, or one collection's photos. */
 type MediaNav = "all" | "collections" | "loose" | `coll:${string}`;
-interface Launch { folder?: string | null; home?: boolean; bin?: boolean; collection?: string }
+interface Launch { folder?: string | null; home?: boolean; bin?: boolean; collection?: string; filter?: string }
+/** Files a person does not browse among the others: they live in Settings and are edited in the Project app. */
+const SETTINGS_TYPES = ["property", "naming", "preferences"];
 
 const remembered = <T,>(key: string, fallback: T): T => { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; } };
 const remember = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -41,6 +47,7 @@ export function filesFromRoute(rest: string): { state: Launch } {
   const [a, b] = rest.split("/");
   if (a === "bin") return { state: { bin: true } };
   if (a === "home") return { state: { home: true, folder: b || null } };
+  if (a === "filter" && b) return { state: { filter: b } };
   return { state: { folder: a || null } };
 }
 /** What follows `#/media`: a collection's id, or nothing. */
@@ -48,6 +55,8 @@ export const mediaFromRoute = (rest: string): { state: Launch } => ({ state: { c
 
 /** The Media app: the one browser, set to photos and collections. */
 export const MediaApp = (p: AppProps) => <FilesApp {...p} entry="media" />;
+/** The Shots app: the one browser, set to shots (properties only until step B6). */
+export const ShotsApp = (p: AppProps) => <FilesApp {...p} entry="shots" />;
 
 /**
  * The file browser (docs/rewrite/ux-1-files.md) in its entries: **Files**, the folder trees of a
@@ -57,6 +66,7 @@ export const MediaApp = (p: AppProps) => <FilesApp {...p} entry="media" />;
  */
 export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }: AppProps & { entry?: Entry }) {
   const media = entry === "media";
+  const shotsOnly = entry === "shots";
   const asked = win.state as Launch | undefined;
   const [home, setHome] = useState(!media && !!asked?.home);
   const [folder, setFolder] = useState<string | null>(asked?.folder ?? null);
@@ -65,7 +75,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   useEffect(() => {
     if (!asked || !win.stateSeq) return;
     if (media) setMnav(asked.collection ? `coll:${asked.collection}` : "all");
-    else { setHome(!!asked.home); setFolder(asked.folder ?? null); setNav(asked.bin ? "bin" : "all"); }
+    else { setHome(!!asked.home); setFolder(asked.folder ?? null); setNav(asked.bin ? "bin" : "all"); setFilterFile(asked.filter ?? null); }
     clear();
   }, [win.stateSeq]);
 
@@ -81,9 +91,16 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const rootLabel = home ? homeLabel : project?.name ?? "Project";
 
   const [q, setQ] = useState("");
+  // A filter: built here, or a filter file opened (its body, editable and saved back).
+  const [filterFile, setFilterFile] = useState<string | null>(asked?.filter ?? null);
+  const [filter, setFilter] = useState<FilterGroup>({ match: "all", rules: [] });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [board, setBoardState] = useState<BoardLayout>(() => remembered(`${entry}.board`, BOARD_DEFAULT));
+  const setBoard = (b: BoardLayout) => { setBoardState(b); remember(`${entry}.board`, b); };
   const [types, setTypes] = useState<string[]>([]);
   const [sort, setSortState] = useState<Sort>(() => remembered(`${entry}.sort`, media ? { key: "taken", dir: "desc" } : { key: "name", dir: "asc" }));
   const [view, setViewState] = useState<View>(() => remembered(`${entry}.view`, media ? "grid" : "list"));
+  const defs: Definition[] = useMemo(() => definitionsIn(files), [files]);
   const [spread, setSpreadState] = useState<boolean>(() => remembered("media.spread", false));
   const setSort = (s: Sort) => { setSortState(s); remember(`${entry}.sort`, s); };
   const setView = (v: View) => { setViewState(v); remember(`${entry}.view`, v); };
@@ -105,14 +122,23 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const openColl = mnav.startsWith("coll:") ? map.get(mnav.slice(5)) : undefined;
   useEffect(() => { if (files && mnav.startsWith("coll:") && !openColl) setMnav("all"); }, [files, mnav, openColl]);
   const path = store.pathOf(all, here);
-  const flat = q !== "" || types.length > 0;
+  const savedFilter = filterFile ? map.get(filterFile) ?? null : null;
+  useEffect(() => { if (savedFilter) { const b = savedFilter.body as unknown as FilterBody; setFilter({ match: b.match, rules: b.rules }); setTypes(b.types ?? []); setQ(b.q ?? ""); setFilterOpen(true); } }, [savedFilter?.id, savedFilter?.updated_at]);
+  useEffect(() => { if (files && filterFile && !savedFilter) setFilterFile(null); }, [files, filterFile, savedFilter]);
+  const filtering = ruleCount(filter) > 0;
+  const flat = q !== "" || types.length > 0 || filtering || shotsOnly;
+  /** What search reads of a file: its name and its property values as text. */
+  const texts = (f: FileRec) => [f.name, ...defs.filter((d) => f.values?.[d.id] !== undefined).map((d) => valueText(d.def, f.values![d.id], (id) => map.get(id)?.name))];
+  const matches = (f: FileRec) => evaluate(filter, { name: f.name, type: f.type, created_at: f.created_at, updated_at: f.updated_at ?? f.created_at, container: f.container, taken: f.photo?.taken_at ?? null, aov: f.photo?.angle_of_view?.horizontal ?? null, values: f.values ?? {} });
   const mark = prefs.collectionMark;
 
   useEffect(() => {
+    if (shotsOnly) { setTitle(`Shots · ${savedFilter ? savedFilter.name : rootLabel}`); setRoute(savedFilter ? `filter/${savedFilter.id}` : ""); return; }
+    if (savedFilter && !media) { setTitle(`Files · ${savedFilter.name}`); setRoute(`filter/${savedFilter.id}`); return; }
     if (media) { setTitle(`Media · ${openColl ? openColl.name : mnav === "collections" ? "Collections" : mnav === "loose" ? "Not in a collection" : rootLabel}`); setRoute(openColl ? openColl.id : ""); return; }
     setTitle(nav === "bin" ? "Files · Recycle bin" : `Files · ${path.length ? path[path.length - 1].name : rootLabel}`);
     setRoute(nav === "bin" ? "bin" : `${home ? "home" : ""}${home && here ? "/" : ""}${here ?? ""}`);
-  }, [media, mnav, openColl?.name, nav, home, here, rootLabel, path.map((f) => f.name).join("/")]);
+  }, [media, mnav, openColl?.name, nav, home, here, rootLabel, path.map((f) => f.name).join("/"), savedFilter?.name]);
 
   const takenOf = (f: FileRec) => f.photo?.taken_at ?? f.created_at;
   const items = useMemo(() => {
@@ -120,13 +146,15 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     if (media) {
       const photos = all.filter((f) => f.type === "photo" && !f.internal_of);
       const loose = photos.filter((f) => !collectionOf(f, map));
-      if (openColl) return photosOf(openColl, all).filter((f) => !q || f.name.toLowerCase().includes(q.toLowerCase()));
+      if (openColl) return photosOf(openColl, all).filter((f) => (!q || matchesSearch(q, texts(f))) && matches(f));
       out = mnav === "collections" ? all.filter((f) => f.type === "collection" && !f.internal_of)
         : mnav === "loose" ? loose
         : spread || q ? photos : [...all.filter((f) => f.type === "collection" && !f.internal_of), ...loose];
-    } else out = all.filter((f) => !f.internal_of && (flat ? !f.fixed : f.container === here));
+    } else if (shotsOnly) out = all.filter((f) => f.type === "shot" && !f.internal_of);
+    else out = all.filter((f) => !f.internal_of && (flat ? !f.fixed && !SETTINGS_TYPES.includes(f.type) : f.container === here));
     if (types.length) out = out.filter((f) => types.includes(f.type));
-    if (q) { const n = q.toLowerCase(); out = out.filter((f) => f.name.toLowerCase().includes(n)); }
+    if (q) out = out.filter((f) => matchesSearch(q, texts(f)));
+    if (filtering) out = out.filter(matches);
     // A collection is as old as its newest photo, so it sits among them by time.
     const newest = (f: FileRec) => (f.type === "collection" ? photosOf(f, all).map(takenOf).sort().pop() ?? f.created_at : takenOf(f));
     const k = (f: FileRec) => (sort.key === "type" ? kindOf(f.type).label : sort.key === "created" ? f.created_at : sort.key === "taken" ? newest(f) : "") + "\u0000" + f.name;
@@ -134,16 +162,32 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     // Folders first, whatever the order: a folder is where one goes, not what one looks for.
     const first = (f: FileRec) => Number(f.type !== "photo" && kindOf(f.type).holds && !media);
     return [...out].sort((a, b) => first(b) - first(a) || dir * k(a).localeCompare(k(b), undefined, { numeric: true, sensitivity: "base" }));
-  }, [files, here, q, types.join(), sort.key, sort.dir, flat, media, mnav, spread, openColl]);
+  }, [files, here, q, types.join(), sort.key, sort.dir, flat, media, mnav, spread, openColl, JSON.stringify(filter)]);
   const ids = items.map((f) => f.id);
   const chosen = (sel.length ? sel : cur ? [cur] : []).map((id) => map.get(id)).filter((f): f is FileRec => !!f);
   const one = chosen.length === 1 ? chosen[0] : null;
   const photosIn = (list: FileRec[]) => list.filter((f) => f.type === "photo");
 
-  const go = (to: { home?: boolean; folder?: string | null }) => { if (to.home !== undefined) setHome(to.home); setFolder(to.folder ?? null); setNav("all"); setQ(""); setTypes([]); clear(); };
+  const resetFilter = () => { setFilter({ match: "all", rules: [] }); setFilterFile(null); setFilterOpen(false); };
+  const go = (to: { home?: boolean; folder?: string | null }) => { if (to.home !== undefined) setHome(to.home); setFolder(to.folder ?? null); setNav("all"); setQ(""); setTypes([]); resetFilter(); clear(); };
+  /** The filter as a file's body. */
+  const filterBody = (): FilterBody => ({ ...filter, ...(types.length ? { types } : {}), ...(q ? { q } : {}) });
+  const saveFilter = async () => {
+    try {
+      if (savedFilter) { await store.saveBody(savedFilter, filterBody() as unknown as Record<string, unknown>); toast(`“${savedFilter.name}” saved`); return; }
+      const id = crypto.randomUUID();
+      await store.create(root, "filter", { id, container: shotsOnly || media ? null : here, body: filterBody() as unknown as Record<string, unknown> });
+      setFilterFile(id);
+      toast("Saved as a filter: open it again from where it sits");
+    } catch (e) { toastError(e); }
+  };
+  const newShot = async () => { try { const id = crypto.randomUUID(); await store.create(root, "shot", { id, container: shotsOnly ? null : here }); setCur(id); } catch (e) { toastError(e); } };
   const open = (f: FileRec) => {
     if (f.type === "collection" && media) { setMnav(`coll:${f.id}`); setQ(""); clear(); return; }
     if (kindOf(f.type).holds && !media) { go({ folder: f.id }); return; }
+    if (f.type === "filter") { setQ(""); setTypes([]); setFilterFile(f.id); clear(); return; }
+    // A shot opens in its own window from step B6; until then its properties are in the panel.
+    if (f.type === "shot") { setCur(f.id); return; }
     if (f.type === "photo") { launch({ app: "photo", resource: { type: "photo", id: f.id }, title: f.name, state: { list: ids.filter((id) => map.get(id)?.type === "photo") } }); return; }
     ops.openFile(f, map);
   };
@@ -208,7 +252,8 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     if ((e.target as HTMLElement).closest("tr, .oc-filecard")) return;
     contextMenu(e, [
       !home && { id: "import", label: "Import photos…", icon: "upload", run: () => picker.current?.click() },
-      !media && { id: "new", label: "New folder", icon: "folder-plus", kbd: "⇧N", run: () => void ops.newFolder(root, here) },
+      !media && !shotsOnly && { id: "new", label: "New folder", icon: "folder-plus", kbd: "⇧N", run: () => void ops.newFolder(root, here) },
+      !media && !home && { id: "newshot", label: "New shot", icon: "slate", run: () => void newShot() },
       { separator: true },
       { id: "all", label: "Select everything listed", icon: "check", kbd: "⌘A", disabled: !ids.length, run: () => setSel(ids) },
     ]);
@@ -262,7 +307,18 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
 
   // ---- Sidebar.
   const collections = all.filter((f) => f.type === "collection" && !f.internal_of).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  const sidebar = media ? (
+  // Saved filters of the project: opened in this window, where they list what matches now.
+  const filters = home ? [] : all.filter((f) => f.type === "filter" && !f.internal_of).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const filterNav = filters.length ? [{ label: "Filters", items: filters.map((f) => ({ id: `filter:${f.id}`, label: f.name, icon: "filter" as const })) }] : [];
+  const pickFilter = (id: string) => { const fid = id.slice(7); setQ(""); setTypes([]); setFilterFile(fid); setNav("all"); clear(); };
+  const sidebar = shotsOnly ? (
+    <div className="st-side">
+      <SidebarNav value={savedFilter ? `filter:${savedFilter.id}` : "all"} onChange={(id) => (id === "all" ? (resetFilter(), clear()) : pickFilter(id))} sections={[
+        { items: [{ id: "all", label: "All shots", icon: "slate", count: all.filter((f) => f.type === "shot").length }] },
+        ...filterNav,
+      ]} />
+    </div>
+  ) : media ? (
     <div className="st-side">
       <SidebarNav value={mnav} onChange={(id) => { setMnav(id as MediaNav); clear(); }} sections={[
         { items: [{ id: "all", label: "All media", icon: "image", count: all.filter((f) => f.type === "photo").length }, { id: "collections", label: "Collections", icon: "layers", count: collections.length }, { id: "loose", label: "Not in a collection", icon: "file" }] },
@@ -277,7 +333,8 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       <Tree nodes={[{ id: "home", label: homeLabel, icon: "home", children: ops.folderNodes(home ? all : [], null) }]} defaultExpanded={[]} expanded={home ? ["home", ...path.map((f) => f.id)] : []}
         selected={nav === "all" && home ? here ?? "home" : undefined} onSelect={(id) => go({ home: true, folder: id === "home" ? null : id })}
         rowProps={(id) => (home ? { ...dropTarget(`tree-${id}`, id === "home" ? null : id), className: dropOn === `tree-${id}` ? "is-drop" : undefined } : undefined)} />
-      <SidebarNav value={nav === "bin" ? "bin" : undefined} onChange={() => { setNav("bin"); clear(); }} sections={[{ items: [{ id: "bin", label: "Recycle bin", icon: "trash", count: bin?.length || undefined }] }]} />
+      <SidebarNav value={nav === "bin" ? "bin" : savedFilter ? `filter:${savedFilter.id}` : undefined} onChange={(id) => { if (id === "bin") { setNav("bin"); clear(); } else pickFilter(id); }}
+        sections={[...filterNav, { items: [{ id: "bin", label: "Recycle bin", icon: "trash", count: bin?.length || undefined }] }]} />
     </div>
   );
 
@@ -290,15 +347,17 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     <Toolbar>
       <Breadcrumb items={crumbs} onNavigate={(id) => (media ? (id === "all" ? setMnav("all") : undefined) : go({ folder: id === "root" ? null : id }))}
         itemProps={(id) => (media ? undefined : { ...dropTarget(`crumb-${id}`, id === "root" ? null : id), className: dropOn === `crumb-${id}` ? "is-drop" : undefined })} />
-      {flat && !media && <Badge>{home ? "whole home" : "whole project"}</Badge>}
+      {flat && !media && !shotsOnly && <Badge>{home ? "whole home" : "whole project"}</Badge>}
       <ToolbarSpacer />
-      <span ref={search}><SearchInput size="sm" value={q} onChange={setQ} placeholder="Names" style={{ width: 170 }} /></span>
-      {!media && allTypes.length > 1 && <DropdownMenu size="sm" variant="quiet" icon="filter" label={types.length ? count(types.length, "type") : "Types"} align="end"
+      <span ref={search}><SearchInput size="sm" value={q} onChange={setQ} placeholder={home ? "Names" : "Names and properties"} style={{ width: 190 }} /></span>
+      {!home && <Button size="sm" variant={filterOpen || filtering ? "secondary" : "quiet"} icon="filter" selected={filterOpen} onClick={() => setFilterOpen(!filterOpen)}>{savedFilter ? savedFilter.name : filtering ? `Filter · ${ruleCount(filter)}` : "Filter"}</Button>}
+      {!media && !shotsOnly && allTypes.length > 1 && <DropdownMenu size="sm" variant="quiet" icon="filter" label={types.length ? count(types.length, "type") : "Types"} align="end"
         items={allTypes.map((t) => ({ id: t.type, label: t.plural, checked: types.includes(t.type) }))} onSelect={(id) => setTypes(types.includes(id) ? types.filter((t) => t !== id) : [...types, id])} />}
       {media && mnav === "all" && !q && <Segmented label="Collections" value={spread ? "spread" : "stack"} onChange={(v) => setSpread(v === "spread")} options={[{ value: "stack", icon: "layers", title: "Collections as one tile" }, { value: "spread", icon: "grid", title: "Collections spread out" }]} />}
-      <Segmented label="View" value={view} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }]} />
-      {!home && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
-      {!media && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }]} onSelect={() => void ops.newFolder(root, here)} />}
+      <Segmented label="View" value={view} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }, ...(!home ? [{ value: "board", icon: "columns" as const, title: "Board: lanes by a property" }] : [])]} />
+      {!home && !shotsOnly && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
+      {shotsOnly && <Button size="sm" variant="primary" icon="plus" onClick={() => void newShot()}>New shot</Button>}
+      {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }] : [])]} onSelect={(id) => void (id === "shot" ? newShot() : ops.newFolder(root, here))} />}
       <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={resetPanels} />
       <input ref={picker} type="file" accept={IMAGE_TYPES} multiple hidden onChange={(e) => { const t = e.currentTarget; if (t.files?.length) importAll(t.files); t.value = ""; }} />
     </Toolbar>
@@ -311,6 +370,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     if (f.type === "collection") return count(photosOf(f, all).length, "photo");
     if (f.type === "photo") { const c = collectionOf(f, map); return c && (media ? !openColl : true) ? c.name : f.photo ? new Date(f.photo.taken_at).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "Photo"; }
     if (kindOf(f.type).holds) return count(all.filter((c) => c.container === f.id).length);
+    if (f.type === "filter") return `Filter · ${ruleCount(f.body as unknown as FilterGroup)} rules`;
     if (f.type === "shortcut") { const t = targetOf(f, map); return !t ? "Points at something that is gone" : "app" in t ? `Opens ${appDef(t.app)?.name}` : `To ${kindOf(t.file.type).label.toLowerCase()} “${t.file.name}”`; }
     return kindOf(f.type).label;
   };
@@ -333,6 +393,14 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     const up = uploadOf(f);
     return <span className="st-name">{thumb ? <img className="st-mini" src={thumb} alt="" loading="lazy" /> : icon(f, 20)}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}{up && <UploadBadge state={up} />}</span>;
   };
+  // The Shots list shows the shot properties as columns: the shot list as a table.
+  const columnDefs = shotsOnly ? defs.filter((d) => d.def.attached.some((a) => a.type === "shot" && !a.hidden)) : [];
+  const valueCell = (d: Definition, f: FileRec) => {
+    const v = f.values?.[d.id];
+    if (v === undefined) return <span className="st-note">–</span>;
+    if (d.def.field === "choice" || d.def.field === "multi") return <span className="st-tags">{(Array.isArray(v) ? v : [v]).map((id) => { const o = d.def.options?.find((x) => x.id === id); return o ? <span key={o.id} className="st-tag st-tag--static"><i style={{ background: colorCss(o.color) }} />{o.label}</span> : null; })}</span>;
+    return valueText(d.def, v, (id) => map.get(id)?.name);
+  };
   const collCell = (f: FileRec) => { const c = f.type === "collection" ? f : collectionOf(f, map); return c ? <CollectionTag tint={tintOf(c)!}>{f.type === "collection" ? count(photosOf(f, all).length, "photo") : c.name}</CollectionTag> : <span className="st-note">–</span>; };
   const empty = media
     ? <EmptyState icon={q ? "search" : "image"} title={q ? "Nothing matches" : openColl ? "This collection is empty" : "No photos yet"} action={!q ? <Button variant="primary" icon="upload" onClick={() => picker.current?.click()}>Import photos</Button> : undefined}>{q ? "" : "Drop image files here (JPEG, PNG, WebP), or use Import. The original is kept as it is."}</EmptyState>
@@ -340,12 +408,15 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const main = error && !files ? <EmptyState icon="cloud-off" title="Could not load the files" action={<Button onClick={() => void store.loadRoot(root).catch(toastError)}>Try again</Button>}>{error}</EmptyState>
     : !files ? null
     : !items.length ? empty
+    : view === "board" && !home ? <Board projectId={projectId} items={items} defs={defs} layout={board} onLayout={setBoard} selected={sel} card={card} />
     : view === "list" ? (
       <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => rowDrag(map.get(id)!)}
         columns={media
           ? [{ key: "name", label: "Name", sortable: true }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 130 }, { key: "size", label: "Size", numeric: true, width: 110 }]
+          : shotsOnly ? [{ key: "name", label: "Name", sortable: true }, ...columnDefs.map((d) => ({ key: `p:${d.id}`, label: d.name })), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]
           : [{ key: "name", label: "Name", sortable: true }, { key: "type", label: "Type", sortable: true, width: 140 }, ...(flat ? [{ key: "where", label: "In" }] : []), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]}
         rows={items.map((f) => ({
+          ...Object.fromEntries(columnDefs.map((d) => [`p:${d.id}`, valueCell(d, f)])),
           id: f.id, name: nameCell(f), type: kindOf(f.type).label, where: where(f), created: day(f.created_at), coll: collCell(f),
           taken: f.photo ? day(f.photo.taken_at) : "", size: f.photo ? `${f.photo.width} × ${f.photo.height}` : "",
         }))} />
@@ -355,7 +426,8 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const info = (
     <div className="st-info">
       {!chosen.length ? <EmptyState icon="info" title={media ? (openColl?.name ?? "Media") : path.length ? path[path.length - 1].name : rootLabel}>{count(items.length)}. Click one to see its properties. Tick several to act on them together.</EmptyState>
-        : one ? <OneFile key={one.id} f={one} files={all} map={map} facts={facts(one)} where={where(one)} who={(id) => (id === me?.id ? "You" : (id && people.get(id)) || "Someone else")} onOpen={() => open(one)} icon={icon(one, 48)} />
+        : one ? <OneFile key={one.id} f={one} files={all} map={map} facts={facts(one)} where={where(one)} who={(id) => (id === me?.id ? "You" : (id && people.get(id)) || "Someone else")} onOpen={() => open(one)} icon={icon(one, 48)}
+          props={!home ? <PropertySections projectId={projectId} targets={[one]} defs={defs} files={all} /> : null} />
         : (
           <>
             <header className="st-info__head">
@@ -368,6 +440,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
               <Button size="sm" icon="folder" onClick={() => ops.moveFilesTo(root, all, chosen, rootLabel)}>Move to…</Button>
               <Button size="sm" variant="danger" icon="trash" onClick={() => { void ops.binFiles(root, chosen); clear(); }}>To the recycle bin</Button>
             </div>
+            {!home && <PropertyList><PropertySections projectId={projectId} targets={chosen} defs={defs} files={all} /></PropertyList>}
           </>
         )}
     </div>
@@ -386,13 +459,28 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
           {handOrder && <> · drag photos to set their order</>}
         </StatusBar>
       )}>
-      {nav === "bin" ? <BinView root={root} /> : <div className={`st-scroll${dropOn === "here" ? " is-drop" : ""}`} {...dropTarget("here", importTo())} onContextMenu={emptyMenu} onClick={(e) => { if (e.target === e.currentTarget) clear(); }}>{main}</div>}
+      {nav === "bin" ? <BinView root={root} /> : (
+        <div className={`st-scroll${dropOn === "here" ? " is-drop" : ""}`} {...dropTarget("here", importTo())} onContextMenu={emptyMenu} onClick={(e) => { if (e.target === e.currentTarget) clear(); }}>
+          {filterOpen && !home && (
+            <div className="st-filterbar">
+              <FilterBuilder group={filter} fields={filterFields(defs, all)} onChange={setFilter} />
+              <div className="st-filterbar__foot">
+                <span className="st-note">{count(items.length, "file")} match{savedFilter ? ` · the filter “${savedFilter.name}”` : ""}</span>
+                <span style={{ flex: 1 }} />
+                <Button size="sm" variant="quiet" disabled={!filtering && !savedFilter} onClick={resetFilter}>{savedFilter ? "Close the filter" : "Clear"}</Button>
+                <Button size="sm" variant="primary" icon="save" disabled={!filtering && !q && !types.length} onClick={() => void saveFilter()}>{savedFilter ? "Save" : "Save as a filter"}</Button>
+              </div>
+            </div>
+          )}
+          {main}
+        </div>
+      )}
     </BrowserLayout>
   );
 }
 
 /** The properties of one file: its name (editable), what it is, its facts or settings, its system properties, and where it is used. */
-function OneFile({ f, files, map, facts, where, who, onOpen, icon }: { f: FileRec; files: readonly FileRec[]; map: ReadonlyMap<string, FileRec>; facts: string; where: string; who: (id: string | null) => string; onOpen: () => void; icon: preact.ComponentChildren }) {
+function OneFile({ f, files, map, facts, where, who, onOpen, icon, props }: { f: FileRec; files: readonly FileRec[]; map: ReadonlyMap<string, FileRec>; facts: string; where: string; who: (id: string | null) => string; onOpen: () => void; icon: preact.ComponentChildren; props?: preact.ComponentChildren }) {
   const [name, setName] = useState(f.name);
   const [uses, setUses] = useState<FileUse[] | null>(null);
   useEffect(() => { setName(f.name); }, [f.name]);
@@ -413,6 +501,7 @@ function OneFile({ f, files, map, facts, where, who, onOpen, icon }: { f: FileRe
             <PropertyRow label={k.holds ? "Holds" : f.type === "shortcut" ? "Opens" : "Kind"} value={facts} />
           </PropertySection>
         )}
+        {props}
         <PropertySection title="System" icon="clock" defaultOpen={f.type !== "photo"}>
           <PropertyRow label="In" value={where} overflow="truncate" />
           <PropertyRow label="Created" value={day(f.created_at)} />
