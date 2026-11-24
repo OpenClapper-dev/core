@@ -5,7 +5,7 @@
 .oc-env--staging{background:var(--env-staging)}
 .oc-env--development{background:var(--env-development)}
 .oc-desktop{position:relative;overflow:hidden;background:var(--bg-desktop);color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-ui) var(--font-sans)}
-.oc-desktop__area{position:absolute;inset:0}
+.oc-desktop__area{position:absolute;inset:0;isolation:isolate}
 .oc-desktop--bottom>.oc-desktop__area{bottom:var(--taskbar-h)}.oc-desktop--top>.oc-desktop__area{top:var(--taskbar-h)}.oc-desktop--left>.oc-desktop__area{left:var(--taskbar-h)}.oc-desktop--right>.oc-desktop__area{right:var(--taskbar-h)}
 .oc-desktop__icons{position:absolute;inset:var(--space-4);display:grid;grid-auto-flow:column;grid-template-rows:repeat(auto-fill,88px);grid-auto-columns:80px;gap:var(--space-2);align-content:start;justify-content:start}
 .oc-marquee{position:absolute;box-sizing:border-box;border:var(--border-w) solid var(--accent);background:var(--marquee);pointer-events:none}
@@ -54,12 +54,12 @@
 .oc-window__content{position:relative;flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .oc-window__handle{position:absolute;right:0;bottom:0;width:12px;height:12px;cursor:nwse-resize;background:linear-gradient(135deg,transparent 0 6px,var(--border-control) 6px 7px,transparent 7px 9px,var(--border-control) 9px 10px,transparent 10px)}
 .oc-window--max{inset:0!important;width:auto!important;height:auto!important;border-width:0;border-radius:0}
-.oc-window--snap-left,.oc-window--snap-right{top:0!important;bottom:0!important;width:50%!important;height:auto!important;border-radius:0;border-top-width:0;border-bottom-width:0}
+.oc-window--snap-left,.oc-window--snap-right{top:0!important;bottom:0!important;width:calc(var(--oc-split,.5)*100%)!important;height:auto!important;border-radius:0;border-top-width:0;border-bottom-width:0}
 .oc-window--snap-left{left:0!important;right:auto!important;border-left-width:0}
-.oc-window--snap-right{left:auto!important;right:0!important;border-right-width:0}
+.oc-window--snap-right{left:auto!important;right:0!important;width:calc((1 - var(--oc-split,.5))*100%)!important;border-right-width:0}
 .oc-window--max .oc-window__handle,.oc-window--snap-left .oc-window__handle,.oc-window--snap-right .oc-window__handle{display:none}
 .oc-window--min{display:none}
-.oc-snapgrip{position:absolute;top:0;bottom:0;left:50%;z-index:calc(var(--z-window) + 50);width:7px;padding:0;translate:-50% 0;border:0;background:var(--border-window-focused);cursor:col-resize}
+.oc-snapgrip{position:absolute;top:0;bottom:0;left:calc(var(--oc-split,.5)*100%);z-index:calc(var(--z-window) + 50);width:7px;padding:0;translate:-50% 0;border:0;background:var(--border-window-focused);cursor:col-resize}
 .oc-snapgrip::after{content:"";position:absolute;left:2px;top:50%;width:3px;height:32px;translate:0 -50%;border-radius:var(--radius-pill);background:var(--surface)}
 .oc-snapgrip:hover{background:var(--accent)}
 .oc-taskbar{position:absolute;z-index:var(--z-taskbar);display:flex;align-items:center;gap:var(--space-1);box-sizing:border-box;background:var(--surface-sunken);color:var(--text);font:var(--weight-regular) var(--font-size-sm)/1 var(--font-sans)}
@@ -77,6 +77,9 @@
 .oc-taskbar__clock{padding:0 var(--space-4);font:var(--weight-medium) var(--font-size-sm)/1 var(--font-mono);font-variant-numeric:tabular-nums}
 .oc-task{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-3);min-width:32px;max-width:180px;height:calc(var(--taskbar-h) - 8px);padding:0 var(--space-4);box-sizing:border-box;border:0;border-radius:var(--radius-control);background:transparent;color:inherit;font:var(--weight-medium) var(--font-size-sm)/1 var(--font-sans);white-space:nowrap;cursor:default}
 .oc-task--icon{width:32px;padding:0}
+.oc-task__count{position:absolute;right:1px;top:1px;min-width:12px;padding:0 2px;box-sizing:border-box;border-radius:var(--radius-pill);background:var(--surface);color:var(--text);font:var(--weight-bold) var(--font-size-2xs)/12px var(--font-mono);text-align:center}
+.oc-taskbar--center>.oc-taskbar__spacer{flex:1}
+.oc-task{cursor:pointer}
 .oc-task__label{min-width:0;overflow:hidden;text-overflow:ellipsis}
 .oc-task:hover{background:var(--surface-pressed)}
 .oc-task:focus-visible{outline:0;box-shadow:inset 0 0 0 1px var(--focus),inset 0 0 0 3px var(--focus-ring)}
@@ -95,20 +98,34 @@
 .oc-launcher__app:focus-visible{outline:0;box-shadow:inset 0 0 0 1px var(--focus),inset 0 0 0 3px var(--focus-ring)}
 .oc-launcher__app.is-off{color:var(--text-secondary)}
 .oc-launcher__off{color:var(--text-secondary);font:var(--weight-medium) var(--font-size-2xs)/1 var(--font-mono)}
-.oc-taskview{position:absolute;inset:0;z-index:var(--z-launcher);display:flex;flex-direction:column;background:var(--bg-desktop);color:var(--text);font:var(--weight-regular) var(--font-size-sm)/1.2 var(--font-sans)}
-.oc-taskview__desks{flex:none;display:flex;justify-content:center;gap:var(--space-5);padding:var(--space-5);border-bottom:var(--border-w) solid var(--border-window);background:var(--surface-sunken)}
-.oc-taskview__desk{display:grid;gap:var(--space-3);justify-items:center;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:default}
-.oc-taskview__mini{position:relative;display:block;width:112px;height:64px;box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-control);background:var(--bg-desktop);overflow:hidden}
-.oc-taskview__mini i{position:absolute;box-sizing:border-box;border:var(--border-w) solid var(--border-window-focused);border-radius:2px;background:var(--surface)}
+.oc-taskview{position:absolute;inset:0;z-index:var(--z-launcher);display:flex;flex-direction:column;background:var(--bg-desktop);color:var(--text);font:var(--weight-regular) var(--font-size-sm)/1.2 var(--font-sans);outline:0}
+.oc-taskview__desks{flex:none;display:flex;justify-content:center;gap:var(--space-5);padding:var(--space-5);overflow-x:auto;border-bottom:var(--border-w) solid var(--border-window);background:var(--surface-sunken)}
+.oc-taskview__desk{flex:none;display:grid;gap:var(--space-3);justify-items:center}
+.oc-taskview__mini{position:relative;display:block;padding:0;box-sizing:border-box;border:var(--border-w) solid var(--border-control);border-radius:var(--radius-control);background:var(--bg-desktop);color:var(--text-secondary);overflow:hidden;cursor:pointer}
+.oc-taskview__mini i{position:absolute;box-sizing:border-box;overflow:hidden;border:var(--border-w) solid var(--border-window-focused);border-radius:2px;background:var(--surface)}
+.oc-taskview__desk.is-shown .oc-taskview__mini{border-color:var(--border-window-focused)}
 .oc-taskview__desk.is-current .oc-taskview__mini{outline:var(--border-w-strong) solid var(--accent);outline-offset:1px}
-.oc-taskview__desk.is-current{font-weight:var(--weight-bold)}
-.oc-taskview__desk:focus-visible .oc-taskview__mini{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4px var(--focus-ring)}
-.oc-taskview__desk--add .oc-taskview__mini{display:grid;place-items:center;border-style:dashed;background:transparent;color:var(--text-secondary)}
+.oc-taskview__desk.is-drop .oc-taskview__mini{outline:var(--border-w-strong) dashed var(--accent);outline-offset:1px;background:var(--marquee)}
+.oc-taskview__desk.is-current .oc-taskview__label{font-weight:var(--weight-bold)}
+.oc-taskview__mini:focus-visible{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4px var(--focus-ring)}
+.oc-taskview__desk--add .oc-taskview__mini{display:grid;place-items:center;border-style:dashed;background:transparent}
+.oc-taskview__label{display:flex;align-items:center;gap:var(--space-2);min-height:20px;max-width:168px}
+.oc-taskview__label small{color:var(--text-secondary);font:var(--weight-medium) var(--font-size-2xs)/1 var(--font-mono)}
+.oc-taskview__rename{width:120px;height:20px;padding:0 var(--space-2);box-sizing:border-box;border:var(--border-w) solid var(--focus);border-radius:var(--radius-xs);background:var(--surface);color:var(--text);font:inherit}
+.oc-taskview__x{display:grid;place-items:center;width:20px;height:20px;padding:0;border:0;border-radius:var(--radius-xs);background:transparent;color:var(--text-secondary);cursor:pointer}
+.oc-taskview__x:hover{background:var(--danger);color:var(--surface)}
+.oc-taskview__x:focus-visible{outline:0;box-shadow:inset 0 0 0 1px var(--focus),inset 0 0 0 3px var(--focus-ring)}
 .oc-taskview__windows{flex:1;display:flex;flex-wrap:wrap;align-content:center;justify-content:center;gap:var(--space-7);padding:var(--space-7);overflow:auto}
-.oc-taskview__win{display:flex;flex-direction:column;width:200px;height:132px;padding:0;box-sizing:border-box;overflow:hidden;border:var(--border-w) solid var(--border-window-focused);border-radius:var(--radius-window);background:var(--surface);box-shadow:var(--shadow-window);color:inherit;font:inherit;text-align:left;cursor:default}
-.oc-taskview__win:hover,.oc-taskview__win:focus-visible{outline:var(--border-w-strong) solid var(--accent);outline-offset:2px}
-.oc-taskview__bar{flex:none;display:flex;align-items:center;gap:var(--space-3);height:var(--row-h);padding:0 var(--space-4);border-bottom:var(--border-w) solid var(--border-divider);background:var(--surface-bar);font-weight:var(--weight-bold)}
-.oc-taskview__body{flex:1;background:var(--surface-sunken)}
+.oc-taskview__empty{margin:0;color:var(--text-secondary)}
+.oc-taskview__card{position:relative}
+.oc-taskview__win{display:flex;flex-direction:column;width:240px;height:160px;padding:0;box-sizing:border-box;overflow:hidden;border:var(--border-w) solid var(--border-window-focused);border-radius:var(--radius-window);background:var(--surface);box-shadow:var(--shadow-window);color:inherit;font:inherit;text-align:left;cursor:pointer}
+.oc-taskview__win:hover,.oc-taskview__win:focus-visible,.oc-taskview__win.is-cursor{outline:var(--border-w-strong) solid var(--accent);outline-offset:2px}
+.oc-taskview__win.is-minimized{opacity:.7}
+.oc-taskview__bar{flex:none;display:flex;align-items:center;gap:var(--space-3);height:var(--row-h);padding:0 var(--space-7) 0 var(--space-4);border-bottom:var(--border-w) solid var(--border-divider);background:var(--surface-bar);font-weight:var(--weight-bold)}
+.oc-taskview__title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.oc-taskview__body{position:relative;flex:1;overflow:hidden;background:var(--surface-sunken)}
+.oc-taskview__x--card{position:absolute;top:2px;right:2px}
+.oc-taskview__hint{flex:none;margin:0;padding:var(--space-4);color:var(--text-secondary);text-align:center}
 .oc-boot{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg-desktop);color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-ui) var(--font-sans)}
 .oc-boot__panel{display:grid;gap:var(--space-5);width:min(336px,calc(100% - 32px));padding:var(--space-7);box-sizing:border-box;border:var(--border-w) solid var(--border-window-focused);border-radius:var(--radius-window);background:var(--surface);box-shadow:var(--shadow-window-focused)}
 .oc-boot__head{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4)}
@@ -116,3 +133,4 @@
 .oc-boot__sub{margin:calc(var(--space-4) * -1) 0 0;color:var(--text-secondary)}
 .oc-boot__list{margin:0 calc(var(--space-4) * -1);border-top:var(--border-w) solid var(--border-divider);border-bottom:var(--border-w) solid var(--border-divider);max-height:200px;overflow:auto}
 .oc-boot__foot{display:flex;align-items:center;justify-content:space-between;gap:var(--space-4)}
+.oc-taskbar--left .oc-taskbar__clock,.oc-taskbar--right .oc-taskbar__clock{width:100%;padding:var(--space-2) 0;box-sizing:border-box;font-size:var(--font-size-2xs);line-height:1.3;text-align:center;white-space:normal}

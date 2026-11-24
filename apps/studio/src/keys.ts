@@ -20,7 +20,7 @@ export const overlayOpen = () => !!document.querySelector("[data-overlay]");
  * physical key, since Option (Mac) and AltGr (Ctrl+Alt on Windows) turn `e.key` into a symbol.
  */
 function keyName(e: KeyboardEvent): string {
-  // Digits too (Mod+Alt+1 picks a workspace; AltGr layouts turn the digit row into symbols). With
+  // Digits too (Mod+Alt+1 picks a desktop; AltGr layouts turn the digit row into symbols). With
   // Shift the digit keeps its name and gets a Shift+ prefix.
   const digit = e.altKey && /^Digit[0-9]$/.test(e.code) ? e.code.slice(5) : null;
   if (digit) return `${e.metaKey || e.ctrlKey ? "Mod+" : ""}Alt+${e.shiftKey ? "Shift+" : ""}${digit}`;
@@ -30,7 +30,7 @@ function keyName(e: KeyboardEvent): string {
 }
 
 /**
- * The one window keydown listener (epic #72): a key goes to the focused window's maps, then the
+ * The one window keydown listener: a key goes to the focused window's maps, then the
  * global ones (wm/keyboard.ts), and the first map that handles it wins.
  */
 function onKeyDown(e: KeyboardEvent) {
@@ -93,5 +93,3 @@ export function bind<S extends ScopeId>(scope: S, handlers: Partial<Record<Actio
   }]));
 }
 
-/** ⇧ + an arrow moves a frame by 1 % of the photo (Framing stage and inline re-frame). */
-export const NUDGE: Record<string, [number, number]> = { ArrowLeft: [-0.01, 0], ArrowRight: [0.01, 0], ArrowUp: [0, -0.01], ArrowDown: [0, 0.01] };

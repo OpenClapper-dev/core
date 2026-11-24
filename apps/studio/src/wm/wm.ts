@@ -2,8 +2,8 @@ import { useEffect, useState } from "preact/hooks";
 
 /**
  * The window manager (epic #72): a module store in the settings.ts idiom holding every open
- * window, the z-order, the snap preview, the taskbar pins and the workspaces (virtual desktops,
- * epic #90: each window belongs to one; the desktop icons are shared by all). Pure logic — no DOM, no registry
+ * window, the z-order, the snap preview and the desks (virtual desktops: each window belongs to one;
+ * the desktop icons are shared by all). Pure logic — no DOM, no registry
  * import — so wm.test.ts can run it under node --test; sizes and singleton flags arrive with each
  * `open()` call (the registry's `launch()` fills them in).
  */
@@ -17,20 +17,20 @@ export type WinMode = "normal" | "max" | "snapped" | "min";
 export type SnapZone = SnapHalf | "max";
 
 /** A virtual desktop: its own windows, focus and side-by-side split. */
-export interface Workspace {
+export interface Desk {
   id: string;
   name: string;
   /** The left share while two windows are snapped side by side (0.2..0.8). */
   split?: number;
-  /** The window that had focus when this workspace was left. */
+  /** The window that had focus when this desktop was left. */
   focusedId?: string | null;
 }
 
 export interface Win {
   id: string;
   app: string;
-  /** The workspace it sits on. */
-  ws: string;
+  /** The desktop it sits on. */
+  desk: string;
   resource: ResourceRef | null;
   title: string;
   /** Normal-mode geometry. Snapping and maximizing never touch it, so restore is free. */
@@ -73,15 +73,14 @@ let windows: Win[] = [];
 let zTop = 0;
 let focused: string | null = null;
 let preview: SnapZone | null = null;
-let pins: string[] = [];
-const firstWs = (): Workspace => ({ id: crypto.randomUUID(), name: "Desktop 1" });
-let workspaces: Workspace[] = [firstWs()];
-let active = workspaces[0].id;
-/** The active workspace's windows, cached until the windows or the workspace change. */
+const firstDesk = (): Desk => ({ id: crypto.randomUUID(), name: "Desktop 1" });
+let desks: Desk[] = [firstDesk()];
+let active = desks[0].id;
+/** The active desktop's windows, cached until the windows or the desktop change. */
 let here: Win[] = [];
 let hereOf: { windows: Win[]; active: string } | null = null;
 const onHere = () => {
-  if (!hereOf || hereOf.windows !== windows || hereOf.active !== active) { here = windows.filter((w) => w.ws === active); hereOf = { windows, active }; }
+  if (!hereOf || hereOf.windows !== windows || hereOf.active !== active) { here = windows.filter((w) => w.desk === active); hereOf = { windows, active }; }
   return here;
 };
 /** The desktop area (without the taskbar); Shell keeps it current via a ResizeObserver. */
@@ -94,15 +93,13 @@ const closeListeners = new Set<(w: Win) => void>();
 /** Called with a window as it is closed (not when a project switch replaces them all): the shell draws its fade-out. */
 export function onClose(cb: (w: Win) => void): () => void { closeListeners.add(cb); return () => { closeListeners.delete(cb); }; }
 
-/** The active workspace's windows (what the taskbar, cycling and Show desktop work on). */
+/** The active desktop's windows (what the taskbar, cycling and Show desktop work on). */
 export const getWindows = () => onHere();
-/** Every window of every workspace (the shell keeps them all mounted; the task view shows them). */
+/** Every window of every desktop (the shell keeps them all mounted; the task view shows them). */
 export const getAllWindows = () => windows;
-export const getWorkspaces = () => workspaces;
-export const getActiveWs = () => active;
+export const getDesks = () => desks;
+export const getActiveDesk = () => active;
 export const getFocusedId = () => focused;
-/** Pins of a layout from before the server kept them (epic #90); only read to seed the server's. */
-export const getLegacyPins = () => pins;
 export const getSnapPreview = () => preview;
 export const getViewport = () => viewport;
 
@@ -143,7 +140,7 @@ function place(size: Size): Rect {
  */
 export function open(intent: OpenIntent): string {
   const key = dedupeKey(intent.app, intent.resource, intent.singleton);
-  // One window per resource across every workspace: a hit elsewhere switches there (focus does).
+  // One window per resource across every desktop: a hit elsewhere switches there (focus does).
   const existing = windows.find((w) => dedupeKey(w.app, w.resource, intent.singleton) === key);
   if (existing) {
     if (intent.state !== undefined) patch(existing.id, { state: intent.state, stateSeq: (existing.stateSeq ?? 0) + 1 });
@@ -152,7 +149,7 @@ export function open(intent: OpenIntent): string {
   }
   const min = intent.minSize ?? MIN_DEFAULT;
   const bounds = clampBounds(intent.bounds ?? place(intent.size ?? SIZE_DEFAULT), min);
-  const win: Win = { id: crypto.randomUUID(), app: intent.app, ws: active, resource: intent.resource ?? null, title: intent.title, bounds, min, z: ++zTop, mode: "normal", state: intent.state };
+  const win: Win = { id: crypto.randomUUID(), app: intent.app, desk: active, resource: intent.resource ?? null, title: intent.title, bounds, min, z: ++zTop, mode: "normal", state: intent.state };
   windows = [...windows, win];
   focused = win.id;
   notify();
@@ -166,13 +163,13 @@ function patch(id: string, p: Partial<Win>) {
 export function focus(id: string) {
   const w = windows.find((x) => x.id === id);
   if (!w) return;
-  if (w.ws !== active) leaveFor(w.ws);
+  if (w.desk !== active) leaveFor(w.desk);
   patch(id, { z: ++zTop, ...(w.mode === "min" ? { mode: w.wasMode ?? "normal", wasMode: undefined } : null) });
   focused = id;
   notify();
 }
 
-/** The active workspace's visible window with the highest z, if any. */
+/** The active desktop's visible window with the highest z, if any. */
 const topmost = () => onHere().filter((w) => w.mode !== "min").sort((a, b) => b.z - a.z)[0] ?? null;
 
 export function close(id: string) {
@@ -250,10 +247,10 @@ export function focusDesktop() {
 export function toggleDesktop() {
   const visible = onHere().filter((w) => w.mode !== "min");
   if (visible.length) {
-    windows = windows.map((w) => (w.ws !== active || w.mode === "min" ? w : { ...w, mode: "min" as const, wasMode: w.mode as Exclude<WinMode, "min"> }));
+    windows = windows.map((w) => (w.desk !== active || w.mode === "min" ? w : { ...w, mode: "min" as const, wasMode: w.mode as Exclude<WinMode, "min"> }));
     focused = null;
   } else {
-    windows = windows.map((w) => (w.ws !== active ? w : { ...w, mode: w.wasMode ?? "normal", wasMode: undefined }));
+    windows = windows.map((w) => (w.desk !== active ? w : { ...w, mode: w.wasMode ?? "normal", wasMode: undefined }));
     focused = topmost()?.id ?? null;
   }
   notify();
@@ -281,69 +278,69 @@ export function setSnapPreview(zone: SnapZone | null) {
   notify();
 }
 
-// ---------- Workspaces (virtual desktops, epic #90) ----------
+// ---------- Desktops (virtual desktops, epic #90) ----------
 
-/** Make `id` the active workspace, remembering what had focus on the one left. */
+/** Make `id` the active desktop, remembering what had focus on the one left. */
 function leaveFor(id: string) {
-  workspaces = workspaces.map((x) => (x.id === active ? { ...x, focusedId: focused } : x));
+  desks = desks.map((x) => (x.id === active ? { ...x, focusedId: focused } : x));
   active = id;
-  const back = workspaces.find((x) => x.id === id)?.focusedId;
-  const w = back ? windows.find((x) => x.id === back && x.ws === id && x.mode !== "min") : undefined;
+  const back = desks.find((x) => x.id === id)?.focusedId;
+  const w = back ? windows.find((x) => x.id === back && x.desk === id && x.mode !== "min") : undefined;
   focused = w?.id ?? topmost()?.id ?? null;
 }
 
 /** The next free "Desktop n" name. */
 function freshName(): string {
-  const taken = new Set(workspaces.map((w) => w.name.toLowerCase()));
-  for (let n = workspaces.length + 1; ; n++) if (!taken.has(`desktop ${n}`)) return `Desktop ${n}`;
+  const taken = new Set(desks.map((w) => w.name.toLowerCase()));
+  for (let n = desks.length + 1; ; n++) if (!taken.has(`desktop ${n}`)) return `Desktop ${n}`;
 }
 
-/** A new, empty workspace at the end; `go` switches to it. Returns its id. */
-export function addWorkspace(opts: { name?: string; go?: boolean } = {}): string {
-  const ws: Workspace = { id: crypto.randomUUID(), name: opts.name?.trim() || freshName() };
-  workspaces = [...workspaces, ws];
-  if (opts.go) leaveFor(ws.id);
+/** A new, empty desktop at the end; `go` switches to it. Returns its id. */
+export function addDesk(opts: { name?: string; go?: boolean } = {}): string {
+  const desk: Desk = { id: crypto.randomUUID(), name: opts.name?.trim() || freshName() };
+  desks = [...desks, desk];
+  if (opts.go) leaveFor(desk.id);
   notify();
-  return ws.id;
+  return desk.id;
 }
 
-/** Switch to a workspace by id, or step through them (+1/-1, wrapping). */
-export function switchWorkspace(to: string | 1 | -1) {
-  const i = workspaces.findIndex((w) => w.id === active);
-  const id = typeof to === "string" ? to : workspaces[(i + to + workspaces.length) % workspaces.length].id;
-  if (id === active || !workspaces.some((w) => w.id === id)) return;
+/** Switch to a desktop by id, or step through them (+1/-1, wrapping). */
+export function switchDesk(to: string | 1 | -1) {
+  const i = desks.findIndex((w) => w.id === active);
+  const id = typeof to === "string" ? to : desks[(i + to + desks.length) % desks.length].id;
+  if (id === active || !desks.some((w) => w.id === id)) return;
   leaveFor(id);
   notify();
 }
 
-/** Remove a workspace (never the last one); its windows go to the neighbour before it (or after). */
-export function removeWorkspace(id: string) {
-  const i = workspaces.findIndex((w) => w.id === id);
-  if (i < 0 || workspaces.length === 1) return;
-  const heir = workspaces[i > 0 ? i - 1 : 1];
-  windows = windows.map((w) => (w.ws === id ? { ...w, ws: heir.id } : w));
+/** Remove a desktop (never the last one); its windows go to the neighbour before it (or after). */
+export function removeDesk(id: string) {
+  const i = desks.findIndex((w) => w.id === id);
+  if (i < 0 || desks.length === 1) return;
+  const heir = desks[i > 0 ? i - 1 : 1];
+  windows = windows.map((w) => (w.desk === id ? { ...w, desk: heir.id } : w));
   const wasActive = active === id;
-  workspaces = workspaces.filter((w) => w.id !== id);
+  desks = desks.filter((w) => w.id !== id);
   if (wasActive) { active = heir.id; focused = topmost()?.id ?? null; }
   notify();
 }
 
-export function renameWorkspace(id: string, name: string) {
+export function renameDesk(id: string, name: string) {
   const n = name.trim();
   if (!n) return;
-  workspaces = workspaces.map((w) => (w.id === id ? { ...w, name: n.slice(0, 40) } : w));
+  desks = desks.map((w) => (w.id === id ? { ...w, name: n.slice(0, 40) } : w));
   notify();
 }
 
-/** Move a window to another workspace ("new": a fresh one); the active one keeps its focus. */
-export function moveToWorkspace(winId: string, to: string | "new") {
+/** Move a window to another desktop ("new": a fresh one); the active one keeps its focus. */
+export function moveToDesk(winId: string, to: string | "new") {
   const w = windows.find((x) => x.id === winId);
   if (!w) return;
-  const target = to === "new" ? addWorkspace() : to;
-  if (target === w.ws || !workspaces.some((x) => x.id === target)) return;
-  patch(winId, { ws: target });
-  // It is that workspace's front window now.
-  workspaces = workspaces.map((x) => (x.id === target ? { ...x, focusedId: winId } : x));
+  const target = to === "new" ? addDesk() : to;
+  if (target === w.desk || !desks.some((x) => x.id === target)) return;
+  patch(winId, { desk: target });
+  // It is that desktop's front window now.
+  desks = desks.map((x) => (x.id === target ? { ...x, focusedId: winId } : x));
   if (focused === winId) focused = topmost()?.id ?? null;
   notify();
 }
@@ -352,8 +349,8 @@ export function moveToWorkspace(winId: string, to: string | "new") {
 
 export const SPLIT_DEFAULT = 0.5;
 const SPLIT_MIN = 0.2, SPLIT_MAX = 0.8;
-/** The active workspace's split: the left half's share of the width while windows are snapped. */
-export const getSplit = () => workspaces.find((w) => w.id === active)?.split ?? SPLIT_DEFAULT;
+/** The active desktop's split: the left half's share of the width while windows are snapped. */
+export const getSplit = () => desks.find((w) => w.id === active)?.split ?? SPLIT_DEFAULT;
 
 /**
  * How far the split may go: 20–80 %, and never so far that a snapped window gets narrower than
@@ -368,30 +365,29 @@ export function splitRange(): { lo: number; hi: number } {
 }
 export const clampSplit = (r: number) => { const { lo, hi } = splitRange(); return Math.min(hi, Math.max(lo, r)); };
 
-/** Move the split of the active workspace (both snapped windows follow). */
+/** Move the split of the active desktop (both snapped windows follow). */
 export function setSplit(r: number) {
   const v = Math.round(clampSplit(r) * 1000) / 1000;
   if (v === getSplit()) return;
-  workspaces = workspaces.map((w) => (w.id === active ? { ...w, split: v } : w));
+  desks = desks.map((w) => (w.id === active ? { ...w, split: v } : w));
   notify();
 }
 
 // ---------- Persistence seam (wm/desktopState.ts stores this per project) ----------
 
-export interface WmSnapshot { windows: Win[]; zTop: number; focusedId: string | null; pins: string[]; workspaces?: Workspace[]; active?: string }
-export const snapshot = (): WmSnapshot => ({ windows, zTop, focusedId: focused, pins, workspaces, active });
-/** Restore a stored desktop; windows of a workspace that is gone (or from before workspaces) land on the first. */
+export interface WmSnapshot { windows: Win[]; zTop: number; focusedId: string | null; desks?: Desk[]; active?: string }
+export const snapshot = (): WmSnapshot => ({ windows, zTop, focusedId: focused, desks, active });
+/** Restore a stored desktop; windows of a desktop that is gone (or from before desks) land on the first. */
 export function hydrate(s: WmSnapshot) {
-  workspaces = s.workspaces?.length ? s.workspaces : [firstWs()];
-  const known = new Set(workspaces.map((w) => w.id));
-  active = s.active && known.has(s.active) ? s.active : workspaces[0].id;
-  windows = s.windows.map((w) => ({ ...w, ws: w.ws && known.has(w.ws) ? w.ws : workspaces[0].id, bounds: clampBounds(w.bounds, w.min) }));
+  desks = s.desks?.length ? s.desks : [firstDesk()];
+  const known = new Set(desks.map((w) => w.id));
+  active = s.active && known.has(s.active) ? s.active : desks[0].id;
+  windows = s.windows.map((w) => ({ ...w, desk: w.desk && known.has(w.desk) ? w.desk : desks[0].id, bounds: clampBounds(w.bounds, w.min) }));
   zTop = Math.max(s.zTop, ...windows.map((w) => w.z), 0);
   focused = s.focusedId && onHere().some((w) => w.id === s.focusedId) ? s.focusedId : topmost()?.id ?? null;
-  pins = s.pins;
   notify();
 }
-export function reset() { hydrate({ windows: [], zTop: 0, focusedId: null, pins: [] }); }
+export function reset() { hydrate({ windows: [], zTop: 0, focusedId: null }); }
 
 // ---------- Hooks (settings.ts idiom) ----------
 
@@ -402,11 +398,11 @@ function useWm<T>(get: () => T): T {
   useEffect(() => { setV(get()); return subscribe(() => setV(get())); }, []);
   return v;
 }
-/** The active workspace's windows; a new array on every change, unsorted (render sorted by z). */
+/** The active desktop's windows; a new array on every change, unsorted (render sorted by z). */
 export const useWindows = () => useWm(getWindows);
 export const useAllWindows = () => useWm(getAllWindows);
-export const useWorkspaces = () => useWm(getWorkspaces);
-export const useActiveWs = () => useWm(getActiveWs);
+export const useDesks = () => useWm(getDesks);
+export const useActiveDesk = () => useWm(getActiveDesk);
 export const useSplit = () => useWm(getSplit);
 export const useFocusedId = () => useWm(getFocusedId);
 export const useSnapPreview = () => useWm(getSnapPreview);

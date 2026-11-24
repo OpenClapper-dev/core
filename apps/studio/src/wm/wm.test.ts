@@ -164,15 +164,14 @@ test("open with a stored bounds rect honours it (clamped)", () => {
   assert.deepEqual(get(a).bounds, { x: 10, y: 10, w: 600, h: 400 });
 });
 
-test("setTitle notifies without disturbing geometry; old local pins are kept for seeding", () => {
+test("setTitle notifies without disturbing geometry", () => {
   fresh();
   const a = openApp("x");
   const before = get(a).bounds;
   wm.setTitle(a, "Renamed");
   assert.equal(get(a).title, "Renamed");
   assert.deepEqual(get(a).bounds, before);
-  wm.hydrate({ ...wm.snapshot(), pins: ["gallery", "files"] });
-  assert.deepEqual(wm.getLegacyPins(), ["gallery", "files"]);
+  wm.hydrate({ ...wm.snapshot() });
 });
 
 test("snapshot/hydrate round-trips and fixes a stale focus id", () => {
@@ -192,78 +191,78 @@ test("snapshot/hydrate round-trips and fixes a stale focus id", () => {
   assert.equal(wm.getFocusedId(), b);
 });
 
-test("workspaces: windows belong to one, switching keeps each one's focus", () => {
+test("desks: windows belong to one, switching keeps each one's focus", () => {
   fresh();
-  const first = wm.getActiveWs();
+  const first = wm.getActiveDesk();
   const a = openApp("gallery", { singleton: true });
-  const second = wm.addWorkspace({ go: true });
-  assert.equal(wm.getActiveWs(), second);
-  assert.equal(wm.getWindows().length, 0, "a new workspace starts empty");
+  const second = wm.addDesk({ go: true });
+  assert.equal(wm.getActiveDesk(), second);
+  assert.equal(wm.getWindows().length, 0, "a new desktop starts empty");
   assert.equal(wm.getFocusedId(), null);
   const b = openApp("files", { singleton: true });
   assert.equal(wm.getAllWindows().length, 2);
   assert.deepEqual(wm.getWindows().map((w) => w.id), [b]);
-  wm.switchWorkspace(first);
+  wm.switchDesk(first);
   assert.equal(wm.getFocusedId(), a, "the window focused there before comes back");
-  wm.switchWorkspace(1);
-  assert.equal(wm.getActiveWs(), second);
+  wm.switchDesk(1);
+  assert.equal(wm.getActiveDesk(), second);
   assert.equal(wm.getFocusedId(), b);
-  wm.switchWorkspace(1);
-  assert.equal(wm.getActiveWs(), first, "stepping wraps");
+  wm.switchDesk(1);
+  assert.equal(wm.getActiveDesk(), first, "stepping wraps");
 });
 
-test("workspaces: opening what is open elsewhere switches there; names are fresh", () => {
+test("desks: opening what is open elsewhere switches there; names are fresh", () => {
   fresh();
-  const first = wm.getActiveWs();
+  const first = wm.getActiveDesk();
   const shot = openApp("shot", { resource: { type: "shot", id: "s1" } });
-  const second = wm.addWorkspace();
-  assert.equal(wm.getWorkspaces().find((w) => w.id === second)?.name, "Desktop 2");
-  wm.switchWorkspace(second);
+  const second = wm.addDesk();
+  assert.equal(wm.getDesks().find((w) => w.id === second)?.name, "Desktop 2");
+  wm.switchDesk(second);
   assert.equal(openApp("shot", { resource: { type: "shot", id: "s1" } }), shot);
-  assert.equal(wm.getActiveWs(), first);
+  assert.equal(wm.getActiveDesk(), first);
   assert.equal(wm.getFocusedId(), shot);
-  wm.renameWorkspace(second, "  Review  ");
-  assert.equal(wm.getWorkspaces().find((w) => w.id === second)?.name, "Review");
+  wm.renameDesk(second, "  Review  ");
+  assert.equal(wm.getDesks().find((w) => w.id === second)?.name, "Review");
 });
 
-test("workspaces: moving a window, removing a workspace hands its windows over", () => {
+test("desks: moving a window, removing a desktop hands its windows over", () => {
   fresh();
-  const first = wm.getActiveWs();
+  const first = wm.getActiveDesk();
   const a = openApp("gallery", { singleton: true });
   const b = openApp("files", { singleton: true });
-  wm.moveToWorkspace(b, "new");
-  assert.equal(wm.getWorkspaces().length, 2);
-  assert.deepEqual(wm.getWindows().map((w) => w.id), [a], "the moved window left this workspace");
+  wm.moveToDesk(b, "new");
+  assert.equal(wm.getDesks().length, 2);
+  assert.deepEqual(wm.getWindows().map((w) => w.id), [a], "the moved window left this desktop");
   assert.equal(wm.getFocusedId(), a);
-  const second = wm.getWorkspaces()[1].id;
-  wm.switchWorkspace(second);
+  const second = wm.getDesks()[1].id;
+  wm.switchDesk(second);
   assert.equal(wm.getFocusedId(), b, "it is the front window over there");
-  wm.removeWorkspace(second);
-  assert.equal(wm.getActiveWs(), first);
+  wm.removeDesk(second);
+  assert.equal(wm.getActiveDesk(), first);
   assert.equal(wm.getWindows().length, 2, "its windows came along");
-  wm.removeWorkspace(first);
-  assert.equal(wm.getWorkspaces().length, 1, "the last workspace stays");
+  wm.removeDesk(first);
+  assert.equal(wm.getDesks().length, 1, "the last desktop stays");
 });
 
-test("workspaces: show desktop and cycling stay on the active one; old layouts load into the first", () => {
+test("desks: show desktop and cycling stay on the active one; old layouts load into the first", () => {
   fresh();
   const a = openApp("gallery", { singleton: true });
-  const second = wm.addWorkspace({ go: true });
+  const second = wm.addDesk({ go: true });
   const b = openApp("files", { singleton: true });
   wm.toggleDesktop();
-  wm.switchWorkspace(-1);
-  assert.equal(wm.getAllWindows().find((w) => w.id === a)?.mode, "normal", "the other workspace's windows were not minimized");
+  wm.switchDesk(-1);
+  assert.equal(wm.getAllWindows().find((w) => w.id === a)?.mode, "normal", "the other desktop's windows were not minimized");
   wm.cycle(1);
-  assert.equal(wm.getFocusedId(), a, "cycling never leaves the workspace");
-  // A layout from before workspaces: no ws on the windows, no workspace list.
+  assert.equal(wm.getFocusedId(), a, "cycling never leaves the desktop");
+  // A layout from before desks: no ws on the windows, no desktop list.
   const old = wm.snapshot();
-  wm.hydrate({ windows: old.windows.map(({ ws: _ws, ...w }) => w as wm.Win), zTop: old.zTop, focusedId: b, pins: [] });
-  assert.equal(wm.getWorkspaces().length, 1);
+  wm.hydrate({ windows: old.windows.map(({ desk: _desk, ...w }) => w as wm.Win), zTop: old.zTop, focusedId: b });
+  assert.equal(wm.getDesks().length, 1);
   assert.equal(wm.getWindows().length, 2);
   assert.ok(second);
 });
 
-test("split: per workspace, clamped to 20–80 % and to the snapped windows' minimum widths", () => {
+test("split: per desktop, clamped to 20–80 % and to the snapped windows' minimum widths", () => {
   fresh();
   assert.equal(wm.getSplit(), 0.5);
   wm.setSplit(0.05);
@@ -276,9 +275,9 @@ test("split: per workspace, clamped to 20–80 % and to the snapped windows' min
   assert.equal(wm.getSplit(), 0.5, "the right window needs 640 of 1280 px");
   wm.setSplit(0.3);
   assert.equal(wm.getSplit(), 0.3);
-  const other = wm.addWorkspace({ go: true });
-  assert.equal(wm.getSplit(), 0.5, "another workspace has its own");
-  wm.switchWorkspace(-1);
+  const other = wm.addDesk({ go: true });
+  assert.equal(wm.getSplit(), 0.5, "another desktop has its own");
+  wm.switchDesk(-1);
   assert.equal(wm.getSplit(), 0.3);
   assert.ok(other);
 });

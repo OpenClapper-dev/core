@@ -13,15 +13,15 @@
     <link rel="manifest" href="/icons/%VITE_ICON_SET%/manifest.webmanifest" />
     <meta name="theme-color" content="#FFFFFF" />
     <script>
-      // Theme before first paint: localStorage["theme"] = "sun" | "set" overrides, absent = follow the OS (see src/theme.ts).
+      // Theme before first paint: localStorage["theme"] = "light" | "dark" overrides, absent = follow the system (see src/theme.ts).
       (function () {
         var mq = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)");
         var o = null;
         try { o = localStorage.getItem("theme"); } catch (e) {}
-        document.documentElement.setAttribute("data-theme", o === "sun" || o === "set" ? o : mq && mq.matches ? "set" : "sun");
+        document.documentElement.setAttribute("data-theme", o === "light" || o === "dark" ? o : mq && mq.matches ? "dark" : "light");
       })();
     </script>
-    <!-- The font and the icons come with @openclapper/ui (bundled); nothing loads from another origin (CSP: public/_headers). -->
+    <!-- The fonts and the icons come with @openclapper/design (bundled); nothing loads from another origin (CSP: public/_headers). -->
   </head>
   <body>
     <div id="app"></div>

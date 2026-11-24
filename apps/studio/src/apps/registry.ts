@@ -1,83 +1,64 @@
 import type { ComponentType } from "preact";
-import type { AppIdV } from "@openclapper/vocab";
-import type { Route } from "../router";
+import type { IconName } from "@openclapper/design";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
-import { DevicesApp } from "./DevicesApp";
-import { SequencesApp } from "./SequencesApp";
-import { FilesApp } from "./FilesApp";
-import { GalleryApp } from "./GalleryApp";
-import { FieldsApp, LocationsApp, ProjectsApp, RigsApp, ViewfinderApp } from "./LibraryApps";
-import { MetadataApp } from "./MetadataApp";
-import { PlanApp } from "./PlanApp";
-import { ShotApp } from "./ShotApp";
-import { TimelineApp } from "./TimelineApp";
+import { ProjectApp } from "./ProjectApp";
 import { SettingsApp } from "./SettingsApp";
-import { TrashApp } from "./TrashApp";
 
-/** Every app the desktop can open: APP_IDS in packages/vocab (the Worker validates app shortcuts with it). */
-export type AppId = AppIdV;
+/**
+ * The Studio's app catalogue (docs/rewrite/09-shells.md): an app is a program that opens one or more
+ * file types. The shell knows apps only through this registry; each build step adds the apps it builds.
+ */
+export interface OpenIntent { app: string; resource?: ResourceRef | null; title?: string; state?: unknown }
 
 /** What every app component receives from the shell; nothing else crosses the window boundary. */
 export interface AppProps {
   win: Win;
   focused: boolean;
   resource: ResourceRef | null;
+  projectId: string;
   setTitle: (t: string) => void;
-  /** Mirror app state into the URL; the bridge shows it while this window is focused. */
-  replaceRoute: (r: Route) => void;
-  open: (intent: { app: AppId; resource?: ResourceRef; state?: unknown; title?: string }) => void;
+  /** What follows `#/<app>` in the address bar while this window has focus (a tab, a folder). */
+  setRoute: (rest: string) => void;
+  open: (intent: OpenIntent) => void;
   close: () => void;
 }
 
 export interface AppDef {
-  id: AppId;
+  id: string;
   name: string;
-  icon: string;
-  /** One window for the whole app; per-resource apps (shot, timeline, …) dedupe on the resource instead. */
+  glyph: IconName;
+  /** 0 neutral, 1 to 8 categorical (the design system's app icon). */
+  color: number;
+  tier: "core" | "standard" | "extension";
+  /** One window for the whole app; other apps have one window per file. */
   singleton: boolean;
-  /** Resource types this app opens (the Files app routes double-clicks with it; phase 6). */
-  accepts?: string[];
+  /** The file types a double-click opens in this app. */
+  opens?: readonly string[];
   defaultSize: Size;
   minSize: Size;
   component: ComponentType<AppProps>;
+  /** A deep link's `#/<app>/<rest>` as a launch: what the app's own `setRoute` wrote. */
+  fromRoute?: (rest: string) => Pick<OpenIntent, "resource" | "state">;
+  /** Shown in the launcher's search and the command palette next to the name. */
+  about?: string;
 }
 
-const def = (id: AppId, name: string, icon: string, singleton: boolean, defaultSize: Size, minSize: Size, component: ComponentType<AppProps>, accepts?: string[]): AppDef =>
-  ({ id, name, icon, singleton, accepts, defaultSize, minSize, component });
+const APPS: AppDef[] = [
+  { id: "project", name: "Project", glyph: "slate", color: 2, tier: "core", singleton: true, defaultSize: { w: 860, h: 600 }, minSize: { w: 520, h: 360 }, component: ProjectApp,
+    fromRoute: (rest) => ({ state: { tab: rest } }), about: "This project and all projects" },
+  { id: "settings", name: "Settings", glyph: "settings", color: 0, tier: "core", singleton: true, defaultSize: { w: 820, h: 600 }, minSize: { w: 480, h: 360 }, component: SettingsApp,
+    fromRoute: (rest) => ({ state: { tab: rest } }), about: "Appearance, account, shortcuts" },
+];
 
-/** The registry: every app of the desktop. */
-export const APPS: Record<AppId, AppDef> = {
-  gallery: def("gallery", "Gallery", "view-grid-outline", true, { w: 1100, h: 720 }, { w: 560, h: 360 }, GalleryApp),
-  shot: def("shot", "Shot", "image-outline", false, { w: 1180, h: 760 }, { w: 640, h: 420 }, ShotApp, ["shot"]),
-  // Timeline and Plan are single windows (the cut / day is picked inside): see TimelineApp.
-  timeline: def("timeline", "Timeline", "filmstrip", true, { w: 1240, h: 780 }, { w: 720, h: 480 }, TimelineApp, ["timeline"]),
-  plan: def("plan", "Plan", "calendar-clock", true, { w: 1180, h: 740 }, { w: 640, h: 420 }, PlanApp, ["day"]),
-  metadata: def("metadata", "Metadata", "tag-multiple-outline", true, { w: 1180, h: 720 }, { w: 640, h: 420 }, MetadataApp),
-  files: def("files", "Files", "folder-multiple-outline", true, { w: 1000, h: 660 }, { w: 560, h: 360 }, FilesApp, ["folder"]),
-  projects: def("projects", "Projects", "folder-outline", true, { w: 980, h: 660 }, { w: 600, h: 400 }, ProjectsApp),
-  fields: def("fields", "Fields", "form-textbox", true, { w: 1100, h: 700 }, { w: 640, h: 420 }, FieldsApp, ["field"]),
-  rigs: def("rigs", "Rigs", "camera-outline", true, { w: 1100, h: 700 }, { w: 640, h: 420 }, RigsApp),
-  locations: def("locations", "Locations", "map-marker-outline", true, { w: 1100, h: 700 }, { w: 640, h: 420 }, LocationsApp, ["location"]),
-  viewfinder: def("viewfinder", "Viewfinder layouts", "cellphone", true, { w: 1180, h: 760 }, { w: 720, h: 480 }, ViewfinderApp),
-  devices: def("devices", "Devices", "access-point", true, { w: 1040, h: 700 }, { w: 640, h: 420 }, DevicesApp),
-  sequences: def("sequences", "Sequences", "chart-timeline-variant", true, { w: 1240, h: 720 }, { w: 720, h: 420 }, SequencesApp),
-  settings: def("settings", "Settings", "cog-outline", true, { w: 820, h: 620 }, { w: 480, h: 360 }, SettingsApp),
-  trash: def("trash", "Recycle bin", "delete-outline", true, { w: 900, h: 600 }, { w: 520, h: 340 }, TrashApp),
-};
-
-export const appDef = (id: string): AppDef | undefined => APPS[id as AppId];
+export const apps = (): readonly AppDef[] => APPS;
+export const appDef = (id: string): AppDef | undefined => APPS.find((a) => a.id === id);
+/** The app registered for a file type, if any. */
+export const appFor = (fileType: string): AppDef | undefined => APPS.find((a) => a.opens?.includes(fileType));
 
 /** Open an app window with the registry's defaults; the one place wm.open is fed app metadata. */
-export function launch(intent: { app: AppId; resource?: ResourceRef | null; title?: string; state?: unknown }): string {
-  const d = APPS[intent.app];
-  return wm.open({
-    app: d.id,
-    resource: intent.resource ?? null,
-    title: intent.title ?? d.name,
-    singleton: d.singleton,
-    size: d.defaultSize,
-    minSize: d.minSize,
-    state: intent.state,
-  });
+export function launch(intent: OpenIntent): string | null {
+  const d = appDef(intent.app);
+  if (!d) return null;
+  return wm.open({ app: d.id, resource: intent.resource ?? null, title: intent.title ?? d.name, singleton: d.singleton, size: d.defaultSize, minSize: d.minSize, state: intent.state });
 }

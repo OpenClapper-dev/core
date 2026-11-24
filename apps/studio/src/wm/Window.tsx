@@ -1,6 +1,8 @@
 import type { ComponentChildren } from "preact";
 import { useRef } from "preact/hooks";
-import { ContextMenu, cx, Icon, IconButton, MenuItem, useCtxMenu } from "@openclapper/ui";
+import { AppIcon, AppWindow } from "@openclapper/design";
+import type { AppDef } from "../apps/registry";
+import { contextMenu, type MenuEntry } from "../hosts";
 import { requestClose } from "./closeGuards";
 import { WindowIdContext } from "./keyboard";
 import { startSplitDrag } from "./SplitGrip";
@@ -8,66 +10,55 @@ import { HANDLE_DIRS, useWindowDrag } from "./useWindowDrag";
 import * as wm from "./wm";
 import type { Win } from "./wm";
 
-/**
- * One window frame: title bar (drag, double-click maximizes), the min/max/close buttons, eight
- * resize handles, and the content area the app renders into. Geometry comes from the store:
- * inline left/top/width/height in normal mode, CSS classes for max/snapped/min. A window of
- * another workspace stays mounted but hidden (`away`), so its app keeps its state.
- */
-export function Window({ win, icon, focused, away, stageBg, children }: { win: Win; icon: string; focused: boolean; away?: boolean; /** The app's own stage background (Settings), else the page's. */ stageBg?: string; children: ComponentChildren }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const barMenu = useCtxMenu<null>();
-  const { onBarPointerDown, onHandlePointerDown } = useWindowDrag(win, ref);
-  const normal = win.mode === "normal";
-  return (
-    <div
-      ref={ref}
-      class={cx("wm-window", focused && "is-focused", away && "wm-window--away", win.mode === "max" && "wm-window--max", win.mode === "min" && "wm-window--min", win.mode === "snapped" && `wm-window--snap-${win.snap}`)}
-      style={{ ...(normal ? { left: `${win.bounds.x}px`, top: `${win.bounds.y}px`, width: `${win.bounds.w}px`, height: `${win.bounds.h}px`, zIndex: win.z } : { zIndex: win.z }), ...(stageBg ? { "--photo-bg": stageBg } : {}) }}
-      data-win-id={win.id}
-      role="group"
-      aria-label={win.title}
-      aria-hidden={away || undefined}
-      onMouseDownCapture={() => { if (wm.getFocusedId() !== win.id) wm.focus(win.id); }}
-    >
-      <div class="wm-window__bar" onPointerDown={onBarPointerDown} onContextMenu={(e) => { if (!(e.target as HTMLElement).closest("button")) barMenu.openMenu(e, null); }} onDblClick={(e) => { if (!(e.target as HTMLElement).closest("button")) wm.toggleMax(win.id); }}>
-        <Icon name={icon} />
-        <span class="wm-window__title">{win.title}</span>
-        <div class="wm-window__btns">
-          <IconButton icon="window-minimize" label="Minimize" onClick={() => wm.minimize(win.id)} />
-          <IconButton icon={win.mode === "max" ? "window-restore" : "window-maximize"} label={win.mode === "max" ? "Restore" : "Maximize"} onClick={() => wm.toggleMax(win.id)} />
-          <IconButton icon="close" label="Close" class="wm-window__close" onClick={() => void requestClose(win.id)} />
-        </div>
-      </div>
-      <div class="wm-window__content"><WindowIdContext.Provider value={win.id}>{children}</WindowIdContext.Provider></div>
-      {barMenu.menu && <WindowMenu win={win} x={barMenu.menu.x} y={barMenu.menu.y} onClose={barMenu.closeMenu} />}
-      {/* A snapped window keeps its inner edge, and it moves the split: the window beside follows. */}
-      {win.mode === "snapped" && <div class={`wm-handle wm-handle--${win.snap === "left" ? "e" : "w"} wm-handle--split`} onPointerDown={startSplitDrag} onDblClick={() => wm.setSplit(wm.SPLIT_DEFAULT)} />}
-      {normal && HANDLE_DIRS.map((dir) => (
-        <div key={dir} class={`wm-handle wm-handle--${dir}`} onPointerDown={(e) => onHandlePointerDown(e, dir)} />
-      ))}
-    </div>
-  );
+/** Where a window shrinks to when minimised: its own taskbar button, else its app's pin. */
+function taskButton(win: Win): DOMRect | undefined {
+  const el = document.querySelector(`[data-task-id="${win.id}"]`) ?? document.querySelector(`[data-pin-id="app:${win.app}"]`);
+  return el?.getBoundingClientRect();
 }
 
-/** A window's actions (title bar and taskbar right-click): sizes, snapping, workspaces, close. */
-export function WindowMenu({ win, x, y, onClose, extra }: { win: Win; x: number; y: number; onClose: () => void; extra?: ComponentChildren }) {
-  const spaces = wm.getWorkspaces();
+/** A window's actions (title bar and taskbar right-click): sizes, snapping, desktops, close. */
+export function windowMenu(win: Win, extra: MenuEntry[] = []): MenuEntry[] {
+  const desks = wm.getDesks();
+  return [
+    ...extra,
+    { id: "min", label: "Minimise", icon: "minus", run: () => wm.minimize(win.id) },
+    { id: "max", label: win.mode === "max" ? "Restore" : "Maximise", icon: win.mode === "max" ? "restore" : "maximize", run: () => wm.toggleMax(win.id) },
+    { id: "left", label: "Snap left", icon: "sidebar", kbd: "⌘Alt ←", run: () => wm.setSnap(win.id, "left") },
+    { id: "right", label: "Snap right", icon: "columns", kbd: "⌘Alt →", run: () => wm.setSnap(win.id, "right") },
+    { separator: true },
+    { heading: "Move to" },
+    ...desks.map((d, i): MenuEntry => ({ id: `desk-${d.id}`, label: d.name, icon: "desktop", checked: d.id === win.desk ? true : undefined, disabled: d.id === win.desk, kbd: i < 9 ? `⌘Alt⇧${i + 1}` : undefined, run: () => wm.moveToDesk(win.id, d.id) })),
+    { id: "desk-new", label: "New desktop", icon: "plus", run: () => wm.moveToDesk(win.id, "new") },
+    { separator: true },
+    { id: "close", label: "Close window", icon: "close", danger: true, kbd: "⌘Alt W", run: () => void requestClose(win.id) },
+  ];
+}
+
+/**
+ * One window: the design system's frame, moved and sized by the window manager. Geometry comes
+ * from the store (inline in normal mode, the frame's own classes for maximised, snapped and
+ * minimised); during a drag the frame is written directly and committed once at the end. A window
+ * of another desktop stays mounted but hidden, so its app keeps its state.
+ */
+export function Window({ win, def, focused, away, closing, onClosed, children }: { win: Win; def: AppDef; focused: boolean; away?: boolean; closing?: boolean; onClosed: () => void; children: ComponentChildren }) {
+  const ref = useRef<HTMLElement>(null);
+  const { onBarPointerDown, onHandlePointerDown } = useWindowDrag(win, ref);
+  const normal = win.mode === "normal";
+  const b = win.bounds;
   return (
-    <ContextMenu x={x} y={y} label={win.title} onClose={onClose}>
-      {extra}
-      <MenuItem icon="window-minimize" onClick={() => wm.minimize(win.id)}>Minimize</MenuItem>
-      <MenuItem icon={win.mode === "max" ? "window-restore" : "window-maximize"} onClick={() => wm.toggleMax(win.id)}>{win.mode === "max" ? "Restore" : "Maximize"}</MenuItem>
-      <MenuItem icon="dock-left" onClick={() => wm.setSnap(win.id, "left")}>Snap left</MenuItem>
-      <MenuItem icon="dock-right" onClick={() => wm.setSnap(win.id, "right")}>Snap right</MenuItem>
-      <div class="f-menu__sep" />
-      <div class="f-menu__label">Move to</div>
-      {spaces.map((s, i) => (
-        <MenuItem key={s.id} icon="monitor" disabled={s.id === win.ws} selected={s.id === win.ws} count={i < 9 ? `⌘Alt⇧${i + 1}` : undefined} onClick={() => wm.moveToWorkspace(win.id, s.id)}>{s.name}</MenuItem>
-      ))}
-      <MenuItem icon="monitor-multiple" onClick={() => wm.moveToWorkspace(win.id, "new")}>New workspace</MenuItem>
-      <div class="f-menu__sep" />
-      <MenuItem icon="close" danger onClick={() => void requestClose(win.id)}>Close window</MenuItem>
-    </ContextMenu>
+    <AppWindow frameRef={ref} title={win.title} icon={<AppIcon glyph={def.glyph} color={def.color} size={16} />} focused={focused} resizable={false}
+      state={win.mode === "snapped" ? `snap-${win.snap ?? "left"}` : win.mode} closing={closing} onClosed={onClosed} minimizeTarget={win.mode === "min" ? taskButton(win) : undefined}
+      className={away ? "st-away" : undefined} aria-hidden={away || undefined} data-win-id={win.id}
+      style={{ left: b.x, top: b.y, width: b.w, height: b.h, zIndex: win.z }}
+      onFocus={() => { if (wm.getFocusedId() !== win.id) wm.focus(win.id); }}
+      onClose={() => void requestClose(win.id)} onMinimize={() => wm.minimize(win.id)} onMaximize={() => wm.toggleMax(win.id)}
+      onBarPointerDown={onBarPointerDown} onBarContextMenu={(e) => { if (!(e.target as HTMLElement).closest("button")) contextMenu(e, windowMenu(win)); }}
+      frame={<>
+        {/* A snapped window keeps its inner edge, and it moves the split: the window beside follows. */}
+        {win.mode === "snapped" && <div className={`st-handle st-handle--${win.snap === "left" ? "e" : "w"}`} onPointerDown={startSplitDrag} onDblClick={() => wm.setSplit(wm.SPLIT_DEFAULT)} />}
+        {normal && HANDLE_DIRS.map((dir) => <div key={dir} className={`st-handle st-handle--${dir}`} onPointerDown={(e) => onHandlePointerDown(e, dir)} />)}
+      </>}>
+      <WindowIdContext.Provider value={win.id}>{children}</WindowIdContext.Provider>
+    </AppWindow>
   );
 }

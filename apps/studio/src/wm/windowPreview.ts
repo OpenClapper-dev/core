@@ -1,15 +1,15 @@
 /**
- * Pictures of windows for the task view (issue #153). Every window stays mounted (hidden with
- * `display: none` when away or minimised), so its content can be copied: a deep clone, cleaned of
- * what must stay unique in the document, laid out at the window's own size and scaled down by the
- * caller. A snapshot, not live: nothing in the windows changes while the task view is open.
+ * Pictures of windows for the task view. Every window stays mounted (hidden when away or
+ * minimised), so its content can be copied: a deep clone, cleaned of what must stay unique in the
+ * document, laid out at the window's own size and scaled down by the caller. A snapshot, not live:
+ * nothing in the windows changes while the task view is open.
  */
 
 /** Attributes that are looked up document-wide or would tie the copy to the original. */
-const STRIP = ["id", "data-overlay", "data-icon-id", "data-win-id", "autofocus", "for", "aria-controls", "aria-labelledby", "aria-describedby", "aria-activedescendant", "tabindex"];
+const STRIP = ["id", "data-overlay", "data-win-id", "data-task-id", "data-pin-id", "autofocus", "for", "aria-controls", "aria-labelledby", "aria-describedby", "aria-activedescendant", "tabindex"];
 
 /** The content element of a window, or null when it is not in the document. */
-export const contentOf = (winId: string) => document.querySelector<HTMLElement>(`.wm-window[data-win-id="${CSS.escape(winId)}"] > .wm-window__content`);
+export const contentOf = (winId: string) => document.querySelector<HTMLElement>(`.oc-window[data-win-id="${CSS.escape(winId)}"] > .oc-window__content`);
 
 /**
  * The size the window's content has, or would have if shown: measured when it is on screen,
@@ -18,9 +18,9 @@ export const contentOf = (winId: string) => document.querySelector<HTMLElement>(
 export function contentSize(content: HTMLElement, frame: { w: number; h: number }): { w: number; h: number } | null {
   if (content.clientWidth > 0 && content.clientHeight > 0) return { w: content.clientWidth, h: content.clientHeight };
   const win = content.parentElement!;
-  const bar = win.querySelector<HTMLElement>(".wm-window__bar");
+  const bar = win.querySelector<HTMLElement>(".oc-window__bar");
   const border = parseFloat(getComputedStyle(win).borderTopWidth) || 0;
-  const barH = parseFloat(bar ? getComputedStyle(bar).height : "") || 36;
+  const barH = parseFloat(bar ? getComputedStyle(bar).height : "") || 32;
   const w = Math.round(frame.w - 2 * border), h = Math.round(frame.h - barH - 2 * border);
   return w > 0 && h > 0 ? { w, h } : null;
 }

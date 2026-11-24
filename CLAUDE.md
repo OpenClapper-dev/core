@@ -7,7 +7,7 @@ Single-user tool for film location scouting and shoot planning:
 
 The owner talks to you in English.
 
-**Mid-rewrite (epic #371).** The app is being rebuilt on `main` step by step from the decided specification in `docs/rewrite/` (`10-conclusion.md` has the target model and the build order B0–B11). The Worker already serves the new model; the Studio and the phone app are still the first app's and do not work against it until their steps land. When building a step: the prototypes show the design, not the feature list. Carry over everything today's app can do unless a workshop page drops it.
+**Mid-rewrite (epic #371).** The app is being rebuilt on `main` step by step from the decided specification in `docs/rewrite/` (`10-conclusion.md` has the target model and the build order B0–B11). The Worker serves the new model and the Studio is being rebuilt on it (the first app's Studio code is at tag v0.16.0, read it there for a step's inventory); the phone app is still the first app's and does not work until its step lands. When building a step: the prototypes show the design, not the feature list. Carry over everything today's app can do unless a workshop page drops it.
 
 ## Read first
 
@@ -23,12 +23,12 @@ The owner talks to you in English.
 | `apps/admin` | Admin plane: its own Worker (`src/index.ts`) and board (`ui/`) behind its own Cloudflare Access app; user management across the instance |
 | `apps/worker/migrations` | D1 schema, numbered, additive; `0001_rewrite_baseline.sql` is the rebuild's baseline |
 | `packages/model` | The rebuild's shared model (`@openclapper/model`): file types, the rules for their bodies and references, placement; used by the Worker and the rebuilt clients |
-| `apps/studio/src` | `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, desktop icons, route bridge, key dispatch), `apps/` (one app per page + `registry.ts`, Files), `data.ts` (shared data store), `project.ts`, one file per page (`ShotsPage`, `ShotView` + `Inspector`, `Timeline`, `Plan`, library pages), `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `styles.css` (layouts) |
+| `apps/studio/src` | The rebuilt Studio on `@openclapper/design`: `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, task view, route bridge), `apps/` (one file per app + `registry.ts`), `hosts.tsx` (toast, confirm, prompt, context menu), `prefs.ts`, `theme.ts`, `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `shell.css` |
 | `apps/mobile` | `App.tsx` (tabs, gates, pushed-screen stack), `src/screens/` (Viewfinder + Tag, Review, Shots + ShotDetails, Day + StepThrough, Setup hub + sub-screens, Uploads, Gates), `src/ui/` (component library: `theme.tsx`, primitives by design-system group, `chrome.tsx` header/rows/bars, `dialogs.tsx` confirm + toast), `src/components/` (`TagEditor.tsx`, sheets, viewfinder parts), `uploads.ts` (queue), `sync.ts`, `rigs.ts`, `storage.ts` (kv), `api.ts` |
 | `packages/vocab` | The first app's shared vocabularies, still used by its clients until they are rebuilt; nothing new goes here |
 | `packages/fov-math` | Camera/lens/FOV/overlay/reframe math |
-| `packages/ui` | The web design system (`@openclapper/ui`): components, tokens and component CSS, theme switch; used by the Studio and the admin board |
-| `packages/design` + `apps/specimen` | The rewrite's design system (`@openclapper/design`, `docs/rewrite/`) and its specimen app (`make specimen`); not used by the current apps, never on the same page as `@openclapper/ui` |
+| `packages/ui` | The first app's web design system (`@openclapper/ui`); still used by the admin board, goes at the cutover |
+| `packages/design` + `apps/specimen` | The design system (`@openclapper/design`, `docs/rewrite/`) of the rebuilt clients and its specimen app (`make specimen`); never on the same page as `@openclapper/ui`. Fixes to how something looks or behaves go here, not into an app |
 | `packages/service-kit` | What both Workers share: `http.ts` router + `assert*` helpers, Access verification, password hashing |
 
 ## Core model in one paragraph

@@ -8,23 +8,41 @@ export interface TaskbarProps extends JSX.HTMLAttributes<HTMLDivElement> {
   edge?: "bottom" | "top" | "left" | "right";
   launcherOpen?: boolean;
   onLauncher?: () => void;
-  pinned?: { id: string; title: string; icon: ComponentChildren }[];
+  /** Pinned apps, folders and files. A pin whose app has windows shows it: running, active, and how many. */
+  pinned?: { id: string; title: string; icon: ComponentChildren; state?: "active" | "running"; count?: number }[];
   tasks?: { id: string; title: string; icon: ComponentChildren; state?: "active" | "running" | "minimized" }[];
-  onTask?: (id: string) => void;
+  onTask?: (id: string, e: JSX.TargetedMouseEvent<HTMLButtonElement>) => void;
+  /** Right-click on a pin or a window's button. */
+  onTaskMenu?: (id: string, e: JSX.TargetedMouseEvent<HTMLButtonElement>) => void;
+  /** Between the launcher and the pins: the task view button. */
+  leading?: ComponentChildren;
+  /** Where the launcher, pins and windows sit along the bar. */
+  align?: "start" | "center";
+  /** Spread on the group of pins and window buttons: a shell's drop handling. */
+  groupProps?: JSX.HTMLAttributes<HTMLDivElement>;
+  /** Pins can be dragged (the shell reorders them from the group's drag events; each carries `data-pin-id`). */
+  pinsDraggable?: boolean;
   /** System area: project, search, theme, clock, environment. */
   children?: ComponentChildren;
 }
 
-export function Taskbar({ edge = "bottom", launcherOpen, onLauncher, pinned = [], tasks = [], onTask, children, className, ...rest }: TaskbarProps) {
+export function Taskbar({ edge = "bottom", launcherOpen, onLauncher, pinned = [], tasks = [], onTask, onTaskMenu, leading, align = "start", groupProps, pinsDraggable, children, className, ...rest }: TaskbarProps) {
   return (
-    <div role="toolbar" aria-label="Taskbar" aria-orientation={edge === "left" || edge === "right" ? "vertical" : "horizontal"} className={cx("oc-taskbar", `oc-taskbar--${edge}`, className)} {...rest}>
+    <div role="toolbar" aria-label="Taskbar" aria-orientation={edge === "left" || edge === "right" ? "vertical" : "horizontal"} className={cx("oc-taskbar", `oc-taskbar--${edge}`, align === "center" && "oc-taskbar--center", className)} {...rest}>
+      {align === "center" && <span className="oc-taskbar__spacer" />}
       <button type="button" className={cx("oc-task", "oc-task--icon", launcherOpen && "is-active")} aria-label="Launcher" aria-expanded={!!launcherOpen} onClick={onLauncher}><Icon name="grid" /></button>
+      {leading}
       <span className="oc-taskbar__sep" />
-      <div className="oc-taskbar__group">
-        {pinned.map((t) => <button key={t.id} type="button" className="oc-task oc-task--icon" aria-label={t.title} title={t.title} onClick={() => onTask && onTask(t.id)}>{t.icon}</button>)}
+      <div className="oc-taskbar__group" {...groupProps}>
+        {pinned.map((t, i) => (
+          <button key={t.id} type="button" data-pin-id={t.id} data-pin-index={i} draggable={pinsDraggable} className={cx("oc-task", "oc-task--icon", t.state === "active" && "is-active", t.state === "running" && "is-running")} aria-label={t.title} title={t.title}
+            onClick={(e) => onTask && onTask(t.id, e)} onContextMenu={onTaskMenu && ((e) => { e.preventDefault(); onTaskMenu(t.id, e); })}>
+            {t.icon}{t.count != null && t.count > 1 && <span className="oc-task__count">{t.count}</span>}
+          </button>
+        ))}
         {pinned.length > 0 && tasks.length > 0 && <span className="oc-taskbar__sep" />}
         {tasks.map((t) => (
-          <button key={t.id} type="button" title={t.title} className={cx("oc-task", t.state === "active" && "is-active", t.state === "running" && "is-running", t.state === "minimized" && "is-minimized")} aria-pressed={t.state === "active"} onClick={() => onTask && onTask(t.id)}>
+          <button key={t.id} type="button" data-task-id={t.id} title={t.title} className={cx("oc-task", t.state === "active" && "is-active", t.state === "running" && "is-running", t.state === "minimized" && "is-minimized")} aria-pressed={t.state === "active"} onClick={(e) => onTask && onTask(t.id, e)} onContextMenu={onTaskMenu && ((e) => { e.preventDefault(); onTaskMenu(t.id, e); })}>
             {t.icon}<span className="oc-task__label">{t.title}</span>
           </button>
         ))}
@@ -40,11 +58,13 @@ export interface TaskbarButtonProps extends Omit<JSX.ButtonHTMLAttributes<HTMLBu
   icon?: IconName;
   label?: string;
   active?: boolean;
+  /** A small number in the corner (the active desktop's). */
+  count?: number;
   children?: ComponentChildren;
 }
 
-export function TaskbarButton({ icon, label, active, children, ...rest }: TaskbarButtonProps) {
-  return <button type="button" className={cx("oc-task", !children && "oc-task--icon", active && "is-active")} aria-label={label} title={label} {...rest}>{icon && <Icon name={icon} />}{children && <span className="oc-task__label">{children}</span>}</button>;
+export function TaskbarButton({ icon, label, active, count, children, ...rest }: TaskbarButtonProps) {
+  return <button type="button" className={cx("oc-task", !children && "oc-task--icon", active && "is-active")} aria-label={label} title={label} {...rest}>{icon && <Icon name={icon} />}{children && <span className="oc-task__label">{children}</span>}{count != null && <span className="oc-task__count">{count}</span>}</button>;
 }
 
 /** The clock in the taskbar's system area. */
