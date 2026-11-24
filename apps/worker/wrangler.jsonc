@@ -25,10 +25,11 @@
   ],
   // Live layout preview (issue #50): one room per user relays the edited layout to the phone.
   "durable_objects": {
-    "bindings": [{ "name": "PREVIEW", "class_name": "PreviewRoom" }]
+    "bindings": [{ "name": "PREVIEW", "class_name": "PreviewRoom" }, { "name": "CANVAS_LIVE", "class_name": "CanvasRoom" }]
   },
   "migrations": [
-    { "tag": "v1", "new_sqlite_classes": ["PreviewRoom"] }
+    { "tag": "v1", "new_sqlite_classes": ["PreviewRoom"] },
+    { "tag": "v2", "new_sqlite_classes": ["CanvasRoom"] }
   ],
   "d1_databases": [
     {

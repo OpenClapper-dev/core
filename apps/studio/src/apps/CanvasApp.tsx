@@ -7,7 +7,7 @@ import { EmptyState, Spinner } from "@openclapper/design";
 import { canvasRefs, focalsOf, type CanvasBody, type PresetBody } from "@openclapper/model";
 import * as api from "../api";
 import type { FileRec } from "../api";
-import { CanvasEditor, type PlaceablePhoto } from "../canvas/CanvasEditor";
+import { CanvasEditor, type Draft, type PlaceablePhoto } from "../canvas/CanvasEditor";
 import { pictureOf, rectOf, type BasePhoto } from "../canvas/geometry";
 import { renderCanvas } from "../canvas/render";
 import { loadRoot, useRoot } from "../files";
@@ -18,13 +18,17 @@ import { usePeople } from "../people";
 import { PresetFlow, type draftOf } from "../PresetFlow";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
-import { launch, type AppProps } from "./registry";
+import type { AppProps } from "./registry";
 
 const SAVE_AFTER_MS = 700;
 const RENEW_MS = 20_000;
 const HISTORY = 100;
-/** How often a viewer reads the canvas again (the project's "Every 5 seconds" live updates). */
+/** How often a viewer reads the canvas again (the project's "Every 5 seconds" live updates, or while the live socket is down). */
 const POLL_MS = 5_000;
+/** At most this often the editor sends the canvas, or the stroke being drawn, to the live room. */
+const SEND_MS = 120;
+/** Larger canvases are not sent whole: viewers read them again after each save. */
+const MAX_SEND = 1_000_000;
 
 export const baseOf = (f: FileRec | undefined): BasePhoto | null => (f && f.type === "photo" ? {
   id: f.id, name: f.name, src: imageUrl(f.id, "preview"), aspect: f.photo && f.photo.height ? f.photo.width / f.photo.height : 4 / 3,
@@ -43,10 +47,10 @@ export function CanvasApp({ win, projectId, setTitle, setRoute, focused }: AppPr
   if (!id) return <EmptyState icon="brush" title="No canvas">Open a canvas from Files, or make one: New, Canvas; or from a photo, Make a canvas.</EmptyState>;
   if (!files) return <div className="st-center"><Spinner /></div>;
   if (!file || file.deleted_at) return <EmptyState icon="brush" title="This canvas is gone">It was deleted or moved to the recycle bin.</EmptyState>;
-  return <Editing key={file.id} active={focused} file={file} files={files} projectId={projectId} me={{ id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" }} nameOf={(u) => (u === me?.id ? "You" : people.get(u) ?? "Someone")} />;
+  return <Editing key={file.id} live={project?.canvas_live} active={focused} file={file} files={files} projectId={projectId} me={{ id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" }} nameOf={(u) => (u === me?.id ? "You" : people.get(u) ?? "Someone")} />;
 }
 
-export function Editing({ file, files, projectId, me, nameOf, active, hosted }: { file: FileRec; files: FileRec[]; projectId: string; me: { id: string; name: string }; nameOf: (u: string) => string; active: boolean; hosted?: boolean }) {
+export function Editing({ file, files, projectId, me, nameOf, active, hosted, live }: { file: FileRec; files: FileRec[]; projectId: string; me: { id: string; name: string }; nameOf: (u: string) => string; active: boolean; hosted?: boolean; live?: api.CanvasLive }) {
   // The window's own token for the lock: a second window of the same person is someone else.
   const holder = useMemo(() => `w${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`, []);
   const [doc, setDoc] = useState<CanvasBody>(() => file.body as unknown as CanvasBody);
@@ -65,6 +69,13 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
   const held = useRef(false);
 
   const seen = useRef(file.updated_at);
+  // The live room (projects set to realtime): this window's socket, and what a viewer gets from it.
+  const sock = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const connectedRef = useRef(false);
+  connectedRef.current = connected;
+  const [remoteDraft, setRemoteDraft] = useState<Draft | null>(null);
+  const sendState = useRef<{ at: number; timer: ReturnType<typeof setTimeout> | null; draft: Draft | null; doc: boolean }>({ at: 0, timer: null, draft: null, doc: false });
 
   /** Shows the canvas as the server has it now, and who edits it; the start of an edit and each look of a viewer. */
   const reread = async (always: boolean) => {
@@ -83,6 +94,7 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
       const was = held.current;
       held.current = r.ok;
       setEditing(r.ok);
+      if (r.ok && was && sock.current?.readyState === WebSocket.OPEN) sock.current.send(JSON.stringify({ type: "held" }));
       setLockedBy(r.ok ? null : nameOf(r.lock.by));
       // Starting to edit: from what the canvas is now, not from what a viewer last saw.
       if (r.ok && !was) { history.current = { past: [], future: [], at: 0 }; await reread(true); }
@@ -90,14 +102,58 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
   };
   const stop = async () => {
     if (pending.current) { clearTimeout(pending.current); await save(); }
-    held.current = false; setEditing(false); setLockedBy(null);
+    held.current = false;
+    // Let go first: the live socket that opens next must find the lock free and make this window a viewer.
     await api.releaseLock(file.id, holder);
+    setEditing(false); setLockedBy(null);
   };
+  const apply = (b: CanvasBody, bid: string | null) => { setDoc(b); setBaseId(bid); latest.current = { doc: b, baseId: bid }; setRev((r) => r + 1); };
+
+  // The live socket: the editor when this window holds the lock, else a viewer; opened again on Edit and Stop editing, and after a drop.
+  useEffect(() => {
+    if (live !== "realtime") return;
+    let ws: WebSocket | null = null, done = false, retry: ReturnType<typeof setTimeout> | undefined;
+    const open = () => {
+      const s = new WebSocket(`${location.origin.replace(/^http/, "ws")}/api/canvases/${file.id}/live?holder=${holder}`);
+      ws = s; sock.current = s;
+      s.onopen = () => { setConnected(true); if (!held.current) void reread(false).catch(() => {}); };
+      s.onmessage = (e) => {
+        if (held.current) return;
+        let m: { type?: string; body?: CanvasBody; base?: string | null; draft?: Draft | null; by?: string | null };
+        try { m = JSON.parse(String(e.data)) as typeof m; } catch { return; }
+        if (m.type === "doc" && m.body) { apply(m.body, m.base ?? null); setRemoteDraft(null); }
+        else if (m.type === "draft") setRemoteDraft(m.draft ?? null);
+        else if (m.type === "saved") void reread(false).catch(() => {});
+        else if (m.type === "editor") { setLockedBy(m.by ? nameOf(m.by) : null); if (!m.by) setRemoteDraft(null); }
+      };
+      s.onclose = () => { if (sock.current === s) { sock.current = null; setConnected(false); } if (!done) retry = setTimeout(open, 3000); };
+    };
+    open();
+    return () => { done = true; clearTimeout(retry); if (sock.current === ws) { sock.current = null; setConnected(false); } ws?.close(); };
+  }, [live, editing]);
+  /** Sends the canvas (or the stroke being drawn) to the viewers, at most every SEND_MS; the last state always goes. */
+  const send = (what: { doc: true } | { draft: Draft | null }) => {
+    const st = sendState.current;
+    if ("doc" in what) { st.doc = true; st.draft = null; } else st.draft = what.draft;
+    if (st.timer) return;
+    st.timer = setTimeout(() => {
+      st.timer = null; st.at = Date.now();
+      const s = sock.current;
+      if (!s || s.readyState !== WebSocket.OPEN || !held.current) { st.doc = false; return; }
+      if (st.doc) {
+        st.doc = false;
+        const data = JSON.stringify({ type: "doc", body: latest.current.doc, base: latest.current.baseId });
+        if (data.length <= MAX_SEND) s.send(data);
+      } else s.send(JSON.stringify({ type: "draft", draft: st.draft }));
+    }, Math.max(0, SEND_MS - (Date.now() - st.at)));
+  };
+
   useEffect(() => {
     void take();
+    // (A viewer with a live socket gets every change from it; the reading below is for "every 5 seconds" and for a dropped socket.)
     const renew = setInterval(() => { if (held.current) void take(); }, RENEW_MS);
     // A viewer reads the canvas again every few seconds, while its page is shown.
-    const look = setInterval(() => { if (!held.current && !document.hidden) void reread(false).catch(() => {}); }, POLL_MS);
+    const look = setInterval(() => { if (!held.current && !connectedRef.current && !document.hidden) void reread(false).catch(() => {}); }, POLL_MS);
     const bye = () => { if (pending.current) { clearTimeout(pending.current); void save(); } if (held.current) void api.releaseLock(file.id, holder); };
     window.addEventListener("pagehide", bye);
     return () => { clearInterval(renew); clearInterval(look); window.removeEventListener("pagehide", bye); bye(); };
@@ -126,6 +182,8 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
       await api.putRender(file.id, "render", render, holder);
       await api.putRender(file.id, "thumbnail", thumb, holder);
       setStatus(pending.current ? "waiting" : "saved");
+      // Too large to go whole over the live socket: viewers read it again now.
+      if (sock.current?.readyState === WebSocket.OPEN && JSON.stringify(b).length > MAX_SEND - 100) sock.current.send(JSON.stringify({ type: "saved" }));
       void loadRoot({ project: projectId });
     } catch (e) {
       setStatus("failed");
@@ -143,6 +201,7 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
     setDoc(b); latest.current = { ...latest.current, doc: b };
     tick((n) => n + 1);
     schedule();
+    send({ doc: true });
   };
   const jump = (from: "past" | "future") => {
     const h = history.current, list = h[from];
@@ -154,25 +213,24 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
     setDoc(to); latest.current = { ...latest.current, doc: to };
     setRev((r) => r + 1);
     schedule();
+    send({ doc: true });
   };
   const setBase = (pid: string | null) => {
     setBaseId(pid); latest.current = { ...latest.current, baseId: pid };
     if (pid && latest.current.doc.surface.kind !== "photo") { const b: CanvasBody = { ...latest.current.doc, surface: { kind: "photo" } }; setDoc(b); latest.current = { ...latest.current, doc: b }; setRev((r) => r + 1); }
     schedule();
-  };
-  const copy = async () => {
-    try { const c = await api.duplicateFile(file.id, { id: crypto.randomUUID() }); await loadRoot({ project: projectId }); launch({ app: "canvas", resource: { type: "canvas", id: c.id }, title: c.name }); }
-    catch (e) { toastError(e); }
+    send({ doc: true });
   };
 
   return (
     <>
       <CanvasEditor body={doc} rev={rev} base={base} presets={presets} photos={photos} photoSrc={(pid) => imageUrl(pid, "preview")}
         onChange={change} onBase={setBase} active={active} hosted={hosted} title={file.name} me={me} nameOf={nameOf}
-        access={editing ? { editing: true, onStop: () => void stop() } : { editing: false, by: lockedBy, onEdit: () => void take(), onCopy: () => void copy() }}
+        access={editing ? { editing: true, onStop: () => void stop() } : { editing: false, by: lockedBy, onEdit: () => void take() }}
+        onDraft={(d) => send({ draft: d })} remoteDraft={editing ? null : remoteDraft}
         undo={{ can: history.current.past.length > 0, run: () => jump("past") }} redo={{ can: history.current.future.length > 0, run: () => jump("future") }}
         onNewPreset={(start, then) => setFlow({ start: start ? { format: start.format, formatName: null, multiplier: start.multiplier, squeeze: start.squeeze, delivery: start.delivery, lenses: "primes", primes: [start.focal] } : undefined, done: (pid, body) => then(pid, start && focalsOf(body.lenses).includes(start.focal) ? start.focal : focalsOf(body.lenses)[0]) })}
-        status={status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : !editing ? "Read-only, read again every 5 s" : "Saved"} />
+        status={status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : !editing ? (connected ? "Read-only, live" : "Read-only, read again every 5 s") : connected ? "Saved · live" : "Saved"} />
       {flow && <PresetFlow projectId={projectId} files={files} start={flow.start} onCreated={(pid, body) => flow.done(pid, body)} onClose={() => setFlow(null)} />}
     </>
   );

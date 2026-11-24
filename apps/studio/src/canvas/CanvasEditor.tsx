@@ -71,8 +71,12 @@ export interface CanvasEditorProps {
    * Who edits. This window (onStop saves, lets the canvas go and turns the window into a viewer), or not:
    * then the canvas is shown read-only as it changes; by is who edits it (null: nobody, onEdit takes it).
    */
-  access: { editing: true; onStop: () => void } | { editing: false; by: string | null; onEdit: () => void; onCopy: () => void };
+  access: { editing: true; onStop: () => void } | { editing: false; by: string | null; onEdit: () => void };
   undo?: { can: boolean; run: () => void }; redo?: { can: boolean; run: () => void };
+  /** The stroke or box being drawn, as it grows (null when it ends): the editor hands it on for viewers. */
+  onDraft?: (d: Draft | null) => void;
+  /** A viewer: the editor's stroke or box being drawn, shown as it grows. */
+  remoteDraft?: Draft | null;
   onNewPreset: (start: { format: [number, number]; multiplier: number; squeeze: number; delivery: number | null; focal: number } | null, then: (id: string, firstFocal: number) => void) => void;
   status?: ComponentChildren;
   /** Mounted in another app (the tablet's web view): its own key for the panel layout. */
@@ -80,6 +84,9 @@ export interface CanvasEditorProps {
   /** Whether its window has the focus: keys act only then. */
   active?: boolean;
 }
+
+/** A stroke or box being drawn, with what it is drawn with. */
+export interface Draft { tool: string; pts: [number, number][]; pen: PenType; stroke: Colour; width: number }
 
 export function CanvasEditor(props: CanvasEditorProps) {
   const { base, presets, photos, me, access } = props;
@@ -146,6 +153,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const [showC, setShowC] = useState(true);
   const [showDone, setShowDone] = useState(false);
   const [compose, setCompose] = useState<{ x: number; y: number; w?: number; h?: number } | null>(null);
+  useEffect(() => { if (!locked) props.onDraft?.(draft ? { tool: draft.tool, pts: draft.pts, pen: penType, stroke, width: strokeW } : null); }, [draft]);
   // Becoming a viewer drops what was in hand: the tool, the selection, a text being typed, a stroke.
   useEffect(() => { if (locked) { setTool("select"); setSel([]); setEditing(null); setDraft(null); setCompose(null); act.current = null; } }, [locked]);
   const [words, setWords] = useState("");
@@ -585,6 +593,13 @@ export function CanvasEditor(props: CanvasEditorProps) {
     </PropertySection>
   );
 
+  /** A stroke or box being drawn: this window's, or (a viewer) the editor's. */
+  const drawDraft = (d: Draft) => {
+    if (d.tool === "pen" || d.tool === "line" || d.tool === "arrow") return draw({ id: "draft", kind: d.tool as Kind, name: "", x: 0, y: 0, w: 1, h: 1, pts: d.pts, pen: d.pen, stroke: d.stroke, width: d.width, opacity: 1, visible: true, locked: false }, true);
+    const [a, b] = d.pts;
+    if (!a || !b) return null;
+    return <div className={cx("cv-obj", d.tool === "comment" ? "cv-region" : `cv-obj--${d.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: d.tool === "comment" ? undefined : `calc(${d.width * 0.13}cqw) solid ${colorCss(d.stroke)}`, pointerEvents: "none" }} />;
+  };
   const selBox = one && !frozen(one) ? bounds(one) : null;
   const drawing = tool !== "select";
   const photoImg = photo && base ? <img className="cv-photo" src={base.src} alt="" draggable={false} style={{ filter: lookFilter(surface.kind === "photo" ? surface.look : undefined) }} /> : null;
@@ -603,8 +618,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
             {access.editing
               ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the canvas go and keep watching it: someone else can edit it now" onClick={access.onStop}>Stop editing</Button>
               : <span className="cv-viewing"><Icon name="eye" size={14} /><span>{access.by === "You" ? "Editing in another window of yours" : access.by ? `${access.by} is editing` : "Nobody is editing"}</span>
-                  <Button size="sm" variant="primary" icon="edit" disabled={!!access.by} title={access.by ? "Only one can edit a canvas at a time" : "Edit the canvas: others see it read-only meanwhile"} onClick={access.onEdit}>Edit</Button>
-                  <Button size="sm" variant="quiet" icon="copy" onClick={access.onCopy}>Edit a copy</Button></span>}
+                  <Button size="sm" variant="primary" icon="edit" disabled={!!access.by} title={access.by ? "Only one can edit a canvas at a time" : "Edit the canvas: others see it read-only meanwhile"} onClick={access.onEdit}>Edit</Button></span>}
             <Button size="sm" variant="quiet" icon="undo" label="Undo (Ctrl+Z)" disabled={locked || !props.undo?.can} onClick={() => props.undo?.run()} /><Button size="sm" variant="quiet" icon="redo" label="Redo (Ctrl+Shift+Z)" disabled={locked || !props.redo?.can} onClick={() => props.redo?.run()} />
             {drawing && <span className="cv-toolopts"><span className="oc-meta">{TOOLS.find((t) => t.id === tool)!.label}</span>
               {tool === "eraser" && <><Segmented label="Eraser" value={eraseMode} onChange={(v) => setEraseMode(v as EraseMode)} options={[{ value: "partial", label: "Cuts strokes" }, { value: "whole", label: "Whole objects" }]} /><span className="cv-zoom" style={{ width: 150 }}><Slider min={6} max={80} step={2} value={eraseSize} onChange={setEraseSize} /><b className="oc-num">{eraseSize}</b></span></>}
@@ -674,8 +688,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
                   <div ref={box} className="cv-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : colorCss(surface.kind === "blank" ? surface.color : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={() => setEraserAt(null)}>
                     {photoImg}
                     {objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw(o))}
-                    {draft && draft.tool !== "pen" && draft.tool !== "line" && draft.tool !== "arrow" && (() => { const [a, b] = draft.pts; return <div className={cx("cv-obj", draft.tool === "comment" ? "cv-region" : `cv-obj--${draft.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: draft.tool === "comment" ? undefined : `calc(${strokeW * 0.13}cqw) solid ${colorCss(stroke)}`, pointerEvents: "none" }} />; })()}
-                    {draft && (draft.tool === "pen" || draft.tool === "line" || draft.tool === "arrow") && draw({ id: "draft", kind: draft.tool as Kind, name: "", x: 0, y: 0, w: 1, h: 1, pts: draft.pts, pen: penType, stroke, width: strokeW, opacity: 1, visible: true, locked: false }, true)}
+                    {draft && drawDraft({ tool: draft.tool, pts: draft.pts, pen: penType, stroke, width: strokeW })}
+                    {locked && props.remoteDraft && props.remoteDraft.tool !== "comment" && props.remoteDraft.pts.length > 0 && drawDraft(props.remoteDraft)}
                   </div>
                   {photo && (mode === "mask" || mode === "crop") && picF && <span className={cx("cv-mask", mode === "crop" && "cv-mask--solid")} style={place(picF, true)} />}
                   {photo && mode !== "full" && mode !== "crop" && shownFrames.filter((f) => mode === "outline" || f.id === pic || f.id === selF).map((f) => { const fr = R(f); return (
