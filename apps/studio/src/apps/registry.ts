@@ -6,6 +6,7 @@ import { BinApp } from "./BinApp";
 import { FilesApp, MediaApp, ShotsApp, filesFromRoute, mediaFromRoute } from "./FilesApp";
 import { PhotoApp } from "./PhotoApp";
 import { CanvasApp } from "./CanvasApp";
+import { ShotApp } from "./ShotApp";
 import { PresetsApp } from "./PresetsApp";
 import { ProjectApp } from "./ProjectApp";
 import { SettingsApp } from "./SettingsApp";
@@ -58,6 +59,12 @@ const APPS: AppDef[] = [
     fromRoute: (rest) => ({ resource: rest ? { type: "photo", id: rest } : null }), about: "One photo with its facts" },
   { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: true, opens: ["folder", "collection", "filter"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
     fromRoute: filesFromRoute, about: "Folders of the project and of your home" },
+  { id: "shot", name: "Shot", glyph: "slate", color: 1, tier: "core", singleton: false, opens: ["shot"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 720, h: 480 }, component: ShotApp,
+    fromRoute: (rest) => ({ resource: rest ? { type: "shot", id: rest } : null }), about: "A shot: its properties, content and progression" },
+  { id: "set", name: "Set", glyph: "home", color: 2, tier: "core", singleton: false, opens: ["set"], defaultSize: { w: 1100, h: 720 }, minSize: { w: 640, h: 420 }, component: ShotApp,
+    fromRoute: (rest) => ({ resource: rest ? { type: "set", id: rest } : null }), about: "A set: the place in the story, with what describes it" },
+  { id: "location", name: "Location", glyph: "location", color: 3, tier: "core", singleton: false, opens: ["location"], defaultSize: { w: 1100, h: 720 }, minSize: { w: 640, h: 420 }, component: ShotApp,
+    fromRoute: (rest) => ({ resource: rest ? { type: "location", id: rest } : null }), about: "A location: the real place, with what was gathered there" },
   { id: "canvas", name: "Canvas", glyph: "brush", color: 7, tier: "core", singleton: false, opens: ["canvas"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 720, h: 480 }, component: CanvasApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "canvas", id: rest } : null }), about: "Draw, place photos and frame them" },
   { id: "presets", name: "Optics presets", glyph: "lens", color: 6, tier: "standard", singleton: true, opens: ["preset"], defaultSize: { w: 1000, h: 640 }, minSize: { w: 560, h: 380 }, component: PresetsApp,

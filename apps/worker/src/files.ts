@@ -271,7 +271,7 @@ export async function clearProject(env: Env, projectId: string): Promise<void> {
 export function registerFileRoutes(r: Router<Ctx>) {
   /**
    * The files of one root: `project_id`, or `home=1`. Without more, every live file that is not
-   * internal. `container` (an id, or `top`), `type` (comma-separated), `q` (in the name) and
+   * internal (`internal=1`: internal files too). `container` (an id, or `top`), `type` (comma-separated), `q` (in the name) and
    * `internal_of` narrow it; `bin=1` lists the bin's entries instead, newest first, each with how
    * many files went along (`binned_with`); `body=1` adds the bodies, `refs=1` each file's references.
    * A photo comes with its facts (`photo`). `limit` (at most 2000) and `offset` page the list; `more`
@@ -289,7 +289,9 @@ export function registerFileRoutes(r: Router<Ctx>) {
     else {
       where.push("f.deleted_at IS NULL");
       const internalOf = q.get("internal_of");
-      where.push(internalOf ? `f.internal_of = ${bind(assertUuid(internalOf, "internal_of"))}` : "f.internal_of IS NULL");
+      // `internal=1`: internal files too (a client that keeps the whole root, and shows each inside its parent).
+      if (internalOf) where.push(`f.internal_of = ${bind(assertUuid(internalOf, "internal_of"))}`);
+      else if (q.get("internal") !== "1") where.push("f.internal_of IS NULL");
       const container = q.get("container");
       if (container === "top") where.push("f.container IS NULL");
       else if (container) where.push(`f.container = ${bind(assertUuid(container, "container"))}`);

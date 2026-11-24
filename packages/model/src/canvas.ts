@@ -113,7 +113,8 @@ export interface CanvasFrame {
 export interface CommentReply { author: string; at: string; text: string }
 export interface CanvasComment { id: string; n: number; x: number; y: number; w?: number; h?: number; author: string; at: string; text: string; replies: CommentReply[]; resolved: boolean }
 
-export type Surface = { kind: "blank"; aspect: number; color: Colour } | { kind: "photo"; look?: Look };
+/** A blank surface's colour null is transparent paper: a drawing laid over other pictures (a shot's overlay). */
+export type Surface = { kind: "blank"; aspect: number; color: Colour | null } | { kind: "photo"; look?: Look };
 export interface CanvasBody {
   surface: Surface;
   objects: CanvasObject[];
@@ -188,7 +189,7 @@ export function canvasError(b: Record<string, unknown>, refs: readonly Ref[] | n
   const s = b.surface;
   if (!isObj(s)) return "surface is blank or a photo";
   if (s.kind === "blank") {
-    if (!num(s.aspect, 0.1, 10) || !colourOk(s.color) || Object.keys(s).length !== 3) return "a blank surface has an aspect and a colour";
+    if (!num(s.aspect, 0.1, 10) || !(s.color === null || colourOk(s.color)) || Object.keys(s).length !== 3) return "a blank surface has an aspect and a colour (or none)";
   } else if (s.kind === "photo") {
     if (s.look !== undefined && lookError(s.look)) return lookError(s.look);
   } else return "surface is blank or a photo";

@@ -18,6 +18,8 @@ import { bind, useKeys } from "../keys";
 import { dropStuck, importFiles, imageUrl, retryUploads, useUploads } from "../media";
 import { usePeople } from "../people";
 import { CollectionSections, PhotoFactsSections, thumbOf } from "../photoParts";
+import { CoverArt, coverOf } from "../shots/Cover";
+import { presetsIn } from "../optics";
 import { usePrefs, type Pin } from "../prefs";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
@@ -186,8 +188,6 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     if (f.type === "collection" && media) { setMnav(`coll:${f.id}`); setQ(""); clear(); return; }
     if (kindOf(f.type).holds && !media) { go({ folder: f.id }); return; }
     if (f.type === "filter") { setQ(""); setTypes([]); setFilterFile(f.id); clear(); return; }
-    // A shot opens in its own window from step B6; until then its properties are in the panel.
-    if (f.type === "shot") { setCur(f.id); return; }
     if (f.type === "photo") { launch({ app: "photo", resource: { type: "photo", id: f.id }, title: f.name, state: { list: ids.filter((id) => map.get(id)?.type === "photo") } }); return; }
     ops.openFile(f, map);
   };
@@ -377,12 +377,13 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     return kindOf(f.type).label;
   };
   const uploadOf = (f: FileRec) => uploads.get(f.id)?.state ?? (f.type === "photo" && f.photo && !f.photo.stored.original ? (f.photo.stored.preview ? "preview" : "waiting") : undefined);
+  const presetMap = new Map(presetsIn(all).map((p) => [p.id, p.body]));
   const card = (f: FileRec, i: number) => {
     const thumb = thumbOf(f, all);
     const coll = f.type === "collection" ? f : collectionOf(f, map);
     const stack = f.type === "collection" ? photosOf(f, all) : null;
     return (
-      <FileCard key={f.id} name={f.name} meta={facts(f)} art={thumb ? <img src={thumb} alt="" draggable={false} loading="lazy" /> : icon(f, 48)} picture={!!thumb}
+      <FileCard key={f.id} name={f.name} meta={facts(f)} art={thumb ? (coverOf(f, map) ? <CoverArt f={f} files={map} presets={presetMap} /> : <img src={thumb} alt="" draggable={false} loading="lazy" />) : icon(f, 48)} picture={!!thumb}
         badge={f.fixed ? <Icon name="lock" size={12} /> : lookOf(f, map).shortcut ? <Icon name="shortcut" size={12} /> : thumb && f.type !== "photo" ? icon(f, 20) : undefined}
         stack={stack ? { srcs: stack.filter((p) => p.photo?.stored.thumbnail).slice(0, 40).map((p) => imageUrl(p.id, "thumbnail")), count: stack.length } : undefined}
         tint={coll && !(openColl && f.type === "photo") ? tintOf(coll) : undefined} mark={mark} upload={uploadOf(f)}
