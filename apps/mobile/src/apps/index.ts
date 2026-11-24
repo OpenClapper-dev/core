@@ -2,5 +2,6 @@
 import "./Camera";
 import "./Media";
 import "./Canvases";
+import "./Places";
 import "./Setup";
 import "./Uploads";
