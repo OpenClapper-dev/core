@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { BORDER, makeStyles, RADIUS, type, useTheme } from "./theme";
 import { Button } from "./actions";
-import { Icon } from "./core";
+import { Icon , type IconName } from "./core";
 import { Sheet } from "./overlays";
 
 /**
@@ -19,7 +19,7 @@ export interface ConfirmOptions {
   cancelLabel?: string | null;
   /** Destructive: the confirm button is solid red. */
   danger?: boolean;
-  icon?: string;
+  icon?: IconName;
   /** A safer alternative next to the destructive action (e.g. Archive next to Delete). */
   altLabel?: string;
 }
@@ -53,7 +53,7 @@ export function ConfirmHost() {
             {p.altLabel
               ? <Button style={{ flex: 1 }} kind="archive" label={p.altLabel} onPress={() => done("alt")} />
               : cancel !== null && <Button style={{ flex: 1 }} kind="secondary" label={cancel} onPress={() => done(false)} />}
-            <Button style={{ flex: 1 }} kind={p.danger ? "dangerSolid" : "primary"} icon={p.icon ?? (p.danger ? "delete-outline" : undefined)} label={p.confirmLabel} onPress={() => done(true)} />
+            <Button style={{ flex: 1 }} kind={p.danger ? "dangerSolid" : "primary"} icon={p.icon ?? (p.danger ? "trash" : undefined)} label={p.confirmLabel} onPress={() => done(true)} />
           </View>
           {p.altLabel && cancel !== null && <Button kind="ghost" label={cancel} onPress={() => done(false)} />}
         </View>
@@ -95,7 +95,7 @@ export function ToastHost({ bottom }: { bottom: number }) {
     return () => clearTimeout(timer);
   }, [t]);
   if (!t) return null;
-  const icon = t.kind === "ok" ? "check-circle" : t.kind === "danger" ? "alert-circle" : "information-outline";
+  const icon = t.kind === "ok" ? "success" : t.kind === "danger" ? "error" : "info";
   const color = t.kind === "ok" ? c.ok : t.kind === "danger" ? c.danger : c.text;
   return (
     <View style={[s.toastWrap, { bottom: bottom + extra + 12 }]} pointerEvents="box-none">

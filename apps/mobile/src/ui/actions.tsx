@@ -1,7 +1,7 @@
 /** Actions from the design system: "rectangles act". Every button on the phone is one of these. */
 import type { ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { Icon } from "./core";
+import { Icon , type IconName } from "./core";
 import { SIZE, useTheme } from "./theme";
 import { useStyles } from "./styles";
 
@@ -11,7 +11,7 @@ export type ButtonKind = "primary" | "approve" | "archive" | "secondary" | "ghos
  * primary = accent, approve = green, archive = neutral grey, secondary/ghost = outlined,
  * danger = red outline, dangerSolid = red fill (inside a confirmation only). Disabled is dashed.
  */
-export function Button({ label, onPress, kind = "primary", disabled, icon, busy, style, big }: { label: string; onPress: () => void; kind?: ButtonKind; disabled?: boolean; icon?: string; busy?: boolean; style?: StyleProp<ViewStyle>; /** Fills its container's height (landscape action columns). */ big?: boolean }) {
+export function Button({ label, onPress, kind = "primary", disabled, icon, busy, style, big }: { label: string; onPress: () => void; kind?: ButtonKind; disabled?: boolean; icon?: IconName; busy?: boolean; style?: StyleProp<ViewStyle>; /** Fills its container's height (landscape action columns). */ big?: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   const outline = { bg: "transparent", pressed: c.surfaceSunken, border: c.border, fg: c.text };
@@ -36,7 +36,7 @@ export function Button({ label, onPress, kind = "primary", disabled, icon, busy,
 }
 
 /** Square icon-only button (48 dp, 2 dp border) with an accessible name. */
-export function IconButton({ icon, label, onPress, onLongPress, disabled, color, size = SIZE.touchMin, plain }: { icon: string; label: string; onPress: () => void; onLongPress?: () => void; disabled?: boolean; color?: string; size?: number; /** No border (header lead). */ plain?: boolean }) {
+export function IconButton({ icon, label, onPress, onLongPress, disabled, color, size = SIZE.touchMin, plain }: { icon: IconName; label: string; onPress: () => void; onLongPress?: () => void; disabled?: boolean; color?: string; size?: number; /** No border (header lead). */ plain?: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   return (

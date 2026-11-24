@@ -1,10 +1,11 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import { StyleSheet, useColorScheme, type TextStyle } from "react-native";
+import { TOKENS } from "@openclapper/design/tokens";
 
 /**
- * Design tokens for the phone, from the OpenClapper design system (openclapper-tokens.rn.json, see docs/design.md).
- * Sun = light, for harsh daylight; Set = dark, for dark sets. Every text/background pair here meets the
- * contrast rules (text ≥ 7:1, dim ≥ 4.5:1, control borders ≥ 3:1): re-check a pair when changing a value.
+ * The phone's palette, derived from the design system's tokens (packages/design, one source for the
+ * Studio and the phone), under the names the components here use. Light for daylight, Dark for dark
+ * sets; the tokens hold the contrast rules (text ≥ 7:1, secondary ≥ 4.5:1, control borders ≥ 3:1).
  */
 export interface Palette {
   bg: string; surface: string; surfaceRaised: string; surfaceSunken: string;
@@ -16,62 +17,49 @@ export interface Palette {
   danger: string; dangerHover: string; onDanger: string; dangerTint: string;
   warn: string; onWarn: string; warnInk: string; warnTint: string;
   archive: string; archiveHover: string; onArchive: string;
-  phaseDawn: string; phaseDay: string; phaseDusk: string; phaseNight: string;
-  onPhaseDawn: string; onPhaseDay: string; onPhaseDusk: string; onPhaseNight: string;
-  chromeBg: string; chromeText: string; chromeBorder: string;
+  /** The eight categorical colours (collections), 1-based like the model's colour numbers. */
+  cat: readonly string[];
   scrim: string;
 }
 
-const SUN: Palette = {
-  bg: "#F7F7F5", surface: "#FFFFFF", surfaceRaised: "#FFFFFF", surfaceSunken: "#EBEBE7",
-  text: "#0B0B0C", textDim: "#46464C", textDisabled: "#85858C",
-  border: "#5E5E66", borderStrong: "#0B0B0C", borderSubtle: "#D2D2CD",
-  accent: "#0040D8", accentPressed: "#00288A", onAccent: "#FFFFFF", accentTint: "#E2E9FB",
-  focus: "#0B0B0C",
-  ok: "#0A6630", okHover: "#08532A", onOk: "#FFFFFF", okTint: "#DCEFE2",
-  danger: "#B0121A", dangerHover: "#8F0E15", onDanger: "#FFFFFF", dangerTint: "#F8DEDE",
-  warn: "#FFB000", onWarn: "#0B0B0C", warnInk: "#7A4A00", warnTint: "#FFF0C4",
-  archive: "#DCDCD8", archiveHover: "#CBCBC6", onArchive: "#0B0B0C",
-  phaseDawn: "#F6B3A0", phaseDay: "#FFDF5E", phaseDusk: "#C7A6EE", phaseNight: "#1C2848",
-  onPhaseDawn: "#0B0B0C", onPhaseDay: "#0B0B0C", onPhaseDusk: "#0B0B0C", onPhaseNight: "#FFFFFF",
-  chromeBg: "#FFFFFF", chromeText: "#0B0B0C", chromeBorder: "#0B0B0C",
-  scrim: "rgba(11,11,12,0.72)",
-};
-
-const SET: Palette = {
-  bg: "#0B0B0C", surface: "#151517", surfaceRaised: "#1E1E21", surfaceSunken: "#050506",
-  text: "#EDEDEA", textDim: "#A9A9AF", textDisabled: "#6A6A72",
-  border: "#85858E", borderStrong: "#EDEDEA", borderSubtle: "#2E2E33",
-  accent: "#6FA2FF", accentPressed: "#5A8FE8", onAccent: "#0B0B0C", accentTint: "#1A2640",
-  focus: "#EDEDEA",
-  ok: "#3FCB7A", okHover: "#5AD68D", onOk: "#0B0B0C", okTint: "#10301D",
-  danger: "#FF6B63", dangerHover: "#FF857E", onDanger: "#0B0B0C", dangerTint: "#3A1414",
-  warn: "#F2B33D", onWarn: "#0B0B0C", warnInk: "#F2B33D", warnTint: "#33270C",
-  archive: "#3A3A40", archiveHover: "#46464D", onArchive: "#EDEDEA",
-  phaseDawn: "#7A3A2C", phaseDay: "#554710", phaseDusk: "#533477", phaseNight: "#16213F",
-  onPhaseDawn: "#EDEDEA", onPhaseDay: "#EDEDEA", onPhaseDusk: "#EDEDEA", onPhaseNight: "#EDEDEA",
-  chromeBg: "#0B0B0C", chromeText: "#EDEDEA", chromeBorder: "#85858E",
-  scrim: "rgba(0,0,0,0.72)",
-};
-
-export type ThemeName = "sun" | "set";
-/** "auto" follows the phone's dark-mode setting. */
+export type ThemeName = "light" | "dark";
+/** "auto" follows the phone's dark-mode setting; the account's preference (prefs.ts) holds the choice. */
 export type ThemeChoice = "auto" | ThemeName;
-export const PALETTES: Record<ThemeName, Palette> = { sun: SUN, set: SET };
+
+function palette(name: ThemeName): Palette {
+  const t = TOKENS[name];
+  return {
+    bg: t.surfaceSunken, surface: t.surface, surfaceRaised: t.surfaceRaised, surfaceSunken: t.surfacePressed,
+    text: t.text, textDim: t.textSecondary, textDisabled: t.textDisabled,
+    border: t.borderControl, borderStrong: t.text, borderSubtle: t.borderDivider,
+    accent: t.accent, accentPressed: t.accentPressed, onAccent: t.textOnAccent, accentTint: t.accentTint,
+    focus: t.focus,
+    ok: t.success, okHover: t.success, onOk: t.textInverse, okTint: t.successTint,
+    danger: t.danger, dangerHover: t.danger, onDanger: t.textInverse, dangerTint: t.dangerTint,
+    warn: t.warning, onWarn: t.textInverse, warnInk: t.warning, warnTint: t.warningTint,
+    archive: t.surfaceHover, archiveHover: t.surfacePressed, onArchive: t.text,
+    cat: ["", t.cat1, t.cat2, t.cat3, t.cat4, t.cat5, t.cat6, t.cat7, t.cat8],
+    scrim: t.scrim,
+  };
+}
+export const PALETTES: Record<ThemeName, Palette> = { light: palette("light"), dark: palette("dark") };
+
+/** A collection's colour: one of the eight categorical ones (1–8), or any colour as #rrggbb. */
+export const catColor = (c: Palette, color: number | string | null | undefined): string =>
+  typeof color === "string" ? color : c.cat[color ?? 1] ?? c.cat[1];
 
 /** Theme-independent colours: things drawn over photos or the camera image, which never take the theme. */
 export const FIXED = {
-  photoBg: "#000000",
-  frameLine: "#FFFFFF",
-  frameOutline: "#000000",
-  mask: "rgba(0,0,0,0.62)",
-  /* Beyond the capture: the part of a rig frame the phone could not see (the hatch tile in assets/hatch.png uses these). */
-  beyond: "#141416",
-  beyondLine: "#4A4A50",
-  human: "#00E5FF",
-  record: "#D0121B",
-  white: "#FFFFFF",
-  black: "#000000",
+  photoBg: TOKENS.FIXED.photoBg,
+  frameLine: TOKENS.FIXED.overFrame,
+  frameOutline: TOKENS.FIXED.overFrameOutline,
+  mask: TOKENS.FIXED.overMask,
+  human: TOKENS.FIXED.overHuman,
+  record: TOKENS.FIXED.overRec,
+  white: TOKENS.FIXED.overPaper,
+  black: TOKENS.FIXED.overInk,
+  /** Controls over the live picture: a dark glass behind white glyphs. */
+  glass: "rgba(0,0,0,.55)",
 } as const;
 
 /** Atkinson Hyperlegible Next (loaded in App.tsx): open shapes, 1/l/I and 0/O told apart under glare. */
@@ -110,10 +98,10 @@ export const SIZE = { touchMin: 48, control: 52, controlLg: 60, shutter: 76, tab
 export const BORDER = { control: 2, selected: 3, frame: 2, badge: 1.5 } as const;
 
 interface Theme { name: ThemeName; choice: ThemeChoice; c: Palette }
-const ThemeContext = createContext<Theme>({ name: "sun", choice: "auto", c: SUN });
+const ThemeContext = createContext<Theme>({ name: "light", choice: "auto", c: PALETTES.light });
 
 export function resolveTheme(choice: ThemeChoice, os: string | null | undefined): ThemeName {
-  return choice === "auto" ? (os === "dark" ? "set" : "sun") : choice;
+  return choice === "auto" ? (os === "dark" ? "dark" : "light") : choice;
 }
 
 export function ThemeProvider({ choice, children }: { choice: ThemeChoice; children: ReactNode }) {

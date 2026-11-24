@@ -1,22 +1,22 @@
 /** Feedback from the design system: banner, empty state, skeleton. Confirm sheets and toasts are in dialogs.tsx. */
 import { useEffect, useRef, type ReactNode } from "react";
 import { ActivityIndicator, Animated, RefreshControl, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { Icon } from "./core";
+import { Icon , type IconName } from "./core";
 import { RADIUS, useTheme } from "./theme";
 import { useStyles } from "./styles";
 
 type BannerKind = "offline" | "info" | "ok" | "warn" | "danger";
 
 /** Full-width status strip: tinted fill + state border + icon + text. */
-export function Banner({ kind, title, meta, icon, action }: { kind: BannerKind; title: string; meta?: string; icon?: string; action?: ReactNode }) {
+export function Banner({ kind, title, meta, icon, action }: { kind: BannerKind; title: string; meta?: string; icon?: IconName; action?: ReactNode }) {
   const s = useStyles();
   const { c } = useTheme();
-  const look: Record<BannerKind, { bg: string; border: string; icon: string; iconColor: string }> = {
-    offline: { bg: c.archive, border: c.borderStrong, icon: "cloud-off-outline", iconColor: c.text },
-    info: { bg: c.accentTint, border: c.accent, icon: "cloud-upload-outline", iconColor: c.accent },
-    ok: { bg: c.okTint, border: c.ok, icon: "check-circle", iconColor: c.ok },
+  const look: Record<BannerKind, { bg: string; border: string; icon: IconName; iconColor: string }> = {
+    offline: { bg: c.archive, border: c.borderStrong, icon: "cloud-off", iconColor: c.text },
+    info: { bg: c.accentTint, border: c.accent, icon: "cloud-upload", iconColor: c.accent },
+    ok: { bg: c.okTint, border: c.ok, icon: "success", iconColor: c.ok },
     warn: { bg: c.warnTint, border: c.warn, icon: "alert", iconColor: c.warnInk },
-    danger: { bg: c.dangerTint, border: c.danger, icon: "alert-circle", iconColor: c.danger },
+    danger: { bg: c.dangerTint, border: c.danger, icon: "error", iconColor: c.danger },
   };
   const l = look[kind];
   return (
@@ -32,7 +32,7 @@ export function Banner({ kind, title, meta, icon, action }: { kind: BannerKind; 
 }
 
 /** Whole-screen empty / error / loading message. */
-export function Empty({ icon = "image-off-outline", title, body, loading, children }: { icon?: string; title: string; body?: string; loading?: boolean; children?: ReactNode }) {
+export function Empty({ icon = "image", title, body, loading, children }: { icon?: IconName; title: string; body?: string; loading?: boolean; children?: ReactNode }) {
   const s = useStyles();
   const { c } = useTheme();
   return (

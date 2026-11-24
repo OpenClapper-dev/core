@@ -1,34 +1,43 @@
-import { useEffect, useState } from "react";
-import { useOnline } from "./net";
-import { onPendingChange, store } from "./storage";
-import { flushState, onFlushed, onFlushProgress, type FlushProgress } from "./uploads";
+import { AppState } from "react-native";
+import { canCall } from "./api";
+import { isSignedIn, onAuthChange } from "./auth";
+import { syncDevice } from "./device";
+import { log } from "./log";
+import { isOnline, onOnlineChange } from "./net";
+import { syncPrefs } from "./prefs";
+import { syncProjects } from "./projects";
 
-/** What the header sync icon, the Setup status card and the Shoot Uploads badge show. */
-export type SyncState = "ok" | "pending" | "uploading" | "stuck" | "offline";
+/**
+ * Brings the phone and the server in line: projects first (a project made on the phone must exist
+ * before its photos), then the preferences, the device, and whatever else registered a step (the
+ * upload queue). Runs at start, on sign-in, when the app comes to the front, when the server answers
+ * again, and every RETRY_MS while it does not.
+ */
+const RETRY_MS = 20_000;
+const steps: (() => Promise<void>)[] = [];
+/** Adds a step that runs after projects, preferences and device. */
+export const onSync = (step: () => Promise<void>) => { steps.push(step); };
 
-export interface Sync {
-  state: SyncState;
-  /** Shots in the queue (stuck ones included). */
-  pending: number;
-  stuck: number;
-  online: boolean;
-  progress: FlushProgress | null;
+let running: Promise<void> | null = null;
+export function syncAll(): Promise<void> {
+  if (running) return running;
+  running = (async () => {
+    if (!canCall()) return;
+    await syncProjects();
+    await Promise.all([syncPrefs(), syncDevice()]);
+    for (const s of steps) { try { await s(); } catch (e) { log("warn", "sync step failed", e); } }
+  })().finally(() => { running = null; });
+  return running;
 }
 
-function read() {
-  const q = store.loadPending();
-  return { pending: q.length, stuck: q.filter((p) => p.stuck).length, ...flushState() };
-}
-
-/** Stuck beats everything (it needs a decision), then a running upload, then offline, then waiting. */
-export function useSync(): Sync {
-  const online = useOnline();
-  const [v, setV] = useState(read);
-  useEffect(() => {
-    const again = () => setV(read());
-    const offs = [onPendingChange(again), onFlushProgress(again), onFlushed(again)];
-    return () => { for (const off of offs) off(); };
-  }, []);
-  const state: SyncState = v.stuck > 0 ? "stuck" : v.flushing && v.pending > 0 ? "uploading" : !online ? "offline" : v.pending > 0 ? "pending" : "ok";
-  return { state, pending: v.pending, stuck: v.stuck, online, progress: v.progress };
+let started = false;
+/** Starts the triggers once. */
+export function startSync() {
+  if (started) return;
+  started = true;
+  void syncAll();
+  onAuthChange(() => { if (isSignedIn()) void syncAll(); });
+  AppState.addEventListener("change", (s) => { if (s === "active") void syncAll(); });
+  onOnlineChange((v) => { if (v) void syncAll(); });
+  setInterval(() => { if (!isOnline() && isSignedIn()) void syncAll(); }, RETRY_MS);
 }

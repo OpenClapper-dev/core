@@ -2,7 +2,7 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { PanResponder, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
 import { IconButton } from "./actions";
-import { Icon } from "./core";
+import { Icon , type IconName } from "./core";
 import { makeStyles, num, SIZE, type, useTheme } from "./theme";
 import { useStyles } from "./styles";
 
@@ -17,7 +17,7 @@ export function Row({ label, children }: { label: string; children?: ReactNode }
 }
 
 /** Pill for choosing. Selected = accent fill + bold + check, so it never relies on colour alone. */
-export function Chip({ label, selected, onPress, danger, icon, swatch, disabled, block }: { label: string; selected?: boolean; onPress: () => void; danger?: boolean; icon?: string; /** A colour sample (e.g. frame colour). */ swatch?: string; disabled?: boolean; /** Fills its grid cell. */ block?: boolean }) {
+export function Chip({ label, selected, onPress, danger, icon, swatch, disabled, block }: { label: string; selected?: boolean; onPress: () => void; danger?: boolean; icon?: IconName; /** A colour sample (e.g. frame colour). */ swatch?: string; disabled?: boolean; /** Fills its grid cell. */ block?: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   const fg = disabled ? c.textDisabled : selected ? c.onAccent : danger ? c.danger : c.text;
@@ -59,7 +59,7 @@ export function PasswordInput(props: Omit<TextInputProps, "secureTextEntry">) {
   return (
     <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
       <Input autoCapitalize="none" autoCorrect={false} {...props} secureTextEntry={!shown} style={[{ flex: 1 }, props.style]} />
-      <IconButton icon={shown ? "eye-off-outline" : "eye-outline"} label={shown ? "Hide password" : "Show password"} disabled={props.editable === false} onPress={() => setShown((v) => !v)} />
+      <IconButton icon={shown ? "eye-off" : "eye"} label={shown ? "Hide password" : "Show password"} disabled={props.editable === false} onPress={() => setShown((v) => !v)} />
     </View>
   );
 }
@@ -78,7 +78,7 @@ export function Switch({ value, disabled }: { value: boolean; disabled?: boolean
 }
 
 /** A labelled on/off row; the whole row toggles. 64 dp with an optional icon and meta line. */
-export function Toggle({ label, meta, icon, value, onChange, disabled }: { label: string; meta?: string; icon?: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+export function Toggle({ label, meta, icon, value, onChange, disabled }: { label: string; meta?: string; icon?: IconName; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   return (
@@ -96,7 +96,7 @@ export function Toggle({ label, meta, icon, value, onChange, disabled }: { label
 export function Checkbox({ checked }: { checked: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
-  return <View style={[s.check, checked && { backgroundColor: c.accent, borderColor: c.accent }]}>{checked && <Icon name="check-bold" size={18} color={c.onAccent} />}</View>;
+  return <View style={[s.check, checked && { backgroundColor: c.accent, borderColor: c.accent }]}>{checked && <Icon name="check" size={18} color={c.onAccent} />}</View>;
 }
 
 /** Chips in a two-column grid whose cells fill their half (use `Chip block`). */

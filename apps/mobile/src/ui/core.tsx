@@ -1,7 +1,8 @@
-/** Base pieces every other component uses: layout measuring, MDI icons, the mark, labels and hints. */
-import { useState, type ComponentProps, type ReactNode } from "react";
+/** Base pieces every other component uses: layout measuring, the glyphs, the mark, labels and hints. */
+import { useMemo, useState, type ReactNode } from "react";
 import { Image, Text, type LayoutChangeEvent } from "react-native";
-import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
+import { SvgXml } from "react-native-svg";
+import { GLYPHS, type IconName } from "@openclapper/design/glyphs";
 import { SIZE, useTheme } from "./theme";
 import { useStyles } from "./styles";
 
@@ -18,10 +19,17 @@ export function useLayoutSize(): [{ width: number; height: number }, (e: LayoutC
   return [box, onLayout];
 }
 
-/** Material Design Icons, same names as the Studio (shared ones are in @openclapper/vocab). */
-export function Icon({ name, size = SIZE.icon, color }: { name: string; size?: number; color?: string }) {
+export type { IconName };
+
+/**
+ * A glyph of the design system (Tabler outline plus the film glyphs, packages/design glyphs.ts), the
+ * same set and names as the Studio. The stroke follows the size as there: about 1.75 at 24 dp.
+ */
+export function Icon({ name, size = SIZE.icon, color }: { name: IconName; size?: number; color?: string }) {
   const { c } = useTheme();
-  return <MaterialCommunityIcons name={name as ComponentProps<typeof MaterialCommunityIcons>["name"]} size={size} color={color ?? c.text} />;
+  const sw = size <= 16 ? 2 : size <= 24 ? 1.75 : 1.5;
+  const xml = useMemo(() => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${GLYPHS[name][1]}</svg>`, [name, sw]);
+  return <SvgXml xml={xml} width={size} height={size} color={color ?? c.text} />;
 }
 
 /**
