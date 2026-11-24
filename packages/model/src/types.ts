@@ -216,7 +216,7 @@ export const FILTER: FileType = {
  * Version 2: the body went from {} to { progression }.
  */
 export const SHOT: FileType = {
-  type: "shot", label: "Shot", plural: "Shots", roots: ["project"], refs: ["content", "item", "overlay"], version: 2,
+  type: "shot", label: "Shot", plural: "Shots", roots: ["project"], refs: ["content", "item", "overlay"], version: 2, lockable: true,
   refTargets: { item: ["photo", "canvas"], overlay: ["canvas"] },
   empty: () => emptyShot() as unknown as Body,
   check: (body, refs) => shotError(body, refs),

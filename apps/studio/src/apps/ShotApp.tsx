@@ -3,7 +3,7 @@
 // progression (a small timeline with timing, a default frame, an overlay and the zoom generator). A canvas is edited
 // in place: the canvas tool takes the stage. What is made inside a shot is an internal file of it.
 import "../shots/shots.css";
-import { useEffect, useMemo, useState } from "preact/hooks";
+import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   AppIcon, Badge, Banner, Button, Checkbox, Dock, DropdownMenu, EmptyState, Icon, NumberInput, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, Spinner, StatusBar, TextInput, Toolbar, ToolbarSpacer,
   cx, dockCollapse, moved, useDockLayout, useSort, type DockLayout, type DockPanel,
@@ -22,6 +22,7 @@ import { definitionsIn } from "../props";
 import { PropertySections } from "../propertyEditors";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
+import { useEditLock, type EditLock } from "../lock";
 import { AddFiles } from "../shots/AddFiles";
 import { itemKey, useDoc, type Doc, type Item } from "../shots/doc";
 import { Generator, type Made } from "../shots/Generator";
@@ -36,6 +37,8 @@ const SOURCE = { own: "its own frame", default: "the default frame", picture: "t
 type Pick = { list: "prog" | "content"; i: number };
 const PANELS: DockLayout = { right: { tabs: ["props"] }, bottom: { dir: "col", kids: [{ tabs: ["prog"] }, { tabs: ["content"] }] } };
 const PLACE_PANELS: DockLayout = { right: { tabs: ["props"] }, bottom: { tabs: ["content"] } };
+/** Mounted in a timeline the room is smaller: the progression and the content share the lower place as tabs. */
+const HOSTED_PANELS: DockLayout = { right: { tabs: ["props"] }, bottom: { tabs: ["prog", "content"] } };
 const isPicture = (f: FileRec | undefined) => !!f && (f.type === "photo" || f.type === "canvas");
 
 export function ShotApp({ win, resource, projectId, setTitle, setRoute, focused }: AppProps) {
@@ -46,12 +49,14 @@ export function ShotApp({ win, resource, projectId, setTitle, setRoute, focused 
   void win;
   if (!files) return <div className="oc-app st-center"><Spinner /></div>;
   if (!f) return <div className="oc-app"><EmptyState icon={kindOf(resource?.type ?? "shot").glyph} title="This file is gone">It was deleted or moved to the recycle bin.</EmptyState></div>;
-  return <Window key={f.id} f={f} files={files} bin={bin ?? []} projectId={projectId} active={focused} />;
+  return <ShotWindow key={f.id} f={f} files={files} bin={bin ?? []} projectId={projectId} active={focused} />;
 }
 
-function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileRec[]; bin: FileRec[]; projectId: string; active: boolean }) {
+/** The window of one shot, set or location; a timeline mounts it in place (`hosted`). */
+export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: FileRec; files: FileRec[]; bin: FileRec[]; projectId: string; active: boolean; hosted?: boolean }) {
   const shot = f.type === "shot", kind = kindOf(f.type);
-  const { doc, change, flush } = useDoc(f);
+  const lockRef = useRef<EditLock | null>(null);
+  const { doc, change, flush, reset } = useDoc(f, shot ? lockRef : undefined);
   const map = useMemo(() => new Map([...bin, ...files].map((x) => [x.id, x])), [files, bin]);
   const presetList = presetsIn(files);
   const ctx: PicCtx = { files: map, presets: new Map(presetList.map((p) => [p.id, p.body as PresetBody])) };
@@ -60,6 +65,11 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
   const project = useProjects().list?.find((p) => p.id === projectId);
   const people = usePeople(project?.workspace_id);
   const nameOf = (u: string) => (u === me?.id ? "You" : people.get(u) ?? "Someone");
+  // A shot is edited by one window at a time (one lock per file, whichever window edits it); others watch.
+  const lock = useEditLock(f, nameOf, (x) => reset(x), () => void flush(), { off: !shot, realtime: project?.canvas_live === "realtime", onRemote: (d) => reset({ body: d.body, refs: d.refs as FileRec["refs"] }) });
+  lockRef.current = lock;
+  const readonly = shot && !lock.editing;
+  const ro = readonly ? { inert: true, className: "sh-readonly" } : {};
 
   const [picked, setPick] = useState<Pick | null>(null);
   const [mode, setMode] = useState<Mode>("crop");
@@ -74,7 +84,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
   const [uses, setUses] = useState<FileUse[]>([]);
   useEffect(() => { setName(f.name); }, [f.name]);
   useEffect(() => { void api.fetchUses(f.id).then(setUses, () => setUses([])); }, [f.id, f.updated_at]);
-  const [panels, setPanels, resetPanels] = useDockLayout(`place-${shot ? "shot" : "place"}`, shot ? PANELS : PLACE_PANELS);
+  const [panels, setPanels, resetPanels] = useDockLayout(`place-${shot ? "shot" : "place"}${hosted ? "-hosted" : ""}`, hosted ? HOSTED_PANELS : shot ? PANELS : PLACE_PANELS);
 
   const prog = shot ? doc.progression : null;
   const items = prog ? doc.items : [];
@@ -208,7 +218,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
       <span className="sh-stageacts">
         <Button size="sm" variant="quiet" icon="external" title={`Open in the ${kindOf(entry!.type).label} app, in a window of its own`} onClick={() => open(entry!)}>Open</Button>
         {entry!.type === "canvas" ? <Button size="sm" icon="edit" title="Edit in this window: the canvas tool takes the place of the stage" onClick={() => edit(entry!.id)}>Edit here</Button>
-          : entry!.type === "photo" && <Button size="sm" icon="brush" title="A canvas on this photo, made inside this file: draw on it, give it a look, frame it" onClick={() => void newCanvas(entry!, sel.list === "content" ? sel.i : undefined)}>Draw or frame</Button>}
+          : entry!.type === "photo" && !readonly && <Button size="sm" icon="brush" title="A canvas on this photo, made inside this file: draw on it, give it a look, frame it" onClick={() => void newCanvas(entry!, sel.list === "content" ? sel.i : undefined)}>Draw or frame</Button>}
       </span>
     </>
   );
@@ -234,8 +244,8 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
             <ul className="sh-internal">{internal.map((x) => (
               <li key={x.id}><AppIcon glyph={kindOf(x.type).glyph} color={kindOf(x.type).color} size={20} /><span className="sh-internal__name">{x.name}<small>{role(x)}</small></span>
                 {x.type === "canvas" && <Button size="sm" variant="quiet" icon="edit" label={`Edit ${x.name} here`} onClick={() => edit(x.id)} />}
-                <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "release", label: "Make it a project file…", icon: "external" }, { id: "delete", label: "Delete", icon: "trash", danger: true, disabled: role(x) !== "Not used any more" }]}
-                  onSelect={(a) => (a === "release" ? void release(x) : void store.bin({ project: projectId }, [x.id]).catch(toastError))} />
+                {!readonly && <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "release", label: "Make it a project file…", icon: "external" }, { id: "delete", label: "Delete", icon: "trash", danger: true, disabled: role(x) !== "Not used any more" }]}
+                  onSelect={(a) => (a === "release" ? void release(x) : void store.bin({ project: projectId }, [x.id]).catch(toastError))} />}
               </li>
             ))}</ul>
             <p className="sh-note">Made inside this {kind.label.toLowerCase()}. Not in the file browser or in search; copied and deleted with it.</p>
@@ -259,13 +269,13 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
       {entry.internal_of === f.id && <Banner tone="info" icon="lock" action={<Button size="sm" variant="quiet" onClick={() => void release(entry)}>Make it a project file</Button>}>An internal file of this {kind.label.toLowerCase()}.</Banner>}
       <PropertyList key={entry.id + (item ? item.key : "c")}>
         {item && prog && (
-          <PropertySection title="In the progression" icon="timeline">
+          <div {...ro}><PropertySection title="In the progression" icon="timeline">
             <PropertyRow label="Holds">{prog.timing.mode === "each" ? <NumberInput size="sm" value={item.data.ms / 1000} unit="s" min={0.1} max={600} step={0.1} onChange={(v) => patchItem(item.key, { ms: Math.min(600_000, Math.max(100, Math.round(v * 10) * 100)) })} /> : <span className="oc-num">{clock(times[sel!.i])} of {clock(total)}</span>}</PropertyRow>
             {item.data.move && <PropertyRow label="Moves"><Checkbox checked={item.data.move.ease} onChange={(c) => patchItem(item.key, { move: { ...item.data.move!, ease: c } })}>Ease in and out</Checkbox></PropertyRow>}
             {item.data.move && <PropertyRow label="Look through"><span className="sh-bar" style={{ flex: 1 }}><Slider min={0} max={100} value={Math.round(u * 100)} onChange={(v) => { setT(null); setScrub(v / 100); }} /><b className="oc-num">{seen!.name}</b></span></PropertyRow>}
             {!item.data.move && frames.length > 0 && <PropertyRow label="Shows"><Select size="sm" value={item.data.frame ?? ""} onChange={(v) => patchItem(item.key, { frame: v || undefined })} options={[{ value: "", label: "The canvas as a whole" }, ...frames.map((x) => ({ value: x.id, label: `Frame ${x.name}` }))]} /></PropertyRow>}
             <PropertyRow label="Seen through" value={seen!.source === "none" ? (seen!.optics ? "No frame" : "No frame: it has no angle of view") : SOURCE[seen!.source]} />
-          </PropertySection>
+          </PropertySection></div>
         )}
         {entry.type === "photo" && <PhotoFactsSections f={entry} map={map} />}
         <PropertySections projectId={projectId} targets={[entry]} defs={defs} files={files} />
@@ -275,7 +285,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
 
   // ---------- The progression ----------
   const progActions = shot && (prog ? (
-    <div className="sh-row">
+    <div className="sh-row" {...ro}>
       <span className="sh-count oc-num">{items.length} {items.length === 1 ? "picture" : "pictures"} · {clock(total)}</span>
       <Button size="sm" variant="quiet" icon={t != null ? "pause" : "play"} label={t != null ? "Pause" : "Play the progression"} disabled={!items.length} onClick={() => setT(t != null ? null : 0)} />
       <Select size="sm" value={prog.timing.mode} onChange={(v) => setProg({ timing: v === "each" ? { mode: "each" } : { mode: v as "even" | "ends", total: Math.max(100, Math.round(total / 100) * 100 || 4000) } })}
@@ -297,7 +307,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
         }} />
     </div>
   ) : (
-    <div className="sh-row">
+    <div className="sh-row" {...ro}>
       <span className="sh-count">None: the shot stands as one picture.</span><span style={{ flex: 1 }} />
       <Button size="sm" variant="quiet" icon="frame" onClick={() => setGen(true)}>Generate a zoom…</Button>
       <Button size="sm" icon="plus" onClick={() => setAdding("prog")}>From pictures…</Button>
@@ -310,13 +320,13 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
         const s = see({ to: it.to, frame: it.data.frame, move: it.data.move }, ctx, prog.frame, on2 ? u : 0);
         return (
           <div key={it.key} data-sort role="button" tabIndex={0} className={cx("sh-item", sel?.list === "prog" && sel.i === i && "is-current", s.missing && "is-missing", it.data.move && "is-move")} style={{ width: Math.max(44, (times[i] / 1000) * SCALE), ...sortP.style(i) }}
-            title={`${s.file?.name ?? "Missing"}${s.name ? ` · ${s.name}` : ""}`} onPointerDown={sortP.start(i)} onClick={() => choose({ list: "prog", i })} onDblClick={() => s.file?.type === "canvas" && edit(s.file.id)}>
+            title={`${s.file?.name ?? "Missing"}${s.name ? ` · ${s.name}` : ""}`} onPointerDown={readonly ? undefined : sortP.start(i)} onClick={() => choose({ list: "prog", i })} onDblClick={() => s.file?.type === "canvas" && edit(s.file.id)}>
             <span className="sh-item__art sh-box"><Pic seen={s} overlay={prog.overlayShown ? overlaySrc : null} /></span>
             <span className="sh-item__label"><b>{s.source === "own" && s.name ? s.name : s.file?.name ?? "Missing"}</b><i className="oc-num">{clock(times[i])}</i></span>
             {i === 0 && <span className="sh-item__flag" title="The shot's thumbnail"><Icon name="star" size={10} /></span>}
             {it.data.move && <span className="sh-item__move" title="A smooth move from one frame to another"><Icon name="arrow-right" size={10} />smooth</span>}
-            <button type="button" data-nodrag className="sh-item__x" aria-label="Remove from the progression" onClick={(e) => { e.stopPropagation(); removeAt({ list: "prog", i }); }}><Icon name="close" size={10} /></button>
-            {prog.timing.mode === "each" && <i data-nodrag className="sh-item__grip" title="Drag to change how long it holds" onPointerDown={stretch(i)} />}
+            {!readonly && <button type="button" data-nodrag className="sh-item__x" aria-label="Remove from the progression" onClick={(e) => { e.stopPropagation(); removeAt({ list: "prog", i }); }}><Icon name="close" size={10} /></button>}
+            {prog.timing.mode === "each" && !readonly && <i data-nodrag className="sh-item__grip" title="Drag to change how long it holds" onPointerDown={stretch(i)} />}
             {t != null && t >= starts[i] && t < starts[i] + times[i] && <i className="sh-playhead" style={{ left: `${((t - starts[i]) / times[i]) * 100}%` }} />}
           </div>
         );
@@ -329,7 +339,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
   const menuOf = (id: string, i: number) => {
     const s = see({ to: id }, ctx), x = s.file;
     return (
-      <DropdownMenu size="sm" variant="quiet" icon="more" align="end" className="sh-tile__menu" items={s.missing ? [{ id: "remove", label: "Remove the entry", icon: "close" }] : [
+      readonly ? null : <DropdownMenu size="sm" variant="quiet" icon="more" align="end" className="sh-tile__menu" items={s.missing ? [{ id: "remove", label: "Remove the entry", icon: "close" }] : [
         ...(x!.type === "canvas" ? [{ id: "edit", label: "Edit here", icon: "edit" as const }] : []),
         { id: "open", label: `Open in the ${kindOf(x!.type).label} app`, icon: "external" as const },
         ...(x!.type === "photo" ? [{ id: "draw", label: "Draw or frame", icon: "brush" as const }] : []),
@@ -350,7 +360,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
   const openEntry = (id: string) => { const x = map.get(id); if (x && !x.deleted_at) { if (x.type === "canvas") edit(id); else open(x); } };
   const missingName = (s: Seen) => (s.file ? `${s.file.name} · in the bin` : "Missing file");
   const contentActions = (
-    <div className="sh-row">
+    <div className="sh-row" {...ro}>
       <span className="sh-count oc-num">{doc.content.length} {doc.content.length === 1 ? "file" : "files"}</span>
       <span style={{ flex: 1 }} />
       <Segmented label="Content as" value={lines} onChange={setLines} options={[{ value: "cards", icon: "grid", title: "Cards" }, { value: "list", icon: "list", title: "Rows" }]} />
@@ -363,7 +373,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
       {doc.content.map((id, i) => {
         const s = see({ to: id }, ctx), x = s.file;
         return (
-          <li key={id} data-sort role="button" tabIndex={0} className={cx("sh-line", sel?.list === "content" && sel.i === i && "is-current", s.missing && "is-missing")} style={sortL.style(i)} onPointerDown={sortL.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
+          <li key={id} data-sort role="button" tabIndex={0} className={cx("sh-line", sel?.list === "content" && sel.i === i && "is-current", s.missing && "is-missing")} style={sortL.style(i)} onPointerDown={readonly ? undefined : sortL.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
             <Icon name="grip" size={12} /><span className="sh-line__art sh-box"><Pic seen={s} /></span>
             <span className="sh-line__name">{s.missing ? missingName(s) : x!.name}</span>
             <span className="sh-line__type">{x && !s.missing && <><AppIcon glyph={kindOf(x.type).glyph} color={kindOf(x.type).color} size={20} />{kindOf(x.type).label}{x.internal_of && <Badge icon="lock">internal</Badge>}</>}</span>
@@ -378,7 +388,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
       {doc.content.map((id, i) => {
         const s = see({ to: id }, ctx), x = s.file;
         return (
-          <div key={id} data-sort role="button" tabIndex={0} className={cx("sh-tile", sel?.list === "content" && sel.i === i && "is-current", s.missing && "is-missing")} style={sortC.style(i)} onPointerDown={sortC.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
+          <div key={id} data-sort role="button" tabIndex={0} className={cx("sh-tile", sel?.list === "content" && sel.i === i && "is-current", s.missing && "is-missing")} style={sortC.style(i)} onPointerDown={readonly ? undefined : sortC.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
             <span className="sh-tile__art sh-box"><Pic seen={s} />{x && !s.missing && x.type !== "photo" && <span className="sh-tile__type"><AppIcon glyph={kindOf(x.type).glyph} color={kindOf(x.type).color} size={20} /></span>}{x?.internal_of && <span className="sh-tile__lock" title="An internal file"><Icon name="lock" size={10} /></span>}</span>
             <span className="sh-tile__name">{s.missing ? missingName(s) : x!.name}</span>
             {menuOf(id, i)}
@@ -399,12 +409,15 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
     <div className="oc-app">
       <Toolbar>
         <AppIcon glyph={kind.glyph} color={kind.color} size={24} /><strong className="st-title">{f.name}</strong>
+        {shot && (lock.editing
+          ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the shot go and keep watching it: someone else can edit it now" onClick={() => void lock.stop(flush)}>Stop editing</Button>
+          : <span className="sh-viewing"><Icon name="eye" size={14} /><span>{lock.by === "You" ? "Editing in another window of yours" : lock.by ? `${lock.by} is editing` : "Nobody is editing"}</span><Button size="sm" variant="primary" icon="edit" disabled={!!lock.by} onClick={() => void lock.edit()}>Edit</Button></span>)}
         <ToolbarSpacer />
         {!editing && <Segmented label="View mode" value={mode} disabled={!seen?.rect} onChange={(v) => setMode(v as Mode)} options={[{ value: "outline", label: "Outline" }, { value: "mask", label: "Mask" }, { value: "crop", label: "Crop" }, { value: "full", label: "Full" }]} />}
         <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }, { separator: true }, { id: "dup", label: "Duplicate", icon: "copy" }, { id: "bin", label: "Move to the recycle bin…", icon: "trash", danger: true }]}
           onSelect={(x) => (x === "panels" ? resetPanels() : x === "bin" ? void binIt() : void flush().then(() => duplicateFile(f)))} />
       </Toolbar>
-      <Dock panels={dockPanels} layout={panels} onLayoutChange={setPanels} zones={editing ? ["bottom"] : undefined} zoneSizes={{ left: 320, right: 340, bottom: shot ? 420 : 220 }}>
+      <Dock panels={dockPanels} layout={panels} onLayoutChange={setPanels} zones={editing ? ["bottom"] : undefined} zoneSizes={{ left: 320, right: hosted ? 300 : 340, bottom: hosted ? 200 : shot ? 420 : 220 }}>
         {editing && editFile ? (
           <div className="sh-edit">
             <div className="sh-host">
@@ -419,7 +432,7 @@ function Window({ f, files, bin, projectId, active }: { f: FileRec; files: FileR
           </div>
         ) : <div className={cx("sh-stage", (!sel || seen?.missing) && "is-empty")}>{stage}</div>}
       </Dock>
-      <StatusBar>{doc.content.length} in the content{prog && <> · progression of {items.length} {items.length === 1 ? "picture" : "pictures"}, {clock(total)}</>}{internal.length > 0 && <> · {internal.length} internal files</>}{t != null && <> · playing <strong className="oc-num">{clock(t)}</strong></>}{editing && <> · editing <strong>{editFile?.name}</strong> in place</>}</StatusBar>
+      <StatusBar>{doc.content.length} in the content{prog && <> · progression of {items.length} {items.length === 1 ? "picture" : "pictures"}, {clock(total)}</>}{internal.length > 0 && <> · {internal.length} internal files</>}{t != null && <> · playing <strong className="oc-num">{clock(t)}</strong></>}{editing && <> · editing <strong>{editFile?.name}</strong> in place</>}{readonly && <> · read-only{lock.live ? ", live" : ", read again every 5 s"}</>}</StatusBar>
       {adding && <AddFiles title={adding === "prog" ? "Add pictures to the progression" : `Add files to the content of ${f.name}`} pictures={adding === "prog"} files={files} ctx={ctx} self={f.id} onAdd={addRefs} onClose={() => setAdding(null)} />}
       {gen && <Generator files={files} presets={presetList} ctx={ctx} start={entry?.type === "photo" ? entry.id : undefined} has={items.length > 0} onMake={(m) => void generate(m)} onClose={() => setGen(false)} />}
     </div>
