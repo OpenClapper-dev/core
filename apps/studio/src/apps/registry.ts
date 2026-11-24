@@ -96,6 +96,7 @@ let active: readonly string[] = [];
 /** The extensions the current project has on; the shell sets it when the project or its switches change. */
 export function setActiveExtensions(list: readonly string[]) { active = list; }
 export const extensionOn = (id: string | undefined): boolean => !id || active.includes(id);
+export const activeExtensions = (): readonly string[] => active;
 /** Adds an app an extension brings (from the client's extensions.ts). */
 export function registerApp(def: AppDef) {
   const i = APPS.findIndex((a) => a.id === def.id);

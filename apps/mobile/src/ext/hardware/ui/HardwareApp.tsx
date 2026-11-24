@@ -78,7 +78,7 @@ function TableRow({ d, all, live, proxy, onPress }: { d: HardwareDevice; all: Ha
 }
 
 /** A device across the width with its first controls ready to use (U6, cards). */
-function Card({ d, all, live, proxy, onOpen }: { d: HardwareDevice; all: HardwareDevice[]; live: (id: string) => FixtureLive | undefined; proxy: boolean; onOpen: () => void }) {
+export function Card({ d, all, live, proxy, onOpen }: { d: HardwareDevice; all: HardwareDevice[]; live: (id: string) => FixtureLive | undefined; proxy: boolean; onOpen: () => void }) {
   const s = useStyles();
   const m = modelOf(d.body.model)!;
   const l = live(d.id);

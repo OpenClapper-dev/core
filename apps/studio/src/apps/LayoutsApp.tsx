@@ -19,7 +19,7 @@ import type { FileRec } from "../api";
 import * as store from "../files";
 import { confirm, toastError } from "../hosts";
 import { sendLink, usePhoneLink } from "../phoneLink";
-import type { AppProps } from "./registry";
+import { activeExtensions, extensionOn, type AppProps } from "./registry";
 
 const EDGES: [Edge, string][] = [["top", "Top"], ["bottom", "Bottom"], ["left", "Left"], ["right", "Right"]];
 const DISTS: [Distribution, string][] = [["start", "Packed at the start"], ["center", "Packed in the middle"], ["end", "Packed at the end"], ["between", "Spread out, first and last at the ends"], ["around", "Spread out with room at the ends"]];
@@ -157,7 +157,9 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
         ? <span className={cx("lay-step", vertical && "is-v")}><CameraButton icon={vertical ? "chevron-up" : "chevron-left"} label={`Previous: ${c.label}`} /><b>{now}</b><CameraButton icon={vertical ? "chevron-down" : "chevron-right"} label={`Next: ${c.label}`} /></span>
         : <span className={cx("lay-strip", vertical && "is-v")}>{vals.map((v) => <CameraButton key={v} label={v} pressed={v === now}>{v}</CameraButton>)}</span>;
     } else el = <span className="lay-ctl"><CameraButton icon={c.icon as IconName} label={c.label} pressed={i.control === "blackout" && body.look.blackoutOn} />{i.label && "short" in c && <small>{c.short}</small>}</span>;
-    return <span key={i.control} data-ctl={i.control} className={cx("lay-slot", drag?.ctl === i.control && "is-dragged")} title={locked ? c.label : `${c.label}: drag to move it`} onPointerDown={grab(i.control)}>{el}</span>;
+    // An extension's control while the project has it off: kept in the layout, greyed here, left out on the phone.
+    const off = !extensionOn(c.extension);
+    return <span key={i.control} data-ctl={i.control} className={cx("lay-slot", drag?.ctl === i.control && "is-dragged", off && "is-off")} title={off ? `${c.label}: needs its extension, left out on the phone` : locked ? c.label : `${c.label}: drag to move it`} onPointerDown={grab(i.control)}>{el}</span>;
   };
   const drawBar = (b: Bar) => (
     <div key={b.id} data-bar={b.id} data-axis={sideways(b.edge) ? "y" : "x"} className={cx("lay-bar", b.over && "is-over", sideways(b.edge) ? "is-v" : "is-h", `is-${b.distribution}`, b.items.some((i) => i.control === "shutter") && "has-shutter")}>
@@ -192,7 +194,7 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
       <ul className="lay-items" data-bar={b.id} data-axis="y">
         {b.items.map((i) => { const c = CONTROLS[i.control]; return (
           <li key={i.control} data-ctl={i.control} className={cx("lay-item", drag?.ctl === i.control && "is-dragged")} onPointerDown={grab(i.control)}>
-            <Icon name="grip" size={12} /><Icon name={c.icon as IconName} /><span className="lay-item__name">{c.label}</span>
+            <Icon name="grip" size={12} /><Icon name={c.icon as IconName} /><span className="lay-item__name">{c.label}{!extensionOn(c.extension) && <small> · needs its extension</small>}</span>
             {c.kind === "strip" && <span data-nodrag><Segmented label="Shown as" value={i.display ?? "list"} disabled={locked} onChange={(v) => patchItem(i.control, { display: v as "list" | "stepped" })} options={[{ value: "list", label: "All" }, { value: "stepped", label: "Stepped" }]} /></span>}
             {i.control === "lenses" && <span data-nodrag><Segmented label="Length" value={i.size ?? "fit"} disabled={locked} onChange={(v) => patchItem(i.control, { size: v as "fill" | "fit" })} options={[{ value: "fit", label: "Fit" }, { value: "fill", label: "Fill" }]} /></span>}
             {c.kind === "button" && <span data-nodrag><Checkbox checked={!!i.label} disabled={locked} onChange={(v) => patchItem(i.control, { label: v || undefined })}>Label</Checkbox></span>}
@@ -202,7 +204,7 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
         {!b.items.length && <li className="lay-item lay-item--empty">Drop a control here</li>}
       </ul>
       <div className="lay-pad lay-row">
-        <DropdownMenu size="sm" variant="quiet" icon="plus" label="Add a control" items={unplaced(body[key]).map((c) => ({ id: c, label: CONTROLS[c].label, icon: CONTROLS[c].icon as IconName, disabled: locked }))} onSelect={(c) => patchBar(b.id, { items: [...b.items, { control: c as ControlId }] })} />
+        <DropdownMenu size="sm" variant="quiet" icon="plus" label="Add a control" items={unplaced(body[key], activeExtensions()).map((c) => ({ id: c, label: CONTROLS[c].label, icon: CONTROLS[c].icon as IconName, disabled: locked }))} onSelect={(c) => patchBar(b.id, { items: [...b.items, { control: c as ControlId }] })} />
         <span style={{ flex: 1 }} />
         <Button size="sm" variant="quiet" icon="trash" disabled={locked || b.items.some((i) => i.control === "shutter")} title={b.items.some((i) => i.control === "shutter") ? "Move the shutter to another bar first" : "Remove this bar and the controls on it"} onClick={() => setBars(bars.filter((x) => x.id !== b.id))}>Remove the bar</Button>
       </div>

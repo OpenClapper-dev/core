@@ -67,6 +67,10 @@ The app **Hardware** (a tab like any other while the project has the extension o
 
 Kept from the first app (`hub.ts`, `bt/hubCore.ts`): one connection attempt at a time, only to devices seen advertising (a presence scan runs while one is missing), retries after 1, 2, 5, 15, 30 s, links closed in the background and reopened in front, Reconnect all.
 
+## The camera control
+
+A camera layout can place **Hardware** (`registerCameraControl`). On the phone it opens the device cards over the camera (`ui/CameraSheet.tsx`): set a light or start the camera's recording without leaving it; a card opens the device's full screen. When no phone holds the connections, this one does while the sheet is open.
+
 ## On the server
 
 Routes in `apps/worker/src/ext/hardware/routes.ts` ([api](../api.md), "Hardware"); table `hw_mesh_networks` (migration `0009_hardware.sql`).

@@ -81,3 +81,7 @@
 .dev-tabs li.is-fixed { gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
 .dev-take { margin-top: var(--space-5); }
 .dev-type { display: inline-flex; align-items: center; gap: 6px; }
+
+/* An extension's control while the project has it off. */
+.lay-slot.is-off { opacity: .4; filter: grayscale(1); }
+.lay-item__name small { color: var(--text-secondary); }

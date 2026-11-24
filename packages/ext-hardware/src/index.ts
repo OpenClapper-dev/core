@@ -3,7 +3,7 @@
  * in the account's device registry, a catalogue of the supported models, pairing, and the phone as proxy.
  * What the Worker, the Studio and the phone share lives here; each registers it from its own `extensions.ts`.
  */
-import { registerExtension, type ExtensionDef } from "@openclapper/model";
+import { registerCameraControl, registerExtension, type ExtensionDef } from "@openclapper/model";
 
 export const HARDWARE: ExtensionDef = {
   id: "hardware",
@@ -14,6 +14,8 @@ export const HARDWARE: ExtensionDef = {
 };
 
 registerExtension(HARDWARE);
+// A camera layout can place it: on the phone it opens the device cards over the camera (owner's decision 2026-11-24).
+registerCameraControl("hardware", { label: "Hardware", icon: "light-fixture", short: "Hardware", kind: "button", extension: "hardware" });
 
 export * from "./lighting.ts";
 export * from "./lightProxy.ts";

@@ -13,7 +13,9 @@ const COLOUR = /^(#[0-9a-f]{6}|rgba\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*,\
 
 /** What a control is (with the design system's glyph that draws it): a button (may carry its label), a strip of values (all at once or stepped), the shutter, or a readout on the picture. */
 type ControlKind = "button" | "strip" | "shutter" | "readout";
-export const CONTROLS = {
+/** One control of the catalogue; `extension`: brought by an extension, placeable and shown only while the project has it on. */
+export interface ControlDef { label: string; icon: string; short?: string; kind: ControlKind; extension?: string }
+const CORE_CONTROLS = {
   shutter: { label: "Shutter", icon: "camera", kind: "shutter" },
   lenses: { label: "Phone lenses", icon: "lens", kind: "strip" },
   frame: { label: "Frame", icon: "frame", short: "Frame", kind: "button" },
@@ -35,9 +37,19 @@ export const CONTROLS = {
   "read-collection": { label: "Collection", icon: "layers", kind: "readout" },
   "read-folder": { label: "Folder", icon: "folder", kind: "readout" },
   "read-warnings": { label: "Warnings", icon: "warning", kind: "readout" },
-} as const satisfies Record<string, { label: string; icon: string; short?: string; kind: ControlKind }>;
-export type ControlId = keyof typeof CONTROLS;
-export const CONTROL_IDS = Object.keys(CONTROLS) as ControlId[];
+} as const satisfies Record<string, ControlDef>;
+/** Every control a layout can place: the core's, and those extensions registered (08-extensions.md, "Camera controls"). */
+export const CONTROLS: Record<string, ControlDef> = { ...CORE_CONTROLS };
+export type ControlId = string;
+export const controlIds = (): ControlId[] => Object.keys(CONTROLS);
+/** Adds a control an extension brings; it stays valid in a layout while the extension is off (and is not shown then). */
+export function registerCameraControl(id: string, def: ControlDef & { extension: string }) {
+  if (CORE_CONTROLS[id as keyof typeof CORE_CONTROLS]) throw new Error(`camera control "${id}" is the core's`);
+  if (!LOCAL_ID.test(id)) throw new Error(`camera control "${id}": letters, digits, hyphens`);
+  CONTROLS[id] = def;
+}
+/** Whether a control shows with these extensions on. */
+export const controlOn = (id: ControlId, on: readonly string[]) => { const c = CONTROLS[id]; return !!c && (!c.extension || on.includes(c.extension)); };
 
 export type Edge = "top" | "bottom" | "left" | "right";
 export type Distribution = "start" | "center" | "end" | "between" | "around";
@@ -129,8 +141,8 @@ export const BUILTIN_LAYOUTS: Record<"camera" | "viewfinder", { name: string; bo
 export type BuiltinLayout = keyof typeof BUILTIN_LAYOUTS;
 export const isBuiltinLayout = (id: unknown): id is BuiltinLayout => id === "camera" || id === "viewfinder";
 
-/** The controls an arrangement does not place yet. */
-export const unplaced = (a: Arrangement): ControlId[] => CONTROL_IDS.filter((c) => !a.bars.some((b) => b.items.some((i) => i.control === c)));
+/** The controls an arrangement does not place yet (with `on`: only those of the core and of these extensions). */
+export const unplaced = (a: Arrangement, on?: readonly string[]): ControlId[] => controlIds().filter((c) => (!on || controlOn(c, on)) && !a.bars.some((b) => b.items.some((i) => i.control === c)));
 
 function arrangementError(a: unknown, where: string): string | null {
   if (!isObj(a) || !Array.isArray(a.bars) || Object.keys(a).length !== 1) return `${where}: a list of bars`;
@@ -147,7 +159,7 @@ function arrangementError(a: unknown, where: string): string | null {
     if (!["start", "center", "end", "between", "around"].includes(b.distribution as string)) return `${where}: a bar's distribution is start, center, end, between or around`;
     if (!Array.isArray(b.items) || b.items.length > MAX_BAR_ITEMS) return `${where}: a bar holds at most ${MAX_BAR_ITEMS} controls`;
     for (const it of b.items) {
-      if (!isObj(it) || typeof it.control !== "string" || !(it.control in CONTROLS)) return `${where}: a control is one of ${CONTROL_IDS.join(", ")}`;
+      if (!isObj(it) || typeof it.control !== "string" || !(it.control in CONTROLS)) return `${where}: a control is one of ${controlIds().join(", ")}`;
       for (const k of Object.keys(it)) if (!["control", "label", "display", "size"].includes(k)) return `${where}: a control has no "${k}"`;
       if (seen.has(it.control)) return `${where}: ${CONTROLS[it.control as ControlId].label} is placed twice`;
       seen.add(it.control);

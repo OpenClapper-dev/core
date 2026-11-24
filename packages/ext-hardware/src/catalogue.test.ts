@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import "./index.ts";
 import { checkFile, fileType, keepGuarded } from "@openclapper/model";
 import { CATALOGUE, CAMERA_CONTROLS, controlCommand, controlGroups, controlValue, formatValue, modelOf, outputCommand } from "./catalogue.ts";
 import { hardwareError, newHardware } from "./device.ts";
@@ -101,4 +102,16 @@ test("effect options become controls and map onto the settings", async () => {
   assert.deepEqual(nw, ["intensityMin", "intensityMax", "kelvin", "frequency", "ember"]);
   assert.deepEqual(effectCommand("tv"), { op: "effect", effect: "tv", settings: { choice: 0, frequency: 5 } });
   assert.deepEqual(effectCommand(null), { op: "effect", effect: null });
+});
+
+test("the Hardware camera control: placeable while the extension is on, valid in a layout either way", async () => {
+  const { BUILTIN_LAYOUTS, CONTROLS, controlOn, layoutError, unplaced } = await import("@openclapper/model");
+  assert.equal(CONTROLS.hardware?.extension, "hardware");
+  const vf = BUILTIN_LAYOUTS.viewfinder.body;
+  assert.ok(unplaced(vf.portrait, ["hardware"]).includes("hardware"));
+  assert.ok(!unplaced(vf.portrait, []).includes("hardware"));
+  assert.equal(controlOn("hardware", []), false);
+  assert.equal(controlOn("shutter", []), true);
+  const withIt = { ...vf, portrait: { bars: vf.portrait.bars.map((b, i) => (i === 0 ? { ...b, items: [...b.items, { control: "hardware", label: true }] } : b)) } };
+  assert.equal(layoutError(withIt as unknown as Record<string, unknown>), null);
 });
