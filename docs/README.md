@@ -25,7 +25,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/admin.md](features/admin.md) | The admin plane: its own Worker and board behind its own Access app, accounts and workspaces across the instance |
 | [features/monitoring.md](features/monitoring.md) | Storage monitoring in the admin plane: the daily snapshot, the operator's marks, the optional Cloudflare overlay |
 | [features/projects.md](features/projects.md) | Projects as a hard scope, the active project on both clients |
-| [features/capture.md](features/capture.md) | Phone Shoot tab: rigs, lenses, overlay, controls, HUD chips, Tag after capture, sequences, direct upload, upload queue |
+| [features/capture.md](features/capture.md) | Phone camera: real lenses, what a capture produces, import, the upload queue |
 | [features/viewfinder-layouts.md](features/viewfinder-layouts.md) | Viewfinder layouts: the model, the Studio editor, how the phone renders them |
 | [features/review-and-tagging.md](features/review-and-tagging.md) | Tags (light model, INT/EXT, weather, location, spot), the shot view, Metadata board, History on the phone, view modes (mask/frame/fit/raw) |
 | [features/extra-fields.md](features/extra-fields.md) | User-defined fields as JSON, AI import, per-project selection |

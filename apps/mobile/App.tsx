@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Pressable, Text, useColorScheme, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -18,6 +18,7 @@ import { apply as applySettings } from "./src/settings";
 import { handleBack } from "./src/shell/back";
 import { LoginForm, ProjectGate, SignInGate } from "./src/shell/Gates";
 import { initialLogin, login as loginState, skipped } from "./src/shell/signin";
+import { setTabOpener } from "./src/shell/nav";
 import { startSync } from "./src/sync";
 import { ConfirmHost, Icon, makeStyles, PALETTES, resolveTheme, SIZE, ThemeProvider, ToastHost, type, useTheme } from "./src/ui";
 
@@ -45,8 +46,8 @@ export default function Root() {
 /** The tabs this device shows: its choice, without apps this build does not have, and Setup always last. */
 function useTabs(): PhoneApp[] {
   const dev = device.use();
-  const list = dev.tabs.filter((t) => t !== "setup").map(appOf).filter((a): a is PhoneApp => !!a);
-  return [...list, appOf("setup")!];
+  const key = dev.tabs.join(",");
+  return useMemo(() => [...dev.tabs.filter((t) => t !== "setup").map(appOf).filter((a): a is PhoneApp => !!a), appOf("setup")!], [key]);
 }
 
 function App() {
@@ -67,6 +68,7 @@ function App() {
   // The tab in front was taken off this device: the first tab instead.
   const current = tabs.find((t) => t.id === tab) ?? tabs[0];
   const go = (id: string) => { setTab(id); setOpened((o) => (o.includes(id) ? o : [...o, id])); };
+  useEffect(() => { setTabOpener((id) => { if (!tabs.some((t) => t.id === id)) return false; go(id); return true; }); return () => setTabOpener(null); }, [tabs]);
 
   // Android back: a screen that can go back takes it; then the first tab; then out of the app.
   useEffect(() => {
