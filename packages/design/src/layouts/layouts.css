@@ -11,6 +11,8 @@
 .oc-app__canvas{position:relative;flex:1;min-width:0;min-height:0;overflow:auto;background:var(--surface-sunken);background-image:radial-gradient(var(--border-divider) 1px,transparent 1.2px);background-size:16px 16px}
 .oc-app__settings{flex:1;min-width:0;overflow:auto;padding:var(--space-7) clamp(var(--space-5),4%,var(--space-8))}
 .oc-app__settings-inner{display:grid;gap:var(--space-7);max-width:520px}
+.oc-app__settings--wide{overflow:hidden;display:flex;flex-direction:column}
+.oc-app__settings--wide>.oc-app__settings-inner{max-width:none;flex:1;min-height:0;grid-template-rows:auto minmax(0,1fr)}
 .oc-app__settings h2{margin:0;font:var(--weight-bold) var(--font-size-xl)/var(--leading-tight) var(--font-sans)}
 .oc-app__group{display:grid;gap:var(--space-5)}
 .oc-app__group h3{margin:0;padding-bottom:var(--space-3);border-bottom:var(--border-w) solid var(--border-divider);font:var(--weight-bold) var(--font-size-lg)/1 var(--font-sans)}

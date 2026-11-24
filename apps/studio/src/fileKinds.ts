@@ -13,13 +13,24 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   preferences: { glyph: "settings", color: 0 },
   photo: { glyph: "image", color: 4 },
   collection: { glyph: "layers", color: 4 },
+  shot: { glyph: "slate", color: 1 },
+  filter: { glyph: "filter", color: 8 },
+  property: { glyph: "tag", color: 0 },
+  naming: { glyph: "edit", color: 0 },
+  // Types of later steps, named already by properties and naming patterns.
+  canvas: { glyph: "brush", color: 7 },
+  set: { glyph: "home", color: 2 },
+  location: { glyph: "location", color: 3 },
+  timeline: { glyph: "timeline", color: 6 },
 };
+/** Labels of types later steps register, so a property can be attached to them before they exist. */
+const LATER: Record<string, [string, string]> = { canvas: ["Canvas", "Canvases"], set: ["Set", "Sets"], location: ["Location", "Locations"], timeline: ["Timeline", "Timelines"] };
 
 export interface Kind { label: string; plural: string; glyph: IconName; color: number; holds: boolean }
 
 export function kindOf(type: string): Kind {
   const t = fileType(type);
-  return { label: t?.label ?? type, plural: t?.plural ?? type, holds: !!t?.holds, ...(LOOK[type] ?? { glyph: "file" as IconName, color: 0 }) };
+  return { label: t?.label ?? LATER[type]?.[0] ?? type, plural: t?.plural ?? LATER[type]?.[1] ?? type, holds: !!t?.holds, ...(LOOK[type] ?? { glyph: "file" as IconName, color: 0 }) };
 }
 
 /** What a shortcut opens: an app, a file of the same root, or nothing any more. */

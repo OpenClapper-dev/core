@@ -50,3 +50,11 @@ A saved query, itself a file of the type `filter`: a group of rules joined by **
 | presence | Position | is empty, is set |
 
 Evaluated by the clients on what they loaded (`evaluate`), the same code everywhere. A rule on a deleted property matches as empty.
+
+## In the Studio: the Project app (`apps/studio/src/apps/project/`)
+
+**Properties** (`Properties.tsx`): the catalogue in its sections, narrowed by file type (then also listing the system properties and the type's read-only facts), with each property's field type, option count and the file types it is on. "New property" starts a text property on the type the list is narrowed to. The editor beside it (resizable) saves every change at once: name, field type (asks first when files have values), unit, what a reference points at and whether it holds several, options (colour from the design system's chooser, rename, reorder, remove with the count of files that lose the value, add), what a single choice depends on and which of its options each parent option allows, the file types it is on with hide, the section (pick or type a new one), and Delete (to the bin with its values). A project without properties offers "Add the default properties".
+
+**Edit with AI** (`AiEdit.tsx`): three steps. Ask: the mode (add properties, or change and add) and the request; the prompt is built live from the request, the catalogue (with ids) and the answer format, and copied with one click. Paste the answer (a code fence is accepted). Review: new properties drawn as the inputs they will be; changed ones now and after, with what each change costs from the project's values ("6 files use 'Idea' and lose the value"); a proposed removal never ticked; entries that cannot be used, with the reason. Options keep their ids by label, so values survive. Nothing is saved before "Apply".
+
+**Naming patterns** (`Naming.tsx`): a pattern and its digits per file type, the tokens drawn as boxes behind the text (red and underlined when unknown or not for this type, with the reason; such a pattern is not used), the name a file would get, and tokens put in at the caret by clicking them. Saved when the field is left. "Edit with AI" runs the same three steps with a now-and-after review of each changed pattern.
