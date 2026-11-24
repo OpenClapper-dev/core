@@ -13,11 +13,12 @@ import {
 } from "@openclapper/design";
 import { DELIVERIES, FORMATS, PRIMES, SQUEEZES } from "@openclapper/fov-math";
 import { focalsOf, type CanvasBody, type CanvasComment as Comment, type CanvasFrame as Frame, type Colour, type Look, type ObjKind as Kind, type PenType, type PresetBody } from "@openclapper/model";
+import { eraseAt, type EraseMode } from "./erase";
 import { clampCentre, lookFilter, NO_LOOK, PENS, rectOf as rectIn, smooth, taper, toEdit, toStore, type BasePhoto, type Obj, type P } from "./geometry";
 
-type Tool = "select" | "pen" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "picture" | "comment";
+type Tool = "select" | "pen" | "eraser" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "picture" | "comment";
 const TOOLS: { id: Tool; icon: IconName; label: string; kbd: string }[] = [
-  { id: "select", icon: "cursor", label: "Move", kbd: "V" }, { id: "pen", icon: "pencil", label: "Pen", kbd: "P" }, { id: "line", icon: "line-tool", label: "Line", kbd: "L" }, { id: "arrow", icon: "arrow-up-right", label: "Arrow", kbd: "A" },
+  { id: "select", icon: "cursor", label: "Move", kbd: "V" }, { id: "pen", icon: "pencil", label: "Pen", kbd: "P" }, { id: "eraser", icon: "eraser", label: "Eraser", kbd: "E" }, { id: "line", icon: "line-tool", label: "Line", kbd: "L" }, { id: "arrow", icon: "arrow-up-right", label: "Arrow", kbd: "A" },
   { id: "rect", icon: "square", label: "Rectangle", kbd: "R" }, { id: "ellipse", icon: "circle", label: "Ellipse", kbd: "O" }, { id: "text", icon: "text", label: "Text", kbd: "T" }, { id: "stencil", icon: "stencil", label: "Stencil", kbd: "S" }, { id: "picture", icon: "image", label: "Place a photo", kbd: "I" }, { id: "comment", icon: "comment", label: "Comment: click a point, or drag a region", kbd: "C" },
 ];
 const KIND: Record<Kind, { label: string; icon: IconName }> = {
@@ -35,7 +36,8 @@ type Act =
   | { type: "end"; id: string; which: 0 | 1; other: P }
   | { type: "draw"; tool: Tool; pts: P[] }
   | { type: "frame"; id: string; start: P; orig: Record<string, P> }
-  | { type: "pinch"; d: number; mid: P; z: number; x: number; y: number };
+  | { type: "pinch"; d: number; mid: P; z: number; x: number; y: number }
+  | { type: "erase"; last: P };
 
 const turn = (v: P, deg: number): P => { const r = (deg * Math.PI) / 180, c = Math.cos(r), n = Math.sin(r); return [v[0] * c - v[1] * n, v[0] * n + v[1] * c]; };
 const ROTATE = `url("data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 3 5.7" stroke="white" stroke-width="5"/><path d="M5 12a7 7 0 1 1 3 5.7"/><path d="M4 16l4 2l1 -4.5" stroke="white" stroke-width="5"/><path d="M4 16l4 2l1 -4.5"/></svg>')}") 12 12, crosshair`;
@@ -65,8 +67,11 @@ export interface CanvasEditorProps {
   title: ComponentChildren;
   me: { id: string; name: string };
   nameOf: (userId: string) => string;
-  /** Someone else's lock: the tool is shown read-only under an overlay. */
-  lock?: { by: string; onRetry: () => void; onCopy: () => void } | null;
+  /**
+   * Who edits. This window (onStop saves, lets the canvas go and turns the window into a viewer), or not:
+   * then the canvas is shown read-only as it changes; by is who edits it (null: nobody, onEdit takes it).
+   */
+  access: { editing: true; onStop: () => void } | { editing: false; by: string | null; onEdit: () => void; onCopy: () => void };
   undo?: { can: boolean; run: () => void }; redo?: { can: boolean; run: () => void };
   onNewPreset: (start: { format: [number, number]; multiplier: number; squeeze: number; delivery: number | null; focal: number } | null, then: (id: string, firstFocal: number) => void) => void;
   status?: ComponentChildren;
@@ -77,8 +82,8 @@ export interface CanvasEditorProps {
 }
 
 export function CanvasEditor(props: CanvasEditorProps) {
-  const { base, presets, photos, me, lock } = props;
-  const locked = !!lock;
+  const { base, presets, photos, me, access } = props;
+  const locked = !access.editing;
   const [objs, setObjs] = useState<Obj[]>(() => props.body.objects.map(toEdit));
   const [frames, setFrames] = useState<Frame[]>(props.body.frames);
   const [pic, setPic] = useState<string | null>(props.body.picture);
@@ -111,6 +116,9 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const [strokeW, setStrokeW] = useState(3);
   const [stencil, setStencil] = useState<IconName>("camera");
   const [penType, setPenType] = useState<PenType>("pen");
+  const [eraseMode, setEraseMode] = useState<EraseMode>("partial");
+  const [eraseSize, setEraseSize] = useState(24);
+  const [eraserAt, setEraserAt] = useState<P | null>(null);
   const [placing, setPlacing] = useState<string | null>(photos[0]?.id ?? null);
   const [editing, setEditing] = useState<string | null>(null);
   const [selF, setSelF] = useState<string | null>(null);
@@ -138,6 +146,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const [showC, setShowC] = useState(true);
   const [showDone, setShowDone] = useState(false);
   const [compose, setCompose] = useState<{ x: number; y: number; w?: number; h?: number } | null>(null);
+  // Becoming a viewer drops what was in hand: the tool, the selection, a text being typed, a stroke.
+  useEffect(() => { if (locked) { setTool("select"); setSel([]); setEditing(null); setDraft(null); setCompose(null); act.current = null; } }, [locked]);
   const [words, setWords] = useState("");
   const [reply, setReply] = useState("");
   const box = useRef<HTMLDivElement>(null);
@@ -200,6 +210,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
     }
     capture(e);
     const p = at(e);
+    if (tool === "eraser") { act.current = { type: "erase", last: p }; rub([p]); return; }
     if (tool === "text" || tool === "stencil" || tool === "picture") {
       if (tool === "picture" && !placing) return;
       const ph = tool === "picture" ? photos.find((x) => x.id === placing) : undefined;
@@ -210,9 +221,30 @@ export function CanvasEditor(props: CanvasEditorProps) {
     }
     act.current = { type: "draw", tool, pts: [p, p] }; setDraft({ tool, pts: [p, p] });
   };
+  /** The eraser at points of its path: its radius is half its size on screen, as a fraction of the surface's height. */
+  const rub = (ps: P[]) => {
+    const h = box.current!.getBoundingClientRect().height, r = eraseSize / 2 / h;
+    setObjs((os) => { let cur: Obj[] = os; for (const q of ps) cur = eraseAt(cur, q, r, aspect, eraseMode, () => uid()) as Obj[]; return cur; });
+  };
   const move = (e: PointerEvent) => {
+    if (tool === "eraser") setEraserAt(at(e));
     const a = act.current; if (!a) return;
     const p = at(e);
+    if (a.type === "erase") {
+      // Along the way, in steps of a quarter of the eraser, so a fast stroke leaves no gaps.
+      const more = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents().map(at) : [p];
+      const path: P[] = [];
+      let last = a.last;
+      const h = box.current!.getBoundingClientRect().height, step = eraseSize / 4 / h;
+      for (const q of more.length ? more : [p]) {
+        const d = Math.hypot((q[0] - last[0]) * aspect, q[1] - last[1]), n = Math.max(1, Math.ceil(d / step));
+        for (let i = 1; i <= n; i++) path.push([last[0] + ((q[0] - last[0]) * i) / n, last[1] + ((q[1] - last[1]) * i) / n]);
+        last = q;
+      }
+      a.last = last;
+      rub(path);
+      return;
+    }
     if (a.type === "draw") {
       // A stylus reports more points than frames are drawn: take all of them for a smooth stroke.
       const more = a.tool === "pen" && typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents().map(at) : [p];
@@ -560,18 +592,24 @@ export function CanvasEditor(props: CanvasEditorProps) {
   return (
     <div ref={root} className={cx("cv", props.hosted && "cv--hosted")}>
       <div className="cv-work">
-        <EditorLayout className={cx("cv-editor", locked && "is-locked")} dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { right: 340, left: 320, bottom: 260 }, panels: [
-          { id: "tools", title: "Tools", icon: "brush", slim: true, body: <ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 6), { separator: true }, ...TOOLS.slice(6, 9), { separator: true }, TOOLS[9]]} /> },
-          { id: "layers", title: "Layers", icon: "layers", body: <PropertyList className="cv-inspector">{layersTab}</PropertyList> },
-          { id: "frames", title: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame", body: <PropertyList className="cv-inspector">{framesTab}</PropertyList> },
-          { id: "comments", title: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment", body: <PropertyList className="cv-inspector">{commentsTab}</PropertyList> },
-        ] }} {...(locked ? { inert: true } : {})}
+        <EditorLayout className="cv-editor" dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { right: 340, left: 320, bottom: 260 }, panels: [
+          { id: "tools", title: "Tools", icon: "brush", slim: true, body: <div {...(locked ? { inert: true } : {})}><ToolRail value={tool} onChange={(t) => setTool(t as Tool)} tools={[TOOLS[0], { separator: true }, ...TOOLS.slice(1, 7), { separator: true }, ...TOOLS.slice(7, 10), { separator: true }, TOOLS[10]]} /></div> },
+          { id: "layers", title: "Layers", icon: "layers", body: <PropertyList className="cv-inspector" {...(locked ? { inert: true } : {})}>{layersTab}</PropertyList> },
+          { id: "frames", title: `Frames${photo ? ` · ${frames.length}` : ""}`, icon: "frame", body: <PropertyList className="cv-inspector" {...(locked ? { inert: true } : {})}>{framesTab}</PropertyList> },
+          { id: "comments", title: `Comments · ${comments.filter((c) => !c.resolved).length}`, icon: "comment", body: <PropertyList className="cv-inspector" {...(locked ? { inert: true } : {})}>{commentsTab}</PropertyList> },
+        ] }}
           toolbar={<Toolbar>
             <strong className="cv-title">{props.title}</strong>
-            <Button size="sm" variant="quiet" icon="undo" label="Undo (Ctrl+Z)" disabled={!props.undo?.can} onClick={() => props.undo?.run()} /><Button size="sm" variant="quiet" icon="redo" label="Redo (Ctrl+Shift+Z)" disabled={!props.redo?.can} onClick={() => props.redo?.run()} />
+            {access.editing
+              ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the canvas go and keep watching it: someone else can edit it now" onClick={access.onStop}>Stop editing</Button>
+              : <span className="cv-viewing"><Icon name="eye" size={14} /><span>{access.by === "You" ? "Editing in another window of yours" : access.by ? `${access.by} is editing` : "Nobody is editing"}</span>
+                  <Button size="sm" variant="primary" icon="edit" disabled={!!access.by} title={access.by ? "Only one can edit a canvas at a time" : "Edit the canvas: others see it read-only meanwhile"} onClick={access.onEdit}>Edit</Button>
+                  <Button size="sm" variant="quiet" icon="copy" onClick={access.onCopy}>Edit a copy</Button></span>}
+            <Button size="sm" variant="quiet" icon="undo" label="Undo (Ctrl+Z)" disabled={locked || !props.undo?.can} onClick={() => props.undo?.run()} /><Button size="sm" variant="quiet" icon="redo" label="Redo (Ctrl+Shift+Z)" disabled={locked || !props.redo?.can} onClick={() => props.redo?.run()} />
             {drawing && <span className="cv-toolopts"><span className="oc-meta">{TOOLS.find((t) => t.id === tool)!.label}</span>
+              {tool === "eraser" && <><Segmented label="Eraser" value={eraseMode} onChange={(v) => setEraseMode(v as EraseMode)} options={[{ value: "partial", label: "Cuts strokes" }, { value: "whole", label: "Whole objects" }]} /><span className="cv-zoom" style={{ width: 150 }}><Slider min={6} max={80} step={2} value={eraseSize} onChange={setEraseSize} /><b className="oc-num">{eraseSize}</b></span></>}
               {tool === "pen" && <Segmented label="Pen" value={penType} onChange={(v) => setPenType(v as PenType)} options={Object.entries(PENS).map(([k, v]) => ({ value: k, label: v.label }))} />}
-              {tool !== "picture" && tool !== "comment" && <ColourButton value={stroke} label="Colour" onChange={setStroke} />}
+              {tool !== "picture" && tool !== "comment" && tool !== "eraser" && <ColourButton value={stroke} label="Colour" onChange={setStroke} />}
               {["pen", "line", "arrow", "rect", "ellipse"].includes(tool) && <span className="cv-zoom" style={{ width: 150 }}><Slider min={1} max={12} step={1} value={strokeW} onChange={setStrokeW} /><b className="oc-num">{strokeW}</b></span>}
               {tool === "stencil" && <Popover trigger={<Button size="sm" icon={stencil} iconAfter="chevron-down">Stencil</Button>}><div className="cv-stencils">{STENCILS.map((s) => <button type="button" key={s} title={s} className={cx(stencil === s && "is-on")} onClick={() => setStencil(s)}><Icon name={s} size={20} /></button>)}</div></Popover>}
               {tool === "picture" && photoPicker(placing, setPlacing, "Choose a photo")}
@@ -631,9 +669,9 @@ export function CanvasEditor(props: CanvasEditorProps) {
               onPointerMove={(e) => { if (act.current?.type === "pan") move(e); }}
               onPointerUp={(e) => { touches.current.delete(e.pointerId); if (act.current?.type === "pan" || (act.current?.type === "pinch" && touches.current.size < 2)) { act.current = null; setGuides({}); } }}
               onPointerCancel={(e) => { touches.current.delete(e.pointerId); if (act.current?.type === "pinch" || act.current?.type === "pan") act.current = null; }}>
-              <div className={cx("cv-stage", `cv-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", scale < 1 && "is-beyond")} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, "--inv": 1 / view.z }}>
+              <div className={cx("cv-stage", `cv-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", tool === "eraser" && "is-erasing", scale < 1 && "is-beyond")} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, "--inv": 1 / view.z }}>
                 <div className="cv-world" style={{ transform: crop, transformOrigin: "0 0" }}>
-                  <div ref={box} className="cv-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : colorCss(surface.kind === "blank" ? surface.color : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up}>
+                  <div ref={box} className="cv-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : colorCss(surface.kind === "blank" ? surface.color : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={() => setEraserAt(null)}>
                     {photoImg}
                     {objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw(o))}
                     {draft && draft.tool !== "pen" && draft.tool !== "line" && draft.tool !== "arrow" && (() => { const [a, b] = draft.pts; return <div className={cx("cv-obj", draft.tool === "comment" ? "cv-region" : `cv-obj--${draft.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: draft.tool === "comment" ? undefined : `calc(${strokeW * 0.13}cqw) solid ${colorCss(stroke)}`, pointerEvents: "none" }} />; })()}
@@ -647,6 +685,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
                     </div>
                   ); })}
                   <div className="cv-surface cv-surface--ui" style={{ width: `${scale * 100}%`, height: `${scale * 100}%` }}>
+                    {tool === "eraser" && eraserAt && <span className="cv-eraser" style={{ left: `${eraserAt[0] * 100}%`, top: `${eraserAt[1] * 100}%`, width: `calc(${eraseSize}px * var(--inv, 1))`, height: `calc(${eraseSize}px * var(--inv, 1))` }} />}
                     {guides.v != null && <span className="cv-guide cv-guide--v" style={{ left: `${guides.v * 100}%` }} />}
                     {guides.h != null && <span className="cv-guide cv-guide--h" style={{ top: `${guides.h * 100}%` }} />}
                     {showC && comments.filter((c) => !c.resolved || showDone || c.id === selC).map((c) => { const on = selC === c.id, px = c.x + (c.w ?? 0), flip = px > 0.62; return [
@@ -691,16 +730,6 @@ export function CanvasEditor(props: CanvasEditorProps) {
             </div>
           }
           statusBar={<StatusBar>{objs.filter((o) => o.kind !== "group").length} objects{photo && <> · {frames.length} frames{picF && <> · the picture is <strong>{picF.name}</strong></>}{scale < 1 && <> · a frame sees more than the photo: the hatched area is beyond it</>}</>}{compare && <> · Compare: two frames side by side, to look at, not to edit</>}{mode === "crop" && picF && <> · Crop: fitted to the picture's frame</>}{cur && curR?.hfov && <> · <strong>{cur.name}</strong> covers {Math.min(100, curR.w * 100).toFixed(0)} % of the photo's width</>}{props.status && <> · {props.status}</>}</StatusBar>} />
-        {lock && (
-          <div className="cv-lock" role="alertdialog" aria-label="Someone else is editing">
-            <div className="cv-lock__card">
-              <span className="cv-lock__icon"><Icon name="lock" size={20} /></span>
-              <strong>{lock.by === "You" ? "You are editing this canvas in another window" : `${lock.by} is editing this canvas`}</strong>
-              <p>Only one person can edit a canvas at a time. You see it as it was last saved. It opens for you when {lock.by === "You" ? "your other window lets it go" : `${lock.by} leaves it`}.</p>
-              <div className="cv-bar"><Button size="sm" onClick={lock.onRetry}>Check again</Button><Button size="sm" variant="quiet" onClick={lock.onCopy}>Open a copy to edit</Button></div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

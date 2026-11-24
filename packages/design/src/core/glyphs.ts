@@ -8,6 +8,7 @@ export const GLYPHS = {
   // and are to be checked against the package when icons are next synced; "cursor", "line-tool" and "group" are in-house.
   "cursor": ["custom", "<path d=\"M6 4l11 8.4l-5.1 1.1l3.2 5.6l-2 1.1l-3.2 -5.6l-3.9 3.5z\"/>"],
   "pencil": ["pencil", "<path d=\"M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4\"/> <path d=\"M13.5 6.5l4 4\"/>"],
+  "eraser": ["eraser", "<path d=\"M19 20h-10.5l-4.21 -4.3a1 1 0 0 1 0 -1.41l10 -10a1 1 0 0 1 1.41 0l5 5a1 1 0 0 1 0 1.41l-9.2 9.3\"/> <path d=\"M18 13.3l-6.3 -6.3\"/>"],
   "line-tool": ["custom", "<path d=\"M6 18l12 -12\"/> <path d=\"M4 20a1.5 1.5 0 1 0 3 -3a1.5 1.5 0 0 0 -3 3\"/> <path d=\"M17 7a1.5 1.5 0 1 0 3 -3a1.5 1.5 0 0 0 -3 3\"/>"],
   "arrow-up-right": ["arrow-up-right", "<path d=\"M17 7l-10 10\"/> <path d=\"M8 7l9 0l0 9\"/>"],
   "square": ["square", "<path d=\"M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14\"/>"],

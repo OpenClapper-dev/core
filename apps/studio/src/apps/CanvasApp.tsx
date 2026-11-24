@@ -1,6 +1,7 @@
-// The Canvas app (docs/features/canvas.md): one window per canvas. It holds the edit lock while the window
-// is open (others see the canvas read-only), saves every change on its own a moment after it was made,
-// uploads the render and thumbnail with each save, and keeps the history for undo and redo.
+// The Canvas app (docs/features/canvas.md): one window per canvas. A window that edits holds the edit lock
+// (others watch the canvas read-only as it changes), saves every change on its own a moment after it was
+// made, uploads the render and thumbnail with each save, and keeps the history for undo and redo. Stop
+// editing lets the lock go and keeps the window open as a viewer; Edit takes it again when it is free.
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { EmptyState, Spinner } from "@openclapper/design";
 import { canvasRefs, focalsOf, type CanvasBody, type PresetBody } from "@openclapper/model";
@@ -22,6 +23,8 @@ import { launch, type AppProps } from "./registry";
 const SAVE_AFTER_MS = 700;
 const RENEW_MS = 20_000;
 const HISTORY = 100;
+/** How often a viewer reads the canvas again (the project's "Every 5 seconds" live updates). */
+const POLL_MS = 5_000;
 
 export const baseOf = (f: FileRec | undefined): BasePhoto | null => (f && f.type === "photo" ? {
   id: f.id, name: f.name, src: imageUrl(f.id, "preview"), aspect: f.photo && f.photo.height ? f.photo.width / f.photo.height : 4 / 3,
@@ -49,6 +52,8 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
   const [doc, setDoc] = useState<CanvasBody>(() => file.body as unknown as CanvasBody);
   const [baseId, setBaseId] = useState<string | null>(() => file.refs?.find((r) => r.kind === "base")?.to ?? null);
   const [rev, setRev] = useState(0);
+  // Whether this window edits; when it does not, who does (null: nobody).
+  const [editing, setEditing] = useState(false);
   const [lockedBy, setLockedBy] = useState<string | null>(null);
   const [status, setStatus] = useState<"saved" | "waiting" | "saving" | "failed">("saved");
   const [flow, setFlow] = useState<{ start?: Partial<ReturnType<typeof draftOf>>; done: (id: string, body: PresetBody) => void } | null>(null);
@@ -59,24 +64,44 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
   latest.current = { doc, baseId };
   const held = useRef(false);
 
-  // The lock: taken when the window opens, renewed while it is open, let go when it closes.
+  const seen = useRef(file.updated_at);
+
+  /** Shows the canvas as the server has it now, and who edits it; the start of an edit and each look of a viewer. */
+  const reread = async (always: boolean) => {
+    const f = (await api.get<{ file: FileRec }>(`/api/files/${file.id}`)).file;
+    if (!held.current) setLockedBy(f.lock?.by ? nameOf(f.lock.by) : null);
+    if ((always || f.updated_at !== seen.current) && f.body) {
+      seen.current = f.updated_at;
+      const b = f.body as unknown as CanvasBody, bid = f.refs?.find((r) => r.kind === "base")?.to ?? null;
+      setDoc(b); setBaseId(bid); latest.current = { doc: b, baseId: bid }; setRev((r) => r + 1);
+    }
+  };
+  // The lock: taken when the window opens and on Edit, renewed while the window edits, let go on Stop editing and when it closes.
   const take = async () => {
     try {
       const r = await api.takeLock(file.id, holder);
+      const was = held.current;
       held.current = r.ok;
+      setEditing(r.ok);
       setLockedBy(r.ok ? null : nameOf(r.lock.by));
-      if (r.ok && lockedBy) { await loadRoot({ project: projectId }); }
+      // Starting to edit: from what the canvas is now, not from what a viewer last saw.
+      if (r.ok && !was) { history.current = { past: [], future: [], at: 0 }; await reread(true); }
     } catch (e) { toastError(e); }
+  };
+  const stop = async () => {
+    if (pending.current) { clearTimeout(pending.current); await save(); }
+    held.current = false; setEditing(false); setLockedBy(null);
+    await api.releaseLock(file.id, holder);
   };
   useEffect(() => {
     void take();
-    const t = setInterval(() => { if (held.current) void take(); }, RENEW_MS);
-    const bye = () => { if (pending.current) { clearTimeout(pending.current); void save(); } void api.releaseLock(file.id, holder); };
+    const renew = setInterval(() => { if (held.current) void take(); }, RENEW_MS);
+    // A viewer reads the canvas again every few seconds, while its page is shown.
+    const look = setInterval(() => { if (!held.current && !document.hidden) void reread(false).catch(() => {}); }, POLL_MS);
+    const bye = () => { if (pending.current) { clearTimeout(pending.current); void save(); } if (held.current) void api.releaseLock(file.id, holder); };
     window.addEventListener("pagehide", bye);
-    return () => { clearInterval(t); window.removeEventListener("pagehide", bye); bye(); };
+    return () => { clearInterval(renew); clearInterval(look); window.removeEventListener("pagehide", bye); bye(); };
   }, []);
-  // Someone else had it: what the canvas is now is what the store has.
-  useEffect(() => { if (lockedBy && file.body) { setDoc(file.body as unknown as CanvasBody); setBaseId(file.refs?.find((r) => r.kind === "base")?.to ?? null); setRev((r) => r + 1); } }, [lockedBy, file.updated_at]);
 
   const byId = useMemo(() => new Map(files.map((f) => [f.id, f])), [files]);
   const base = baseOf(baseId ? byId.get(baseId) : undefined);
@@ -90,7 +115,7 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
     const { doc: b, baseId: bid } = latest.current;
     setStatus("saving");
     try {
-      await api.putFileLocked(file.id, { body: b, refs: canvasRefs(b, bid) }, holder);
+      seen.current = (await api.putFileLocked(file.id, { body: b, refs: canvasRefs(b, bid) }, holder)).updated_at;
       const input = { body: b, base: baseOf(bid ? byId.get(bid) : undefined), photoSrc: (pid: string) => imageUrl(pid, "preview") };
       // A canvas with a picture is shown cropped to it in a thumbnail (05-composition.md).
       const ctxF = { base: input.base, presets: new Map(presetsIn(files).map((p) => [p.id, p.body])) };
@@ -110,6 +135,7 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
   const schedule = () => { setStatus("waiting"); if (pending.current) clearTimeout(pending.current); pending.current = setTimeout(() => void save(), SAVE_AFTER_MS); };
 
   const change = (b: CanvasBody) => {
+    if (!held.current) return;
     // Changes close together (a drag) are one step of the history.
     const h = history.current, now = Date.now();
     if (now - h.at > 600) { h.past = [...h.past, latest.current.doc].slice(-HISTORY); h.future = []; }
@@ -143,10 +169,10 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted }: 
     <>
       <CanvasEditor body={doc} rev={rev} base={base} presets={presets} photos={photos} photoSrc={(pid) => imageUrl(pid, "preview")}
         onChange={change} onBase={setBase} active={active} hosted={hosted} title={file.name} me={me} nameOf={nameOf}
-        lock={lockedBy ? { by: lockedBy, onRetry: () => void take(), onCopy: () => void copy() } : null}
+        access={editing ? { editing: true, onStop: () => void stop() } : { editing: false, by: lockedBy, onEdit: () => void take(), onCopy: () => void copy() }}
         undo={{ can: history.current.past.length > 0, run: () => jump("past") }} redo={{ can: history.current.future.length > 0, run: () => jump("future") }}
         onNewPreset={(start, then) => setFlow({ start: start ? { format: start.format, formatName: null, multiplier: start.multiplier, squeeze: start.squeeze, delivery: start.delivery, lenses: "primes", primes: [start.focal] } : undefined, done: (pid, body) => then(pid, start && focalsOf(body.lenses).includes(start.focal) ? start.focal : focalsOf(body.lenses)[0]) })}
-        status={status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : lockedBy ? "Read-only" : "Saved"} />
+        status={status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : !editing ? "Read-only, read again every 5 s" : "Saved"} />
       {flow && <PresetFlow projectId={projectId} files={files} start={flow.start} onCreated={(pid, body) => flow.done(pid, body)} onClose={() => setFlow(null)} />}
     </>
   );

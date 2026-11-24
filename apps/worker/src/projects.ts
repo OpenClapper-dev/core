@@ -3,10 +3,10 @@ import { clearProject, fixedFolders, liveFiles, NOT_SETTINGS } from "./files.ts"
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces } from "./tenancy.ts";
 
-interface ProjectRow { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number }
+interface ProjectRow { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: string }
 
 /** A project with how many live files it holds; its two fixed folders, what is in Settings and internal files are not counted. */
-const LIST_SQL = `SELECT pr.id, pr.name, pr.workspace_id, pr.created_at, pr.updated_at,
+const LIST_SQL = `SELECT pr.id, pr.name, pr.workspace_id, pr.created_at, pr.updated_at, pr.canvas_live,
   (SELECT count(*) FROM files f WHERE f.project_id = pr.id AND f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL AND ${NOT_SETTINGS("f")}) AS file_count
   FROM projects pr`;
 
@@ -29,16 +29,18 @@ export function registerProjectRoutes(r: Router<Ctx>) {
     const pid = assertUuid(id, "id");
     const b = await readJson<Record<string, unknown>>(request);
     const name = assertString(b.name, "name", 80);
+    // How watchers of a canvas see it change: realtime (a Durable Object) or gradual (reading D1). Absent: kept.
+    const live = b.canvas_live === undefined ? null : b.canvas_live === "realtime" || b.canvas_live === "gradual" ? b.canvas_live : (() => { throw new HttpError(400, "canvas_live must be realtime or gradual"); })();
     const stored = await accessIfExists(ctx, "project", pid, "editor");
     const ws = stored ?? (b.workspace_id == null ? await defaultWorkspace(ctx) : assertRank(ctx, assertUuid(b.workspace_id, "workspace_id"), "editor", "workspace not found"));
     const clash = await env.DB.prepare("SELECT id FROM projects WHERE workspace_id = ?3 AND name = ?1 COLLATE NOCASE AND id != ?2")
       .bind(name, pid, ws).first<{ id: string }>();
     if (clash) return json({ error: "a project with this name already exists", existing_id: clash.id }, 409);
     const now = new Date().toISOString();
-    if (stored) await env.DB.prepare("UPDATE projects SET name = ?2, updated_at = ?3 WHERE id = ?1").bind(pid, name, now).run();
+    if (stored) await env.DB.prepare("UPDATE projects SET name = ?2, updated_at = ?3, canvas_live = coalesce(?4, canvas_live) WHERE id = ?1").bind(pid, name, now, live).run();
     else {
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO projects (id, name, workspace_id, created_at) VALUES (?1, ?2, ?3, ?4)").bind(pid, name, ws, now),
+        env.DB.prepare("INSERT INTO projects (id, name, workspace_id, created_at, canvas_live) VALUES (?1, ?2, ?3, ?4, coalesce(?5, 'realtime'))").bind(pid, name, ws, now, live),
         ...fixedFolders(env, pid, tenant.userId),
       ]);
     }

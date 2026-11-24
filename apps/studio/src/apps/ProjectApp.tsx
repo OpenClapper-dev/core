@@ -1,9 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
-import { Badge, Button, EmptyState, FormField, PropertyList, PropertyRow, PropertySection, Select, SettingsGroup, SettingsLayout, Table, TextInput } from "@openclapper/design";
+import { Badge, Button, EmptyState, FormField, PropertyList, PropertyRow, PropertySection, Segmented, Select, SettingsGroup, SettingsLayout, Table, TextInput } from "@openclapper/design";
 import { ApiError } from "../api";
 import { confirm, prompt, toast, toastError } from "../hosts";
 import { switchProject } from "../project";
-import { removeProject, saveProject, useProjects } from "../projects";
+import { removeProject, saveProject, setCanvasLive, useProjects } from "../projects";
 import { useUser } from "../user";
 import { useCatalogue } from "../props";
 import type { AppProps } from "./registry";
@@ -89,6 +89,13 @@ export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
                 <Button variant="primary" disabled={!name.trim() || name.trim() === current.name} onClick={() => void saveName()}>Rename</Button>
               </span>
             </FormField>
+          </SettingsGroup>
+          <SettingsGroup title="Canvases while someone edits them">
+            <Segmented label="Live updates" value={current.canvas_live ?? "realtime"} onChange={(v) => void setCanvasLive(current, v as "realtime" | "gradual").catch(toastError)}
+              options={[{ value: "realtime", label: "Realtime" }, { value: "gradual", label: "Every 5 seconds" }]} />
+            <p className="st-note">{(current.canvas_live ?? "realtime") === "realtime"
+              ? "Everyone watching a canvas sees each change and each stroke as it is drawn, and sees at once when the person editing lets it go. It runs on a Durable Object per open canvas, which counts against the Cloudflare plan."
+              : "Everyone watching a canvas sees it as it was saved, read again every 5 seconds, and sees within 5 seconds when it is free to edit. It only reads the database."}</p>
           </SettingsGroup>
           <SettingsGroup title="About this project">
             <PropertyList>

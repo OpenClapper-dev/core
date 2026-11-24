@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc -p . && vite build",
     "typecheck": "tsc -p .",
-    "test": "node --test src/*.test.ts src/wm/*.test.ts"
+    "test": "node --test src/*.test.ts src/wm/*.test.ts src/canvas/*.test.ts"
   },
   "dependencies": {
     "@openclapper/design": "workspace:*",

@@ -28,6 +28,12 @@ export async function saveProject(id: string, name: string, workspaceId?: string
   return p;
 }
 
+/** How watchers of the project's canvases see them change. */
+export async function setCanvasLive(p: Project, live: Project["canvas_live"]): Promise<void> {
+  const next = await putProject(p.id, { name: p.name, canvas_live: live });
+  put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
+}
+
 export async function removeProject(id: string): Promise<void> {
   await deleteProject(id);
   put({ list: getProjects().filter((x) => x.id !== id), error: null });
