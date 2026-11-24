@@ -1,16 +1,18 @@
 import { DurableObject } from "cloudflare:workers";
 import { assertUuid, HttpError, type Router } from "@openclapper/service-kit";
+import { fileType } from "@openclapper/model";
 import { accessFile } from "./files.ts";
 import type { Ctx, Env } from "./index.ts";
 
 /**
- * A canvas watched live (docs/features/canvas.md, "Live updates"): one Durable Object per canvas that is
+ * A file watched live (docs/features/canvas.md, "Live updates"): one Durable Object per lockable file (a canvas,
+ * a shot, a timeline; the class keeps its first name, CanvasRoom) that is
  * open in a project set to realtime. The window that holds the edit lock connects as the editor and sends
  * what it changes; every other window connects as a viewer and gets it. Nothing is stored here: saves
  * still go to D1 through the lock, a viewer that connects reads the canvas from the API, and the room
  * sleeps (hibernation) between messages.
  *
- * Editor → room: `{ type: "doc", body, base }` (the canvas after a change, throttled by the editor),
+ * Editor → room: `{ type: "doc", body, base?, refs? }` (the file after a change, throttled by the editor),
  * `{ type: "draft", draft }` (a stroke being drawn; null when it ends), `{ type: "held" }` (after each renewal),
  * `{ type: "saved" }` (after a save, when the canvas was too large to send).
  * Room → viewers: the same `doc`, `draft` and `saved`, and `{ type: "editor", by }` when an editor connects, renews
@@ -34,7 +36,7 @@ export function registerLiveRoutes(r: Router<Ctx>) {
     const { env, request, url, tenant } = ctx;
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") throw new HttpError(426, "websocket upgrade expected");
     const f = await accessFile(ctx, assertUuid(id, "id"), "viewer");
-    if (f.type !== "canvas") throw new HttpError(400, "only a canvas is watched live");
+    if (!fileType(f.type)?.lockable) throw new HttpError(400, "only a file edited under a lock is watched live");
     const holder = readHolder(url.searchParams.get("holder"));
     const row = await env.DB.prepare("SELECT f.lock_by, f.lock_holder, f.lock_until, p.canvas_live FROM files f JOIN projects p ON p.id = f.project_id WHERE f.id = ?1")
       .bind(f.id).first<{ lock_by: string | null; lock_holder: string | null; lock_until: string | null; canvas_live: string }>();
@@ -71,10 +73,12 @@ export class CanvasRoom extends DurableObject<Env> {
     if (this.ctx.getTags(ws)[0] !== "editor") return;
     const text = typeof raw === "string" ? raw : new TextDecoder().decode(raw);
     if (text.length > MAX_LIVE_BYTES) return;
-    let msg: { type?: unknown; body?: unknown; base?: unknown; draft?: unknown };
+    let msg: { type?: unknown; body?: unknown; base?: unknown; refs?: unknown; draft?: unknown };
     try { msg = JSON.parse(text) as typeof msg; } catch { return; }
     // The room checks the shape only: what a viewer shows is drawn by the editor's own code, and nothing is stored.
-    if (msg.type === "doc" && msg.body && typeof msg.body === "object" && (msg.base === null || typeof msg.base === "string")) this.send("viewer", { type: "doc", body: msg.body, base: msg.base });
+    if (msg.type === "doc" && msg.body && typeof msg.body === "object" && (msg.base === undefined || msg.base === null || typeof msg.base === "string") && (msg.refs === undefined || Array.isArray(msg.refs))) {
+      this.send("viewer", { type: "doc", body: msg.body, ...(msg.base !== undefined ? { base: msg.base } : {}), ...(msg.refs !== undefined ? { refs: msg.refs } : {}) });
+    }
     else if (msg.type === "draft" && (msg.draft === null || typeof msg.draft === "object")) this.send("viewer", { type: "draft", draft: msg.draft });
     else if (msg.type === "saved") this.send("viewer", { type: "saved" });
     else if (msg.type === "held") this.send("viewer", { type: "editor", by: (ws.deserializeAttachment() as Who).user });

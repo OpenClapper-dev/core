@@ -9,7 +9,7 @@ import { createPortal } from "preact/compat";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   AppIcon, Badge, Banner, Button, Checkbox, ColorChooser, colorCss, Dock, DropdownMenu, EmptyState, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, Slider, Spinner, StatusBar, Switch, TextInput, Toolbar, ToolbarSpacer,
-  cx, dockShow, useDockLayout, useSort, type DockPanel,
+  cx, dockCollapse, dockShow, useDockLayout, useSort, type DockPanel,
 } from "@openclapper/design";
 import { emptyCanvas, HOLD_MS, timelineRefs, type CanvasBody, type Clip, type PresetBody, type TimelineBody } from "@openclapper/model";
 import * as api from "../api";
@@ -32,7 +32,9 @@ import { Pic } from "../shots/Pic";
 import { see, type Mode, type PicCtx } from "../shots/picture";
 import { clock } from "../shots/progressionParts";
 import { at as atTime, blocksOf, chaptersOf, moveClips, type Block, type Seg } from "../timeline/cut";
+import { Editing } from "./CanvasApp";
 import type { AppProps } from "./registry";
+import { ShotWindow } from "./ShotApp";
 
 const SAVE_AFTER_MS = 600;
 const HISTORY = 100;
@@ -78,7 +80,8 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
   const [, tick] = useState(0);
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [status, setStatus] = useState<"saved" | "waiting" | "saving" | "failed">("saved");
-  const lock = useEditLock(f, nameOf, (x) => { const b = bodyOf(x); latest.current = b; setBody(b); }, () => { if (pending.current) { clearTimeout(pending.current); void save(); } });
+  const lock = useEditLock(f, nameOf, (x) => { const b = bodyOf(x); latest.current = b; setBody(b); }, () => { if (pending.current) { clearTimeout(pending.current); void save(); } },
+    { realtime: project?.canvas_live === "realtime", onRemote: (d) => { const b = { clips: [], holdMs: null, ...d.body } as TimelineBody; latest.current = b; setBody(b); } });
   const readonly = !lock.editing;
   async function save() {
     pending.current = null;
@@ -106,6 +109,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
     setStatus("waiting");
     if (pending.current) clearTimeout(pending.current);
     pending.current = setTimeout(() => void save(), SAVE_AFTER_MS);
+    lock.send(() => ({ body: latest.current as unknown as Record<string, unknown> }));
   };
   const jump = (from: "past" | "future") => {
     if (readonly) return;
@@ -119,6 +123,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
     setStatus("waiting");
     if (pending.current) clearTimeout(pending.current);
     pending.current = setTimeout(() => void save(), SAVE_AFTER_MS);
+    lock.send(() => ({ body: latest.current as unknown as Record<string, unknown> }));
   };
   const clips = body.clips;
   const setClips = (list: Clip[]) => change((b) => ({ ...b, clips: list }));
@@ -130,6 +135,8 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
   const total = blocks.length ? blocks[blocks.length - 1].start + blocks[blocks.length - 1].len : 0;
   const [t, setT] = useState(startAt);
   const [playing, setPlaying] = useState(false);
+  // A canvas or a shot mounted on the stage (editing in place): the clip it belongs to.
+  const [editing, setEditingState] = useState<string | null>(null);
   const [sel, setSel] = useState<string[]>(() => (clips[0] ? [clips[0].id] : []));
   const here = atTime(blocks, t);
   const chosen = blocks.filter((b) => sel.includes(b.clip.id));
@@ -145,9 +152,10 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
   }, [playing, total]);
   // The address says where the playhead is when it stops.
   useEffect(() => { if (!playing) setRoute(`${f.id}${t > 0 ? `?t=${(t / 1000).toFixed(1)}` : ""}`); }, [playing, t > 0 ? Math.round(t / 100) : 0, f.id]);
-  const seek = (time: number) => { setPlaying(false); const x = Math.max(0, Math.min(total, time)); setT(x); const b = atTime(blocks, x)?.block; if (b) setSel([b.clip.id]); };
+  const seek = (time: number) => { setPlaying(false); setEditing(null); const x = Math.max(0, Math.min(total, time)); setT(x); const b = atTime(blocks, x)?.block; if (b) setSel([b.clip.id]); };
   const pick = (b: Block<FileRec>, e?: MouseEvent | KeyboardEvent, time = b.start) => {
     setPlaying(false); setT(time);
+    if (editing && editing !== b.clip.id) setEditing(null);
     if (e && (e.ctrlKey || e.metaKey)) { setSel(sel.includes(b.clip.id) ? sel.filter((x) => x !== b.clip.id) : [...sel, b.clip.id]); return; }
     if (e?.shiftKey && sel.length) {
       const a = blocks.findIndex((x) => x.clip.id === sel[sel.length - 1]), z = blocks.indexOf(b);
@@ -206,10 +214,23 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
     remove: () => remove(sel),
     all: () => setSel(clips.map((c) => c.id)),
     undo: () => jump("past"), redo: () => jump("future"),
-  }), active);
+  }), active && !editing);
+  /** Mounts the clip's canvas or shot on the stage; playback stops and the playhead stays on the clip. */
+  const editHere = (b: Block<FileRec>) => { if (!b.file || b.file.deleted_at || (b.file.type !== "canvas" && b.file.type !== "shot")) return; setPlaying(false); setT(b.start); setSel([b.clip.id]); setEditing(b.clip.id); };
+  /** Edit a copy: the clip points at a copy of the file, which is edited here; the original stays as it is. */
+  const editCopy = async (b: Block<FileRec>) => {
+    if (!b.file || readonly) return;
+    try {
+      const copy = await store.duplicate(b.file);
+      patch([b.clip.id], { file: copy.id });
+      toast(`This clip shows “${copy.name}” now; “${b.file.name}” stays as it is`, { tone: "info" });
+    } catch (e) { toastError(e); }
+  };
 
   // ---------- Panels and view ----------
   const [panels, setPanels, resetPanels] = useDockLayout("timeline", { left: { tabs: ["files", "used", "chapters"] }, right: { tabs: ["clip"] }, bottom: { tabs: ["strip"] } });
+  // While a file is edited in place, the file panels fold away to give it room; they come back after.
+  const setEditing = (id: string | null) => { if (!!id !== !!editing) setPanels(dockCollapse(panels, "files", !!id)); setEditingState(id); };
   const [spread, setSpread] = useState("spread");
   const [scale, setScale] = useState(56);
   const [mode, setMode] = useState<Mode>("crop");
@@ -260,7 +281,26 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
   // ---------- The stage ----------
   const seg = here?.seg;
   const stageSeen = seg ? seenOf(seg, here!.u) : null;
-  const stage = (
+  const editBlock = editing ? blocks.find((b) => b.clip.id === editing) : undefined;
+  const editFile = editBlock?.file && !editBlock.file.deleted_at ? editBlock.file : undefined;
+  const elsewhere = editFile ? uses.filter((u) => u.id !== f.id) : [];
+  const meEditor = { id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" };
+  const stage = editFile ? (
+    <div className="sh-edit">
+      <div className="sh-host">
+        <Button size="sm" icon="arrow-left" onClick={() => setEditing(null)}>Back to the cut</Button>
+        <span className="sh-host__crumb"><AppIcon glyph="timeline" color={6} size={20} />{f.name}<Icon name="chevron-right" size={12} /><AppIcon glyph={kindOf(editFile.type).glyph} color={kindOf(editFile.type).color} size={20} /><strong>{editFile.name}</strong></span>
+        <span className="sh-host__note">{elsewhere.length ? <><Icon name="link" size={12} /> You are changing the file itself. Also used in: {elsewhere.map((u) => u.name).join(", ")}</> : <><Icon name="file" size={12} /> Used only in this timeline</>}</span>
+        <span style={{ flex: 1 }} />
+        {elsewhere.length > 0 && !readonly && <Button size="sm" variant="quiet" icon="copy" title="A copy of the file takes its place in this clip and is edited here; the original stays as it is" onClick={() => void editCopy(editBlock!)}>Edit a copy instead</Button>}
+        <Button size="sm" variant="quiet" icon="external" onClick={() => openFile(editFile, map)}>Open in {kindOf(editFile.type).label}</Button>
+        <Button size="sm" variant="primary" icon="check" onClick={() => setEditing(null)}>Done</Button>
+      </div>
+      {editFile.type === "canvas"
+        ? <Editing key={editFile.id} file={editFile} files={files} projectId={projectId} active={active} hosted live={project?.canvas_live} me={meEditor} nameOf={nameOf} />
+        : <ShotWindow key={editFile.id} f={editFile} files={files} bin={bin} projectId={projectId} active={active} hosted />}
+    </div>
+  ) : (
     <div className="tl-stage">
       <div className={cx("sh-stage", (!seg || seg.kind !== "pic" && seg.kind !== "prog") && "is-empty")}>
         {!seg ? <EmptyState icon="timeline" title="An empty cut">Drag files in from the Files panel, or add a placeholder (P).</EmptyState>
@@ -273,7 +313,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
       <div className="tl-transport">
         <Button size="sm" variant="quiet" icon="skip-back" label="To the start (Home)" onClick={() => seek(0)} />
         <Button size="sm" variant="quiet" icon="chevron-left" label="Previous clip (←)" disabled={idx <= 0} onClick={() => blocks[idx - 1] && pick(blocks[idx - 1])} />
-        <Button size="sm" variant="primary" icon={playing ? "pause" : "play"} label={playing ? "Pause (Space)" : "Play (Space)"} disabled={!blocks.length} onClick={() => setPlaying(!playing)} />
+        <Button size="sm" variant="primary" icon={playing ? "pause" : "play"} label={playing ? "Pause (Space)" : "Play (Space)"} disabled={!blocks.length} onClick={() => { setEditing(null); setPlaying(!playing); }} />
         <Button size="sm" variant="quiet" icon="chevron-right" label="Next clip (→)" disabled={idx >= blocks.length - 1} onClick={() => blocks[idx + 1] && pick(blocks[idx + 1])} />
         <span className="tl-time oc-num"><strong>{clock(Math.min(t, total))}</strong> / {clock(total)}</span>
         <span style={{ flex: 1 }} />
@@ -302,7 +342,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
               <div key={b.clip.id} data-sort data-clip={b.clip.id} data-placeholder={kindOfSeg === "placeholder" ? "1" : undefined} role="button" tabIndex={0}
                 className={cx("tl-clip", sel.includes(b.clip.id) && "is-current", many && "is-group", kindOfSeg === "placeholder" && "is-placeholder", kindOfSeg === "missing" && "is-missing", drop?.into === b.clip.id && "is-target")}
                 style={{ width: px(b.len), ...sort.style(i) }} title={labelOf(b)} onPointerDown={readonly ? undefined : sort.start(i)} onClick={(e) => pick(b, e)}
-                onDblClick={() => b.file && !b.file.deleted_at && openFile(b.file, map)}>
+                onDblClick={() => { if (!b.file || b.file.deleted_at) return; if (b.file.type === "canvas" || b.file.type === "shot") editHere(b); else openFile(b.file, map); }}>
                 <span className="tl-clip__cells">
                   {cells.map((s, k) => { const from = s0; s0 += s.ms; const sn = s.kind === "missing" ? null : seenOf(s); return (
                     <span key={k} className="tl-cell" style={{ flex: cells.length > 1 ? `${s.ms} 1 0px` : 1 }} onClick={(e) => { if (cells.length > 1) { e.stopPropagation(); pick(b, e, from); } }}>
@@ -431,7 +471,8 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
             <PropertyRow label="Starts at" value={clock(one.start)} numeric />
             {one.fixed && <p className="sh-note">The pictures and their timing belong to the shot and are changed there. The clip has no time of its own.</p>}
             <div className="sh-row" style={{ borderBottom: 0 }}>
-              {file && !file.deleted_at && <Button size="sm" icon="external" title={`Open the ${kindOf(file.type).label} in a window of its own (or double-click the clip)`} onClick={() => openFile(file, map)}>Open in {kindOf(file.type).label}</Button>}
+              {file && !file.deleted_at && (file.type === "canvas" || file.type === "shot") && <Button size="sm" icon="edit" title="Mounts the file's app in this window, in place of the stage (or double-click the clip)" onClick={() => editHere(one)}>Edit here</Button>}
+              {file && !file.deleted_at && <Button size="sm" variant="quiet" icon="external" title={`Open the ${kindOf(file.type).label} in a window of its own`} onClick={() => openFile(file, map)}>Open in {kindOf(file.type).label}</Button>}
               {file?.type === "photo" && !file.deleted_at && <Button size="sm" variant="quiet" icon="brush" disabled={readonly} onClick={() => void makeCanvas(one)}>Make a canvas from it</Button>}
               {!one.clip.file && <Button size="sm" variant="quiet" icon="plus" disabled={readonly} onClick={() => { setPanels(dockShow(panels, "files")); toast("Drag a file from the Files panel onto the placeholder: it takes its place, its time and its chapter", { tone: "info" }); }}>Fill it</Button>}
               <Button size="sm" variant="quiet" icon="trash" disabled={readonly} onClick={() => remove([one.clip.id])}>Remove</Button>
@@ -478,7 +519,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
         <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={() => resetPanels()} />
       </Toolbar>
       <Dock panels={dockPanels} layout={panels} onLayoutChange={setPanels} zoneSizes={{ left: 300, right: 320, bottom: 300 }}>{stage}</Dock>
-      <StatusBar>{clips.length} clips · {clock(total)} · {chapters.length} chapters{placeholders.length > 0 && <> · {placeholders.length} placeholders</>}{sel.length > 1 && <> · {sel.length} chosen</>}{playing && <> · playing</>} · {readonly ? "Read-only, read again every 5 s" : status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : "Saved"}</StatusBar>
+      <StatusBar>{clips.length} clips · {clock(total)} · {chapters.length} chapters{placeholders.length > 0 && <> · {placeholders.length} placeholders</>}{sel.length > 1 && <> · {sel.length} chosen</>}{playing && <> · playing</>}{editFile && <> · editing <strong>{editFile.name}</strong> in place: playback is paused and the playhead stays on the clip</>} · {readonly ? (lock.live ? "Read-only, live" : "Read-only, read again every 5 s") : status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : "Saved"}</StatusBar>
       {drop && createPortal(<>{drop.line && <i className="tl-insert" style={{ left: drop.line[0], top: drop.line[1], height: drop.line[2] }} />}<div className="oc-dock__ghost" style={{ left: drop.x + 12, top: drop.y + 12 }}><Icon name={drop.into ? "check" : "plus"} size={12} />{drop.into ? `Fill the placeholder with ${drop.label}` : drop.label}</div></>, document.body)}
     </div>
   );

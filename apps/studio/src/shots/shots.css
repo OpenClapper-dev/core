@@ -139,3 +139,8 @@
 .sh-gen__smooth > div { flex: 1; display: grid; gap: var(--space-2); }
 .sh-gen__smooth small { color: var(--text-secondary); font-size: var(--font-size-xs); }
 .sh-cover { width: 100%; height: 100%; }
+
+/* A shot someone else edits (or nobody, until Edit): what changes it is muted like a disabled control and does nothing. */
+.sh-readonly, .sh-readonly * { color: var(--text-disabled) !important; }
+.sh-readonly :is(.oc-btn, .oc-input, button, input, select) { border-style: dashed; border-color: var(--border-control); background: transparent; box-shadow: none; }
+.sh-viewing { display: inline-flex; align-items: center; gap: var(--space-3); padding-inline: var(--space-3); color: var(--text-secondary); }
