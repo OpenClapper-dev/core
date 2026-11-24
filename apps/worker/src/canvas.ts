@@ -4,7 +4,7 @@
  * type), a canvas's render and thumbnail, and the additive rule of presets.
  */
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
-import { fileType, presetChangeError, type CanvasBody, type PresetBody } from "@openclapper/model";
+import { fileType, presetChangeError, type CanvasBody, type PresetBody, type ShotBody } from "@openclapper/model";
 import { accessFile, fileOut } from "./files.ts";
 import { assertBodySize, preconditionFailed, sniffImageType } from "./images.ts";
 import type { Ctx, Env } from "./index.ts";
@@ -23,6 +23,15 @@ export function frameStatements(env: Env, canvasId: string, body: CanvasBody): D
       `INSERT INTO frames (canvas_id, frame_id, preset_id, focal, is_picture)
        SELECT ?1, json_extract(value, '$.frame'), json_extract(value, '$.preset'), json_extract(value, '$.focal'), json_extract(value, '$.picture') FROM json_each(?2)`,
     ).bind(canvasId, JSON.stringify(rows))] : []),
+  ];
+}
+
+/** The row of a shot's default frame in `frames` (frame id "default"), so a lens it uses counts as in use. */
+export function shotFrameStatements(env: Env, shotId: string, body: ShotBody): D1PreparedStatement[] {
+  const f = body.progression?.frame;
+  return [
+    env.DB.prepare("DELETE FROM frames WHERE canvas_id = ?1").bind(shotId),
+    ...(f?.kind === "preset" && f.preset && f.focal ? [env.DB.prepare("INSERT INTO frames (canvas_id, frame_id, preset_id, focal, is_picture) VALUES (?1, 'default', ?2, ?3, 0)").bind(shotId, f.preset, f.focal)] : []),
   ];
 }
 

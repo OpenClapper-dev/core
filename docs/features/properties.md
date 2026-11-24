@@ -22,7 +22,7 @@ A definition is a file of the type `property` in the project's **Settings** fold
 
 **Changing a definition** fits its values (`refitValues`, Worker): a removed option, another field type or a reference that may now hold one file drops or trims what no longer fits, also for the choices that depend on it. **Deleting** a definition bins it with its values; restoring brings both back; purging removes them and the references they kept.
 
-**The template**: a new project starts with Scene, Shot no., Set (a reference to sets), INT / EXT and Day / Night (shots and sets), Shot size, Angle, Movement, Support, Lens (shots), and Kind (canvases). They are ordinary definitions: change, hide or delete them.
+**The template**: a new project starts with Scene, Shot no., Set (a reference to sets), INT / EXT and Day / Night (shots and sets), Shot size, Angle, Movement, Support, Lens (shots), Locations (a reference to locations, on sets), Address and Position (locations), and Kind (canvases). They are ordinary definitions: change, hide or delete them.
 
 ## Values
 

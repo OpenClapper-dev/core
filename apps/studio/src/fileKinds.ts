@@ -25,7 +25,7 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   timeline: { glyph: "timeline", color: 6 },
 };
 /** Labels of types later steps register, so a property can be attached to them before they exist. */
-const LATER: Record<string, [string, string]> = { canvas: ["Canvas", "Canvases"], set: ["Set", "Sets"], location: ["Location", "Locations"], timeline: ["Timeline", "Timelines"] };
+const LATER: Record<string, [string, string]> = { timeline: ["Timeline", "Timelines"] };
 
 export interface Kind { label: string; plural: string; glyph: IconName; color: number; holds: boolean }
 

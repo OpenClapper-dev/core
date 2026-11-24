@@ -5,6 +5,7 @@
 import { registerFileType, type Body, type FileType, type Ref } from "./files.ts";
 import { canvasError, emptyCanvas, presetError, remapCanvas } from "./canvas.ts";
 import { filterError } from "./filters.ts";
+import { emptyShot, placeError, shotError } from "./shot.ts";
 import { defaultPattern, definitionError, MAX_DIGITS } from "./properties.ts";
 
 const noKeys = (body: Body, what: string): string | null => {
@@ -206,19 +207,39 @@ export const FILTER: FileType = {
 };
 
 /**
- * A shot (04-shots.md): an intent, a file with properties. Step B4 brings it with properties only, so
- * a shot list can be made and filled; its content list and progression come with step B6.
+ * A shot (04-shots.md): an intent, a file with properties, a content list ("content" references, in
+ * order) and at most one progression (its "item" references, an "overlay" reference, and its settings
+ * in the body). Items and the overlay show pictures only; the Worker checks the types (`refTargets`).
+ * Version 2: the body went from {} to { progression }.
  */
 export const SHOT: FileType = {
-  type: "shot", label: "Shot", plural: "Shots", roots: ["project"], version: 1,
+  type: "shot", label: "Shot", plural: "Shots", roots: ["project"], refs: ["content", "item", "overlay"], version: 2,
+  refTargets: { item: ["photo", "canvas"], overlay: ["canvas"] },
+  empty: () => emptyShot() as unknown as Body,
+  check: (body, refs) => shotError(body, refs),
+  upgrade: (body) => ({ progression: null, ...body }),
+};
+
+/** A set (09a-places.md): the place in the story where a scene plays (Motiv). Properties and a content list. */
+export const SET: FileType = {
+  type: "set", label: "Set", plural: "Sets", roots: ["project"], refs: ["content"], version: 1,
   empty: () => ({}),
-  check: (body) => noKeys(body, "shot"),
+  check: (body, refs) => placeError("set", body, refs),
+};
+
+/** A location (09a-places.md): the real place where it is filmed (Drehort). Properties (address, position) and a content list. */
+export const LOCATION: FileType = {
+  type: "location", label: "Location", plural: "Locations", roots: ["project"], refs: ["content"], version: 1,
+  empty: () => ({}),
+  check: (body, refs) => placeError("location", body, refs),
 };
 
 registerFileType(PROPERTY);
 registerFileType(NAMING);
 registerFileType(FILTER);
 registerFileType(SHOT);
+registerFileType(SET);
+registerFileType(LOCATION);
 
 /**
  * A canvas (docs/rewrite/05-composition.md): one tool for drawing, placing pictures and framing. Its
