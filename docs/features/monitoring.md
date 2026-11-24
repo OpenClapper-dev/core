@@ -13,7 +13,7 @@ Parked with their own issues under the `monitoring` label: request metering per 
 
 The app Worker's daily cron (`scheduled` in `apps/worker/src/index.ts`, 03:17 UTC, next to the recycle-bin and session purges) runs `snapshotStorage` (`apps/worker/src/storage-stats.ts`), which writes the day's rows into `storage_daily`:
 
-- one row per workspace with photos: `bytes` (the sum of `photos.size_bytes`), `objects` (its photos), `unsized` (photos from before migration 0021, whose size was never recorded). Binned shots count: their photos still occupy the bucket until the bin is emptied.
+- one row per workspace with photos: `bytes`, `objects` (its photos), `unsized` (photos without a recorded size). Binned photos count: they occupy the bucket until the bin is emptied. The rebuild writes these rows again from step B2 (#374); until then only the bucket row is written.
 - one row with `workspace_id = ''`: the bound bucket's total bytes and object count from an R2 listing (one Class A operation per 1 000 objects). It also covers renders and orphans that no photo row accounts for, so it is larger than the sum of the workspace rows.
 
 Days are UTC. Running the cron twice in a day rewrites the rows (`INSERT OR REPLACE`). The table is never purged: 365 rows a year per key. A failing snapshot is logged and never stops the other cron jobs.
@@ -39,7 +39,6 @@ Tested in `apps/admin/test/storage.test.ts`.
 - **Storage**: the bucket total over 30 days, 90 days or a year as a line, the operator's marks as dashed lines with their label, a crosshair and a tooltip on hover. Before the first snapshot the chart says so.
 - **Workspaces**: photos, bytes, share of the photos' bytes and a sparkline of the window, largest first.
 - **Marks**: a size with a unit (MB, GB) and a label per row, at most 10; Save sends the whole list. The empty state explains what marks do.
-- **Object metadata** (#255): Check counts the bucket's objects whose custom metadata is missing or different from what the app writes (photos: `workspace_id`, `shot_id`, `photo_id` from D1; renders: `kind`, `id` from the key); Repair rewrites it page by page with the same body and content type (`apps/admin/src/objects.ts`). Objects the app does not know (no photo row, another prefix) are counted and left alone. Needed after a bucket copy that drops metadata (the reference instance's rename on 2026-10-20; a staging recreate, whose rclone copy also adds `mtime`/`btime`).
 - **Banner** on both tabs while the latest bucket total is past a mark, naming the highest crossed one (`role="alert"`); on the Board it links to Monitoring.
 
 The charts (`charts.tsx`) are hand-written SVG with no dependency, one hue (the accent) only: the design system has no categorical palette, so a comparison across workspaces is a table with sparklines, never stacked colours. Marks are drawn on the warning ink and always carry their text. Text is sized by the container's width, not by viewBox scaling. Both themes (Sun, Set) were checked with screenshots.

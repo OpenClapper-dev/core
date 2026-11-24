@@ -7,7 +7,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 | Worker `APP_WORKER_NAME` (default `openclapper-api`) | API and Studio on one hostname; `assets.run_worker_first` routes `/api/*`, `/auth/*`, `/health` to the Worker, everything else is the SPA, served with the CSP and security headers of `apps/studio/public/_headers`. `preview_urls: false` (both Workers): a preview URL would run an unreviewed version with the production bindings. A daily cron empties the recycle bin and old sessions and snapshots storage ([monitoring](features/monitoring.md)). Observability enabled. |
 | Worker `ADMIN_WORKER_NAME` (default `openclapper-admin`) | The admin plane (`apps/admin`), its own hostname, the same D1 and R2, behind its own Cloudflare Access application ([admin](features/admin.md)). Without `ACCESS_TEAM_DOMAIN` and `ADMIN_ACCESS_AUD` it refuses every request. A daily cron keeps Cloudflare analytics for the board when `CF_ANALYTICS_TOKEN` is set ([monitoring](features/monitoring.md)). |
 | D1 `D1_DATABASE_NAME` (default `openclapper-db`) | Binding `DB`, migrations in `apps/worker/migrations/` (only the app Worker's config applies them) |
-| R2 `R2_BUCKET` (default `openclapper-media`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…`, with their owner in their custom metadata (photos: workspace, shot, photo; renders: kind, id). A bucket copy can lose it: the admin board's Monitoring tab repairs it from D1 ([monitoring](features/monitoring.md)) |
+| R2 `R2_BUCKET` (default `openclapper-media`) | Binding `SHOTS_BUCKET`, objects `photos/<photoId>.<ext>` and `renders/…` |
 | Durable Object `PreviewRoom` (SQLite-backed) | Binding `PREVIEW`, migration tag `v1` (applied by `wrangler deploy`). One room per user for the live layout preview; holds websockets, no data. |
 | Cloudflare Access | The admin plane's sign-in. |
 | Android signing key | Per deployment, made once with `scripts/keystore.sh` (into a folder outside the checkout); in the deployment's GitHub secrets and a backup, never in git or a checkout. The staging app (`org.openclapper.staging`) uses the same key. Builds need no other service; the only build-time setting is `EXPO_PUBLIC_API_URL` ([self-hosting](self-hosting.md#the-phone)) |
@@ -18,15 +18,7 @@ Everything runs on one Cloudflare account per instance; nothing else is needed. 
 
 - **App users** sign in with email and password ([accounts](features/accounts.md)): the Studio keeps an HttpOnly session cookie, the phone a bearer token in its keystore. Accounts are made in the admin plane (or with `scripts/user.mjs`); there is no public sign-up.
 - **Operators** of the admin plane sign in through its Cloudflare Access application, never with an app account.
-- **Local development**: the app signs in as in production, as `dev@localhost` / `openclapper-local-dev` (the bootstrap user, `make init`). Only the admin plane has a bypass, `ADMIN_DEV_BYPASS="true"` in its gitignored `.dev.vars`, since no Access application sits in front of it on a laptop; it works only for requests to `localhost` / `127.0.0.1` and must never be set in a deployed config.
-
-## An instance from before accounts
-
-The reference instance ran behind Cloudflare Access until 2026-10-19 (epic #107); migration 0021 gave all its data to the bootstrap user. Such an instance switches over like this:
-
-1. Deploy (it applies migrations 0021 and 0022), set up the admin plane's Access application ([self-hosting](self-hosting.md#4-the-admin-planes-sign-in)).
-2. Give the bootstrap user your email and a password: `node scripts/user.mjs --bootstrap --email … --remote`. It keeps its id, so the data stays with it.
-3. Delete the Access application (not only its policy) of the app's hostname. The Studio shows its sign-in page; the phone needs an APK from #115 on.
+- **Local development**: the app signs in as in production, as `dev@localhost` / `openclapper-local-dev` (a local user made by `make init`). Only the admin plane has a bypass, `ADMIN_DEV_BYPASS="true"` in its gitignored `.dev.vars`, since no Access application sits in front of it on a laptop; it works only for requests to `localhost` / `127.0.0.1` and must never be set in a deployed config.
 
 ## Secrets and rotation
 

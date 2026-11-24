@@ -4,7 +4,7 @@
  * the Access variables; the Access JWKS endpoint is answered by a stubbed fetch.
  */
 import { env } from "cloudflare:workers";
-import { BOOTSTRAP_USER_ID, verifyPassword } from "@openclapper/service-kit";
+import { verifyPassword } from "@openclapper/service-kit";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import worker, { type Env } from "../src/index.ts";
 
@@ -149,18 +149,19 @@ describe("accounts", () => {
     expect(await sessionsOf(created.user.id)).toBe(0);
   });
 
-  test("delete: refused while the account's workspaces hold projects and for the bootstrap user", async () => {
+  test("delete: refused while the account's workspaces hold projects; its account home goes with it", async () => {
     const { user } = await json<{ user: { id: string } }>(call(bypass, "POST", "/api/users", { body: { email: "delete@test.invalid" } }), 201);
     const ws = (await env.DB.prepare("SELECT id FROM workspaces WHERE owner_user_id = ?1").bind(user.id).first<{ id: string }>())!.id;
-    const project = crypto.randomUUID();
+    const project = crypto.randomUUID(), mine = crypto.randomUUID();
+    await env.DB.prepare("INSERT INTO files (id, home_of, type, name, created_by) VALUES (?1, ?2, 'folder', 'Mine', ?2)").bind(mine, user.id).run();
     await env.DB.prepare("INSERT INTO projects (id, name, workspace_id) VALUES (?1, 'Kept', ?2)").bind(project, ws).run();
     await json(call(bypass, "DELETE", `/api/users/${user.id}`), 409);
     await env.DB.prepare("DELETE FROM projects WHERE id = ?1").bind(project).run();
     await json(call(bypass, "DELETE", `/api/users/${user.id}`), 200);
     expect(await env.DB.prepare("SELECT 1 FROM users WHERE id = ?1").bind(user.id).first()).toBeNull();
     expect(await env.DB.prepare("SELECT 1 FROM workspaces WHERE id = ?1").bind(ws).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT 1 FROM files WHERE id = ?1").bind(mine).first()).toBeNull();
     await json(call(bypass, "DELETE", `/api/users/${user.id}`), 404);
-    await json(call(bypass, "DELETE", `/api/users/${BOOTSTRAP_USER_ID}`), 400);
   });
 });
 
@@ -192,7 +193,6 @@ describe("audit trail", () => {
   test("a refused action writes nothing", async () => {
     const before = await count();
     await json(call(bypass, "POST", "/api/users", { body: { email: "not an email" } }), 400);
-    await json(call(bypass, "DELETE", `/api/users/${BOOTSTRAP_USER_ID}`), 400);
     await json(call(bypass, "PATCH", `/api/users/${crypto.randomUUID()}`, { body: { name: "x" } }), 404);
     expect(await count()).toBe(before);
   });

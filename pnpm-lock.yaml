@@ -195,6 +195,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@openclapper/model':
+        specifier: workspace:*
+        version: link:../../packages/model
       '@openclapper/service-kit':
         specifier: workspace:*
         version: link:../../packages/service-kit
@@ -216,6 +219,8 @@ importers:
         version: 10.29.8
 
   packages/fov-math: {}
+
+  packages/model: {}
 
   packages/service-kit: {}
 

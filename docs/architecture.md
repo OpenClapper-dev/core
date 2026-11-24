@@ -1,5 +1,7 @@
 # Architecture
 
+> **Mid-rewrite (epic [#371](https://github.com/OpenClapper-dev/core/issues/371)).** The rebuild lands on `main` step by step ([build order](rewrite/10-conclusion.md#build-order-proposal)). Since step B0 the Worker serves the new model (files, [api](api.md)); the Studio and the phone app described below are still the first app's and do not work against it until their steps land. Production runs the last release, v0.16.0.
+
 Single-user tool for film location scouting and shoot planning. A phone (Android, Expo) is the viewfinder and camera; a Cloudflare Worker stores everything; a web app, the Studio, is where shots are reviewed, organised and shoots are planned.
 
 ## Repo layout (pnpm workspace)
@@ -13,9 +15,10 @@ Single-user tool for film location scouting and shoot planning. A phone (Android
 | `packages/service-kit` | Pure TS | What both Workers share: router and request checks, Access verification, password hashing. |
 | `packages/ui` | Preact components + CSS (`@openclapper/ui`) | The web design system: tokens, component classes, components and the theme switch, shared by the Studio and the admin board ([design](design.md#web-component-library)). |
 | `packages/fov-math` | Pure TS, `node --test` | Camera bodies/formats, lenses, speedboosters, FOV and overlay math, re-framing. |
+| `packages/model` | Pure TS, `node --test` | The shared model of the rewrite: file types, the rules for their bodies and references, where a file may sit. Used by the Worker; the rebuilt clients follow. |
 | `packages/vocab` | Pure TS, `node --test` | Shared vocabularies (light, weather, INT/EXT, states), filter model, extra-field definitions, sun/daylight math. |
 
-The shared packages are imported as TypeScript source (`"exports": { ".": "./src/index.ts" }`), no build step. Anything used by the Worker **and** a client (validation, vocabularies) belongs in `packages/vocab` so rules cannot drift.
+The shared packages are imported as TypeScript source (`"exports": { ".": "./src/index.ts" }`), no build step. Anything used by the Worker **and** a client (validation, vocabularies) belongs in a shared package so rules cannot drift: `packages/model` for the rebuild, `packages/vocab` for what is left of the first app.
 
 ## Data flow
 
@@ -42,7 +45,7 @@ First-party sign-in (epic #107): email + password accounts in D1, opaque session
 
 - Studio: an HttpOnly session cookie (`SameSite=Lax`; changes marked `Sec-Fetch-Site: cross-site` are refused on top, #224).
 - Phone: signs in with email and password (`client: "mobile"`), keeps the session token in `expo-secure-store` and sends it as `Authorization: Bearer`.
-- Local dev signs in like production: `dev@localhost` / `openclapper-local-dev`, the bootstrap user that owns the local data (`make init`).
+- Local dev signs in like production: `dev@localhost` / `openclapper-local-dev`, a local user made by `make init`.
 
 ## Principles worth keeping
 

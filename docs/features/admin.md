@@ -22,8 +22,8 @@ The header shows the operator and the board's version with its commit. On an ins
 - **Totals**:
   - accounts (active in 30 days, blocked);
   - workspaces and projects;
-  - shots and photos;
-  - storage (`photos.size_bytes`; photos from before migration 0021 have no recorded size and are counted apart).
+  - files and photos;
+  - storage (zero until the rebuild stores photos again, step B2 #374).
 - **Accounts**: email, name, status (active, blocked, no password), live sessions, last seen, workspaces, created.
   - **New account** (email, name): the account and its personal workspace. A temporary password is shown once, in 4 groups of 4 easy-to-read characters, for the operator to pass on.
   - **Edit** (#148): email and name. The email is what the account signs in with from now on; its sessions stay. A taken email is refused (409) inside the dialog.
@@ -56,7 +56,6 @@ Every change an operator makes (account created, changed, blocked or unblocked, 
 | GET | `/api/audit?limit=&before=&before_id=` | The audit trail, newest first: `{ entries: [{ id, at, operator_email, action, target_user_id, target_email, detail }], next: { before, before_id } \| null }`. `limit` 1..200 (default 50); pass `next` back for the following page |
 | GET | `/api/settings` | `{ storage_marks }` |
 | PUT | `/api/settings` | `{ storage_marks: [{ bytes, label }] }`, at most 10, strict |
-| POST | `/api/storage/repair-metadata` | `{ cursor?, check? }` → `{ checked, repaired, unknown, examples, cursor }`: one page (100 objects) of the R2 objects' custom metadata checked or rewritten from D1 ([monitoring](monitoring.md)); called again with `cursor` until null. A page that rewrote objects is audited as `storage.repair` |
 
 Without a valid Access JWT of the admin application every request is `401`. Until its AUD is set (`ADMIN_ACCESS_AUD`, [self-hosting](../self-hosting.md#4-the-admin-planes-sign-in)) that includes every request.
 

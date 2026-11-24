@@ -240,3 +240,15 @@ Normalise what the server searches, joins or has to keep consistent across rows;
 | A canvas's objects and comments, a flow's tracks and keyframes, a layout's bars, a shot's progression settings | One editor at a time loads the whole and saves the whole; the server never asks for one object or one keyframe. Rows would mean hundreds of writes per save and a migration for every new property of an object |
 
 How the usual weaknesses of JSON are met: every body is checked by shared code on every save (as layers, sequences and layouts are today); a body carries a version number and is upgraded when read, so a change to its shape needs no database migration; if the server ever has to search inside a body, that part moves into a table then. A limit to check in B0: how large a row the database accepts, for a canvas with very many pen strokes.
+
+## Build notes
+
+Findings of the build that the plan asked for or that change it. The specification above stays as decided.
+
+- **B0, row size** ([#372](https://github.com/OpenClapper-dev/core/issues/372)): D1 takes at most 2 000 000 bytes per string and per row. A file's body is limited to 1 500 000 bytes of JSON. A canvas (B5) that could outgrow this stores its strokes compactly or moves the large part out of the row.
+- **B0, the root of a file:** stored as two columns, a project or the user whose account home it is, instead of one `root` column, so both have a real foreign key.
+- **B0, references:** a file's references travel with the file (`refs` in its save) and are stored in `refs`; a type's rules say which kinds it keeps. The server keeps a reference to a file it cannot find, and reports it as missing.
+- **B0, shortcuts:** a file type of their own (`shortcut`: an app, or one reference to a file), since the Desktop folder's icons include shortcuts ([07](07-organisation.md)).
+- **B0, types:** the shared model is a new package, `packages/model`; `packages/vocab` stays for the first app's clients until they are rebuilt and goes at the cutover. Each build step registers the file types it builds.
+- **B0, object metadata repair:** removed from the admin plane (owner, 2026-11-24). It existed to mend the first app's bucket after a copy; the rebuild starts on new buckets.
+- **Where the build runs** (owner, 2026-11-24): everything is built and tried locally; staging gets the rebuild once, when all steps are done, not after each step. Staging and local data may be dropped at any time: what was needed from production is saved.

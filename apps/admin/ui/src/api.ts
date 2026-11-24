@@ -1,8 +1,8 @@
 /** The admin Worker's API (apps/admin/src/index.ts); same origin, behind its own Cloudflare Access app. */
 
-export interface Overview { users: number; blocked: number; active_30d: number; workspaces: number; projects: number; shots: number; photos: number; bytes: number; unsized: number }
+export interface Overview { users: number; blocked: number; active_30d: number; workspaces: number; projects: number; files: number; photos: number; bytes: number; unsized: number }
 export interface AdminUser { id: string; email: string; name: string | null; status: "active" | "blocked"; created_at: string; no_password: boolean; sessions: number; last_seen: string | null; workspaces: number }
-export interface AdminWorkspace { id: string; name: string; kind: "personal" | "shared"; created_at: string; owner_email: string | null; members: number; projects: number; shots: number; photos: number; bytes: number; unsized: number }
+export interface AdminWorkspace { id: string; name: string; kind: "personal" | "shared"; created_at: string; owner_email: string | null; members: number; projects: number; files: number; photos: number; bytes: number; unsized: number }
 
 export class ApiError extends Error {
   status: number;
@@ -45,9 +45,6 @@ export interface StorageReport {
   crossed: Mark[];
 }
 export const fetchStorage = (days: number) => request<StorageReport>(`/api/storage?days=${days}`);
-/** One page of the object metadata check or repair (#255); call again with `cursor` until it is null. */
-export interface RepairPage { checked: number; repaired: number; unknown: number; examples: { key: string; reason: "missing" | "different" | "unknown" }[]; cursor: string | null }
-export const repairMetadata = (cursor: string | null, check: boolean) => send<RepairPage>("POST", "/api/storage/repair-metadata", { cursor, check });
 export const putMarks = (marks: Mark[]) => send<{ storage_marks: Mark[] }>("PUT", "/api/settings", { storage_marks: marks }).then((r) => r.storage_marks);
 
 // ---------- The optional Cloudflare overlay (#217) ----------
