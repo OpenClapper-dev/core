@@ -34,6 +34,13 @@ export async function setCanvasLive(p: Project, live: Project["canvas_live"]): P
   put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
 }
 
+/** The master timeline: the order of the project's timelines. Shown at once; the server's answer replaces it. */
+export async function setMaster(p: Project, master: string[]): Promise<void> {
+  put({ list: (getProjects() ?? []).map((x) => (x.id === p.id ? { ...x, master } : x)), error: null });
+  const next = await putProject(p.id, { name: p.name, master });
+  put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
+}
+
 export async function removeProject(id: string): Promise<void> {
   await deleteProject(id);
   put({ list: getProjects().filter((x) => x.id !== id), error: null });
