@@ -60,6 +60,10 @@ const ROUTES: Record<string, Case> = {
   "PUT /api/photos/:id": { kind: "id", path: (a) => `/api/photos/${a.photo}`, body: (_a, actor) => ({ project_id: actor.project, origin: "import", width: 10, height: 10 }) },
   "PUT /api/photos/:id/:part": { kind: "exempt", why: "the body is raw bytes, which the generic case cannot send; the photo tests check another workspace's upload is refused" },
   "GET /api/photos/:id/image": { kind: "id", path: (a) => `/api/photos/${a.photo}/image` },
+  "POST /api/files/:id/lock": { kind: "id", path: (a) => `/api/files/${a.canvas}/lock`, body: () => ({ holder: "holder-0001" }) },
+  "DELETE /api/files/:id/lock": { kind: "id", path: (a) => `/api/files/${a.canvas}/lock?holder=holder-0001`, ownerStatus: [204] },
+  "PUT /api/canvases/:id/:part": { kind: "exempt", why: "the body is raw bytes, which the generic case cannot send; canvas.test.ts checks another workspace's upload is refused" },
+  "GET /api/canvases/:id/image": { kind: "id", path: (a) => `/api/canvases/${a.canvas}/image` },
   "POST /api/devices/register": { kind: "exempt", why: "no id: a device is found by the caller's own user and the fingerprint; devices.test.ts checks that another account with the same fingerprint gets a record of its own" },
 
   "GET /api/preview/socket": { kind: "exempt", why: "no id: the room is picked by the caller's own user id (preview.ts)" },

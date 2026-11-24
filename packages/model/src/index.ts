@@ -7,3 +7,4 @@ export * from "./types.ts";
 export * from "./exif.ts";
 export * from "./properties.ts";
 export * from "./filters.ts";
+export * from "./canvas.ts";

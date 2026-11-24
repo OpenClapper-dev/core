@@ -74,6 +74,8 @@ export interface FileType {
    * body never changes afterwards), a device by registering itself (its body can be changed).
    */
   made?: "upload" | "register";
+  /** Edited by one person at a time (05-composition.md): a save needs the edit lock, when someone holds it. */
+  lockable?: boolean;
   /** The version of the body this code writes. Starts at 1; raised when the shape changes. */
   version: number;
   /** The body of a new file. */

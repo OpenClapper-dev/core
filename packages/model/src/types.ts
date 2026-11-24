@@ -3,6 +3,7 @@
  * a type that is not registered here yet cannot be saved.
  */
 import { registerFileType, type Body, type FileType, type Ref } from "./files.ts";
+import { canvasError, emptyCanvas, presetError, remapCanvas } from "./canvas.ts";
 import { filterError } from "./filters.ts";
 import { defaultPattern, definitionError, MAX_DIGITS } from "./properties.ts";
 
@@ -218,3 +219,29 @@ registerFileType(PROPERTY);
 registerFileType(NAMING);
 registerFileType(FILTER);
 registerFileType(SHOT);
+
+/**
+ * A canvas (docs/rewrite/05-composition.md): one tool for drawing, placing pictures and framing. Its
+ * surface is blank or a base photo (the "base" reference); placed pictures keep "placed" references.
+ * One editor at a time.
+ */
+export const CANVAS: FileType = {
+  type: "canvas", label: "Canvas", plural: "Canvases", roots: ["project"], refs: ["base", "placed"], version: 1, lockable: true,
+  empty: () => emptyCanvas() as unknown as Body,
+  check: (body, refs) => canvasError(body, refs),
+  remap: (body, ids) => remapCanvas(body, ids),
+};
+
+/**
+ * An optics preset (docs/rewrite/02-optics.md): a named camera with its lenses. What shapes the
+ * picture never changes; lenses are added, and removed only where no frame uses them (the Worker
+ * checks that against the frames of the project).
+ */
+export const PRESET: FileType = {
+  type: "preset", label: "Optics preset", plural: "Optics presets", roots: ["project"], version: 1,
+  empty: () => ({ format: [36, 24], formatName: "Full frame (135)", multiplier: 1, squeeze: 1, delivery: null, lenses: { kind: "primes", primes: [24, 35, 50, 85] }, archived: false }),
+  check: (body) => presetError(body),
+};
+
+registerFileType(CANVAS);
+registerFileType(PRESET);
