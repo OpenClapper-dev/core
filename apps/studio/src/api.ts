@@ -67,6 +67,8 @@ export interface FileRec {
   body_version: number; body?: Record<string, unknown>; refs?: FileRef[]; binned_with?: number;
   /** A photo's facts; absent on any other file. */
   photo?: PhotoFacts;
+  /** Property values by definition id (lists read with values=1, single files always). */
+  values?: Record<string, unknown>;
 }
 export interface PhotoFacts {
   origin: "capture" | "import"; media_type: string; taken_at: string; width: number; height: number;
@@ -83,7 +85,11 @@ export type Root = { project: string } | "home";
 export const rootQuery = (r: Root) => (r === "home" ? "home=1" : `project_id=${r.project}`);
 const rootBody = (r: Root) => (r === "home" ? { home: true } : { project_id: r.project });
 
-export const fetchFiles = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&body=1&refs=1`).then((x) => x.files);
+export const fetchFiles = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&body=1&refs=1&values=1`).then((x) => x.files);
+/** Property values of one file (null removes one) → the file's values after. */
+export const putValues = (id: string, values: Record<string, unknown>) => send<{ values: Record<string, unknown> }>("PUT", `/api/files/${id}/properties`, { values }).then((x) => x.values);
+/** The same values on many files (bulk edit). */
+export const setValuesOn = (ids: string[], values: Record<string, unknown>) => send<unknown>("POST", "/api/properties/set", { ids, values });
 export const fetchBin = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&bin=1`).then((x) => x.files);
 export const fetchUses = (id: string) => get<{ uses: FileUse[] }>(`/api/files/${id}/uses`).then((x) => x.uses);
 export const putFile = (id: string, body: Record<string, unknown>) => send<{ file: FileRec }>("PUT", `/api/files/${id}`, body).then((x) => x.file);

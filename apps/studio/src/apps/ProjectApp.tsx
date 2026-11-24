@@ -5,9 +5,14 @@ import { confirm, prompt, toast, toastError } from "../hosts";
 import { switchProject } from "../project";
 import { removeProject, saveProject, useProjects } from "../projects";
 import { useUser } from "../user";
+import { useCatalogue } from "../props";
 import type { AppProps } from "./registry";
+import { NamingPage } from "./project/Naming";
+import { PropertiesPage } from "./project/Properties";
+import "../catalogue.css";
 
-const TABS = ["general", "projects"] as const;
+const TABS = ["general", "properties", "naming", "projects"] as const;
+const TITLES: Record<string, string> = { properties: "Properties", naming: "Naming patterns" };
 type Tab = (typeof TABS)[number];
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 /** A name the server refused because it is taken reads better than "409". */
@@ -15,7 +20,8 @@ const nameTaken = (e: unknown) => e instanceof ApiError && e.status === 409;
 
 /**
  * The Project app (docs/rewrite/09-shells.md): this project's own settings, and switching and
- * managing projects. Properties, naming patterns and extensions join it with their build steps.
+ * managing projects; the property catalogue and the naming patterns (docs/features/properties.md).
+ * Extensions join it with their build step.
  */
 export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const asked = (win.state as { tab?: string } | undefined)?.tab;
@@ -28,7 +34,8 @@ export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const current = projects.find((p) => p.id === projectId);
   const workspaces = user.status === "signed-in" ? user.me.workspaces : [];
   const wsName = (id: string) => workspaces.find((w) => w.id === id)?.name ?? "—";
-  useEffect(() => { setTitle(tab === "general" && current ? `Project · ${current.name}` : "Projects"); setRoute(tab === "general" ? "" : tab); }, [tab, current?.name]);
+  const catalogue = useCatalogue(projectId);
+  useEffect(() => { setTitle(tab === "projects" ? "Projects" : current ? `Project · ${TITLES[tab] ?? current.name}` : "Project"); setRoute(tab === "general" ? "" : tab); }, [tab, current?.name]);
 
   const [name, setName] = useState(current?.name ?? "");
   const [wrong, setWrong] = useState<string | null>(null);
@@ -68,8 +75,11 @@ export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
 
   return (
     <SettingsLayout value={tab} onChange={(id) => setTab(id as Tab)}
-      sections={[{ label: "This project", items: [{ id: "general", label: "General", icon: "slate" }] }, { label: "All projects", items: [{ id: "projects", label: "Projects", icon: "folder" }] }]}
-      title={tab === "general" ? current?.name ?? "Project" : "Projects"}>
+      sections={[{ label: "This project", items: [{ id: "general", label: "General", icon: "slate" }, { id: "properties", label: "Properties", icon: "tag" }, { id: "naming", label: "Naming patterns", icon: "edit" }] }, { label: "All projects", items: [{ id: "projects", label: "Projects", icon: "folder" }] }]}
+      wide={tab === "properties" || tab === "naming"}
+      title={tab === "projects" ? "Projects" : TITLES[tab] ?? current?.name ?? "Project"}>
+      {tab === "properties" && <PropertiesPage projectId={projectId} files={catalogue.files} defs={catalogue.defs} />}
+      {tab === "naming" && <NamingPage projectId={projectId} files={catalogue.files} patterns={catalogue.patterns} />}
       {tab === "general" && current && (
         <>
           <SettingsGroup title="Name">
