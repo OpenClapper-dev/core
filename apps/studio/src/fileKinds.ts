@@ -19,6 +19,7 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   naming: { glyph: "edit", color: 0 },
   // Types of later steps, named already by properties and naming patterns.
   canvas: { glyph: "brush", color: 7 },
+  preset: { glyph: "lens", color: 6 },
   set: { glyph: "home", color: 2 },
   location: { glyph: "location", color: 3 },
   timeline: { glyph: "timeline", color: 6 },
