@@ -49,7 +49,20 @@ export function loadLibrary(): Promise<void> {
 onSync(loadLibrary);
 // A photo whose preview reached the server is now one of the project's: reload to show its server facts.
 let reloadTimer: ReturnType<typeof setTimeout> | undefined;
-onUploaded(() => { clearTimeout(reloadTimer); reloadTimer = setTimeout(() => void loadLibrary(), 1500); });
+onUploaded((_id, done) => {
+  // Until the reload, the photo that just left the queue is shown from what the phone knows of it.
+  if (done) store.set((l) => (l && l.projectId === done.meta.project_id && !l.files.some((f) => f.id === done.id) ? { ...l, files: [...l.files, asFile(done)] } : l));
+  clearTimeout(reloadTimer); reloadTimer = setTimeout(() => void loadLibrary(), 1500);
+});
+
+function asFile(q: QueuedPhoto): FileRec {
+  const m = q.meta;
+  return {
+    id: q.id, project_id: m.project_id, type: "photo", name: m.name, container: m.container ?? null, internal_of: null, fixed: null,
+    created_at: q.added, updated_at: q.added, created_by: null, deleted_at: null, body_version: 1,
+    photo: { origin: m.origin, media_type: m.media_type ?? null, taken_at: m.taken_at ?? q.added, width: m.width, height: m.height, stored: { thumbnail: 1, preview: 1, original: 1 }, angle_of_view: null, device_id: m.device_id ?? null },
+  };
+}
 
 /** The library of the active project, with queued photos merged in. */
 export function useLibrary(): { photos: MediaPhoto[]; holders: Holder[]; loaded: string | null } {

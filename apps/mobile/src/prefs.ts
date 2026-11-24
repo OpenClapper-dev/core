@@ -60,7 +60,10 @@ export function syncPrefs(): Promise<void> {
   saving = (async () => {
     const user = signedInUserId();
     if (!user || !canCall()) return;
-    if (cache.get().userId !== user) cache.set({ userId: user, fileId: null, prefs: { ...DEFAULT_PREFS, theme: cache.get().prefs.theme }, dirty: [] });
+    // Set before anyone signed in: they go to the account. Another account's: that account starts from its own.
+    const was = cache.get().userId;
+    if (was === null) cache.set((c) => ({ ...c, userId: user }));
+    else if (was !== user) cache.set({ userId: user, fileId: null, prefs: { ...DEFAULT_PREFS, theme: cache.get().prefs.theme }, dirty: [] });
     try {
       const file = await fetchFile();
       const { dirty, prefs } = cache.get();

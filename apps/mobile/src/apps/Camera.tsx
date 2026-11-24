@@ -12,7 +12,6 @@ import { imageSource } from "../media/cache";
 import { openApp } from "../shell/nav";
 import { persisted } from "../store";
 import { Button, Empty, FIXED, Icon, makeStyles, num, RADIUS, SIZE, toast, type, useTheme, type IconName } from "../ui";
-import { openSetup } from "./Setup";
 import { registerApp } from "./registry";
 
 /**
@@ -96,7 +95,7 @@ function Camera({ active }: { active: boolean }) {
   const controls = (
     <View style={[s.controls, landscape && s.controlsSide]}>
       <CamButton icon={counts.stuck ? "warning" : "cloud-upload"} label={`Uploads: ${counts.waiting} waiting`} text={counts.waiting ? String(counts.waiting) : undefined} warn={counts.stuck > 0}
-        onPress={() => { if (openApp("setup")) setTimeout(() => openSetup("uploads"), 0); }} />
+        onPress={() => openApp("setup", "uploads")} />
       <Pressable accessibilityRole="button" accessibilityLabel="Last photo" disabled={!last} onPress={() => last && openApp("media", last.id)} style={s.thumb}>
         {last && <Image source={last.uri ? { uri: last.uri } : imageSource(last.id, "thumbnail")} style={StyleSheet.absoluteFill} />}
       </Pressable>

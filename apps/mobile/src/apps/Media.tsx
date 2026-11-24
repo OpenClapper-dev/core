@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { FlatList, Pressable, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { Image } from "expo-image";
 import * as DocumentPicker from "expo-document-picker";
@@ -39,7 +39,8 @@ function Media({ active }: { active: boolean }) {
   useBack(picked ? () => setPicked(null) : stack.length ? pop : null, active);
   useEffect(() => onOpen("media", (id) => { setPicked(null); setStack([{ kind: "photo", id }]); }), []);
   useEffect(() => { if (active) void loadLibrary(); }, [active, project?.id]);
-  useEffect(() => { setStack([]); setPicked(null); }, [project?.id]);
+  const seen = useRef(project?.id);
+  useEffect(() => { if (seen.current !== project?.id) { seen.current = project?.id; setStack([]); setPicked(null); } }, [project?.id]);
 
   if (top?.kind === "photo") {
     const p = lib.photos.find((x) => x.id === top.id);

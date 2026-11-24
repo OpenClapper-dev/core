@@ -73,9 +73,9 @@ async function onWifi(): Promise<boolean> {
   try { const s = await Network.getNetworkStateAsync(); return s.type === Network.NetworkStateType.WIFI || s.type === Network.NetworkStateType.ETHERNET; } catch { return false; }
 }
 
-const doneListeners = new Set<(id: string) => void>();
-/** Called when a photo's preview is on the server (Media reloads) and when it is done. */
-export const onUploaded = (cb: (id: string) => void) => { doneListeners.add(cb); return () => { doneListeners.delete(cb); }; };
+const doneListeners = new Set<(id: string, done: QueuedPhoto | null) => void>();
+/** Called when a photo's preview is on the server, and when it is done (with the entry that just left the queue). */
+export const onUploaded = (cb: (id: string, done: QueuedPhoto | null) => void) => { doneListeners.add(cb); return () => { doneListeners.delete(cb); }; };
 
 function update(id: string, change: Partial<QueuedPhoto>) {
   queue.set((q) => q.map((x) => (x.id === id ? { ...x, ...change } : x)));
@@ -97,7 +97,7 @@ async function send(p: QueuedPhoto, wifiOnly: boolean, wifi: () => Promise<boole
         await putPhotoPart(cur.id, step, file, step === "original" ? cur.meta.media_type ?? "image/jpeg" : "image/jpeg");
       }
       update(cur.id, { step: step === "meta" ? "thumbnail" : step === "thumbnail" ? "preview" : step === "preview" ? "original" : "done", error: null });
-      if (step === "preview") for (const cb of doneListeners) cb(cur.id);
+      if (step === "preview") for (const cb of doneListeners) cb(cur.id, null);
     } catch (e) {
       const missing = e instanceof Error && e.message.includes("is gone from the phone");
       if (!missing && !isRejection(e)) { log("warn", "upload paused", { id: cur.id, step, error: e }); return "wait"; }
@@ -112,9 +112,9 @@ async function send(p: QueuedPhoto, wifiOnly: boolean, wifi: () => Promise<boole
   cacheImage(done.id, "thumbnail", queueFile(done.thumbnail));
   cacheImage(done.id, "preview", queueFile(done.preview));
   try { const o = queueFile(done.original); if (o.exists) o.delete(); } catch { /* best effort */ }
+  for (const cb of doneListeners) cb(done.id, done);
   queue.set((q) => q.filter((x) => x.id !== done.id));
   log("info", "uploaded", { id: done.id });
-  for (const cb of doneListeners) cb(done.id);
   return "next";
 }
 

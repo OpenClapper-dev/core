@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BackHandler, Pressable, Text, useColorScheme, useWindowDimensions, View } from "react-native";
 import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -46,8 +46,8 @@ export default function Root() {
 /** The tabs this device shows: its choice, without apps this build does not have, and Setup always last. */
 function useTabs(): PhoneApp[] {
   const dev = device.use();
-  const list = dev.tabs.filter((t) => t !== "setup").map(appOf).filter((a): a is PhoneApp => !!a);
-  return [...list, appOf("setup")!];
+  const key = dev.tabs.join(",");
+  return useMemo(() => [...dev.tabs.filter((t) => t !== "setup").map(appOf).filter((a): a is PhoneApp => !!a), appOf("setup")!], [key]);
 }
 
 function App() {

@@ -10,6 +10,7 @@ import { useProject } from "../projects";
 import { setSettings, settings } from "../settings";
 import { ProjectList } from "../shell/Gates";
 import { useBack } from "../shell/back";
+import { onOpen } from "../shell/nav";
 import { startSignIn } from "../shell/signin";
 import { APP_VERSION } from "../version";
 import { Block, Button, confirm, ErrorText, FieldRow, Header, Hint, Icon, IconButton, Input, ListRow, makeStyles, num, PasswordInput, Screen, SectionLabel, Seg, Sheet, toast, Toggle, type, useTheme, type IconName } from "../ui";
@@ -33,7 +34,7 @@ export const addSetupPage = (id: string, render: (back: () => void) => ReactElem
 
 function Setup({ active }: { active: boolean }) {
   const [page, setPage] = useState<string | null>(null);
-  useEffect(() => { opener = setPage; return () => { opener = null; }; }, []);
+  useEffect(() => { opener = setPage; const off = onOpen("setup", setPage); return () => { opener = null; off(); }; }, []);
   const back = () => setPage(page === "password" ? "account" : null);
   useBack(page ? back : null, active);
   switch (page) {
