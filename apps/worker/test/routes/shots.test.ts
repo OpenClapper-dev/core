@@ -89,3 +89,24 @@ describe("sets and locations", () => {
     expect(by.get("Address")).toMatchObject({ attached: [{ type: "location" }] });
   });
 });
+
+describe("timelines", () => {
+  test("clips show photos, canvases and shots, or are placeholders; the project keeps the master order", async () => {
+    await newProject();
+    const t = uuid(), photo = await addPhoto(u.token, project), shot = uuid(), folder = uuid();
+    await put(shot, { type: "shot", project_id: project }, 201);
+    await put(folder, { type: "folder", project_id: project, name: "F" }, 201);
+    const clips = [{ id: "c1", file: photo, ms: 2000, chapter: { title: "Arrival", color: 3 } }, { id: "c2", file: null, ms: 1500, title: "Insert" }, { id: "c3", file: shot, ms: 3000 }];
+    const refs = [{ kind: "clip", to: photo, data: { clip: "c1" } }, { kind: "clip", to: shot, data: { clip: "c3" } }];
+    const made = (await put(t, { type: "timeline", project_id: project, body: { clips, holdMs: null }, refs }, 201)).file;
+    expect(made.refs.map((r) => r.to)).toEqual([photo, shot]);
+    expect((await put(t, { body: { clips: [{ id: "c1", file: folder, ms: 1000 }], holdMs: null }, refs: [{ kind: "clip", to: folder, data: { clip: "c1" } }] }, 400)).error).toMatch(/clip of a timeline is a photo or canvas or shot/);
+    // The lock: a timeline is edited by one window at a time.
+    await ok(api(u.token, "POST", `/api/files/${t}/lock`, { holder: "wholder00001" }));
+    await put(t, { name: "Scene 12" }, 423);
+    // The master timeline.
+    const p = await ok<{ project: { master: string[] } }>(api(u.token, "PUT", `/api/projects/${project}`, { name: `P ${project}`, master: [t] }));
+    expect(p.project.master).toEqual([t]);
+    await ok(api(u.token, "PUT", `/api/projects/${project}`, { name: `P ${project}`, master: [t, t] }), 400);
+  });
+});

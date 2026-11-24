@@ -20,7 +20,7 @@ for (const t of [PHOTO, COLLECTION, DEFINITION, NOTE]) registerFileType(t);
 
 test("the registry knows the core types and refuses a second type of the same name", () => {
   assert.equal(fileType("folder"), FOLDER);
-  assert.equal(fileType("timeline"), undefined);
+  assert.equal(fileType("flow"), undefined);
   assert.deepEqual(containerTypes(), ["folder", "collection", "t-collection"]);
   registerFileType(FOLDER);
   assert.throws(() => registerFileType({ ...FOLDER }), /registered twice/);

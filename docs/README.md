@@ -37,7 +37,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/media.md](features/media.md) | Photos and collections: the three stored images, facts and angle of view, import in the Studio, the Media and Photo apps |
 | [features/compose.md](features/compose.md) | Shot descriptions, the drawing model, sketches (floor plans, diagrams); Studio editor, phone viewer, renders |
 | [features/schedule.md](features/schedule.md) | Shooting days, daylight phases, forecast, shootable windows |
-| [features/timeline.md](features/timeline.md) | Timelines: rough cuts of steps and clip layers with hold times, playback (Studio only) |
+| [features/timeline.md](features/timeline.md) | Timelines: clips of photos, canvases, frames, shots and placeholders with hold times, chapters, the master timeline (rebuild, B7) |
 | [features/composition.md](features/composition.md) | A shot as a composition: steps, layers (drawing and adjustment, with order, range and space), bakes for the phone, the Compose stage, merge and extract, the migration from overlays |
 | [features/day-mode-offline.md](features/day-mode-offline.md) | Phone "Day" tab, offline days, offline project, offline mode, edits kept on the phone |
 | [features/phone-app.md](features/phone-app.md) | Phone shell: 5 tabs, gates, pushed screens, header and sync state, Setup hub, shared components |

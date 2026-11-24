@@ -2,7 +2,7 @@
 
 export interface Me { user: { id: string; email: string; name: string | null }; workspaces: { id: string; name: string; role: WorkspaceRole; personal: boolean }[] }
 export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
-export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: CanvasLive }
+export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: CanvasLive; /** The master timeline: the order of the project's timelines. */ master: string[] }
 /** How watchers of a canvas see it change while someone edits it: at once, or every few seconds. */
 export type CanvasLive = "realtime" | "gradual";
 export interface ServerBuild { version: string; commit: string; instance: string }
