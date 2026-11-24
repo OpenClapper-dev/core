@@ -33,7 +33,7 @@ import { see, type Mode, type PicCtx } from "../shots/picture";
 import { clock } from "../shots/progressionParts";
 import { at as atTime, blocksOf, chaptersOf, moveClips, type Block, type Seg } from "../timeline/cut";
 import { Editing } from "./CanvasApp";
-import type { AppProps } from "./registry";
+import { launch, type AppProps } from "./registry";
 import { ShotWindow } from "./ShotApp";
 
 const SAVE_AFTER_MS = 600;
@@ -511,7 +511,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
     <div className="oc-app">
       <Toolbar>
         <AppIcon glyph="timeline" color={6} size={24} /><strong className="st-title">{f.name}</strong>
-        <Badge>{master.includes(f.id) ? `No. ${master.indexOf(f.id) + 1} in the master` : "Not in the master"}</Badge>
+        <Button size="sm" variant="quiet" icon="film" title="Open the master timeline: the order of the project's timelines" onClick={() => launch({ app: "master" })}>{master.includes(f.id) ? `No. ${master.indexOf(f.id) + 1} in the master` : "Not in the master"}</Button>
         {lock.editing
           ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the timeline go and keep watching it: someone else can edit it now" onClick={() => void lock.stop(flush)}>Stop editing</Button>
           : <span className="tl-viewing"><Icon name="eye" size={14} /><span>{lock.by === "You" ? "Editing in another window of yours" : lock.by ? `${lock.by} is editing` : "Nobody is editing"}</span><Button size="sm" variant="primary" icon="edit" disabled={!!lock.by} onClick={() => void lock.edit()}>Edit</Button></span>}
