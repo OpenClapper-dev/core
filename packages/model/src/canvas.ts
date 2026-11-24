@@ -226,3 +226,15 @@ export function remapCanvas(b: Record<string, unknown>, ids: ReadonlyMap<string,
 
 /** Which focal lengths of which presets a canvas's frames use (the server keeps them in `frames`). */
 export const framesUsing = (b: CanvasBody) => b.frames.filter((f) => f.kind === "preset" && f.preset && f.focal).map((f) => ({ frame: f.id, preset: f.preset!, focal: f.focal! }));
+
+/** The optics of a frame, as plain factors (fov-math's `Optics` shape): its preset's values with its focal length, or its own; null for an aspect frame or a preset that is gone. */
+export function frameOptics(f: CanvasFrame, presets: ReadonlyMap<string, PresetBody>): { format: [number, number]; multiplier: number; squeeze: number; focal: number; delivery: number | null; portrait: boolean } | null {
+  if (f.kind === "aspect") return null;
+  if (f.kind === "preset") {
+    const p = f.preset ? presets.get(f.preset) : undefined;
+    if (!p || !f.focal) return null;
+    return { format: p.format, multiplier: p.multiplier, squeeze: p.squeeze, focal: f.focal, delivery: p.delivery, portrait: f.portrait };
+  }
+  if (!f.format || !f.focal) return null;
+  return { format: f.format, multiplier: f.multiplier ?? 1, squeeze: f.squeeze ?? 1, focal: f.focal, delivery: f.delivery ?? null, portrait: f.portrait };
+}

@@ -179,3 +179,6 @@
 .cv-photos img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 2px; }
 .cv-photos span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cv-inline { display: inline-flex; align-items: center; gap: var(--space-4); }
+/* The editor alone in the phone and tablet app's web view (embed.tsx). */
+.cv-standalone { position: fixed; inset: 0; display: flex; background: var(--surface); }
+.cv-standalone > .cv { position: relative; inset: auto; flex: 1; }

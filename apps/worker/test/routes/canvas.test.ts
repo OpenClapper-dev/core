@@ -2,7 +2,7 @@
  * Canvases and optics presets (step B5, #377): a canvas on a photo with frames, the frames table and
  * the additive rule of presets, the edit lock, renders, copies and purges.
  */
-import { env } from "cloudflare:workers";
+import { env, exports } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
 import { addPhoto, api, newUser, ok, png, putRender, uuid, type User } from "./helpers.ts";
 
@@ -101,5 +101,18 @@ describe("renders", () => {
     await ok(api(u.token, "POST", "/api/files/purge", { ids: [c] }));
     expect(await env.SHOTS_BUCKET.get(`canvases/${c}/render`)).toBeNull();
     expect(await env.SHOTS_BUCKET.get(`canvases/${copy}/render`)).not.toBeNull();
+  });
+});
+
+describe("the web view", () => {
+  test("hands the bearer session over as a cookie and goes to a path of this site only", async () => {
+    // Not followed: the redirect is what the web view gets.
+    const res = await exports.default.fetch(new Request("http://openclapper.test/api/web?to=" + encodeURIComponent("/#/embed/canvas/abc"), { headers: { Authorization: `Bearer ${u.token}` }, redirect: "manual" }));
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/#/embed/canvas/abc");
+    expect(res.headers.get("set-cookie")).toContain(`openclapper_session=${u.token}`);
+    expect((await api(u.token, "GET", "/api/web?to=" + encodeURIComponent("//evil.example/"))).status).toBe(400);
+    expect((await api(u.token, "GET", "/api/web?to=https://evil.example/")).status).toBe(400);
+    expect((await api(null, "GET", "/api/web?to=/")).status).toBe(401);
   });
 });

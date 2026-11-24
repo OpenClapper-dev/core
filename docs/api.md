@@ -87,6 +87,7 @@ A new project starts with the default properties in its Settings folder (`PUT /a
 | POST | `/api/files/:id/lock` | `{ holder }` (the editing window's token) → `{ lock: { by, until } }`: taken when free, run out or this window's; renewed the same way (it holds 60 s). `423` with `lock` when someone else holds it. Lockable types only (a canvas) |
 | DELETE | `/api/files/:id/lock?holder=` | Lets go; only the holder's call changes anything. `204` |
 | PUT | `/api/canvases/:id/render`, `/thumbnail` | The body is the image (PNG, JPEG, WebP; 12 MB and 600 KB). Replaces the one stored |
+| GET | `/api/web?to=<path>` | The bearer session (the phone's) as the cookie of the same session, and a `302` to that path of this site (for the Studio in the phone's web view). `400` for a path that is not of this site or without a bearer token |
 | GET | `/api/canvases/:id/image?size=render\|thumbnail` | Default `render`. An ETag; with `?v=` (the file's `updated_at`) cached for good, else revalidated. `404` until made |
 
 While a lockable file is held by someone else, `PUT /api/files/:id` and a render upload answer `423`; send the holder as `x-lock-holder`. Saving a canvas keeps its frames in `frames`. Saving an optics preset follows the additive rule (`400` with the lenses in use); binning one that frames use is `409` (archive it). Copies take a canvas's frames and renders along; purging removes the renders.

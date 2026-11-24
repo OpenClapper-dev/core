@@ -1,5 +1,5 @@
-import { opticsFrame, type Optics, type PhotoView } from "@openclapper/fov-math";
-import type { CanvasBody, CanvasFrame, PresetBody } from "@openclapper/model";
+import { opticsFrame, type PhotoView } from "@openclapper/fov-math";
+import type { CanvasBody, PresetBody } from "@openclapper/model";
 import type { FileRec } from "./api";
 import { imageUrl } from "./media";
 
@@ -26,17 +26,8 @@ export function usedFocals(files: readonly FileRec[] | null): Map<string, Set<nu
   return out;
 }
 
-/** The optics a frame sees: its preset's values with its focal length, or its own; null for an aspect frame or a preset that is gone. */
-export function frameOptics(f: CanvasFrame, presets: ReadonlyMap<string, PresetBody>): Optics | null {
-  if (f.kind === "aspect") return null;
-  if (f.kind === "preset") {
-    const p = f.preset ? presets.get(f.preset) : undefined;
-    if (!p || !f.focal) return null;
-    return { format: p.format, multiplier: p.multiplier, squeeze: p.squeeze, focal: f.focal, delivery: p.delivery, portrait: f.portrait };
-  }
-  if (!f.format || !f.focal) return null;
-  return { format: f.format, multiplier: f.multiplier ?? 1, squeeze: f.squeeze ?? 1, focal: f.focal, delivery: f.delivery ?? null, portrait: f.portrait };
-}
+/** The optics a frame sees (shared with the phone). */
+export { frameOptics } from "@openclapper/model";
 
 /** A picture to preview a preset on: an image, its angle of view and its aspect (width / height). */
 export interface Example { id: string; label: string; src: string; view: PhotoView; aspect: number }

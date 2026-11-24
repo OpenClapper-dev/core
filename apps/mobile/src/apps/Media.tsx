@@ -7,13 +7,15 @@ import { log } from "../log";
 import { usePrefs, type Prefs } from "../prefs";
 import { useProject } from "../projects";
 import { imageSource } from "../media/cache";
-import { binPhoto, loadLibrary, makeCollection, onLoading, photoFile, placePhotos, renamePhoto, useLibrary, type Holder, type MediaPhoto } from "../media/library";
+import { binPhoto, loadLibrary, useCanvases, usePresets, type MediaCanvas, makeCollection, onLoading, photoFile, placePhotos, renamePhoto, useLibrary, type Holder, type MediaPhoto } from "../media/library";
 import { addImports } from "../media/pipeline";
 import { discard, queue, queuedUri, retry } from "../media/queue";
 import { useBack } from "../shell/back";
 import { onOpen } from "../shell/nav";
 import { persisted } from "../store";
 import { Banner, Block, Button, catColor, confirm, Empty, FieldRow, FIXED, Header, Hint, Icon, ListRow, makeStyles, num, RADIUS, Screen, SectionLabel, Seg, Sheet, toast, type, useRefreshControl, useTheme } from "../ui";
+import { authHeaders, canvasImageUrl } from "../api";
+import { CanvasPage, CanvasWeb } from "./CanvasView";
 import { PhotoProperties } from "./PhotoProperties";
 import { registerApp } from "./registry";
 
@@ -27,11 +29,13 @@ import { registerApp } from "./registry";
 const view = persisted<"photos" | "folders">("mediaView.v1", "photos");
 const spreadOut = persisted<boolean>("mediaSpread.v1", false);
 
-type Open = { kind: "photo" | "collection" | "folder"; id: string };
+type Open = { kind: "photo" | "collection" | "folder" | "canvas" | "edit"; id: string };
 
 function Media({ active }: { active: boolean }) {
   const project = useProject();
   const lib = useLibrary();
+  const canvases = useCanvases();
+  const presets = usePresets();
   const [stack, setStack] = useState<Open[]>([]);
   const [picked, setPicked] = useState<string[] | null>(null);
   const top = stack[stack.length - 1] ?? null;
@@ -43,15 +47,20 @@ function Media({ active }: { active: boolean }) {
   const seen = useRef(project?.id);
   useEffect(() => { if (seen.current !== project?.id) { seen.current = project?.id; setStack([]); setPicked(null); } }, [project?.id]);
 
+  if (top?.kind === "canvas" || top?.kind === "edit") {
+    const c = canvases.find((x) => x.id === top.id);
+    if (c && top.kind === "edit") return <CanvasWeb id={c.id} name={c.name} onClose={pop} />;
+    if (c) return <CanvasPage canvas={c.file} presets={presets} back={pop} onEdit={() => push({ kind: "edit", id: c.id })} />;
+  }
   if (top?.kind === "photo") {
     const p = lib.photos.find((x) => x.id === top.id);
     if (p) return <PhotoPage photo={p} holders={lib.holders} back={pop} />;
   }
-  const holder = top && top.kind !== "photo" ? lib.holders.find((h) => h.id === top.id) ?? null : null;
-  return <Browser key={holder?.id ?? "root"} holder={holder} lib={lib} picked={picked} setPicked={setPicked} open={push} back={stack.length ? pop : undefined} />;
+  const holder = top && (top.kind === "folder" || top.kind === "collection") ? lib.holders.find((h) => h.id === top.id) ?? null : null;
+  return <Browser key={holder?.id ?? "root"} holder={holder} lib={lib} canvases={canvases} picked={picked} setPicked={setPicked} open={push} back={stack.length ? pop : undefined} />;
 }
 
-function Browser({ holder, lib, picked, setPicked, open, back }: { holder: Holder | null; lib: ReturnType<typeof useLibrary>; picked: string[] | null; setPicked: (p: string[] | null) => void; open: (o: Open) => void; back?: () => void }) {
+function Browser({ holder, lib, canvases, picked, setPicked, open, back }: { holder: Holder | null; lib: ReturnType<typeof useLibrary>; canvases: MediaCanvas[]; picked: string[] | null; setPicked: (p: string[] | null) => void; open: (o: Open) => void; back?: () => void }) {
   const s = useStyles();
   const project = useProject();
   const mode = view.use();
@@ -102,6 +111,7 @@ function Browser({ holder, lib, picked, setPicked, open, back }: { holder: Holde
           {byFolder && !inColl && folders.length > 0 && (stacks.length || loose.length) ? <Block><SectionLabel>{holder ? "In this folder" : "At the top level"}</SectionLabel></Block> : null}
         </>}
         stacks={stacks} photos={loose} holders={lib.holders} picked={picked} refresh={refresh}
+        canvases={picked || inColl ? [] : canvases.filter((c) => (byFolder ? c.container === level : true))} onCanvas={(c) => open({ kind: "canvas", id: c.id })}
         onPhoto={(p) => (picked ? setPicked(picked.includes(p.id) ? picked.filter((x) => x !== p.id) : [...picked, p.id]) : open({ kind: "photo", id: p.id }))}
         onStack={(c) => open({ kind: "collection", id: c.id })}
         empty={<Empty icon="image" title={holder ? "Nothing in here yet" : "No photos yet"} body={holder ? undefined : "Take one with the camera, or import pictures from the phone with the download button."} />}
@@ -110,22 +120,22 @@ function Browser({ holder, lib, picked, setPicked, open, back }: { holder: Holde
   );
 }
 
-type Item = { kind: "stack"; c: Holder; list: MediaPhoto[] } | { kind: "photo"; p: MediaPhoto };
+type Item = { kind: "stack"; c: Holder; list: MediaPhoto[] } | { kind: "photo"; p: MediaPhoto } | { kind: "canvas"; v: MediaCanvas };
 
-function Grid({ head, stacks, photos, holders, picked, refresh, onPhoto, onStack, empty }: { head: ReactNode; stacks: { c: Holder; list: MediaPhoto[] }[]; photos: MediaPhoto[]; holders: Holder[]; picked: string[] | null; refresh: ReturnType<typeof useRefreshControl>; onPhoto: (p: MediaPhoto) => void; onStack: (c: Holder) => void; empty: ReactNode }) {
+function Grid({ head, stacks, photos, canvases, holders, picked, refresh, onPhoto, onStack, onCanvas, empty }: { head: ReactNode; stacks: { c: Holder; list: MediaPhoto[] }[]; photos: MediaPhoto[]; canvases: MediaCanvas[]; holders: Holder[]; picked: string[] | null; refresh: ReturnType<typeof useRefreshControl>; onPhoto: (p: MediaPhoto) => void; onStack: (c: Holder) => void; onCanvas: (c: MediaCanvas) => void; empty: ReactNode }) {
   const { width } = useWindowDimensions();
   const cols = Math.max(3, Math.floor(width / 132));
-  const items: Item[] = useMemo(() => [...stacks.map((x) => ({ kind: "stack" as const, ...x })), ...photos.slice().reverse().map((p) => ({ kind: "photo" as const, p }))], [stacks, photos]);
+  const items: Item[] = useMemo(() => [...stacks.map((x) => ({ kind: "stack" as const, ...x })), ...canvases.map((v) => ({ kind: "canvas" as const, v })), ...photos.slice().reverse().map((p) => ({ kind: "photo" as const, p }))], [stacks, photos, canvases]);
   return (
     <FlatList key={cols} data={items} numColumns={cols} refreshControl={refresh}
-      keyExtractor={(it) => (it.kind === "stack" ? `c-${it.c.id}` : it.p.id)}
+      keyExtractor={(it) => (it.kind === "stack" ? `c-${it.c.id}` : it.kind === "canvas" ? `v-${it.v.id}` : it.p.id)}
       ListHeaderComponent={<>{head}</>}
       ListEmptyComponent={<>{empty}</>}
       contentContainerStyle={{ paddingBottom: 24 }}
       columnWrapperStyle={{ gap: 2, paddingHorizontal: 2 }}
       ItemSeparatorComponent={() => <View style={{ height: 2 }} />}
       renderItem={({ item }) => <View style={{ flex: 1 / cols, aspectRatio: 1 }}>
-        {item.kind === "stack" ? <StackTile c={item.c} list={item.list} onPress={() => onStack(item.c)} /> : <PhotoTile p={item.p} coll={holders.find((h) => h.id === item.p.container && h.type === "collection") ?? null} chosen={picked?.includes(item.p.id) ?? null} onPress={() => onPhoto(item.p)} />}
+        {item.kind === "stack" ? <StackTile c={item.c} list={item.list} onPress={() => onStack(item.c)} /> : item.kind === "canvas" ? <CanvasTile v={item.v} onPress={() => onCanvas(item.v)} /> : <PhotoTile p={item.p} coll={holders.find((h) => h.id === item.p.container && h.type === "collection") ?? null} chosen={picked?.includes(item.p.id) ?? null} onPress={() => onPhoto(item.p)} />}
       </View>}
     />
   );
@@ -144,6 +154,20 @@ function PhotoTile({ p, coll, chosen, onPress }: { p: MediaPhoto; coll: Holder |
       {color && <Mark mark={prefs.collectionMark} color={color} />}
       {p.queued && <View style={[s.badge, p.queued.state === "stuck" && { backgroundColor: FIXED.record }]}><Icon name={p.queued.state === "stuck" ? "warning" : p.queued.state === "preview" ? "cloud-upload" : "clock"} size={14} color={FIXED.white} /></View>}
       {chosen !== null && <View style={[s.tick, chosen && { backgroundColor: c.accent, borderColor: c.accent }]}>{chosen && <Icon name="check" size={14} color={c.onAccent} />}</View>}
+    </Pressable>
+  );
+}
+
+/** A canvas: its thumbnail (cropped to its picture), with a brush to tell it from a photo. */
+export function CanvasTile({ v, onPress }: { v: MediaCanvas; onPress: () => void }) {
+  const s = useStyles();
+  const { c } = useTheme();
+  const [none, setNone] = useState(false);
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`Canvas ${v.name}`} style={s.tile}>
+      {none ? <View style={[s.fill, { alignItems: "center", justifyContent: "center" }]}><Icon name="brush" size={28} color={c.textDim} /></View>
+        : <Image source={{ uri: canvasImageUrl(v.file, "thumbnail"), headers: authHeaders() }} style={s.fill} contentFit="cover" recyclingKey={v.id} cachePolicy="disk" onError={() => setNone(true)} />}
+      <View style={s.nameBar}><Icon name="brush" size={14} color={FIXED.white} /><Text style={s.nameText} numberOfLines={1}>{v.name}</Text></View>
     </Pressable>
   );
 }

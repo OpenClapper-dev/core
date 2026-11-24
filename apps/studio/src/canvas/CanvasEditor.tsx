@@ -34,7 +34,8 @@ type Act =
   | { type: "rotate"; id: string; centre: P; from: number; orig: number }
   | { type: "end"; id: string; which: 0 | 1; other: P }
   | { type: "draw"; tool: Tool; pts: P[] }
-  | { type: "frame"; id: string; start: P; orig: Record<string, P> };
+  | { type: "frame"; id: string; start: P; orig: Record<string, P> }
+  | { type: "pinch"; d: number; mid: P; z: number; x: number; y: number };
 
 const turn = (v: P, deg: number): P => { const r = (deg * Math.PI) / 180, c = Math.cos(r), n = Math.sin(r); return [v[0] * c - v[1] * n, v[0] * n + v[1] * c]; };
 const ROTATE = `url("data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 3 5.7" stroke="white" stroke-width="5"/><path d="M5 12a7 7 0 1 1 3 5.7"/><path d="M4 16l4 2l1 -4.5" stroke="white" stroke-width="5"/><path d="M4 16l4 2l1 -4.5"/></svg>')}") 12 12, crosshair`;
@@ -130,6 +131,9 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const [sideB, setSideB] = useState<string | null>(null);
   const fit = useRef<HTMLDivElement>(null);
   const space = useRef(false);
+  // Touch and stylus (the tablet): fingers on the canvas, and whether a pen was used (then a finger pans, it does not draw).
+  const touches = useRef(new Map<number, P>());
+  const penSeen = useRef(false);
   const [selC, setSelC] = useState<string | null>(null);
   const [showC, setShowC] = useState(true);
   const [showDone, setShowDone] = useState(false);
@@ -209,7 +213,12 @@ export function CanvasEditor(props: CanvasEditorProps) {
   const move = (e: PointerEvent) => {
     const a = act.current; if (!a) return;
     const p = at(e);
-    if (a.type === "draw") { a.pts = a.tool === "pen" ? [...a.pts, p] : [a.pts[0], p]; setDraft({ tool: a.tool, pts: a.pts }); }
+    if (a.type === "draw") {
+      // A stylus reports more points than frames are drawn: take all of them for a smooth stroke.
+      const more = a.tool === "pen" && typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents().map(at) : [p];
+      a.pts = a.tool === "pen" ? [...a.pts, ...(more.length ? more : [p])] : [a.pts[0], p];
+      setDraft({ tool: a.tool, pts: a.pts });
+    }
     else if (a.type === "move") {
       let dx = p[0] - a.start[0], dy = p[1] - a.start[1]; const g: { v?: number; h?: number } = {};
       if (snap && !e.ctrlKey && !e.metaKey) {
@@ -591,7 +600,37 @@ export function CanvasEditor(props: CanvasEditorProps) {
                 ); })}
               </div>
             ) :
-            <div ref={fit} className="cv-fit" style={{ "--aspect": aspect }} onPointerDownCapture={(e) => { if (space.current || e.button === 1) { e.stopPropagation(); e.preventDefault(); capture(e); act.current = { type: "pan", x: e.clientX, y: e.clientY, ox: view.x, oy: view.y }; } }} onPointerMove={(e) => { if (act.current?.type === "pan") move(e); }} onPointerUp={() => { if (act.current?.type === "pan") up(); }}>
+            <div ref={fit} className="cv-fit" style={{ "--aspect": aspect }}
+              onPointerDownCapture={(e) => {
+                if (e.pointerType === "pen") penSeen.current = true;
+                if (e.pointerType === "touch") {
+                  touches.current.set(e.pointerId, [e.clientX, e.clientY]);
+                  // Two fingers: zoom and pan the view; whatever the first finger began is let go.
+                  if (touches.current.size === 2) {
+                    e.stopPropagation(); e.preventDefault(); capture(e);
+                    const [a, b] = [...touches.current.values()];
+                    if (act.current?.type === "draw") setDraft(null);
+                    act.current = { type: "pinch", d: Math.hypot(b[0] - a[0], b[1] - a[1]) || 1, mid: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], z: view.z, x: view.x, y: view.y };
+                    return;
+                  }
+                  // After a pen was used, a finger pans: the hand resting on the screen never draws.
+                  if (penSeen.current) { e.stopPropagation(); e.preventDefault(); capture(e); act.current = { type: "pan", x: e.clientX, y: e.clientY, ox: view.x, oy: view.y }; return; }
+                }
+                if (space.current || e.button === 1) { e.stopPropagation(); e.preventDefault(); capture(e); act.current = { type: "pan", x: e.clientX, y: e.clientY, ox: view.x, oy: view.y }; }
+              }}
+              onPointerMoveCapture={(e) => {
+                if (e.pointerType === "touch" && touches.current.has(e.pointerId)) touches.current.set(e.pointerId, [e.clientX, e.clientY]);
+                const a = act.current;
+                if (a?.type === "pinch" && touches.current.size >= 2) {
+                  e.stopPropagation();
+                  const [p1, p2] = [...touches.current.values()], d = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]) || 1, mid: P = [(p1[0] + p2[0]) / 2, (p1[1] + p2[1]) / 2];
+                  const z = Math.min(8, Math.max(0.25, (a.z * d) / a.d)), r = fit.current!.getBoundingClientRect(), cx = a.mid[0] - (r.left + r.width / 2), cy = a.mid[1] - (r.top + r.height / 2), k = z / a.z;
+                  setView({ z, x: cx - (cx - a.x) * k + (mid[0] - a.mid[0]), y: cy - (cy - a.y) * k + (mid[1] - a.mid[1]) });
+                }
+              }}
+              onPointerMove={(e) => { if (act.current?.type === "pan") move(e); }}
+              onPointerUp={(e) => { touches.current.delete(e.pointerId); if (act.current?.type === "pan" || (act.current?.type === "pinch" && touches.current.size < 2)) { act.current = null; setGuides({}); } }}
+              onPointerCancel={(e) => { touches.current.delete(e.pointerId); if (act.current?.type === "pinch" || act.current?.type === "pan") act.current = null; }}>
               <div className={cx("cv-stage", `cv-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", scale < 1 && "is-beyond")} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, "--inv": 1 / view.z }}>
                 <div className="cv-world" style={{ transform: crop, transformOrigin: "0 0" }}>
                   <div ref={box} className="cv-surface" style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : colorCss(surface.kind === "blank" ? surface.color : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up}>
