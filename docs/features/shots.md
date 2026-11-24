@@ -30,3 +30,10 @@ One window per file, opened from any browser (double-click) or a chip. The defau
 - **Saving**: every change shows at once and is saved 0.4 s later as one `PUT /api/files/:id` of the references (and a shot's body); the Studio's file store reads the project again after. The store holds internal files too (`GET /api/files?internal=1`); every list leaves them out.
 - **Lists**: a shot's, set's or location's card in a browser shows its cover through its frame; rows show the cover's own thumbnail. A canvas never saved in the editor shows its base photo.
 - **Transparent paper**: a blank canvas can have no colour (`surface.color: null`, "Transparent" in the surface's row; a checkerboard in the editor); its render is a PNG with transparency. Overlays start that way.
+
+## Places: Sets, Locations and the map (`apps/studio/src/places/`)
+
+- **Sets** and **Locations** are entries on the file browser, as Shots is: the browser set to that type, flat, with its properties as columns, "New set" / "New location" (named by the pattern), filters in the sidebar, the board. Files makes them too (New, Set / Location). A double-click opens the Set or Location window (above).
+- **The map view** is a fourth view of the browser, next to list, grid and board, offered where it can show something: in Locations always (its first view), elsewhere once a listed file has a position. One pin per file with a position (the value of its first position property), in its type's colour; a click makes it current, its popup opens it; the view fits the pins once, and a note says how many have none. Leaflet 1.9.4 with OpenStreetMap's tiles (attribution, and a Referer of the origin as the tile server asks); in the dark theme the tiles are darkened. Nothing is looked up: an address is never sent anywhere.
+- **The pin editor**: a position property has a pin button beside its text field (which takes "lat, lng" or a map link): a map where a click places the pin and a drag moves it; Keep saves it, "Remove the pin" clears it.
+- **References open files**: a reference value's chip opens the file (its app's window); its cross takes it out of the value.

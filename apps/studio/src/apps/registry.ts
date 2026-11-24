@@ -3,7 +3,7 @@ import type { IconName } from "@openclapper/design";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
 import { BinApp } from "./BinApp";
-import { FilesApp, MediaApp, ShotsApp, filesFromRoute, mediaFromRoute } from "./FilesApp";
+import { FilesApp, LocationsApp, MediaApp, SetsApp, ShotsApp, filesFromRoute, mediaFromRoute } from "./FilesApp";
 import { PhotoApp } from "./PhotoApp";
 import { CanvasApp } from "./CanvasApp";
 import { ShotApp } from "./ShotApp";
@@ -55,6 +55,10 @@ const APPS: AppDef[] = [
     fromRoute: mediaFromRoute, about: "Photos and collections; import" },
   { id: "shots", name: "Shots", glyph: "slate", color: 1, tier: "core", singleton: true, defaultSize: { w: 1100, h: 680 }, minSize: { w: 560, h: 360 }, component: ShotsApp,
     fromRoute: filesFromRoute, about: "The shot list: shots with their properties, as a list or a board" },
+  { id: "sets", name: "Sets", glyph: "home", color: 2, tier: "core", singleton: true, defaultSize: { w: 1100, h: 680 }, minSize: { w: 560, h: 360 }, component: SetsApp,
+    fromRoute: filesFromRoute, about: "The places in the story where scenes play" },
+  { id: "locations", name: "Locations", glyph: "location", color: 3, tier: "core", singleton: true, defaultSize: { w: 1100, h: 680 }, minSize: { w: 560, h: 360 }, component: LocationsApp,
+    fromRoute: filesFromRoute, about: "The real places where it is filmed, on a map" },
   { id: "photo", name: "Photo", glyph: "image", color: 4, tier: "core", singleton: false, opens: ["photo"], defaultSize: { w: 1100, h: 760 }, minSize: { w: 480, h: 360 }, component: PhotoApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "photo", id: rest } : null }), about: "One photo with its facts" },
   { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: true, opens: ["folder", "collection", "filter"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
