@@ -34,10 +34,10 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 
 - **Taskbar** (`wm/Taskbar.tsx` on the design system's `Taskbar`): the launcher, task view, the **pins**, one button per window of the active desktop (click focuses, or minimises the focused one; right-click: pin the app, the window's menu), then the instance marker, the project switcher (with "Manage projects…"), Go to… (⌘K), the theme (as the system → light → dark), the account menu and the clock.
   - **Position and alignment** (Settings › Appearance): on any edge; items at the start or centred. On a side bar the labels are tooltips and the clock takes two lines.
-  - **Pins** are apps for now (files and folders join with the Files app): an app's pin is also the button of its windows, with a bar under it while one is open and a number with several (click lists them). Pin from the launcher or a window's taskbar menu, reorder by dragging. Pins are a preference, kept per project (`prefs.ts`).
+  - **Pins** are apps, folders and files: an app's pin is also the button of its windows, with a bar under it while one is open and a number with several (click lists them); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files and Project.
 - **Launcher** (the design system's `Launcher`): every app with a search field, extensions in their own group; right-click pins an app to the taskbar. Esc or a click beside it closes it.
 - **Go to…** (⌘K, the design system's `CommandPalette`): apps, open windows, the other projects, and the shell's actions (theme, show desktop, task view, new desktop, shortcuts, reload, sign out).
-- **Desktop:** clicking it takes focus away from the windows (the URL shows `#/`); right-click for task view, new desktop, theme and Settings. Icons come with the Files app.
+- **Desktop:** clicking it takes focus away from the windows (the URL shows `#/`). Its icons are the files of the project's Desktop folder and the recycle bin ([files](files.md#desktop-icons-wmdesktopiconstsx-wmgridts)).
 - **Hosts** (`hosts.tsx`): `toast`, `confirm`, `prompt` and `contextMenu`, callable from any app and drawn once above every window. No browser dialogs anywhere.
 
 ## Apps (`apps/registry.ts`)
@@ -46,12 +46,14 @@ An app declares its name, glyph and colour, tier, whether it is one window in al
 
 | App | File | What |
 | --- | --- | --- |
+| Files | `apps/FilesApp.tsx` | The file browser: folders of the project and of the account home ([files](files.md)) |
+| Recycle bin | `apps/BinApp.tsx` | What was deleted: restore, delete permanently, empty |
 | Project | `apps/ProjectApp.tsx` | This project (name, facts, delete) and all projects (open, new, rename, delete). Properties, naming patterns and extensions join with their steps |
 | Settings | `apps/SettingsApp.tsx` | Appearance (theme, taskbar), account (who is signed in, workspaces, sign out), shortcuts, about |
 
 ## Preferences (`prefs.ts`, `theme.ts`)
 
-Taskbar position, alignment and pins are one preferences object behind `prefs.ts`. For now it is kept in the browser; the last part of step B1 moves it into a file of the account home, so it follows the account ([09 · shells](../rewrite/09-shells.md)). The theme is `localStorage["theme"]` (`light` | `dark`, absent: as the system) and is set before the first paint by the inline script of `index.html`.
+Taskbar position, alignment and pins, the places of the desktop icons and whether the bin has one are one preferences object behind `prefs.ts`. For now it is kept in the browser; the last part of step B1 moves it into a file of the account home, so it follows the account ([09 · shells](../rewrite/09-shells.md)). The theme is `localStorage["theme"]` (`light` | `dark`, absent: as the system) and is set before the first paint by the inline script of `index.html`.
 
 ## URL and keys
 

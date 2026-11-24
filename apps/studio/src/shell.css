@@ -60,3 +60,23 @@ body.wm-gesture { user-select: none; }
 
 /* On a side bar there is room for the environment's colour and icon, not for its name. */
 .oc-taskbar--left .st-env, .oc-taskbar--right .st-env { margin: 0; padding: var(--space-2); font-size: 0; gap: 0; }
+
+/* The file browser's own layout (the Files app, the recycle bin). */
+.st-scroll { flex: 1; min-height: 0; overflow: auto; }
+.st-title { padding: 0 var(--space-3); }
+.st-name { display: inline-flex; align-items: center; gap: var(--space-4); min-width: 0; }
+.st-side { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-3); }
+.st-info { min-width: 0; }
+.st-info__head { display: grid; gap: var(--space-4); padding: var(--space-5); }
+.st-info__icon { display: flex; align-items: center; justify-content: center; gap: var(--space-4); padding: var(--space-5) 0; border-radius: 3px; background: var(--surface-sunken); }
+.st-info__type { display: flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.st-info__acts { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: 0 var(--space-5) var(--space-5); }
+.st-picker { max-height: 320px; overflow: auto; }
+
+/* Desktop icons: each in its own cell, placed by the shell. */
+.st-icon { position: absolute; display: flex; justify-content: center; }
+.st-icon > .oc-file { cursor: pointer; }
+.st-bin-full .oc-appicon { box-shadow: inset 0 -3px 0 var(--accent); }
+.st-pick { display: grid; gap: var(--space-4); }
+.st-pick > .oc-input { width: 100%; }
+.st-pick__list { max-height: 300px; overflow: auto; }

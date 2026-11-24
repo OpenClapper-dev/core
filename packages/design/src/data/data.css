@@ -57,3 +57,24 @@
 .oc-mapctl button+button{border-top:var(--border-w) solid var(--over-ink)}
 .oc-mapctl button:hover,.oc-mapctl button[aria-pressed="true"]{background:var(--over-ink);color:var(--over-paper)}
 .oc-mapctl button:focus-visible{outline:var(--focus-w) solid var(--over-human);outline-offset:-3px}
+
+.oc-filegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--space-6);padding:var(--space-6);align-content:start}
+.oc-filecard{position:relative;display:grid;gap:3px;min-width:0;padding:var(--space-3);border:var(--border-w) solid transparent;border-radius:var(--radius-control);color:var(--text);cursor:pointer;outline:0}
+.oc-filecard:hover{background:var(--surface-hover)}
+.oc-filecard:focus-visible{box-shadow:0 0 0 1px var(--focus),0 0 0 3px var(--focus-ring)}
+.oc-filecard.is-current{border-color:var(--selection-border);background:var(--surface-hover)}
+.oc-filecard.is-selected{background:var(--selection)}
+.oc-filecard.is-drop{border-color:var(--accent);background:var(--marquee)}
+.oc-filecard__art{position:relative;display:grid;place-items:center;aspect-ratio:4/3;border-radius:3px;background:var(--surface-sunken)}
+.oc-filecard__art--picture{background:var(--photo-bg,#111)}
+.oc-filecard__art>img{display:block;width:100%;height:100%;object-fit:cover;border-radius:3px}
+.oc-filecard__art>.oc-appicon{box-shadow:none}
+.oc-filecard__badge{position:absolute;left:4px;bottom:4px;display:grid}
+.oc-filecard__tick{position:absolute;left:5px;top:5px;z-index:2;display:grid;place-items:center;width:18px;height:18px;box-sizing:border-box;border:2px solid var(--over-text,#fff);border-radius:50%;background:rgb(0 0 0/.45);color:var(--over-text,#fff);opacity:0;cursor:pointer}
+.oc-filecard:hover .oc-filecard__tick,.oc-filegrid.is-ticking .oc-filecard__tick,.oc-filecard__tick.is-on,.oc-filecard__tick:focus-visible{opacity:1}
+.oc-filecard__tick:hover{background:rgb(0 0 0/.7)}
+.oc-filecard__tick.is-on{border-color:var(--accent);background:var(--accent);color:var(--text-on-accent,#fff)}
+.oc-filecard__name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:var(--weight-medium)}
+.oc-filecard__meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);font-size:var(--font-size-xs)}
+.oc-table tr.is-drop>td{background:var(--marquee);box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
+.oc-table tbody tr{cursor:pointer}

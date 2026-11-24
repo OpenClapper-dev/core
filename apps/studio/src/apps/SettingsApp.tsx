@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { Avatar, Button, FormField, Kbd, Segmented, SettingsGroup, SettingsLayout } from "@openclapper/design";
+import { Avatar, Button, FormField, Kbd, Segmented, SettingsGroup, SettingsLayout, Switch } from "@openclapper/design";
 import { useInstance } from "../instance";
 import { setPrefs, usePrefs, type Edge } from "../prefs";
 import { SCOPES, keysLabel, shortcutsOf, type ScopeId } from "../shortcuts";
@@ -46,6 +46,9 @@ export function SettingsApp({ win, setTitle, setRoute }: AppProps) {
           <SettingsGroup title="Taskbar">
             <FormField label="Position"><span><Segmented label="Taskbar position" value={prefs.taskbarEdge} onChange={(v) => setPrefs({ taskbarEdge: v as Edge })} options={[{ value: "bottom", label: "Bottom" }, { value: "top", label: "Top" }, { value: "left", label: "Left" }, { value: "right", label: "Right" }]} /></span></FormField>
             <FormField label="Apps and windows" hint="Along a side bar, the start is its top."><span><Segmented label="Taskbar alignment" value={prefs.taskbarAlign} onChange={(v) => setPrefs({ taskbarAlign: v as "start" | "center" })} options={[{ value: "start", label: "At the start" }, { value: "center", label: "Centred" }]} /></span></FormField>
+          </SettingsGroup>
+          <SettingsGroup title="Desktop">
+            <Switch checked={prefs.binOnDesktop} onChange={(v) => setPrefs({ binOnDesktop: v })}>Recycle bin on the desktop</Switch>
           </SettingsGroup>
         </>
       )}

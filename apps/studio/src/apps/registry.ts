@@ -2,6 +2,8 @@ import type { ComponentType } from "preact";
 import type { IconName } from "@openclapper/design";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
+import { BinApp } from "./BinApp";
+import { FilesApp, filesFromRoute } from "./FilesApp";
 import { ProjectApp } from "./ProjectApp";
 import { SettingsApp } from "./SettingsApp";
 
@@ -45,6 +47,9 @@ export interface AppDef {
 }
 
 const APPS: AppDef[] = [
+  { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: true, opens: ["folder"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
+    fromRoute: filesFromRoute, about: "Folders of the project and of your home" },
+  { id: "bin", name: "Recycle bin", glyph: "trash", color: 0, tier: "core", singleton: true, defaultSize: { w: 900, h: 560 }, minSize: { w: 520, h: 320 }, component: BinApp, about: "What was deleted, for 30 days" },
   { id: "project", name: "Project", glyph: "slate", color: 2, tier: "core", singleton: true, defaultSize: { w: 860, h: 600 }, minSize: { w: 520, h: 360 }, component: ProjectApp,
     fromRoute: (rest) => ({ state: { tab: rest } }), about: "This project and all projects" },
   { id: "settings", name: "Settings", glyph: "settings", color: 0, tier: "core", singleton: true, defaultSize: { w: 820, h: 600 }, minSize: { w: 480, h: 360 }, component: SettingsApp,

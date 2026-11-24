@@ -1,6 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
 import { AppIcon, EnvMarker, Launcher, Taskbar as Bar, TaskbarButton, TaskbarClock } from "@openclapper/design";
 import { appDef, apps, launch } from "../apps/registry";
+import { lookOf } from "../fileKinds";
+import * as ops from "../fileOps";
+import * as store from "../files";
 import { contextMenu, toast, type MenuEntry } from "../hosts";
 import { envOf, useInstance } from "../instance";
 import { samePin, setPrefs, usePrefs, type Pin } from "../prefs";
@@ -22,7 +25,7 @@ function useClock(): string {
 }
 
 /** What a project's taskbar starts with. */
-export const DEFAULT_PINS: Pin[] = [{ app: "project" }, { app: "settings" }];
+export const DEFAULT_PINS: Pin[] = [{ app: "files" }, { app: "project" }];
 const pinId = (p: Pin) => ("app" in p ? `app:${p.app}` : `file:${p.file}`);
 const PIN_DRAG = "application/x-oc-pin";
 
@@ -53,7 +56,10 @@ export function Taskbar({ projectId }: { projectId: string }) {
   const user = useUser();
   const instance = useInstance();
   const clock = useClock();
-  const pins = pinsOf(projectId, prefs.pins).filter((p) => !("app" in p) || appDef(p.app));
+  const { files } = store.useRoot({ project: projectId });
+  const fileMap = store.byId(files ?? []);
+  // A pin whose app this build does not have, or whose file is gone, is not shown (it comes back with it).
+  const pins = pinsOf(projectId, prefs.pins).filter((p) => ("app" in p ? appDef(p.app) : !files || fileMap.has(p.file)));
   const pinned = (app: string) => pins.some((p) => "app" in p && p.app === app);
   const winsOf = (p: Pin) => ("app" in p ? windows.filter((w) => w.app === p.app) : []);
   const running = windows.filter((w) => !pinned(w.app)); // insertion order: z churn must not shuffle the tasks
@@ -68,6 +74,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
     if (wins.length === 1) toggleWin(wins[0]);
     else if (wins.length > 1) contextMenu(below(e), winEntries(wins));
     else if ("app" in pin) launch({ app: pin.app });
+    else { const f = fileMap.get(pin.file); if (f) ops.openFile(f, fileMap); }
   };
   const onTaskMenu = (id: string, e: MouseEvent) => {
     const pin = pins.find((p) => pinId(p) === id);
@@ -75,7 +82,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
       const wins = winsOf(pin);
       contextMenu(e, [
         ...winEntries(wins), wins.length > 0 && { separator: true },
-        "app" in pin && { id: "open", label: wins.length ? "Open again" : "Open", icon: "external", run: () => { launch({ app: pin.app }); } },
+        { id: "open", label: wins.length ? "Open again" : "Open", icon: "external", run: () => { if ("app" in pin) launch({ app: pin.app }); else { const f = fileMap.get(pin.file); if (f) ops.openFile(f, fileMap); } } },
         { id: "unpin", label: "Unpin from taskbar", icon: "pinned", run: () => togglePin(projectId, prefs.pins, pin) },
         wins.length > 0 && { id: "close", label: wins.length > 1 ? `Close ${wins.length} windows` : "Close window", icon: "close", danger: true, run: () => { for (const w of wins) void requestClose(w.id); } },
       ]);
@@ -90,14 +97,18 @@ export function Taskbar({ projectId }: { projectId: string }) {
   const indexAt = (e: DragEvent) => { const el = (e.target as HTMLElement).closest<HTMLElement>("[data-pin-index]"); return el ? Number(el.dataset.pinIndex) : pins.length; };
   const groupProps = {
     onDragStart: (e: DragEvent) => { const id = (e.target as HTMLElement).closest<HTMLElement>("[data-pin-id]")?.dataset.pinId; if (id && e.dataTransfer) { e.dataTransfer.setData(PIN_DRAG, id); e.dataTransfer.effectAllowed = "move"; } },
-    onDragOver: (e: DragEvent) => { if (!e.dataTransfer?.types.includes(PIN_DRAG)) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropAt(indexAt(e)); },
+    onDragOver: (e: DragEvent) => { const pin = e.dataTransfer?.types.includes(PIN_DRAG); if (!pin && !ops.hasDrag(e)) return; e.preventDefault(); e.dataTransfer!.dropEffect = pin ? "move" : "copy"; setDropAt(indexAt(e)); },
     onDragLeave: (e: DragEvent) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setDropAt(null); },
     onDrop: (e: DragEvent) => {
       e.preventDefault();
       setDropAt(null);
+      const at = indexAt(e);
+      // Files dragged here from Files or the desktop are pinned at that place.
+      const dropped = ops.readDrag(e);
+      if (dropped) { const add = dropped.filter((id) => fileMap.has(id) && !pins.some((p) => "file" in p && p.file === id)).map((id): Pin => ({ file: id })); const order = [...pins]; order.splice(at, 0, ...add); setPins(projectId, prefs.pins, order); return; }
       const moving = pins.find((p) => pinId(p) === e.dataTransfer?.getData(PIN_DRAG));
       if (!moving) return;
-      const at = indexAt(e), from = pins.indexOf(moving);
+      const from = pins.indexOf(moving);
       const order = pins.filter((p) => p !== moving);
       order.splice(Math.min(at > from ? at - 1 : at, order.length), 0, moving);
       setPins(projectId, prefs.pins, order);
@@ -146,8 +157,10 @@ export function Taskbar({ projectId }: { projectId: string }) {
         pinsDraggable groupProps={groupProps} onTask={onTask} onTaskMenu={onTaskMenu}
         pinned={pins.map((p) => {
           const def = "app" in p ? appDef(p.app) : undefined;
+          const file = "file" in p ? fileMap.get(p.file) : undefined;
+          const look = file ? lookOf(file, fileMap) : def;
           const wins = winsOf(p);
-          return { id: pinId(p), title: wins.length > 1 ? `${def?.name} · ${wins.length} windows` : wins[0]?.title ?? def?.name ?? "", icon: <AppIcon glyph={def?.glyph} color={def?.color} size={20} />, state: wins.some(isActive) ? "active" as const : wins.length ? "running" as const : undefined, count: wins.length };
+          return { id: pinId(p), title: wins.length > 1 ? `${def?.name} · ${wins.length} windows` : wins[0]?.title ?? def?.name ?? file?.name ?? "", icon: <AppIcon glyph={look?.glyph} color={look?.color} size={20} />, state: wins.some(isActive) ? "active" as const : wins.length ? "running" as const : undefined, count: wins.length };
         })}
         tasks={running.map((w) => { const def = appDef(w.app); return { id: w.id, title: w.title, icon: <AppIcon glyph={def?.glyph} color={def?.color} size={20} />, state: isActive(w) ? "active" as const : w.mode === "min" ? "minimized" as const : "running" as const }; })}>
         {env !== "production" && <EnvMarker env={env} className="st-env" />}
