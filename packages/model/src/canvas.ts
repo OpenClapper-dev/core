@@ -173,6 +173,15 @@ function frameError(f: unknown, ids: Set<string>): string | null {
   return null;
 }
 
+/** The values of a frame without its place on a canvas (a shot's default frame, 04-shots.md): what it is, and its orientation. */
+export type FrameValues = Pick<CanvasFrame, "kind" | "preset" | "focal" | "format" | "multiplier" | "squeeze" | "delivery" | "aspect" | "size" | "portrait">;
+/** Null when frame values are valid: the same rules as a frame on a canvas. */
+export function frameValuesError(v: unknown): string | null {
+  if (!isObj(v)) return "a frame is an object";
+  for (const k of Object.keys(v)) if (!["kind", "preset", "focal", "format", "multiplier", "squeeze", "delivery", "aspect", "size", "portrait"].includes(k)) return `a frame has no "${k}"`;
+  return frameError({ ...v, id: "frame", name: "Frame", color: 0, cx: 0.5, cy: 0.5, visible: true }, new Set());
+}
+
 /** Null when a canvas body and its references are valid. A base photo is the one "base" reference; each placed picture one "placed" reference. */
 export function canvasError(b: Record<string, unknown>, refs: readonly Ref[] | null): string | null {
   for (const k of Object.keys(b)) if (!["surface", "objects", "frames", "picture", "linkCentres", "comments"].includes(k)) return `a canvas has no "${k}"`;

@@ -1,10 +1,10 @@
 import {
   BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
-  nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind,
+  nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind, type ShotBody,
 } from "@openclapper/model";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
-import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys } from "./canvas.ts";
+import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys, shotFrameStatements } from "./canvas.ts";
 import { copyPhotos, objectsOf, removeOrphans } from "./photos.ts";
 import { nextName, refitValues, searchTexts, templateStatements, valuesOf } from "./properties.ts";
 import { assertAccess, assertProjectRef, assertRank, type Access, type Role } from "./tenancy.ts";
@@ -169,6 +169,19 @@ async function assertPlace(env: Env, root: Root, containerId: string | null, fil
       ).bind(list(stored), list(containerTypes())).first<{ h: number }>())?.h ?? 1
     : 1;
   if (up.length + height > MAX_CONTAINER_DEPTH) throw new HttpError(400, `folders nest at most ${MAX_CONTAINER_DEPTH} deep`);
+}
+
+/** Refuses references of a kind that points only at certain types, where the file pointed at is here and of another type. */
+async function assertRefTargets(env: Env, root: { projectId: string | null; userId: string | null }, t: FileType, refs: readonly Ref[]): Promise<void> {
+  const want = refs.filter((r) => t.refTargets?.[r.kind]);
+  if (!want.length) return;
+  const { results } = await env.DB.prepare(`SELECT t.id, t.type FROM files t WHERE t.id IN (SELECT value FROM json_each(?1)) AND t.deleted_at IS NULL AND ${inRoot("t", 2)}`)
+    .bind(JSON.stringify([...new Set(want.map((r) => r.to))]), root.projectId, root.userId).all<{ id: string; type: string }>();
+  const types = new Map(results.map((r) => [r.id, r.type]));
+  for (const r of want) {
+    const ty = types.get(r.to), ok = t.refTargets![r.kind]!;
+    if (ty && !ok.includes(ty)) throw new HttpError(400, `a ${r.kind} of a ${t.label.toLowerCase()} is a ${ok.map((x) => fileType(x)?.label.toLowerCase() ?? x).join(" or ")}, not a ${fileType(ty)?.label.toLowerCase() ?? ty}`);
+  }
 }
 
 /** A file's own references in their order; `missing` when what one points at is gone, binned or not of this root. */
@@ -381,6 +394,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
       if (!checked.ok) throw new HttpError(400, checked.error);
       save = { body: checked.body, version: checked.version, refs: b.refs !== undefined || !stored ? checked.refs : null };
     }
+    // Some references point only at certain types (a progression shows pictures only); a missing target is accepted.
+    if (save?.refs && t.refTargets) await assertRefTargets(env, root, t, save.refs);
     // An optics preset changes additively only: lenses frames use stay.
     if (t.type === "preset" && stored && save && b.body !== undefined) await assertPresetChange(env, fid, parseBody(stored) as unknown as PresetBody, save.body as unknown as PresetBody);
 
@@ -397,6 +412,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     if (save?.refs) stmts.push(...writeRefs(env, fid, save.refs));
     // A canvas's frames are kept where the server can find them (is a preset's lens in use).
     if (t.type === "canvas" && save) stmts.push(...frameStatements(env, fid, save.body as unknown as CanvasBody));
+    // A shot's default frame from a preset uses that lens as much as a frame on a canvas does.
+    if (t.type === "shot" && save) stmts.push(...shotFrameStatements(env, fid, save.body as unknown as ShotBody));
     await env.DB.batch(stmts);
     // A changed definition: values that no longer fit it are fitted or dropped.
     if (t.type === "property" && stored && save && root.projectId) await refitValues(env, root.projectId, fid);

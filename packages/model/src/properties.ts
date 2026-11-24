@@ -183,7 +183,7 @@ const opts = (list: [string, Colour][]): ChoiceOption[] => { const ids: string[]
 
 /**
  * What a new project starts with (07-organisation.md, "Default template"): for shots a typical shot
- * list, for a canvas its kind, "Set" on shots (09a). Every one can be changed, hidden or deleted.
+ * list, for a canvas its kind, "Set" on shots, "Locations" on sets, an address and a position on locations (09a). Every one can be changed, hidden or deleted.
  */
 export const TEMPLATE: { name: string; def: Omit<PropertyDef, "order"> }[] = [
   { name: "Scene", def: { field: "text", section: "Script", attached: [{ type: "shot" }] } },
@@ -196,6 +196,9 @@ export const TEMPLATE: { name: string; def: Omit<PropertyDef, "order"> }[] = [
   { name: "Movement", def: { field: "multi", options: opts([["Static", 0], ["Pan", 6], ["Tilt", 4], ["Push in", 2], ["Pull out", 5], ["Tracking", 3], ["Crane", 7]]), section: "Camera", attached: [{ type: "shot" }] } },
   { name: "Support", def: { field: "choice", options: opts([["Tripod", 0], ["Handheld", 2], ["Dolly", 6], ["Gimbal", 4], ["Slider", 3], ["Crane", 7], ["Drone", 5]]), section: "Camera", attached: [{ type: "shot" }] } },
   { name: "Lens", def: { field: "text", section: "Camera", attached: [{ type: "shot" }] } },
+  { name: "Locations", def: { field: "reference", targets: ["location"], many: true, section: "Places", attached: [{ type: "set" }] } },
+  { name: "Address", def: { field: "long", section: "Places", attached: [{ type: "location" }] } },
+  { name: "Position", def: { field: "position", section: "Places", attached: [{ type: "location" }] } },
   { name: "Kind", def: { field: "choice", options: opts([["Floor plan", 6], ["Lighting diagram", 2], ["Blocking", 3], ["Storyboard", 4]]), attached: [{ type: "canvas" }] } },
 ];
 

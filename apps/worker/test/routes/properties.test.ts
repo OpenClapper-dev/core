@@ -29,7 +29,7 @@ describe("a new project", () => {
   test("starts with the template in Settings, which does not count as its files", async () => {
     await newProject();
     const d = await defs();
-    expect(Object.keys(d).sort()).toEqual(["Angle", "Day / Night", "INT / EXT", "Kind", "Lens", "Movement", "Scene", "Set", "Shot no.", "Shot size", "Support"]);
+    expect(Object.keys(d).sort()).toEqual(["Address", "Angle", "Day / Night", "INT / EXT", "Kind", "Lens", "Locations", "Movement", "Position", "Scene", "Set", "Shot no.", "Shot size", "Support"]);
     expect(d["Shot size"].body).toMatchObject({ field: "choice", section: "Camera", attached: [{ type: "shot" }] });
     const { projects } = await ok<{ projects: { id: string; file_count: number }[] }>(api(u.token, "GET", "/api/projects"));
     expect(projects.find((p) => p.id === project)!.file_count).toBe(0);
