@@ -41,6 +41,8 @@ export interface AppDef {
   /** 0 neutral, 1 to 8 categorical (the design system's app icon). */
   color: number;
   tier: "core" | "standard" | "extension";
+  /** The extension that brings it: listed only while the project has it on; a window of it says it needs it. */
+  extension?: string;
   /** One window for the whole app; other apps have one window per file. */
   singleton: boolean;
   /** The file types a double-click opens in this app. */
@@ -90,10 +92,21 @@ const APPS: AppDef[] = [
     fromRoute: (rest) => ({ state: { tab: rest } }), about: "Appearance, account, shortcuts" },
 ];
 
-export const apps = (): readonly AppDef[] => APPS;
+let active: readonly string[] = [];
+/** The extensions the current project has on; the shell sets it when the project or its switches change. */
+export function setActiveExtensions(list: readonly string[]) { active = list; }
+export const extensionOn = (id: string | undefined): boolean => !id || active.includes(id);
+/** Adds an app an extension brings (from the client's extensions.ts). */
+export function registerApp(def: AppDef) {
+  const i = APPS.findIndex((a) => a.id === def.id);
+  if (i >= 0) APPS[i] = def; else APPS.push(def);
+}
+
+/** The apps to offer in the current project: the core's and those of the extensions it has on. */
+export const apps = (): readonly AppDef[] => APPS.filter((a) => extensionOn(a.extension));
 export const appDef = (id: string): AppDef | undefined => APPS.find((a) => a.id === id);
 /** The app registered for a file type, if any. */
-export const appFor = (fileType: string): AppDef | undefined => APPS.find((a) => a.opens?.includes(fileType));
+export const appFor = (fileType: string): AppDef | undefined => APPS.find((a) => a.opens?.includes(fileType) && extensionOn(a.extension)) ?? APPS.find((a) => a.opens?.includes(fileType));
 
 /** Open an app window with the registry's defaults; the one place wm.open is fed app metadata. */
 export function launch(intent: OpenIntent): string | null {

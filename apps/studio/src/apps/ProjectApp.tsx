@@ -9,10 +9,11 @@ import { useCatalogue } from "../props";
 import type { AppProps } from "./registry";
 import { NamingPage } from "./project/Naming";
 import { PropertiesPage } from "./project/Properties";
+import { ExtensionsPage } from "./project/Extensions";
 import "../catalogue.css";
 
-const TABS = ["general", "properties", "naming", "projects"] as const;
-const TITLES: Record<string, string> = { properties: "Properties", naming: "Naming patterns" };
+const TABS = ["general", "properties", "naming", "extensions", "projects"] as const;
+const TITLES: Record<string, string> = { properties: "Properties", naming: "Naming patterns", extensions: "Extensions" };
 type Tab = (typeof TABS)[number];
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 /** A name the server refused because it is taken reads better than "409". */
@@ -21,7 +22,7 @@ const nameTaken = (e: unknown) => e instanceof ApiError && e.status === 409;
 /**
  * The Project app (docs/rewrite/09-shells.md): this project's own settings, and switching and
  * managing projects; the property catalogue and the naming patterns (docs/features/properties.md).
- * Extensions join it with their build step.
+ * The extensions switched on for the project (docs/rewrite/08-extensions.md).
  */
 export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const asked = (win.state as { tab?: string } | undefined)?.tab;
@@ -75,11 +76,12 @@ export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
 
   return (
     <SettingsLayout value={tab} onChange={(id) => setTab(id as Tab)}
-      sections={[{ label: "This project", items: [{ id: "general", label: "General", icon: "slate" }, { id: "properties", label: "Properties", icon: "tag" }, { id: "naming", label: "Naming patterns", icon: "edit" }] }, { label: "All projects", items: [{ id: "projects", label: "Projects", icon: "folder" }] }]}
+      sections={[{ label: "This project", items: [{ id: "general", label: "General", icon: "slate" }, { id: "properties", label: "Properties", icon: "tag" }, { id: "naming", label: "Naming patterns", icon: "edit" }, { id: "extensions", label: "Extensions", icon: "extension" }] }, { label: "All projects", items: [{ id: "projects", label: "Projects", icon: "folder" }] }]}
       wide={tab === "properties" || tab === "naming"}
       title={tab === "projects" ? "Projects" : TITLES[tab] ?? current?.name ?? "Project"}>
       {tab === "properties" && <PropertiesPage projectId={projectId} files={catalogue.files} defs={catalogue.defs} />}
       {tab === "naming" && <NamingPage projectId={projectId} files={catalogue.files} patterns={catalogue.patterns} />}
+      {tab === "extensions" && current && <ExtensionsPage project={current} />}
       {tab === "general" && current && (
         <>
           <SettingsGroup title="Name">

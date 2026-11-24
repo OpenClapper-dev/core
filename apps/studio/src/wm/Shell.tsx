@@ -2,7 +2,8 @@ import type { JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Button, CommandPalette, Desktop, Dialog, EmptyState, ProjectPicker, SignIn, Spinner, type IconName } from "@openclapper/design";
 import { ApiError } from "../api";
-import { appDef, apps, launch } from "../apps/registry";
+import { appDef, apps, launch, extensionOn, setActiveExtensions } from "../apps/registry";
+import { NeedsExtension } from "./NeedsExtension";
 import { ShortcutList } from "../apps/SettingsApp";
 import { clearFiles } from "../files";
 import { Hosts, prompt, toast, toastError, type MenuEntry } from "../hosts";
@@ -130,6 +131,8 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const [theme] = useTheme();
   const user = useUser();
   const { list } = useProjects();
+  // The project's extensions decide which apps are offered (set before the taskbar and the windows render).
+  setActiveExtensions(list?.find((p) => p.id === projectId)?.extensions ?? []);
   // A closed window fades first (the frame's own animation), then leaves the store.
   const [closing, setClosing] = useState<string[]>([]);
   useEffect(() => { setCloser((id) => setClosing((c) => (c.includes(id) ? c : [...c, id]))); return () => setCloser(wm.close); }, []);
@@ -220,8 +223,8 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
           return (
             <Window key={w.id} win={w} def={def} focused={w.id === focusedId} away={w.desk !== activeDesk} closing={closing.includes(w.id)}
               onClosed={() => { setClosing((c) => c.filter((x) => x !== w.id)); wm.close(w.id); }}>
-              <App win={w} focused={w.id === focusedId} resource={w.resource} projectId={projectId} setTitle={(t) => wm.setTitle(w.id, t)} setRoute={(r) => wm.setRoute(w.id, r)}
-                open={(intent) => { launch(intent); }} close={() => void requestClose(w.id)} />
+              {!extensionOn(def.extension) ? <NeedsExtension id={def.extension!} /> : <App win={w} focused={w.id === focusedId} resource={w.resource} projectId={projectId} setTitle={(t) => wm.setTitle(w.id, t)} setRoute={(r) => wm.setRoute(w.id, r)}
+                open={(intent) => { launch(intent); }} close={() => void requestClose(w.id)} />}
             </Window>
           );
         })}

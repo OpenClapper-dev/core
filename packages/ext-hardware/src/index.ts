@@ -1,0 +1,16 @@
+/**
+ * The Hardware extension (docs/rewrite/08-extensions.md): lights, batteries, cameras and video transmitters
+ * in the account's device registry, a catalogue of the supported models, pairing, and the phone as proxy.
+ * What the Worker, the Studio and the phone share lives here; each registers it from its own `extensions.ts`.
+ */
+import { registerExtension, type ExtensionDef } from "@openclapper/model";
+
+export const HARDWARE: ExtensionDef = {
+  id: "hardware",
+  name: "Hardware",
+  about: "Lights, batteries, cameras and video transmitters, controlled through your phone",
+  needs: [],
+  brings: ["Device types: light, battery, camera, video transmitter", "Apps: Devices across types, Hardware on the phone", "Camera control: Hardware"],
+};
+
+registerExtension(HARDWARE);

@@ -18,6 +18,8 @@ export function registerDeviceRoutes(r: Router<Ctx>) {
     if (typeof b !== "object" || b === null || Array.isArray(b)) throw new HttpError(400, "expected a JSON object");
     const fp = typeof b.fingerprint === "string" ? b.fingerprint.trim() : "";
     if (!/^[A-Za-z0-9._:-]{8,128}$/.test(fp)) throw new HttpError(400, "fingerprint must be 8 to 128 letters, digits or . _ : -");
+    // Only phones and tablets register themselves; other hardware is added through its extension.
+    if (b.kind !== "phone" && b.kind !== "tablet") throw new HttpError(400, "kind must be phone or tablet");
     const known = await env.DB.prepare("SELECT d.file_id, f.body, f.deleted_at FROM devices d JOIN files f ON f.id = d.file_id WHERE d.user_id = ?1 AND d.fingerprint = ?2")
       .bind(tenant.userId, fp).first<{ file_id: string; body: string; deleted_at: string | null }>();
     const before = known ? (JSON.parse(known.body) as Record<string, unknown>) : null;

@@ -1,0 +1,15 @@
+{
+  "name": "@openclapper/ext-hardware",
+  "private": true,
+  "version": "0.0.0",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "test": "node --test src/*.test.ts"
+  },
+  "dependencies": {
+    "@openclapper/model": "workspace:*"
+  }
+}

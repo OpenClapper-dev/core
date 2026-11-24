@@ -8,7 +8,7 @@ import { API_URL, isConfigured } from "../config";
 import { device, lenses, renameDevice, reportedModel, setTabs } from "../device";
 import { clearLog, logCount, logText } from "../log";
 import { setPrefs, usePrefs, usePrefsPending, type Prefs } from "../prefs";
-import { useProject } from "../projects";
+import { useExtensionsOn, useProject } from "../projects";
 import { setSettings, settings } from "../settings";
 import { ProjectList } from "../shell/Gates";
 import { useBack } from "../shell/back";
@@ -16,7 +16,7 @@ import { onOpen } from "../shell/nav";
 import { startSignIn } from "../shell/signin";
 import { APP_VERSION } from "../version";
 import { Block, Button, confirm, ErrorText, FieldRow, Header, Hint, Icon, IconButton, Input, ListRow, makeStyles, num, PasswordInput, Screen, SectionLabel, Seg, Sheet, toast, Toggle, type, useTheme, type IconName } from "../ui";
-import { appOf, catalogue, registerApp } from "./registry";
+import { appOf, catalogue, registerApp, usableApp } from "./registry";
 
 /**
  * Setup (docs/rewrite/09-shells.md): always a tab and never removable, because the tabs are chosen
@@ -189,14 +189,15 @@ function TabsPage({ back }: { back: () => void }) {
   const s = useStyles();
   const { c } = useTheme();
   const dev = device.use();
-  const shown = dev.tabs.filter((t) => t !== "setup" && appOf(t));
-  const all = catalogue();
+  const on = useExtensionsOn();
+  const shown = dev.tabs.filter((t) => t !== "setup" && usableApp(t, on));
+  const all = catalogue().filter((a) => !a.extension || on.includes(a.extension));
   // The device's own order, with apps of other builds kept where they were.
   const move = (id: string, d: -1 | 1) => {
     const i = shown.indexOf(id), j = i + d;
     if (j < 0 || j >= shown.length) return;
     const next = [...shown]; [next[i], next[j]] = [next[j], next[i]];
-    setTabs([...next, ...dev.tabs.filter((t) => t !== "setup" && !appOf(t))]);
+    setTabs([...next, ...dev.tabs.filter((t) => t !== "setup" && !usableApp(t, on))]);
   };
   const toggle = (id: string, on: boolean) => setTabs(on ? [...dev.tabs.filter((t) => t !== "setup"), id] : dev.tabs.filter((t) => t !== id && t !== "setup"));
   return (

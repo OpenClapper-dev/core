@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { switchExtension } from "@openclapper/model";
 import { deleteProject, fetchProjects, putProject, type Project } from "./api";
 
 /**
@@ -38,6 +39,12 @@ export async function setCanvasLive(p: Project, live: Project["canvas_live"]): P
 export async function setMaster(p: Project, master: string[]): Promise<void> {
   put({ list: (getProjects() ?? []).map((x) => (x.id === p.id ? { ...x, master } : x)), error: null });
   const next = await putProject(p.id, { name: p.name, master });
+  put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
+}
+
+/** Switches an extension on or off for the project, with what it needs or what needs it (docs/rewrite/08-extensions.md). */
+export async function setExtension(p: Project, id: string, on: boolean): Promise<void> {
+  const next = await putProject(p.id, { name: p.name, extensions: switchExtension(p.extensions ?? [], id, on) });
   put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
 }
 

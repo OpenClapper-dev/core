@@ -15,6 +15,7 @@
   "dependencies": {
     "@openclapper/service-kit": "workspace:*",
     "@openclapper/fov-math": "workspace:*",
+    "@openclapper/ext-hardware": "workspace:*",
     "@openclapper/model": "workspace:*",
     "@openclapper/vocab": "workspace:*"
   },

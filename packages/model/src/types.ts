@@ -9,6 +9,7 @@ import { emptyShot, placeError, shotError } from "./shot.ts";
 import { emptyTimeline, remapTimeline, timelineError } from "./timeline.ts";
 import { BUILTIN_LAYOUTS, copyLayout, layoutError } from "./layout.ts";
 import { defaultPattern, definitionError, MAX_DIGITS } from "./properties.ts";
+import { deviceKind } from "./extensions.ts";
 
 const noKeys = (body: Body, what: string): string | null => {
   const extra = Object.keys(body);
@@ -164,8 +165,11 @@ export const DEVICE: FileType = {
   type: "device", label: "Device", plural: "Devices", roots: ["home"], version: 1, made: "register",
   empty: () => ({ kind: "phone", make: "", model: "", lenses: [], screen: null, camera: null, tabs: [], app: "", layout: "viewfinder" }),
   check(body) {
+    // A kind an extension brings (a light, a battery…) has rules of its own; the core checks phones and tablets.
+    const ext = deviceKind(body.kind);
+    if (ext) return ext.check(body);
     for (const k of Object.keys(body)) if (!["kind", "make", "model", "lenses", "screen", "camera", "tabs", "app", "layout"].includes(k)) return `a device has no "${k}"`;
-    if (!(KINDS as readonly unknown[]).includes(body.kind)) return "kind must be phone or tablet";
+    if (!(KINDS as readonly unknown[]).includes(body.kind)) return "kind must be phone, tablet or a kind an extension brings";
     if (!short(body.make) || !short(body.model) || !short(body.app, 60)) return "make, model and app are text";
     if (!Array.isArray(body.lenses) || body.lenses.length > 16) return "lenses must be a list of at most 16";
     for (const l of body.lenses) {

@@ -13,6 +13,7 @@
   "dependencies": {
     "@openclapper/design": "workspace:*",
     "@openclapper/fov-math": "workspace:*",
+    "@openclapper/ext-hardware": "workspace:*",
     "@openclapper/model": "workspace:*",
     "leaflet": "1.9.4",
     "preact": "^10.27.0"
