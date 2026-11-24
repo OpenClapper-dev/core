@@ -112,6 +112,22 @@ A device is a phone or tablet running the app ([capture](rewrite/03-capture.md))
 | Method | Path | Notes |
 | --- | --- | --- |
 | POST | `/api/devices/register` | `{ fingerprint, kind: phone \| tablet, make, model, lenses, screen, camera?, app }` → `{ file }`. `camera`: the camera's area per orientation (kept when not sent). The record is found by the caller and the fingerprint (on Android `ANDROID_ID`): `201` the first time (named after the model, tabs Camera, Media, Shots, Setup), else `200` with what is reported replaced and the name, tabs and camera layout kept; a device in the recycle bin comes back (`restored: true`). The same fingerprint under another account is another record |
+
+### Hardware (the Hardware extension, [hardware](features/hardware.md))
+
+Every route works whatever a project has switched on; devices and networks belong to the caller's account (another account's answers 404, or 400 where it is only named in the body).
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| POST | `/api/hardware/devices` | `{ id, model, address, name? }` → `{ file }`: a device file of the account home (`201`); the same id again answers it as it is (`200`), an id taken by another account `409`. `model` from the catalogue, `address` a Bluetooth address (none for a Wi-Fi model) |
+| PUT | `/api/hardware/devices/:id/power` | `{ battery }` (a battery's id, or null for a socket) → `{ file }`. Only a light that takes a battery; the battery leaves any other light it powered |
+| PUT | `/api/hardware/devices/:id/mesh` | `{ network, unicast, elements? }` or `{ network: null }` → `{ file }`. Mesh models only; one unicast address per network (`409`) |
+| GET | `/api/hardware/mesh-networks` | `{ mesh_networks: [{ id, name, iv_index, next_unicast, holder, seq_floor, key_backup_at, created_at, updated_at }] }` |
+| PUT | `/api/hardware/mesh-networks/:id` | `{ name, iv_index?, next_unicast?, holder?, seq_floor? }`, upsert. `seq_floor` only rises; `holder` is taken when the network has none, another one is `409` |
+| GET | `/api/hardware/mesh-networks/:id/key-backup` | `{ key_backup, key_backup_at }`: the sealed keys |
+| PUT | `/api/hardware/mesh-networks/:id/key-backup` | `{ key_backup, holder }` (at most 64 KiB); another holder `409` |
+| POST | `/api/hardware/mesh-networks/:id/claim` | `{ holder }`: this phone takes the network over |
+| DELETE | `/api/hardware/mesh-networks/:id` | Its lights stay, without their mesh place |
 | GET | `/api/link?role=phone\|studio` | WebSocket (`426` without the upgrade) into the caller's phone link: channels `link` (hello, presence, readout), `layout` (preview, stop, exit) and extensions' channels carried unread ([camera layouts](features/camera-layouts.md)) |
 
 Bulk routes take at most 500 ids, all of one root; an id the caller cannot reach makes the whole request `404`.

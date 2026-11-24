@@ -1,4 +1,4 @@
-import { effectSettingsOf, fixtureKind, startState, type Curve, type EffectId, type EffectSettings, type LightState } from "@openclapper/vocab";
+import { effectSettingsOf, fixtureKind, startState, type Curve, type EffectId, type EffectSettings, type LightState } from "@openclapper/ext-hardware";
 import { toHex } from "../bytes.ts";
 import { effectFrame, helloFrames, instantWhiteFrame, modelOf, NEEWER_NOTIFY, NEEWER_SERVICE, NEEWER_WRITE, parseNotice, parseState, powerFrame, smoothFrame, stateQuery, whiteFrame } from "../codecs/neewer.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";

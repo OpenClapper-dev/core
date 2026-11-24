@@ -70,6 +70,17 @@ const ROUTES: Record<string, Case> = {
 
   "GET /api/link": { kind: "exempt", why: "no id: the room is picked by the caller's own user id (link.ts)" },
 
+  // The Hardware extension (step B9): devices are files of the account home, mesh networks rows of one user.
+  "POST /api/hardware/devices": { kind: "id", path: () => "/api/hardware/devices", body: (a) => ({ id: a.light, model: "neewer-fs230b", address: "AA:BB:CC:DD:EE:09" }), refused: [409] },
+  "PUT /api/hardware/devices/:id/power": { kind: "id", path: (a) => `/api/hardware/devices/${a.light}/power`, body: (a) => ({ battery: a.battery }) },
+  "PUT /api/hardware/devices/:id/mesh": { kind: "id", path: (a) => `/api/hardware/devices/${a.meshLight}/mesh`, body: (a) => ({ network: a.meshNet, unicast: 2, elements: 1 }) },
+  "GET /api/hardware/mesh-networks": { kind: "list", paths: () => ["/api/hardware/mesh-networks"] },
+  "PUT /api/hardware/mesh-networks/:id": { kind: "id", path: (a) => `/api/hardware/mesh-networks/${a.meshNet}`, body: (a) => ({ name: named(a, "mesh") }) },
+  "GET /api/hardware/mesh-networks/:id/key-backup": { kind: "id", path: (a) => `/api/hardware/mesh-networks/${a.meshNet}/key-backup` },
+  "PUT /api/hardware/mesh-networks/:id/key-backup": { kind: "id", path: (a) => `/api/hardware/mesh-networks/${a.meshNet}/key-backup`, body: () => ({ key_backup: "sealed", holder: uuid() }) },
+  "POST /api/hardware/mesh-networks/:id/claim": { kind: "id", path: (a) => `/api/hardware/mesh-networks/${a.meshNet}/claim`, body: () => ({ holder: uuid() }) },
+  "DELETE /api/hardware/mesh-networks/:id": { kind: "id", path: (a) => `/api/hardware/mesh-networks/${a.meshNet}` },
+
   "GET /api/workspaces": { kind: "list", paths: () => ["/api/workspaces"] },
   "PUT /api/workspaces/:id": { kind: "id", path: (a) => `/api/workspaces/${a.workspace}`, body: (a) => ({ name: named(a, "ws") }) },
   "GET /api/workspaces/:id/members": { kind: "id", path: (a) => `/api/workspaces/${a.workspace}/members` },

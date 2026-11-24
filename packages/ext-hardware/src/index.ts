@@ -14,3 +14,12 @@ export const HARDWARE: ExtensionDef = {
 };
 
 registerExtension(HARDWARE);
+
+export * from "./lighting.ts";
+export * from "./lightProxy.ts";
+export * from "./cameraControl.ts";
+export * from "./lightSequence.ts";
+export * from "./sequencePlayer.ts";
+export * from "./catalogue.ts";
+export * from "./device.ts";
+export * from "./protocol.ts";

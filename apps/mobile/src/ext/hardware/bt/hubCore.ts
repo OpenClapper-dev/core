@@ -1,4 +1,4 @@
-import type { LightState, LinkState } from "@openclapper/vocab";
+import type { LightState, LinkState } from "@openclapper/ext-hardware";
 import { CommandQueue, type Clock } from "./queue.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "./types.ts";
 

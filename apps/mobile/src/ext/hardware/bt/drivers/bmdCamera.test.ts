@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { BMD_DEVICE_NAME, BMD_INCOMING, BMD_OUTGOING, BMD_PROTOCOL_VERSION, BMD_STATUS, BMD_TIMECODE, encodeCcu, type CameraTelemetry } from "@openclapper/vocab";
+import { BMD_DEVICE_NAME, BMD_INCOMING, BMD_OUTGOING, BMD_PROTOCOL_VERSION, BMD_STATUS, BMD_TIMECODE, encodeCcu, type CameraTelemetry } from "@openclapper/ext-hardware";
 import { toHex } from "../bytes.ts";
 import type { Fixture, Link } from "../types.ts";
 import { bmdCamera } from "./bmdCamera.ts";

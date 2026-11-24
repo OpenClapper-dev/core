@@ -8,6 +8,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Stor
 
 | File | What |
 | --- | --- |
+| `0009_hardware.sql` | `hw_mesh_networks`: the Hardware extension's own table, a Bluetooth Mesh network per account with its counters, holder and sealed key backup (step B9, #381) |
 | `0008_extensions.sql` | `projects.extensions`: the extensions the project has switched on, a JSON list of ids (step B9, #381) |
 | `0007_master_timeline.sql` | `projects.master`: the project's master timeline, an ordered JSON list of timeline ids (step B7, #379) |
 | `0006_canvas_live.sql` | `projects.canvas_live`: how watchers of the project's canvases see them change, `realtime` (default) or `gradual` (step B5 follow-up, #377) |
@@ -44,6 +45,8 @@ A new numbered file for every change; an applied one is never edited.
 `photos(file_id → files CASCADE, object_id, origin capture|import, media_type, taken_at, width, height, original_bytes, preview_bytes, preview_type, thumbnail_bytes, thumbnail_type, aov_horizontal, aov_vertical, aov_source, device_id, frame JSON)`: what the server searches and counts about a photo ([media](rewrite/01-media.md)). The raw EXIF and the device readout are in the file's body. `object_id` names the stored images, in R2 under `photos/<object_id>/original|preview|thumbnail.<ext>`; a copy of a photo has the same `object_id`, and the images go when the last row with it is purged. A size that is null: that image has not arrived. `device_id` is filled from step B3; `frame` (the frame the camera showed when it was taken, a fact, [camera layouts](features/camera-layouts.md)) from B8.
 
 `devices(file_id → files CASCADE, user_id → users CASCADE, fingerprint, seen_at)`, unique on (user, fingerprint): ties a device file to the hardware it stands for, so a reinstall finds its record and two phones of one model are two devices. What the device reports is the file's body, with the person's choices for it (tabs, camera layout). Camera layouts are files of the account home (type `layout`, [camera layouts](features/camera-layouts.md)).
+
+`hw_mesh_networks(id, user_id → users CASCADE, name, iv_index, next_unicast, holder, seq_floor, key_backup, key_backup_at, created_at, updated_at)`: the Hardware extension's own table, one Bluetooth Mesh network the phone provisions for its lights. `holder` is the device file of the phone that sends in it; `key_backup` the keys sealed on the phone. Hardware devices themselves are device files of the account home whose kind is a hardware type ([hardware](features/hardware.md)); they have no `devices` row (no fingerprint: they are added by pairing).
 
 `property_values(file_id → files CASCADE, definition_id → files CASCADE, value JSON)`, primary key (file, definition): a property's value on a file ([properties](features/properties.md)). The definition is a file of the type `property` in the project's Settings folder; the value's shape follows its field type (`packages/model/src/properties.ts`). A reference value also keeps `refs` rows of kind `property` with `data: { property }`, rewritten whenever the file's values change and removed when the definition is purged.
 

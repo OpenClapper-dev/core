@@ -1,7 +1,6 @@
 import {
   BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
-  nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind, type ShotBody,
-} from "@openclapper/model";
+  nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind, type ShotBody, keepGuarded } from "@openclapper/model";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
 import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys, shotFrameStatements } from "./canvas.ts";
@@ -391,7 +390,9 @@ export function registerFileRoutes(r: Router<Ctx>) {
     // The body and the references are checked together, so whichever was not sent is read back.
     let save: { body: Body; version: number; refs: Ref[] | null } | null = null;
     if (!stored || b.body !== undefined || b.refs !== undefined) {
-      const body = b.body !== undefined ? b.body : stored ? parseBody(stored) : t.empty();
+      let body = b.body !== undefined ? b.body : stored ? parseBody(stored) : t.empty();
+      // A device keeps its kind, and what only its extension's routes set (08-extensions.md).
+      if (t.type === "device" && stored && b.body !== undefined && body && typeof body === "object" && !Array.isArray(body)) body = keepGuarded(parseBody(stored), body as Body);
       const version = b.body !== undefined ? b.body_version : stored ? stored.body_version : t.version;
       const refs = b.refs !== undefined ? b.refs : stored ? await refsOf(env, stored) : [];
       const checked = checkFile(t, body, version, refs);

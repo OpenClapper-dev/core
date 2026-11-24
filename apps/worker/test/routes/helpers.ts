@@ -74,6 +74,8 @@ export interface World {
   photo: string;
   /** A blank canvas with its render stored. */
   canvas: string;
+  /** Hardware (step B9): a COB light, a battery, a mesh light and the phone's mesh network. */
+  light: string; battery: string; meshLight: string; meshNet: string;
 }
 
 /** The body of a PUT for a new folder. */
@@ -87,7 +89,7 @@ export async function buildWorld(user: User): Promise<World> {
   const t = user.token;
   const mark = `mark${uuid().slice(0, 8)}`;
   const id = () => uuid();
-  const w = { user, mark, workspace: id(), project: id(), folder: id(), shortcut: id(), link: id(), internal: id(), binned: id(), home: id(), photo: id(), canvas: id() } as World;
+  const w = { user, mark, workspace: id(), project: id(), folder: id(), shortcut: id(), link: id(), internal: id(), binned: id(), home: id(), photo: id(), canvas: id(), light: id(), battery: id(), meshLight: id(), meshNet: id() } as World;
   memberUser ??= await newUser({ signIn: false });
   w.member = memberUser.id;
   w.memberEmail = memberUser.email;
@@ -105,6 +107,10 @@ export async function buildWorld(user: User): Promise<World> {
   await addPhoto(t, w.project, w.photo, { name: `${mark} photo` });
   await ok(api(t, "PUT", `/api/files/${w.canvas}`, { type: "canvas", project_id: w.project, name: `${mark} canvas` }));
   await ok(putRender(t, w.canvas, "render", png("render")));
+  await ok(api(t, "POST", "/api/hardware/devices", { id: w.light, model: "neewer-fs230b", address: "AA:BB:CC:DD:EE:01", name: `${mark} light` }), 201);
+  await ok(api(t, "POST", "/api/hardware/devices", { id: w.battery, model: "neewer-ps099s", address: "AA:BB:CC:DD:EE:02", name: `${mark} battery` }), 201);
+  await ok(api(t, "POST", "/api/hardware/devices", { id: w.meshLight, model: "aputure-mc", address: "AA:BB:CC:DD:EE:03", name: `${mark} mc` }), 201);
+  await ok(api(t, "PUT", `/api/hardware/mesh-networks/${w.meshNet}`, { name: `${mark} mesh` }));
   return w;
 }
 

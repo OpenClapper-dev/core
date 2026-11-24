@@ -84,4 +84,4 @@ The phone's components on the design system's tokens (`@openclapper/design/token
 
 ## Kept, not mounted
 
-The drivers, codecs and mesh stack of lights and the camera control (`src/ble/`, `src/fixtures/`, `modules/video-link/`) stay with their tests for the Hardware extension ([08](../rewrite/08-extensions.md)); nothing in the app uses them.
+The drivers, codecs and mesh stack of lights and the camera control (`src/ext/hardware/ble/`, `src/ext/hardware/bt/`, `modules/video-link/`) belong to the Hardware extension ([hardware](hardware.md)).

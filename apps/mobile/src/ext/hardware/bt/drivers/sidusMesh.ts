@@ -3,7 +3,7 @@ import { MeshSession, type NetworkKeys } from "../mesh/session.ts";
 import type { SeqAllocator } from "../mesh/seq.ts";
 import { batteryRequest, cct, curve, effect, effectOff, hsi, intensity, parseBattery, parseEffect, parseStatus, power, programFade, statusRequest, TELINK_OPCODE } from "../codecs/sidus.ts";
 import type { Command, Driver, Fixture, Link, Session, Telemetry } from "../types.ts";
-import type { EffectId, EffectSettings, LightState } from "@openclapper/vocab";
+import type { EffectId, EffectSettings, LightState } from "@openclapper/ext-hardware";
 
 /** What the driver needs of a network, supplied by the app (fixtures/meshNetworks.ts) or a test. */
 export interface MeshAccess {
