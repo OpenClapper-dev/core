@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 
 /**
- * Whether the server was reachable on the last API call. There is no network-state module in
- * Expo Go without a new dependency, and "the phone has a network" is not the question anyway:
- * what matters is whether the Worker answers. Set by api.ts; starts optimistic.
+ * Whether the server was reachable on the last API call. "The phone has a network" is not the
+ * question (expo-network answers that, for originals on Wi-Fi): what matters is whether the Worker answers. Set by api.ts; starts optimistic.
  */
 let online = true;
 const listeners = new Set<(v: boolean) => void>();
@@ -15,6 +14,12 @@ export function markOnline(v: boolean) {
 }
 
 export const isOnline = () => online;
+
+/** Called whenever the server becomes reachable or unreachable. */
+export function onOnlineChange(cb: (v: boolean) => void): () => void {
+  listeners.add(cb);
+  return () => { listeners.delete(cb); };
+}
 
 /**
  * Offline mode (Setup → Offline): the app makes no requests at all, so nothing waits on a dead

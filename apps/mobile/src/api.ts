@@ -1,45 +1,46 @@
-import { File } from "expo-file-system";
 import { getSession, getToken, setSession } from "./auth";
 import { API_URL, isConfigured } from "./config";
 import { log } from "./log";
 import { isOfflineMode, markOnline } from "./net";
-import type { DeviceSpecs, Extra, FieldDefinition, Framing } from "@openclapper/vocab";
-import type { LightSequence, SequenceTrack, VignettePoint } from "@openclapper/vocab";
-import { bakeHash, freshBake, stepsOf, type Layer, type ResolvedStep, type ShotStep, type StepBake } from "@openclapper/vocab";
-import type { Fixture } from "./fixtures/types";
-import type { MeshNetwork } from "./fixtures/meshNetworks";
-import type { LocationEntry, Preset, ProjectEntry, ShotMetadata, ShotTags, SpotEntry, LayoutEntry } from "./types";
 
+/**
+ * The phone's client of the Worker (docs/api.md): sign-in, projects, files, photos, devices. Every
+ * request carries the session as a bearer token; a 401 ends the session on the phone (the app then
+ * shows the sign-in gate, nothing queued is lost).
+ */
 export class ApiError extends Error {
   constructor(public status: number, message: string, public body: unknown = null) {
     super(message);
   }
 }
 
-/** The session token as a bearer header (every request, images and the preview socket included). */
-function headers(extra: Record<string, string> = {}): Record<string, string> {
+/** The session token as a bearer header (every request, images included). */
+export function authHeaders(extra: Record<string, string> = {}): Record<string, string> {
   const token = getToken();
   return token ? { Authorization: `Bearer ${token}`, ...extra } : { ...extra };
 }
 
-/**
- * A web page instead of the API: a Wi-Fi login page, or a login proxy in front of the server. Neither
- * means the session is gone.
- */
+/** A web page instead of the API: a Wi-Fi login page, or a login proxy in front of the server. Neither means the session is gone. */
 function isWebPage(res: Response): boolean {
   return res.redirected || (res.headers.get("content-type") ?? "").includes("text/html") || (!!res.url && !res.url.startsWith(API_URL));
 }
 const WEB_PAGE = "the server answered with a web page (a Wi-Fi login?)";
 
-async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
+/** Whether a request can be made at all: configured, signed in, not in offline mode. */
+export const canCall = () => isConfigured && !isOfflineMode() && !!getToken();
+
+/** One request. `body` is sent as JSON unless it is binary (an image). */
+export async function call<T>(path: string, init: { method?: string; body?: unknown; type?: string } = {}): Promise<T> {
   if (!isConfigured) throw new ApiError(0, "API not configured in this build");
   if (isOfflineMode()) throw new ApiError(0, "offline mode is on");
   if (!getToken()) throw new ApiError(401, "not signed in");
   const started = Date.now();
   const method = init.method ?? "GET";
+  const binary = init.body instanceof ArrayBuffer || init.body instanceof Uint8Array || (typeof Blob !== "undefined" && init.body instanceof Blob);
+  const headers = authHeaders(init.body === undefined ? {} : { "content-type": binary ? init.type ?? "application/octet-stream" : "application/json" });
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, { ...init, headers: headers(init.headers as Record<string, string>) });
+    res = await fetch(`${API_URL}${path}`, { method, headers, body: init.body === undefined ? undefined : binary ? (init.body as BodyInit) : JSON.stringify(init.body) });
   } catch (err) {
     log("warn", "api network error", { method, path, ms: Date.now() - started, error: err });
     markOnline(false);
@@ -48,24 +49,23 @@ async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
   markOnline(true);
   log(res.ok ? "debug" : "warn", "api", { method, path, status: res.status, ms: Date.now() - started });
   if (res.status === 401) {
-    setSession(null); // the session is gone; the app shows the sign-in screen, the queue stays
+    setSession(null);
     throw new ApiError(401, "session expired, please sign in again");
   }
   if (isWebPage(res)) throw new ApiError(0, WEB_PAGE);
   const text = await res.text();
   let body: unknown = null;
-  try { body = text ? JSON.parse(text) : null; } catch { /* non-JSON body */ }
-  if (!res.ok) {
-    const msg = (body as { error?: string } | null)?.error ?? `HTTP ${res.status}`;
-    throw new ApiError(res.status, msg, body);
-  }
+  try { body = text ? JSON.parse(text) : null; } catch { /* not JSON */ }
+  if (!res.ok) throw new ApiError(res.status, (body as { error?: string } | null)?.error ?? `HTTP ${res.status}`, body);
   return body as T;
 }
 
-/**
- * Sign in with email and password. Not through call(): there is no session yet, and a 401 here is a
- * wrong password, not an expired session.
- */
+/** A rejection by the server (4xx but not 401/408/429): sending it again unchanged will not help. */
+export const isRejection = (e: unknown) => e instanceof ApiError && e.status >= 400 && e.status < 500 && ![401, 408, 429].includes(e.status);
+
+// ---------- Sign-in ----------
+
+/** Sign in with email and password. Not through call(): there is no session yet, and a 401 here is a wrong password. */
 export async function signIn(email: string, password: string): Promise<void> {
   if (!isConfigured) throw new ApiError(0, "API not configured in this build");
   const res = await fetch(`${API_URL}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json", accept: "application/json" }, body: JSON.stringify({ email, password, client: "mobile" }) });
@@ -76,9 +76,8 @@ export async function signIn(email: string, password: string): Promise<void> {
   setSession({ token: body.token, email: body.user.email, userId: body.user.id });
 }
 
-/** Changes the signed-in user's password (issue #148); every other session of the account ends, this one stays. A wrong current password is a 403. */
-export const changePassword = (current: string, password: string) =>
-  call<null>("/api/auth/password", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ current, password }) });
+/** Changes the password; every other session of the account ends, this one stays. A wrong current password is a 403. */
+export const changePassword = (current: string, password: string) => call<null>("/api/auth/password", { method: "POST", body: { current, password } });
 
 /** Ends the session on the server (best effort: offline, the token just stays unused) and on the phone. */
 export async function signOut(): Promise<void> {
@@ -87,316 +86,69 @@ export async function signOut(): Promise<void> {
   if (session && isConfigured) await fetch(`${API_URL}/api/auth/logout`, { method: "POST", headers: { Authorization: `Bearer ${session.token}` } }).catch(() => {});
 }
 
-interface ServerPreset {
-  id: string;
-  name: string;
-  camera_id: string | null;
-  format_id: string | null;
-  sensor_width_mm: number;
-  sensor_height_mm: number;
-  speedbooster_factor: number;
-  lens_min_mm: number | null;
-  lens_max_mm: number | null;
-  vignetting?: VignettePoint[];
-  created_at: string;
+export interface Me { user: { id: string; email: string; name: string }; workspaces: { id: string; name: string; role: string; personal: boolean }[] }
+export const me = () => call<Me>("/api/me");
+
+// ---------- Projects ----------
+
+export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string; file_count: number }
+export const listProjects = () => call<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
+/** A new project (or a rename). A name taken in the workspace is a 409 with `existing_id`. */
+export const putProject = (id: string, name: string) => call<{ project: Project }>(`/api/projects/${id}`, { method: "PUT", body: { name } });
+
+// ---------- Files ----------
+
+/** A photo's facts as file answers carry them (docs/api.md, Files). */
+export interface PhotoFacts {
+  origin: "capture" | "import"; media_type: string | null; taken_at: string | null; width: number; height: number;
+  stored: { thumbnail: number | null; preview: number | null; original: number | null };
+  angle_of_view: { horizontal: number; vertical: number; source: string } | null; device_id: string | null;
 }
-
-function fromServer(s: ServerPreset): Preset {
-  return {
-    id: s.id,
-    name: s.name,
-    cameraId: s.camera_id ?? null,
-    formatId: s.format_id ?? null,
-    sensorWidthMm: s.sensor_width_mm,
-    sensorHeightMm: s.sensor_height_mm,
-    speedboosterFactor: s.speedbooster_factor,
-    lensMinMm: s.lens_min_mm ?? null,
-    lensMaxMm: s.lens_max_mm ?? null,
-    vignetting: s.vignetting ?? [],
-    createdAt: s.created_at,
-    synced: true,
-  };
+export interface FileRec {
+  id: string; project_id: string | null; type: string; name: string; container: string | null; internal_of: string | null; fixed: string | null;
+  created_at: string; updated_at: string; created_by: string | null; deleted_at: string | null;
+  body_version: number; body?: Record<string, unknown>; photo?: PhotoFacts;
 }
+export type Root = { project_id: string } | { home: true };
+const rootQuery = (r: Root) => ("home" in r ? "home=1" : `project_id=${encodeURIComponent(r.project_id)}`);
 
-interface ServerFixture {
-  id: string; label: string; kind_id: string; address: string;
-  mesh_network_id: string | null; mesh_unicast: number | null; mesh_elements: number | null; asleep?: number; created_at: string;
+/** The live files of a root, every page of them. */
+export async function listFiles(root: Root, q: { type?: string; container?: string; body?: boolean } = {}): Promise<FileRec[]> {
+  const out: FileRec[] = [];
+  for (let offset = 0; ; ) {
+    const params = [rootQuery(root), q.type && `type=${q.type}`, q.container && `container=${q.container}`, q.body && "body=1", "limit=2000", `offset=${offset}`].filter(Boolean).join("&");
+    const page = await call<{ files: FileRec[]; more: boolean }>(`/api/files?${params}`);
+    out.push(...page.files);
+    if (!page.more || !page.files.length) return out;
+    offset += page.files.length;
+  }
 }
+export const getFile = (id: string) => call<{ file: FileRec }>(`/api/files/${id}`).then((r) => r.file);
+export const putFile = (id: string, f: Partial<Pick<FileRec, "name" | "container" | "body">> & { type: string } & ({ project_id: string } | { home: true })) =>
+  call<{ file: FileRec }>(`/api/files/${id}`, { method: "PUT", body: f }).then((r) => r.file);
+export const moveFiles = (ids: string[], container: string | null) => call<unknown>("/api/files/move", { method: "POST", body: { ids, container } });
+export const binFiles = (ids: string[]) => call<unknown>("/api/files/bin", { method: "POST", body: { ids } });
 
-function fixtureFromServer(s: ServerFixture): Fixture {
-  return {
-    id: s.id, label: s.label, kindId: s.kind_id, address: s.address, createdAt: s.created_at, synced: true, asleep: s.asleep === 1,
-    mesh: s.mesh_network_id && s.mesh_unicast != null ? { networkId: s.mesh_network_id, unicast: s.mesh_unicast, elements: s.mesh_elements ?? 1 } : null,
-  };
+// ---------- Photos ----------
+
+export type ImageSize = "thumbnail" | "preview" | "original";
+export interface PhotoMeta {
+  project_id: string; origin: "capture" | "import"; media_type?: string; taken_at?: string; width: number; height: number;
+  name?: string; container?: string | null; exif?: Record<string, unknown>; readout?: Record<string, string>; device_id?: string | null;
 }
+/** What is known about a photo; idempotent (sent again, nothing changes). */
+export const putPhoto = (id: string, meta: PhotoMeta) => call<{ file: FileRec }>(`/api/photos/${id}`, { method: "PUT", body: meta }).then((r) => r.file);
+/** One of a photo's images as raw bytes; stored once, a second upload answers `already`. */
+export const putPhotoPart = (id: string, part: ImageSize, bytes: ArrayBuffer, type: string) =>
+  call<{ already?: boolean }>(`/api/photos/${id}/${part}`, { method: "PUT", body: bytes, type });
+/** Where an image of a photo is; load it with `authHeaders()`. */
+export const imageUrl = (id: string, size: ImageSize = "preview") => `${API_URL}/api/photos/${id}/image?size=${size}`;
 
-export interface Photo {
-  id: string;
-  shot_id: string;
-  ordinal: number;
-  timestamp: string;
-  /** Both null when captured without a position. */
-  lat: number | null;
-  lon: number | null;
-  gps_accuracy_m: number | null;
-  /** Moved by hand after capture. */
-  position_corrected: boolean;
-  preset_id: string | null;
-  preset_name: string | null;
-  lens_mm: number;
-  width: number | null;
-  height: number | null;
-  framing: Record<string, unknown> | null;
-  device: Record<string, unknown> | null;
-  /** camera (phone capture), upload or drawn (made in the Studio: no rig, lens_mm 0). Absent on queued shots = camera. */
-  source?: "camera" | "upload" | "drawn";
-  /** Re-framings made in the Studio (issue #29); absent on queued shots. */
-  framings?: Framing[];
-  /** The framing every view shows; null/absent = as captured. */
-  root_framing_id?: string | null;
-  image_url: string;
-  created_at: string;
-  /** A file on the phone (queued shots, which have no image on the server yet). */
-  local_uri?: string;
+// ---------- Devices ----------
+
+export interface DeviceReport {
+  fingerprint: string; kind: "phone" | "tablet"; make: string; model: string;
+  lenses: { id: string; name: string; focal35: number | null; zoom: number | null }[];
+  screen: { portrait: { w: number; h: number }; landscape: { w: number; h: number } } | null; app: string;
 }
-
-/** The unit of scouting metadata: one photo, or a whole sequence. */
-export interface Shot {
-  id: string;
-  project_id: string;
-  project_name: string | null;
-  /** The project bakes approved shots only (epic #275); absent on queued shots. */
-  bake_approved_only?: boolean;
-  location_id: string | null;
-  location_name: string | null;
-  spot_id: string | null;
-  spot_name: string | null;
-  name: string | null;
-  int_ext: string | null;
-  light: string[];
-  artificial: boolean;
-  weather: string | null;
-  shot_size: string | null;
-  camera_support: string | null;
-  movement: string[];
-  state: "unreviewed" | "approved" | "archived";
-  extra: Extra;
-  /** Markdown subset, written in the Studio. */
-  description: string | null;
-  /** Maps use the location's pin instead of the photos' GPS (set in the Studio; the photos keep theirs). */
-  position_from_location: boolean;
-  /** The location's pin, null when it has none. */
-  location_position: { lat: number; lon: number } | null;
-  captured_at: string;
-  created_at: string;
-  updated_at: string | null;
-  /** Ordered; never empty. */
-  photos: Photo[];
-  /** Free canvases on the shot (floor plans, diagrams); the phone shows their renders. */
-  sketches: Sketch[];
-  /** The stored steps (issue #266), raw rows; absent or empty = the photos are the steps (queued shots never have any). */
-  steps?: ShotStep[];
-  /** The composition (epic #275): the shot's layers (no shapes; the phone never draws them) and the Studio's bakes per step. */
-  layers?: Layer[];
-  bakes?: StepBake[];
-  /** Only on the phone: still in the upload queue (see localShots.ts). */
-  queued?: boolean;
-}
-/** A sketch of the shot (floor plan, lighting diagram, …), rendered on white. */
-export interface Sketch { id: string; shot_id: string; name: string; kind: string | null; description: string | null; aspect: number; position: number; render_url: string | null; created_at: string; updated_at: string | null }
-/** What the compose strip and viewer show: the shot's sketches. */
-export type Composed = { type: "sketch" } & Sketch;
-
-/** A shooting day of a project with its planned shots in order (planned in the Studio). */
-export interface DayShot { shot_id: string; planned_time: string | null; notes: string | null }
-export interface ShootingDay { id: string; project_id: string; date: string; title: string | null; notes: string | null; updated_at: string | null; shots: DayShot[] }
-
-/** The photo that stands for the shot in lists, maps and filters: the first one. */
-export const cover = (s: Shot): Photo => s.photos[0];
-/** The steps a shot shows (issue #266): its stored steps, else its photos. Strips, badges and Step-through count these. */
-export type Step = ResolvedStep<Photo>;
-export const steps = (s: Shot): Step[] => stepsOf({ photos: s.photos, steps: s.steps });
-/** A step's bake when it is fresh (epic #275): the Studio's flattened picture of the step with its layers. */
-export const stepBakeOf = (s: Shot, st: Step): StepBake | null => freshBake(s.bakes, st, bakeHash(st, s.layers ?? []));
-/** A step that shows layers but has no fresh bake yet (the Studio makes it); the phone then shows the photo. */
-export const stepStale = (s: Shot, st: Step): boolean => bakeHash(st, s.layers ?? []) !== null && !stepBakeOf(s, st);
-export const seqCount = (s: Shot): number => steps(s).length;
-/**
- * Where a shot is on a map: the location's pin when the shot is synced to it (and the pin is set),
- * else the cover photo, else the first photo with a position; null when none has one.
- */
-export function positionOf(s: Shot): { lat: number; lon: number } | null {
-  if (s.position_from_location && s.location_position) return s.location_position;
-  const p = [cover(s), ...s.photos].find((x) => x.lat !== null && x.lon !== null);
-  return p ? { lat: p.lat!, lon: p.lon! } : null;
-}
-
-/** Locations and projects share this shape as far as the app is concerned. */
-interface ServerNamed { id: string; name: string; created_at: string; field_ids?: string[]; project_id?: string }
-const namedFromServer = (l: ServerNamed) => ({ id: l.id, name: l.name, createdAt: l.created_at, synced: true });
-
-type Cursor = { before: string; before_id: string } | null;
-interface ShotsPage { shots: Shot[]; next: Cursor }
-
-/** Headers for <Image> requests to the API (the session token). */
-export const imageHeaders = (): Record<string, string> => headers();
-export const imageUri = (photo: Photo) => `${API_URL}${photo.image_url}`;
-/** Absolute URL of a sketch render or a bake; null before the Studio saved one. */
-export const renderUri = (item: { render_url: string | null }) => (item.render_url ? `${API_URL}${item.render_url}` : null);
-
-interface ServerMeshNetwork {
-  id: string; name: string; iv_index: number; next_unicast: number;
-  holder: string | null; seq_floor: number; key_backup_at: string | null; created_at: string;
-}
-const meshNetworkFromServer = (n: ServerMeshNetwork): MeshNetwork => ({
-  id: n.id, name: n.name, ivIndex: n.iv_index, nextUnicast: n.next_unicast,
-  holder: n.holder ?? null, seqFloor: n.seq_floor ?? 0, backupAt: n.key_backup_at ?? null, createdAt: n.created_at, synced: true,
-});
-
-export const api = {
-  /** Every shot of one project, newest first. */
-  listShots: async (projectId: string): Promise<Shot[]> => {
-    const all: Shot[] = [];
-    let cursor: Cursor = null;
-    for (;;) {
-      const q: string = `?limit=500&project_id=${projectId}${cursor ? `&before=${encodeURIComponent(cursor.before)}&before_id=${cursor.before_id}` : ""}`;
-      const page: ShotsPage = await call<ShotsPage>(`/api/shots${q}`);
-      all.push(...page.shots);
-      if (!page.next) break;
-      cursor = page.next;
-    }
-    return all;
-  },
-  /** Correct a photo's position by hand; allInShot moves every photo of its shot. */
-  patchPhotoPosition: (id: string, lat: number, lon: number, allInShot: boolean) =>
-    call<{ shot: Shot }>(`/api/photos/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ lat, lon, all_in_shot: allInShot }) }).then((r) => r.shot),
-  deleteShot: (id: string) => call<{ deleted: string }>(`/api/shots/${id}`, { method: "DELETE" }),
-  patchShot: (id: string, patch: Partial<ShotTags> & { state?: Shot["state"]; project_id?: string }) =>
-    call<{ shot: Shot }>(`/api/shots/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) }).then((r) => r.shot),
-
-  listLocations: async (): Promise<LocationEntry[]> => {
-    const r = await call<{ locations: ServerNamed[] }>("/api/locations");
-    return r.locations.map((l): LocationEntry => ({ ...namedFromServer(l), projectId: l.project_id ?? "" }));
-  },
-  /** Upsert; a 409 means another location of the project already has this name (ApiError.body.existing_id). */
-  putLocation: (l: LocationEntry) =>
-    call<{ location: ServerNamed }>(`/api/locations/${l.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ project_id: l.projectId, name: l.name }),
-    }),
-
-  listSpots: async (): Promise<SpotEntry[]> => {
-    const r = await call<{ spots: { id: string; location_id: string; name: string; created_at: string }[] }>("/api/spots");
-    return r.spots.map((x) => ({ id: x.id, locationId: x.location_id, name: x.name, createdAt: x.created_at, synced: true }));
-  },
-  /** Upsert; a 409 means the location already has a spot with this name (ApiError.body.existing_id). */
-  putSpot: (x: SpotEntry) =>
-    call<{ spot: unknown }>(`/api/spots/${x.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ location_id: x.locationId, name: x.name }),
-    }),
-
-  /** Viewfinder layouts (issue #49), made in the Studio; since #68 the phone also edits their look and options. */
-  listLayouts: () => call<{ layouts: LayoutEntry[] }>("/api/viewfinder-layouts").then((r) => r.layouts.map((l) => ({ id: l.id, name: l.name, layout: l.layout }))),
-
-  /** Device specs (issue #68): the phone keeps its own record current once the Studio saved it. */
-  listDevices: () => call<{ devices: { id: string; name: string; specs: DeviceSpecs }[] }>("/api/devices").then((r) => r.devices),
-  putDeviceSpecs: (id: string, specs: DeviceSpecs) => call<unknown>(`/api/devices/${id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ specs }) }),
-
-  putLayout: (id: string, l: { name: string; layout: unknown }) => call<unknown>(`/api/viewfinder-layouts/${id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(l) }),
-
-  listDays: (projectId: string) => call<{ days: ShootingDay[] }>(`/api/days?project_id=${projectId}`).then((r) => r.days),
-  listFields: () => call<{ fields: FieldDefinition[] }>("/api/fields").then((r) => r.fields),
-
-  listProjects: async (): Promise<ProjectEntry[]> => {
-    const r = await call<{ projects: ServerNamed[] }>("/api/projects");
-    return r.projects.map((p): ProjectEntry => ({ ...namedFromServer(p), fieldIds: p.field_ids ?? [] }));
-  },
-  /** Upsert; a 409 means another project already has this name (ApiError.body.existing_id). */
-  putProject: (p: ProjectEntry) =>
-    call<{ project: ServerNamed }>(`/api/projects/${p.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: p.name }),
-    }),
-  deleteLocation: (id: string) => call<{ deleted: string }>(`/api/locations/${id}`, { method: "DELETE" }),
-
-  health: () => call<{ ok: boolean; identity: string }>("/health"),
-
-  listPresets: async (): Promise<Preset[]> => {
-    const r = await call<{ presets: ServerPreset[] }>("/api/presets");
-    return r.presets.map(fromServer);
-  },
-
-  putPreset: (p: Preset) =>
-    call<{ preset: ServerPreset }>(`/api/presets/${p.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        name: p.name,
-        camera_id: p.cameraId,
-        format_id: p.formatId,
-        sensor_width_mm: p.sensorWidthMm,
-        sensor_height_mm: p.sensorHeightMm,
-        speedbooster_factor: p.speedboosterFactor,
-        lens_min_mm: p.lensMinMm,
-        lens_max_mm: p.lensMaxMm,
-        vignetting: p.vignetting ?? [],
-      }),
-    }),
-
-  /** Lights (#208): fixtures of every workspace the user is in; a new one goes to the user's own. */
-  listFixtures: () => call<{ fixtures: ServerFixture[] }>("/api/fixtures").then((r) => r.fixtures.map(fixtureFromServer)),
-  putFixture: (f: Fixture) =>
-    call<{ fixture: ServerFixture }>(`/api/fixtures/${f.id}`, {
-      method: "PUT",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        label: f.label, kind_id: f.kindId, address: f.address,
-        mesh_network_id: f.mesh?.networkId ?? null, mesh_unicast: f.mesh?.unicast ?? null, mesh_elements: f.mesh?.elements ?? null,
-      }),
-    }),
-  deleteFixture: (id: string) => call<{ deleted: string }>(`/api/fixtures/${id}`, { method: "DELETE" }),
-  /** One light sequence, to run it on the phone (#321); `updatedAt` is the revision the Studio named. */
-  getLightSequence: (id: string) =>
-    call<{ light_sequence: { id: string; name: string; duration_ms: number; loop: boolean; tracks: SequenceTrack[]; updated_at: string | null; created_at: string } }>(`/api/light-sequences/${id}`)
-      .then(({ light_sequence: s }): LightSequence => ({ id: s.id, name: s.name, durationMs: s.duration_ms, loop: s.loop, tracks: s.tracks, updatedAt: s.updated_at ?? s.created_at })),
-  /** Sleep or wake a device (#318): the proxy stops or starts connecting to it. */
-  setFixtureSleep: (id: string, asleep: boolean) =>
-    call<{ fixture: ServerFixture }>(`/api/fixtures/${id}/sleep`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ asleep }) }),
-
-  /** Mesh networks the phone provisions (#212): no keys; those stay on the phone, or sealed in the key backup (#303). */
-  listMeshNetworks: () => call<{ mesh_networks: ServerMeshNetwork[] }>("/api/mesh-networks").then((r) => r.mesh_networks.map(meshNetworkFromServer)),
-  /** `holder`: this phone's device id when it has the keys; 409 when another phone holds the network. */
-  putMeshNetwork: (n: MeshNetwork, holder: string | null) => call<unknown>(`/api/mesh-networks/${n.id}`, {
-    method: "PUT", headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: n.name, iv_index: n.ivIndex, next_unicast: n.nextUnicast, holder, seq_floor: n.seqFloor }),
-  }),
-  getKeyBackup: (id: string) => call<{ key_backup: string | null }>(`/api/mesh-networks/${id}/key-backup`).then((r) => r.key_backup),
-  putKeyBackup: (id: string, blob: string, holder: string) =>
-    call<{ mesh_network: ServerMeshNetwork }>(`/api/mesh-networks/${id}/key-backup`, {
-      method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key_backup: blob, holder }),
-    }).then((r) => meshNetworkFromServer(r.mesh_network)),
-  /** This phone takes the network over; the answer carries the sequence floor to start above. */
-  claimMeshNetwork: (id: string, holder: string) =>
-    call<{ mesh_network: ServerMeshNetwork }>(`/api/mesh-networks/${id}/claim`, {
-      method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ holder }),
-    }).then((r) => meshNetworkFromServer(r.mesh_network)),
-
-  deletePreset: (id: string) => call<{ deleted: string }>(`/api/presets/${id}`, { method: "DELETE" }),
-
-  /**
-   * Multipart upload of a shot and its photos. `files` maps photo id -> local file:// URI of a JPEG.
-   * Idempotent on the server: photos already stored are skipped, so a retry is always safe.
-   */
-  uploadShot: (metadata: ShotMetadata, files: Record<string, string>) => {
-    const form = new FormData();
-    form.append("metadata", JSON.stringify(metadata));
-    // Expo's global fetch is the WinterCG implementation: it rejects React Native's
-    // {uri,name,type} descriptors but accepts an expo-file-system File directly.
-    for (const p of metadata.photos) form.append(`photo.${p.id}`, new File(files[p.id]) as unknown as Blob, `${p.id}.jpg`);
-    return call<{ shot: Shot; duplicate?: boolean }>("/api/shots", { method: "POST", body: form });
-  },
-};
+export const registerDevice = (r: DeviceReport) => call<{ file: FileRec }>("/api/devices/register", { method: "POST", body: r }).then((x) => x.file);

@@ -1,10 +1,10 @@
 /** Navigation controls from the design system: the segmented switch. */
 import { Pressable, Text, View } from "react-native";
-import { Icon } from "./core";
+import { Icon , type IconName } from "./core";
 import { SIZE, useTheme } from "./theme";
 import { useStyles } from "./styles";
 
-export interface SegOption<T extends string> { id: T; label?: string; icon?: string }
+export interface SegOption<T extends string> { id: T; label?: string; icon?: IconName }
 
 /** Segmented switch: one of a few, in a pill. `lg` = 50 dp; `block` stretches the options to the full width. */
 export function Seg<T extends string>({ options, value, onChange, accessibilityLabel, size, block, disabled }: { options: readonly SegOption<T>[]; value: T | null; onChange: (v: T) => void; accessibilityLabel?: string; size?: "lg"; block?: boolean; disabled?: boolean }) {
