@@ -1,4 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactElement } from "react";
+import { BLACKOUT_TINTS, FRAME_COLOURS, FRAME_WIDTHS, REFERENCE_STEPS } from "@openclapper/model";
+import { allLayouts, chooseLayout, copyLayoutToChange, editLayout, ownLayouts, useLayout } from "../camera/layouts";
 import { Pressable, Share, Text, View } from "react-native";
 import { changePassword, signOut } from "../api";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
@@ -234,8 +236,51 @@ function PendingNote() {
 }
 
 function CameraPage({ back }: { back: () => void }) {
+  const { layout } = useLayout();
+  const own = ownLayouts.use();
+  const { c } = useTheme();
+  const look = layout.body.look, opts = layout.body.options;
+  const edit = (p: Parameters<typeof editLayout>[1]) => editLayout(layout.id, p);
   return (
-    <Screen header={<Header title="Camera" sub="Your preferences, for every layout" onBack={back} />}>
+    <Screen header={<Header title="Camera" sub="The layout on this device, and your preferences" onBack={back} />}>
+      <Block><SectionLabel>Camera layout on this device</SectionLabel></Block>
+      {allLayouts().map((l) => <ListRow key={l.id} icon={l.builtin ? "lock" : "camera-layout"} title={l.name} meta={l.builtin ? "Built in" : undefined} selected={layout.id === l.id} trailing={null} onPress={() => chooseLayout(l.id)} />)}
+      <Block><Hint>{own.length ? "" : "Layouts of your own are made in the Studio (Camera layouts). "}Which controls a layout shows, and where, is arranged in the Studio; its look and options can be changed here too.</Hint></Block>
+      {layout.builtin ? (
+        <Block><Hint>{`“${layout.name}” is built in and cannot be changed.`}</Hint><Button kind="secondary" icon="copy" label="Make a copy to change" onPress={() => void copyLayoutToChange(layout)} /></Block>
+      ) : (
+        <>
+          <Block>
+            <SectionLabel>{`The frame of “${layout.name}”`}</SectionLabel>
+            <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+              {FRAME_COLOURS.map(([n, col]) => <Pressable key={col} accessibilityRole="button" accessibilityLabel={`Frame colour ${n}`} onPress={() => edit({ look: { frameColor: col } })}
+                style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: col, borderWidth: look.frameColor.toLowerCase() === col ? 4 : 2, borderColor: look.frameColor.toLowerCase() === col ? c.accent : c.border }} />)}
+            </View>
+            <Seg block options={FRAME_WIDTHS.map((w) => ({ id: String(w), label: `${w}` }))} value={String(look.frameWidth)} onChange={(v) => edit({ look: { frameWidth: Number(v) } })} accessibilityLabel="Frame width" />
+          </Block>
+          <Block>
+            <SectionLabel>Blackout</SectionLabel>
+            <Seg block options={BLACKOUT_TINTS.map(([n, col]) => ({ id: col, label: n }))} value={look.blackoutColor} onChange={(v) => edit({ look: { blackoutColor: v } })} accessibilityLabel="Blackout tint" />
+          </Block>
+          <Toggle label="Blackout on when the camera opens" value={look.blackoutOn} onChange={(v) => edit({ look: { blackoutOn: v } })} />
+          <Block>
+            <SectionLabel>Reference frame</SectionLabel>
+            <Seg block options={[{ id: "cycle", label: "35 · 43 · 50" }, ...REFERENCE_STEPS.map((mm) => ({ id: String(mm), label: `${mm} mm` }))]} value={opts.reference.mode === "cycle" ? "cycle" : String(opts.reference.mm)}
+              onChange={(v) => edit({ options: { reference: v === "cycle" ? { mode: "cycle", mm: opts.reference.mm } : { mode: "toggle", mm: Number(v) } } })} accessibilityLabel="Reference frame" />
+            <Hint>Steps through full frame at 35, 43 and 50 mm, or switches one of them on and off.</Hint>
+          </Block>
+          <Block>
+            <SectionLabel>Phone lenses</SectionLabel>
+            <Seg block options={[{ id: "all", label: "Every real lens" }, { id: "main", label: "The main lens" }]} value={opts.lenses.mode === "main" ? "main" : "all"} onChange={(v) => edit({ options: { lenses: { mode: v as "all" | "main", pick: opts.lenses.pick } } })} accessibilityLabel="Phone lenses" />
+            {opts.lenses.mode === "pick" && <Hint>This layout offers lenses picked in the Studio.</Hint>}
+          </Block>
+          <Block>
+            <SectionLabel>Lens names in this layout</SectionLabel>
+            <Seg block options={[{ id: "account", label: "As below" }, { id: "phone", label: "0.5×, 1×" }, { id: "focal", label: "13, 24" }]} value={opts.lensNames} onChange={(v) => edit({ options: { lensNames: v as "account" | "phone" | "focal" } })} accessibilityLabel="Lens names in this layout" />
+          </Block>
+        </>
+      )}
+      <Block><SectionLabel>Your preferences</SectionLabel></Block>
       <PrefSeg k="lensNames" label="Lens names" options={[{ id: "phone", label: "0.5×, 1×, 5×" }, { id: "focal", label: "13, 24, 120" }]} hint="As the phone calls them, or by the full-frame focal length the camera reports for each lens." />
       <PrefSeg k="askCollectionName" label="A collection's name" options={[{ id: "never", label: "By the pattern" }, { id: "start", label: "Ask at start" }, { id: "end", label: "Ask at end" }]} hint="For the camera's collection mode: a switch that starts a collection and ends it." />
       <PendingNote />

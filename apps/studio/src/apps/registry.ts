@@ -10,6 +10,7 @@ import { ShotApp } from "./ShotApp";
 import { TimelineApp, timelineFromRoute } from "./TimelineApp";
 import { MasterApp } from "./MasterApp";
 import { LayoutsApp, layoutsFromRoute } from "./LayoutsApp";
+import { DevicesApp } from "./DevicesApp";
 import { PresetsApp } from "./PresetsApp";
 import { ProjectApp } from "./ProjectApp";
 import { SettingsApp } from "./SettingsApp";
@@ -77,6 +78,7 @@ const APPS: AppDef[] = [
   { id: "master", name: "Master timeline", glyph: "film", color: 1, tier: "standard", singleton: true, defaultSize: { w: 1280, h: 800 }, minSize: { w: 720, h: 480 }, component: MasterApp, about: "The project's timelines in order, played end to end" },
   { id: "layouts", name: "Camera layouts", glyph: "camera-layout", color: 3, tier: "core", singleton: true, opens: ["layout"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 760, h: 520 }, component: LayoutsApp,
     fromRoute: layoutsFromRoute, about: "Which controls the phone's camera shows, and where" },
+  { id: "devices", name: "Devices", glyph: "mobile", color: 6, tier: "core", singleton: true, opens: ["device"], defaultSize: { w: 1040, h: 720 }, minSize: { w: 600, h: 400 }, component: DevicesApp, about: "Your phones and tablets: their tabs and camera layout" },
   { id: "canvas", name: "Canvas", glyph: "brush", color: 7, tier: "core", singleton: false, opens: ["canvas"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 720, h: 480 }, component: CanvasApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "canvas", id: rest } : null }), about: "Draw, place photos and frame them" },
   { id: "presets", name: "Optics presets", glyph: "lens", color: 6, tier: "standard", singleton: true, opens: ["preset"], defaultSize: { w: 1000, h: 640 }, minSize: { w: 560, h: 380 }, component: PresetsApp,
