@@ -65,11 +65,9 @@ pnpm dev:studio
 
 Both Vite dev servers (Studio, admin board) watch the `packages/ui/src` folder as a whole: files outside an app's root are otherwise watched one by one, and a git branch switch replaces them, so later edits to the ui package went unseen until a restart.
 
-Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start fresh, then `pnpm -C apps/worker migrate:local`). Local data is separate from production: say which one you mean.
+Local D1 and R2 state lives in `apps/worker/.wrangler/state` (delete it to start fresh, then `make init`). Local data is separate from production: say which one you mean. A checkout from before the rewrite's schema baseline (step B0, #372) holds the first app's database, on which the new baseline fails: delete that folder once and run `make init`.
 
-Demo data: `pnpm dev:seed [count]` (worker running) uploads 40 shots by default with stock photos from picsum.photos into the projects "Stock demo" and "Stock demo B", with locations, random tags (camera fields too), review states, some sequences and some shots without a position. Ids are derived from the seed, so a re-run adds nothing twice. It refuses any API other than localhost.
-
-API smoke tests with `curl` against `localhost:8787` sign in first, as everywhere (`dev@localhost` / `openclapper-local-dev`, from `make init`; on an older checkout `OPENCLAPPER_PASSWORD=openclapper-local-dev node scripts/user.mjs --bootstrap --email dev@localhost`):
+API smoke tests with `curl` against `localhost:8787` sign in first, as everywhere (`dev@localhost` / `openclapper-local-dev`, from `make init`):
 
 ```sh
 T=$(curl -s localhost:8787/api/auth/login -H 'content-type: application/json' -d '{"email":"dev@localhost","password":"openclapper-local-dev","client":"mobile"}' | node -pe 'JSON.parse(require("fs").readFileSync(0)).token')
@@ -78,7 +76,7 @@ curl -H "Authorization: Bearer $T" localhost:8787/api/projects
 
 More accounts: `node scripts/user.mjs --email you@example.com` (password from `OPENCLAPPER_PASSWORD` or asked).
 
-Worker tests (unit and route tests, see [testing](testing.md)): `pnpm -C apps/worker test`. Multipart uploads: `curl -F "metadata=…" -F "photo.<id>=@file.jpg;type=image/jpeg"`.
+Worker tests (unit and route tests, see [testing](testing.md)): `pnpm -C apps/worker test`.
 
 Agents can click through the Studio with the Playwright MCP: headless Chrome against `localhost:5173` (`pnpm dev` running). It is set up per machine, not in the repo: `claude mcp add playwright -- npx -y @playwright/mcp@latest --headless --isolated`, then `npx playwright install --with-deps chrome`. Snapshots land in `.playwright-mcp/` (gitignored). The phone app cannot be driven this way.
 
@@ -103,7 +101,7 @@ make studio      # beside it: the Studio on :5173 against the same local Worker
 - `scripts/dev-all.sh` (`make all`) opens a tmux session `openclapper`: Worker, Studio (:5173) and admin board (:5174, its Worker on :8788) stacked on the left, `make mobile` on the right (it and the admin pane wait for the Worker: mobile only adds a tunnel, and two wranglers starting together collide on their inspector port), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
 - `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --dev-client --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. It refuses to start while an `apps/mobile/.env*` file sets `EXPO_PUBLIC_*`: in development Expo serves those files ahead of the environment (`expo/virtual/env`), so the app would talk to that server instead of the tunnel. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
-- Sign in once with `dev@localhost` / `openclapper-local-dev`: `make init` (`scripts/dev-init.sh`) gives the local bootstrap user that login. On an older checkout run `OPENCLAPPER_PASSWORD=openclapper-local-dev node scripts/user.mjs --bootstrap --email dev@localhost`.
+- Sign in once with `dev@localhost` / `openclapper-local-dev`: `make init` (`scripts/dev-init.sh`) makes that local user.
 - The `local` scope keeps the phone's local queue, caches, drafts and session apart from production's (`src/kv.ts`: prefixed kv keys and photo folders), so a production build on the same phone never sees them.
 - The tunnel URL is new on every run, so Metro starts with `--clear` (the URL is inlined into the bundle). While it runs, the local Worker is public at that random URL; like production, it answers only with a session.
 - Production is reached only by a production APK, built for a deployment ([self-hosting](self-hosting.md#the-phone)). The local loop needs no deployment settings: the quick tunnel takes no account.

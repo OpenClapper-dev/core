@@ -1,132 +1,50 @@
 # Data model
 
-D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Images live in R2 bucket `openclapper-media` under `photos/<photoId>.<ext>`.
+> **Mid-rewrite (epic [#371](https://github.com/OpenClapper-dev/core/issues/371)).** This is the schema on `main`: the baseline of the rebuild, which each build step extends ([target model](rewrite/10-conclusion.md#target-data-model)). The first app's schema is in the history up to release v0.16.0.
+
+D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Stored images will live in the R2 bucket `openclapper-media` from step B2.
 
 ## Migrations
 
 | File | What |
 | --- | --- |
-| `0031_bake_approved_only.sql` | `projects.bake_approved_only` (0/1, default 0): the project's bakes wait until a shot is approved. Additive (epic #275; see [composition](features/composition.md)) |
-| `0030_composition.sql` | `layers` (a shot's or a clip's drawing and adjustment layers), `step_bakes`, `timeline_clips.step_id`. Copies every overlay into layers (a drawing layer with its id, an adjustment layer for a look that is not neutral), gives shots without stored steps that had overlays stored steps (each photo, then one step per overlay), ranges each layer to the steps that showed its overlay, and points clips at those steps (or copies the layers as the clip's own). The `overlays` table and `shot_steps.overlay_id` stay, unread, until a later release drops them (epic #275; see [composition](features/composition.md)) |
-| `0029_rig_vignetting.sql` | `presets.vignetting` (JSON, nullable): lens vignetting per focal length. Additive (issue #266; see [capture](features/capture.md)) |
-| `0028_shot_steps.sql` | `shot_steps`: a shot's stored steps (photo + optional framing; the `overlay_id` column is unused since 0030). Additive, no backfill: a shot without rows shows its photos as steps (issue #266) |
-| `0036_light_sequence_markers.sql` | `light_sequences.markers` (JSON, default `[]`): named points and ranges of a sequence (issue #323). Additive |
-| `0035_fixture_asleep.sql` | `fixtures.asleep`: a device the phone proxy leaves alone (issue #318). Additive |
-| `0034_fixture_power.sql` | `fixtures.powered_by`: the battery a light without its own runs on (issue #294). Additive |
-| `0033_light_sequences.sql` | `light_sequences`: keyframed light sequences per project (issue #304; see [lights](features/lights.md)). Additive |
-| `0032_mesh_key_backup.sql` | `mesh_networks.key_backup`, `key_backup_at`, `holder`, `seq_floor`: sealed key backups and one phone at a time (issue #303; see [lights](features/lights.md)). Additive |
-| `0027_fixtures.sql` | `mesh_networks` and `fixtures`: the lights a workspace controls from the phone and the Bluetooth Mesh networks the phone provisions. Additive (epic #206, issue #208; see [lights](features/lights.md)) |
-| `0026_devices_per_user.sql` | `devices` keyed `(user_id, id)` instead of `id`; `viewfinder_layouts` rebuilt with `device_id` as a composite reference to `devices(user_id, id)` (the layout owner's device) and an index on `(user_id, device_id)`. Both tables rebuilt, every row copied with its owner; a `device_id` that was not one of the layout owner's devices is cleared (#224) |
-| `0025_admin_audit.sql` | `admin_audit`: every change an operator makes in the admin plane, written in the same batch as the change. Additive (#224; see [admin](features/admin.md#audit-trail-224)) |
-| `0023_monitoring.sql` | `storage_daily` (a day's storage per workspace and the bucket total, written by the cron) and `admin_settings` (the admin plane's settings as JSON). Additive (epic #67, issue #214; see [monitoring](features/monitoring.md)) |
-| `0001_baseline.sql` | Schema reset of 2026-09-27: projects, presets, locations, shots, photos, views |
-| `0002_photo_position_corrected.sql` | `photos.position_corrected` |
-| `0003_field_definitions.sql` | `field_definitions`, `project_fields` |
-| `0004_shooting_days.sql` | `shooting_days`, `day_shots` |
-| `0005_capture_flow.sql` | `shots.shot_size`, `camera_support`, `movement`; `photos` rebuilt with nullable `lat`/`lon` (copied row by row, both or neither set) |
-| `0006_compose.sql` | `shots.description`; `overlays`, `sketches` ([compose](features/compose.md)) |
-| `0017_viewfinder_layouts.sql` | `viewfinder_layouts` ([viewfinder layouts](features/viewfinder-layouts.md)) |
-| `0018_devices.sql` | `devices` (device specs), `viewfinder_layouts.device_id` ([viewfinder layouts](features/viewfinder-layouts.md#device-specs-68)) |
-| `0019_folders_desktop.sql` | `folders`, `folder_items`, `desktop_items`: folders and desktop shortcuts per project; additive, no backfill (epic #72; see Tables) |
-| `0020_trash_desktop_taskbar.sql` | The recycle bin: `deleted_at`, `deleted_with` on `shots`, `timelines`, `shooting_days`, `views`, `locations`, `field_definitions`, `folders`, and the unique name/key indexes of locations, fields and folders made partial (`WHERE deleted_at IS NULL`); `folders.kind` (`normal` \| `desktop`, one Desktop folder per project); `desktop_items.area` (`desktop` \| `taskbar`) and `position`, the target index per area. Additive (epic #90, issue #91) |
-| `0022_workspace_kind.sql` | `workspaces.kind` (`personal` \| `shared`); every workspace before it was personal. Additive (#114) |
-| `0021_tenancy.sql` | `users`, `sessions`, `workspaces`, `workspace_members`; `projects.workspace_id` (name unique per workspace), `presets.workspace_id`, `devices.user_id`, `viewfinder_layouts.user_id`, `photos.size_bytes`. A bootstrap user and workspace own all existing rows. Additive (epic #107, issue #108; see Tables) |
-| `0016_spots.sql` | `spots` (a place within a location, optional pin); `shots.spot_id` ([projects](features/projects.md)) |
-| `0015_project_scope.sql` | `locations.project_id`, `field_definitions.project_id` + `position`, `views.project_id`; shared rows copied per project, unused ones to the project with the most shots; `project_fields` folded in and dropped ([projects](features/projects.md)) |
-| `0014_sequence_blocks.sql` | `timelines.groups` (JSON), `timeline_clips.group_id`: sequence blocks ([timeline](features/timeline.md)) |
-| `0013_clip_owned_compose.sql` | `overlays.timeline_id`, `clip_id`; `sketches` rebuilt (copied) with nullable `shot_id` + `timeline_id`, `clip_id`; `timeline_clips.sketch_id` (sketch clips) ([timeline](features/timeline.md)) |
-| `0012_timeline_lock.sql` | `timelines.lock_mode`: one presentation mode forced on every clip ([timeline](features/timeline.md)) |
-| `0011_placeholder_clips.sql` | `timeline_clips` rebuilt (copied): nullable `photo_id`/`presentation`, new `title` for placeholder clips ([timeline](features/timeline.md)) |
-| `0010_framings.sql` | `framings`; `photos.root_framing_id` ([framing](features/rig-explorer.md)) |
-| `0009_photo_source.sql` | `photos.source` (camera · upload · drawn) ([new shot](features/new-shot.md)) |
-| `0008_location_positions.sql` | `locations.lat`, `lon`; `shots.position_from_location` ([positions](features/positions.md)) |
-| `0007_timelines.sql` | `timelines`, `timeline_clips` ([timeline](features/timeline.md)) |
+| `0001_rewrite_baseline.sql` | The baseline of the rewrite (step B0, #372): accounts and tenancy, `projects`, `files`, `refs`, `property_values`, and the admin plane's tables. For databases created new: it carries nothing over, and it fails on purpose on a database of the first app |
 
-Add a new numbered file for every change; never edit one that was applied to production. Apply with `pnpm -C apps/worker migrate:local` / `migrate:remote` (see [development](development.md)).
+A new numbered file for every change; an applied one is never edited.
 
 ## Tables
 
-**Tenancy** (epic #107). `users(id, email UNIQUE NOCASE, name, password_hash, status active|blocked, failed_logins, locked_until, created_at, updated_at)` (`failed_logins` and `locked_until` are unused since the lockout was dropped, #224): `password_hash` is `pbkdf2-sha256$<iterations>$<salt>$<hash>`, or `!`, which never verifies (sign-in disabled). `sessions(id, user_id → users CASCADE, client dashboard|mobile, expires_at, last_used_at, created_at)`: the id is the SHA-256 (hex) of the opaque token; the token itself is never stored; `dashboard` is the Studio (the value predates the rename and is kept, not migrated). `workspaces(id, name, owner_user_id → users, kind personal|shared, created_at, updated_at)` and `workspace_members(workspace_id → CASCADE, user_id → CASCADE, role owner|admin|editor|viewer)`, primary key (workspace, user). Access is decided by `workspace_members` alone; `owner_user_id` is bookkeeping and nullable, so organisations can own workspaces later (an added `owner_org_id`). `kind`: each user's own workspace is `personal` (where their new projects and rigs go by default); the ones they create to share are `shared`.
+**Tenancy** (epic #107). `users(id, email UNIQUE NOCASE, name, password_hash, status active|blocked, failed_logins, locked_until, created_at, updated_at)` (`failed_logins` and `locked_until` are unused since the lockout was dropped, #224): `password_hash` is `pbkdf2-sha256$<iterations>$<salt>$<hash>`, or `!`, which never verifies (sign-in disabled). `sessions(id, user_id → users CASCADE, client dashboard|mobile, expires_at, last_used_at, created_at)`: the id is the SHA-256 (hex) of the opaque token; the token itself is never stored; `dashboard` is the Studio (the value predates the rename and is kept, not migrated). `workspaces(id, name, owner_user_id → users, kind personal|shared, created_at, updated_at)` and `workspace_members(workspace_id → CASCADE, user_id → CASCADE, role owner|admin|editor|viewer)`, primary key (workspace, user). Access is decided by `workspace_members` alone; `owner_user_id` is bookkeeping and nullable, so organisations can own workspaces later (an added `owner_org_id`). `kind`: each user's own workspace is `personal` (where their new projects go by default); the ones they create to share are `shared`.
 
-Every project and rig belongs to a workspace, every device and viewfinder layout to a user. Migration 0021 gave all existing rows to a bootstrap user `00000000-0000-4000-8000-000000000001` (email `owner@openclapper.invalid`, sign-in disabled) and its workspace `00000000-0000-4000-8000-000000000002` (`tenancy.ts`). New projects and rigs go to the workspace the client names, by default the caller's own; new devices and layouts to the caller. Devices are keyed by `(user_id, id)` (migration 0026, #224): the id is the phone's own, so a phone saved under two accounts has a row for each, and nobody can write another user's row.
+`projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, created_at, updated_at)`: a project is a root of files and a hard scope.
 
-`projects(id, workspace_id → workspaces, name UNIQUE NOCASE per workspace, notes, created_at, updated_at)`
+`files(id, project_id → projects CASCADE, home_of → users CASCADE, type, name, container → files SET NULL, internal_of → files CASCADE, fixed, created_at, updated_at, created_by → users SET NULL, deleted_at, deleted_with, lock_by → users SET NULL, lock_holder, lock_until, body JSON, body_version)`: everything a user makes ([organisation](rewrite/07-organisation.md)).
 
-`presets(id, workspace_id → workspaces, name, camera_id, format_id, sensor_width_mm, sensor_height_mm, speedbooster_factor, lens_min_mm, lens_max_mm, vignetting JSON | null, created_at, updated_at)`: rigs. `vignetting` is `[{ mm, start, end, opacity }]` sorted by `mm` (issue #266, `packages/vocab/src/vignetting.ts`); the API returns `[]` for null. Sensor dimensions are the source of truth for the math; `camera_id`/`format_id` refer to `packages/fov-math/src/cameras.ts` (null = custom sensor).
+| Column | Meaning |
+| --- | --- |
+| `project_id`, `home_of` | The root, exactly one of the two: a project, or the account home of a user |
+| `type` | A file type registered in `packages/model` |
+| `name` | Free text, not unique |
+| `container` | The folder or collection it sits in; null at the top level. Cleared when the container is purged, so a file binned on its own inside it restores to the top level |
+| `internal_of` | The file it was made inside; never together with `container`. Purged with its parent |
+| `fixed` | `desktop` or `settings`: a project's fixed folders, made with the project, one of each |
+| `deleted_at`, `deleted_with` | The recycle bin. `deleted_with` names the file whose binning took this one along (a folder's contents, a file's internal files); null for the file the user binned |
+| `lock_by`, `lock_holder`, `lock_until` | One editor at a time: the user, the editing window's own token, and until when. Written from step B5 |
+| `body`, `body_version` | The type's own document, saved whole and checked by `packages/model` on every save, and the version of its shape. A change of shape raises the version and upgrades stored bodies when they are read; it needs no migration |
 
-`locations(id, project_id → projects CASCADE, name UNIQUE NOCASE per project, lat, lon, created_at, updated_at)`: a location belongs to one project. `lat`/`lon` is the location's pin (null = none). No district (removed in the rework).
+`refs(from_file → files CASCADE, kind, position, to_file, data JSON | null)`, primary key (from_file, kind, position): one row per pointer from a file to a file. `kind` is what it is for (`content`, `item`, `clip`, `overlay`, `base`, `placed`, `property`, `target`), `position` its place in the file's list, `data` what the kind needs besides (an item's time, the frame it shows). `to_file` has no foreign key on purpose: a removed file leaves a missing reference, and a restore brings every use back. Indexed on `to_file` for "where is this used".
 
-`spots(id, location_id → locations CASCADE, name UNIQUE NOCASE per location, lat, lon, created_at, updated_at)`: a named place within a location (the north gate, the roof), with an optional pin. `shots.spot_id → spots SET NULL` is always a spot of the shot's location; the API adds `spot_name`.
+`property_values(file_id → files CASCADE, definition_id → files CASCADE, value JSON)`, primary key (file, definition): a property's value on a file. The definition is a file in the project's Settings folder. Written from step B4.
 
-`shots(id, project_id → projects RESTRICT, location_id → locations SET NULL, name, int_ext, light JSON array, artificial 0/1, weather, shot_size, camera_support, movement JSON array, state, extra JSON object, description, captured_at, created_at, updated_at)`
-- `state`: `unreviewed` (on upload) → `approved` / `archived`.
-- `light`: subset of `dawn, day, dusk, night`, stored in that canonical order. Empty = no requirement.
-- Camera language (`packages/vocab`): `shot_size` one of `ews, ws, mws, ms, mcu, cu, ecu`; `camera_support` one of `static, handheld, steadicam, gimbal, dolly, slider, crane, drone, vehicle`; `movement` any subset of `pan, tilt, push_in, pull_out, tracking, pedestal, orbit, zoom` in that order. `cameraLabel()` gives "WS · Steadicam · Pan / Push in".
-- `artificial`: lit artificially, independent of phases and INT/EXT.
-- `captured_at`: earliest photo timestamp; recomputed when photos are added. Lists sort and paginate on `(captured_at, id)`.
-- `extra`: values of the project's extra fields ([extra fields](features/extra-fields.md)).
-- `position_from_location` 0/1: maps use the place's pin (the spot's, else the location's; the API's `location_position`) instead of the photos' GPS (the photos keep theirs). The API adds `location_position: { lat, lon } | null` from the join.
-- `description`: Markdown subset (`packages/vocab/src/markdown.ts`), max 20 000 characters.
+## What is a table and what is a body
 
-`photos(id, shot_id → shots CASCADE, ordinal UNIQUE per shot, source camera|upload|drawn (non-camera photos: no framing, lens_mm 0), timestamp, lat, lon (both NULL when captured without GPS), gps_accuracy_m, position_corrected, preset_id → presets SET NULL, lens_mm, r2_object_key UNIQUE, width, height, framing JSON, device JSON, created_at, size_bytes)`. `size_bytes` (the stored image, for storage accounting) is NULL for photos uploaded before migration 0021
+Decided in [workshop 10](rewrite/10-conclusion.md#tables-and-json-bodies): what the server searches, joins or keeps consistent across rows is in tables (files, references, property values; photos, frames and devices from their steps on); what one editor loads and saves whole is the file's JSON body (a canvas's objects, a flow's tracks, a layout's bars).
 
-`overlays(…)`: the drawings of issue #12 before epic #275. Migration 0030 copied them into `layers`; nothing reads the table any more except the purge (its old renders under `renders/overlays/`), and a later release drops it.
-
-`layers(id, shot_id → shots CASCADE, kind drawing|adjustment, name, description, position (< 0 below the footage), visible, locked, opacity, space frame|photo, photo_id → photos CASCADE (photo space), range JSON (null = every step, else stored step ids), shapes JSON (drawing), look JSON (adjustment), timeline_id → timelines CASCADE, clip_id, created_at, updated_at)`: the composition (epic #275). A layer with `timeline_id` + `clip_id` (no FK) is a timeline clip's own; shots embed only their own, without `shapes`. `step_bakes(shot_id → shots CASCADE, step_key, hash, render_key, updated_at, PK (shot_id, step_key))`: one flattened image per step, made by the Studio; `step_key` is the stored step's id, or the photo's id for a shot without stored steps; `hash` is vocab `bakeHash` of what it was made from. See [composition](features/composition.md).
-
-`sketches(id, shot_id → shots CASCADE | null, name, kind, description, drawing JSON (look null), aspect REAL w/h, render_key UNIQUE, position, created_at, updated_at, timeline_id → timelines CASCADE, clip_id)`: a free canvas on the shot, or (shot null, timeline + clip set; a CHECK enforces one of the two) a sketch clip's own canvas. `kind` is free text; `SKETCH_KINDS` are only suggestions.
-
-`framings(id, photo_id → photos CASCADE, name, rig_id → presets SET NULL (null = as shot), lens_mm, frame JSON { width_fraction, height_fraction, x, y }, position, created_at, updated_at)` and `photos.root_framing_id → framings SET NULL` (null = as captured). The API embeds `framings` and `root_framing_id` in every photo. See [framing](features/rig-explorer.md).
-
-`shot_steps(id, shot_id → shots CASCADE, ordinal UNIQUE per shot, photo_id → photos CASCADE, framing_id → framings SET NULL, created_at)`: the time axis of the composition (issue #266, epic #275). A step shows one of the shot's photos, through a saved framing when `framing_id` is set (a zoom step); what is drawn over it comes from the layers whose range includes it. **A shot without rows shows its photos as steps**; phone captures never write rows, only the Studio does. Deleting a framing clears the reference (the step falls back to the photo's root); a photo moved to another shot loses its steps. The API embeds `steps` (raw rows); both clients resolve them with `stepsOf` (`packages/vocab/src/steps.ts`).
-
-`viewfinder_layouts(id, user_id → users, name, layout JSON, device_id, created_at, updated_at)`, `(user_id, device_id) → devices(user_id, id)`: phone layouts made in the Studio; a user's own. The shipped default is in code. `device_id` is the device the layout is designed for, always one of the layout owner's own devices. The composite key has no ON DELETE action (SET NULL would clear `user_id` too): deleting a device clears `device_id` in the same batch (`devices.ts`).
-
-`fixtures(id, workspace_id → workspaces, label, kind_id, address, mesh_network_id → mesh_networks SET NULL, mesh_unicast, mesh_elements, powered_by → fixtures SET NULL, asleep, created_at, updated_at)`: lights (and the battery) paired on a phone ([lights](features/lights.md)). `kind_id` is one of `FIXTURE_KINDS` in `packages/vocab/src/lighting.ts`; `address` the Bluetooth address as Android reports it. The mesh columns are set only for a provisioned mesh fixture (Aputure), unique per network. `powered_by` names the battery fixture a light without its own battery runs on (null: a socket or not set); one light per battery. `asleep` (0/1) keeps the phone proxy from connecting to it.
-
-`mesh_networks(id, workspace_id → workspaces, name, iv_index, next_unicast, key_backup, key_backup_at, holder, seq_floor, created_at, updated_at)`: Bluetooth Mesh networks the phone created as provisioner. The keys (NetKey, AppKey, device keys) live in the phone's secure store; `key_backup` holds them only sealed with the owner's recovery passphrase (scrypt + AES-GCM, on the phone), which the server cannot open. `holder` is the device id of the one phone that controls the network, `seq_floor` how far that phone has counted its mesh sequence numbers (#303).
-
-`light_sequences(id, project_id → projects, name, duration_ms, loop, tracks, markers, created_at, updated_at)`: light sequences edited and played in the Studio ([lights](features/lights.md)). `tracks` is JSON: per track an id, name, light type (`kindId`), the fixture it drives or null, `muted`, its colour (`color`, 0–7, #323), and its keyframes (a start keyframe at 0 always), checked on every save. `markers` is JSON: per marker an id, `at`, an optional `end` (a range), a name, and an optional `trackId` (else across the sequence); checked by `parseSequenceMarkers`, a marker on a removed track goes across the sequence.
-
-`devices(user_id → users, id, name, specs JSON, created_at, updated_at)`, primary key `(user_id, id)`: phones read out in the Studio (issue #68), a user's own. The id is the phone's own (`device.v1` on the phone), so the phone keeps its user's row current; the same phone under another account is another row. `specs` (`DeviceSpecs` in `packages/vocab/src/devices.ts`): `{ v: 1, model, viewport: { portrait, landscape } (dp or null), zoom: { min, max } | null, stops: [0.5, 1, …], mainEquivalentMm, calibration: auto|manual }`.
-
-`views(id, project_id → projects CASCADE, name, filter JSON, …)`: a project's saved Studio filters (model in `packages/vocab/src/filter.ts`).
-
-`folders(id, project_id → projects CASCADE, parent_id → folders SET NULL, name, …)`: a project's folders for the desktop's Files app (epic #72). `parent_id` null = at the root; at most 8 deep and no cycles (checked by the Worker); names unique per directory, case-insensitively. `folder_items(resource_type, resource_id, folder_id → folders CASCADE)`, primary key (type, id): which folder a file sits in (at most one; no row = the root). The file types are `FILE_RESOURCE_TYPES` in `packages/vocab/src/files.ts` (shot, timeline, day, view, location, field); there is no foreign key on the resource, so each delete route (and a shot's project move) sweeps its rows. `desktop_items(id, project_id → projects CASCADE, kind resource|folder|app, resource_type + resource_id | folder_id → folders CASCADE | app_id, label, x, y, …)`: shortcuts on a project's desktop, one per target (unique index); CHECKs keep exactly the kind's target set. Window layouts are not here: they are per browser (`localStorage["desktop.<projectId>"]`).
-
-`folders.kind = 'desktop'` marks the project's Desktop folder (one per project, at the root, named "Desktop"; the Worker makes it on the first `GET /api/files` and refuses to rename, move or bin it). `desktop_items.area` is `desktop` (an icon at `x`, `y`) or `taskbar` (a pin, ordered by `position`); one item per target and area.
-
-**Recycle bin** (epic #90): `deleted_at` (NULL = live) on every file table and on `folders`. A row binned on its own has `deleted_with` NULL; the subfolders and placed files that went along with a binned folder carry that folder's id there, so restoring or purging the folder covers them. Every read filters `deleted_at IS NULL`; placements and desktop rows of a binned file stay until it is purged (`trash.ts`: emptied bin, one entry, or the daily cron after 30 days). A shot's `timeline_clips` and `day_shots` rows are deleted when it is binned. Locations, fields and folders free their name/key while binned (partial unique indexes); a restore that meets a taken one renames.
-
-`field_definitions(id, project_id → projects CASCADE, position, key UNIQUE per project, definition JSON, …)`: a project's extra fields in order. (`project_id` columns are nullable in SQL because `ALTER TABLE` can't add a NOT NULL reference; the Worker always sets them.)
-
-`shooting_days(id, project_id → CASCADE, date YYYY-MM-DD, title, notes, …)` and `day_shots(day_id, shot_id, position, planned_time HH:MM, notes)`.
-
-`timelines(id, project_id → projects CASCADE, name, notes, lock_mode, groups JSON, created_at, updated_at)` and `timeline_clips(id, timeline_id → CASCADE, position, photo_id → photos CASCADE, step_id → shot_steps SET NULL, presentation JSON, duration_ms 100..3600000, notes, title, group_id)`. `groups` holds the sequence blocks' settings (`[{ id, mode each|total, total_ms, split even|edges, edge_weight }]`); `group_id` (no FK, checked on PUT) puts a photo clip in one. A block's clips are adjacent and of one shot; a `total` block's `duration_ms` are the computed split. A photo clip may show a stored step of its photo (`step_id`: that step's layers come along). A clip is either a photo clip (`photo_id` + `presentation`) or a placeholder (`title` only, no photo/step/presentation; a CHECK enforces the two shapes); a placeholder with `sketch_id → sketches SET NULL` is a sketch clip (deleting the sketch turns it back into a placeholder). See [timeline](features/timeline.md).
+D1 takes at most 2 000 000 bytes per string and per row. A body is therefore limited to 1 500 000 bytes of JSON (`MAX_BODY_BYTES`). A type that could outgrow that (a canvas with very many pen strokes, step B5) has to store its strokes compactly or move the large part out of the row.
 
 ## Monitoring
 
-`storage_daily(day YYYY-MM-DD UTC, workspace_id, bytes, objects, unsized)`, primary key (day, workspace): the app Worker's daily cron writes one row per workspace with photos (from `photos.size_bytes`; `objects` = its photos, `unsized` = photos without a recorded size) and one row with `workspace_id = ''` for the bound bucket's total from an R2 listing. No foreign key: the history outlives a deleted workspace. `admin_settings(key, value JSON, updated_at, updated_by)`: the admin plane's own settings, written by the admin Worker (the operator's storage marks). `cf_usage_daily(day, metric, value, taken_at)`: the Cloudflare analytics the admin Worker's cron keeps beyond the API's window, key/value so a new metric needs no migration. `cf_usage_daily(day, metric, value, taken_at)`: the Cloudflare analytics the admin Worker's cron keeps beyond the API's window, key/value so a new metric needs no migration. See [monitoring](features/monitoring.md).
+`storage_daily(day YYYY-MM-DD UTC, workspace_id, bytes, objects, unsized)`, primary key (day, workspace): the app Worker's daily cron writes one row per workspace with photos (from step B2 on; none until then) and one row with `workspace_id = ''` for the bound bucket's total from an R2 listing. No foreign key: the history outlives a deleted workspace. `admin_settings(key, value JSON, updated_at, updated_by)`: the admin plane's own settings, written by the admin Worker (the operator's storage marks). `cf_usage_daily(day, metric, value, taken_at)`: the Cloudflare analytics the admin Worker's cron keeps beyond the API's window, key/value so a new metric needs no migration. See [monitoring](features/monitoring.md).
 
 `admin_audit(id, at, operator_email, action, target_user_id, target_email, detail JSON)`: the admin plane's audit trail (#224). `action` is `user.create`, `user.update`, `user.password`, `user.delete` or `settings.update`; `target_email` is the account's email at the time; `detail` what changed (never a password). Each row goes in the same D1 batch as the change it records. No foreign key: the trail outlives a deleted account. Indexed on `(at DESC, id DESC)` for the newest-first pages.
 
-## JSON shapes on photos
-
-`framing` (written by the phone at capture, `Viewfinder.tsx`):
-
-```json
-{ "preset_name": "6K FULL", "camera_id": "bmpcc6k", "format_id": "6k",
-  "sensor_width_mm": 23.1, "sensor_height_mm": 12.99, "speedbooster_factor": 1,
-  "lens_mm": 24, "rig_orientation": "landscape",
-  "effective_focal_mm": 24, "full_frame_equivalent_mm": 39.2, "hfov_deg": 51.4, "vfov_deg": 30.3,
-  "frame": { "width_fraction": 0.6, "height_fraction": 0.45 },
-  "phone_equivalent_focal_mm": 25 }
-```
-
-`frame` is the rig frame relative to the photo as captured, centred. Saved framings add a centre (`x`, `y`) and one can be the photo's root ([framing](features/rig-explorer.md)); views use the root. Fractions > 1 mean the rig saw more than the phone. Everything that draws a frame (Studio `Framed.tsx`, mobile `FramedImage.tsx`) and the [rig explorer](features/rig-explorer.md) works from it. The framing snapshot also preserves the rig if the preset is deleted later.
-
-`device`: phone model, EXIF focal lengths, GPS altitude/heading, `gps_fix_age_ms`; since issue #26 also `zoom` (the phone lens: 0.5, 1, 3…), `phone_main_equivalent_mm` (the main lens; `framing.phone_equivalent_focal_mm` is it times the zoom) and `camera_id`.
-
-## API shapes
-
-The Worker returns a shot with its photos embedded (`shotToApi` in `apps/worker/src/shots.ts`); `light` as array, `artificial` as boolean, `extra` as object, plus joined `project_name`, `location_name` and per photo `preset_name` and `image_url`. It also embeds `sketches` (ordered, without their `drawing`; each with `render_url` or null), `steps` (raw rows; empty = the photos are the steps), `layers` (the shot's own, in stack order, without `shapes`) and `bakes` (`[{ step_key, hash, url }]`), see [composition](features/composition.md). Client types: `apps/studio/src/api.ts`, `apps/mobile/src/api.ts`.

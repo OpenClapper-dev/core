@@ -22,8 +22,8 @@ The header shows the operator and the board's version with its commit. On an ins
 - **Totals**:
   - accounts (active in 30 days, blocked);
   - workspaces and projects;
-  - shots and photos;
-  - storage (`photos.size_bytes`; photos from before migration 0021 have no recorded size and are counted apart).
+  - files and photos;
+  - storage (zero until the rebuild stores photos again, step B2 #374).
 - **Accounts**: email, name, status (active, blocked, no password), live sessions, last seen, workspaces, created.
   - **New account** (email, name): the account and its personal workspace. A temporary password is shown once, in 4 groups of 4 easy-to-read characters, for the operator to pass on.
   - **Edit** (#148): email and name. The email is what the account signs in with from now on; its sessions stay. A taken email is refused (409) inside the dialog.

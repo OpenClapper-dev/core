@@ -7,7 +7,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | Page | What it covers |
 | --- | --- |
 | [architecture.md](architecture.md) | Repo layout, stack per app, how data flows from the phone to the Studio, auth |
-| [data-model.md](data-model.md) | D1 tables, the shot/photo split, JSON columns, migrations |
+| [data-model.md](data-model.md) | D1 tables: accounts, projects, files with references and property values; what is a table and what is a file's body |
 | [api.md](api.md) | Every Worker endpoint, with request and response shapes |
 | [development.md](development.md) | Local dev loops, checks, deploy, migrations, APK builds |
 | [testing.md](testing.md) | What runs where (unit, Worker and admin route tests), the route-test helpers, the tenancy map rule |

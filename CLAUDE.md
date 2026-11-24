@@ -7,6 +7,8 @@ Single-user tool for film location scouting and shoot planning:
 
 The owner talks to you in English.
 
+**Mid-rewrite (epic #371).** The app is being rebuilt on `main` step by step from the decided specification in `docs/rewrite/` (`10-conclusion.md` has the target model and the build order B0–B11). The Worker already serves the new model; the Studio and the phone app are still the first app's and do not work against it until their steps land. When building a step: the prototypes show the design, not the feature list. Carry over everything today's app can do unless a workshop page drops it.
+
 ## Read first
 
 - `docs/README.md`: index of all docs. `docs/architecture.md` gives the big picture in five minutes.
@@ -17,12 +19,13 @@ The owner talks to you in English.
 
 | Path | What |
 | --- | --- |
-| `apps/worker/src` | API routes (`shots.ts`, `projects.ts`, `fields.ts`, `days.ts`, …, registered in `routes.ts`), `authn/` (sign-in, sessions, the provider seam), `tenancy.ts` (workspace access checks) |
+| `apps/worker/src` | API routes (`files.ts`: one set for every file type; `projects.ts`, `workspaces.ts`; registered in `routes.ts`), `authn/` (sign-in, sessions, the provider seam), `tenancy.ts` (workspace access checks) |
 | `apps/admin` | Admin plane: its own Worker (`src/index.ts`) and board (`ui/`) behind its own Cloudflare Access app; user management across the instance |
-| `apps/worker/migrations` | D1 schema, numbered, additive |
+| `apps/worker/migrations` | D1 schema, numbered, additive; `0001_rewrite_baseline.sql` is the rebuild's baseline |
+| `packages/model` | The rebuild's shared model (`@openclapper/model`): file types, the rules for their bodies and references, placement; used by the Worker and the rebuilt clients |
 | `apps/studio/src` | `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, desktop icons, route bridge, key dispatch), `apps/` (one app per page + `registry.ts`, Files), `data.ts` (shared data store), `project.ts`, one file per page (`ShotsPage`, `ShotView` + `Inspector`, `Timeline`, `Plan`, library pages), `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `styles.css` (layouts) |
 | `apps/mobile` | `App.tsx` (tabs, gates, pushed-screen stack), `src/screens/` (Viewfinder + Tag, Review, Shots + ShotDetails, Day + StepThrough, Setup hub + sub-screens, Uploads, Gates), `src/ui/` (component library: `theme.tsx`, primitives by design-system group, `chrome.tsx` header/rows/bars, `dialogs.tsx` confirm + toast), `src/components/` (`TagEditor.tsx`, sheets, viewfinder parts), `uploads.ts` (queue), `sync.ts`, `rigs.ts`, `storage.ts` (kv), `api.ts` |
-| `packages/vocab` | Shared vocabularies, filters, extra-field definitions, daylight math: anything both the Worker and a client must agree on |
+| `packages/vocab` | The first app's shared vocabularies, still used by its clients until they are rebuilt; nothing new goes here |
 | `packages/fov-math` | Camera/lens/FOV/overlay/reframe math |
 | `packages/ui` | The web design system (`@openclapper/ui`): components, tokens and component CSS, theme switch; used by the Studio and the admin board |
 | `packages/design` + `apps/specimen` | The rewrite's design system (`@openclapper/design`, `docs/rewrite/`) and its specimen app (`make specimen`); not used by the current apps, never on the same page as `@openclapper/ui` |
@@ -40,7 +43,7 @@ A **shot** holds the metadata (name, location, INT/EXT, light phases + artificia
   - Rejected uploads stay queued as `stuck`.
   - Drafts and sequences are persisted.
   Keep it that way.
-- **Shared rules go in `packages/vocab`** and are reused by the Worker. Interactive edits are validated strictly, uploads leniently.
+- **Shared rules go in `packages/model`** and are reused by the Worker. Interactive edits are validated strictly, uploads leniently.
 - **Migrations**: a new numbered file for every change; never edit an applied one. Production holds real data now: ask before anything destructive.
 - **Match the surrounding code**: terse doc comments on exported functions explaining *why*; plain CSS on the design tokens, never hard-coded colours (`docs/design.md`; both themes, Sun and Set, must stay high contrast); mobile UI from `src/ui` (primitives, `makeStyles`/`useTheme`). No new dependencies without a reason (the sun math and combobox are hand-written on purpose).
 - **The Android signing key** lives in the deployment repository's GitHub secrets and the owner's offline backup, never in git or a checkout; a new key cannot update installed apps. Builds use no Expo account (`expo prebuild` + Gradle). Locally only keyless builds: the dev client (`make dev-build`) and OpenClapper Local (`make apk-local`, debug-signed).
