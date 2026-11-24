@@ -104,3 +104,41 @@ body.wm-gesture { user-select: none; }
 .st-center { display: grid; place-items: center; }
 .st-stage { position: absolute; inset: 0; display: grid; place-items: center; background: var(--photo-bg); }
 .st-stage > img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
+/* Property values in lists and the properties panel (B4, propertyEditors.tsx). */
+.st-tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
+.st-tag { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 0 4px 0 6px; border: var(--border-w) solid var(--border-divider); border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: var(--font-size-xs); line-height: 18px; white-space: nowrap; cursor: pointer; }
+.st-tag:hover { border-color: var(--border-control); }
+.st-tag--static { cursor: default; padding-right: 6px; }
+.st-tag i { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+/* The filter builder above the list (FilterBuilder.tsx). */
+.st-filterbar { display: grid; gap: var(--space-4); margin: 0 0 var(--space-5); padding: var(--space-5); border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-card); background: var(--surface-sunken); }
+.st-filterbar__foot { display: flex; align-items: center; gap: var(--space-4); }
+.st-fgroup { display: grid; gap: var(--space-3); }
+.st-fgroup--inner { padding: var(--space-4); border-left: 2px solid var(--accent); background: var(--surface); border-radius: var(--radius-control); }
+.st-fgroup__head, .st-fgroup__foot, .st-frule { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.st-fgroup__head > span { color: var(--text-secondary); }
+/* The board view (Board.tsx). */
+.st-board-wrap { display: flex; flex-direction: column; gap: var(--space-4); min-height: 100%; }
+.st-board__bar { display: flex; align-items: center; gap: var(--space-4); }
+.st-board__none, .st-board__note { margin: 0; }
+.st-board { display: flex; gap: var(--space-4); flex: 1; min-height: 0; }
+.st-board--rows { flex-direction: column; }
+.st-lane { display: flex; flex-direction: column; min-width: 0; border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-card); background: var(--surface-sunken); }
+.st-lane.is-drop { border-color: var(--selection-border); background: var(--selection); }
+.st-lane__head { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: var(--border-w) solid var(--border-divider); }
+.st-lane__head i { width: 9px; height: 9px; border-radius: 50%; }
+.st-lane__cards { display: grid; gap: var(--space-3); padding: var(--space-3); align-content: start; overflow: auto; }
+.st-board--columns .st-lane { flex: none; }
+.st-board--columns.st-board--s .st-lane { width: 200px; }
+.st-board--columns.st-board--m .st-lane { width: 260px; }
+.st-board--columns.st-board--l .st-lane { width: 340px; }
+.st-board--columns.st-board--fit .st-lane { flex: 1 1 0; }
+.st-board--columns.st-board--fit .st-lane__cards { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.st-board--columns:not(.st-board--fit) { overflow-x: auto; }
+.st-board--rows .st-lane__cards { grid-auto-flow: column; grid-auto-columns: var(--lane-card, 160px); overflow-x: auto; }
+.st-board--rows.st-board--s .st-lane__cards { --lane-card: 120px; }
+.st-board--rows.st-board--m .st-lane__cards { --lane-card: 160px; }
+.st-board--rows.st-board--l .st-lane__cards { --lane-card: 220px; }
+.st-board--rows.st-board--fit .st-lane { flex: 1 1 0; min-height: 0; }
+.st-board--rows.st-board--fit .st-lane__cards { --lane-card: 96px; }
