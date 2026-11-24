@@ -8,6 +8,7 @@ D1 (SQLite) database `openclapper-db`, schema in `apps/worker/migrations/`. Stor
 
 | File | What |
 | --- | --- |
+| `0004_name_counters.sql` | `name_counters`: the running number of each naming pattern, per project and file type (step B4, #376) |
 | `0003_devices.sql` | `devices`: a device file's owner and hardware fingerprint (step B3, #375) |
 | `0002_photos.sql` | `photos`: a photo's facts and stored images (step B2, #374) |
 | `0001_rewrite_baseline.sql` | The baseline of the rewrite (step B0, #372): accounts and tenancy, `projects`, `files`, `refs`, `property_values`, and the admin plane's tables. For databases created new: it carries nothing over, and it fails on purpose on a database of the first app |
@@ -40,7 +41,9 @@ A new numbered file for every change; an applied one is never edited.
 
 `devices(file_id → files CASCADE, user_id → users CASCADE, fingerprint, seen_at)`, unique on (user, fingerprint): ties a device file to the hardware it stands for, so a reinstall finds its record and two phones of one model are two devices. What the device reports is the file's body.
 
-`property_values(file_id → files CASCADE, definition_id → files CASCADE, value JSON)`, primary key (file, definition): a property's value on a file. The definition is a file in the project's Settings folder. Written from step B4.
+`property_values(file_id → files CASCADE, definition_id → files CASCADE, value JSON)`, primary key (file, definition): a property's value on a file ([properties](features/properties.md)). The definition is a file of the type `property` in the project's Settings folder; the value's shape follows its field type (`packages/model/src/properties.ts`). A reference value also keeps `refs` rows of kind `property` with `data: { property }`, rewritten whenever the file's values change and removed when the definition is purged.
+
+`name_counters(project_id → projects CASCADE, type, next)`: the counter of a file type's naming pattern in a project, raised in the statement that reads it.
 
 ## What is a table and what is a body
 

@@ -36,7 +36,8 @@ async function newProject(): Promise<string> {
 const put = (id: string, body: unknown, status: number | number[] = [200, 201]) => ok<{ file: FileOut; error: string }>(api(u.token, "PUT", `/api/files/${id}`, body), status);
 const folder = async (name: string, container: string | null = null) => { const id = uuid(); await put(id, folderBody({ project_id: project }, name, { container }), 201); return id; };
 const note = async (name: string, extra: Record<string, unknown> = {}) => { const id = uuid(); await put(id, { type: "t-note", project_id: project, name, ...extra }, 201); return id; };
-const files = async (query = "") => (await ok<{ files: FileOut[] }>(api(u.token, "GET", `/api/files?project_id=${project}${query}`))).files;
+// The property definitions every new project starts with sit in Settings; these tests are about the other files.
+const files = async (query = "") => (await ok<{ files: FileOut[] }>(api(u.token, "GET", `/api/files?project_id=${project}${query}`))).files.filter((f) => f.type !== "property");
 const names = async (query = "") => (await files(query)).map((f) => f.name);
 const one = async (id: string) => (await ok<{ file: FileOut }>(api(u.token, "GET", `/api/files/${id}`))).file;
 const post = (path: string, body: unknown, status: number | number[] = 200) => ok<Record<string, unknown> & { error: string }>(api(u.token, "POST", path, body), status);
@@ -60,11 +61,11 @@ describe("a project's fixed folders", () => {
 });
 
 describe("making and reading files", () => {
-  test("a file is made with its type's default name and empty body, read back, renamed, and listed", async () => {
+  test("a file is made with a name from its type's naming pattern and an empty body, read back, renamed, and listed", async () => {
     await newProject();
     const id = uuid();
     const made = await put(id, { type: "folder", project_id: project }, 201);
-    expect(made.file).toMatchObject({ id, project_id: project, home: false, type: "folder", name: "New folder", container: null, internal_of: null, fixed: null, created_by: u.id, deleted_at: null, lock: null, body_version: 1, body: {}, refs: [] });
+    expect(made.file).toMatchObject({ id, project_id: project, home: false, type: "folder", name: "Folder 001", container: null, internal_of: null, fixed: null, created_by: u.id, deleted_at: null, lock: null, body_version: 1, body: {}, refs: [] });
     expect((await put(id, { name: "  Scouting  " }, 200)).file.name).toBe("Scouting");
     // Names are free text: a second file may carry the same one.
     const twin = await folder("Scouting");

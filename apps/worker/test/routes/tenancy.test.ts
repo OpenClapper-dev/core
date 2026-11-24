@@ -52,6 +52,8 @@ const ROUTES: Record<string, Case> = {
   "POST /api/files/purge": { kind: "id", path: () => "/api/files/purge", body: (a) => ({ ids: [a.binned] }) },
   "DELETE /api/bin": { kind: "id", path: (a) => `/api/bin?project_id=${a.project}` },
   "POST /api/files/:id/duplicate": { kind: "id", path: (a) => `/api/files/${a.folder}/duplicate`, body: () => ({ id: uuid() }) },
+  "PUT /api/files/:id/properties": { kind: "id", path: (a) => `/api/files/${a.folder}/properties`, body: () => ({ values: {} }) },
+  "POST /api/properties/set": { kind: "id", path: () => "/api/properties/set", body: (a) => ({ ids: [a.folder], values: {} }) },
   "POST /api/files/:id/release": { kind: "id", path: (a) => `/api/files/${a.internal}/release`, body: () => ({}) },
 
   // B names B's own project for A's photo id: refused on the photo, never a takeover.

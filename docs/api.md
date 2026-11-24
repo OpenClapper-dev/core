@@ -43,7 +43,7 @@ A file as the API gives it:
 | --- | --- |
 | `id` | UUID, chosen by the client |
 | `project_id`, `home` | Its root: a project, or (`project_id: null`, `home: true`) the caller's account home |
-| `type` | A registered file type. So far `folder`, `shortcut`, `preferences` (a person's preferences, in their account home), `photo`, `collection` and `device` (a phone or tablet, in its owner's account home); each build step adds the types it builds |
+| `type` | A registered file type. So far `folder`, `shortcut`, `preferences` (a person's preferences, in their account home), `photo`, `collection`, `device` (a phone or tablet, in its owner's account home), `property` and `naming` (a property definition and a naming pattern, only in the project's Settings folder), `filter` (a saved query) and `shot` (properties only until step B6); each build step adds the types it builds |
 | `name` | Free text, up to 120 characters, not unique |
 | `container` | The folder or collection it sits in; `null` at the top level |
 | `internal_of` | The file it was made inside ([internal files](rewrite/i1-interjection.md)); such a file sits in no container and is left out of lists |
@@ -56,10 +56,10 @@ A file as the API gives it:
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/files` | `?project_id=` or `?home=1` (exactly one). The live files of the root that are not internal, by name. Narrowed by `container` (an id, or `top`), `type` (comma-separated), `q` (part of the name; case is folded for ASCII only) and `internal_of`. `bin=1` lists the bin's entries instead, newest first, each with `binned_with` (how many files went along). `body=1` adds the bodies, `refs=1` each file's `refs`. `limit` (at most 2000) and `offset` page it; the answer says `more` |
-| GET | `/api/files/:id` | `{ file }` with `body` and `refs`. A binned file answers too |
+| GET | `/api/files` | `?project_id=` or `?home=1` (exactly one). The live files of the root that are not internal, by name. Narrowed by `container` (an id, or `top`), `type` (comma-separated), `q` (search: every word must be in the name or in a property value as text; case, accents and ß folded) and `internal_of`. `values=1` adds each file's property `values` (by definition id). `bin=1` lists the bin's entries instead, newest first, each with `binned_with` (how many files went along). `body=1` adds the bodies, `refs=1` each file's `refs`. `limit` (at most 2000) and `offset` page it; the answer says `more` |
+| GET | `/api/files/:id` | `{ file }` with `body`, `refs` and `values`. A binned file answers too |
 | GET | `/api/files/:id/uses` | `{ uses: [{ id, type, name, internal_of, kind }] }`: the live files of the root that point at it |
-| PUT | `/api/files/:id` | Upsert. `{ type, project_id \| home: true, name?, container?, internal_of?, body?, body_version?, refs? }`. `type`, the root and `internal_of` are set when the file is made and never change (`400`). What is absent is kept; a new file gets "New <type>" and the type's empty body. `container: null` is the top level. `refs`, when sent, replaces the file's references. Body and references are checked together by the type's rules (`400` with what is wrong); a body sent at an older `body_version` is upgraded, a newer one refused. `201` when made, `200` when changed, `409` while it is in the bin. A fixed folder cannot be renamed or moved |
+| PUT | `/api/files/:id` | Upsert. `{ type, project_id \| home: true, name?, container?, internal_of?, body?, body_version?, refs? }`. `type`, the root and `internal_of` are set when the file is made and never change (`400`). What is absent is kept; a new file of a project without a name gets one from its type's naming pattern ("Shot 001"; [properties](features/properties.md#naming-patterns)), one in an account home "New <type>"; the type's empty body. Saving a `property` definition fits the values it has to it (and those of choices that depend on it). `container: null` is the top level. `refs`, when sent, replaces the file's references. Body and references are checked together by the type's rules (`400` with what is wrong); a body sent at an older `body_version` is upgraded, a newer one refused. `201` when made, `200` when changed, `409` while it is in the bin. A fixed folder cannot be renamed or moved |
 | POST | `/api/files/move` | `{ ids, container: id \| null }`. All or none. Refused (`400`): a container that is not a live folder or collection of the same root, a type the container does not hold, a folder inside itself, more than 8 levels of containers, a fixed folder, an internal file |
 | POST | `/api/files/bin` | `{ ids }`. To the recycle bin, each with everything inside it and its internal files. A file that is binned already is left as it is. A fixed folder: `400` |
 | POST | `/api/files/restore` | `{ ids }` → `{ restored, to_top }`. Each comes back where it was with everything that went along; when its container is gone or still binned it comes back at the top level and is listed in `to_top`. `400` for a file that went to the bin with another one (restore that one), `409` for an internal file whose parent is still binned |
@@ -69,13 +69,24 @@ A file as the API gives it:
 | PUT | `/api/files/:id` with a photo | Only its name and place change; a photo is never made here, nor its body changed (400) |
 | POST | `/api/files/:id/release` | `{ container? }`. Makes an internal file a file of its root; one-way |
 
+## Properties (`properties.ts`)
+
+Values of a project's properties on its files ([properties](features/properties.md)). A property must be live, of the file's project and attached to the file's type; a value must fit its field type, strictly (`400` with the property's name and what is wrong). `null` (or an empty value) removes one. A dependent choice whose parent changes keeps only a value that still fits. A reference names live files of the project of the types it allows. Each answer carries the file's values after the change.
+
+| Method | Path | Notes |
+| --- | --- | --- |
+| PUT | `/api/files/:id/properties` | `{ values: { <property id>: value \| null } }` → `{ values }` |
+| POST | `/api/properties/set` | Bulk edit: `{ ids, values }` (files of one project, at most 500) → `{ values: { <file id>: values } }`. All or none |
+
+A new project starts with the default properties in its Settings folder (`PUT /api/projects/:id`); they are not counted in `file_count` and do not keep a project from being deleted.
+
 ## Photos (`photos.ts`)
 
 A photo is a file made by uploading it ([media](rewrite/01-media.md)): first what is known about it, then its three images, each on its own and in any order. The adding client makes the thumbnail (about 400 px) and the preview (about 2048 px); the original is the untouched file. A photo is usable as soon as its preview is there. Every step can be sent again and answers the same, so a client may retry anything.
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| PUT | `/api/photos/:id` | `{ project_id, origin: capture \| import, media_type?, taken_at?, width, height, name?, container?, exif?, readout?, device_id? }` → `{ file }`, `201`. `width`/`height`: the original as shown (upright). `exif`: the raw tags by name (text, numbers, lists of numbers; others are dropped). `readout`: `make`, `model`, `lens`. The angle of view is computed here from `FocalLengthIn35mmFilm`, else `FocalLength` with the focal-plane resolution (`packages/fov-math` `photoAov`). A `container` that is gone or cannot hold photos is dropped (the photo comes in at the top level), a missing `taken_at` is the time of the upload. Sent again for a photo that exists: nothing changes, `200`. An id of another file: `409` |
+| PUT | `/api/photos/:id` | `{ project_id, origin: capture \| import, media_type?, taken_at?, width, height, name?, container?, exif?, readout?, device_id? }` → `{ file }`, `201`. `width`/`height`: the original as shown (upright). `exif`: the raw tags by name (text, numbers, lists of numbers; others are dropped). `readout`: `make`, `model`, `lens`. The angle of view is computed here from `FocalLengthIn35mmFilm`, else `FocalLength` with the focal-plane resolution (`packages/fov-math` `photoAov`). Without `name` the project's naming pattern for photos names it (its device and focal tokens read the readout's model and `FocalLengthIn35mmFilm`). A `container` that is gone or cannot hold photos is dropped (the photo comes in at the top level), a missing `taken_at` is the time of the upload. Sent again for a photo that exists: nothing changes, `200`. An id of another file: `409` |
 | PUT | `/api/photos/:id/thumbnail`, `/preview`, `/original` | The body is the image. Thumbnail up to 400 KB, preview up to 4 MB, JPEG or WebP; original up to 60 MB, JPEG, PNG, WebP or HEIC. The type is read from the bytes (`415` otherwise). Stored once: a second upload is not read and answers `200` with `already: true`. Asks the auth provider for `upload` |
 | GET | `/api/photos/:id/image?size=thumbnail\|preview\|original` | Default `preview`. `404` until that image arrived. Its stored type, `nosniff`, an ETag, `private, max-age=31536000, immutable`; `If-None-Match` answers `304`, a failed `If-Match` `412` |
 
