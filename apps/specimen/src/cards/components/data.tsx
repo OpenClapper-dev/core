@@ -1,5 +1,5 @@
 // Port of components/data/data.card.html.
-import { AppIcon, Button, ColorChooser, CollectionTag, EmptyState, FileCard, FileGrid, List, ListRow, MapControl, MapPin, Table, ThumbnailTile, colorCss, type ChosenColor, type CollectionMark } from "@openclapper/design";
+import { AppIcon, BatteryBar, Button, ColorChooser, ConnectionMark, DeviceCard, Slider, Switch, CollectionTag, EmptyState, FileCard, FileGrid, List, ListRow, MapControl, MapPin, Table, ThumbnailTile, colorCss, type ChosenColor, type CollectionMark } from "@openclapper/design";
 import { useState } from "preact/hooks";
 import { L, Pair } from "../../kit";
 
@@ -32,6 +32,26 @@ function Media() {
   );
 }
 
+/** Devices (U6): a card across the width with what the device exposes, the coloured connection mark, the battery bar. */
+function Devices() {
+  const [on, setOn] = useState(true);
+  const [level, setLevel] = useState(62);
+  return (
+    <>
+      <L>device cards · connection in colour · battery as a bar</L>
+      <div style={{ display: "grid", gap: 8, marginBottom: 12 }}>
+        <DeviceCard icon="light-fixture" color={3} name="Key light" sub="NEEWER FS300B" connection={<ConnectionMark tone="ok" label="Connected" />} battery={<BatteryBar charge={74} minutes={95} />}>
+          <Switch checked={on} onChange={setOn}>Power</Switch>
+          <label style={{ display: "grid", gap: 4, minWidth: 180 }}><small>Intensity {level} %</small><Slider value={level} min={0} max={100} onChange={setLevel} /></label>
+        </DeviceCard>
+        <DeviceCard icon="battery" color={4} name="V-mount 1" sub="NEEWER PS099S" connection={<ConnectionMark tone="warn" label="Reconnecting (try 2)" />} battery={<BatteryBar charge={22} minutes={31} />}>Powers Key light</DeviceCard>
+        <DeviceCard icon="video" color={1} name="A camera" sub="Blackmagic Pocket 6K" off connection={<ConnectionMark tone="off" label="Asleep · not connecting" />} battery={<BatteryBar charge={null} />} />
+        <DeviceCard icon="light-fixture" color={3} name="MC 2" sub="Aputure MC" connection={<ConnectionMark tone="danger" label="Cannot connect" />} battery={<BatteryBar charge={9} />} />
+      </div>
+    </>
+  );
+}
+
 function Demo() {
   const [sel, setSel] = useState(["2"]);
   const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
@@ -39,6 +59,7 @@ function Demo() {
   return (
     <div>
       <Media />
+      <Devices />
       <L>list · rest, selected, cursor, chevron</L>
       <List style={{ marginBottom: 10 }}><ListRow icon="folder" meta="24">Scouting</ListRow><ListRow icon="folder" meta="18" selected>Day 2</ListRow><ListRow icon="image" meta="4.2 MB" cursor>Ref_04.jpg</ListRow><ListRow icon="user" chevron>Crew</ListRow></List>
       <L>table · sort, select, mono numbers</L>

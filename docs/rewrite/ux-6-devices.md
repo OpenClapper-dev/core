@@ -109,4 +109,4 @@ Pairing an Aputure mesh, effects with their options, dimming curves, device spec
 
 ## Into the design system
 
-Nothing yet. Candidates: the phone-link pill, the battery bar, the device tile.
+Built in step B9 (#381): `DeviceCard`, `BatteryBar` and `ConnectionMark` in `packages/design/src/data/Device.tsx`, shown in the specimen's Data card. The phone-link pill stays in the Studio (`lay-pill`) for now.

@@ -6,3 +6,4 @@ export * from "./MapControl";
 export * from "./MapPin";
 export * from "./Table";
 export * from "./ThumbnailTile";
+export * from "./Device";

@@ -44,6 +44,16 @@ The phone provisions Aputure lights into a Bluetooth Mesh network of its own; th
 
 The core's phone link carries the channel unread. Requests (to the proxy phone): `command { device, command }`, `hello`, `sync`, `reconnect`, `scan { on }`, `provision { device, fresh? }`; the phone checks each (`parseHardwareRequest`). Reports: `state { phone, proxy, devices }` (link, telemetry and light state per device), `scan.state`, `provision.state`. A change made on one client holds back the device's reports for 1.5 s, so a slider does not jump back.
 
+## In the Studio (`apps/studio/src/ext/hardware/`)
+
+The Devices app is the core's (`apps/studio/src/apps/DevicesApp.tsx`); the extension registers how its kinds show (`registerDeviceView` in `apps/studio/src/devices.ts`) and its phone app as a tab a phone can take (`registerPhoneTab`). With the extension off, its devices are left out and a line says how many need it.
+
+- **Cards** (`DeviceCard` of the design system): the type's icon and colour, name and model, the connection as a coloured mark (`ConnectionMark`), the charge as a bar (`BatteryBar`; a COB light shows the battery it runs on), and the first group of controls ready to use; a camera shows its timecode; a battery what it powers; the transmitter that its picture is on the phone only. The "…" menu: Open, Sleep or Wake, Remove.
+- **A device's panel** (a click on its name): every control by group (the camera's Lens, Image and codec, Colour correction, Audio, Slate and Tally start folded, as before), its readings, for the camera every reported parameter and the incoming log, a mesh light's pairing with its steps, what it runs on (a socket or a battery; a battery taken from another light says so), rename, sleep, remove.
+- **Table**: name, type, model, connection, battery, and the power source or what it powers (for a phone: its camera layout).
+- **Toolbar**: the proxy pill (which phone holds the connections, or none), Reconnect all, **Add a device**: what the proxy phone finds (likely model first) beside the catalogue of supported hardware; the transmitter is added from the catalogue. After adding, the phone is told to read the list again, and an Aputure light is paired.
+- **Commands** go on the link's `hardware` channel; slider drags are thinned to one command per device and op every 60 ms (the last value always goes). A value set here shows at once and wins over the device's reports for 1.5 s.
+
 ## On the phone (`apps/mobile/src/ext/hardware/`)
 
 The app **Hardware** (a tab like any other while the project has the extension on):
