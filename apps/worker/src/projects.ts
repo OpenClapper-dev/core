@@ -1,15 +1,15 @@
 import { assertString, assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import { clearProject, fixedFolders, liveFiles, NOT_SETTINGS } from "./files.ts";
-import { masterError } from "@openclapper/model";
+import { extensionsError, masterError } from "@openclapper/model";
 import type { Ctx } from "./index.ts";
 import { accessIfExists, assertAccess, assertRank, defaultWorkspace, inWorkspaces } from "./tenancy.ts";
 
-interface ProjectRow { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: string; master: string }
+interface ProjectRow { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: string; master: string; extensions: string }
 /** A project as the API gives it: the master timeline as a list. */
-const out = (p: ProjectRow) => ({ ...p, master: JSON.parse(p.master || "[]") as string[] });
+const out = (p: ProjectRow) => ({ ...p, master: JSON.parse(p.master || "[]") as string[], extensions: JSON.parse(p.extensions || "[]") as string[] });
 
 /** A project with how many live files it holds; its two fixed folders, what is in Settings and internal files are not counted. */
-const LIST_SQL = `SELECT pr.id, pr.name, pr.workspace_id, pr.created_at, pr.updated_at, pr.canvas_live, pr.master,
+const LIST_SQL = `SELECT pr.id, pr.name, pr.workspace_id, pr.created_at, pr.updated_at, pr.canvas_live, pr.master, pr.extensions,
   (SELECT count(*) FROM files f WHERE f.project_id = pr.id AND f.deleted_at IS NULL AND f.fixed IS NULL AND f.internal_of IS NULL AND ${NOT_SETTINGS("f")}) AS file_count
   FROM projects pr`;
 
@@ -44,10 +44,14 @@ export function registerProjectRoutes(r: Router<Ctx>) {
     const wrongMaster = b.master === undefined ? null : masterError(b.master);
     if (wrongMaster) throw new HttpError(400, wrongMaster);
     const master = b.master === undefined ? null : JSON.stringify((b.master as string[]).map((x) => x.toLowerCase()));
-    if (stored) await env.DB.prepare("UPDATE projects SET name = ?2, updated_at = ?3, canvas_live = coalesce(?4, canvas_live), master = coalesce(?5, master) WHERE id = ?1").bind(pid, name, now, live, master).run();
+    // The extensions switched on (08-extensions.md); with what each needs. Absent: kept.
+    const wrongExt = b.extensions === undefined ? null : extensionsError(b.extensions);
+    if (wrongExt) throw new HttpError(400, wrongExt);
+    const ext = b.extensions === undefined ? null : JSON.stringify(b.extensions);
+    if (stored) await env.DB.prepare("UPDATE projects SET name = ?2, updated_at = ?3, canvas_live = coalesce(?4, canvas_live), master = coalesce(?5, master), extensions = coalesce(?6, extensions) WHERE id = ?1").bind(pid, name, now, live, master, ext).run();
     else {
       await env.DB.batch([
-        env.DB.prepare("INSERT INTO projects (id, name, workspace_id, created_at, canvas_live, master) VALUES (?1, ?2, ?3, ?4, coalesce(?5, 'realtime'), coalesce(?6, '[]'))").bind(pid, name, ws, now, live, master),
+        env.DB.prepare("INSERT INTO projects (id, name, workspace_id, created_at, canvas_live, master, extensions) VALUES (?1, ?2, ?3, ?4, coalesce(?5, 'realtime'), coalesce(?6, '[]'), coalesce(?7, '[]'))").bind(pid, name, ws, now, live, master, ext),
         ...fixedFolders(env, pid, tenant.userId),
       ]);
     }

@@ -10,10 +10,11 @@ import { AtkinsonHyperlegibleNext_600SemiBold } from "@expo-google-fonts/atkinso
 import { AtkinsonHyperlegibleNext_700Bold } from "@expo-google-fonts/atkinson-hyperlegible-next/700Bold";
 import { AtkinsonHyperlegibleNext_800ExtraBold } from "@expo-google-fonts/atkinson-hyperlegible-next/800ExtraBold";
 import "./src/apps";
-import { appOf, type PhoneApp } from "./src/apps/registry";
+import "./src/extensions";
+import { appOf, usableApp, type PhoneApp } from "./src/apps/registry";
 import { device } from "./src/device";
 import { usePrefs } from "./src/prefs";
-import { useProject } from "./src/projects";
+import { useExtensionsOn, useProject } from "./src/projects";
 import { apply as applySettings } from "./src/settings";
 import { handleBack } from "./src/shell/back";
 import { LoginForm, ProjectGate, SignInGate } from "./src/shell/Gates";
@@ -44,11 +45,12 @@ export default function Root() {
   );
 }
 
-/** The tabs this device shows: its choice, without apps this build does not have, and Setup always last. */
+/** The tabs this device shows: its choice, without apps this build does not have or whose extension is off, and Setup always last. */
 function useTabs(): PhoneApp[] {
   const dev = device.use();
-  const key = dev.tabs.join(",");
-  return useMemo(() => [...dev.tabs.filter((t) => t !== "setup").map(appOf).filter((a): a is PhoneApp => !!a), appOf("setup")!], [key]);
+  const on = useExtensionsOn();
+  const key = `${dev.tabs.join(",")}|${on.join(",")}`;
+  return useMemo(() => [...dev.tabs.filter((t) => t !== "setup").map((t) => usableApp(t, on)).filter((a): a is PhoneApp => !!a), appOf("setup")!], [key]);
 }
 
 function App() {

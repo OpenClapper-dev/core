@@ -63,6 +63,9 @@ importers:
       '@openclapper/design':
         specifier: workspace:*
         version: link:../../packages/design
+      '@openclapper/ext-hardware':
+        specifier: workspace:*
+        version: link:../../packages/ext-hardware
       '@openclapper/fov-math':
         specifier: workspace:*
         version: link:../../packages/fov-math
@@ -182,6 +185,9 @@ importers:
       '@openclapper/design':
         specifier: workspace:*
         version: link:../../packages/design
+      '@openclapper/ext-hardware':
+        specifier: workspace:*
+        version: link:../../packages/ext-hardware
       '@openclapper/fov-math':
         specifier: workspace:*
         version: link:../../packages/fov-math
@@ -207,6 +213,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@openclapper/ext-hardware':
+        specifier: workspace:*
+        version: link:../../packages/ext-hardware
       '@openclapper/fov-math':
         specifier: workspace:*
         version: link:../../packages/fov-math
@@ -232,6 +241,12 @@ importers:
       preact:
         specifier: ^10.27.0
         version: 10.29.8
+
+  packages/ext-hardware:
+    dependencies:
+      '@openclapper/model':
+        specifier: workspace:*
+        version: link:../model
 
   packages/fov-math: {}
 

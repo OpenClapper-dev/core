@@ -3,6 +3,7 @@ import { render } from "preact";
 import "@openclapper/design/styles.css";
 import "./shell.css";
 import "./theme";
+import "./extensions";
 import { EmbedCanvas, embedOf } from "./embed";
 import { Shell } from "./wm/Shell";
 

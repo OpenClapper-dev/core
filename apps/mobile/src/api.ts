@@ -91,7 +91,7 @@ export const me = () => call<Me>("/api/me");
 
 // ---------- Projects ----------
 
-export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string; file_count: number }
+export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string; file_count: number; extensions?: string[] }
 export const listProjects = () => call<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
 /** A new project (or a rename). A name taken in the workspace is a 409 with `existing_id`. */
 export const putProject = (id: string, name: string) => call<{ project: Project }>(`/api/projects/${id}`, { method: "PUT", body: { name } });

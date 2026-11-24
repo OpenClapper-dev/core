@@ -3,7 +3,7 @@ import type { FrameValues } from "@openclapper/model";
 
 export interface Me { user: { id: string; email: string; name: string | null }; workspaces: { id: string; name: string; role: WorkspaceRole; personal: boolean }[] }
 export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
-export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: CanvasLive; /** The master timeline: the order of the project's timelines. */ master: string[] }
+export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: CanvasLive; /** The master timeline: the order of the project's timelines. */ master: string[]; /** The extensions switched on (docs/rewrite/08-extensions.md). */ extensions: string[] }
 /** How watchers of a canvas see it change while someone edits it: at once, or every few seconds. */
 export type CanvasLive = "realtime" | "gradual";
 export interface ServerBuild { version: string; commit: string; instance: string }
@@ -60,7 +60,7 @@ export const signIn = (email: string, password: string) => send<unknown>("POST",
 export const signOut = () => fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).then(() => undefined);
 
 export const fetchProjects = () => get<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
-export const putProject = (id: string, body: { name: string; workspace_id?: string; canvas_live?: CanvasLive; master?: string[] }) => send<{ project: Project }>("PUT", `/api/projects/${id}`, body).then((r) => r.project);
+export const putProject = (id: string, body: { name: string; workspace_id?: string; canvas_live?: CanvasLive; master?: string[]; extensions?: string[] }) => send<{ project: Project }>("PUT", `/api/projects/${id}`, body).then((r) => r.project);
 export const deleteProject = (id: string) => send<{ deleted: string }>("DELETE", `/api/projects/${id}`);
 
 /** A file as the API gives it (docs/api.md). `body` and `refs` come with single-file answers and with lists that ask for them. */

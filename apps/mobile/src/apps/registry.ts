@@ -12,6 +12,8 @@ export interface PhoneApp {
   icon: IconName;
   /** Works inside a project: asks for one when none is chosen. */
   needsProject: boolean;
+  /** The extension that brings it: a tab only while the active project has it on. */
+  extension?: string;
   /** `active`: this tab is the one in front. Apps stay mounted while another tab is in front. */
   Screen: ComponentType<{ active: boolean }>;
 }
@@ -24,5 +26,7 @@ export function registerApp(app: PhoneApp) {
   apps.set(app.id, app);
 }
 export const appOf = (id: string) => apps.get(id) ?? null;
+/** The app, when this build has it and its extension (if any) is on. */
+export const usableApp = (id: string, on: readonly string[]) => { const a = apps.get(id); return a && (!a.extension || on.includes(a.extension)) ? a : null; };
 /** Every app of this build, in catalogue order; Setup is not among the choices. */
 export const catalogue = (): PhoneApp[] => order.map((id) => apps.get(id)!).filter((a) => a.id !== "setup");

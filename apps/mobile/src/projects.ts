@@ -9,7 +9,8 @@ import { persisted } from "./store";
  * taken there, the phone takes the existing project instead and tells its listeners (the upload queue
  * repoints its photos).
  */
-export interface ProjectEntry { id: string; name: string; synced: boolean }
+/** `extensions`: those the project has switched on (docs/rewrite/08-extensions.md), as last read from the server. */
+export interface ProjectEntry { id: string; name: string; synced: boolean; extensions?: string[] }
 
 export const projects = persisted<ProjectEntry[]>("projects.v2", [], Array.isArray);
 export const activeProject = persisted<string | null>("activeProject.v2", null);
@@ -20,6 +21,12 @@ export function useProject(): ProjectEntry | null {
   const id = activeProject.use();
   return list.find((p) => p.id === id) ?? null;
 }
+
+/** The extensions the active project has on; none without a project. */
+export function useExtensionsOn(): readonly string[] {
+  return useProject()?.extensions ?? NONE;
+}
+const NONE: readonly string[] = [];
 
 const remapListeners = new Set<(from: string, to: string) => void>();
 /** Called when a project made on the phone turned out to exist on the server under another id. */
@@ -59,7 +66,7 @@ export function syncProjects(): Promise<void> {
         projects.set((l) => l.map((x) => (x.id === p.id ? { ...x, synced: true } : x)));
       }
       const server = await listProjects();
-      projects.set((l) => [...server.map((s) => ({ id: s.id, name: s.name, synced: true })), ...l.filter((x) => !x.synced && !server.some((s) => s.id === x.id))]
+      projects.set((l) => [...server.map((s) => ({ id: s.id, name: s.name, synced: true, extensions: s.extensions ?? [] })), ...l.filter((x) => !x.synced && !server.some((s) => s.id === x.id))]
         .sort((a, b) => a.name.localeCompare(b.name)));
       // The active project was deleted on the server: none is active, the apps that need one ask.
       const active = activeProject.get();

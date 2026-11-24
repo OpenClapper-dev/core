@@ -11,3 +11,4 @@ export * from "./canvas.ts";
 export * from "./shot.ts";
 export * from "./timeline.ts";
 export * from "./layout.ts";
+export * from "./extensions.ts";

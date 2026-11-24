@@ -26,6 +26,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/monitoring.md](features/monitoring.md) | Storage monitoring in the admin plane: the daily snapshot, the operator's marks, the optional Cloudflare overlay |
 | [features/projects.md](features/projects.md) | Projects as a hard scope, the active project on both clients |
 | [features/capture.md](features/capture.md) | Phone camera: real lenses, what a capture produces, import, the upload queue |
+| [features/extensions.md](features/extensions.md) | Extensions: the per-project switch, packaging, the build rule, the registration points (rebuild, B9) |
 | [features/camera-layouts.md](features/camera-layouts.md) | Camera layouts (bars, controls, readouts, look, options), the device's layout, the phone link with channels (rebuild, B8) |
 | [features/review-and-tagging.md](features/review-and-tagging.md) | Tags (light model, INT/EXT, weather, location, spot), the shot view, Metadata board, History on the phone, view modes (mask/frame/fit/raw) |
 | [features/canvas.md](features/canvas.md) | Optics (generic factors, formats), optics presets and their additive rule, the canvas file, frames, the edit lock, renders (rebuild, B5) |
