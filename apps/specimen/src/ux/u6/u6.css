@@ -254,4 +254,4 @@
 .u6f-sizer { flex: none; display: inline-flex; align-items: center; gap: 6px; width: 110px; }
 .u6f--touch .u6f-sizer { width: 84px; }
 .u6f-trackghost { display: flex; align-items: center; gap: var(--space-3); height: 100%; padding: 0 var(--space-4); box-sizing: border-box; border-left: 4px solid var(--c); border-radius: 4px; background: var(--surface-raised, var(--surface)); box-shadow: var(--shadow-menu); }
-.u6f .u3-ghost { rotate: 0deg; }
+.u6f .oc-sort-ghost { rotate: 0deg; }

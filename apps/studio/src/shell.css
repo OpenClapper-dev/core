@@ -80,3 +80,16 @@ body.wm-gesture { user-select: none; }
 .st-pick { display: grid; gap: var(--space-4); }
 .st-pick > .oc-input { width: 100%; }
 .st-pick__list { max-height: 300px; overflow: auto; }
+
+/* Settings › Account. */
+.st-form { display: grid; gap: var(--space-5); }
+.st-setrow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-6); }
+.st-setrow > :first-child { min-width: 0; }
+.st-setrow > .oc-btn { flex: none; }
+.st-ws { display: grid; gap: var(--space-4); padding: var(--space-5); border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-control); }
+.st-ws__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-5); }
+.st-ws__members { display: grid; }
+.st-ws__member { display: flex; align-items: center; gap: var(--space-4); min-height: 32px; border-top: var(--border-w) solid var(--border-divider); }
+.st-ws__who { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-ws__gap { width: 24px; }
+.st-ws__invite { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }

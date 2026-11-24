@@ -93,6 +93,17 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
   const slimOf = (g: DockGroup) => g.tabs.every((t) => byId.get(t)?.slim);
   const patch = (id: string, c: Partial<DockGroup>) => onLayoutChange(each(layout, (n) => mapGroups(n, (g) => (g.tabs.includes(id) ? { ...g, ...c } : g))));
 
+  /** With a grip focused: ← → ↓ put the panel at that edge, Enter folds or opens its place. Focus follows the panel. */
+  const gripKey = (id: string) => (e: JSX.TargetedKeyboardEvent<HTMLElement>) => {
+    const zone: DockZone | null = e.key === "ArrowLeft" ? "left" : e.key === "ArrowRight" ? "right" : e.key === "ArrowDown" ? "bottom" : null;
+    const fold = e.key === "Enter" || e.key === " ";
+    if ((!zone || !zones.includes(zone)) && !fold) return;
+    e.preventDefault(); e.stopPropagation();
+    if (zone) { if (!holds(layout[zone] ?? { tabs: [] }, id)) onLayoutChange(dockMove(layout, id, { zone })); }
+    else if (!byId.get(id)?.slim) { const g = ZONES.flatMap((z) => groupsOf(layout[z])).find((x) => x.tabs.includes(id)); patch(id, { active: id, collapsed: !g?.collapsed }); }
+    requestAnimationFrame(() => root.current?.querySelector<HTMLElement>(`[data-dock-tab="${id}"] .oc-dock__grip`)?.focus());
+  };
+
   const start = (id: string) => (e: JSX.TargetedPointerEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     const sx = e.clientX, sy = e.clientY, themed = e.currentTarget.closest("[data-theme]") ?? document.body;
@@ -173,7 +184,7 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
               // Two areas: the grip moves the panel, the name is only clicked. A slim panel shows the grip alone.
               return (
                 <span key={t} data-dock-tab={t} className={cx("oc-dock__tabwrap", t === active && "is-active")}>
-                  <i role="button" aria-label={`Move ${p.title}`} className="oc-dock__grip" title={`${p.title}: drag to put this panel elsewhere`} onPointerDown={start(t)}><Icon name="grip" size={12} /></i>
+                  <i role="button" tabIndex={0} aria-label={`Move ${p.title}`} aria-keyshortcuts="ArrowLeft ArrowRight ArrowDown Enter" className="oc-dock__grip" title={`${p.title}: drag to put this panel elsewhere, or use the arrow keys`} onPointerDown={start(t)} onKeyDown={gripKey(t)}><Icon name="grip" size={12} /></i>
                   {!slim && <button type="button" role="tab" aria-selected={t === active} className="oc-dock__tab" title={folded ? `Open ${p.title}` : p.title} onClick={() => patch(t, { active: t, collapsed: false })}>{p.icon && <Icon name={p.icon} />}<span>{p.title}</span></button>}
                 </span>
               );

@@ -2,7 +2,9 @@ import { useEffect, useState } from "preact/hooks";
 
 /**
  * Light, dark, or as the system says. The design system reads `data-theme` on the root element
- * (packages/design tokens.css); index.html sets it before the first paint from the same key.
+ * (packages/design tokens.css); index.html sets it before the first paint from the same key. The
+ * choice is a preference of the account (prefs.ts); the key in this browser is its copy for that
+ * first paint.
  */
 export type Theme = "auto" | "light" | "dark";
 export const THEMES: readonly Theme[] = ["auto", "light", "dark"];
@@ -14,6 +16,8 @@ const dark = () => typeof matchMedia !== "undefined" && matchMedia("(prefers-col
 
 let theme = read();
 const listeners = new Set<(t: Theme) => void>();
+/** Told about every change, whoever made it (prefs.ts keeps the theme with the account). */
+export function onTheme(cb: (t: Theme) => void): () => void { listeners.add(cb); return () => { listeners.delete(cb); }; }
 
 function apply() {
   const mq = dark();

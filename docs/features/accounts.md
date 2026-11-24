@@ -30,14 +30,10 @@ Epic [#107](https://github.com/OpenClapper-dev/core/issues/107). OpenClapper has
 
 ## Studio
 
-- **Sign-in page** (`SignIn.tsx`): an eye button in the password field shows what was typed (hidden again each time). Shown by the shell (`wm/Shell.tsx`) while `user.ts` knows no user. Signing in as another account starts from a fresh data cache. Window layouts are per browser and project, so they come back.
-- **Taskbar**: the account button (last in the tray) shows who is signed in, and opens Account and workspaces or signs out. The palette (⌘K) has the same two entries.
-- **Settings › Account** (`AccountSettings.tsx`, `#/settings/account`):
+- **Sign-in page** (the design system's `SignIn`): shown by the shell (`wm/Shell.tsx`) while `user.ts` knows no user; an eye button in the password field shows what was typed. Signing in as another account starts from fresh data. Window layouts are per browser and project, so they come back; preferences are the account's ([desktop](desktop.md#preferences-prefsts-themets)).
+- **Taskbar**: the account button (last before the clock) shows who is signed in, and opens Account or signs out. The palette (⌘K) can sign out too.
+- **Settings › Account** (`apps/AccountPage.tsx`, `#/settings/account`):
   - Who is signed in, and Sign out.
-  - Change password: a dialog with the current password and the new one twice (eye buttons as on the sign-in page).
-  - Every workspace with your role and its members. Admins get a role picker per member and an invite form (email + role).
+  - Change password: a dialog with the current password and the new one twice. A wrong current password is said inside the dialog.
+  - New workspace, and every workspace with your role and its members. Admins get a role picker per member and an invite form (email + role); editors can make a project in it; admins can rename a shared one.
   - Remove or Leave, after a confirm.
-  - New project here, Rename (shared workspaces, admins), and New workspace.
-- **Library › Projects** names each project's workspace once you are in more than one.
-
-Naming: the desktop's virtual desktops (task view) are also called "workspaces" in the shell. The two are unrelated.

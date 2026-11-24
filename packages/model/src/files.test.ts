@@ -93,3 +93,16 @@ test("names and the bin's countdown", () => {
   assert.equal(binDaysLeft("2026-11-24T12:00:00Z", now), 30);
   assert.equal(binDaysLeft("2026-10-01T12:00:00Z", now), 0);
 });
+
+test("preferences: known keys with valid values, in an account home", async () => {
+  const { PREFERENCES } = await import("./types.ts");
+  const project = "8f9c2b1e-1a2b-4c3d-8e4f-5a6b7c8d9e0f";
+  assert.equal(err(checkFile(PREFERENCES, {}, 1, null)), null);
+  assert.equal(err(checkFile(PREFERENCES, { theme: "dark", taskbarEdge: "left", taskbarAlign: "center", binOnDesktop: false, pins: { [project]: [{ app: "files" }, { file: id }] }, icons: { [project]: { bin: { c: 3, r: 2 }, [id]: { c: 0, r: 0 } } } }, 1, null)), null);
+  assert.match(err(checkFile(PREFERENCES, { theme: "sepia" }, 1, null))!, /theme is not valid/);
+  assert.match(err(checkFile(PREFERENCES, { pins: { [project]: [{ app: "files", file: id }] } }, 1, null))!, /pins is not valid/);
+  assert.match(err(checkFile(PREFERENCES, { icons: { [project]: { bin: { c: -1, r: 0 } } } }, 1, null))!, /icons is not valid/);
+  assert.match(err(checkFile(PREFERENCES, { colour: "red" }, 1, null))!, /no "colour"/);
+  assert.match(placementError(PREFERENCES, null, "project")!, /belongs to an account home/);
+  assert.equal(placementError(PREFERENCES, null, "home"), null);
+});

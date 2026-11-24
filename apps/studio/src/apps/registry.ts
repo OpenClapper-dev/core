@@ -52,7 +52,7 @@ const APPS: AppDef[] = [
   { id: "bin", name: "Recycle bin", glyph: "trash", color: 0, tier: "core", singleton: true, defaultSize: { w: 900, h: 560 }, minSize: { w: 520, h: 320 }, component: BinApp, about: "What was deleted, for 30 days" },
   { id: "project", name: "Project", glyph: "slate", color: 2, tier: "core", singleton: true, defaultSize: { w: 860, h: 600 }, minSize: { w: 520, h: 360 }, component: ProjectApp,
     fromRoute: (rest) => ({ state: { tab: rest } }), about: "This project and all projects" },
-  { id: "settings", name: "Settings", glyph: "settings", color: 0, tier: "core", singleton: true, defaultSize: { w: 820, h: 600 }, minSize: { w: 480, h: 360 }, component: SettingsApp,
+  { id: "settings", name: "Settings", glyph: "settings", color: 0, tier: "core", singleton: true, opens: ["preferences"], defaultSize: { w: 820, h: 600 }, minSize: { w: 480, h: 360 }, component: SettingsApp,
     fromRoute: (rest) => ({ state: { tab: rest } }), about: "Appearance, account, shortcuts" },
 ];
 

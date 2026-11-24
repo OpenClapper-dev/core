@@ -10,6 +10,7 @@ Everything a user makes is a file ([07 · organisation](../rewrite/07-organisati
 - **Containers:** a folder holds any files and nests up to 8 deep. A file sits in one container or at the top level. Names are free text and need not be unique.
 - **Fixed folders** of a project, made with it: **Desktop** (what is in it shows as icons on the desktop) and **Settings** (properties and naming patterns, from step B4). They cannot be renamed, moved, copied or deleted, and carry a lock.
 - **Shortcuts** are files of their own: one opens an app, or points at a file elsewhere. A shortcut whose target is in the bin or gone is not shown on the desktop and says so in Files; it works again once the target is restored.
+- **Preferences** are a file too: one of the type `preferences` in the account home ([desktop](desktop.md#preferences-prefsts-themets)).
 - **Types** come from `@openclapper/model`; `fileKinds.ts` gives each its icon and colour, and the app registry says which app opens it (`opens`).
 
 ## The store (`files.ts`, `fileOps.tsx`)

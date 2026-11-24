@@ -39,7 +39,8 @@ export function openFile(f: FileRec, files: ReadonlyMap<string, FileRec>) {
   }
   if (kindOf(f.type).holds) { launch({ app: "files", state: { folder: f.id, home: f.home } }); return; }
   const app = appFor(f.type);
-  if (app) launch({ app: app.id, resource: { type: f.type, id: f.id }, title: f.name });
+  // An app that is one window in all opens as itself; any other opens a window for this file.
+  if (app) launch(app.singleton ? { app: app.id } : { app: app.id, resource: { type: f.type, id: f.id }, title: f.name });
   else toast(`No app opens a ${kindOf(f.type).label.toLowerCase()} yet`, { tone: "info" });
 }
 

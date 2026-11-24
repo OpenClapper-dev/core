@@ -10,11 +10,13 @@ export interface PopoverProps {
   defaultOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   align?: "start" | "end";
+  /** The widest it may get, in px (default 280): a few fields fit the default, a small form needs more. */
+  maxWidth?: number;
   children?: ComponentChildren;
   className?: string;
 }
 
-export function Popover({ trigger, open, defaultOpen, onOpenChange, align = "start", children, className }: PopoverProps) {
+export function Popover({ trigger, open, defaultOpen, onOpenChange, align = "start", maxWidth, children, className }: PopoverProps) {
   const [inner, setInner] = useState(!!defaultOpen);
   const shown = open != null ? open : inner;
   const host = useRef<HTMLSpanElement>(null);
@@ -22,7 +24,7 @@ export function Popover({ trigger, open, defaultOpen, onOpenChange, align = "sta
   return (
     <span ref={host} className={cx("oc-menu-host", align === "end" && "oc-menu-host--end")} onKeyDown={(e) => { if (e.key === "Escape") set(false); }}>
       <span onClick={() => set(!shown)} style={{ display: "inline-flex" }}>{trigger}</span>
-      {shown && <Floating anchor={host} align={align} onDismiss={() => set(false)}><div role="dialog" className={cx("oc-popover", className)}>{children}</div></Floating>}
+      {shown && <Floating anchor={host} align={align} onDismiss={() => set(false)}><div role="dialog" className={cx("oc-popover", className)} style={maxWidth ? { maxWidth } : undefined}>{children}</div></Floating>}
     </span>
   );
 }
