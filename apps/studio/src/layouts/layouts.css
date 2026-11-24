@@ -67,3 +67,23 @@
 .lay-swatches { display: inline-flex; gap: 6px; }
 .lay-swatches button { width: 22px; height: 22px; border: var(--border-w) solid var(--border-control); border-radius: 50%; cursor: pointer; }
 .lay-swatches button.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+
+/* The Devices app: cards across the full width, or a table; state in colour. */
+.dev-body { flex: 1; min-height: 0; overflow: auto; background: var(--surface-sunken); }
+.dev-cards { display: grid; gap: var(--space-5); padding: var(--space-6); }
+.dev-card { display: grid; gap: var(--space-4); padding: var(--space-5); border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-card, 8px); background: var(--surface); }
+.dev-card__head { display: flex; align-items: center; gap: var(--space-4); }
+.dev-card__who { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dev-card__who small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.dev-card__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-6); }
+.dev-card h4 { margin: 0 0 var(--space-3); font-size: var(--font-size-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.dev-fact { margin: 0 0 var(--space-2); font-size: var(--font-size-sm); }
+.dev-tabs { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.dev-tabs li { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; }
+.dev-tabs li.is-off { color: var(--text-secondary); }
+.dev-tabs li.is-fixed { gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.dev-take { margin-top: var(--space-5); }
+.dev-link { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-xs); color: var(--text-secondary); white-space: nowrap; }
+.dev-link i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-disabled); }
+.dev-link i.is-on { background: var(--success); }
+.dev-type { display: inline-flex; align-items: center; gap: 6px; }

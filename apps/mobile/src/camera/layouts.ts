@@ -1,10 +1,12 @@
 import { BUILTIN_LAYOUTS, isBuiltinLayout, layoutError, type LayoutBody } from "@openclapper/model";
-import { canCall, listFiles } from "../api";
+import { randomUUID } from "expo-crypto";
+import { canCall, getFile, isRejection, listFiles, putFile } from "../api";
 import { device, setDeviceLayout } from "../device";
 import { previewLayout } from "../link";
 import { log } from "../log";
 import { persisted } from "../store";
 import { onSync } from "../sync";
+import { toast } from "../ui";
 
 /**
  * The camera layouts on the phone (docs/features/camera-layouts.md): the built-in Camera and Viewfinder and the
@@ -44,3 +46,50 @@ export function useLayout(): { layout: PhoneLayout; preview: boolean; orientatio
 }
 
 export const chooseLayout = (id: string) => setDeviceLayout(id);
+
+// ---------- Changing a layout's look and options on the phone ----------
+// The bars are arranged in the Studio; the look and the options can be changed here too (decided for B8). An edit
+// shows at once and waits on the phone; it is sent as a patch on the server's layout as it is then, so what the
+// Studio changed meanwhile stays. A layout that is gone, or an edit the server refuses, is dropped with a message.
+type Patch = { look?: Partial<LayoutBody["look"]>; options?: Partial<LayoutBody["options"]> };
+const edits = persisted<Record<string, Patch>>("layoutEdits.v1", {});
+
+export function editLayout(id: string, patch: Patch) {
+  edits.set((e) => ({ ...e, [id]: { look: { ...e[id]?.look, ...patch.look }, options: { ...e[id]?.options, ...patch.options } } }));
+  ownLayouts.set((all) => all.map((l) => (l.id === id ? { ...l, body: { ...l.body, look: { ...l.body.look, ...patch.look }, options: { ...l.body.options, ...patch.options } } } : l)));
+  void flushLayoutEdits();
+}
+
+let flushing: Promise<void> | null = null;
+export function flushLayoutEdits(): Promise<void> {
+  if (flushing) return flushing;
+  flushing = (async () => {
+    if (!canCall()) return;
+    for (const [id, p] of Object.entries(edits.get())) {
+      try {
+        const f = await getFile(id);
+        const b = f.body as unknown as LayoutBody;
+        const body = { ...b, look: { ...b.look, ...p.look }, options: { ...b.options, ...p.options } };
+        await putFile(id, { type: "layout", home: true, body: body as unknown as Record<string, unknown> });
+      } catch (e) {
+        if (!isRejection(e)) return;
+        toast(`A change of the layout could not be saved: ${(e as Error).message}`, "danger");
+      }
+      edits.set((all) => { const { [id]: _drop, ...rest } = all; void _drop; return rest; });
+    }
+    await loadLayouts();
+  })().finally(() => { flushing = null; });
+  return flushing;
+}
+onSync(flushLayoutEdits);
+
+/** A copy of a layout to change (a built-in one cannot be): made on the server, used on this device at once. */
+export async function copyLayoutToChange(from: PhoneLayout): Promise<void> {
+  if (!canCall()) { toast("A copy needs a connection", "danger"); return; }
+  try {
+    const id = randomUUID();
+    await putFile(id, { type: "layout", home: true, name: `${from.name}, copy`.slice(0, 120), body: from.body as unknown as Record<string, unknown> });
+    await loadLayouts();
+    chooseLayout(id);
+  } catch (e) { toast(`No copy: ${(e as Error).message}`, "danger"); }
+}
