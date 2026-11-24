@@ -1,52 +1,55 @@
-# Files and desktop icons
+# Files, the recycle bin and desktop icons
 
-The desktop's explorer (epic #72): a project's shots, timelines, shooting days, saved views, locations and extra fields as **files** in **folders**, and **shortcuts** to files, folders and apps on the desktop. Folders, placements and shortcuts are stored on the server ([data model](../data-model.md), [API](../api.md)), so they are the same in every browser. Window layouts are per browser ([desktop](desktop.md)).
+> **Mid-rewrite (epic [#371](https://github.com/OpenClapper-dev/core/issues/371)).** This page describes the rebuilt Studio (step B1, [#373](https://github.com/OpenClapper-dev/core/issues/373)). Media, Shots, Sets and Locations are further entries of the same browser and come with their file types; so do the board and map views, saved filters and bulk editing of properties.
+
+Everything a user makes is a file ([07 · organisation](../rewrite/07-organisation.md)): one row on the server with a type, a name, a place in a tree and a body ([data model](../data-model.md), [API](../api.md#files-filests)). Designed in [U1](../rewrite/ux-1-files.md).
 
 ## Model
 
-- **File types**: `FILE_RESOURCE_TYPES` in `packages/vocab/src/files.ts`: shot, timeline, day, view, location, field. `FILE_TYPE_META` names each type, its icon and the app that opens it. Spots live inside their location; rigs (per workspace), viewfinder layouts and devices (per user) are shared by all projects, so they are apps, not files.
-- **Folders** belong to one project and nest up to 8 deep. Names are unique within a folder (case-insensitive).
-- **A file sits in at most one folder**; without one it is at the top level. There is no manual order inside a folder: Files sorts by name, date or type (remembered per browser).
-- **The Desktop folder**: every project has one, at the top level, named "Desktop" (made by the Worker on first use; it cannot be renamed, moved or deleted). What is in it is on the desktop, as on Windows or macOS (epic #90).
-- **Deleting moves to the recycle bin**, everywhere (Gallery, shot window, Timeline, Plan, Library, Files): see below. A shot moved to another project lands at that project's top level, without a shortcut.
+- **Two roots:** a project, and the signed-in person's **account home** (files that follow them into every project). Nothing moves between the two, or between projects.
+- **Containers:** a folder holds any files and nests up to 8 deep. A file sits in one container or at the top level. Names are free text and need not be unique.
+- **Fixed folders** of a project, made with it: **Desktop** (what is in it shows as icons on the desktop) and **Settings** (properties and naming patterns, from step B4). They cannot be renamed, moved, copied or deleted, and carry a lock.
+- **Shortcuts** are files of their own: one opens an app, or points at a file elsewhere. A shortcut whose target is in the bin or gone is not shown on the desktop and says so in Files; it works again once the target is restored.
+- **Types** come from `@openclapper/model`; `fileKinds.ts` gives each its icon and colour, and the app registry says which app opens it (`opens`).
 
-## Recycle bin (epic #90)
+## The store (`files.ts`, `fileOps.tsx`)
 
-- **Every delete bins** a file or folder instead of removing it: the server marks it (`deleted_at`) and every list leaves it out, on the phone too. A toast says so with **Undo** (6 s). Nothing asks first, except a shot that is used on timelines or shooting days: binning takes it off those now, and a restore does not put it back there.
-- **A folder goes with its contents**: its subfolders and the files in them. The bin shows it as one entry with a count; restoring it brings everything back.
-- **Recycle bin app** (`apps/TrashApp.tsx`, route `#/trash`): what is in the bin, newest first, with where each item was, when it was deleted and how long it stays. Restore (`R`, or double-click) puts items back where they were: at the top level when their folder is gone or in the bin itself; a name taken meanwhile gets " (restored)" (a field key `_restored`). Delete permanently (`Del`) and Empty the bin ask once and remove for good, images and drawings included. Click, Ctrl-click, Shift-click and `Mod+A` select.
-- **Auto-purge**: after `TRASH_RETENTION_DAYS` (30) days the Worker's daily cron removes an item for good.
-- **What comes back**: the file, its folder placement and its desktop shortcuts. Not a shot's clips on timelines and places on shooting days ([known issues](../known-issues.md)). While a location is binned its shots read as without a location; restoring it gives it back to them.
-- **The phone never loses a capture**: an upload continuing (or retrying) a binned shot, and any edit to it, brings it back out of the bin.
-- **Where it is**: an icon on the desktop (Settings › Desktop › Recycle bin on the desktop; on by default), and always at the bottom of Files' side bar. Both are drop targets: files and folders dragged from Files go to the bin; a desktop shortcut dropped on the bin icon is only removed (never its target). The icon shows full or empty, moves like any icon (its spot is per browser, `localStorage["desktop.bin.<projectId>"]`) and its menu has Open and Empty the bin.
-- Open Timeline and Plan windows follow: a cut or day binned elsewhere leaves their list (the next one opens), a restored one comes back (`data.onTrash`).
+`files.ts` holds one copy of each root's files and bin for every window, so a change in one place shows in all. A change goes to the server first and the root is read again. `fileOps.tsx` holds what a person does with files (open, new folder, rename, move with the model's placement rules checked first, copy, shortcut, bin with Undo, the folder picker); the views call it and keep no rules of their own.
 
-## Files app (`apps/studio/src/apps/FilesApp.tsx`, route `#/files/<folderId>`)
+## Files app (`apps/FilesApp.tsx`, route `#/files[/<folderId>]`, `#/files/home[/<folderId>]`, `#/files/bin`)
 
-- **Left**: the folder tree under the project's name (expand with the chevrons; the open folder's path stays expanded), then **All files**: every shot, timeline, day, view, location or field, wherever it sits, with counts.
-- **Toolbar**: the path (each part is a link and a drop target), New folder (`⇧N`), search (this folder; tick **Subfolders** to search below it too, then each hit shows its folder; the match is marked in the name or the sub line, as in the command palette), sort, List · Grid (in the grid, long names and sub lines end in an ellipsis; hovering shows them whole).
-- **Rows**: a thumbnail for shots, the name and facts (shot: review state, photos, location; timeline: clips and length; day: date, title, shots; view: rules; location: spots, shots, pin; field: key, type, position), the type and the date. Archived shots are greyed.
-- **Open** (double-click, `Enter`): a folder opens in place; a file opens in its app: a shot in a shot window, a timeline in Timeline, a day in Plan, a view in the Gallery, a location in Locations, a field in Fields.
-- **Context menu**: Open · Rename… · Move to… (a folder picker) · Move to the top level · Move to the desktop · Create shortcut on the desktop · New folder inside (folders) · Move to the recycle bin. With several rows selected: Move to…, Move to the top level, Move to the desktop, Move to the recycle bin.
-  - Rename works on shots, views, locations and folders (not the Desktop folder). Timelines and days are renamed in their own window: Timeline and Plan keep their own copy, which would overwrite a change made from outside ([known issues](../known-issues.md)). Fields are renamed in Fields.
-  - Every file and folder can go to the recycle bin (not the Desktop folder).
-- **Selection**: click, Ctrl/Cmd-click toggles, Shift-click extends, `Mod+A` takes everything listed. Move to…, Move to the top level, Move to the desktop, the recycle bin and dragging act on the whole selection.
-- **Drag and drop**: rows onto a folder (in the list, the tree or the path) move them there; a folder can't go into itself. Rows dragged onto the desktop **move into the Desktop folder** (their icons land around the drop point); onto the recycle bin, they are deleted. The menu's "Create shortcut on the desktop" makes a shortcut instead and leaves the file where it is.
-- Keys (`files` scope): `/` search, `j`/`k` or arrows move, `Enter` open, `Backspace` or `Alt ↑` up a folder, `F2` rename, `Delete` to the bin, `⇧N` new folder ([shortcuts](../shortcuts.md)).
-- Files reads nothing of its own: it joins `/api/files` (loaded with the project) with the collections already loaded; timelines and days come from the same cached fetch as the inspector, refreshed when the Files window gets focus.
+- **Panels** (the design system's `Dock`: move, resize, collapse, stack as tabs; "Panels back to their places" in the ⋯ menu):
+  - **Folders:** the project's folder tree, the account home's tree, and the recycle bin with its count. The open folder's path stays expanded.
+  - **Properties:** nothing chosen: the folder and its count. One file: its icon, its name (editable in place), its type, Open, what it holds or opens, where it is, created, created by, changed, and **Used in** (the files that point at it). Several ticked: Move to… and To the recycle bin.
+- **Toolbar:** the path (each part a link and a drop target), search over names in the whole root (marked "whole project"), the Types filter once there is more than one type, List · Grid, New (folder).
+- **Click and tick are two things.** A click makes a file the current one (outlined; the panel shows it). Ticking selects files to act on several: the checkbox in the list, the circle on a card (on hover, and on every card once something is ticked). Ctrl-click ticks, Shift-click ticks a range. The status bar counts them, with Clear.
+- **List:** name with its icon (lock for a fixed folder, arrow for a shortcut), type, "In" while searching, created; sortable by name, type and created, containers first. **Grid:** cards with the type icon and a line of facts. Sort and view are remembered per browser.
+- **Open** (double-click, `Enter`): a folder opens in place; any other file in the app registered for its type; a shortcut opens what it points at.
+- **Context menu:** Open · Show what it points at (shortcut) · Rename… · Duplicate · New folder inside · Move to… (a folder picker) · Move to the top level · Move to the desktop · Create shortcut on the desktop · Pin to taskbar · Move to the recycle bin. With several ticked: the move entries and the bin. On the empty area: New folder, Select everything listed.
+- **Drag and drop:** rows and cards onto a folder (in the list, the grid, the tree or the path) move there; onto the desktop they move into the Desktop folder; onto the recycle bin they are deleted; onto the taskbar they are pinned. What cannot be (a folder into itself, more than 8 levels, a fixed folder) is said in a toast, by the same rules the server applies.
+- **Keys** (`files` scope): `/` search, `j`/`k` or arrows, `Enter` open, `Backspace` or `Alt ↑` up a folder, `F2` rename, `Delete` to the bin, `⇧N` new folder, `⌘A` tick all, `Esc` clear ([shortcuts](../shortcuts.md)).
 
-## Desktop icons (`apps/studio/src/wm/Desktop.tsx`)
+## Recycle bin (`apps/BinView.tsx`, `apps/BinApp.tsx`, route `#/bin`)
 
-- Icons dragged onto the taskbar are pinned there (they stay on the desktop too); see [desktop](desktop.md#taskbar-launcher-desktop).
+- **Every delete bins** and says so in a toast with **Undo**. A folder goes with its contents, a file with its internal files; the bin shows one entry with how many went along.
+- **The list:** newest first, with the type, where the entry was, when it was deleted and how many days it stays. Search by name.
+- **Restore** (`R`, double-click, the button) puts entries back where they were, with everything that went along, and back everywhere they were used; when the folder is gone or still binned they come back at the top level, and the toast says so.
+- **Delete permanently** (`Del`) and **Empty the bin** ask once.
+- **Where it is:** the Recycle bin app (launcher, ⌘K), Files' side bar, and an icon on the desktop (Settings › Appearance; on by default). The icon is a drop target, shows its count, and its menu has Open, Empty the bin and "Take the bin off the desktop".
+- After 30 days the Worker's daily cron purges an entry.
 
-- **Two kinds of icon**, both `desktop_items` rows (the position lives there, on the server):
-  - **Real items**: the files and folders of the Desktop folder. No arrow; renaming renames the file itself, deleting moves it to the recycle bin. Moving one out of the Desktop folder (in Files, or by dropping it onto a folder icon) removes its icon; putting one in (dropping files from Files, Move to the desktop, New folder on the desktop) gives it one. Something put into the Desktop folder elsewhere (another browser, a restore) gets its icon on the next free cell.
-  - **Shortcuts**: apps, and files or folders that live elsewhere. A small arrow marks a shortcut to a file or folder; renaming sets the shortcut's label (empty = the item's name again); removing it leaves the target alone. One shortcut per target: adding it again flashes the existing icon. A shortcut whose target is gone is not shown.
-- **Grid**: every icon has a whole cell; nothing ever lands on another icon. Any placement (a drop, a move, a new shortcut, Arrange) takes the free cell nearest to where it was asked for (`nearestFreeCell` in `fileTree.ts`, tested); a full screen continues in new columns.
-- **Selection**: click selects, Ctrl/Cmd-click toggles, Shift-click adds; drag on the empty desktop draws a rubber band that selects what it touches (Ctrl keeps the earlier selection). `Mod+A` all, `Esc` none, arrow keys go to the nearest icon in that direction.
-- **Drag** moves the selection (or the pressed icon): each lands on the free cell nearest to its own drop spot. Onto a **folder icon**: the files and folders move into that folder (a shortcut's target moves, the shortcut goes; apps stay, with a note). Onto the **recycle bin**: real items are binned, shortcuts removed.
-- **Open**: double-click or `Enter` (a folder opens Files there). **F2** renames the selected icon, **Delete** bins the selected real items and removes the selected shortcuts.
-- **Right-click an icon**: Open · Rename… (real) or Rename shortcut… · Show in Files (real) · Move to the recycle bin (real) or Remove the shortcut. With several selected: Open all · bin or remove them.
-- **Right-click the desktop**: New folder (a real folder in the Desktop folder, where you clicked) · New shortcut… (search apps, folders and files) · Arrange icons (apps, then folders, then files, by name, in columns) · Open the Desktop folder · Settings · theme.
-- A project's first visit in a browser, with an empty desktop, adds Gallery, Timeline, Plan, Metadata and Files (`localStorage["desktop.seeded.<projectId>"]` so removing them all does not bring them back in this browser).
+## Desktop icons (`wm/DesktopIcons.tsx`, `wm/grid.ts`)
 
+- The icons are the files of the project's **Desktop folder**: real files and folders, and shortcuts (marked with an arrow) to apps and to files elsewhere, plus the recycle bin.
+- **Places are a preference of the account,** per project (`prefs.ts`): each icon has a whole cell of a grid; nothing lands on another icon. A new icon takes the free cell nearest to where it was asked for (`nearestFreeCell`, tested); an icon whose saved cell is off the screen comes back to the nearest one on it.
+- **Select:** click, Ctrl-click toggles, Shift-click adds; drag on the empty desktop draws a rubber band. `⌘A` all, `Esc` none, arrow keys go to the nearest icon in that direction (while the desktop has the focus).
+- **Drag** moves the selection, each icon to the free cell nearest its own drop spot. Onto a **folder icon:** into that folder. Onto the **recycle bin:** deleted. Onto the **taskbar:** pinned. Files dragged in from the Files app move into the Desktop folder and land around the drop point.
+- **Open:** double-click or `Enter`. **F2** renames, **Delete** bins.
+- **Right-click an icon:** Open · Rename… · Show in Files (or what a shortcut points at) · Move to the recycle bin; with several selected: Open all, bin.
+- **Right-click the desktop:** New folder (a real folder in the Desktop folder, where you clicked) · New shortcut… (search apps, folders and files) · Arrange icons (apps, then folders, then files, by name, in columns) · Open the Desktop folder, then the shell's entries.
+
+## Changed from the first app
+
+- A shortcut is a file: removing one moves it to the recycle bin like anything else, instead of only taking the icon away.
+- Names need not be unique, so nothing is renamed "(restored)".
+- A new project's desktop starts empty; the first app seeded shortcuts per browser. The taskbar starts with Files and Project pinned.

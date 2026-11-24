@@ -1,4 +1,5 @@
 export * from "./EmptyState";
+export * from "./FileCard";
 export * from "./List";
 export * from "./ListRow";
 export * from "./MapControl";

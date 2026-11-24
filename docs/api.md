@@ -51,11 +51,11 @@ A file as the API gives it:
 | `created_at`, `updated_at`, `created_by`, `deleted_at` | System properties; `deleted_at` is set while the file is in the recycle bin |
 | `lock` | `{ by, until }` while someone edits it, else `null`. The routes that take and release it come with the canvas (step B5) |
 | `body_version`, `body` | The type's own document and the version of its shape. `body` is in single-file answers, and in lists only with `body=1` |
-| `refs` | Single-file answers only: the file's references in order, `[{ kind, to, data, missing }]`. `missing` is true when the file pointed at is gone, binned or not of this root |
+| `refs` | Single-file answers, and lists with `refs=1`: the file's references in order, `[{ kind, to, data, missing }]`. `missing` is true when the file pointed at is gone, binned or not of this root |
 
 | Method | Path | Notes |
 | --- | --- | --- |
-| GET | `/api/files` | `?project_id=` or `?home=1` (exactly one). The live files of the root that are not internal, by name. Narrowed by `container` (an id, or `top`), `type` (comma-separated), `q` (part of the name; case is folded for ASCII only) and `internal_of`. `bin=1` lists the bin's entries instead, newest first, each with `binned_with` (how many files went along). `body=1` adds the bodies. Not paged yet |
+| GET | `/api/files` | `?project_id=` or `?home=1` (exactly one). The live files of the root that are not internal, by name. Narrowed by `container` (an id, or `top`), `type` (comma-separated), `q` (part of the name; case is folded for ASCII only) and `internal_of`. `bin=1` lists the bin's entries instead, newest first, each with `binned_with` (how many files went along). `body=1` adds the bodies, `refs=1` each file's `refs`. Not paged yet |
 | GET | `/api/files/:id` | `{ file }` with `body` and `refs`. A binned file answers too |
 | GET | `/api/files/:id/uses` | `{ uses: [{ id, type, name, internal_of, kind }] }`: the live files of the root that point at it |
 | PUT | `/api/files/:id` | Upsert. `{ type, project_id \| home: true, name?, container?, internal_of?, body?, body_version?, refs? }`. `type`, the root and `internal_of` are set when the file is made and never change (`400`). What is absent is kept; a new file gets "New <type>" and the type's empty body. `container: null` is the top level. `refs`, when sent, replaces the file's references. Body and references are checked together by the type's rules (`400` with what is wrong); a body sent at an older `body_version` is upgraded, a newer one refused. `201` when made, `200` when changed, `409` while it is in the bin. A fixed folder cannot be renamed or moved |

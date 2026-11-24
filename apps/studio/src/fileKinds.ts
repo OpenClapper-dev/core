@@ -1,0 +1,40 @@
+import type { IconName } from "@openclapper/design";
+import { fileType } from "@openclapper/model";
+import type { FileRec } from "./api";
+import { appDef } from "./apps/registry";
+
+/**
+ * How each file type looks in the Studio: its glyph and its colour (0 neutral, 1 to 8 categorical).
+ * Names come from the shared model; a type without an entry here still shows, as a plain file.
+ */
+const LOOK: Record<string, { glyph: IconName; color: number }> = {
+  folder: { glyph: "folder", color: 5 },
+  shortcut: { glyph: "shortcut", color: 0 },
+};
+
+export interface Kind { label: string; plural: string; glyph: IconName; color: number; holds: boolean }
+
+export function kindOf(type: string): Kind {
+  const t = fileType(type);
+  return { label: t?.label ?? type, plural: t?.plural ?? type, holds: !!t?.holds, ...(LOOK[type] ?? { glyph: "file" as IconName, color: 0 }) };
+}
+
+/** What a shortcut opens: an app, a file of the same root, or nothing any more. */
+export type Target = { app: string } | { file: FileRec } | null;
+export function targetOf(f: FileRec, files: ReadonlyMap<string, FileRec>): Target {
+  if (f.type !== "shortcut") return { file: f };
+  const app = f.body?.app;
+  if (typeof app === "string") return appDef(app) ? { app } : null;
+  const to = f.refs?.find((r) => r.kind === "target")?.to;
+  const file = to ? files.get(to) : undefined;
+  return file ? { file } : null;
+}
+
+/** How a file shows as an icon or a row: a shortcut takes the look of what it opens. */
+export function lookOf(f: FileRec, files: ReadonlyMap<string, FileRec>): { glyph: IconName; color: number; shortcut: boolean; broken: boolean } {
+  if (f.type !== "shortcut") return { ...kindOf(f.type), shortcut: false, broken: false };
+  const t = targetOf(f, files);
+  if (!t) return { glyph: "shortcut", color: 0, shortcut: true, broken: true };
+  if ("app" in t) { const d = appDef(t.app)!; return { glyph: d.glyph, color: d.color, shortcut: true, broken: false }; }
+  return { ...kindOf(t.file.type), shortcut: true, broken: false };
+}

@@ -59,3 +59,29 @@ export const signOut = () => fetch("/api/auth/logout", { method: "POST", credent
 export const fetchProjects = () => get<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
 export const putProject = (id: string, body: { name: string; workspace_id?: string }) => send<{ project: Project }>("PUT", `/api/projects/${id}`, body).then((r) => r.project);
 export const deleteProject = (id: string) => send<{ deleted: string }>("DELETE", `/api/projects/${id}`);
+
+/** A file as the API gives it (docs/api.md). `body` and `refs` come with single-file answers and with lists that ask for them. */
+export interface FileRec {
+  id: string; project_id: string | null; home: boolean; type: string; name: string; container: string | null; internal_of: string | null; fixed: string | null;
+  created_at: string; updated_at: string | null; created_by: string | null; deleted_at: string | null; lock: { by: string | null; until: string } | null;
+  body_version: number; body?: Record<string, unknown>; refs?: FileRef[]; binned_with?: number;
+}
+export interface FileRef { kind: string; to: string; data: Record<string, unknown> | null; missing?: boolean }
+export interface FileUse { id: string; type: string; name: string; internal_of: string | null; kind: string }
+
+/** A root of files: a project, or the signed-in person's account home. */
+export type Root = { project: string } | "home";
+export const rootQuery = (r: Root) => (r === "home" ? "home=1" : `project_id=${r.project}`);
+const rootBody = (r: Root) => (r === "home" ? { home: true } : { project_id: r.project });
+
+export const fetchFiles = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&body=1&refs=1`).then((x) => x.files);
+export const fetchBin = (r: Root) => get<{ files: FileRec[] }>(`/api/files?${rootQuery(r)}&bin=1`).then((x) => x.files);
+export const fetchUses = (id: string) => get<{ uses: FileUse[] }>(`/api/files/${id}/uses`).then((x) => x.uses);
+export const putFile = (id: string, body: Record<string, unknown>) => send<{ file: FileRec }>("PUT", `/api/files/${id}`, body).then((x) => x.file);
+export const createFile = (r: Root, id: string, body: Record<string, unknown>) => putFile(id, { ...rootBody(r), ...body });
+export const moveFiles = (ids: string[], container: string | null) => send<unknown>("POST", "/api/files/move", { ids, container });
+export const binFiles = (ids: string[]) => send<unknown>("POST", "/api/files/bin", { ids });
+export const restoreFiles = (ids: string[]) => send<{ restored: string[]; to_top: string[] }>("POST", "/api/files/restore", { ids });
+export const purgeFiles = (ids: string[]) => send<unknown>("POST", "/api/files/purge", { ids });
+export const emptyBin = (r: Root) => send<{ purged: number }>("DELETE", `/api/bin?${rootQuery(r)}`);
+export const duplicateFile = (id: string, body: { id: string; name?: string; container?: string | null }) => send<{ file: FileRec }>("POST", `/api/files/${id}/duplicate`, body).then((x) => x.file);

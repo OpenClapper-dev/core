@@ -84,6 +84,12 @@ describe("making and reading files", () => {
     expect(await names("&type=shortcut,t-note")).toEqual(["Alpha notes", "Open files"]);
     expect(await names("&q=ALPHA")).toEqual(["Alpha", "Alpha notes"]);
     expect(await names(`&container=${inner}`)).toEqual([]);
+    // References come along when asked for, for every file listed.
+    const link = uuid();
+    await put(link, shortcutBody(project, "To alpha", { body: { app: null }, refs: [{ kind: "target", to: a }] }), 201);
+    const withRefs = await files("&type=shortcut&refs=1&body=1");
+    expect(withRefs.map((f) => [f.name, f.refs, f.body])).toEqual([["Open files", [], { app: "files" }], ["To alpha", [{ kind: "target", to: a, data: null, missing: false }], { app: null }]]);
+    await post("/api/files/bin", { ids: [link] });
     await ok(api(u.token, "GET", `/api/files?project_id=${project}&type=rig`), 400);
     await ok(api(u.token, "GET", "/api/files"), 400);
     await ok(api(u.token, "GET", `/api/files?project_id=${project}&home=1`), 400);

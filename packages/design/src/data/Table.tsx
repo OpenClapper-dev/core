@@ -31,9 +31,11 @@ export interface TableProps extends Omit<JSX.HTMLAttributes<HTMLTableElement>, "
   onCursor?: (id: string) => void;
   /** A row was double-clicked. */
   onOpen?: (id: string) => void;
+  /** More for one row's element: dragging it, dropping onto it, its context menu, a class. */
+  rowProps?: (id: string) => JSX.HTMLAttributes<HTMLTableRowElement> | undefined;
 }
 
-export function Table({ columns = [], rows = [], sort, onSort, selected = [], onSelect, cursor, selectable, onCursor, onOpen, className, ...rest }: TableProps) {
+export function Table({ columns = [], rows = [], sort, onSort, selected = [], onSelect, cursor, selectable, onCursor, onOpen, rowProps, className, ...rest }: TableProps) {
   const all = rows.length > 0 && rows.every(r => selected.includes(r.id));
   const emit = (ids: string[]) => onSelect && onSelect(ids);
   return (
@@ -54,8 +56,9 @@ export function Table({ columns = [], rows = [], sort, onSort, selected = [], on
       <tbody>
         {rows.map(r => {
           const sel = selected.includes(r.id);
+          const { className: rowClass, ...more } = rowProps?.(r.id) ?? {};
           return (
-            <tr key={r.id} aria-selected={sel} className={cx(cursor === r.id && "is-cursor")} onClick={selectable ? (onCursor ? () => onCursor(r.id) : undefined) : () => emit([r.id])} onDblClick={onOpen ? () => onOpen(r.id) : undefined}>
+            <tr key={r.id} {...more} data-row-id={r.id} aria-selected={sel} className={cx(cursor === r.id && "is-cursor", rowClass as string | undefined)} onClick={selectable ? (onCursor ? () => onCursor(r.id) : undefined) : () => emit([r.id])} onDblClick={onOpen ? () => onOpen(r.id) : undefined}>
               {selectable && <td className="oc-table__check" onClick={e => e.stopPropagation()}><Checkbox checked={sel} onChange={() => emit(sel ? selected.filter(i => i !== r.id) : selected.concat(r.id))} aria-label="Select row" /></td>}
               {columns.map(c => <td key={c.key} className={cx(c.numeric && "is-num", c.mono && "is-mono")}>{r[c.key]}</td>)}
             </tr>

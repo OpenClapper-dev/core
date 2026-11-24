@@ -16,9 +16,13 @@ export interface Prefs {
   taskbarAlign: "start" | "center";
   /** The taskbar's pins per project, in order. A project without an entry gets the default pins. */
   pins: Record<string, Pin[]>;
+  /** Where each desktop icon sits, per project: a file's id (or "bin") to its cell of the icon grid. */
+  icons: Record<string, Record<string, { c: number; r: number }>>;
+  /** The recycle bin has an icon on the desktop. */
+  binOnDesktop: boolean;
 }
 
-export const DEFAULT_PREFS: Prefs = { taskbarEdge: "bottom", taskbarAlign: "start", pins: {} };
+export const DEFAULT_PREFS: Prefs = { taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true };
 const KEY = "prefs";
 
 function read(): Prefs {

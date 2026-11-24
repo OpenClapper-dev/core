@@ -221,7 +221,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
    * The files of one root: `project_id`, or `home=1`. Without more, every live file that is not
    * internal. `container` (an id, or `top`), `type` (comma-separated), `q` (in the name) and
    * `internal_of` narrow it; `bin=1` lists the bin's entries instead, newest first, each with how
-   * many files went along (`binned_with`); `body=1` adds the bodies.
+   * many files went along (`binned_with`); `body=1` adds the bodies, `refs=1` each file's references.
    */
   r.on("GET", "/api/files", async (ctx) => {
     const { env, url } = ctx;
@@ -250,7 +250,15 @@ export function registerFileRoutes(r: Router<Ctx>) {
       `SELECT ${COLS}${withBody ? ", f.body" : ""}${bin ? ", (SELECT count(*) FROM files x WHERE x.deleted_with = f.id AND x.deleted_at IS NOT NULL) AS binned_with" : ""}
        FROM files f WHERE ${where.join(" AND ")} ORDER BY ${bin ? "f.deleted_at DESC, f.id" : "f.name COLLATE NOCASE, f.id"}`,
     ).bind(...binds).all<FileRow>();
-    return json({ files: results.map((f) => toApi(f, withBody)) });
+    if (q.get("refs") !== "1") return json({ files: results.map((f) => toApi(f, withBody)) });
+    // One query for the references of everything listed, whatever the count.
+    const refs = (await env.DB.prepare(
+      `SELECT r.from_file, r.kind, r.to_file, r.data, NOT EXISTS (SELECT 1 FROM files t WHERE t.id = r.to_file AND t.deleted_at IS NULL AND ${inRoot("t", 2)}) AS missing
+       FROM refs r WHERE r.kind != 'property' AND r.from_file IN (SELECT value FROM json_each(?1)) ORDER BY r.from_file, r.position`,
+    ).bind(list(results.map((f) => f.id)), root.projectId, root.userId).all<{ from_file: string; kind: Ref["kind"]; to_file: string; data: string | null; missing: number }>()).results;
+    const byFile = new Map<string, unknown[]>();
+    for (const r of refs) byFile.set(r.from_file, [...(byFile.get(r.from_file) ?? []), { kind: r.kind, to: r.to_file, data: r.data ? JSON.parse(r.data) : null, missing: r.missing === 1 }]);
+    return json({ files: results.map((f) => ({ ...toApi(f, withBody), refs: byFile.get(f.id) ?? [] })) });
   });
 
   /** One file with its body and its references. A binned file answers too: the bin shows what it holds. */

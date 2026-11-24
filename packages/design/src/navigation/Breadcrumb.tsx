@@ -6,9 +6,11 @@ import { cx } from "../util";
 export interface BreadcrumbProps extends JSX.HTMLAttributes<HTMLElement> {
   items: { id: string; label: string }[];
   onNavigate?: (id: string) => void;
+  /** More for one part's button: dropping files onto it. */
+  itemProps?: (id: string) => JSX.HTMLAttributes<HTMLButtonElement> | undefined;
 }
 
-export function Breadcrumb({ items = [], onNavigate, className, ...rest }: BreadcrumbProps) {
+export function Breadcrumb({ items = [], onNavigate, itemProps, className, ...rest }: BreadcrumbProps) {
   return (
     <nav aria-label="Path" className={cx("oc-crumbs", className)} {...rest}>
       {items.map((it, i) => {
@@ -16,7 +18,7 @@ export function Breadcrumb({ items = [], onNavigate, className, ...rest }: Bread
         return (
           <Fragment key={it.id}>
             {i > 0 && <Icon name="chevron-right" size={12} />}
-            <button type="button" className="oc-crumb" aria-current={last ? "page" : undefined} onClick={() => onNavigate && onNavigate(it.id)}>{it.label}</button>
+            <button type="button" {...itemProps?.(it.id)} className={cx("oc-crumb", itemProps?.(it.id)?.className as string | undefined)} aria-current={last ? "page" : undefined} onClick={() => onNavigate && onNavigate(it.id)}>{it.label}</button>
           </Fragment>
         );
       })}

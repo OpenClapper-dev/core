@@ -1,3 +1,4 @@
+import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Button, Confirm, ContextMenu, Dialog, FormField, TextInput, Toast, type MenuItemData } from "@openclapper/design";
 
@@ -16,6 +17,8 @@ export type MenuEntry = (Extract<MenuItemData, { id: string }> & { run: () => vo
 interface OpenMenu { x: number; y: number; items: MenuEntry[] }
 
 let menu: OpenMenu | null = null;
+/** A dialog of an app's own making (a folder picker), drawn above every window until it closes itself. */
+let custom: { id: number; render: (close: () => void) => ComponentChildren } | null = null;
 let toasts: ToastItem[] = [];
 let ask: ConfirmAsk | PromptAsk | null = null;
 let seq = 0;
@@ -73,6 +76,13 @@ function MenuHost({ m }: { m: OpenMenu }) {
   );
 }
 
+/** Show a dialog built by the caller; it gets `close` and is gone once that is called. */
+export function openDialog(render: (close: () => void) => ComponentChildren) {
+  custom = { id: ++seq, render };
+  notify();
+}
+function closeDialog() { custom = null; notify(); }
+
 function PromptDialog({ q, close }: { q: PromptAsk; close: (v: string | null) => void }) {
   const [v, setV] = useState(q.value);
   const wrong = q.check ? q.check(v.trim()) : v.trim() ? null : "Type a name";
@@ -100,6 +110,7 @@ export function Hosts() {
     <>
       {q?.kind === "confirm" && <div data-overlay><Confirm fixed title={q.title} message={q.message} confirmLabel={q.confirmLabel} danger={q.danger} onConfirm={() => answer(true)} onCancel={() => answer(false)} /></div>}
       {q?.kind === "prompt" && <PromptDialog key={q.title + q.value} q={q} close={answer} />}
+      {custom && <div key={custom.id} data-overlay>{custom.render(closeDialog)}</div>}
       {menu && <MenuHost key={`${menu.x},${menu.y}`} m={menu} />}
       <div className="oc-toast-stack st-toasts">
         {toasts.map((t) => <Toast key={t.id} tone={t.tone} action={t.action && { label: t.action.label, onClick: () => { t.action!.onClick(); dismiss(t.id); } }} onDismiss={() => dismiss(t.id)}>{t.text}</Toast>)}

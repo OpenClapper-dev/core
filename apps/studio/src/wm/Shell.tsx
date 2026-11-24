@@ -4,7 +4,8 @@ import { Button, CommandPalette, Desktop, Dialog, EmptyState, ProjectPicker, Sig
 import { ApiError } from "../api";
 import { appDef, apps, launch } from "../apps/registry";
 import { ShortcutList } from "../apps/SettingsApp";
-import { Hosts, contextMenu, prompt, toast, toastError } from "../hosts";
+import { clearFiles } from "../files";
+import { Hosts, prompt, toast, toastError, type MenuEntry } from "../hosts";
 import { envOf, useInstance } from "../instance";
 import { bind, useKeys } from "../keys";
 import { usePrefs } from "../prefs";
@@ -13,6 +14,7 @@ import { clearProjects, loadProjects, saveProject, useProjects } from "../projec
 import { THEMES, setTheme, useTheme } from "../theme";
 import { boot, signIn, signOut, useUser } from "../user";
 import { requestClose, setCloser } from "./closeGuards";
+import { DesktopIcons } from "./DesktopIcons";
 import * as desktopState from "./desktopState";
 import { setFocusSource } from "./keyboard";
 import { closeOverlay, openOverlay, useOverlay } from "./overlays";
@@ -76,7 +78,7 @@ function SignedIn() {
   const valid = list && projectId && list.some((p) => p.id === projectId) ? projectId : null;
   const [ready, setReady] = useState<string | null>(null);
 
-  useEffect(() => { clearProjects(); void loadProjects(); }, []);
+  useEffect(() => { clearProjects(); clearFiles(); void loadProjects(); }, []);
   useEffect(() => {
     if (!valid) return;
     const first = ready === null;
@@ -149,6 +151,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   useKeys(bind("global", {
     palette: () => openOverlay("palette"),
     sheet: () => openOverlay("sheet"),
+    goFiles: open("files"),
     goProject: open("project"),
     goSettings: open("settings"),
   }), !overlay || overlay === "launcher");
@@ -187,21 +190,19 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
 
   const pct = (n: number) => `${n * 100}%`;
   const snapPreview: JSX.CSSProperties | undefined = zone === "max" ? { inset: 0 } : zone === "left" ? { left: 0, top: 0, bottom: 0, width: pct(split) } : zone === "right" ? { right: 0, top: 0, bottom: 0, width: pct(1 - split) } : undefined;
-  const desktopMenu = (e: MouseEvent) => {
-    if (e.target !== e.currentTarget) return;
-    contextMenu(e, [
-      { id: "taskview", label: "Task view", icon: "layers", kbd: "⌘Alt V", run: () => openOverlay("taskview") },
-      { id: "newdesk", label: "New desktop", icon: "plus", kbd: "⌘Alt N", run: () => { wm.addDesk({ go: true }); } },
-      { separator: true },
-      { id: "theme", label: `Theme: switch to ${nextTheme === "auto" ? "the system's" : nextTheme}`, icon: "palette", run: () => setTheme(nextTheme) },
-      { id: "settings", label: "Settings…", icon: "settings", run: open("settings") },
-    ]);
-  };
+  /** What the shell adds to the desktop's right-click menu, under the icons' own entries. */
+  const shellMenu: MenuEntry[] = [
+    { id: "taskview", label: "Task view", icon: "layers", kbd: "⌘Alt V", run: () => openOverlay("taskview") },
+    { id: "newdesk", label: "New desktop", icon: "plus", kbd: "⌘Alt N", run: () => { wm.addDesk({ go: true }); } },
+    { separator: true },
+    { id: "theme", label: `Theme: switch to ${nextTheme === "auto" ? "the system's" : nextTheme}`, icon: "palette", run: () => setTheme(nextTheme) },
+    { id: "settings", label: "Settings…", icon: "settings", run: open("settings") },
+  ];
 
   return (
     <div ref={root} className="st-root">
       <Desktop taskbarEdge={prefs.taskbarEdge} snapPreview={snapPreview} taskbar={<Taskbar projectId={projectId} />}
-        icons={<div className="st-desk" onPointerDown={(e) => { if (e.target === e.currentTarget) wm.focusDesktop(); }} onContextMenu={desktopMenu} />}
+        icons={<DesktopIcons projectId={projectId} shellMenu={shellMenu} />}
         overlay={<>
           {overlay === "taskview" && <TaskView onClose={closeOverlay} />}
           {overlay === "palette" && <div data-overlay><CommandPalette fixed items={commands} placeholder="Go to an app, a window, a project, or run an action" onClose={closeOverlay} onSelect={(id) => { closeOverlay(); commands.find((c) => c.id === id)?.run(); }} /></div>}
