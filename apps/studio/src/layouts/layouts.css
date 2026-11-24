@@ -1,0 +1,69 @@
+/* The Camera layouts app (docs/features/camera-layouts.md). The preview draws the camera in its fixed over-content colours. */
+.lay-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.lay-pad { padding: var(--space-2) var(--space-5); }
+.lay-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.lay-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: var(--font-size-xs); }
+/* The phone link: no phone, connected, previewing. */
+.lay-pill { display: inline-flex; align-items: center; gap: 6px; height: var(--control-h-sm); padding: 0 10px; border: var(--border-w) solid var(--border-control); border-radius: 999px; background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.lay-pill:disabled { cursor: default; color: var(--text-secondary); }
+.lay-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-disabled); }
+.lay-pill.is-connected i { background: var(--warning); }
+.lay-pill.is-preview i { background: var(--success); }
+.lay-pill:hover:not(:disabled) { background: var(--surface-hover); }
+
+.lay-stage { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--space-4); padding: var(--space-6); overflow: auto; background: var(--surface-sunken); }
+.lay-stage > .oc-banner { align-self: stretch; }
+.lay-device { flex: none; box-sizing: border-box; padding: 8px; border-radius: 22px; background: var(--over-ink); overflow: hidden; box-shadow: 0 20px 60px rgba(0, 0, 0, .35); }
+.lay-screen { user-select: none; display: flex; flex-direction: column; transform-origin: 0 0; background: var(--over-ink); color: var(--over-paper); overflow: hidden; border-radius: 14px; }
+.lay-screen.is-land { flex-direction: row; }
+.lay-mid { flex: 1; min-width: 0; min-height: 0; display: flex; }
+.lay-screen.is-land > .lay-mid { flex-direction: column; }
+.lay-view { position: relative; flex: 1; min-width: 0; min-height: 0; overflow: hidden; background: var(--photo-bg); }
+.lay-live { position: absolute; inset: 0; background: linear-gradient(160deg, #3c4a3a, #1f2a33 55%, #2d2621); }
+.lay-frame { position: absolute; left: 14%; right: 14%; top: 50%; aspect-ratio: 1.85; translate: 0 -50%; border-style: solid; outline: 1px solid var(--over-frame-outline, rgba(0, 0, 0, .7)); }
+/* Bars: a row along a top or bottom edge, a column along a side edge. */
+.lay-bar { flex: none; display: flex; align-items: center; gap: 8px; box-sizing: border-box; background: var(--over-ink); overflow: hidden; }
+.lay-bar.is-h { min-height: 60px; padding: 6px 10px; }
+.lay-bar.is-v { flex-direction: column; min-width: 64px; padding: 10px 6px; }
+.lay-bar.has-shutter.is-h { min-height: 96px; }
+.lay-bar.has-shutter.is-v { min-width: 96px; }
+.lay-bar.is-start { justify-content: flex-start; } .lay-bar.is-center { justify-content: center; } .lay-bar.is-end { justify-content: flex-end; } .lay-bar.is-between { justify-content: space-between; } .lay-bar.is-around { justify-content: space-around; }
+.lay-bar + .lay-bar { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--over-paper) 14%, transparent), inset 1px 0 0 color-mix(in srgb, var(--over-paper) 14%, transparent); }
+.lay-bar__empty { margin: auto; color: color-mix(in srgb, var(--over-paper) 45%, transparent); font: 600 10px/1 var(--font-sans); }
+.lay-slot { flex: none; display: inline-flex; cursor: grab; touch-action: none; border-radius: 26px; }
+.lay-slot:hover { box-shadow: 0 0 0 2px var(--accent); }
+.lay-slot.is-dragged, .lay-item.is-dragged { opacity: .3; }
+.lay-slot * { pointer-events: none; }
+.lay-strip { display: inline-flex; gap: 6px; }
+.lay-strip.is-v { flex-direction: column; }
+.lay-strip .oc-cam__btn { min-width: 44px; height: 40px; padding: 0 6px; }
+/* Stepped: back, the value, on. Three parts a thumb can hit. */
+.lay-step { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 2px solid color-mix(in srgb, var(--over-paper) 50%, transparent); border-radius: 28px; }
+.lay-step.is-v { flex-direction: column; }
+.lay-step > b { min-width: 44px; text-align: center; font: 700 14px/44px var(--font-mono); color: var(--over-paper); }
+.lay-step.is-v > b { line-height: 36px; }
+.lay-step .oc-cam__btn { width: 44px; height: 44px; border-color: transparent; background: color-mix(in srgb, var(--over-paper) 16%, transparent); }
+.lay-ctl { display: inline-grid; justify-items: center; gap: 2px; }
+.lay-ctl small { color: var(--over-paper); font: 600 9px/1 var(--font-sans); opacity: .85; }
+.lay-last { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 6px; border: 2px solid color-mix(in srgb, var(--over-paper) 55%, transparent); color: var(--over-paper); }
+/* A readout: a tag of its own on the picture; a warning in colour. */
+.lay-tag { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; border-radius: 10px; background: color-mix(in srgb, var(--over-ink) 72%, transparent); color: var(--over-paper); font: 600 11px/14px var(--font-mono); white-space: nowrap; }
+.lay-tag.is-warn { background: var(--warning); color: var(--over-ink); }
+/* Bars over the picture: stacked at their edge inside it, see-through. */
+.lay-over { position: absolute; display: flex; z-index: 2; }
+.lay-over--top { left: 0; right: 0; top: 0; flex-direction: column; } .lay-over--bottom { left: 0; right: 0; bottom: 0; flex-direction: column; }
+.lay-over--left { left: 0; top: 0; bottom: 0; } .lay-over--right { right: 0; top: 0; bottom: 0; }
+.lay-bar.is-over { background: transparent; box-shadow: none; flex-wrap: wrap; gap: 4px; }
+.lay-bar.is-over.is-h { min-height: 30px; padding: 6px 8px; }
+.lay-bar.is-over.is-v { min-width: 30px; }
+.lay-line { position: fixed; z-index: 900; border-radius: 2px; background: var(--accent); pointer-events: none; }
+/* The Bars panel's rows. */
+.lay-items { list-style: none; margin: 0; padding: var(--space-2) var(--space-4); display: grid; gap: 2px; }
+.lay-item { display: flex; align-items: center; gap: var(--space-3); min-height: 36px; padding: 2px var(--space-3); border-radius: 4px; background: var(--surface); cursor: grab; user-select: none; touch-action: none; flex-wrap: wrap; }
+.lay-item:hover { background: var(--surface-hover); }
+.lay-item > .oc-icon:first-child { color: var(--text-disabled); }
+.lay-item__name { flex: 1; min-width: 80px; }
+.lay-item--empty { justify-content: center; color: var(--text-secondary); font-size: var(--font-size-xs); border: var(--border-w) dashed var(--border-control); cursor: default; }
+.lay-swatches { display: inline-flex; gap: 6px; }
+.lay-swatches button { width: 22px; height: 22px; border: var(--border-w) solid var(--border-control); border-radius: 50%; cursor: pointer; }
+.lay-swatches button.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
