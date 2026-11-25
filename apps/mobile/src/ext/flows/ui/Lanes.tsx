@@ -1,23 +1,28 @@
 import { useRef, useState } from "react";
 import { PanResponder, Pressable, ScrollView, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from "react-native";
-import { modelOf } from "@openclapper/ext-hardware";
-import { fmtSeconds, snap, START_KEYFRAME, type FlowBody, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import Svg, { Polyline } from "react-native-svg";
+import { effectName, modelOf } from "@openclapper/ext-hardware";
+import { fmtSeconds, graphLine, keyframeLevel, lightColour, sampleTrack, shortLabel, snap, START_KEYFRAME, type FlowBody, type FlowMarker, type FlowTrack, type FlowView, type Keyframe, type KeyframeSize } from "@openclapper/ext-flows";
 import { catColor, Icon, makeStyles, num, type, useTheme } from "../../../ui";
 
 /** What is chosen in the lanes: one keyframe, the fade into one, a marker, or a track. */
 export type Pick = { kind: "kf" | "fade"; track: string; id: string } | { kind: "marker"; id: string } | { kind: "track"; id: string } | null;
 
-const LABEL_W = 112, RULER_H = 32, MARKS_H = 28, LANE_H = 64, DOT = 22;
+export const LABEL_W = 112, RULER_H = 32, MARKS_H = 28;
+/** Keyframe sizes (#426): small for a pen, large for a finger. */
+export const DOT_SIZES: Record<KeyframeSize, number> = { s: 22, m: 30, l: 40 };
+/** The room above and below a keyframe in a lane with the graph: the dot's half, so it never leaves the lane. */
+const pad = (dot: number) => dot / 2 + 4;
 
 /**
  * A flow's lanes on the device (docs/features/flows.md, "On the device"): the ruler (tap: the playhead), the marker
  * strip and one lane per track, `zoom` times the screen's width and scrolling sideways, the track labels beside them.
  * In Insert mode a tap on a lane adds a keyframe and a tap on the strip a marker; a keyframe is dragged in time.
  */
-export function Lanes({ body, zoom, insert, playhead, pick, locked, onPick, onSeek, onAddKeyframe, onAddMarker, onMoveKeyframe, onAddTrack, deviceName }: {
-  body: FlowBody; zoom: number; insert: boolean; playhead: number; pick: Pick; locked: boolean;
+export function Lanes({ body, zoom, insert, playhead, pick, locked, view, kfSize, laneHeight, onPick, onSeek, onAddKeyframe, onAddMarker, onMoveKeyframe, onAddTrack, deviceName }: {
+  body: FlowBody; zoom: number; insert: boolean; playhead: number; pick: Pick; locked: boolean; view: FlowView; kfSize: KeyframeSize; laneHeight: number;
   onPick: (p: Pick) => void; onSeek: (t: number) => void; onAddKeyframe: (track: string, t: number) => void; onAddMarker: (t: number) => void;
-  onMoveKeyframe: (track: string, kf: Keyframe, t: number) => void; onAddTrack: () => void; deviceName: (id: string | null) => string;
+  /** A keyframe dragged: to a time, and with the graph to a level (0..1; undefined: unchanged). */ onMoveKeyframe: (track: string, kf: Keyframe, t: number, level?: number) => void; onAddTrack: () => void; deviceName: (id: string | null) => string;
 }) {
   const s = useStyles();
   const { c } = useTheme();
@@ -39,7 +44,7 @@ export function Lanes({ body, zoom, insert, playhead, pick, locked, onPick, onSe
           {body.tracks.map((t) => {
             const on = pick?.kind === "track" && pick.id === t.id;
             return (
-              <Pressable key={t.id} onPress={() => onPick({ kind: "track", id: t.id })} style={[s.labelCell, s.trackLabel, { height: LANE_H, borderLeftColor: catColor(c, (t.color ?? 0) + 1) }, on && s.labelOn]}>
+              <Pressable key={t.id} onPress={() => onPick({ kind: "track", id: t.id })} style={[s.labelCell, s.trackLabel, { height: laneHeight, borderLeftColor: catColor(c, (t.color ?? 0) + 1) }, on && s.labelOn]}>
                 <Text style={s.name} numberOfLines={1}>{t.name}</Text>
                 <Text style={s.dim} numberOfLines={1}>{t.muted ? "Muted · " : ""}{deviceName(t.device)}</Text>
               </Pressable>
@@ -55,7 +60,7 @@ export function Lanes({ body, zoom, insert, playhead, pick, locked, onPick, onSe
               {markers.map((m) => <MarkerChip key={m.id} m={m} x={x} on={pick?.kind === "marker" && pick.id === m.id} onPress={() => onPick({ kind: "marker", id: m.id })} />)}
             </Pressable>
             {body.tracks.map((t) => (
-              <Lane key={t.id} t={t} x={x} at={at} insert={insert && !locked} locked={locked} pick={pick} onPick={onPick} onAdd={(time) => onAddKeyframe(t.id, time)} onMove={(kf, time) => onMoveKeyframe(t.id, kf, time)} />
+              <Lane key={t.id} t={t} x={x} at={at} width={width} h={laneHeight} dot={DOT_SIZES[kfSize]} view={view} duration={body.durationMs} insert={insert && !locked} locked={locked} pick={pick} onPick={onPick} onAdd={(time) => onAddKeyframe(t.id, time)} onMove={(kf, time, level) => onMoveKeyframe(t.id, kf, time, level)} />
             ))}
             <View pointerEvents="none" style={[s.playhead, { left: x(playhead) }]} />
           </View>
@@ -89,53 +94,84 @@ function MarkerChip({ m, x, on, onPress }: { m: FlowMarker; x: (t: number) => nu
   );
 }
 
-/** One track's lane: its fades as strips, its keyframes as dots to tap or drag. */
-function Lane({ t, x, at, insert, locked, pick, onPick, onAdd, onMove }: {
-  t: FlowTrack; x: (t: number) => number; at: (px: number) => number; insert: boolean; locked: boolean; pick: Pick;
-  onPick: (p: Pick) => void; onAdd: (t: number) => void; onMove: (kf: Keyframe, t: number) => void;
+/**
+ * One track's lane: its fades as strips, its keyframes as dots to tap or drag. With the intensity graph on, a light's
+ * keyframes sit at their level on the line and dragging up or down sets it; light colour fills a dot with what the
+ * light shows there; value labels and badges say what a keyframe sets.
+ */
+function Lane({ t, x, at, width, h, dot, view, duration, insert, locked, pick, onPick, onAdd, onMove }: {
+  t: FlowTrack; x: (t: number) => number; at: (px: number) => number; width: number; h: number; dot: number; view: FlowView; duration: number; insert: boolean; locked: boolean; pick: Pick;
+  onPick: (p: Pick) => void; onAdd: (t: number) => void; onMove: (kf: Keyframe, t: number, level?: number) => void;
 }) {
   const s = useStyles();
   const { c } = useTheme();
   const col = catColor(c, (t.color ?? 0) + 1);
   const kfs = [...t.keyframes].sort((a, b) => a.at - b.at);
   const camera = modelOf(t.model)?.type === "camera";
+  const graph = view.graph && !camera;
+  const room = Math.max(1, h - 2 * pad(dot));
+  const yOf = (level: number) => (graph ? pad(dot) + (1 - level) * room : h / 2);
+  const line = graph ? graphLine(kfs, duration).map(([time, y]) => `${x(time).toFixed(1)},${(pad(dot) + y * room).toFixed(1)}`).join(" ") : "";
   return (
-    <Pressable style={[s.lane, { height: LANE_H, backgroundColor: c.surfaceSunken }, t.muted && { opacity: 0.4 }]} onPress={(e) => { if (insert) onAdd(at(e.nativeEvent.locationX)); else onPick(null); }}>
+    <Pressable style={[s.lane, { height: h, backgroundColor: c.surfaceSunken }, t.muted && { opacity: 0.4 }]} onPress={(e) => { if (insert) onAdd(at(e.nativeEvent.locationX)); else onPick(null); }}>
+      {graph && <Svg pointerEvents="none" width={width} height={h} style={{ position: "absolute", left: 0, top: 0 }}><Polyline points={line} fill="none" stroke={col} strokeWidth={2} /></Svg>}
       {kfs.map((k, i) => {
-        if (i === 0) return null;
+        if (i === 0 || camera) return null;
         const from = kfs[i - 1], on = pick?.kind === "fade" && pick.track === t.id && pick.id === k.id;
         return (
           <Pressable key={`f${k.id}`} onPress={() => onPick({ kind: "fade", track: t.id, id: k.id })} hitSlop={{ top: 10, bottom: 10 }}
-            style={[s.gap, { left: x(from.at) + DOT / 2, width: Math.max(0, x(k.at) - x(from.at) - DOT) }, k.fadeIn ? { backgroundColor: col, opacity: 0.55 } : { borderColor: col }, on && s.gapOn]} />
+            style={[s.gap, { top: h - 12, left: x(from.at) + dot / 2, width: Math.max(0, x(k.at) - x(from.at) - dot) }, k.fadeIn ? { backgroundColor: col, opacity: 0.55 } : { borderColor: col }, on && s.gapOn]} />
         );
       })}
-      {kfs.map((k) => (
-        <Dot key={k.id} k={k} left={x(k.at)} color={col} camera={camera} on={pick?.kind === "kf" && pick.track === t.id && pick.id === k.id} locked={locked}
-          onPress={() => onPick({ kind: "kf", track: t.id, id: k.id })} onDrop={(dx) => onMove(k, at(x(k.at) + dx))} />
-      ))}
+      {kfs.map((k) => {
+        const level = camera ? 0.5 : keyframeLevel(kfs, k);
+        const fill = view.fill && !camera ? lightColour(sampleTrack(kfs, k.at)) : null;
+        const label = view.labels || camera ? shortLabel(t.model, k, !view.badges) : "";
+        return (
+          <Dot key={k.id} k={k} left={x(k.at)} top={yOf(level)} size={dot} color={col} fill={fill} camera={camera} graph={graph} room={room} level={level}
+            label={label} badge={view.badges && k.effect?.id ? effectName(k.effect.id) : null} off={view.badges && k.power === false}
+            on={pick?.kind === "kf" && pick.track === t.id && pick.id === k.id} locked={locked}
+            onPress={() => onPick({ kind: "kf", track: t.id, id: k.id })} onDrop={(dx, dl) => onMove(k, at(x(k.at) + dx), dl === null ? undefined : Math.min(1, Math.max(0, level + dl)))} />
+        );
+      })}
     </Pressable>
   );
 }
 
-/** A keyframe: tap to choose it; drag sideways to move it (not the start keyframe). */
-function Dot({ k, left, color, camera, on, locked, onPress, onDrop }: { k: Keyframe; left: number; color: string; camera: boolean; on: boolean; locked: boolean; onPress: () => void; onDrop: (dx: number) => void }) {
+/** A keyframe: tap to choose it; drag sideways to move it in time (not the start keyframe), up or down for its level (graph on). */
+function Dot({ k, left, top, size, color, fill, camera, graph, room, level, label, badge, off, on, locked, onPress, onDrop }: {
+  k: Keyframe; left: number; top: number; size: number; color: string; fill: string | null; camera: boolean; graph: boolean; room: number; level: number;
+  label: string; badge: string | null; off: boolean; on: boolean; locked: boolean; onPress: () => void; onDrop: (dx: number, dLevel: number | null) => void;
+}) {
   const s = useStyles();
   const { c } = useTheme();
-  const [dx, setDx] = useState(0);
-  const r = useRef({ onDrop, onPress, locked, start: k.id === START_KEYFRAME });
-  r.current = { onDrop, onPress, locked, start: k.id === START_KEYFRAME };
+  const [drag, setDrag] = useState({ dx: 0, dy: 0 });
+  const r = useRef({ onDrop, onPress, locked, start: k.id === START_KEYFRAME, graph, room });
+  r.current = { onDrop, onPress, locked, start: k.id === START_KEYFRAME, graph, room };
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: (_e, g) => !r.current.locked && !r.current.start && Math.abs(g.dx) > 6,
+    onMoveShouldSetPanResponder: (_e, g) => !r.current.locked && Math.abs(g.dx) + Math.abs(g.dy) > 6,
     onPanResponderTerminationRequest: () => false,
-    onPanResponderMove: (_e, g) => { if (!r.current.locked && !r.current.start) setDx(g.dx); },
-    onPanResponderRelease: (_e, g) => { setDx(0); if (Math.abs(g.dx) > 6 && !r.current.locked && !r.current.start) r.current.onDrop(g.dx); else r.current.onPress(); },
-    onPanResponderTerminate: () => setDx(0),
+    onPanResponderMove: (_e, g) => { if (!r.current.locked) setDrag({ dx: r.current.start ? 0 : g.dx, dy: r.current.graph ? g.dy : 0 }); },
+    onPanResponderRelease: (_e, g) => {
+      setDrag({ dx: 0, dy: 0 });
+      const moved = Math.abs(g.dx) + Math.abs(g.dy) > 6;
+      if (!moved || r.current.locked) { r.current.onPress(); return; }
+      const dx = r.current.start ? 0 : g.dx, dl = r.current.graph ? -g.dy / r.current.room : null;
+      if (dx !== 0 || dl !== null) r.current.onDrop(dx, dl);
+    },
+    onPanResponderTerminate: () => setDrag({ dx: 0, dy: 0 }),
   })).current;
-  const level = camera ? 0.5 : k.intensity ?? 0.5;
+  const shown = graph ? Math.min(1, Math.max(0, level - drag.dy / room)) : null;
+  const y = top + (graph ? drag.dy : 0);
   return (
-    <View {...pan.panHandlers} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Keyframe at ${fmtSeconds(k.at)}`}
-      style={[s.dot, { left: left - DOT / 2 + dx, top: (LANE_H - DOT) * (1 - level), borderColor: color, backgroundColor: on ? color : c.surface }, camera && s.dotCamera, on && s.dotOn]} />
+    <>
+      <View {...pan.panHandlers} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Keyframe at ${fmtSeconds(k.at)}`}
+        style={[s.dot, { width: size, height: size, borderRadius: camera ? 4 : size / 2, left: left - size / 2 + drag.dx, top: y - size / 2, borderColor: on ? c.text : color, backgroundColor: fill ?? (on ? color : c.surface) }, off && s.dotOff]} />
+      {shown !== null && (drag.dy !== 0) && <Text pointerEvents="none" style={[s.value, { left: left + size / 2 + 4 + drag.dx, top: y - 9 }]}>{`${Math.round(shown * 100)} %`}</Text>}
+      {!!label && <Text pointerEvents="none" numberOfLines={1} style={[s.kfLabel, { left: left + size / 2 + 3 + drag.dx, top: y - 8 }]}>{label}</Text>}
+      {!!badge && <Text pointerEvents="none" numberOfLines={1} style={[s.badge, { left: left - size / 2 + drag.dx, top: y + size / 2 + 2 }]}>{badge}</Text>}
+    </>
   );
 }
 
@@ -158,11 +194,13 @@ const useStyles = makeStyles((c) => ({
   markerOn: { backgroundColor: c.accent },
   markerText: { ...type("caption", "semibold"), color: c.text },
   lane: { borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
-  gap: { position: "absolute", top: LANE_H / 2 - 3, height: 6, borderRadius: 3, borderWidth: 1, borderStyle: "dashed" },
+  gap: { position: "absolute", height: 6, borderRadius: 3, borderWidth: 1, borderStyle: "dashed" },
   gapOn: { borderWidth: 2, borderStyle: "solid", borderColor: c.text },
-  dot: { position: "absolute", width: DOT, height: DOT, borderRadius: DOT / 2, borderWidth: 3 },
-  dotCamera: { borderRadius: 4, top: (LANE_H - DOT) / 2 },
-  dotOn: { borderColor: c.text },
+  dot: { position: "absolute", borderWidth: 3 },
+  dotOff: { borderStyle: "dashed", opacity: 0.6 },
+  value: { position: "absolute", ...type("caption", "semibold"), color: c.text, backgroundColor: c.surface, paddingHorizontal: 4, borderRadius: 3 },
+  kfLabel: { position: "absolute", ...type("caption"), fontSize: 11, color: c.textDim, maxWidth: 140 },
+  badge: { position: "absolute", ...type("caption", "semibold"), fontSize: 10, color: c.text, backgroundColor: c.borderSubtle, paddingHorizontal: 4, borderRadius: 3, overflow: "hidden" },
   playhead: { position: "absolute", top: 0, bottom: 0, width: 2, backgroundColor: c.danger },
   add: { flexDirection: "row", alignItems: "center", gap: 8, padding: 16 },
   addText: { ...type("label", "semibold"), color: c.accent },

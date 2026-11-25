@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import preact from "@preact/preset-vite";
 import { execFileSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { version } from "../../package.json";
 
@@ -9,9 +9,11 @@ import { version } from "../../package.json";
 const commit = (() => { try { return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); } catch { return "dev"; } })();
 const build = { __OPENCLAPPER_VERSION__: JSON.stringify(version), __OPENCLAPPER_COMMIT__: JSON.stringify(commit) };
 
-// The design system and the shared model live outside this root, where Vite watches single files; a
-// git branch switch replaces them and those watches are lost until a restart. Watching the folders survives that.
-const shared = ["../../packages/design/src", "../../packages/model/src"].map((p) => fileURLToPath(new URL(p, import.meta.url)));
+// The shared packages (design system, model, extensions, fov-math) live outside this root, where Vite watches single
+// files; a git branch switch replaces them and those watches are lost until a restart. Watching every package's
+// folder survives that (#426: an extension package's new export was not seen).
+const packagesDir = fileURLToPath(new URL("../../packages", import.meta.url));
+const shared = readdirSync(packagesDir).map((p) => `${packagesDir}/${p}/src`).filter((p) => existsSync(p));
 const watchShared = { name: "openclapper-watch-shared", configureServer(server: { watcher: { add(path: string): unknown } }) { for (const p of shared) server.watcher.add(p); } };
 
 export default defineConfig(({ command }) => {

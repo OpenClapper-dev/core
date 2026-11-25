@@ -179,7 +179,6 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const [view, setView] = useFlowView();
   const [trackHeight, setTrackHeight] = useTrackHeight();
   const [zoom, setZoom] = useZoom();
-  const zoomBy = (f: number) => setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(zoom * f * 100) / 100)));
   const [heights, setHeights] = useState<Record<string, number>>({});
   const rangeIn = useRef<number | null>(null);
   useEffect(() => { if (readonly) { setSel(new Set()); setTile(null); } }, [readonly]);
@@ -313,17 +312,17 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
           <div className="fl-menu">
             {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Switch key={k} checked={view[k]} onChange={(on: boolean) => setView({ ...view, [k]: on })}>{VIEW_LABELS[k]}</Switch>)}
             <label className="hw-ctl"><small>Keyframes</small><Segmented label="Keyframe size" value={kfSize} onChange={(v: string) => setKfSize(v as "s" | "m" | "l")} options={[{ value: "s", label: "S" }, { value: "m", label: "M" }, { value: "l", label: "L" }]} /></label>
-            <strong className="fl-menu__head">Size</strong>
-            <div className="fl-menu__row">
-              <label className="hw-ctl hw-ctl--range"><small>Timeline width<b>{zoom === 1 ? "fit" : `${zoom.toFixed(1)}×`}</b></small><Slider value={zoom} min={ZOOM_MIN} max={ZOOM_MAX} step={0.25} onChange={(v: number) => setZoom(v)} aria-label="Timeline width" /></label>
-              <Button size="sm" variant="quiet" icon="zoom-out" label="Zoom out" disabled={zoom <= ZOOM_MIN} onClick={() => zoomBy(1 / 1.5)} />
-              <Button size="sm" variant="quiet" icon="zoom-in" label="Zoom in" disabled={zoom >= ZOOM_MAX} onClick={() => zoomBy(1.5)} />
-            </div>
-            <Button size="sm" variant="secondary" disabled={zoom === 1} onClick={() => setZoom(1)}>Fit width</Button>
-            <label className="hw-ctl hw-ctl--range"><small>Track height<b>{trackHeight} px</b></small><Slider value={trackHeight} min={40} max={240} step={4} onChange={(v: number) => { setHeights({}); setTrackHeight(v); }} aria-label="Track height" /></label>
-            <Button size="sm" variant="secondary" onClick={fitHeight}>Fit height</Button>
           </div>
         </Popover>
+        {/* Size (#426): two grouped boxes in the bar, each a slider and its Fit. */}
+        <div className="fl-size" role="group" aria-label="Timeline width">
+          <label className="hw-ctl hw-ctl--range"><small>Width<b>{zoom === 1 ? "fit" : `${zoom.toFixed(1)}×`}</b></small><Slider value={zoom} min={ZOOM_MIN} max={ZOOM_MAX} step={0.25} onChange={(v: number) => setZoom(v)} aria-label="Timeline width" /></label>
+          <Button size="sm" variant="quiet" disabled={zoom === 1} onClick={() => setZoom(1)}>Fit width</Button>
+        </div>
+        <div className="fl-size" role="group" aria-label="Track height">
+          <label className="hw-ctl hw-ctl--range"><small>Height<b>{trackHeight} px</b></small><Slider value={trackHeight} min={40} max={240} step={4} onChange={(v: number) => { setHeights({}); setTrackHeight(v); }} aria-label="Track height" /></label>
+          <Button size="sm" variant="quiet" onClick={fitHeight}>Fit height</Button>
+        </div>
         <Switch checked={live} onChange={setLive}>Live</Switch>
         <ToolbarSpacer />
         <span className="fl-time">{fmt(runsThis ? runAt : playhead)} / {fmt(flow.durationMs)}</span>

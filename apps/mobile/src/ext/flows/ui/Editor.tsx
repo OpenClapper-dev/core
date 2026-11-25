@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Text, View } from "react-native";
+import { persisted } from "../../../store";
 import { randomUUID } from "expo-crypto";
 import { CATALOGUE, modelOf } from "@openclapper/ext-hardware";
 import {
   addKeyframe, addMarker, addTrack, fmtSeconds, FlowPlayer, patchMarker, patchTrack, removeKeys, removeTrack, setDuration, setKeyframe,
-  START_KEYFRAME, type Flow, type FlowBody, type Keyframe,
+  DEFAULT_VIEW, START_KEYFRAME, VIEW_LABELS, type Flow, type FlowBody, type FlowView, type Keyframe, type KeyframeSize,
 } from "@openclapper/ext-flows";
 import { ApiError, canCall, lockFile, unlockFile } from "../../../api";
 import { log } from "../../../log";
@@ -15,10 +16,14 @@ import { useDevices } from "../../hardware/library";
 import { proxyRunning, startProxy, useHardware } from "../../hardware/proxy";
 import { loadFlows, saveFlow, usePendingOf, type LocalFlow } from "../store";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, TrackInspect } from "./Inspect";
-import { Lanes, type Pick } from "./Lanes";
+import { Lanes, MARKS_H, RULER_H, type Pick } from "./Lanes";
 
 const RENEW_MS = 30_000;
-const ZOOM_MAX = 32;
+const ZOOM_MAX = 32, HEIGHT_MIN = 48, HEIGHT_MAX = 240;
+/** What the lanes show and how large, on this device (#426): the Studio's View options, keyframe size, width and height. */
+interface DeviceView { view: FlowView; kfSize: KeyframeSize; zoom: number; height: number }
+const deviceView = persisted<DeviceView>("flows.view.v1", { view: DEFAULT_VIEW, kfSize: "m", zoom: 1, height: 64 },
+  (v) => typeof v === "object" && v !== null && typeof (v as DeviceView).zoom === "number" && typeof (v as DeviceView).height === "number");
 type Lock = { state: "mine"; holder: string } | { state: "offline" } | { state: "theirs"; by: string } | { state: "asking" };
 
 /**
@@ -34,11 +39,15 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const [name, setName] = useState(flow.name);
   const [pick, setPick] = useState<Pick>(null);
   const [insert, setInsert] = useState(false);
-  const [zoom, setZoom] = useState(1);
+  const dv = deviceView.use();
+  const setDv = (p: Partial<DeviceView>) => deviceView.set((x) => ({ ...x, ...p }));
+  const zoom = dv.zoom;
+  const [room, setRoom] = useState(0);
+  const fitHeight = () => setDv({ height: Math.round(Math.min(HEIGHT_MAX, Math.max(HEIGHT_MIN, (room - RULER_H - MARKS_H - 56) / Math.max(1, body.tracks.length)))) });
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [live, setLive] = useState(true);
-  const [sheet, setSheet] = useState<"flow" | "track" | null>(null);
+  const [sheet, setSheet] = useState<"flow" | "track" | "view" | null>(null);
   const [lock, setLock] = useState<Lock>({ state: "asking" });
   const devices = useDevices();
   const hw = useHardware();
@@ -142,22 +151,34 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
         actions={[{ icon: "settings", label: "Flow settings", onPress: () => setSheet("flow") }]} />
       <View style={s.bar}>
         <Seg accessibilityLabel="Tap on a lane" value={insert ? "insert" : "select"} onChange={(v) => setInsert(v === "insert")} options={[{ id: "select", icon: "cursor" }, { id: "insert", icon: "plus" }]} disabled={locked} />
-        <IconButton icon="zoom-out" label="Zoom out" disabled={zoom <= 1} onPress={() => setZoom((z) => Math.max(1, z / 1.5))} />
-        <IconButton icon="zoom-in" label="Zoom in" disabled={zoom >= ZOOM_MAX} onPress={() => setZoom((z) => Math.min(ZOOM_MAX, z * 1.5))} />
+        <IconButton icon="eye" label="View" onPress={() => setSheet("view")} />
         <View style={{ flex: 1 }} />
         <Text style={s.time}>{fmtSeconds(playhead)}</Text>
         <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
         <IconButton icon={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} disabled={!holds && !playing} onPress={play} color={playing ? c.danger : c.accent} />
       </View>
+      {/* Size (#426): two grouped boxes, each a slider and its Fit. */}
+      <View style={s.sizes}>
+        <View style={s.box}>
+          <View style={{ flex: 1 }}><Slider label="Width" value={zoom} min={1} max={ZOOM_MAX} step={0.25} format={(z) => (z === 1 ? "fit" : `${z.toFixed(1)}×`)} onChange={(z) => setDv({ zoom: z })} /></View>
+          <Button kind="ghost" label="Fit" disabled={zoom === 1} onPress={() => setDv({ zoom: 1 })} />
+        </View>
+        <View style={s.box}>
+          <View style={{ flex: 1 }}><Slider label="Height" value={dv.height} min={HEIGHT_MIN} max={HEIGHT_MAX} step={4} format={(h) => `${h}`} onChange={(h) => setDv({ height: h })} /></View>
+          <Button kind="ghost" label="Fit" onPress={fitHeight} />
+        </View>
+      </View>
       {lock.state === "theirs" && <Block><Banner kind="info" icon="lock" title="Read-only" meta={`${lock.by} is editing this flow. You can still play it.`} /></Block>}
       {unsent?.error && <Block><Banner kind="warn" icon="warning" title="Not saved to the server" meta={`${unsent.error}. It stays on this device; change it to try again.`} /></Block>}
       {!holds && <Block><Hint>Playing and Live drive the lights connected to this device: hold the connections here.</Hint><Button kind="secondary" icon="bluetooth" label="Hold the connections here" onPress={() => { startProxy(); }} /></Block>}
-      <Lanes body={body} zoom={zoom} insert={insert} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
+      <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
+      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} laneHeight={dv.height} insert={insert} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
         onPick={choose} onSeek={(t) => { if (!playing) setPlayhead(t); }}
         onAddKeyframe={(trackId, t) => { const r = addKeyframe(latest.current.body, trackId, t, randomUUID()); if (r.keyframe) { change(() => r.body); choose({ kind: "kf", track: trackId, id: r.keyframe.id }); if (!playing) setPlayhead(r.keyframe.at); } }}
         onAddMarker={(t) => { const r = addMarker(latest.current.body, t, randomUUID()); change(() => r.body); choose({ kind: "marker", id: r.marker.id }); }}
-        onMoveKeyframe={(trackId, k, t) => change((b) => setKeyframe(b, trackId, { ...k, at: t }))}
+        onMoveKeyframe={(trackId, k, t, level) => change((b) => setKeyframe(b, trackId, { ...k, at: t, ...(level !== undefined ? { intensity: Math.round(level * 100) / 100, ...(level > 0 && k.power === false ? { power: true } : {}) } : {}) }))}
         onAddTrack={() => setSheet("track")} />
+      </View>
       <Sheet visible={!!inspector} title={pickTitle} onClose={() => setPick(null)} height={0.6}>{inspector}</Sheet>
       <Sheet visible={sheet === "track"} title="Add a track" onClose={() => setSheet(null)} height={0.7}>
         <SheetList>
@@ -166,6 +187,13 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
               onPress={() => { const id = randomUUID(); change((b) => addTrack(b, m.id, id)); setSheet(null); }} />
           ))}
         </SheetList>
+      </Sheet>
+      <Sheet visible={sheet === "view"} title="View" onClose={() => setSheet(null)}>
+        <View style={s.form}>
+          {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Toggle key={k} label={VIEW_LABELS[k]} meta={k === "graph" ? "Drag a keyframe up or down to set its intensity" : undefined} value={dv.view[k]} onChange={(on) => setDv({ view: { ...dv.view, [k]: on } })} />)}
+          <Text style={s.label}>Keyframes</Text>
+          <Seg accessibilityLabel="Keyframe size" block value={dv.kfSize} onChange={(v) => setDv({ kfSize: v })} options={[{ id: "s", label: "Small · pen" }, { id: "m", label: "Medium" }, { id: "l", label: "Large · finger" }]} />
+        </View>
       </Sheet>
       <Sheet visible={sheet === "flow"} title="Flow" onClose={() => setSheet(null)}>
         <View style={s.form}>
@@ -185,5 +213,7 @@ const useStyles = makeStyles((c) => ({
   bar: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
   time: { ...type("label", "semibold"), color: c.text, fontVariant: ["tabular-nums"], marginRight: 4 },
   form: { gap: 14 },
+  sizes: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
+  box: { flex: 1, minWidth: 220, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.borderSubtle, borderRadius: 8, backgroundColor: c.surfaceSunken },
   label: { ...type("label", "semibold"), color: c.text },
 }));
