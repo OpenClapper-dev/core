@@ -5,7 +5,7 @@ import { Pressable, Share, Text, View } from "react-native";
 import { changePassword, signOut } from "../api";
 import { isSignedIn, onAuthChange, signedInEmail } from "../auth";
 import { API_URL, isConfigured } from "../config";
-import { device, lenses, renameDevice, reportedModel, setTabs } from "../device";
+import { device, lenses, lensesOff, renameDevice, reportedModel, setLensOff, setTabs } from "../device";
 import { clearLog, logCount, logText } from "../log";
 import { setPrefs, usePrefs, usePrefsPending, type Prefs } from "../prefs";
 import { useExtensionsOn, useProject } from "../projects";
@@ -162,6 +162,7 @@ const hAov = (f: number) => Math.round((2 * Math.atan(36 / (2 * f)) * 180) / Mat
 function DevicePage({ back }: { back: () => void }) {
   const dev = device.use();
   const set = lenses.use();
+  const off = lensesOff.use();
   const email = useEmail();
   const [naming, setNaming] = useState<string | null>(null);
   const body = dev.file?.body as { kind?: string; screen?: { portrait: { w: number; h: number } } | null } | undefined;
@@ -172,9 +173,10 @@ function DevicePage({ back }: { back: () => void }) {
       {body?.kind && <FieldRow label="Kind" value={body.kind === "tablet" ? "Tablet" : "Phone"} />}
       {body?.screen && <FieldRow label="Screen" value={`${body.screen.portrait.w} × ${body.screen.portrait.h} dp`} />}
       {email && <FieldRow label="Belongs to" value={email} />}
-      <Block><SectionLabel>Real lenses, as the camera reports them</SectionLabel></Block>
+      <Block><SectionLabel>Real lenses, as the camera reports them</SectionLabel><Hint>Switch off a lens the camera reports but the device does not have: no app offers it any more.</Hint></Block>
       {set.lenses.length ? set.lenses.map((l) => (
-        <FieldRow key={l.id} icon="lens" label={l.name + (l.main ? " · main" : "")} value={l.focal35 ? `${l.focal35} mm equivalent · ${hAov(l.focal35)}° wide` : "No focal length reported: no optics frame on this lens"} />
+        <Toggle key={l.id} icon="lens" label={l.name + (l.main ? " · main" : "")} meta={(l.focal35 ? `${l.focal35} mm equivalent · ${hAov(l.focal35)}° wide` : "No focal length reported: no optics frame on this lens") + (l.main ? " · the main lens is always on" : off.includes(l.id) ? " · switched off: no app offers it" : "")}
+          value={l.main || !off.includes(l.id)} disabled={l.main} onChange={(on) => setLensOff(l.id, !on)} />
       )) : <Block><Hint>Not read yet: open the camera once.</Hint></Block>}
       <Block><Hint>No digital zoom: every photo is the full picture of one real lens.</Hint></Block>
       <Sheet visible={naming !== null} title="Name of this device" onClose={() => setNaming(null)} doneLabel="Save" onDone={() => { renameDevice(naming ?? ""); setNaming(null); }}>
@@ -249,6 +251,9 @@ function CameraPage({ back }: { back: () => void }) {
         <SectionLabel>Buttons on this device</SectionLabel>
         <Seg accessibilityLabel="Camera button size" block value={local.cameraButtons ?? "m"} onChange={(v) => setSettings({ cameraButtons: v })} options={[{ id: "s", label: "Small" }, { id: "m", label: "Medium" }, { id: "l", label: "Large" }]} />
         <Hint>The size of the camera's buttons and shutter here only: small suits a phone, large a tablet.</Hint>
+        <SectionLabel>Orientation of the camera</SectionLabel>
+        <Seg accessibilityLabel="Camera orientation" block value={local.cameraOrientation ?? "auto"} onChange={(v) => setSettings({ cameraOrientation: v })} options={[{ id: "auto", label: "As held" }, { id: "landscape", label: "Landscape" }, { id: "portrait", label: "Portrait" }]} />
+        <Hint>While the Camera tab is open the app keeps this orientation, however the device is held; the other tabs turn as usual.</Hint>
       </Block>
       <Block><SectionLabel>Camera layout on this device</SectionLabel></Block>
       {allLayouts().map((l) => <ListRow key={l.id} icon={l.builtin ? "lock" : "camera-layout"} title={l.name} meta={l.builtin ? "Built in" : undefined} selected={layout.id === l.id} trailing={null} onPress={() => chooseLayout(l.id)} />)}

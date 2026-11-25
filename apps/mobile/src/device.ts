@@ -38,6 +38,20 @@ export const device = persisted<DeviceState>("device.v2", { userId: null, file: 
 
 /** The real lenses as last read from the camera (persisted, so Setup can list them with the camera closed). */
 export const lenses = persisted<LensSet>("lenses.v1", { lenses: [], torch: false });
+/**
+ * Lenses switched off on this device (#426): a driver may report a lens that is not there (a 0.8× beside the 0.5×).
+ * Gone for every app here, and marked `off` in the device file so the Studio leaves it out too. The main lens stays.
+ */
+export const lensesOff = persisted<string[]>("lensesOff.v1", [], (v) => Array.isArray(v) && v.every((x) => typeof x === "string"));
+export function setLensOff(id: string, off: boolean) {
+  lensesOff.set((all) => (off ? [...new Set([...all, id])] : all.filter((x) => x !== id)));
+  void syncDevice();
+}
+/** The lenses the apps offer: the real ones without those switched off. */
+export function useLensSet(): LensSet {
+  const set = lenses.use(), off = lensesOff.use();
+  return { ...set, lenses: set.lenses.filter((l) => l.main || !off.includes(l.id)) };
+}
 let lensesRead = false;
 function readLenses() {
   const set = lensSet(getAllCameraDevices() as unknown as CamLike[]);
@@ -75,7 +89,7 @@ function report(): DeviceReport {
     kind: short >= 600 ? "tablet" : "phone",
     make: make.charAt(0).toUpperCase() + make.slice(1),
     model: (k.Model ?? k.model ?? "").slice(0, 120),
-    lenses: lenses.get().lenses.map(deviceLens),
+    lenses: lenses.get().lenses.map((l) => ({ ...deviceLens(l), ...(!l.main && lensesOff.get().includes(l.id) ? { off: true } : {}) })),
     screen: short > 0 ? { portrait: { w: short, h: long }, landscape: { w: long, h: short } } : null,
     // Both orientations once both were measured; until then the other one is the first turned round.
     ...(() => { const a = cameraArea.get(), p = a.portrait ?? (a.landscape && { w: a.landscape.h, h: a.landscape.w }), l = a.landscape ?? (a.portrait && { w: a.portrait.h, h: a.portrait.w }); return p && l ? { camera: { portrait: p, landscape: l } } : {}; })(),
