@@ -4,12 +4,18 @@ import { useInstance } from "../instance";
 import { setPrefs, usePrefs, usePrefsState, type Edge } from "../prefs";
 import { SCOPES, keysLabel, shortcutsOf, type ScopeId } from "../shortcuts";
 import { THEMES, useTheme, type Theme } from "../theme";
+import * as store from "../files";
+import { useProjects } from "../projects";
 import { AccountPage } from "./AccountPage";
+import { PROJECT_TABS, ProjectPage, type ProjectTab } from "./ProjectApp";
 import type { AppProps } from "./registry";
+import type { ResourceRef } from "../wm/wm";
 
-const TABS = ["appearance", "account", "shortcuts", "about"] as const;
+const TABS = ["appearance", "account", "shortcuts", "about", ...PROJECT_TABS] as const;
 type Tab = (typeof TABS)[number];
-const TITLE: Record<Tab, string> = { appearance: "Appearance", account: "Account", shortcuts: "Keyboard shortcuts", about: "About" };
+const TITLE: Record<Tab, string> = { appearance: "Appearance", account: "Account", shortcuts: "Keyboard shortcuts", about: "About", general: "Project", properties: "Properties", naming: "Naming patterns", extensions: "Extensions", projects: "All projects" };
+/** A settings page file's page, as a tab (#426: one file per page; "project" is the General page). */
+const PAGE_TAB: Record<string, Tab> = { project: "general", extensions: "extensions", appearance: "appearance", account: "account", shortcuts: "shortcuts" };
 
 /** Every shortcut of the registry, scope by scope: the same list as the `?` sheet and docs/shortcuts.md. */
 export function ShortcutList() {
@@ -24,20 +30,44 @@ export function ShortcutList() {
   );
 }
 
-/** Preferences and the account (docs/rewrite/09-shells.md). */
-export function SettingsApp({ win, setTitle, setRoute }: AppProps) {
-  const asked = (win.state as { tab?: string } | undefined)?.tab;
-  const [tab, setTab] = useState<Tab>(TABS.includes(asked as Tab) ? (asked as Tab) : "appearance");
-  // Launched again (a link, the palette): the tab it names, or the first one.
-  useEffect(() => { if (win.stateSeq) setTab(TABS.includes(asked as Tab) ? (asked as Tab) : TABS[0]); }, [win.stateSeq]);
-  useEffect(() => { setTitle(`Settings · ${TITLE[tab]}`); setRoute(tab === "appearance" ? "" : tab); }, [tab]);
+/**
+ * Settings (docs/rewrite/09-shells.md, #426): the person's pages (appearance, account, shortcuts),
+ * the project's (Project, properties, naming patterns, extensions) and all projects. Each page is a
+ * file in its root's Settings folder; opening one (or a property, a naming pattern, the preferences)
+ * shows its page here.
+ */
+export function SettingsApp({ win, projectId, setTitle, setRoute }: AppProps) {
+  const st = win.state as { tab?: string; open?: ResourceRef } | undefined;
+  const asked = st?.tab;
+  const { files } = store.useRoot({ project: projectId });
+  const home = store.useRoot("home");
+  const tabOf = (r: ResourceRef | null): Tab | null => {
+    if (!r) return null;
+    if (r.type === "property") return "properties";
+    if (r.type === "naming") return "naming";
+    if (r.type === "preferences") return "appearance";
+    const f = [...(files ?? []), ...(home.files ?? [])].find((x) => x.id === r.id);
+    return PAGE_TAB[(f?.body as { page?: string } | undefined)?.page ?? ""] ?? null;
+  };
+  const named = (): Tab => tabOf(st?.open ?? null) ?? (TABS.includes(asked as Tab) ? (asked as Tab) : "appearance");
+  const [tab, setTab] = useState<Tab>(named);
+  // Launched again (a link, a page file opened): the page it names, or the first one; a file's page once the files are there.
+  useEffect(() => { if (win.stateSeq) setTab(named()); }, [win.stateSeq]);
+  useEffect(() => { const t = tabOf(st?.open ?? null); if (t) setTab(t); }, [!!files, !!home.files]);
+  const project = useProjects().list?.find((p) => p.id === projectId);
+  useEffect(() => { setTitle(`Settings · ${tab === "general" ? project?.name ?? "Project" : TITLE[tab]}`); setRoute(tab === "appearance" ? "" : tab); }, [tab, project?.name]);
   const [theme, setTheme] = useTheme();
   const prefs = usePrefs();
   const saved = usePrefsState();
   const instance = useInstance();
   return (
-    <SettingsLayout value={tab} onChange={(id) => setTab(id as Tab)} title={TITLE[tab]}
-      sections={[{ items: [{ id: "appearance", label: "Appearance", icon: "palette" }, { id: "account", label: "Account", icon: "user" }, { id: "shortcuts", label: "Shortcuts", icon: "keyboard" }, { id: "about", label: "About", icon: "info" }] }]}>
+    <SettingsLayout value={tab} onChange={(id) => setTab(id as Tab)} title={tab === "general" ? project?.name ?? "Project" : TITLE[tab]} wide={tab === "properties" || tab === "naming"}
+      sections={[
+        { label: "You", items: [{ id: "appearance", label: "Appearance", icon: "palette" }, { id: "account", label: "Account", icon: "user" }, { id: "shortcuts", label: "Shortcuts", icon: "keyboard" }, { id: "about", label: "About", icon: "info" }] },
+        { label: "This project", items: [{ id: "general", label: "Project", icon: "slate" }, { id: "properties", label: "Properties", icon: "tag" }, { id: "naming", label: "Naming patterns", icon: "edit" }, { id: "extensions", label: "Extensions", icon: "extension" }] },
+        { label: "All projects", items: [{ id: "projects", label: "Projects", icon: "files" }] },
+      ]}>
+      {(PROJECT_TABS as readonly string[]).includes(tab) && <ProjectPage tab={tab as ProjectTab} winId={win.id} projectId={projectId} />}
       {tab === "appearance" && (
         <>
           <SettingsGroup title="Theme">

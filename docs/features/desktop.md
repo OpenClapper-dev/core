@@ -35,7 +35,7 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 
 - **Taskbar** (`wm/Taskbar.tsx` on the design system's `Taskbar`): the launcher, task view, the **pins**, one button per window of the active desktop (click focuses, or minimises the focused one; right-click: pin the app, the window's menu; drag to reorder, a line shows where it lands), then the instance marker, the project switcher (with "Manage projects…"), Search (⌘K), the theme (as the system → light → dark), the account menu and the clock.
   - **Position and alignment** (Settings › Appearance): on any edge; items at the start or centred. On a side bar the labels are tooltips and the clock takes two lines.
-  - **Pins** are apps, folders and files: a single-window app's pin is also the button of its window, with a bar under it while it is open; an app with one window per file or folder (Files, Photo, Shot, Canvas, …) launches from its pin and each of its windows keeps a button of its own (#426); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files and Project.
+  - **Pins** are apps, folders and files: a single-window app's pin is also the button of its window, with a bar under it while it is open; an app with one window per file or folder (Files, Photo, Shot, Canvas, …) launches from its pin and each of its windows keeps a button of its own (#426); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files and Settings.
 - **Launcher** (the design system's `Launcher`): every app with a search field, extensions in their own group; right-click pins an app to the taskbar. Esc or a click beside it closes it.
 - **Search** (⌘K or the taskbar's search button; `wm/Search.tsx` on the design system's `CommandPalette` with `large`, #426): every file of the project and of the account home (by name and property values, with its picture, type and path; the newest first, at most 40 per group), the open windows and the apps. The matched part is marked (`--match`). Search only: no actions, no project switching.
 - **Desktop:** clicking it takes focus away from the windows (the URL shows `#/`). Its icons are the files of the project's Desktop folder and the recycle bin ([files](files.md#desktop-icons-wmdesktopiconstsx-wmgridts)).
@@ -51,8 +51,8 @@ An app declares its name, glyph and colour, tier, whether it is one window in al
 | Photo | `apps/PhotoApp.tsx` | One photo with its facts, one window per photo ([media](media.md#photo-app-appsphotoapptsx-route-photoid)) |
 | Shot, Set, Location, Canvas, Timeline | `apps/ShotApp.tsx`, `CanvasApp.tsx`, `TimelineApp.tsx` | One file per window; Timeline also shows the project's master timeline ([timeline](timeline.md)) |
 | Recycle bin | `apps/BinApp.tsx` | What was deleted: restore, delete permanently, empty |
-| Project | `apps/ProjectApp.tsx` | This project (name, facts, delete) and all projects (open, new, rename, delete). Properties, naming patterns and extensions join with their steps |
-| Settings | `apps/SettingsApp.tsx`, `apps/AccountPage.tsx` | Appearance (theme, taskbar, the bin on the desktop), Account (who is signed in, change password, workspaces with members and roles), shortcuts, about |
+
+| Settings | `apps/SettingsApp.tsx`, `apps/AccountPage.tsx`, `apps/ProjectApp.tsx` (the project's pages) | You (Appearance, Account, Shortcuts, About), this project (Project: name, facts, delete; Properties; Naming patterns; Extensions) and all projects (open, new, rename, delete). Opens the settings page files, property definitions and naming patterns at their page (#426: the Project app folded in) |
 
 ## Preferences (`prefs.ts`, `theme.ts`)
 
@@ -62,7 +62,7 @@ Theme, taskbar position and alignment, the pins, how a collection's colour is dr
 - A change is saved 600 ms later. When the server cannot be reached the change stays in the browser's copy and Settings › Appearance says so; it is saved when the server answers again.
 - Window layouts are not preferences: they depend on the screen and stay with the browser.
 - The theme is also `localStorage["theme"]` (`light` | `dark`, absent: as the system), read by the inline script of `index.html` before the first paint.
-- The file shows in Files under the account home; opening it opens Settings.
+- The file is not listed in Files; the Appearance settings page in the home's Settings folder opens its page. A client writes back only the keys this version knows (`knownPreferences`), so a key that went (`originalsOnWifi`, #426) is dropped instead of refused.
 
 ## URL and keys
 

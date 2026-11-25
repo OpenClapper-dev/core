@@ -11,7 +11,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ? | All shortcuts |
 | G F | Open Files |
 | G M | Open Photos (Files) |
-| G P | Open Project |
+| G P | Open the project's settings |
 | G , | Open Settings |
 | Esc | Close or back out one level |
 

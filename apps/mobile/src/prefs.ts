@@ -1,4 +1,5 @@
 import { randomUUID } from "expo-crypto";
+import { knownPreferences } from "@openclapper/model";
 import { canCall, listFiles, putFile, type FileRec } from "./api";
 import { signedInUserId } from "./auth";
 import { log } from "./log";
@@ -69,7 +70,8 @@ export function syncPrefs(): Promise<void> {
       if (dirty.length) {
         for (const k of dirty) body[k] = prefs[k];
         const id = file?.id ?? cache.get().fileId ?? randomUUID();
-        await putFile(id, { type: "preferences", home: true, name: "Preferences", body });
+        // Keys this version no longer knows are dropped, or the server would refuse the file (#426).
+        await putFile(id, { type: "preferences", home: true, name: "Preferences", body: knownPreferences(body) });
         cache.set((c) => ({ ...c, fileId: id, dirty: c.dirty.filter((k) => !dirty.includes(k) || c.prefs[k] !== prefs[k]) }));
       }
       cache.set((c) => ({ ...c, fileId: file?.id ?? c.fileId, prefs: { ...DEFAULT_PREFS, ...pick(body), ...Object.fromEntries(c.dirty.map((k) => [k, c.prefs[k]])) } }));

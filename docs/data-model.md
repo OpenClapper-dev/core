@@ -35,7 +35,7 @@ A new numbered file for every change; an applied one is never edited.
 | `name` | Free text, not unique |
 | `container` | The folder or collection it sits in; null at the top level. Cleared when the container is purged, so a file binned on its own inside it restores to the top level |
 | `internal_of` | The file it was made inside; never together with `container`. Purged with its parent |
-| `fixed` | `desktop` or `settings`: a project's fixed folders, made with the project, one of each |
+| `fixed` | `desktop` or `settings`: a project's fixed folders, made with the project, one of each; a home's `settings` folder, made when the home is first listed (`ensureHome`, migration 0010 adds the project pages) |
 | `deleted_at`, `deleted_with` | The recycle bin. `deleted_with` names the file whose binning took this one along (a folder's contents, a file's internal files); null for the file the user binned |
 | `lock_by`, `lock_holder`, `lock_until` | One editor at a time: the user, the editing window's own token, and until when. Written from step B5 |
 | `body`, `body_version` | The type's own document, saved whole and checked by `packages/model` on every save, and the version of its shape. A change of shape raises the version and upgrades stored bodies when they are read; it needs no migration |

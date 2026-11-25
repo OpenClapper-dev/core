@@ -51,7 +51,7 @@ A saved query, itself a file of the type `filter`: a group of rules joined by **
 
 Evaluated by the clients on what they loaded (`evaluate`), the same code everywhere. A rule on a deleted property matches as empty.
 
-## In the Studio: the Project app (`apps/studio/src/apps/project/`)
+## In the Studio: Settings, the project's pages (`apps/studio/src/apps/project/`)
 
 **Properties** (`Properties.tsx`): the catalogue in its sections, narrowed by file type (then also listing the system properties and the type's read-only facts), with each property's field type, option count and the file types it is on. "New property" starts a text property on the type the list is narrowed to. The editor beside it (resizable) saves every change at once: name, field type (asks first when files have values), unit, what a reference points at and whether it holds several, options (colour from the design system's chooser, rename, reorder, remove with the count of files that lose the value, add), what a single choice depends on and which of its options each parent option allows, the file types it is on with hide, the section (pick or type a new one), and Delete (to the bin with its values). A project without properties offers "Add the default properties".
 

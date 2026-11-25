@@ -9,7 +9,7 @@ export function NeedsExtension({ id }: { id: string }) {
     <div className="oc-app st-center">
       <EmptyState icon="extension" title={`Needs the ${name} extension`}>
         This project has it switched off. Its files and devices are kept.
-        <div style={{ marginTop: "var(--space-3)" }}><Button variant="secondary" onClick={() => launch({ app: "project", state: { tab: "extensions" } })}>Extensions of this project…</Button></div>
+        <div style={{ marginTop: "var(--space-3)" }}><Button variant="secondary" onClick={() => launch({ app: "settings", state: { tab: "extensions" } })}>Extensions of this project…</Button></div>
       </EmptyState>
     </div>
   );

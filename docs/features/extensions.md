@@ -6,7 +6,7 @@ An **extension** is a package of expert features that is off until a project swi
 
 ## Switching
 
-- **Project app › Extensions**: one switch per extension, with what it brings. Everyone in the project sees the same.
+- **Settings › Extensions** (the project's Extensions settings page): one switch per extension, with what it brings. Everyone in the project sees the same.
 - An extension can need another (Flows needs Hardware): switching it on switches on what it needs, switching that off switches it off too.
 - The phone reads the project's switches with the project list (at each sync).
 

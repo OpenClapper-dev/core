@@ -159,7 +159,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     sheet: () => openOverlay("sheet"),
     goFiles: open("files"),
     goMedia: open("files", { entry: "media" }),
-    goProject: open("project"),
+    goProject: open("settings", { tab: "general" }),
     goSettings: open("settings"),
   }), !overlay || overlay === "launcher");
   useKeys(bind("wm", {

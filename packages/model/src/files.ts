@@ -73,7 +73,7 @@ export interface FileType {
    * Made only by its own routes, never through the general file route: a photo by uploading it (its
    * body never changes afterwards), a device by registering itself (its body can be changed).
    */
-  made?: "upload" | "register";
+  made?: "upload" | "register" | "system";
   /** For these kinds of reference, the types a file pointed at may have (checked by the Worker, which knows them). Absent: any type. */
   refTargets?: Partial<Record<RefKind, readonly string[]>>;
   /** Edited by one person at a time (05-composition.md): a save needs the edit lock, when someone holds it. */

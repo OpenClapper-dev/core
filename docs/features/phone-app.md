@@ -23,7 +23,7 @@ One app, five installs side by side, each with its own package id, storage and i
 | --- | --- | --- |
 | Session | Keystore (`src/auth.ts`) | Token, email, user id |
 | Projects, the active one | `projects.ts` | Made offline or without an account and created at the next sync |
-| Preferences | `prefs.ts` | The account's `preferences` file, shared with the Studio. The phone sets theme, collection mark, lens names, asking for a collection's name, originals on Wi-Fi; a save merges only what was changed here into the file as it is on the server, so the Studio's keys stay. A copy per account works offline |
+| Preferences | `prefs.ts` | The account's `preferences` file, shared with the Studio. The phone sets theme, collection mark, lens names, asking for a collection's name; it writes back only the keys it knows (`knownPreferences`); a save merges only what was changed here into the file as it is on the server, so the Studio's keys stay. A copy per account works offline |
 | This device | `device.ts` | The `device` file of the account (below) |
 | Offline mode, keeping the project, debug log | `settings.ts` | This phone only |
 | Upload queue, Media's copy, image cache | `media/` | [Capture](capture.md#upload-queue-srcmediaqueuets-rules-in-stepsts-tested) |

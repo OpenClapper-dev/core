@@ -36,8 +36,8 @@ async function newProject(): Promise<string> {
 const put = (id: string, body: unknown, status: number | number[] = [200, 201]) => ok<{ file: FileOut; error: string }>(api(u.token, "PUT", `/api/files/${id}`, body), status);
 const folder = async (name: string, container: string | null = null) => { const id = uuid(); await put(id, folderBody({ project_id: project }, name, { container }), 201); return id; };
 const note = async (name: string, extra: Record<string, unknown> = {}) => { const id = uuid(); await put(id, { type: "t-note", project_id: project, name, ...extra }, 201); return id; };
-// The property definitions every new project starts with sit in Settings; these tests are about the other files.
-const files = async (query = "") => (await ok<{ files: FileOut[] }>(api(u.token, "GET", `/api/files?project_id=${project}${query}`))).files.filter((f) => f.type !== "property");
+// The property definitions and settings pages every new project starts with sit in Settings; these tests are about the other files.
+const files = async (query = "") => (await ok<{ files: FileOut[] }>(api(u.token, "GET", `/api/files?project_id=${project}${query}`))).files.filter((f) => f.type !== "property" && f.type !== "settings");
 const names = async (query = "") => (await files(query)).map((f) => f.name);
 const one = async (id: string) => (await ok<{ file: FileOut }>(api(u.token, "GET", `/api/files/${id}`))).file;
 const post = (path: string, body: unknown, status: number | number[] = 200) => ok<Record<string, unknown> & { error: string }>(api(u.token, "POST", path, body), status);
@@ -57,6 +57,32 @@ describe("a project's fixed folders", () => {
     // Anything may sit on the Desktop; Settings takes only the types bound to it.
     await put(uuid(), shortcutBody(project, "Files", { container: desktop }), 201);
     expect((await put(uuid(), folderBody({ project_id: project }, "x", { container: await fixedOf("settings") }), 400)).error).toMatch(/Settings folder holds only/);
+  });
+});
+
+describe("settings pages (#426)", () => {
+  test("a new project's Settings holds its pages; they are made and kept by the server", async () => {
+    await newProject();
+    const all = (await ok<{ files: (FileOut & { body: { page: string } })[] }>(api(u.token, "GET", `/api/files?project_id=${project}&body=1`))).files;
+    const settings = all.find((f) => f.fixed === "settings")!.id;
+    const pages = all.filter((f) => f.type === "settings");
+    expect(pages.map((f) => [f.name, f.body.page, f.container]).sort()).toEqual([["Extensions", "extensions", settings], ["Project", "project", settings]]);
+    const page = pages[0].id;
+    expect((await put(page, { name: "Mine" }, 400)).error).toMatch(/kept by the server/);
+    expect((await put(uuid(), { type: "settings", project_id: project, container: settings, body: { page: "project" } }, 400)).error).toMatch(/kept by the server/);
+    expect((await post("/api/files/bin", { ids: [page] }, 400)).error).toMatch(/settings page cannot be deleted/);
+    expect((await post("/api/files/move", { ids: [page], container: null }, 400)).error).toMatch(/cannot be moved/);
+    await post(`/api/files/${page}/duplicate`, { id: uuid() }, 400);
+  });
+
+  test("a home gets its Settings folder and pages when it is first listed, once", async () => {
+    const someone = await newUser();
+    const list = async () => (await ok<{ files: (FileOut & { body: { page: string } })[] }>(api(someone.token, "GET", "/api/files?home=1&body=1"))).files;
+    const first = await list();
+    const settings = first.find((f) => f.fixed === "settings")!;
+    expect(settings).toMatchObject({ name: "Settings", type: "folder", home: true });
+    expect(first.filter((f) => f.type === "settings").map((f) => [f.name, f.body.page, f.container]).sort()).toEqual([["Account", "account", settings.id], ["Appearance", "appearance", settings.id], ["Shortcuts", "shortcuts", settings.id]]);
+    expect((await list()).length).toBe(first.length);
   });
 });
 
@@ -342,7 +368,7 @@ describe("the account home", () => {
     expect(made.file).toMatchObject({ project_id: null, home: true });
     const home = (await ok<{ files: FileOut[] }>(api(u.token, "GET", "/api/files?home=1"))).files;
     expect(home.map((f) => f.id)).toContain(mine);
-    expect(home.some((f) => f.fixed)).toBe(false);
+    expect(home.filter((f) => f.fixed).map((f) => f.name)).toEqual(["Settings"]);
     expect((await put(uuid(), { type: "shortcut", home: true, body: { app: "files" } }, 400)).error).toMatch(/belongs to a project/);
     await post("/api/files/bin", { ids: [mine] });
     expect(await ok(api(u.token, "DELETE", "/api/bin?home=1"))).toEqual({ purged: 1 });

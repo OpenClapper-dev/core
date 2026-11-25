@@ -1,34 +1,29 @@
 import { useEffect, useState } from "preact/hooks";
-import { Badge, Button, EmptyState, FormField, PropertyList, PropertyRow, PropertySection, Segmented, Select, SettingsGroup, SettingsLayout, Table, TextInput } from "@openclapper/design";
+import { Badge, Button, EmptyState, FormField, PropertyList, PropertyRow, PropertySection, Segmented, Select, SettingsGroup, Table, TextInput } from "@openclapper/design";
 import { ApiError } from "../api";
 import { confirm, prompt, toast, toastError } from "../hosts";
 import { switchProject } from "../project";
 import { removeProject, saveProject, setCanvasLive, useProjects } from "../projects";
 import { useUser } from "../user";
 import { useCatalogue } from "../props";
-import type { AppProps } from "./registry";
 import { NamingPage } from "./project/Naming";
 import { PropertiesPage } from "./project/Properties";
 import { ExtensionsPage } from "./project/Extensions";
 import "../catalogue.css";
 
-const TABS = ["general", "properties", "naming", "extensions", "projects"] as const;
-const TITLES: Record<string, string> = { properties: "Properties", naming: "Naming patterns", extensions: "Extensions" };
-type Tab = (typeof TABS)[number];
+/** The project's pages in Settings (#426: the Project app folded into Settings). */
+export const PROJECT_TABS = ["general", "properties", "naming", "extensions", "projects"] as const;
+export type ProjectTab = (typeof PROJECT_TABS)[number];
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 /** A name the server refused because it is taken reads better than "409". */
 const nameTaken = (e: unknown) => e instanceof ApiError && e.status === 409;
 
 /**
- * The Project app (docs/rewrite/09-shells.md): this project's own settings, and switching and
- * managing projects; the property catalogue and the naming patterns (docs/features/properties.md).
- * The extensions switched on for the project (docs/rewrite/08-extensions.md).
+ * The project's pages of Settings (docs/rewrite/09-shells.md): this project's own settings, and
+ * switching and managing projects; the property catalogue and the naming patterns
+ * (docs/features/properties.md); the extensions switched on for it (docs/rewrite/08-extensions.md).
  */
-export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
-  const asked = (win.state as { tab?: string } | undefined)?.tab;
-  const [tab, setTab] = useState<Tab>(TABS.includes(asked as Tab) ? (asked as Tab) : "general");
-  // Launched again (a link, the palette): the tab it names, or the first one.
-  useEffect(() => { if (win.stateSeq) setTab(TABS.includes(asked as Tab) ? (asked as Tab) : TABS[0]); }, [win.stateSeq]);
+export function ProjectPage({ tab, winId, projectId }: { tab: ProjectTab; winId: string; projectId: string }) {
   const { list } = useProjects();
   const user = useUser();
   const projects = list ?? [];
@@ -36,7 +31,6 @@ export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const workspaces = user.status === "signed-in" ? user.me.workspaces : [];
   const wsName = (id: string) => workspaces.find((w) => w.id === id)?.name ?? "—";
   const catalogue = useCatalogue(projectId);
-  useEffect(() => { setTitle(tab === "projects" ? "Projects" : current ? `Project · ${TITLES[tab] ?? current.name}` : "Project"); setRoute(tab === "general" ? "" : tab); }, [tab, current?.name]);
 
   const [name, setName] = useState(current?.name ?? "");
   const [wrong, setWrong] = useState<string | null>(null);
@@ -75,19 +69,16 @@ export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const open = async (id: string) => { const p = projects.find((x) => x.id === id); if (id !== projectId && (await switchProject(id))) toast(`Now working on ${p?.name ?? "the project"}`); };
 
   return (
-    <SettingsLayout value={tab} onChange={(id) => setTab(id as Tab)}
-      sections={[{ label: "This project", items: [{ id: "general", label: "General", icon: "slate" }, { id: "properties", label: "Properties", icon: "tag" }, { id: "naming", label: "Naming patterns", icon: "edit" }, { id: "extensions", label: "Extensions", icon: "extension" }] }, { label: "All projects", items: [{ id: "projects", label: "Projects", icon: "folder" }] }]}
-      wide={tab === "properties" || tab === "naming"}
-      title={tab === "projects" ? "Projects" : TITLES[tab] ?? current?.name ?? "Project"}>
+    <>
       {tab === "properties" && <PropertiesPage projectId={projectId} files={catalogue.files} defs={catalogue.defs} />}
       {tab === "naming" && <NamingPage projectId={projectId} files={catalogue.files} patterns={catalogue.patterns} />}
       {tab === "extensions" && current && <ExtensionsPage project={current} />}
       {tab === "general" && current && (
         <>
           <SettingsGroup title="Name">
-            <FormField label="Project name" htmlFor={`pn-${win.id}`} error={wrong ?? undefined} hint="Unique within its workspace.">
+            <FormField label="Project name" htmlFor={`pn-${winId}`} error={wrong ?? undefined} hint="Unique within its workspace.">
               <span className="st-inline">
-                <TextInput id={`pn-${win.id}`} value={name} invalid={!!wrong} maxLength={80} style={{ flex: 1 }} onInput={(e) => { setName(e.currentTarget.value); setWrong(null); }} onKeyDown={(e) => { if (e.key === "Enter") void saveName(); }} />
+                <TextInput id={`pn-${winId}`} value={name} invalid={!!wrong} maxLength={80} style={{ flex: 1 }} onInput={(e) => { setName(e.currentTarget.value); setWrong(null); }} onKeyDown={(e) => { if (e.key === "Enter") void saveName(); }} />
                 <Button variant="primary" disabled={!name.trim() || name.trim() === current.name} onClick={() => void saveName()}>Rename</Button>
               </span>
             </FormField>
@@ -140,6 +131,6 @@ export function ProjectApp({ win, projectId, setTitle, setRoute }: AppProps) {
           )}
         </>
       )}
-    </SettingsLayout>
+    </>
   );
 }

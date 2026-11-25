@@ -1,5 +1,5 @@
 import {
-  BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
+  BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, SETTINGS_PAGE_NAMES, SETTINGS_PAGES, type SettingsPage, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
   nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind, type ShotBody, keepGuarded } from "@openclapper/model";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
@@ -211,15 +211,44 @@ function writeRefs(env: Env, id: string, refs: Ref[]): D1PreparedStatement[] {
   return stmts;
 }
 
-/** The fixed folders of a new project and the default property template in its Settings, in the batch that creates it. */
+/** The settings pages of one kind of root (#426). */
+const pagesOf = (root: "project" | "home") => (Object.keys(SETTINGS_PAGES) as SettingsPage[]).filter((p) => SETTINGS_PAGES[p] === root);
+
+/** The fixed folders of a new project, its settings pages and the default property template in its Settings, in the batch that creates it. */
 export function fixedFolders(env: Env, projectId: string, userId: string): D1PreparedStatement[] {
   const ids = Object.fromEntries(Object.keys(FIXED_FOLDERS).map((k) => [k, crypto.randomUUID()]));
   return [
     ...Object.entries(FIXED_FOLDERS).map(([fixed, name]) =>
       env.DB.prepare("INSERT INTO files (id, project_id, type, name, fixed, created_by) VALUES (?1, ?2, 'folder', ?3, ?4, ?5)").bind(ids[fixed], projectId, name, fixed, userId)),
+    ...pagesOf("project").map((page) =>
+      env.DB.prepare("INSERT INTO files (id, project_id, type, name, container, created_by, body, body_version) VALUES (?1, ?2, 'settings', ?3, ?4, ?5, ?6, 1)")
+        .bind(crypto.randomUUID(), projectId, SETTINGS_PAGE_NAMES[page], ids.settings, userId, JSON.stringify({ page }))),
     ...templateStatements(env, projectId, ids.settings, userId),
   ];
 }
+
+/**
+ * A person's home has a Settings folder with their settings pages (#426). Made when the home is first
+ * listed, so it needs no hook where accounts are made (the admin board, scripts, the seed).
+ */
+export async function ensureHome(env: Env, userId: string): Promise<void> {
+  const have = await env.DB.prepare(
+    "SELECT (SELECT id FROM files WHERE home_of = ?1 AND fixed = 'settings') AS folder, (SELECT json_group_array(json_extract(body, '$.page')) FROM files WHERE home_of = ?1 AND type = 'settings' AND deleted_at IS NULL) AS pages",
+  ).bind(userId).first<{ folder: string | null; pages: string }>();
+  const pages = new Set(JSON.parse(have?.pages ?? "[]") as string[]);
+  const missing = pagesOf("home").filter((p) => !pages.has(p));
+  if (have?.folder && !missing.length) return;
+  const folder = have?.folder ?? crypto.randomUUID();
+  await env.DB.batch([
+    ...(have?.folder ? [] : [env.DB.prepare("INSERT INTO files (id, home_of, type, name, fixed, created_by) VALUES (?1, ?2, 'folder', 'Settings', 'settings', ?2)").bind(folder, userId)]),
+    ...missing.map((page) => env.DB.prepare("INSERT INTO files (id, home_of, type, name, container, created_by, body, body_version) VALUES (?1, ?2, 'settings', ?3, ?4, ?2, ?5, 1)")
+      .bind(crypto.randomUUID(), userId, SETTINGS_PAGE_NAMES[page], folder, JSON.stringify({ page }))),
+  ]);
+}
+
+/** A fixed folder or a settings page: made by the server, never renamed, moved, copied or deleted. */
+const kept = (f: { fixed: string | null; type: string }) => !!f.fixed || f.type === "settings";
+const keptName = (f: { fixed: string | null; name: string }) => (f.fixed ? `the ${f.name} folder` : `the ${f.name} settings page`);
 
 /** Live ids, the given ones first, with everything inside them and their internal files. */
 const DOWN = `WITH RECURSIVE down(id) AS (
@@ -282,6 +311,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const { env, url } = ctx;
     const q = url.searchParams;
     const root = await rootFrom(ctx, q.get("project_id"), q.get("home"), "viewer", false);
+    if (root.kind === "home" && root.userId) await ensureHome(env, root.userId);
     const binds: unknown[] = [root.projectId, root.userId];
     const where = [inRoot("f", 1)];
     const bind = (v: unknown) => `?${binds.push(v)}`;
@@ -360,6 +390,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const stored = await findFile(ctx, fid, "editor");
     if (stored?.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
     const t = typeOf(stored?.type ?? b.type);
+    if (t.made === "system") throw new HttpError(400, `a ${t.label.toLowerCase()} is made and kept by the server`);
     if (t.made && !stored) throw new HttpError(400, `a ${t.label.toLowerCase()} is made by ${t.made === "upload" ? "uploading it" : "registering itself"}`);
     if (t.made === "upload" && (b.body !== undefined || b.refs !== undefined)) throw new HttpError(400, `what a ${t.label.toLowerCase()} stores about itself cannot be changed`);
     if (stored && b.type !== undefined && b.type !== stored.type) throw new HttpError(400, "a file's type never changes");
@@ -434,7 +465,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const { rows, root } = await loadFiles(ctx, ids);
     for (const f of rows) {
       if (f.deleted_at) throw new HttpError(409, `"${f.name}" is in the recycle bin`);
-      if (f.fixed) throw new HttpError(400, `the ${f.name} folder cannot be moved`);
+      if (kept(f)) throw new HttpError(400, `${keptName(f)} cannot be moved`);
       if (f.internal_of) throw new HttpError(400, `"${f.name}" is an internal file; release it first`);
     }
     await assertPlace(env, root, container, rows.filter((f) => f.container !== container).map((f) => ({ id: f.id, type: typeOf(f.type) })));
@@ -450,8 +481,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const { env, request } = ctx;
     const ids = assertIds((await readObject(request)).ids);
     const { rows } = await loadFiles(ctx, ids);
-    const fixed = rows.find((f) => f.fixed);
-    if (fixed) throw new HttpError(400, `the ${fixed.name} folder cannot be deleted`);
+    const fixed = rows.find(kept);
+    if (fixed) throw new HttpError(400, `${keptName(fixed)} cannot be deleted`);
     // An optics preset that frames use is archived instead, also when it would go with a folder.
     const inside = (await env.DB.prepare(`${DOWN} SELECT f.id, f.type, f.name FROM files f WHERE f.type = 'preset' AND f.id IN (SELECT id FROM down)`).bind(list(ids)).all<{ id: string; type: string; name: string }>()).results;
     await assertPresetsFree(env, inside);
@@ -537,7 +568,7 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const copyId = assertUuid(b.id, "id");
     if (await findFile(ctx, copyId, "editor")) return json({ file: await fileOut(env, copyId) });
     if (src.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
-    if (src.fixed) throw new HttpError(400, `the ${src.name} folder cannot be copied`);
+    if (kept(src)) throw new HttpError(400, `${keptName(src)} cannot be copied`);
     const wrongName = b.name === undefined ? null : nameError(b.name);
     if (wrongName) throw new HttpError(400, wrongName);
     const tail = " copy";

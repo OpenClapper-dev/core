@@ -39,8 +39,8 @@ const TYPED: Partial<Record<Entry, string>> = { shots: "shot", sets: "set", loca
 /** Media's side bar: everything, the collections, the photos in none, or one collection's photos. */
 type MediaNav = "all" | "collections" | "loose" | `coll:${string}`;
 interface Launch { entry?: Entry; folder?: string | null; home?: boolean; bin?: boolean; collection?: string; filter?: string }
-/** Files a person does not browse among the others: they live in Settings and are edited in the Project app. */
-const SETTINGS_TYPES = ["property", "naming", "preferences"];
+/** Files a person does not browse among the others: they live in a Settings folder and open in Settings. */
+const SETTINGS_TYPES = ["property", "naming", "settings", "preferences"];
 
 const remembered = <T,>(key: string, fallback: T): T => { try { const v = localStorage.getItem(key); return v ? (JSON.parse(v) as T) : fallback; } catch { return fallback; } };
 const remember = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
@@ -173,7 +173,7 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
         : mnav === "loose" ? loose
         : spread || q ? photos : [...all.filter((f) => f.type === "collection" && !f.internal_of), ...loose];
     } else if (shotsOnly) out = all.filter((f) => f.type === only && !f.internal_of);
-    else out = all.filter((f) => !f.internal_of && (flat ? !f.fixed && !SETTINGS_TYPES.includes(f.type) : f.container === here));
+    else out = all.filter((f) => !f.internal_of && f.type !== "preferences" && (flat ? !f.fixed && !SETTINGS_TYPES.includes(f.type) : f.container === here));
     if (types.length) out = out.filter((f) => types.includes(f.type));
     if (q) out = out.filter((f) => matchesSearch(q, texts(f)));
     if (filtering) out = out.filter(matches);
