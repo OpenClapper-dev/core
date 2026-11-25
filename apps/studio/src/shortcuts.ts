@@ -50,7 +50,7 @@ export interface Shortcut {
 
 export const SHORTCUTS = [
   // ---- everywhere
-  { scope: "global", action: "palette", keys: ["Mod+k"], label: "Go to… (command palette)" },
+  { scope: "global", action: "palette", keys: ["Mod+k"], label: "Search files, apps and windows" },
   { scope: "global", action: "sheet", keys: ["?"], label: "All shortcuts" },
   { scope: "global", action: "goFiles", keys: ["f"], chord: "g", label: "Open Files" },
   { scope: "global", action: "goMedia", keys: ["m"], chord: "g", label: "Open Photos (Files)" },

@@ -43,7 +43,7 @@ const below = (e: MouseEvent) => { const r = (e.currentTarget as HTMLElement).ge
 
 /**
  * The taskbar, on any edge: the launcher, the task view, the pins, the active desktop's windows,
- * then project, Go to…, theme, account and clock. A single-window app's pin and its window are one
+ * then project, Search, theme, account and clock. A single-window app's pin and its window are one
  * button; every window of an app with one window per file or folder has a button of its own (#426),
  * and those buttons are reordered by dragging.
  */
@@ -189,7 +189,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
         tasks={running.map((w) => { const def = appDef(w.app); return { id: w.id, title: w.title, icon: <AppIcon glyph={def?.glyph} color={def?.color} size={20} />, state: isActive(w) ? "active" as const : w.mode === "min" ? "minimized" as const : "running" as const }; })}>
         {env !== "production" && <EnvMarker env={env} className="st-env" />}
         <TaskbarButton icon="slate" label={`Switch project · ${project?.name ?? ""}`} onClick={projectMenu}>{project?.name ?? "—"}</TaskbarButton>
-        <TaskbarButton icon="search" label="Go to… (⌘K)" onClick={() => openOverlay("palette")} />
+        <TaskbarButton icon="search" label="Search (⌘K)" onClick={() => openOverlay("palette")} />
         <TaskbarButton icon={theme === "auto" ? "desktop" : theme === "light" ? "sun" : "moon"} label={`${THEME_LABEL[theme]} (click for ${next === "auto" ? "the system's" : next})`} onClick={() => setTheme(next)} />
         <TaskbarButton icon="user" label={me ? `Account · ${me.email}` : "Account"} onClick={userMenu} />
         <TaskbarClock>{clock}</TaskbarClock>

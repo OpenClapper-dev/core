@@ -1,16 +1,16 @@
 import type { JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { Button, CommandPalette, Desktop, Dialog, EmptyState, ProjectPicker, SignIn, Spinner, type IconName } from "@openclapper/design";
+import { Button, Desktop, Dialog, EmptyState, ProjectPicker, SignIn, Spinner } from "@openclapper/design";
 import { ApiError } from "../api";
-import { appDef, apps, launch, extensionOn, setActiveExtensions } from "../apps/registry";
+import { appDef, launch, extensionOn, setActiveExtensions } from "../apps/registry";
 import { NeedsExtension } from "./NeedsExtension";
 import { ShortcutList } from "../apps/SettingsApp";
 import { clearFiles } from "../files";
-import { Hosts, prompt, toast, toastError, type MenuEntry } from "../hosts";
+import { Hosts, prompt, toastError, type MenuEntry } from "../hosts";
 import { envOf, useInstance } from "../instance";
 import { bind, useKeys } from "../keys";
 import { forgetPrefs, loadPrefs, usePrefs } from "../prefs";
-import { setProjectId, switchProject, useProjectId } from "../project";
+import { setProjectId, useProjectId } from "../project";
 import { clearProjects, loadProjects, saveProject, useProjects } from "../projects";
 import { THEMES, setTheme, useTheme } from "../theme";
 import { boot, signIn, signOut, useUser } from "../user";
@@ -21,6 +21,7 @@ import { setFocusSource } from "./keyboard";
 import { closeOverlay, openOverlay, useOverlay } from "./overlays";
 import { openHash, startRouteBridge } from "./routeBridge";
 import { SplitGrip } from "./SplitGrip";
+import { Search } from "./Search";
 import { Taskbar } from "./Taskbar";
 import { TaskView } from "./TaskView";
 import { Window } from "./Window";
@@ -129,7 +130,6 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const overlay = useOverlay();
   const prefs = usePrefs();
   const [theme] = useTheme();
-  const user = useUser();
   const { list } = useProjects();
   // The project's extensions decide which apps are offered (set before the taskbar and the windows render).
   setActiveExtensions(list?.find((p) => p.id === projectId)?.extensions ?? []);
@@ -179,21 +179,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     deskMove: (e) => { const w = focusedWin(); const d = deskOfKey(e); if (!w || !d) return false; wm.moveToDesk(w.id, d.id); },
   }), !overlay);
 
-  // Go to… (⌘K): apps, open windows, projects, and the shell's own actions.
-  type Command = { id: string; label: string; icon?: IconName; kbd?: string; group: string; run: () => void };
   const nextTheme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
-  const commands: Command[] = [
-    ...apps().map((a): Command => ({ id: `app-${a.id}`, group: "Open", icon: a.glyph, label: a.about ? `${a.name} · ${a.about}` : a.name, run: open(a.id) })),
-    ...windows.map((w): Command => ({ id: `win-${w.id}`, group: "Windows", icon: appDef(w.app)?.glyph, label: w.title, run: () => wm.focus(w.id) })),
-    ...(list ?? []).filter((p) => p.id !== projectId).map((p): Command => ({ id: `proj-${p.id}`, group: "Switch project", icon: "slate", label: p.name, run: () => void switchProject(p.id).then((ok) => ok && toast(`Now working on ${p.name}`)) })),
-    { id: "a-theme", group: "Actions", icon: "palette", label: `Theme: switch to ${nextTheme === "auto" ? "the system's" : nextTheme}`, run: () => setTheme(nextTheme) },
-    { id: "a-desktop", group: "Actions", icon: "desktop", label: "Show the desktop", kbd: "⌘+Alt+D", run: () => wm.toggleDesktop() },
-    { id: "a-taskview", group: "Actions", icon: "task-view", label: "Task view", kbd: "⌘+Alt+V", run: () => openOverlay("taskview") },
-    { id: "a-newdesk", group: "Actions", icon: "plus", label: "New desktop", kbd: "⌘+Alt+N", run: () => { wm.addDesk({ go: true }); } },
-    { id: "a-keys", group: "Actions", icon: "keyboard", label: "Keyboard shortcuts", kbd: "?", run: () => openOverlay("sheet") },
-    { id: "a-reload", group: "Actions", icon: "refresh", label: "Reload the Studio", run: () => location.reload() },
-    { id: "a-signout", group: "Actions", icon: "logout", label: `Sign out${user.status === "signed-in" ? ` · ${user.me.user.email}` : ""}`, run: () => void signOut() },
-  ];
 
   const pct = (n: number) => `${n * 100}%`;
   const snapPreview: JSX.CSSProperties | undefined = zone === "max" ? { inset: 0 } : zone === "left" ? { left: 0, top: 0, bottom: 0, width: pct(split) } : zone === "right" ? { right: 0, top: 0, bottom: 0, width: pct(1 - split) } : undefined;
@@ -212,7 +198,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
         icons={<DesktopIcons projectId={projectId} shellMenu={shellMenu} />}
         overlay={<>
           {overlay === "taskview" && <TaskView onClose={closeOverlay} />}
-          {overlay === "palette" && <div data-overlay><CommandPalette fixed items={commands} placeholder="Go to an app, a window, a project, or run an action" onClose={closeOverlay} onSelect={(id) => { closeOverlay(); commands.find((c) => c.id === id)?.run(); }} /></div>}
+          {overlay === "palette" && <Search projectId={projectId} onClose={closeOverlay} />}
           {overlay === "sheet" && <Dialog fixed data-overlay className="st-sheet" title="Keyboard shortcuts" onClose={closeOverlay}><ShortcutList /></Dialog>}
         </>}>
         {/* Every desktop's windows stay mounted (apps keep their state); the others are hidden. */}

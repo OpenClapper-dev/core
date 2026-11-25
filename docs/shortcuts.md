@@ -7,7 +7,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 
 | Keys | What |
 | --- | --- |
-| ⌘K | Go to… (command palette) |
+| ⌘K | Search files, apps and windows |
 | ? | All shortcuts |
 | G F | Open Files |
 | G M | Open Photos (Files) |

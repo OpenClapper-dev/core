@@ -162,6 +162,8 @@
   --warning-tint: var(--amber-100);
   --scrim: rgba(0,0,0,.5);
   --marquee: rgba(11,69,217,.12);
+  --match: var(--amber-400);
+  --match-text: var(--amber-900);
   --cat-1: #C2410C;
   --cat-2: #96690A;
   --cat-3: #4D7C0F;
@@ -221,6 +223,8 @@
   --warning-tint: var(--amber-900);
   --scrim: rgba(0,0,0,.65);
   --marquee: rgba(130,164,255,.14);
+  --match: var(--amber-400);
+  --match-text: var(--amber-900);
   --cat-1: #F08A5D;
   --cat-2: #E0B050;
   --cat-3: #9CCB5A;
@@ -279,6 +283,8 @@
   --warning-tint: var(--amber-100);
   --scrim: rgba(0,0,0,.5);
   --marquee: rgba(11,69,217,.12);
+  --match: var(--amber-400);
+  --match-text: var(--amber-900);
   --cat-1: #C2410C;
   --cat-2: #96690A;
   --cat-3: #4D7C0F;
@@ -336,6 +342,8 @@
   --warning-tint: var(--amber-900);
   --scrim: rgba(0,0,0,.65);
   --marquee: rgba(130,164,255,.14);
+  --match: var(--amber-400);
+  --match-text: var(--amber-900);
   --cat-1: #F08A5D;
   --cat-2: #E0B050;
   --cat-3: #9CCB5A;
