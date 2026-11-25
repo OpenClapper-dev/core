@@ -5,5 +5,6 @@ export * from "./ListRow";
 export * from "./MapControl";
 export * from "./MapPin";
 export * from "./Table";
+export * from "./useMarquee";
 export * from "./ThumbnailTile";
 export * from "./Device";

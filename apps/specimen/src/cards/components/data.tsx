@@ -23,8 +23,8 @@ function Media() {
         <FileCard name="Morning walk" meta="4 photos" art={<img src={srcs[0]} alt="" />} picture stack={{ srcs, count: 4 }} tint={tint} mark={mark} badge={<AppIcon glyph="layers" color={4} size={20} />} />
         <FileCard name="IMG_0142" meta="Morning walk" art={<img src={srcs[1]} alt="" />} picture tint={tint} mark={mark} />
         <FileCard name="IMG_0143" meta="Preview sent" art={<img src={srcs[2]} alt="" />} picture upload="preview" />
-        <FileCard name="IMG_0144" meta="Stuck" art={<img src={srcs[3]} alt="" />} picture upload="stuck" selected onTick={() => {}} />
-        <FileCard name="Scouting" meta="12 items" art={<AppIcon glyph="folder" color={5} size={48} />} current />
+        <FileCard name="IMG_0144" meta="Stuck" art={<img src={srcs[3]} alt="" />} picture upload="stuck" selected />
+        <FileCard name="Scouting" meta="12 items" art={<AppIcon glyph="folder" color={5} size={48} />} />
       </FileGrid>
       <L>colour chooser · eight colours and one of your own · <CollectionTag tint={tint}>Morning walk</CollectionTag></L>
       <div style={{ maxWidth: 260, marginBottom: 12 }}><ColorChooser value={color} onChange={setColor} label="Collection colour" /></div>

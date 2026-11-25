@@ -22,10 +22,9 @@ export function UploadBadge({ state, className, ...rest }: { state: UploadState 
 }
 
 /**
- * A file as a card in a grid: its picture or its type icon, its name and a line of facts. Clicking
- * and ticking are two things: a click makes the card the current one, the circle in its corner
- * ticks it for acting on several. The circle shows on hover, and on every card of a grid that has
- * ticks (`FileGrid` with `ticking`).
+ * A file as a card in a grid: its picture or its type icon, its name and a line of facts. Selecting
+ * is the app's, as in an OS file manager (a click, Ctrl/Shift-click, a rectangle: `useMarquee`); the
+ * card shows hover and selection as a lighter and a stronger background, nothing more.
  *
  * A collection is a **stack** (`stack`: its pictures' sources): moving the pointer across it shows
  * each in turn under a line, with "n / count" in the corner, as on clips in an editor. A photo of a
@@ -40,13 +39,9 @@ export interface FileCardProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 
   picture?: boolean;
   /** A small mark over the art's corner (the type icon over a picture, a shortcut's arrow). */
   badge?: ComponentChildren;
-  /** Ticked. */
   selected?: boolean;
-  /** The current file: outlined. */
-  current?: boolean;
   /** Something is dragged over it and may be dropped. */
   dropTarget?: boolean;
-  onTick?: () => void;
   onOpen?: () => void;
   /** A collection: the pictures to scrub through (image sources, in order) and how many it holds. */
   stack?: { srcs: string[]; count: number };
@@ -57,7 +52,7 @@ export interface FileCardProps extends Omit<JSX.HTMLAttributes<HTMLDivElement>, 
   upload?: UploadState;
 }
 
-export function FileCard({ name, meta, art, picture, badge, selected, current, dropTarget, onTick, onOpen, stack, tint, mark = "bar", upload, className, style, ...rest }: FileCardProps) {
+export function FileCard({ name, meta, art, picture, badge, selected, dropTarget, onOpen, stack, tint, mark = "bar", upload, className, style, ...rest }: FileCardProps) {
   const [scrub, setScrub] = useState<{ i: number; x: number } | null>(null);
   const move = (e: JSX.TargetedMouseEvent<HTMLSpanElement>) => {
     if (!stack || stack.srcs.length < 2) return;
@@ -67,7 +62,7 @@ export function FileCard({ name, meta, art, picture, badge, selected, current, d
   const shown = scrub && stack ? <img src={stack.srcs[scrub.i]} alt="" draggable={false} /> : art;
   return (
     <div role="option" tabIndex={0} aria-selected={!!selected}
-      className={cx("oc-filecard", selected && "is-selected", current && "is-current", dropTarget && "is-drop", stack && "is-stack", tint && `oc-filecard--${mark}`, className)}
+      className={cx("oc-filecard", selected && "is-selected", dropTarget && "is-drop", stack && "is-stack", tint && `oc-filecard--${mark}`, className)}
       style={tint ? { ...(typeof style === "object" ? style : {}), "--oc-coll": tint } : style} onDblClick={onOpen} {...rest}>
       <span className={cx("oc-filecard__art", picture && "oc-filecard__art--picture")} onMouseMove={move} onMouseLeave={() => setScrub(null)}>
         {shown}
@@ -75,13 +70,6 @@ export function FileCard({ name, meta, art, picture, badge, selected, current, d
         {stack && <span className="oc-filecard__count">{scrub ? `${scrub.i + 1} / ${stack.count}` : stack.count}</span>}
         {scrub && <span className="oc-filecard__scrub" style={{ left: scrub.x }} />}
         {upload && <UploadBadge state={upload} className="oc-filecard__upload" />}
-        {onTick && (
-          <span role="checkbox" aria-checked={!!selected} aria-label={`Select ${name}`} tabIndex={0} className={cx("oc-filecard__tick", selected && "is-on")}
-            onClick={(e) => { e.stopPropagation(); onTick(); }} onDblClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); e.stopPropagation(); onTick(); } }}>
-            {selected && <Icon name="check" size={12} />}
-          </span>
-        )}
       </span>
       <span className="oc-filecard__name" title={name}>{tint && mark === "dot" && <i className="oc-filecard__dot" />}{name}</span>
       {meta != null && <span className="oc-filecard__meta">{meta}</span>}
@@ -89,14 +77,13 @@ export function FileCard({ name, meta, art, picture, badge, selected, current, d
   );
 }
 
-/** The grid that holds file cards. `ticking` shows every card's tick circle (something is ticked). */
+/** The grid that holds file cards. */
 export interface FileGridProps extends JSX.HTMLAttributes<HTMLDivElement> {
-  ticking?: boolean;
   children?: ComponentChildren;
 }
 
-export function FileGrid({ ticking, children, className, ...rest }: FileGridProps) {
-  return <div role="listbox" aria-multiselectable="true" className={cx("oc-filegrid", ticking && "is-ticking", className)} {...rest}>{children}</div>;
+export function FileGrid({ children, className, ...rest }: FileGridProps) {
+  return <div role="listbox" aria-multiselectable="true" className={cx("oc-filegrid", className)} {...rest}>{children}</div>;
 }
 
 /** A collection's colour where it is named in a list or a property: a dot and the name. */

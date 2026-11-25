@@ -20,14 +20,9 @@
 .oc-table td{height:var(--control-h);padding:0 var(--space-4);border-bottom:var(--border-w) solid var(--border-divider);white-space:nowrap}
 .oc-table .is-num{font-variant-numeric:tabular-nums;text-align:right}
 .oc-table .is-mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
-.oc-table__check{width:16px;padding-right:0}
-.oc-table__check .oc-check{min-height:0;vertical-align:middle}
 .oc-table tbody tr:hover td{background:var(--surface-hover)}
-.oc-table tbody tr[aria-selected="true"] td{background:var(--selection);font-weight:var(--weight-bold)}
-.oc-table tbody tr[aria-selected="true"] td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
-.oc-table tbody tr.is-cursor{outline:var(--border-w) solid var(--selection-border);outline-offset:-1px}
-.oc-table tbody tr.is-cursor td{background:var(--surface-hover)}
-.oc-table tbody tr.is-cursor[aria-selected="true"] td{background:var(--selection)}
+/* As in an OS file manager: hover is a light background, a selected row a stronger one; no outlines, no bold. */
+.oc-table tbody tr[aria-selected="true"] td{background:var(--selection)}
 .oc-thumb{display:flex;flex-direction:column;gap:var(--space-2);min-width:0;padding:0;border:0;background:transparent;color:var(--text);font:var(--weight-regular) var(--font-size-sm)/var(--leading-ui) var(--font-sans);text-align:left;cursor:default}
 .oc-thumb__img{position:relative;aspect-ratio:3/2;overflow:hidden;border-radius:2px;background:var(--photo-bg)}
 .oc-thumb__img>img{display:block;width:100%;height:100%;object-fit:contain}
@@ -62,7 +57,6 @@
 .oc-filecard{position:relative;display:grid;grid-template-columns:minmax(0,1fr);align-content:start;gap:3px;min-width:0;padding:var(--space-3);border:var(--border-w) solid transparent;border-radius:var(--radius-control);color:var(--text);cursor:pointer;outline:0}
 .oc-filecard:hover{background:var(--surface-hover)}
 .oc-filecard:focus-visible{box-shadow:0 0 0 1px var(--focus),0 0 0 3px var(--focus-ring)}
-.oc-filecard.is-current{border-color:var(--selection-border);background:var(--surface-hover)}
 .oc-filecard.is-selected{background:var(--selection)}
 .oc-filecard.is-drop{border-color:var(--accent);background:var(--marquee)}
 .oc-filecard__art{position:relative;display:grid;place-items:center;aspect-ratio:4/3;border-radius:3px;background:var(--surface-sunken)}
@@ -70,10 +64,6 @@
 .oc-filecard__art>img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;border-radius:3px}
 .oc-filecard__art>.oc-appicon{box-shadow:none}
 .oc-filecard__badge{position:absolute;left:4px;bottom:4px;display:grid}
-.oc-filecard__tick{position:absolute;left:5px;top:5px;z-index:2;display:grid;place-items:center;width:18px;height:18px;box-sizing:border-box;border:2px solid var(--over-paper);border-radius:50%;background:var(--over-mask);color:var(--over-paper);opacity:0;cursor:pointer}
-.oc-filecard:hover .oc-filecard__tick,.oc-filegrid.is-ticking .oc-filecard__tick,.oc-filecard__tick.is-on,.oc-filecard__tick:focus-visible{opacity:1}
-.oc-filecard__tick:hover{background:var(--over-ink)}
-.oc-filecard__tick.is-on{border-color:var(--accent);background:var(--accent);color:var(--text-on-accent,#fff)}
 .oc-filecard__name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:var(--weight-medium)}
 .oc-filecard__meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);font-size:var(--font-size-2xs)}
 .oc-table tr.is-drop>td{background:var(--marquee);box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
