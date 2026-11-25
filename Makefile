@@ -35,7 +35,7 @@ admin: ## Admin board -> http://localhost:5174 with its Worker on :8788 (local D
 	pnpm dev:admin
 
 specimen: ## Design system specimens (rewrite, packages/design) -> http://localhost:5175, no Worker needed
-	pnpm -C apps/specimen dev
+	pnpm dev:specimen
 
 mobile: ## Local Worker behind a quick tunnel + Metro for the dev build (OpenClapper Dev); LOCAL data
 	pnpm dev:mobile

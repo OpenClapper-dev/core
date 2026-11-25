@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm --parallel /^dev:/",
-    "dev:worker": "wrangler dev --port 8788 --persist-to ../worker/.wrangler/state",
+    "dev:worker": "wrangler dev --port 8788 --inspector-port 9230 --persist-to ../worker/.wrangler/state",
     "dev:ui": "vite",
     "build": "vite build",
     "deploy": "node ../../scripts/deploy-config.mjs && vite build && wrangler deploy --config wrangler.deploy.jsonc",
