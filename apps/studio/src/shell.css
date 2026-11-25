@@ -69,7 +69,7 @@ body.wm-gesture { user-select: none; }
 .st-info { min-width: 0; }
 .st-info__head { display: grid; gap: var(--space-4); padding: var(--space-5); }
 .st-info__icon { display: flex; align-items: center; justify-content: center; gap: var(--space-4); padding: var(--space-5) 0; border-radius: 3px; background: var(--surface-sunken); }
-.st-info__type { display: flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.st-info__type { display: flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .st-info__acts { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: 0 var(--space-5) var(--space-5); }
 .st-picker { max-height: 320px; overflow: auto; }
 
@@ -107,7 +107,7 @@ body.wm-gesture { user-select: none; }
 
 /* Property values in lists and the properties panel (B4, propertyEditors.tsx). */
 .st-tags { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; min-width: 0; }
-.st-tag { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 0 4px 0 6px; border: var(--border-w) solid var(--border-divider); border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: var(--font-size-xs); line-height: 18px; white-space: nowrap; cursor: pointer; }
+.st-tag { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 0 4px 0 6px; border: var(--border-w) solid var(--border-divider); border-radius: 10px; background: transparent; color: var(--text); font: inherit; font-size: var(--font-size-2xs); line-height: 18px; white-space: nowrap; cursor: pointer; }
 .st-tag:hover { border-color: var(--border-control); }
 .st-tag--static { cursor: default; padding-right: 6px; }
 /* A reference: the chip opens the file, its cross takes it out of the value. */

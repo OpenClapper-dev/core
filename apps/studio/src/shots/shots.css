@@ -21,7 +21,7 @@
 .sh-stage { position: relative; flex: 1; min-height: 0; min-width: 0; }
 .sh-stage.is-empty { display: grid; place-items: center; background: var(--surface-sunken); }
 .sh-stage > .sh-box { position: absolute; inset: var(--space-8) var(--space-7); background: transparent; }
-.sh-caption { position: absolute; left: var(--space-5); bottom: var(--space-4); display: inline-flex; align-items: center; gap: var(--space-3); max-width: calc(100% - 2 * var(--space-5)); padding: 2px var(--space-4) 2px 2px; border-radius: var(--radius-control); background: var(--over-mask); color: var(--over-paper); font-size: var(--font-size-xs); white-space: nowrap; overflow: hidden; }
+.sh-caption { position: absolute; left: var(--space-5); bottom: var(--space-4); display: inline-flex; align-items: center; gap: var(--space-3); max-width: calc(100% - 2 * var(--space-5)); padding: 2px var(--space-4) 2px 2px; border-radius: var(--radius-control); background: var(--over-mask); color: var(--over-paper); font-size: var(--font-size-2xs); white-space: nowrap; overflow: hidden; }
 .sh-caption small { opacity: .75; }
 .sh-stageacts { position: absolute; right: var(--space-5); top: var(--space-4); display: inline-flex; gap: var(--space-3); }
 
@@ -30,7 +30,7 @@
 .sh-tabs .oc-seg__opt { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sh-head { display: grid; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
 .sh-head__art { height: 132px; border-radius: 3px; }
-.sh-head__type { display: flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.sh-head__type { display: flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .sh-head__type small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sh-side .oc-banner { margin: var(--space-3) var(--space-4); }
 .sh-chips { display: flex; flex-wrap: wrap; gap: 4px; padding: var(--space-3) var(--space-5); }
@@ -38,12 +38,12 @@
 .sh-internal li { display: flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-2); }
 .sh-internal__name { flex: 1; min-width: 0; display: grid; }
 .sh-internal small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
-.sh-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.sh-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 
 /* A panel's own row of controls, under its head. */
 .sh-row { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-5); flex-wrap: wrap; row-gap: var(--space-2); border-bottom: var(--border-w) solid var(--border-divider); }
 .sh-row > * { flex: none; white-space: nowrap; }
-.sh-count { color: var(--text-secondary); font-size: var(--font-size-xs); margin-right: var(--space-3); }
+.sh-count { color: var(--text-secondary); font-size: var(--font-size-2xs); margin-right: var(--space-3); }
 .sh-sep { width: 1px; height: 18px; background: var(--border-divider); margin: 0 var(--space-2); }
 
 /* The content as cards. */
@@ -56,7 +56,7 @@
 .sh-tile__art { position: relative; height: 78px; }
 .sh-tile__type { position: absolute; left: 3px; bottom: 3px; display: flex; }
 .sh-tile__lock { position: absolute; left: 3px; top: 3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--over-mask); color: var(--over-paper); }
-.sh-tile__name { padding: 3px 26px 3px 6px; font-size: var(--font-size-xs); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-tile__name { padding: 3px 26px 3px 6px; font-size: var(--font-size-2xs); line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sh-tile__menu { position: absolute; right: 0; bottom: 0; }
 .sh-ghost { position: fixed; z-index: 60; pointer-events: none; opacity: .9; box-shadow: var(--shadow-dialog, 0 8px 24px rgba(0, 0, 0, .35)); }
 
@@ -70,14 +70,14 @@
 .sh-line .sh-tile__menu { position: static; flex: none; }
 .sh-line__art { flex: none; width: 52px; height: 32px; border-radius: 2px; }
 .sh-line__name { flex: 1; min-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sh-line__type { flex: none; display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.sh-line__type { flex: none; display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 
 /* Editing a canvas in place: the host's bar above the canvas tool. */
 .sh-edit { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; }
 .sh-host { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--space-5); background: var(--selection); border-bottom: var(--border-w) solid var(--selection-border, var(--accent)); flex: none; }
 .sh-host > * { flex: none; white-space: nowrap; }
 .sh-host__crumb { display: inline-flex; align-items: center; gap: var(--space-3); }
-.sh-host__note { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--font-size-xs); flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.sh-host__note { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--text-secondary); font-size: var(--font-size-2xs); flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .sh-edit > .cv, .sh-edit > .cv-standalone { flex: 1; min-height: 0; }
 
 /* Picking files. */
@@ -92,7 +92,7 @@
 .sh-pickrow__name { flex: 1; min-width: 0; display: grid; }
 .sh-pickrow__name small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .sh-pickrow--coll { padding-block: 8px; }
-.sh-hint { color: var(--text-secondary); font-size: var(--font-size-xs); margin: 0; }
+.sh-hint { color: var(--text-secondary); font-size: var(--font-size-2xs); margin: 0; }
 
 /* The progression: a small timeline, each picture as wide as it holds. */
 .sh-strip--prog { gap: 2px; }
@@ -117,7 +117,7 @@
 .sh-pair { display: flex; gap: var(--space-3); }
 .sh-pair > * { flex: 1; min-width: 0; }
 .sh-chipset { display: inline-flex; flex-wrap: wrap; gap: 3px; }
-.sh-chipset button { min-width: 30px; height: 22px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.sh-chipset button { min-width: 30px; height: 22px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-2xs)/1 var(--font-mono); cursor: pointer; }
 .sh-chipset button:hover { background: var(--surface-hover); }
 .sh-chipset button.is-on { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
 
@@ -137,7 +137,7 @@
 .sh-gen__smooth { display: flex; gap: var(--space-5); align-items: center; }
 .sh-gen__smooth > span { flex: none; width: 200px; height: 96px; border-radius: 3px; }
 .sh-gen__smooth > div { flex: 1; display: grid; gap: var(--space-2); }
-.sh-gen__smooth small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.sh-gen__smooth small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .sh-cover { width: 100%; height: 100%; }
 
 /* A shot someone else edits (or nobody, until Edit): what changes it is muted like a disabled control and does nothing. */

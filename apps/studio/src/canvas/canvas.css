@@ -5,7 +5,7 @@
 .cv-work { position: relative; flex: 1; min-height: 0; display: flex; }
 .cv-editor { flex: 1; min-height: 0; min-width: 0; }
 .cv-title { padding: 0 var(--space-3); }
-.cv-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.cv-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .cv-toolopts { display: inline-flex; align-items: center; gap: var(--space-5); margin-left: var(--space-5); padding-left: var(--space-5); border-left: var(--border-w) solid var(--border-divider); }
 
 /* The edit lock: an overlay over the whole tool; everything under it is inert. */
@@ -20,7 +20,7 @@
 .cv-thread { scale: var(--inv, 1); transform-origin: 0 0; }
 .cv-frame__label { scale: var(--inv, 1); transform-origin: 0 100%; }
 .cv-zoomer { display: inline-flex; align-items: center; }
-.cv-zoomer__now { min-width: 52px; height: var(--control-h-sm, 24px); padding: 0 4px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.cv-zoomer__now { min-width: 52px; height: var(--control-h-sm, 24px); padding: 0 4px; border: 0; border-radius: var(--radius-control); background: transparent; color: var(--text); font: var(--font-size-2xs)/1 var(--font-mono); cursor: pointer; }
 .cv-zoomer__now:hover { background: color-mix(in srgb, var(--text) 14%, transparent); }
 /* Guides: where a moved object is held by something else. */
 .cv-guide { position: absolute; z-index: 8; background: #ff3ea5; pointer-events: none; }
@@ -90,7 +90,7 @@
   linear-gradient(var(--c), var(--c)) right bottom / 22px 3px, linear-gradient(var(--c), var(--c)) right bottom / 3px 22px; background-repeat: no-repeat; }
 .cv-frame__label b { display: inline-flex; align-items: center; gap: 3px; margin: -1px -6px -1px 4px; padding: 1px 6px; background: #fff; color: #000; text-transform: uppercase; letter-spacing: .04em; }
 .cv-row--frame.is-picture { box-shadow: inset 3px 0 0 var(--accent); }
-.cv-picture { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; border-radius: 11px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 var(--font-size-xs)/1 var(--font-sans); cursor: pointer; }
+.cv-picture { display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 8px; border: 0; border-radius: 11px; background: var(--accent); color: var(--text-on-accent, #fff); font: 700 var(--font-size-2xs)/1 var(--font-sans); cursor: pointer; }
 
 /* Inspector */
 .cv-inspector { min-height: 0; }
@@ -125,7 +125,7 @@
 .cv-row--frame .cv-row__name small { font-weight: 400; overflow: hidden; text-overflow: ellipsis; }
 .cv-chips { display: inline-flex; gap: 4px; }
 .cv-chips--wrap { flex-wrap: wrap; }
-.cv-chips button { min-width: 34px; height: 24px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-mono); cursor: pointer; }
+.cv-chips button { min-width: 34px; height: 24px; padding: 0 6px; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-control); background: var(--surface); color: var(--text); font: var(--font-size-2xs)/1 var(--font-mono); cursor: pointer; }
 .cv-chips button:hover { border-color: var(--text); }
 .cv-chips button.is-on { border-color: var(--accent); background: var(--accent); color: var(--text-on-accent, #fff); font-weight: 700; }
 .cv-zoom { display: flex; align-items: center; gap: var(--space-4); width: 100%; }
@@ -155,7 +155,7 @@
 .cv-msg + .cv-msg { padding-top: var(--space-4); border-top: var(--border-w) solid var(--border-divider); }
 .cv-msg__who { display: flex; align-items: center; gap: 6px; }
 .cv-msg__who i { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--surface-sunken); font: 700 10px/1 var(--font-sans); font-style: normal; }
-.cv-msg__who small, .cv-comments small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.cv-msg__who small, .cv-comments small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .cv-comments { list-style: none; margin: 0; padding: 0 var(--space-4); display: grid; gap: 2px; }
 .cv-comments li { display: flex; gap: var(--space-4); padding: var(--space-4); border: var(--border-w) solid transparent; border-radius: var(--radius-control); }
 .cv-comments li:hover { background: var(--surface-hover); }

@@ -25,6 +25,11 @@ function onMessage(m: Record<string, unknown>) {
 
 export const request = (r: HardwareRequest) => sendLink({ ch: HARDWARE_CHANNEL, ...r });
 
+/** Devices a flow drives while it plays from this Studio (the Flows extension sets them): their controls here are locked meanwhile. */
+let busy: ReadonlySet<string> = new Set();
+export function setBusyDevices(ids: readonly string[]) { busy = new Set(ids); changed(); }
+export const isBusy = (id: string) => busy.has(id);
+
 const pending = new Map<string, { cmd: LightCommand; timer: ReturnType<typeof setTimeout> | null; last: number }>();
 /** A command to a device through the proxy, thinned per device and op. */
 export function command(device: string, cmd: LightCommand) {

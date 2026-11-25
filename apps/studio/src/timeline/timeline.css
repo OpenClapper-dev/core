@@ -6,7 +6,7 @@
 .tl-time strong { color: var(--text); }
 .tl-card { display: grid; justify-items: center; gap: var(--space-3); max-width: 420px; padding: var(--space-8); border: 2px dashed color-mix(in srgb, var(--over-paper) 45%, transparent); border-radius: var(--radius-card, 8px); text-align: center; color: var(--over-paper); }
 .tl-card strong { font-size: var(--font-size-lg, 18px); }
-.tl-card span { opacity: .7; font-size: var(--font-size-xs); }
+.tl-card span { opacity: .7; font-size: var(--font-size-2xs); }
 .tl-card.is-missing { border-color: var(--danger); }
 .tl-chap { margin-right: var(--space-3); padding: 0 6px; border-radius: 3px; color: var(--over-paper); font: 700 11px/18px var(--font-sans); }
 .tl-viewing { display: inline-flex; align-items: center; gap: var(--space-3); padding-inline: var(--space-3); color: var(--text-secondary); }
@@ -18,7 +18,7 @@
 .tl-ruler { position: relative; height: 26px; border-bottom: var(--border-w) solid var(--border-divider); cursor: pointer; touch-action: none; }
 .tl-ruler > span { position: absolute; top: 0; bottom: 0; padding: 4px 0 0 4px; border-left: var(--border-w) solid var(--border-control); color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); white-space: nowrap; pointer-events: none; }
 .tl-chapters { position: relative; height: 22px; margin: 3px 0; }
-.tl-chapters > button { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; overflow: hidden; border: 0; border-left: 3px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 26%, var(--surface)); color: var(--text); font: var(--weight-bold) var(--font-size-xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.tl-chapters > button { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; overflow: hidden; border: 0; border-left: 3px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 26%, var(--surface)); color: var(--text); font: var(--weight-bold) var(--font-size-2xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
 .tl-chapters > button:hover { background: color-mix(in srgb, var(--c) 42%, var(--surface)); }
 .tl-track { display: flex; height: 104px; }
 .tl-clip { position: relative; flex: none; display: flex; flex-direction: column; box-sizing: border-box; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-control); outline-offset: -1px; cursor: pointer; user-select: none; touch-action: none; }

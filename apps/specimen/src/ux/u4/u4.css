@@ -5,7 +5,7 @@
 .u4-time strong { color: var(--text); }
 .u4-card { display: grid; justify-items: center; gap: var(--space-3); max-width: 420px; padding: var(--space-8); border: 2px dashed rgba(255, 255, 255, .45); border-radius: var(--radius-card); text-align: center; color: #fff; }
 .u4-card strong { font-size: var(--font-size-lg, 18px); }
-.u4-card span { opacity: .7; font-size: var(--font-size-xs); }
+.u4-card span { opacity: .7; font-size: var(--font-size-2xs); }
 .u4-card.is-missing { border-color: var(--danger, #e5484d); }
 .u4-chap { margin-right: var(--space-3); padding: 0 6px; border-radius: 3px; color: #fff; font: 700 11px/18px var(--font-sans); }
 .u4-pad { padding: var(--space-3) var(--space-5); }
@@ -17,7 +17,7 @@
 .u4-ruler { position: relative; height: 26px; border-bottom: var(--border-w) solid var(--border-divider); cursor: pointer; touch-action: none; }
 .u4-ruler > span { position: absolute; top: 0; bottom: 0; padding: 4px 0 0 4px; border-left: var(--border-w) solid var(--border-control); color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); white-space: nowrap; pointer-events: none; }
 .u4-chapters { position: relative; height: 22px; margin: 3px 0; }
-.u4-chapters > button { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; overflow: hidden; border: 0; border-left: 3px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 26%, var(--surface)); color: var(--text); font: var(--weight-bold) var(--font-size-xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.u4-chapters > button { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; overflow: hidden; border: 0; border-left: 3px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 26%, var(--surface)); color: var(--text); font: var(--weight-bold) var(--font-size-2xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
 .u4-chapters > button:hover { background: color-mix(in srgb, var(--c) 42%, var(--surface)); }
 .u4-track { display: flex; gap: 0; height: 104px; }
 .u4-clip { position: relative; flex: none; display: flex; flex-direction: column; box-sizing: border-box; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-control); outline-offset: -1px; cursor: pointer; user-select: none; touch-action: none; }

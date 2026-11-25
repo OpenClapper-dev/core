@@ -1,5 +1,5 @@
 /* Page styles of the UX workshop U5 prototype (phone and tablet). It builds on the pieces of U3 (u3.css). */
-.u3-proto label { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u3-proto label { display: inline-flex; align-items: center; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u5-desk { flex: 1; min-height: 0; overflow: auto; display: grid; place-items: center; padding: var(--space-7); background: var(--surface-sunken); }
 .u5-fill { position: relative; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: var(--surface); color: var(--text); font: var(--font-size-sm)/1.4 var(--font-sans); }
 .u5-fill > .oc-m, .u5-camwrap { flex: 1; min-height: 0; }
@@ -8,11 +8,11 @@
 .u5-camwrap:has(.u5-railtabs) { flex-direction: row; }
 .u5-railtabs { flex: none; display: flex; flex-direction: column; justify-content: center; gap: var(--space-3); padding: var(--space-3); background: #000; border-left: 1px solid #333; }
 .u5-pad { padding: var(--space-4) var(--space-5); }
-.u5-note { margin: 0; padding: var(--space-4) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u5-note { margin: 0; padding: var(--space-4) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u5-acts { display: inline-flex; align-items: center; gap: var(--space-2); }
 .u5-mini { width: 44px; height: 32px; object-fit: cover; border-radius: 3px; }
 .u5-dot { display: inline-block; width: 14px; height: 14px; border-radius: 50%; }
-.u5-toast { position: absolute; left: 50%; bottom: 84px; translate: -50% 0; z-index: 40; max-width: 80%; padding: var(--space-3) var(--space-5); border-radius: 999px; background: var(--surface-inverse, #111); color: var(--text-inverse, #fff); font-size: var(--font-size-xs); box-shadow: var(--shadow-toast); }
+.u5-toast { position: absolute; left: 50%; bottom: 84px; translate: -50% 0; z-index: 40; max-width: 80%; padding: var(--space-3) var(--space-5); border-radius: 999px; background: var(--surface-inverse, #111); color: var(--text-inverse, #fff); font-size: var(--font-size-2xs); box-shadow: var(--shadow-toast); }
 
 /* The shell: the app and the one tab bar, under it or at its right edge. */
 .u5-fill--land { flex-direction: row; }
@@ -37,7 +37,7 @@
 .u5-hud { left: 8px; top: 52px; display: inline-flex; align-items: center; gap: 4px; }
 .u5-hud b { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; }
 .u5-hud i { width: 8px; height: 8px; border-radius: 50%; }
-.u5-warn { position: absolute; left: 50%; top: 50%; translate: -50% -50%; display: flex; gap: var(--space-3); width: max-content; max-width: 76%; padding: var(--space-4) var(--space-5); border-radius: var(--radius-control); background: rgba(0, 0, 0, .78); color: #fff; font-size: var(--font-size-xs); }
+.u5-warn { position: absolute; left: 50%; top: 50%; translate: -50% -50%; display: flex; gap: var(--space-3); width: max-content; max-width: 76%; padding: var(--space-4) var(--space-5); border-radius: var(--radius-control); background: rgba(0, 0, 0, .78); color: #fff; font-size: var(--font-size-2xs); }
 .u5-last { position: absolute; left: 8px; bottom: 8px; }
 .u5-last > img { display: block; width: 100%; height: 100%; object-fit: cover; }
 .u5-zoom { position: absolute; left: 68px; right: 8px; bottom: 12px; display: flex; align-items: center; gap: 10px; height: 40px; padding: 0 14px; border-radius: 20px; background: rgba(0, 0, 0, .6); color: #fff; font: 700 12px/1 var(--font-mono); }
@@ -73,7 +73,7 @@
 .u5-pic > img { display: block; width: 100%; max-height: 46vh; object-fit: contain; }
 .u5-strip { display: flex; gap: 4px; padding: var(--space-4) var(--space-5); overflow-x: auto; }
 .u5-strip__art { width: 112px; height: 72px; }
-.u5-empty { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u5-empty { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u5-gate { display: grid; justify-items: center; gap: var(--space-4); padding: var(--space-8) var(--space-5); text-align: center; }
 .u5-gate h2 { margin: 0; font-size: var(--font-size-lg, 18px); }
 .u5-gate p, .u5-gate small { margin: 0; color: var(--text-secondary); }

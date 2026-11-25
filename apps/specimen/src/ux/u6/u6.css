@@ -1,8 +1,8 @@
 /* Page styles of the UX workshop U6 prototype (devices, camera layouts, extensions). It builds on u3.css and u5.css. */
-.u6-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-pad { padding: var(--space-2) var(--space-5); }
-.u6-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: var(--font-size-xs); }
-.u6-pill { display: inline-flex; align-items: center; gap: 6px; height: var(--control-h-sm); padding: 0 10px; border: var(--border-w) solid var(--border-control); border-radius: 999px; background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.u6-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.u6-pill { display: inline-flex; align-items: center; gap: 6px; height: var(--control-h-sm); padding: 0 10px; border: var(--border-w) solid var(--border-control); border-radius: 999px; background: var(--surface); color: var(--text); font: var(--font-size-2xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
 .u6-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-disabled); }
 .u6-pill.is-connected i { background: var(--warning, #d98a00); }
 .u6-pill.is-preview i { background: var(--success, #2e9e5b); }
@@ -59,7 +59,7 @@
 .u6-tabs { flex: none; display: flex; align-items: center; justify-content: space-around; height: 56px; background: var(--surface-sunken); color: var(--text-secondary); }
 .u6-tabs.is-side { flex-direction: column; width: 64px; height: auto; }
 .u6-line { position: fixed; z-index: 900; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
-.u6-item--empty { justify-content: center; color: var(--text-disabled); font-size: var(--font-size-xs); border: var(--border-w) dashed var(--border-control); cursor: default; }
+.u6-item--empty { justify-content: center; color: var(--text-disabled); font-size: var(--font-size-2xs); border: var(--border-w) dashed var(--border-control); cursor: default; }
 .u6-items { list-style: none; margin: 0; padding: var(--space-2) var(--space-4); display: grid; gap: 2px; min-height: 36px; }
 .u6-item { display: flex; align-items: center; gap: var(--space-3); min-height: 34px; padding: 0 2px 0 4px; border-radius: 4px; background: var(--surface); cursor: grab; user-select: none; touch-action: none; }
 .u6-item:hover { background: var(--surface-hover); }
@@ -71,7 +71,7 @@
 
 /* Devices. */
 .u6-main { flex: 1; min-width: 0; overflow: auto; padding: var(--space-5) var(--space-6); display: grid; gap: var(--space-5); align-content: start; }
-.u6-group { margin: 0 0 var(--space-3); color: var(--text-secondary); font: var(--weight-bold) var(--font-size-xs)/1 var(--font-sans); text-transform: uppercase; letter-spacing: .04em; }
+.u6-group { margin: 0 0 var(--space-3); color: var(--text-secondary); font: var(--weight-bold) var(--font-size-2xs)/1 var(--font-sans); text-transform: uppercase; letter-spacing: .04em; }
 .u6-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-4); }
 .u6-tile { display: grid; gap: 5px; align-content: start; padding: var(--space-4); border: var(--border-w) solid var(--border-control); border-radius: var(--radius-card); background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .u6-tile:hover { border-color: var(--text); }
@@ -79,9 +79,9 @@
 .u6-tile.is-off { background: var(--surface-sunken); }
 .u6-tile__head { display: flex; align-items: center; gap: var(--space-3); }
 .u6-tile__head strong { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.u6-tile__meta, .u6-tile small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-tile__meta, .u6-tile small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-lamp { flex: none; width: 16px; height: 16px; border-radius: 50%; border: var(--border-w) solid var(--border-control); }
-.u6-link { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-xs); }
+.u6-link { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-2xs); }
 .u6-link i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-disabled); }
 .u6-link.is-connected i, .u6-link.is-self i { background: var(--success, #2e9e5b); }
 .u6-link.is-near i { background: var(--warning, #d98a00); }
@@ -95,12 +95,12 @@
 .u6-rows li + li { border-top: var(--border-w) solid var(--border-divider); }
 .u6-rows li:hover { background: var(--surface-hover); }
 .u6-rows li.is-current { background: var(--selection); }
-.u6-rows li > span { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-rows li > span { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-rows--cat li { grid-template-columns: 20px 100px 1fr 130px; cursor: default; }
 .u6-big { display: grid; place-items: center; height: 72px; border-radius: 4px; background: var(--surface-sunken); }
 .u6-feed { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-5); }
 .u6-feed img, .u6-feed > span { display: grid; place-items: center; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 4px; background: #000; color: #999; }
-.u6-feed small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-feed small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-add { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); width: min(820px, 80vw); }
 .u6-add .u6-rows li { grid-template-columns: 20px 1fr 1fr auto; }
 .u6-add .u6-rows--cat li { grid-template-columns: 20px 90px 1fr 110px; }
@@ -114,7 +114,7 @@
 .u6-ext.is-off { background: var(--surface-sunken); }
 .u6-ext h3 { margin: 0 0 4px; font-size: var(--font-size-md, 15px); }
 .u6-ext p { margin: 0 0 var(--space-4); color: var(--text-secondary); }
-.u6-ext dl { margin: 0; display: grid; gap: 3px; font-size: var(--font-size-xs); }
+.u6-ext dl { margin: 0; display: grid; gap: 3px; font-size: var(--font-size-2xs); }
 .u6-ext dl > div { display: grid; grid-template-columns: 130px 1fr; }
 .u6-ext dt { color: var(--text-secondary); }
 .u6-ext dd { margin: 0; }
@@ -122,7 +122,7 @@
 /* A phone's or tablet's setup, changed from the Studio. */
 .u6-tabrow { display: flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-5); min-height: 32px; }
 .u6-tabrow > span { flex: 1; }
-.u6-only { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-only { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 /* Hardware and Flows on the phone. */
 .u6-phone { flex: 1; min-height: 0; overflow: auto; display: flex; gap: var(--space-8); align-items: flex-start; justify-content: center; padding: var(--space-7); background: var(--surface-sunken); }
 .u6-phone__notes { max-width: 340px; display: grid; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-sm); }
@@ -197,20 +197,20 @@
 .u6-card__icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: color-mix(in srgb, var(--c) 24%, var(--surface)); color: var(--text); }
 .u6-card__name { display: grid; min-width: 0; }
 .u6-card__name strong, .u6-card__name small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.u6-card__name small, .u6-card__who > small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-card__name small, .u6-card__who > small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-card__what { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--space-4) var(--space-6); cursor: default; }
 .u6-field { display: grid; gap: 4px; align-content: end; min-width: 84px; }
-.u6-field > span:first-child { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-field > span:first-child { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-field > span:first-child b { color: var(--text); }
 .u6-field--wide { flex: 1 1 170px; max-width: 260px; }
 .u6-lampbig { flex: none; align-self: center; width: 40px; height: 40px; margin-left: auto; border-radius: 50%; border: var(--border-w) solid var(--border-control); }
 .u6-rec { color: var(--danger, #c62828); }
-.u6-kind { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px 1px 5px; border-radius: 10px; background: color-mix(in srgb, var(--c) 24%, transparent); font-size: var(--font-size-xs); }
+.u6-kind { display: inline-flex; align-items: center; gap: 6px; padding: 1px 8px 1px 5px; border-radius: 10px; background: color-mix(in srgb, var(--c) 24%, transparent); font-size: var(--font-size-2xs); }
 .u6-dash { color: var(--text-disabled); }
 
 /* Hardware on the phone: a table, and cards that expose the controls. */
 .u6-phead { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); }
-.u6-ptable { width: 100%; border-collapse: collapse; font-size: var(--font-size-xs); }
+.u6-ptable { width: 100%; border-collapse: collapse; font-size: var(--font-size-2xs); }
 .u6-ptable th { padding: 6px 8px; text-align: left; color: var(--text-secondary); font-weight: var(--weight-bold); border-bottom: var(--border-w) solid var(--border-control); background: var(--surface-sunken); }
 .u6-ptable td { padding: 8px; vertical-align: middle; border-bottom: var(--border-w) solid var(--border-divider); }
 .u6-ptable tbody tr { cursor: pointer; }
@@ -229,11 +229,11 @@
 .u6-pcard--alone { margin: var(--space-4); }
 .u6-pcard > header { display: flex; align-items: center; gap: var(--space-4); }
 .u6-pcard > header > span { flex: 1; min-width: 0; display: grid; }
-.u6-pcard > header small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-pcard > header small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-pcard__head { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3); }
 .u6-pcard__head .u6-batt { flex: 1; min-width: 90px; }
 .u6-pfield { display: grid; gap: 6px; }
-.u6-pfield > span { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-pfield > span { display: flex; justify-content: space-between; gap: var(--space-4); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-pfield > span b { color: var(--text); }
 .u6-pcard .u6-feedbig { border-radius: 6px; overflow: hidden; display: grid; place-items: center; min-height: 80px; }
 
@@ -245,10 +245,10 @@
 .u6-flowlist__row:hover { background: var(--surface-hover); }
 .u6-flowlist__row > span { flex: 1; min-width: 0; display: grid; }
 .u6-flowlist__row strong, .u6-flowlist__row small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.u6-flowlist__row small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.u6-flowlist__row small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .u6-flowlist__props { display: grid; gap: var(--space-4); margin-left: 22px; padding: var(--space-2) var(--space-4) var(--space-4) var(--space-4); border-left: var(--border-w) solid var(--border-control); }
 .u6-flowlist__props label { display: grid; gap: 4px; }
-.u6-flowlist__props label > span:first-child { display: flex; justify-content: space-between; color: var(--text); font-size: var(--font-size-xs); font-weight: var(--weight-medium, 500); }
+.u6-flowlist__props label > span:first-child { display: flex; justify-content: space-between; color: var(--text); font-size: var(--font-size-2xs); font-weight: var(--weight-medium, 500); }
 .u6f-resize { position: absolute; left: 0; right: 0; bottom: -3px; height: 7px; z-index: 4; cursor: row-resize; touch-action: none; }
 .u6f-resize:hover, .u6f-resize:active { background: color-mix(in srgb, var(--accent) 60%, transparent); }
 .u6f-sizer { flex: none; display: inline-flex; align-items: center; gap: 6px; width: 110px; }

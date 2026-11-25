@@ -1,0 +1,89 @@
+/* The flow editor (docs/features/flows.md): the ruler, the marker strip, a lane per track with its keyframes, the
+   gaps between them (fade tiles), the intensity graph. Track colours are the categorical ones. */
+.fl-stage { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+.fl-bar { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-3) var(--space-4); padding: var(--space-3) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
+.fl-time { font: var(--weight-medium) var(--font-size-sm)/1 var(--font-mono); color: var(--text-secondary); }
+.fl-scroll { flex: 1; min-height: 0; overflow: auto; }
+.fl-run { padding: var(--space-3) var(--space-5) 0; }
+.fl-lanes { --kf: 14px; display: flex; flex-direction: column; padding: var(--space-2) var(--space-5) var(--space-6); user-select: none; }
+.fl-lanes.kf-m { --kf: 20px; }
+.fl-lanes.kf-l { --kf: 28px; }
+.fl-lanes.is-locked { pointer-events: none; opacity: .75; }
+.fl-row { display: grid; grid-template-columns: 240px 1fr; align-items: stretch; border-bottom: var(--border-w) solid var(--border-divider); --track-c: var(--text-secondary); }
+.fl-row--ruler { min-height: 32px; }
+.fl-row--marks { min-height: 24px; }
+.fl-row.is-dragged { opacity: .5; }
+.fl-row.is-drop { box-shadow: 0 -2px 0 var(--accent); }
+.fl-label { position: relative; display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-2) var(--space-2); min-width: 0; }
+.fl-label.has-colour { box-shadow: inset 4px 0 0 var(--track-c); padding-left: var(--space-4); }
+.fl-label__grip { cursor: grab; color: var(--text-secondary); padding-top: 4px; touch-action: none; }
+.fl-label__text { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.fl-label__top { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.fl-name { flex: 1; min-width: 0; font: var(--weight-semibold) var(--font-size-sm)/1.2 var(--font-sans); color: var(--text); background: transparent; border: var(--border-w) solid transparent; border-radius: var(--radius-xs); padding: 2px 4px; }
+.fl-name:hover, .fl-name:focus { border-color: var(--border-control); outline: none; }
+.fl-label__kind { font-size: var(--font-size-2xs); color: var(--text-secondary); padding-left: 4px; }
+.fl-label__actions { display: flex; flex-direction: column; }
+.fl-resize { position: absolute; left: 0; right: 0; bottom: -3px; height: 6px; cursor: ns-resize; z-index: 4; }
+.fl-ruler, .fl-lane, .fl-marks { position: relative; }
+.fl-ruler { height: 32px; cursor: pointer; }
+.fl-tick { position: absolute; top: 4px; transform: translateX(-50%); font: var(--font-size-2xs)/1 var(--font-mono); color: var(--text-secondary); pointer-events: none; }
+.fl-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--accent); pointer-events: none; z-index: 3; }
+/* A thumb a hand can take hold of (U6 round 3). */
+.fl-thumb { position: absolute; bottom: 0; width: 18px; height: 18px; margin-left: -9px; border-radius: 4px 4px 9px 9px; background: var(--accent); cursor: grab; z-index: 4; }
+.fl-thumb:active { cursor: grabbing; }
+.fl-lane { background: color-mix(in srgb, var(--track-c) 9%, var(--surface-sunken)); cursor: default; --g-top: calc(16px + var(--kf) / 2); --g-h: calc(100% - var(--g-top) - 20px - var(--kf) / 2); }
+.fl-lanes.is-insert .fl-lane { cursor: crosshair; }
+.fl-lane.is-unassigned { opacity: .6; }
+.fl-lane.is-muted { opacity: .35; background-image: repeating-linear-gradient(135deg, transparent 0 6px, var(--border-divider) 6px 7px); }
+.fl-kf { position: absolute; top: calc(50% - 2px); width: var(--kf); height: var(--kf); margin: calc(var(--kf) / -2) 0 0 calc(var(--kf) / -2); transform: rotate(45deg); border: var(--border-w-strong) solid var(--track-c); background: var(--surface); cursor: grab; padding: 0; z-index: 2; touch-action: none; }
+.fl-kf.is-start { transform: none; border-radius: 2px; background: var(--text-secondary); }
+.fl-kf.is-colour { background: var(--accent-tint); }
+.fl-kf.is-effect { border-style: dashed; }
+.fl-kf.is-selected { background: var(--accent); border-color: var(--accent); }
+.fl-kf.has-fill { background: var(--kf-fill); }
+.fl-kf.is-selected.has-fill { outline: var(--border-w-strong) solid var(--accent); outline-offset: 2px; }
+.fl-kf.is-off { background: var(--surface); }
+.fl-kf.is-off::after { content: ""; position: absolute; left: -15%; right: -15%; top: calc(50% - 1px); height: 2px; background: var(--danger); transform: rotate(-90deg); }
+.fl-kf.is-camera { transform: none; border-radius: 50%; }
+.fl-kf.is-camera.is-rec { background: var(--danger); }
+.fl-kf-label, .fl-kf-badge { position: absolute; top: calc(50% - 2px); font: var(--weight-semibold) var(--font-size-2xs)/1 var(--font-sans); white-space: nowrap; pointer-events: none; z-index: 2; }
+.fl-kf-label { margin-left: calc(var(--kf) / 2 + 6px); transform: translateY(-50%); padding: 1px 3px; border-radius: var(--radius-xs); background: color-mix(in srgb, var(--surface) 85%, transparent); color: var(--text-secondary); }
+.fl-kf-badge { transform: translate(-50%, calc(-100% - var(--kf) / 2 - 3px)); padding: 1px 4px; border-radius: var(--radius-xs); background: var(--surface); border: var(--border-w) solid var(--border-control); color: var(--text); }
+.fl-gap { position: absolute; bottom: 3px; height: 14px; padding: 0; border: 0; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; overflow: hidden; z-index: 1; }
+.fl-gap__add { font-size: var(--font-size-2xs); color: var(--text-secondary); opacity: 0; }
+.fl-gap:hover .fl-gap__add { opacity: 1; }
+.fl-gap:hover { background: var(--surface); }
+.fl-gap.is-fade { background: var(--accent-tint); border: var(--border-w) solid var(--accent); border-radius: 3px; }
+.fl-gap.is-fade.is-stepped { border-style: dashed; }
+.fl-gap.is-selected { outline: var(--border-w-strong) solid var(--accent); }
+.fl-gap__label { font-size: var(--font-size-2xs); color: var(--accent); white-space: nowrap; }
+.fl-box { position: fixed; border: var(--border-w) solid var(--accent); background: var(--accent-tint); opacity: .5; pointer-events: none; z-index: 10; }
+.fl-graph { position: absolute; left: 0; width: 100%; top: var(--g-top); height: var(--g-h); overflow: visible; pointer-events: none; }
+.fl-graph polyline { fill: none; stroke: var(--track-c); stroke-width: 2; }
+.fl-marks { height: 24px; border-bottom: var(--border-w) dashed var(--border-divider); }
+.fl-lane__marks { position: absolute; left: 0; right: 0; top: 0; height: 14px; z-index: 3; }
+.fl-lanes.is-insert .fl-marks, .fl-lanes.is-insert .fl-lane__marks { cursor: copy; }
+.fl-mark { position: absolute; top: 2px; bottom: 2px; padding: 0 4px 0 6px; border: 0; border-left: var(--border-w-strong) solid var(--track-c, var(--text)); background: transparent; color: var(--text); font: var(--weight-semibold) var(--font-size-2xs)/1 var(--font-sans); white-space: nowrap; text-align: left; cursor: grab; touch-action: none; }
+.fl-lane__marks .fl-mark { top: 0; bottom: 0; }
+.fl-mark.is-range { background: color-mix(in srgb, var(--track-c, var(--text)) 16%, transparent); border-right: var(--border-w) solid var(--track-c, var(--text)); overflow: hidden; }
+.fl-mark.is-selected { outline: var(--border-w-strong) solid var(--accent); }
+.fl-mark.is-draft { pointer-events: none; border-style: dashed; }
+.fl-mark__edge { position: absolute; top: 0; bottom: 0; width: 6px; cursor: ew-resize; }
+.fl-mark__edge.is-in { left: -3px; }
+.fl-mark__edge.is-out { right: -3px; }
+.fl-mline { position: absolute; top: 0; bottom: 0; width: 0; border-left: var(--border-w) dashed var(--text-secondary); pointer-events: none; }
+.fl-mband { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--text) 6%, transparent); pointer-events: none; }
+.fl-empty { padding: var(--space-5) 0; color: var(--text-secondary); font-size: var(--font-size-sm); }
+.fl-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: 0 var(--space-5) var(--space-5); }
+.fl-swatches { display: grid; grid-template-columns: repeat(3, 28px); gap: var(--space-2); padding: var(--space-3); }
+.fl-swatch { width: 28px; height: 28px; border-radius: 50%; border: var(--border-w) solid var(--border-control); cursor: pointer; padding: 0; }
+.fl-swatch.is-on { outline: var(--border-w-strong) solid var(--focus); outline-offset: 2px; }
+.fl-swatch.is-none { background: repeating-linear-gradient(135deg, var(--surface) 0 4px, var(--border-divider) 4px 6px); }
+.fl-menu { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-width: 220px; }
+.fl-list { display: grid; }
+.fl-props { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-5) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
+.fl-inspect { display: grid; gap: var(--space-4); padding: var(--space-4) var(--space-5); }
+.fl-inspect .hw-ctl--range { width: 100%; }
+.fl-chan { display: grid; gap: var(--space-3); }
+.fl-note { margin: 0; color: var(--text-secondary); font-size: var(--font-size-sm); }
+.fl-standalone { height: 100vh; display: flex; flex-direction: column; background: var(--surface); }

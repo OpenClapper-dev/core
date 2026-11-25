@@ -9,7 +9,7 @@
  * then, so a page's own letter never swallows a section jump.
  */
 
-export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin" | "photo" | "timeline";
+export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin" | "photo" | "timeline" | "flows";
 
 export interface Scope {
   label: string;
@@ -29,6 +29,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   bin: { label: "Recycle bin", with: [] },
   photo: { label: "Photo", with: [] },
   timeline: { label: "Timeline", with: [] },
+  flows: { label: "Flows (extension)", with: [] },
 };
 
 export interface Shortcut {
@@ -131,6 +132,19 @@ export const SHORTCUTS = [
   { scope: "timeline", action: "undo", keys: ["Mod+z"], label: "Undo" },
   { scope: "timeline", action: "redo", keys: ["Mod+Z", "Mod+y"], display: "Mod+Shift+Z", label: "Redo" },
   { scope: "timeline", action: "pick", keys: ["Shift+Click"], info: true, label: "Choose several clips: Shift adds a range, Ctrl one more" },
+
+  // ---- Flows (docs/features/flows.md)
+  { scope: "flows", action: "play", keys: [" "], display: "Space", label: "Play from the playhead; again: stop and go back to where play started" },
+  { scope: "flows", action: "stopHere", keys: ["k"], label: "Stop where it is" },
+  { scope: "flows", action: "selectMode", keys: ["v"], label: "Select mode: clicks select, never add" },
+  { scope: "flows", action: "insertMode", keys: ["i"], label: "Insert mode: a click on a lane adds a keyframe" },
+  { scope: "flows", action: "marker", keys: ["m"], label: "A marker at the playhead" },
+  { scope: "flows", action: "markerRange", keys: ["M"], display: "Shift+M", label: "A range marker: in, then out" },
+  { scope: "flows", action: "remove", keys: ["Delete", "Backspace"], display: "Delete", label: "Delete the selected keyframes and markers" },
+  { scope: "flows", action: "all", keys: ["Mod+a"], label: "Select every keyframe and marker" },
+  { scope: "flows", action: "clear", keys: ["Escape"], pass: true, label: "Clear the selection" },
+  { scope: "flows", action: "add", keys: ["Alt+Click"], info: true, label: "Add a keyframe in Select mode too" },
+  { scope: "flows", action: "pick", keys: ["Shift+Click", "Drag"], info: true, label: "Shift-click adds to the selection; drag over the lanes for a box" },
 ] as const satisfies readonly Shortcut[];
 
 type Entry = (typeof SHORTCUTS)[number];

@@ -107,3 +107,19 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | Mod+Shift+Z | Redo |
 | ⇧Click | Choose several clips: Shift adds a range, Ctrl one more |
 
+## Flows (extension)
+
+| Keys | What |
+| --- | --- |
+| Space | Play from the playhead; again: stop and go back to where play started |
+| K | Stop where it is |
+| V | Select mode: clicks select, never add |
+| I | Insert mode: a click on a lane adds a keyframe |
+| M | A marker at the playhead |
+| Shift+M | A range marker: in, then out |
+| Delete | Delete the selected keyframes and markers |
+| ⌘A | Select every keyframe and marker |
+| Esc | Clear the selection |
+| Alt Click | Add a keyframe in Select mode too |
+| ⇧Click / Drag | Shift-click adds to the selection; drag over the lanes for a box |
+

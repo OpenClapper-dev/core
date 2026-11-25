@@ -1,7 +1,7 @@
 /* The Hardware extension in Devices (docs/features/hardware.md): controls drawn from the catalogue, the device panel. */
 .hw-ctl { display: grid; gap: 4px; min-width: 0; }
-.hw-ctl > small { display: flex; justify-content: space-between; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
-.hw-ctl > small b { font: 600 var(--font-size-xs)/1 var(--font-mono); color: var(--text); }
+.hw-ctl > small { display: flex; justify-content: space-between; gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.hw-ctl > small b { font: 600 var(--font-size-2xs)/1 var(--font-mono); color: var(--text); }
 .hw-ctl--range { width: 200px; }
 .hw-ctl--switch, .hw-ctl--button { align-self: center; }
 .hw-colour { grid-template-columns: 24px 200px 200px; align-items: end; gap: var(--space-4); }
@@ -13,13 +13,13 @@
 .hw-outputs th, .hw-outputs td { padding: 2px var(--space-4) 2px 0; text-align: left; }
 .hw-outputs td.is-unknown { opacity: .45; }
 .hw-tc { font: 600 var(--font-size-sm)/1 var(--font-mono); color: var(--text); align-self: center; }
-.hw-note { color: var(--text-secondary); font-size: var(--font-size-xs); align-self: center; }
+.hw-note { color: var(--text-secondary); font-size: var(--font-size-2xs); align-self: center; }
 .hw-panel { width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 64px); }
 .hw-panel .oc-dialog__body { overflow: auto; display: grid; gap: var(--space-5); }
 .hw-panel__title { display: inline-flex; align-items: center; gap: var(--space-3); }
-.hw-panel__title small { color: var(--text-secondary); font-size: var(--font-size-xs); font-weight: 400; }
+.hw-panel__title small { color: var(--text-secondary); font-size: var(--font-size-2xs); font-weight: 400; }
 .hw-panel__state { display: flex; align-items: center; gap: var(--space-5); }
-.hw-panel__state small { color: var(--text-secondary); font-size: var(--font-size-xs); }
+.hw-panel__state small { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .hw-group { display: grid; gap: var(--space-3); }
 .hw-group h4 { margin: 0; }
 .hw-group h4 button { all: unset; cursor: pointer; }
@@ -31,11 +31,11 @@
 .hw-facts { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--space-5); margin: 0; font-size: var(--font-size-sm); }
 .hw-facts dt { color: var(--text-secondary); }
 .hw-facts dd { margin: 0; font-family: var(--font-mono); }
-.hw-log { margin: 0; max-height: 200px; overflow: auto; padding: var(--space-3); border-radius: var(--radius-xs); background: var(--surface-sunken); font: var(--font-size-xs)/1.5 var(--font-mono); white-space: pre-wrap; }
+.hw-log { margin: 0; max-height: 200px; overflow: auto; padding: var(--space-3); border-radius: var(--radius-xs); background: var(--surface-sunken); font: var(--font-size-2xs)/1.5 var(--font-mono); white-space: pre-wrap; }
 .hw-add { width: min(820px, calc(100vw - 32px)); }
 .hw-add__cols { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: var(--space-6); }
 .hw-add .oc-row { flex-wrap: wrap; height: auto; min-height: var(--control-h); padding-block: 4px; row-gap: 2px; }
 .hw-add .oc-row__main { flex: 1 1 auto; min-width: 0; }
 .hw-add .oc-row__meta { flex: 1 0 100%; padding-left: 28px; line-height: 1.4; white-space: normal; }
-.hw-add__cols h4, .hw-add h4 { margin: 0 0 var(--space-3); font-size: var(--font-size-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.hw-add__cols h4, .hw-add h4 { margin: 0 0 var(--space-3); font-size: var(--font-size-2xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
 @media (max-width: 720px) { .hw-add__cols { grid-template-columns: 1fr; } .hw-colour { grid-template-columns: 24px 1fr; } }

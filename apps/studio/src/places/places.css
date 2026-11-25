@@ -3,8 +3,8 @@
 .pl-map { position: absolute; inset: 0; background: var(--surface-sunken); font: inherit; }
 .pl-map--edit { position: relative; inset: auto; height: min(60vh, 460px); border-radius: var(--radius-control); cursor: crosshair; }
 .pl-dialog { width: min(760px, calc(100vw - 48px)); }
-.pl-coords { color: var(--text-secondary); font-size: var(--font-size-xs); }
-.pl-note { position: absolute; left: 56px; top: var(--space-4); z-index: 500; padding: 2px var(--space-4); border-radius: var(--radius-control); background: var(--surface); color: var(--text-secondary); font-size: var(--font-size-xs); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.pl-coords { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.pl-note { position: absolute; left: 56px; top: var(--space-4); z-index: 500; padding: 2px var(--space-4); border-radius: var(--radius-control); background: var(--surface); color: var(--text-secondary); font-size: var(--font-size-2xs); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
 /* Dark theme: the tiles are turned dark too, so the map does not glare. */
 [data-theme="dark"] .pl-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
 .pl-map .leaflet-control-attribution { background: var(--surface); color: var(--text-secondary); }
