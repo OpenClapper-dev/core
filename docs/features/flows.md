@@ -20,7 +20,7 @@ Limits: up to 1 hour, 64 tracks, 2,000 keyframes, 200 markers. Checked on every 
 
 One player for the Studio and the phone, so a flow plays the same wherever it runs: every 100 ms it samples each assigned, unmuted track and sends only what changed. A light that fades by itself (the MC) gets one native fade per fade tile (chained over 25.5 s); a running effect means no fade. A light with switchable smoothing (NEEWER) jumps at keyframes and smooths inside fades. A camera track sends a control when its held value changes. Loop restarts at 0 and sends everything again.
 
-## Running on the phone (channel `flows`, `packages/ext-flows/src/protocol.ts`)
+## Running on the device (channel `flows`, `packages/ext-flows/src/protocol.ts`)
 
 A client saves the flow and names the revision it saved (`updated_at`): `run { flow, revision, fromMs }`; the proxy phone fetches exactly that revision (asked again a few times if the server still has the previous one) and plays it on its own clock through its own connections. `stop`, `hello`. It reports `state { phase: idle | loading | playing | error, flow, name, revision, atMs, durationMs, loop, error }` on every change, every 250 ms while playing, and on `hello`.
 
@@ -36,7 +36,7 @@ The app **Flows** (one window for the project's flows): the list of flows in a p
 - **Playing**: Space plays from the playhead and, again, stops and goes back to where play started; K stops where it is. **Live** (on by default) sends the state at the playhead while stopped, and every edit; a camera's recording is never started or stopped by Live, only by playing. While a flow plays from here, its devices are locked in Devices. A proxy that appears again gets everything sent anew.
 - **Run on device** (from the start, or the button beside it from the playhead): the editor saves first and the device plays exactly that revision; meanwhile the flow is locked, its playhead follows the phone, and Play and Live are off for every flow. Stop in the banner or Space stops it.
 
-## On the device (phone or tablet) and tablet (`apps/mobile/src/ext/flows/`)
+## On the device (phone or tablet) (`apps/mobile/src/ext/flows/`)
 
 The app **Flows** (a tab like any other while the project has the extension on):
 
