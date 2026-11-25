@@ -61,7 +61,8 @@ function tempPassword(): string {
 
 const router = new Router<Ctx>();
 
-router.on("GET", "/api/whoami", async ({ admin, env }) => json({ email: admin, ...BUILD, instance: env.INSTANCE_LABEL ?? "" }));
+// The local bypass is a development instance, whatever was built: the board then shows the development mark and icon.
+router.on("GET", "/api/whoami", async ({ admin, env }) => json({ email: admin, ...BUILD, instance: env.INSTANCE_LABEL ?? (admin === LOCAL_OPERATOR ? "development" : "") }));
 
 router.on("GET", "/api/overview", async ({ env }) => {
   const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
@@ -232,11 +233,12 @@ router.on("GET", "/api/cloudflare", async ({ env, url }) => {
 });
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const LOCAL_OPERATOR = "admin@localhost";
 
 /** The operator: verified Access JWT of the admin application (its own AUD), or the local bypass on a local hostname. */
 async function operator(request: Request, url: URL, env: Env): Promise<string> {
   if (env.ADMIN_DEV_BYPASS === "true") {
-    if (LOCAL_HOSTS.has(url.hostname)) return "admin@localhost";
+    if (LOCAL_HOSTS.has(url.hostname)) return LOCAL_OPERATOR;
     console.warn(`admin: ADMIN_DEV_BYPASS ignored for host ${url.hostname}`);
   }
   const who = await verifyAccessJwt(request, env);

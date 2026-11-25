@@ -70,7 +70,7 @@ Canvases in Media and the Canvas tab, with the Studio's editor in a web view: [c
 | Account | Signed in as; change password (every other session ends); sign out (the queue stays on the phone) or sign in |
 | This device | Name (rename), model, kind, screen, the real lenses with what they report |
 | Tabs on this device | The tabs in order (up, down, off); Setup locked; the apps not on the device to add |
-| Uploads | The queue photo by photo with its state, Retry and Discard for a stuck one, Send now; originals on Wi-Fi only |
+| Uploads | The queue photo by photo with its state, Retry and Discard for a stuck one, Send now |
 | Camera | Lens names (the phone's or focal lengths); a collection's name (by the pattern, ask at start, ask at end) |
 | Appearance | Theme (like the phone, Light, Dark); how a photo shows its collection (bar, bar left, dot, frame) |
 | Offline | Offline mode: no requests at all; keep the project on this device (its thumbnails and previews, for Media without a connection; originals stay on the server) |

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Image } from "react-native";
 import { isOfflineMode } from "../net";
-import { setPrefs, usePrefs } from "../prefs";
 import { projects } from "../projects";
 import { settings, setSettings } from "../settings";
 import { cacheBytes } from "../media/cache";
@@ -13,7 +12,7 @@ import { addOfflineSection, addSetupPage, addSetupRow, openSetup } from "./Setup
 
 /**
  * Setup's Uploads page (docs/rewrite/03-capture.md, "Upload queue"): what is not on the server yet,
- * photo by photo, with Retry and Discard for a stuck one; originals on Wi-Fi only. And the Offline
+ * photo by photo, with Retry and Discard for a stuck one. And the Offline
  * page's second switch: keep the project's thumbnails and previews on the phone.
  */
 const STATE = { waiting: "Waiting to upload", preview: "Preview sent, the original waits", stuck: "Stuck: the server refused it" } as const;
@@ -21,13 +20,11 @@ const STATE = { waiting: "Waiting to upload", preview: "Preview sent, the origin
 function UploadsPage({ back }: { back: () => void }) {
   const { c } = useTheme();
   const q = queue.use();
-  const prefs = usePrefs();
   const names = projects.use();
   const counts = useQueueCounts();
   return (
     <Screen header={<Header title="Uploads" sub={isOfflineMode() ? "Offline mode: nothing is sent" : counts.waiting ? `${counts.waiting} waiting` : "All sent"} onBack={back} />}
       footer={counts.waiting > counts.stuck ? <Button style={{ flex: 1 }} icon="refresh" label="Send now" disabled={isOfflineMode()} onPress={() => void flush()} /> : undefined}>
-      <Toggle icon="wifi" label="Originals on Wi-Fi only" meta="Thumbnail and preview go at once; the original waits for Wi-Fi." value={prefs.originalsOnWifi} onChange={(v) => { setPrefs({ originalsOnWifi: v }); if (!v) void flush(); }} />
       {q.map((x) => {
         const st = stateOf(x);
         const uri = queuedUri(x);

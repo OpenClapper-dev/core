@@ -62,7 +62,8 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   lensNames: (v) => oneOf(v, ["phone", "focal"]),
   // Collection mode asks for a name when a collection starts, when it ends, or never.
   askCollectionName: (v) => oneOf(v, ["never", "start", "end"]),
-  // Originals wait for Wi-Fi on the phone; thumbnail and preview go at once.
+  // No longer read (#426: the original is always sent at once); still accepted, since the clients write a stored
+  // file back whole. Goes when the preferences become one settings file per page (#426).
   originalsOnWifi: (v) => typeof v === "boolean",
   // How long a clip added to a timeline holds, unless the timeline says otherwise (docs/features/timeline.md).
   // A canvas made from a photo starts with the frame the photo was taken with (docs/features/camera-layouts.md).

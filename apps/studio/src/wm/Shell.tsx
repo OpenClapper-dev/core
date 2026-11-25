@@ -188,7 +188,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
     ...(list ?? []).filter((p) => p.id !== projectId).map((p): Command => ({ id: `proj-${p.id}`, group: "Switch project", icon: "slate", label: p.name, run: () => void switchProject(p.id).then((ok) => ok && toast(`Now working on ${p.name}`)) })),
     { id: "a-theme", group: "Actions", icon: "palette", label: `Theme: switch to ${nextTheme === "auto" ? "the system's" : nextTheme}`, run: () => setTheme(nextTheme) },
     { id: "a-desktop", group: "Actions", icon: "desktop", label: "Show the desktop", kbd: "⌘+Alt+D", run: () => wm.toggleDesktop() },
-    { id: "a-taskview", group: "Actions", icon: "layers", label: "Task view", kbd: "⌘+Alt+V", run: () => openOverlay("taskview") },
+    { id: "a-taskview", group: "Actions", icon: "task-view", label: "Task view", kbd: "⌘+Alt+V", run: () => openOverlay("taskview") },
     { id: "a-newdesk", group: "Actions", icon: "plus", label: "New desktop", kbd: "⌘+Alt+N", run: () => { wm.addDesk({ go: true }); } },
     { id: "a-keys", group: "Actions", icon: "keyboard", label: "Keyboard shortcuts", kbd: "?", run: () => openOverlay("sheet") },
     { id: "a-reload", group: "Actions", icon: "refresh", label: "Reload the Studio", run: () => location.reload() },
@@ -199,7 +199,7 @@ function DesktopShell({ projectId, ready }: { projectId: string; ready: boolean 
   const snapPreview: JSX.CSSProperties | undefined = zone === "max" ? { inset: 0 } : zone === "left" ? { left: 0, top: 0, bottom: 0, width: pct(split) } : zone === "right" ? { right: 0, top: 0, bottom: 0, width: pct(1 - split) } : undefined;
   /** What the shell adds to the desktop's right-click menu, under the icons' own entries. */
   const shellMenu: MenuEntry[] = [
-    { id: "taskview", label: "Task view", icon: "layers", kbd: "⌘Alt V", run: () => openOverlay("taskview") },
+    { id: "taskview", label: "Task view", icon: "task-view", kbd: "⌘Alt V", run: () => openOverlay("taskview") },
     { id: "newdesk", label: "New desktop", icon: "plus", kbd: "⌘Alt N", run: () => { wm.addDesk({ go: true }); } },
     { separator: true },
     { id: "theme", label: `Theme: switch to ${nextTheme === "auto" ? "the system's" : nextTheme}`, icon: "palette", run: () => setTheme(nextTheme) },

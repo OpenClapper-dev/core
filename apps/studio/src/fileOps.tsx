@@ -5,7 +5,7 @@ import { Button, Dialog, Tree, type TreeNodeData } from "@openclapper/design";
 import { MAX_FILE_NAME, emptyCanvas, fileType, placementError } from "@openclapper/model";
 import type { FileRec, Root } from "./api";
 import { appDef, appFor, launch } from "./apps/registry";
-import { kindOf, targetOf } from "./fileKinds";
+import { fixedGlyph, kindOf, targetOf } from "./fileKinds";
 import * as store from "./files";
 import { openDialog, prompt, toast, toastError } from "./hosts";
 
@@ -146,7 +146,7 @@ export async function makeShortcut(root: Root, files: readonly FileRec[], target
 export function folderNodes(files: readonly FileRec[], parent: string | null, skip: ReadonlySet<string> = new Set()): TreeNodeData[] {
   return files.filter((f) => kindOf(f.type).holds && f.container === parent && !f.internal_of && !skip.has(f.id))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }))
-    .map((f) => ({ id: f.id, label: f.name, icon: f.fixed ? "lock" : kindOf(f.type).glyph, children: folderNodes(files, f.id, skip) }));
+    .map((f) => ({ id: f.id, label: f.name, icon: f.fixed ? fixedGlyph(f.fixed) : kindOf(f.type).glyph, children: folderNodes(files, f.id, skip) }));
 }
 
 function FolderPicker({ files, rootLabel, skip, title, onPick, close }: { files: readonly FileRec[]; rootLabel: string; skip: ReadonlySet<string>; title: string; onPick: (container: string | null) => void; close: () => void }) {

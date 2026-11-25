@@ -1,9 +1,7 @@
 import { Directory, File } from "expo-file-system";
-import * as Network from "expo-network";
 import { canCall, isRejection, putPhoto, putPhotoPart, type PhotoMeta } from "../api";
 import { kv, dataDir } from "../kv";
 import { log } from "../log";
-import { getPrefs } from "../prefs";
 import { onProjectRemap, projects } from "../projects";
 import { persisted } from "../store";
 import { onSync } from "../sync";
@@ -13,8 +11,8 @@ import { nextStep, rejected, type Step } from "./steps";
 /**
  * The upload queue (docs/rewrite/03-capture.md, "Upload queue"): one photo per entry, with its three
  * files on the phone. A photo is stored here before anything else happens and is never deleted for
- * a rejection. Steps: what is known (the photo route), thumbnail, preview, then the original (on Wi-Fi
- * only, if the person wants). Every step is idempotent on the server, so any can be sent again.
+ * a rejection. Steps: what is known (the photo route), thumbnail, preview, then the untouched
+ * original, at once. Every step is idempotent on the server, so any can be sent again.
  * Network errors stop the run and wait for the next sync; a rejection counts, and the third parks the
  * photo as stuck with the server's error, to retry or discard by hand. Once the original is stored
  * the phone deletes its copy and keeps thumbnail and preview in the image cache.
@@ -73,10 +71,6 @@ export function discard(id: string) {
 /** A project made on the phone turned out to exist on the server: its photos go there. */
 onProjectRemap((from, to) => queue.set((q) => q.map((x) => (x.meta.project_id === from ? { ...x, meta: { ...x.meta, project_id: to } } : x))));
 
-async function onWifi(): Promise<boolean> {
-  try { const s = await Network.getNetworkStateAsync(); return s.type === Network.NetworkStateType.WIFI || s.type === Network.NetworkStateType.ETHERNET; } catch { return false; }
-}
-
 const doneListeners = new Set<(id: string, done: QueuedPhoto | null) => void>();
 /** Called when a photo's preview is on the server, and when it is done (with the entry that just left the queue). */
 export const onUploaded = (cb: (id: string, done: QueuedPhoto | null) => void) => { doneListeners.add(cb); return () => { doneListeners.delete(cb); }; };
@@ -85,13 +79,12 @@ function update(id: string, change: Partial<QueuedPhoto>) {
   queue.set((q) => q.map((x) => (x.id === id ? { ...x, ...change } : x)));
 }
 
-async function send(p: QueuedPhoto, wifiOnly: boolean, wifi: () => Promise<boolean>): Promise<"next" | "wait"> {
+async function send(p: QueuedPhoto): Promise<"next" | "wait"> {
   for (;;) {
     const cur = queue.get().find((x) => x.id === p.id);
     if (!cur || cur.stuck) return "next";
     const step = nextStep(cur.step);
     if (step === "done") break;
-    if (step === "original" && wifiOnly && !(await wifi())) return "next";
     try {
       if (step === "meta") await putPhoto(cur.id, cur.meta);
       else {
@@ -132,12 +125,9 @@ export function flush(): Promise<void> {
     do {
       again = false;
       if (!canCall()) return;
-      const wifiOnly = getPrefs().originalsOnWifi;
-      let wifiKnown: boolean | null = null;
-      const wifi = async () => (wifiKnown ??= await onWifi());
       // A project made on the phone must be on the server before its photos (the sync creates it first).
       const ready = new Set(projects.get().filter((x) => x.synced).map((x) => x.id));
-      for (const p of queue.get().filter((x) => !x.stuck && ready.has(x.meta.project_id))) if ((await send(p, wifiOnly, wifi)) === "wait") return;
+      for (const p of queue.get().filter((x) => !x.stuck && ready.has(x.meta.project_id))) if ((await send(p)) === "wait") return;
     } while (again);
   })().finally(() => { running = null; });
   return running;

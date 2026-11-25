@@ -401,7 +401,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     const stack = f.type === "collection" ? photosOf(f, all) : null;
     return (
       <FileCard key={f.id} name={f.name} meta={facts(f)} art={thumb ? (coverOf(f, map) ? <CoverArt f={f} files={map} presets={presetMap} /> : <img src={thumb} alt="" draggable={false} loading="lazy" />) : icon(f, 48)} picture={!!thumb}
-        badge={f.fixed ? <Icon name="lock" size={12} /> : lookOf(f, map).shortcut ? <Icon name="shortcut" size={12} /> : thumb && f.type !== "photo" ? icon(f, 20) : undefined}
+        badge={lookOf(f, map).shortcut ? <Icon name="shortcut" size={12} /> : thumb && f.type !== "photo" ? icon(f, 20) : undefined}
         stack={stack ? { srcs: stack.filter((p) => p.photo?.stored.thumbnail).slice(0, 40).map((p) => imageUrl(p.id, "thumbnail")), count: stack.length } : undefined}
         tint={coll && !(openColl && f.type === "photo") ? tintOf(coll) : undefined} mark={mark} upload={uploadOf(f)}
         title={f.type === "photo" && coll && f.type !== coll.type ? `In the collection “${coll.name}”` : undefined}
@@ -411,7 +411,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const nameCell = (f: FileRec) => {
     const thumb = thumbOf(f, all);
     const up = uploadOf(f);
-    return <span className="st-name">{thumb ? <img className="st-mini" src={thumb} alt="" loading="lazy" /> : icon(f, 20)}{f.name}{f.fixed && <Icon name="lock" size={12} label="Fixed folder" />}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}{up && <UploadBadge state={up} />}</span>;
+    return <span className="st-name">{thumb ? <img className="st-mini" src={thumb} alt="" loading="lazy" /> : icon(f, 20)}{f.name}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}{up && <UploadBadge state={up} />}</span>;
   };
   // The Shots list shows the shot properties as columns: the shot list as a table.
   const columnDefs = shotsOnly ? defs.filter((d) => d.def.attached.some((a) => a.type === only && !a.hidden)) : [];
