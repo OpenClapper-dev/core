@@ -3,6 +3,7 @@
  * frames table kept from a canvas's body, the edit lock (one editor at a time, for every lockable
  * type), a canvas's render and thumbnail, and the additive rule of presets.
  */
+import { tellRoom } from "./live.ts";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import { fileType, presetChangeError, type CanvasBody, type PresetBody, type ShotBody } from "@openclapper/model";
 import { accessFile, fileOut } from "./files.ts";
@@ -132,6 +133,7 @@ export function registerCanvasRoutes(r: Router<Ctx>) {
     ).bind(f.id, tenant.userId, holder, until, now()).run();
     const row = await env.DB.prepare("SELECT lock_by, lock_until FROM files WHERE id = ?1").bind(f.id).first<{ lock_by: string; lock_until: string }>();
     if (!took.meta.changes) return json({ error: "someone else is editing this file", lock: { by: row!.lock_by, until: row!.lock_until } }, 423);
+    await tellRoom(env, f.id, { type: "lock", by: row!.lock_by, until: row!.lock_until });
     return json({ lock: { by: row!.lock_by, until: row!.lock_until } });
   });
 
@@ -139,7 +141,8 @@ export function registerCanvasRoutes(r: Router<Ctx>) {
   r.on("DELETE", "/api/files/:id/lock", async (ctx, { id }) => {
     const f = await accessFile(ctx, assertUuid(id, "id"), "viewer");
     const holder = readHolder(ctx.url.searchParams.get("holder"));
-    await ctx.env.DB.prepare("UPDATE files SET lock_by = NULL, lock_holder = NULL, lock_until = NULL WHERE id = ?1 AND lock_by = ?2 AND lock_holder = ?3").bind(f.id, ctx.tenant.userId, holder).run();
+    const letGo = await ctx.env.DB.prepare("UPDATE files SET lock_by = NULL, lock_holder = NULL, lock_until = NULL WHERE id = ?1 AND lock_by = ?2 AND lock_holder = ?3").bind(f.id, ctx.tenant.userId, holder).run();
+    if (letGo.meta.changes) await tellRoom(ctx.env, f.id, { type: "lock", by: null, until: null });
     return new Response(null, { status: 204 });
   });
 

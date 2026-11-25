@@ -86,9 +86,12 @@ export function useEditLock(file: FileRec, nameOf: (userId: string) => string, o
     return () => { clearInterval(renew); clearInterval(look); window.removeEventListener("pagehide", bye); bye(); };
   }, [file.id]);
 
-  // The live room: opened again when this window starts or stops editing (its role changes), and after a drop.
+  // The live room: opened again when this window starts or stops editing (its role changes), and after a drop. In every
+  // project, so who edits is never stale (#426); the content itself streams only in a realtime project.
+  const realtime = useRef(opts.realtime);
+  realtime.current = opts.realtime;
   useEffect(() => {
-    if (!opts.realtime || opts.off) return;
+    if (opts.off) return;
     let ws: WebSocket | null = null, done = false, retry: ReturnType<typeof setTimeout> | undefined;
     const open = () => {
       const s = new WebSocket(`${location.origin.replace(/^http/, "ws")}/api/canvases/${file.id}/live?holder=${holder}`);
@@ -98,16 +101,18 @@ export function useEditLock(file: FileRec, nameOf: (userId: string) => string, o
         if (held.current) return;
         let m: { type?: string; body?: Record<string, unknown>; refs?: LiveDoc["refs"]; by?: string | null };
         try { m = JSON.parse(String(e.data)) as typeof m; } catch { return; }
-        if (m.type === "doc" && m.body) remote.current?.({ body: m.body, refs: m.refs });
+        if (m.type === "doc" && m.body) { if (realtime.current) remote.current?.({ body: m.body, refs: m.refs }); }
         else if (m.type === "saved") void reread(false).catch(() => {});
-        else if (m.type === "editor") setBy(m.by ? nameOf(m.by) : null);
+        // Let go or run out: free to edit now, and the last save is read.
+        else if (m.type === "editor") { setBy(m.by ? nameOf(m.by) : null); if (!m.by) void reread(false).catch(() => {}); }
       };
       s.onclose = () => { if (sock.current === s) { sock.current = null; setLive(false); } if (!done) retry = setTimeout(open, 3000); };
     };
     open();
     return () => { done = true; clearTimeout(retry); if (sock.current === ws) { sock.current = null; setLive(false); } ws?.close(); };
-  }, [opts.realtime, editing, file.id]);
+  }, [opts.off, editing, file.id]);
   const send = (doc: () => LiveDoc) => {
+    if (!realtime.current) return;
     const st = sending.current;
     st.doc = doc;
     if (st.timer) return;

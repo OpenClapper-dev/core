@@ -1,6 +1,7 @@
 import {
   BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, SETTINGS_PAGE_NAMES, SETTINGS_PAGES, type SettingsPage, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
   nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind, type ShotBody, keepGuarded } from "@openclapper/model";
+import { tellRoom } from "./live.ts";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
 import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys, shotFrameStatements } from "./canvas.ts";
@@ -453,6 +454,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     await env.DB.batch(stmts);
     // A changed definition: values that no longer fit it are fitted or dropped.
     if (t.type === "property" && stored && save && root.projectId) await refitValues(env, root.projectId, fid);
+    // Whoever watches a lockable file hears at once that it was saved (#426: from any client, the device's too).
+    if (stored && t.lockable) await tellRoom(env, fid, { type: "saved" });
     return json({ file: await fileOut(env, fid) }, stored ? 200 : 201);
   });
 

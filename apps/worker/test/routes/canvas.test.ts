@@ -112,10 +112,29 @@ describe("live updates", () => {
     viewer.send(JSON.stringify({ type: "doc", body: { forged: true }, base: null }));
     editor.send(JSON.stringify({ type: "draft", draft: null }));
     await new Promise((r) => setTimeout(r, 200));
-    expect(inbox).toEqual([{ type: "editor", by: null }, { type: "editor", by: u.id }, { type: "doc", body, base: null }, { type: "draft", draft: null }]);
+    // The lock was taken before the viewer came: it hears who holds it at once (#426).
+    expect(inbox).toEqual([{ type: "editor", by: u.id }, { type: "editor", by: u.id }, { type: "doc", body, base: null }, { type: "draft", draft: null }]);
     editor.close(1000); viewer.close(1000);
+    // A project that watches the content every 5 seconds still gets the lock live.
     await ok(api(u.token, "PUT", `/api/projects/${project}`, { name: `P ${project}`, canvas_live: "gradual" }));
-    expect((await live("wviewer000001")).status).toBe(409);
+    expect((await live("wviewer000002")).status).toBe(101);
+  });
+
+  test("the lock is live without an editor's socket: taken, saved and let go reach every watcher (#426)", async () => {
+    await newProject();
+    const c = uuid();
+    const body = { surface: { kind: "blank", aspect: 1.5, color: 0 }, objects: [], frames: [], picture: null, linkCentres: true, comments: [] };
+    await put(c, { type: "canvas", project_id: project, body }, 201);
+    const inbox: unknown[] = [];
+    const viewer = (await api(u.token, "GET", `/api/canvases/${c}/live?holder=wviewer000003`, undefined, { Upgrade: "websocket" })).webSocket!;
+    viewer.accept();
+    viewer.addEventListener("message", (e) => { inbox.push(JSON.parse(String(e.data))); });
+    await ok(api(u.token, "POST", `/api/files/${c}/lock`, { holder: "wdevice000001" }));
+    await ok(api(u.token, "PUT", `/api/files/${c}`, { body }, { "x-lock-holder": "wdevice000001" }));
+    expect((await api(u.token, "DELETE", `/api/files/${c}/lock?holder=wdevice000001`)).status).toBe(204);
+    await new Promise((r) => setTimeout(r, 200));
+    expect(inbox).toEqual([{ type: "editor", by: null }, { type: "editor", by: u.id }, { type: "saved" }, { type: "editor", by: null }]);
+    viewer.close(1000);
   });
 });
 
