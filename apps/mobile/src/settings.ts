@@ -25,7 +25,7 @@ export const CAMERA_BUTTONS: Record<CameraButtonSize, { size: number; icon: numb
 
 export const settings = persisted<LocalSettings>("settings.v2", { offlineMode: false, keepProject: false, logging: false });
 /** This device's camera button sizes. */
-export const useCameraButtons = () => CAMERA_BUTTONS[settings.use().cameraButtons ?? "m"];
+export const useCameraButtons = () => CAMERA_BUTTONS[settings.use().cameraButtons ?? "m"] ?? CAMERA_BUTTONS.m;
 
 export function setSettings(change: Partial<LocalSettings>) {
   settings.set((s) => ({ ...s, ...change }));
