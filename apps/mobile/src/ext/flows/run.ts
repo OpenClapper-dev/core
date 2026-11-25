@@ -7,7 +7,7 @@ import { hub } from "../hardware/hub";
 import { onLetGo, proxyRunning } from "../hardware/proxy";
 
 /**
- * A flow running on the phone itself (docs/features/flows.md, "Running on the phone"; #321): a client names a flow and
+ * A flow running on the phone itself (docs/features/flows.md, "Running on the device"; #321): a client names a flow and
  * the revision it saved; the proxy phone fetches exactly that and plays it on its own clock through its own
  * connections, with the same player as the Studio. It keeps playing when the Studio goes away; it stops when the
  * proxy lets go of its connections (switched off, or a pairing takes the radio).
@@ -56,11 +56,11 @@ async function run(id: string, revision: string, fromMs: number) {
   } catch (e) {
     if (mine !== gen) return;
     log("warn", "run: flow not fetched", { flow: id, error: e });
-    set({ phase: "error", error: `The phone could not fetch the flow: ${e instanceof Error ? e.message : String(e)}` });
+    set({ phase: "error", error: `The device could not fetch the flow: ${e instanceof Error ? e.message : String(e)}` });
     return;
   }
   if (mine !== gen) return;
-  if (!got) { set({ phase: "error", error: "The phone got another version of the flow than was saved; try again." }); return; }
+  if (!got) { set({ phase: "error", error: "The device got another version of the flow than was saved; try again." }); return; }
   flow = got;
   const from = Math.min(Math.max(0, fromMs), got.durationMs);
   log("info", "run: playing", { flow: got.id, revision, from });

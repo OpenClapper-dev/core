@@ -9,7 +9,7 @@ export const TYPE_LOOK: Record<HardwareType, { icon: IconName; color: number }> 
 /** How a device's connection reads, and its tone (U6: state in colour, not as text alone). */
 export function linkOf(d: HardwareDevice, live: FixtureLive | undefined, proxy: boolean): { label: string; tone: "ok" | "warn" | "danger" | "off" } {
   if (d.body.asleep) return { label: "Asleep · not connecting", tone: "off" };
-  if (modelOf(d.body.model)?.transport === "wifi") return { label: "On the phone's Wi-Fi", tone: "off" };
+  if (modelOf(d.body.model)?.transport === "wifi") return { label: "On the device's Wi-Fi", tone: "off" };
   if (!proxy) return { label: "No proxy", tone: "off" };
   switch (live?.link) {
     case "ready": return { label: "Connected", tone: "ok" };

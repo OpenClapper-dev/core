@@ -107,7 +107,7 @@ function Outputs({ live, send, disabled }: { live: FixtureLive | undefined; send
         <tbody>{OUTPUT_ROWS.map((r) => (
           <tr key={r.label}><td>{r.label}</td>{OUTPUTS.map((o) => {
             const bits = outputBits(live, r.key, o.bit);
-            return <td key={o.id} className={cx(bits === undefined && "is-unknown")} title={bits === undefined ? "Unknown: not set from here since the phone app started" : undefined}><Switch checked={!!((bits ?? 0) & r.bit)} disabled={disabled} onChange={() => send(outputCommand(live, r.key, r.bit, o.bit))} aria-label={`${r.label} on ${o.label}`} /></td>;
+            return <td key={o.id} className={cx(bits === undefined && "is-unknown")} title={bits === undefined ? "Unknown: not set from here since the device app started" : undefined}><Switch checked={!!((bits ?? 0) & r.bit)} disabled={disabled} onChange={() => send(outputCommand(live, r.key, r.bit, o.bit))} aria-label={`${r.label} on ${o.label}`} /></td>;
           })}</tr>
         ))}</tbody>
       </table>

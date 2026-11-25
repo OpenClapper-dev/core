@@ -24,7 +24,7 @@ export function HardwareSheet({ onClose }: { onClose: () => void }) {
   const d = open ? devices.find((x) => x.id === open) : undefined;
   if (d) return <Sheet visible title={d.name} onClose={() => setOpen(null)} height={0.9} scroll={false}><DeviceScreen d={d} back={() => setOpen(null)} /></Sheet>;
   return (
-    <Sheet visible title="Hardware" sub={started.current ? "This phone holds the connections while this is open" : state?.proxy ? `Through ${state.phone.name || "the proxy phone"}` : undefined} onClose={onClose} height={0.75}>
+    <Sheet visible title="Hardware" sub={started.current ? "This device holds the connections while this is open" : state?.proxy ? `Through ${state.phone.name || "the proxy device"}` : undefined} onClose={onClose} height={0.75}>
       {!devices.length && <Empty icon="light-fixture" title="No devices yet" body="Add them in the Hardware app." />}
       {devices.map((x) => <Card key={x.id} d={x} all={devices} live={live} proxy={!!state?.proxy} onOpen={() => setOpen(x.id)} />)}
       <Hint>The full list, adding devices and the key backup are in the Hardware app.</Hint>

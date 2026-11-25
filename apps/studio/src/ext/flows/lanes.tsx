@@ -21,7 +21,7 @@ export const markKey = (id: string) => `@m/${id}`;
 export const markOf = (k: string) => (k.startsWith("@m/") ? k.slice(3) : null);
 
 export interface LanesProps {
-  flow: Flow; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; view: FlowView; trackHeight: number; heights: Record<string, number>;
+  flow: Flow; /** The time axis stretched this many times the window's width (1: fits). */ zoom: number; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; view: FlowView; trackHeight: number; heights: Record<string, number>;
   devices: FileRec[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; locked: boolean;
   sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
   onSeek: (t: number) => void; onAdd: (trackId: string, at: number) => void;
@@ -116,7 +116,7 @@ export function Lanes(p: LanesProps) {
   };
 
   return (
-    <div className={cx("fl-lanes", `kf-${p.kfSize}`, p.mode === "insert" && "is-insert", p.locked && "is-locked")} ref={lanesRef} onPointerDown={pressLanes}>
+    <div className={cx("fl-lanes", `kf-${p.kfSize}`, p.mode === "insert" && "is-insert", p.locked && "is-locked")} ref={lanesRef} onPointerDown={pressLanes} style={{ "--zoom": p.zoom }}>
       <div className="fl-row fl-row--ruler">
         <div className="fl-label" />
         <div className="fl-ruler" ref={rulerRef} onPointerDown={scrub}>

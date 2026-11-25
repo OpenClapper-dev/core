@@ -1,4 +1,4 @@
-// The flow editor alone, for the phone and tablet app's web view (docs/features/flows.md, "On the phone"):
+// The flow editor alone, for the phone and tablet app's web view (docs/features/flows.md, "On the device"):
 // `#/embed/flow/<id>`. The same editor as the Studio's, without the list of flows.
 import { useEffect } from "preact/hooks";
 import { Spinner } from "@openclapper/design";

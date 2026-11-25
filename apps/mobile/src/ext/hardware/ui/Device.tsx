@@ -38,7 +38,7 @@ export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void 
   const rename = () => { const to = name?.trim(); setName(null); if (to && to !== d.name) void renameDevice(d, to).then(() => request({ type: "sync" }), () => toast("Not renamed: the server is not reachable", "danger")); };
   const remove = async () => {
     const mesh = m.transport === "mesh" && d.body.mesh;
-    if (!(await confirm({ title: `Remove “${d.name}”?`, body: mesh ? "It goes to the recycle bin. The light keeps the phone's network keys until it is reset on the light itself." : "It goes to the recycle bin.", confirmLabel: "Remove", danger: true }))) return;
+    if (!(await confirm({ title: `Remove “${d.name}”?`, body: mesh ? "It goes to the recycle bin. The light keeps the device's network keys until it is reset on the light itself." : "It goes to the recycle bin.", confirmLabel: "Remove", danger: true }))) return;
     try { await removeDevice(d); request({ type: "sync" }); back(); } catch { toast("Not removed: the server is not reachable", "danger"); }
   };
   const pickPower = (battery: string | null) => { setPowerOpen(false); void setPower(d.id, battery).then(() => request({ type: "sync" }), () => toast("Not changed: the server is not reachable", "danger")); };
@@ -48,8 +48,8 @@ export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void 
       <Block>
         <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}><TypeTag kind={m.type} /><LinkMark tone={link.tone} label={link.label} /></View>
         {charge.charge !== undefined || charge.from ? <Row label={charge.from ? `Battery (${charge.from})` : "Battery"}><BatteryBar charge={charge.charge} minutes={charge.minutes} /></Row> : null}
-        {!state?.proxy && m.transport !== "wifi" && <Hint>No phone holds the connections: switch the proxy on in Hardware, on this phone or another.</Hint>}
-        {m.type === "camera" && !ready && <Hint>First connection: the camera shows a 6-digit PIN in its Bluetooth menu; type it into the pairing dialog on the proxy phone. Bluetooth must be on in the camera's Setup menu.</Hint>}
+        {!state?.proxy && m.transport !== "wifi" && <Hint>No device holds the connections: switch the proxy on in Hardware, on this device or another.</Hint>}
+        {m.type === "camera" && !ready && <Hint>First connection: the camera shows a 6-digit PIN in its Bluetooth menu; type it into the pairing dialog on the proxy device. Bluetooth must be on in the camera's Setup menu.</Hint>}
       </Block>
 
       {m.feeds.map((f) => <Block key={f.id}><SectionLabel>{f.label}</SectionLabel><PictureHost /></Block>)}
@@ -58,7 +58,7 @@ export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void 
         <Block>
           <SectionLabel>Pairing</SectionLabel>
           {prov && <Banner kind={prov.phase === "error" ? "danger" : prov.phase === "done" ? "ok" : "info"} title={prov.phase === "error" ? prov.error ?? "Pairing failed" : prov.phase === "done" ? "Paired" : prov.stage ? PROVISION_STAGE_LABELS[prov.stage] : "Starting…"} />}
-          {!d.body.mesh && <Hint>Not paired with this phone's network yet. Remove the light from Sidus Link first, or reset it.</Hint>}
+          {!d.body.mesh && <Hint>Not paired with this device's network yet. Remove the light from Sidus Link first, or reset it.</Hint>}
           <Button kind={d.body.mesh ? "secondary" : "primary"} icon="bluetooth" label={d.body.mesh ? "Run setup again" : "Pair with OpenClapper"} disabled={!state?.proxy || !online || prov?.phase === "running"} onPress={() => request({ type: "provision", device: d.id })} />
           {d.body.mesh && <Button kind="secondary" icon="refresh" label="Pair again (after a reset)" disabled={!state?.proxy || !online || prov?.phase === "running"} onPress={() => request({ type: "provision", device: d.id, fresh: true })} />}
         </Block>

@@ -25,7 +25,7 @@ import { command as sendCommand, setBusyDevices, useHardware } from "../hardware
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, NothingChosen, SelectionInspect, TrackInspect } from "./inspect";
 import { fmt, keyOf, Lanes, markKey, markOf, snap, SNAP_MS, splitKey } from "./lanes";
 import { requestRun, useRun } from "./run";
-import { useFlowView, useKeyframeSize, useTrackHeight, VIEW_LABELS, type FlowView } from "./view";
+import { useFlowView, useKeyframeSize, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
 
 const SAVE_AFTER_MS = 400;
 const TRACK_MODELS = CATALOGUE.filter((m) => m.type === "light" || m.type === "camera");
@@ -46,7 +46,7 @@ export function FlowsApp({ projectId, setTitle, setRoute, resource, focused }: A
   const list = (
     <List className="fl-list">
       {flows.map((x) => <ListRow key={x.id} icon="timeline" selected={x.id === chosen} onClick={() => setChosen(x.id)} meta={fmt(bodyOf(x).durationMs)}>{x.name}</ListRow>)}
-      {!flows.length && <EmptyState icon="timeline" title="No flows yet">Tracks of lights and cameras, keyframes on them, played through your phone.</EmptyState>}
+      {!flows.length && <EmptyState icon="timeline" title="No flows yet">Tracks of lights and cameras, keyframes on them, played through a device.</EmptyState>}
     </List>
   );
   return f ? <FlowEditor key={f.id} f={f} projectId={projectId} active={focused} list={list} onNew={() => void create()} onGone={() => setChosen(null)} />
@@ -60,8 +60,8 @@ function Empty({ list, onNew }: { list: preact.ComponentChildren; onNew: () => v
 }
 
 /**
- * One flow: the document under the edit lock (saved a moment after each change), the player shared with the phone,
- * Live (the devices follow the playhead and every edit while stopped), running on the phone, and the editing.
+ * One flow: the document under the edit lock (saved a moment after each change), the player shared with the device,
+ * Live (the devices follow the playhead and every edit while stopped), running on the device, and the editing.
  * `hosted`: inside the phone's web view (no list panel, the app around it has its own header).
  */
 export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }: { f: FileRec; projectId: string; active: boolean; list?: preact.ComponentChildren; onNew?: () => void; onGone?: () => void; hosted?: boolean }) {
@@ -138,7 +138,7 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
     return () => { player.current!.stop(); setBusyDevices([]); };
   }, [playing]);
   useEffect(() => () => player.current?.stop(), []);
-  // After a run on the phone, Live sends everything again: the devices show what the phone left them at.
+  // After a run on the device, Live sends everything again: the devices show what the phone left them at.
   useEffect(() => { if (!runActive) player.current?.emitter.reset(); else setPlaying(false); }, [runActive]);
   // A proxy that (re)appears knows nothing of what was sent before: Live sends everything again.
   useEffect(() => { if (proxy) player.current?.emitter.reset(); }, [proxy, hw.state?.phone.id]);
@@ -166,7 +166,7 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
     if (from > 0 && fading) toast(`${fading} track${fading === 1 ? " starts" : "s start"} inside a fade: ${fading === 1 ? "its light jumps" : "their lights jump"} to the value there, then ${fading === 1 ? "fades" : "fade"} the rest`, { tone: "info" });
     // The phone plays exactly what was saved: save first (as the editor), else what the server has.
     const revision = lock.editing ? await flush() : f.updated_at;
-    if (!revision) { toast("Not started on the phone: the flow could not be saved", { tone: "danger" }); return; }
+    if (!revision) { toast("Not started on the device: the flow could not be saved", { tone: "danger" }); return; }
     setPlaying(false);
     requestRun({ type: "run", flow: f.id, revision, fromMs: from });
   };
@@ -179,6 +179,8 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
   const [kfSize, setKfSize] = useKeyframeSize();
   const [view, setView] = useFlowView();
   const [trackHeight, setTrackHeight] = useTrackHeight();
+  const [zoom, setZoom] = useZoom();
+  const zoomBy = (f: number) => setZoom(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(zoom * f * 100) / 100)));
   const [heights, setHeights] = useState<Record<string, number>>({});
   const rangeIn = useRef<number | null>(null);
   useEffect(() => { if (readonly) { setSel(new Set()); setTile(null); } }, [readonly]);
@@ -268,7 +270,7 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
   const marker = selMarker ? body.markers?.find((m) => m.id === selMarker) : undefined;
   const setKf = (tr: FlowTrack, k: Keyframe) => (next: Keyframe) => patchTrack(tr.id, (t) => ({ ...t, keyframes: t.keyframes.map((x) => (x.id === k.id ? next : x)) }));
   const chosen = readonly && (selKf || tileKf || marker || pickedTrack)
-    ? <div className="fl-inspect"><p className="fl-note">{runsThis ? "Running on the phone: locked until it stops." : "Read-only: Edit to change it."}</p></div>
+    ? <div className="fl-inspect"><p className="fl-note">{runsThis ? "Running on the device: locked until it stops." : "Read-only: Edit to change it."}</p></div>
     : selKf && selTrack ? (modelOf(selTrack.model)?.type === "camera"
       ? <CameraKeyframe key={selKf.id} kf={selKf} durationMs={body.durationMs} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()} />
       : <LightKeyframe key={selKf.id} kf={selKf} track={selTrack} durationMs={body.durationMs} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()} />)
@@ -283,7 +285,7 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
 
   // ---------- The stage ----------
   const lanes = (
-    <Lanes flow={flow} mode={mode} kfSize={kfSize} view={view} trackHeight={trackHeight} heights={heights} devices={devices} liveOf={(id) => hw.state?.devices.find((d) => d.id === id)}
+    <Lanes flow={flow} zoom={zoom} mode={mode} kfSize={kfSize} view={view} trackHeight={trackHeight} heights={heights} devices={devices} liveOf={(id) => hw.state?.devices.find((d) => d.id === id)}
       playhead={runsThis ? runAt : playhead} playing={playing || runsThis} locked={readonly} sel={sel} tile={tile}
       onSeek={(t) => { if (!playing && !runsThis) setPlayhead(t); }} onAdd={addKeyframe}
       onSelect={(keys, add) => select(keys, add)} onToggle={(key) => { const n = new Set(sel); if (n.has(key)) n.delete(key); else n.add(key); setTile(null); setSel(n); }}
@@ -312,32 +314,37 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
           <div className="fl-menu">
             {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Switch key={k} checked={view[k]} onChange={(on: boolean) => setView({ ...view, [k]: on })}>{VIEW_LABELS[k]}</Switch>)}
             <label className="hw-ctl"><small>Keyframes</small><Segmented label="Keyframe size" value={kfSize} onChange={(v: string) => setKfSize(v as "s" | "m" | "l")} options={[{ value: "s", label: "S" }, { value: "m", label: "M" }, { value: "l", label: "L" }]} /></label>
+            <strong className="fl-menu__head">Size</strong>
+            <div className="fl-menu__row">
+              <label className="hw-ctl hw-ctl--range"><small>Timeline width<b>{zoom === 1 ? "fit" : `${zoom.toFixed(1)}×`}</b></small><Slider value={zoom} min={ZOOM_MIN} max={ZOOM_MAX} step={0.25} onChange={(v: number) => setZoom(v)} aria-label="Timeline width" /></label>
+              <Button size="sm" variant="quiet" icon="zoom-out" label="Zoom out" disabled={zoom <= ZOOM_MIN} onClick={() => zoomBy(1 / 1.5)} />
+              <Button size="sm" variant="quiet" icon="zoom-in" label="Zoom in" disabled={zoom >= ZOOM_MAX} onClick={() => zoomBy(1.5)} />
+            </div>
+            <Button size="sm" variant="secondary" disabled={zoom === 1} onClick={() => setZoom(1)}>Fit width</Button>
             <label className="hw-ctl hw-ctl--range"><small>Track height<b>{trackHeight} px</b></small><Slider value={trackHeight} min={40} max={240} step={4} onChange={(v: number) => { setHeights({}); setTrackHeight(v); }} aria-label="Track height" /></label>
             <Button size="sm" variant="secondary" onClick={fitHeight}>Fit height</Button>
           </div>
         </Popover>
-        <Button size="sm" variant="quiet" icon="flag" disabled={readonly} title="A marker at the playhead (M); Shift+M twice for a range" onClick={() => addMarker(playhead)}>Marker</Button>
         <Switch checked={live} onChange={setLive}>Live</Switch>
         <ToolbarSpacer />
         <span className="fl-time">{fmt(runsThis ? runAt : playhead)} / {fmt(flow.durationMs)}</span>
         <Button size="sm" variant="quiet" icon="skip-back" label="To the start" disabled={runsThis} onClick={() => { setPlaying(false); setPlayhead(0); }} />
-        <Button size="sm" variant="secondary" icon="mobile" disabled={!proxy || runActive} title="Run on the phone from the start: it plays on its own, without the relay, as on set" onClick={() => void runOnPhone(0)}>Run on phone</Button>
-        <Button size="sm" variant="quiet" icon="skip-forward" label="Run on the phone from the playhead" disabled={!proxy || runActive} onClick={() => void runOnPhone(playhead)} />
+        <Button size="sm" variant="secondary" icon="mobile" disabled={!proxy || runActive} title="Run on the device from the start: it plays on its own, without the relay, as on set" onClick={() => void runOnPhone(0)}>Run on device</Button>
+        <Button size="sm" variant="quiet" icon="skip-forward" label="Run on the device from the playhead" disabled={!proxy || runActive} onClick={() => void runOnPhone(playhead)} />
         <Button size="sm" variant={playing ? "secondary" : "primary"} icon={playing ? "stop" : "play"} disabled={(!proxy && !playing) || (runActive && !runsThis)} title={playing ? "Stop and go back (Space); K stops here" : "Play from the playhead (Space)"} onClick={play}>{runsThis ? "Stop" : playing ? "Stop" : "Play"}</Button>
       </div>
       {runActive && run && (
-        <div className="fl-run"><Banner tone="info" icon="mobile" title={run.phase === "loading" ? "Starting on the phone…" : `Running on the phone: ${run.name ?? "a flow"}`} action={<Button size="sm" icon="stop" onClick={() => requestRun({ type: "stop" })}>Stop</Button>}>
-          {runsThis ? "The phone plays it on its own; this flow is locked until it stops (Space). The playhead follows the phone." : "Play and Live are off while the phone runs a flow."}
+        <div className="fl-run"><Banner tone="info" icon="mobile" title={run.phase === "loading" ? "Starting on the device…" : `Running on the device: ${run.name ?? "a flow"}`} action={<Button size="sm" icon="stop" onClick={() => requestRun({ type: "stop" })}>Stop</Button>}>
+          {runsThis ? "The device plays it on its own; this flow is locked until it stops (Space). The playhead follows the device." : "Play and Live are off while the device runs a flow."}
         </Banner></div>
       )}
-      {run?.phase === "error" && run.flow === f.id && <div className="fl-run"><Banner tone="danger" title={run.error ?? "Not started on the phone"} /></div>}
-      {!proxy && <div className="fl-run"><Banner tone="neutral" icon="mobile" title="No proxy">Switch the proxy on in Hardware on the phone to play, preview or run.</Banner></div>}
+      {run?.phase === "error" && run.flow === f.id && <div className="fl-run"><Banner tone="danger" title={run.error ?? "Not started on the device"} /></div>}
+      {!proxy && <div className="fl-run"><Banner tone="neutral" icon="mobile" title="No proxy">Switch the proxy on in Hardware on the device to play, preview or run.</Banner></div>}
       <div className="fl-scroll">
         {lanes}
         <div className="fl-add" data-row="end">
           <Select size="sm" aria-label="Add a track" value="" disabled={readonly} onChange={(id: string) => id && addTrack(id)}
             options={[{ value: "", label: "Add a track…" }, ...TRACK_MODELS.map((m) => ({ value: m.id, label: `${m.brand} ${m.model}` }))]} />
-          <span className="fl-note">In Insert mode (I) a click on a lane adds a keyframe; in Select mode (V) Alt+click does. Click the strip between two keyframes to fade. Drag a keyframe to move the selection; with the intensity graph, up and down sets its intensity.</span>
         </div>
       </div>
     </div>
@@ -367,7 +374,7 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
         <Icon name="timeline" size={20} /><strong className="st-title">{f.name}</strong>
         <Badge>{body.tracks.length} tracks</Badge>
         <ToolbarSpacer />
-        <span className={cx("lay-pill", proxy ? "is-preview" : "is-none")}><i />{proxy ? `Proxy: ${hw.state!.phone.name || "a phone"}` : "No proxy"}</span>
+        <span className={cx("lay-pill", proxy ? "is-preview" : "is-none")}><i />{proxy ? `Proxy: ${hw.state!.phone.name || "a device"}` : "No proxy"}</span>
         {lock.editing
           ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the flow go and keep watching it: someone else can edit it now" onClick={() => void lock.stop(async () => { await flush(); })}>Stop editing</Button>
           : <span className="tl-viewing"><Icon name="eye" size={14} /><span>{lock.by === "You" ? "Editing in another window of yours" : lock.by ? `${lock.by} is editing` : "Nobody is editing"}</span><Button size="sm" variant="primary" icon="edit" disabled={!!lock.by} onClick={() => void lock.edit()}>Edit</Button></span>}

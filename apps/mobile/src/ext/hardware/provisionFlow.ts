@@ -86,11 +86,11 @@ export async function provisionFixture(f: Fixture, onStage: (s: Stage) => void, 
   if (!resume) {
     onStage("find");
     const found = await lookFor(f.address, 10_000);
-    if (found === "missing") throw new Error("The light was not found. Is it on and close to the phone?");
+    if (found === "missing") throw new Error("The light was not found. Is it on and close to the device?");
     if (found === "provisioned") throw new Error("This light is still in another mesh network (Sidus Link). Remove it there (light settings → remove) or reset it on the light, then try again.");
 
     const netKey = netKeyOf(network.id);
-    if (!netKey) throw new Error("The network's keys are not on this phone.");
+    if (!netKey) throw new Error("The network's keys are not on this device.");
     const unicast = network.nextUnicast;
     const link = await connect(f.address);
     const io = await bearer(link);
@@ -123,7 +123,7 @@ export async function provisionFixture(f: Fixture, onStage: (s: Stage) => void, 
   const keys = networkKeys(network);
   const appKey = appKeyOf(network.id);
   const devKey = keys?.devKeyOf(mesh.unicast);
-  if (!keys || !appKey || !devKey) throw new Error("The network's keys are not on this phone.");
+  if (!keys || !appKey || !devKey) throw new Error("The network's keys are not on this device.");
   const link = await connectWithRetry(fixture.address, 5);
   const session = new MeshSession(link, keys, seqFor(network.id), { log, onIvIndex: (iv) => { network = { ...network, ivIndex: iv }; void saveMeshNetwork(network); } });
   try {

@@ -56,15 +56,15 @@ function Passphrase({ set, onSaved }: { set: boolean; onSaved: () => void }) {
       <SectionLabel>Recovery passphrase</SectionLabel>
       {set && !open && (
         <>
-          <Hint>Set on this phone. Every change to the keys is backed up, sealed with it: the server cannot read them.</Hint>
+          <Hint>Set on this device. Every change to the keys is backed up, sealed with it: the server cannot read them.</Hint>
           <Button kind="secondary" icon="edit" label="Change passphrase" onPress={() => setOpen(true)} />
         </>
       )}
       {open && (
         <>
-          {!set && <Banner kind="warn" icon="warning" title="No key backup" meta="If this phone is lost or reset, every Aputure light has to be reset and paired again." />}
+          {!set && <Banner kind="warn" icon="warning" title="No key backup" meta="If this device is lost or reset, every Aputure light has to be reset and paired again." />}
           <PasswordInput value={next} onChangeText={setNext} editable={!busy} placeholder="Passphrase" autoComplete="new-password" textContentType="newPassword" />
-          {short ? <ErrorText>{`Too short: at least ${PASSPHRASE_MIN} characters.`}</ErrorText> : <Hint>{`At least ${PASSPHRASE_MIN} characters. Keep it outside the phone: without it, a backup cannot be opened.`}</Hint>}
+          {short ? <ErrorText>{`Too short: at least ${PASSPHRASE_MIN} characters.`}</ErrorText> : <Hint>{`At least ${PASSPHRASE_MIN} characters. Keep it outside the device: without it, a backup cannot be opened.`}</Hint>}
           <PasswordInput value={again} onChangeText={setAgain} editable={!busy} placeholder="Again" autoComplete="new-password" textContentType="newPassword" returnKeyType="go" onSubmitEditing={() => void save()} />
           {mismatch && <ErrorText>Not the same as above.</ErrorText>}
           {error && <ErrorText>{error}</ErrorText>}
@@ -92,20 +92,20 @@ function NetworkRow({ n, passphraseSet, onChange }: { n: MeshNetwork; passphrase
   };
 
   const restore = () => run("restore", async () => {
-    const ok = await confirm({ title: "Move the lights to this phone?", body: "The phone that had them stops controlling them.", confirmLabel: "Restore" });
+    const ok = await confirm({ title: "Move the lights to this device?", body: "The device that had them stops controlling them.", confirmLabel: "Restore" });
     if (!ok) return;
     const r = await restoreNetwork(n, pass);
     if (r === "wrong-passphrase") { setError("Wrong passphrase."); return; }
     if (r === "no-backup") { setError("There is no backup of this network."); return; }
     setPass("");
-    toast("Keys restored: this phone controls the lights");
+    toast("Keys restored: this device controls the lights");
   });
 
   const back = () => run("take back", async () => {
-    const ok = await confirm({ title: "Control the lights from this phone again?", body: "The other phone stops controlling them.", confirmLabel: "Use this phone" });
+    const ok = await confirm({ title: "Control the lights from this device again?", body: "The other device stops controlling them.", confirmLabel: "Use this device" });
     if (!ok) return;
     await takeBack(n);
-    toast("This phone controls the lights again");
+    toast("This device controls the lights again");
   });
 
   return (
@@ -123,17 +123,17 @@ function NetworkRow({ n, passphraseSet, onChange }: { n: MeshNetwork; passphrase
       )}
       {keys && elsewhere && (
         <>
-          <Hint>In use on another phone, which restored the keys. This phone does not control these lights until you take them back.</Hint>
-          <Button kind="secondary" icon="mobile" label="Use this phone again" busy={busy} onPress={() => void back()} />
+          <Hint>In use on another device, which restored the keys. This device does not control these lights until you take them back.</Hint>
+          <Button kind="secondary" icon="mobile" label="Use this device again" busy={busy} onPress={() => void back()} />
         </>
       )}
       {!keys && (n.backupAt
         ? <>
-            <Hint>{`The keys are not on this phone. A backup from ${when(n.backupAt)} can be restored with the recovery passphrase.`}</Hint>
+            <Hint>{`The keys are not on this device. A backup from ${when(n.backupAt)} can be restored with the recovery passphrase.`}</Hint>
             <PasswordInput value={pass} onChangeText={setPass} editable={!busy} placeholder="Recovery passphrase" autoComplete="current-password" textContentType="password" returnKeyType="go" onSubmitEditing={() => void restore()} />
             <Button icon="unlock" label="Restore keys" busy={busy} disabled={!pass || busy} onPress={() => void restore()} />
           </>
-        : <Hint>The keys are on another phone and there is no backup. Turn on key backup there, or reset the lights and pair them again.</Hint>
+        : <Hint>The keys are on another device and there is no backup. Turn on key backup there, or reset the lights and pair them again.</Hint>
       )}
       {error && <ErrorText>{error}</ErrorText>}
     </Block>

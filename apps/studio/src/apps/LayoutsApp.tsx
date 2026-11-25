@@ -257,7 +257,7 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
       </PropertyList>
     ) },
   ];
-  const pillText = pillState === "none" ? (link.open ? "No phone connected" : "Phone link offline") : pillState === "connected" ? `${phone?.name || "A phone"} connected` : `Previewing on ${phone?.name || "the phone"}`;
+  const pillText = pillState === "none" ? (link.open ? "No device connected" : "Device link offline") : pillState === "connected" ? `${phone?.name || "A device"} connected` : `Previewing on ${phone?.name || "the phone"}`;
   return (
     <div className="oc-app">
       <Toolbar>

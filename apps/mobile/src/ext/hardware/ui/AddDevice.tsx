@@ -56,10 +56,10 @@ export function AddDevice({ back, opened }: { back: () => void; opened: (id: str
   return (
     <Screen header={<Header title="Add a device" onBack={back} />}>
       <Block>
-        {!proxy && <Banner kind="info" title="No proxy" meta="Scanning runs on the phone that holds the connections: switch the proxy on in Hardware." />}
+        {!proxy && <Banner kind="info" title="No proxy" meta="Scanning runs on the device that holds the connections: switch the proxy on in Hardware." />}
         {scan?.phase === "error" && <Banner kind="danger" title={scan.message ?? "Scan failed"} />}
         <SectionLabel>{scan?.phase === "scanning" ? "Looking for devices…" : "Found nearby"}</SectionLabel>
-        {!scan?.found.length && <Empty icon="bluetooth" title={scan?.phase === "scanning" ? "Looking…" : "Nothing found"} body="Switch the device on and keep it close to the phone." />}
+        {!scan?.found.length && <Empty icon="bluetooth" title={scan?.phase === "scanning" ? "Looking…" : "Nothing found"} body="Switch the device on and keep it close to the device." />}
         {scan?.found.map((f) => (
           <ListRow key={f.address} icon={f.kinds.length ? TYPE_LOOK[modelOf(f.kinds[0])!.type].icon : "bluetooth"} title={f.name ?? f.address}
             meta={[f.kinds.length ? `Likely ${modelName(modelOf(f.kinds[0])!)}` : null, f.address, f.rssi !== null ? `${f.rssi} dBm` : null].filter(Boolean).join(" · ")} onPress={() => setPicked(f)} />
