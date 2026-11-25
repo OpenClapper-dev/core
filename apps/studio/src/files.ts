@@ -27,7 +27,7 @@ export async function loadRoot(r: Root): Promise<void> {
   } catch (e) { put(r, { error: (e as Error).message }); }
 }
 /** Forget everything (another account signed in). */
-export function clearFiles() { roots.clear(); notify(); }
+export function clearFiles() { roots.clear(); for (const k of [...watches.keys()]) { const w = watches.get(k)!; w.users = 0; clearTimeout(w.retry); clearTimeout(w.soon); w.ws?.close(); watches.delete(k); } notify(); }
 
 /** The root a file belongs to. */
 export const rootOf = (f: Pick<FileRec, "project_id">): Root => (f.project_id ? { project: f.project_id } : "home");
@@ -51,6 +51,42 @@ export const purge = (r: Root, ids: string[]) => change(r, () => api.purgeFiles(
 export const emptyBin = (r: Root) => change(r, () => api.emptyBin(r));
 export const duplicate = (f: FileRec, more: { name?: string; container?: string | null } = {}) => change(rootOf(f), () => api.duplicateFile(f.id, { id: crypto.randomUUID(), ...more }));
 
+// ---------- Live: a root on screen reads itself again when its files changed elsewhere (#426) ----------
+// One socket per root while some window shows it (`/api/live/root`, the root's room in the Worker): every write that
+// changed a file of the root, from any client (a phone's upload too), says `changed`, and the root is read again
+// (once for a burst). After a drop it reconnects and reads the root again, for what it missed meanwhile.
+const watches = new Map<string, { users: number; ws: WebSocket | null; retry?: ReturnType<typeof setTimeout>; soon?: ReturnType<typeof setTimeout> }>();
+function watch(r: Root): () => void {
+  const key = rootKey(r);
+  let w = watches.get(key);
+  if (w) { w.users++; return () => unwatch(key); }
+  w = { users: 1, ws: null };
+  watches.set(key, w);
+  const entry = w;
+  const open = (again: boolean) => {
+    if (entry.users === 0) return;
+    const q = r === "home" ? "home=1" : `project_id=${r.project}`;
+    const ws = new WebSocket(`${location.origin.replace(/^http/, "ws")}/api/live/root?${q}`);
+    entry.ws = ws;
+    ws.onopen = () => { if (again) void loadRoot(r); };
+    ws.onmessage = (e) => {
+      if (!String(e.data).includes("\"changed\"")) return;
+      clearTimeout(entry.soon);
+      entry.soon = setTimeout(() => void loadRoot(r), 250);
+    };
+    ws.onclose = () => { if (entry.ws === ws) entry.ws = null; if (entry.users > 0) entry.retry = setTimeout(() => open(true), 3000); };
+  };
+  open(false);
+  return () => unwatch(key);
+}
+function unwatch(key: string) {
+  const w = watches.get(key);
+  if (!w || --w.users > 0) return;
+  clearTimeout(w.retry); clearTimeout(w.soon);
+  w.ws?.close();
+  watches.delete(key);
+}
+
 export function useRoot(r: Root): RootFiles {
   const key = rootKey(r);
   const [, tick] = useState(0);
@@ -58,7 +94,8 @@ export function useRoot(r: Root): RootFiles {
     const cb = () => tick((n) => n + 1);
     listeners.add(cb);
     if (!roots.get(key)?.files) void loadRoot(r);
-    return () => { listeners.delete(cb); };
+    const stop = watch(r);
+    return () => { listeners.delete(cb); stop(); };
   }, [key]);
   return getRoot(r);
 }

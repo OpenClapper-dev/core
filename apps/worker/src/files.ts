@@ -7,7 +7,7 @@ import type { Ctx, Env } from "./index.ts";
 import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys, shotFrameStatements } from "./canvas.ts";
 import { copyPhotos, objectsOf, removeOrphans } from "./photos.ts";
 import { nextName, refitValues, searchTexts, templateStatements, valuesOf } from "./properties.ts";
-import { assertAccess, assertProjectRef, assertRank, type Access, type Role } from "./tenancy.ts";
+import { assertAccess, assertProjectRef, assertRank, touch, type Access, type Role } from "./tenancy.ts";
 
 /**
  * Files (docs/rewrite/07-organisation.md, 10-conclusion.md): one set of routes for every type. A
@@ -75,6 +75,7 @@ function checkAccess(a: Access, f: FileRow | null, min: Role): FileRow {
   if (f.home_of) {
     if (f.home_of !== a.tenant.userId) throw new HttpError(404, "file not found");
   } else assertRank(a, f.ws, min, "file not found");
+  touch(a, f.project_id ?? `home:${f.home_of}`, min);
   return f;
 }
 
@@ -122,7 +123,7 @@ function assertIds(v: unknown): string[] {
 async function rootFrom(ctx: Ctx, projectId: unknown, home: unknown, min: Role, inBody: boolean): Promise<Root> {
   const wantsHome = home === true || home === "1" || home === "true";
   if ((projectId == null) === !wantsHome) throw new HttpError(400, "name a root: project_id, or home");
-  if (wantsHome) return { kind: "home", projectId: null, userId: ctx.tenant.userId };
+  if (wantsHome) { touch(ctx, `home:${ctx.tenant.userId}`, min); return { kind: "home", projectId: null, userId: ctx.tenant.userId }; }
   const pid = assertUuid(projectId, "project_id");
   if (inBody) await assertProjectRef(ctx, pid, min);
   else await assertAccess(ctx, "project", pid, min);
