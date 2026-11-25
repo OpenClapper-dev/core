@@ -1,29 +1,20 @@
 /** The Workspaces section (issue #116): every workspace with its owner, members and storage. */
-import { ProjectTag } from "@openclapper/ui";
+import { Badge, Table } from "@openclapper/design";
 import type { AdminWorkspace } from "./api";
 import { bytes, day, Section } from "./shared";
 
 export function Workspaces({ list }: { list: AdminWorkspace[] }) {
   return (
-    <Section icon="account-group-outline" title={`Workspaces · ${list.length}`}>
-      <div class="admin__scroll">
-        <table class="admin-table">
-          <thead><tr><th>Workspace</th><th>Owner</th><th>Members</th><th>Projects</th><th>Files</th><th>Photos</th><th>Storage</th><th>Created</th></tr></thead>
-          <tbody>
-            {list.map((w) => (
-              <tr key={w.id}>
-                <td><strong>{w.name}</strong> {w.kind === "personal" && <ProjectTag>Personal</ProjectTag>}</td>
-                <td>{w.owner_email ?? "—"}</td>
-                <td class="num">{w.members}</td>
-                <td class="num">{w.projects}</td>
-                <td class="num">{w.files}</td>
-                <td class="num">{w.photos}</td>
-                <td class="num" title={w.unsized ? `${w.unsized} photos have no recorded size` : undefined}>{bytes(w.bytes)}{w.unsized ? " +" : ""}</td>
-                <td>{day(w.created_at)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <Section icon="users" title={`Workspaces · ${list.length}`}>
+      <div className="adm-scroll">
+        <Table columns={[{ key: "name", label: "Workspace" }, { key: "owner", label: "Owner" }, { key: "members", label: "Members", numeric: true }, { key: "projects", label: "Projects", numeric: true }, { key: "files", label: "Files", numeric: true }, { key: "photos", label: "Photos", numeric: true }, { key: "storage", label: "Storage", numeric: true }, { key: "created", label: "Created" }]}
+          rows={list.map((w) => ({
+            id: w.id,
+            name: <span className="adm-who"><strong>{w.name}</strong>{w.kind === "personal" && <Badge>Personal</Badge>}</span>,
+            owner: w.owner_email ?? "—", members: w.members, projects: w.projects, files: w.files, photos: w.photos,
+            storage: <span title={w.unsized ? `${w.unsized} photos have no recorded size` : undefined}>{bytes(w.bytes)}{w.unsized ? " +" : ""}</span>,
+            created: day(w.created_at),
+          }))} />
       </div>
     </Section>
   );

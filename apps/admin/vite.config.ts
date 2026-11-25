@@ -9,9 +9,9 @@ import { version } from "../../package.json";
 const commit = (() => { try { return execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim(); } catch { return "dev"; } })();
 const build = { __OPENCLAPPER_VERSION__: JSON.stringify(version), __OPENCLAPPER_COMMIT__: JSON.stringify(commit) };
 
-// @openclapper/ui lives outside this root, where Vite watches single files; a git branch switch replaces
+// @openclapper/design lives outside this root, where Vite watches single files; a git branch switch replaces
 // them and those watches are lost until a restart. Watching the folder survives that.
-const uiSrc = fileURLToPath(new URL("../../packages/ui/src", import.meta.url));
+const uiSrc = fileURLToPath(new URL("../../packages/design/src", import.meta.url));
 const watchUi = { name: "openclapper-watch-ui", configureServer(server: { watcher: { add(path: string): unknown } }) { server.watcher.add(uiSrc); } };
 
 export default defineConfig(({ command }) => {

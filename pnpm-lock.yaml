@@ -23,12 +23,12 @@ importers:
 
   apps/admin:
     dependencies:
+      '@openclapper/design':
+        specifier: workspace:*
+        version: link:../../packages/design
       '@openclapper/service-kit':
         specifier: workspace:*
         version: link:../../packages/service-kit
-      '@openclapper/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       preact:
         specifier: ^10.27.0
         version: 10.29.8

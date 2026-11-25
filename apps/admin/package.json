@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@openclapper/service-kit": "workspace:*",
-    "@openclapper/ui": "workspace:*",
+    "@openclapper/design": "workspace:*",
     "preact": "^10.27.0"
   },
   "devDependencies": {

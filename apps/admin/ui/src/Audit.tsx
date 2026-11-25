@@ -1,15 +1,15 @@
 /** The Audit tab (issue #224): every change an operator made in the admin plane, newest first, read-only. */
 import { useEffect, useState } from "preact/hooks";
-import { Button, Empty, Loading, ProjectTag } from "@openclapper/ui";
+import { Badge, Button, EmptyState, Spinner, Table, type IconName } from "@openclapper/design";
 import { fetchAudit, type AuditEntry } from "./api";
 import { bytes, Section } from "./shared";
 
-const ACTION: Record<string, { label: string; icon: string }> = {
-  "user.create": { label: "Account created", icon: "account-plus-outline" },
-  "user.update": { label: "Account changed", icon: "pencil-outline" },
-  "user.password": { label: "Password reset", icon: "key-variant" },
-  "user.delete": { label: "Account deleted", icon: "delete-outline" },
-  "settings.update": { label: "Settings changed", icon: "cog-outline" },
+const ACTION: Record<string, { label: string; icon: IconName }> = {
+  "user.create": { label: "Account created", icon: "plus" },
+  "user.update": { label: "Account changed", icon: "edit" },
+  "user.password": { label: "Password reset", icon: "lock" },
+  "user.delete": { label: "Account deleted", icon: "trash" },
+  "settings.update": { label: "Settings changed", icon: "settings" },
 };
 
 const when = (iso: string) => new Date(iso).toLocaleString([], { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -45,35 +45,23 @@ export function Audit() {
   };
   useEffect(() => { void load(null); }, []);
 
-  if (error && !entries) return <Empty icon="cloud-alert" title="Could not load the audit trail" actions={<Button onClick={() => void load(null)}>Try again</Button>}>{error}</Empty>;
-  if (!entries) return <Loading />;
+  if (error && !entries) return <EmptyState icon="cloud-off" title="Could not load the audit trail">{error}<div className="adm-pad"><Button onClick={() => void load(null)}>Try again</Button></div></EmptyState>;
+  if (!entries) return <div className="adm-center"><Spinner /></div>;
   return (
-    <Section icon="history" title="Audit trail" action={<Button size="sm" kind="ghost" icon="refresh" disabled={busy} onClick={() => void load(null)}>Refresh</Button>}>
+    <Section icon="history" title="Audit trail" action={<Button size="sm" variant="quiet" icon="refresh" disabled={busy} onClick={() => void load(null)}>Refresh</Button>}>
       {entries.length === 0
-        ? <div class="admin__pad"><span class="meta">Nothing yet: account and settings changes made here show up in this list.</span></div>
+        ? <div className="adm-pad"><span className="adm-meta">Nothing yet: account and settings changes made here show up in this list.</span></div>
         : (
-          <div class="admin__scroll">
-            <table class="admin-table">
-              <thead><tr><th>When</th><th>Operator</th><th>Action</th><th>Account</th><th>Details</th></tr></thead>
-              <tbody>
-                {entries.map((e) => {
-                  const a = ACTION[e.action] ?? { label: e.action, icon: "information-outline" };
-                  return (
-                    <tr key={e.id}>
-                      <td class="num" title={e.at}>{when(e.at)}</td>
-                      <td>{e.operator_email}</td>
-                      <td><ProjectTag icon={a.icon}>{a.label}</ProjectTag></td>
-                      <td>{e.target_email ?? "—"}</td>
-                      <td class="meta">{detail(e)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="adm-scroll">
+            <Table columns={[{ key: "when", label: "When", mono: true, width: 200 }, { key: "op", label: "Operator" }, { key: "action", label: "Action" }, { key: "account", label: "Account" }, { key: "detail", label: "Details" }]}
+              rows={entries.map((e) => {
+                const a = ACTION[e.action] ?? { label: e.action, icon: "info" as IconName };
+                return { id: e.id, when: <span title={e.at}>{when(e.at)}</span>, op: e.operator_email, action: <Badge icon={a.icon}>{a.label}</Badge>, account: e.target_email ?? "—", detail: <span className="adm-meta">{detail(e)}</span> };
+              })} />
           </div>
         )}
-      {next && <div class="admin__pad"><Button size="sm" kind="secondary" icon="chevron-down" disabled={busy} onClick={() => void load(next)}>Older entries</Button></div>}
-      {error && <div class="admin__pad"><span class="meta">{error}</span></div>}
+      {next && <div className="adm-pad"><Button size="sm" variant="secondary" icon="chevron-down" disabled={busy} onClick={() => void load(next)}>Older entries</Button></div>}
+      {error && <div className="adm-pad"><span className="adm-meta">{error}</span></div>}
     </Section>
   );
 }
