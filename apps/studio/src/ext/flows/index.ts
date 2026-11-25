@@ -1,10 +1,8 @@
-// The Flows extension in the Studio (docs/features/flows.md): its app, how its files look, its phone tab, and its
-// editor for the phone and tablet app's web view. Imported only by src/extensions.ts.
+// The Flows extension in the Studio (docs/features/flows.md): its app, how its files look and its phone tab (the
+// device has its own native editor). Imported only by src/extensions.ts.
 import { registerApp } from "../../apps/registry";
 import { registerPhoneTab } from "../../devices";
-import { registerEmbed } from "../../embed";
 import { registerFileLook } from "../../fileKinds";
-import { EmbedFlow } from "./embed";
 import { FlowsApp } from "./FlowsApp";
 
 registerApp({
@@ -14,4 +12,3 @@ registerApp({
 });
 registerFileLook("flow", { glyph: "timeline", color: 3 });
 registerPhoneTab({ id: "flows", label: "Flows", icon: "timeline", extension: "flows" });
-registerEmbed("flow", EmbedFlow);

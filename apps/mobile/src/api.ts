@@ -31,13 +31,13 @@ const WEB_PAGE = "the server answered with a web page (a Wi-Fi login?)";
 export const canCall = () => isConfigured && !isOfflineMode() && !!getToken();
 
 /** One request; `body` is sent as JSON. */
-export async function call<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function call<T>(path: string, init: { method?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
   if (!isConfigured) throw new ApiError(0, "API not configured in this build");
   if (isOfflineMode()) throw new ApiError(0, "offline mode is on");
   if (!getToken()) throw new ApiError(401, "not signed in");
   const started = Date.now();
   const method = init.method ?? "GET";
-  const headers = authHeaders(init.body === undefined ? {} : { "content-type": "application/json" });
+  const headers = authHeaders({ ...(init.body === undefined ? {} : { "content-type": "application/json" }), ...init.headers });
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, { method, headers, body: init.body === undefined ? undefined : JSON.stringify(init.body) });
@@ -130,6 +130,12 @@ export async function listFiles(root: Root, q: { type?: string; container?: stri
 export const getFile = (id: string) => call<{ file: FileRec }>(`/api/files/${id}`).then((r) => r.file);
 export const putFile = (id: string, f: Partial<Pick<FileRec, "name" | "container" | "body" | "internal_of">> & { type: string; refs?: { kind: string; to: string; data?: Record<string, unknown> | null }[] } & ({ project_id: string } | { home: true })) =>
   call<{ file: FileRec }>(`/api/files/${id}`, { method: "PUT", body: f }).then((r) => r.file);
+/** A save under an edit lock this client holds (docs/api.md, "the edit lock"): the holder goes along. */
+export const putLockedFile = (id: string, holder: string, f: Parameters<typeof putFile>[1]) =>
+  call<{ file: FileRec }>(`/api/files/${id}`, { method: "PUT", body: f, headers: { "x-lock-holder": holder } }).then((r) => r.file);
+/** Take or renew a lockable file's edit lock (it holds 60 s); 423 with the lock when someone else holds it. */
+export const lockFile = (id: string, holder: string) => call<{ lock: { by: string | null; until: string } }>(`/api/files/${id}/lock`, { method: "POST", body: { holder } }).then((r) => r.lock);
+export const unlockFile = (id: string, holder: string) => call<unknown>(`/api/files/${id}/lock?holder=${encodeURIComponent(holder)}`, { method: "DELETE" });
 export const moveFiles = (ids: string[], container: string | null) => call<unknown>("/api/files/move", { method: "POST", body: { ids, container } });
 /** Property values of one file (null removes one) → the file's values after. */
 export const putValues = (id: string, values: Record<string, unknown>) => call<{ values: Record<string, unknown> }>(`/api/files/${id}/properties`, { method: "PUT", body: { values } }).then((r) => r.values);
