@@ -62,9 +62,8 @@ function Empty({ list, onNew }: { list: preact.ComponentChildren; onNew: () => v
 /**
  * One flow: the document under the edit lock (saved a moment after each change), the player shared with the device,
  * Live (the devices follow the playhead and every edit while stopped), running on the device, and the editing.
- * `hosted`: inside the phone's web view (no list panel, the app around it has its own header).
  */
-export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }: { f: FileRec; projectId: string; active: boolean; list?: preact.ComponentChildren; onNew?: () => void; onGone?: () => void; hosted?: boolean }) {
+function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec; projectId: string; active: boolean; list?: preact.ComponentChildren; onNew?: () => void; onGone?: () => void }) {
   const user = useUser();
   const me = user.status === "signed-in" ? user.me.user : null;
   const project = useProjects().list?.find((p) => p.id === projectId);
@@ -363,13 +362,13 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
     </div>
   );
 
-  const [panels, setPanels] = useDockLayout(hosted ? "flows-hosted-v2" : "flows", hosted ? { bottom: { tabs: ["chosen"] } } : { left: { tabs: ["flows"] }, right: { tabs: ["chosen"] } });
+  const [panels, setPanels] = useDockLayout("flows", { left: { tabs: ["flows"] }, right: { tabs: ["chosen"] } });
   const dock: DockPanel[] = [
-    ...(hosted ? [] : [{ id: "flows", title: "Flows", icon: "timeline" as const, actions: onNew ? <Button size="sm" variant="quiet" icon="plus" onClick={onNew}>New flow</Button> : undefined, body: <>{list}{props}</> }]),
-    { id: "chosen", title: "Chosen", icon: "cursor", body: <>{hosted && props}{chosen}</> },
+    { id: "flows", title: "Flows", icon: "timeline", actions: onNew ? <Button size="sm" variant="quiet" icon="plus" onClick={onNew}>New flow</Button> : undefined, body: <>{list}{props}</> },
+    { id: "chosen", title: "Chosen", icon: "cursor", body: chosen },
   ];
   return (
-    <div className={cx("oc-app", hosted && "fl-standalone")}>
+    <div className="oc-app">
       <Toolbar>
         <Icon name="timeline" size={20} /><strong className="st-title">{f.name}</strong>
         <Badge>{body.tracks.length} tracks</Badge>
