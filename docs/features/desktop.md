@@ -32,9 +32,9 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 
 ## Taskbar, launcher, palette
 
-- **Taskbar** (`wm/Taskbar.tsx` on the design system's `Taskbar`): the launcher, task view, the **pins**, one button per window of the active desktop (click focuses, or minimises the focused one; right-click: pin the app, the window's menu), then the instance marker, the project switcher (with "Manage projects…"), Go to… (⌘K), the theme (as the system → light → dark), the account menu and the clock.
+- **Taskbar** (`wm/Taskbar.tsx` on the design system's `Taskbar`): the launcher, task view, the **pins**, one button per window of the active desktop (click focuses, or minimises the focused one; right-click: pin the app, the window's menu; drag to reorder, a line shows where it lands), then the instance marker, the project switcher (with "Manage projects…"), Go to… (⌘K), the theme (as the system → light → dark), the account menu and the clock.
   - **Position and alignment** (Settings › Appearance): on any edge; items at the start or centred. On a side bar the labels are tooltips and the clock takes two lines.
-  - **Pins** are apps, folders and files: an app's pin is also the button of its windows, with a bar under it while one is open and a number with several (click lists them); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files, Media and Project.
+  - **Pins** are apps, folders and files: a single-window app's pin is also the button of its window, with a bar under it while it is open; an app with one window per file or folder (Files, Photo, Shot, Canvas, …) launches from its pin and each of its windows keeps a button of its own (#426); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files, Media and Project.
 - **Launcher** (the design system's `Launcher`): every app with a search field, extensions in their own group; right-click pins an app to the taskbar. Esc or a click beside it closes it.
 - **Go to…** (⌘K, the design system's `CommandPalette`): apps, open windows, the other projects, and the shell's actions (theme, show desktop, task view, new desktop, shortcuts, reload, sign out).
 - **Desktop:** clicking it takes focus away from the windows (the URL shows `#/`). Its icons are the files of the project's Desktop folder and the recycle bin ([files](files.md#desktop-icons-wmdesktopiconstsx-wmgridts)).
@@ -46,7 +46,7 @@ An app declares its name, glyph and colour, tier, whether it is one window in al
 
 | App | File | What |
 | --- | --- | --- |
-| Files | `apps/FilesApp.tsx` | The file browser: folders of the project and of the account home ([files](files.md)) |
+| Files | `apps/FilesApp.tsx` | The file browser: folders of the project and of the account home, one window per folder ([files](files.md)) |
 | Media | `apps/FilesApp.tsx` (`MediaApp`) | The same browser set to photos and collections, with import ([media](media.md)) |
 | Photo | `apps/PhotoApp.tsx` | One photo with its facts, one window per photo ([media](media.md#photo-app-appsphotoapptsx-route-photoid)) |
 | Recycle bin | `apps/BinApp.tsx` | What was deleted: restore, delete permanently, empty |

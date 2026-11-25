@@ -30,6 +30,14 @@ export function readDrag(e: DragEvent): string[] | null {
 const nameCheck = (v: string) => (!v ? "Type a name" : v.length > MAX_FILE_NAME ? `At most ${MAX_FILE_NAME} characters` : null);
 const count = (n: number, one = "file") => `${n} ${one}${n === 1 ? "" : "s"}`;
 
+/**
+ * A folder (or collection) in a window of its own, as an OS file manager opens one: one window per folder
+ * (#426), so an open one comes to the front. `null` is the root (the project's, or the home's).
+ */
+export function openFolder(id: string | null, home = false, type = "folder") {
+  launch({ app: "files", resource: id ? { type, id } : null, state: { folder: id, home } });
+}
+
 /** Open a file in the app registered for its type; a folder opens in Files, a shortcut opens what it points at. */
 export function openFile(f: FileRec, files: ReadonlyMap<string, FileRec>) {
   if (f.type === "shortcut") {
@@ -39,7 +47,7 @@ export function openFile(f: FileRec, files: ReadonlyMap<string, FileRec>) {
     openFile(t.file, files);
     return;
   }
-  if (kindOf(f.type).holds) { launch({ app: "files", state: { folder: f.id, home: f.home } }); return; }
+  if (kindOf(f.type).holds) { openFolder(f.id, f.home, f.type); return; }
   // A filter opens in the file browser, which lists what matches it now.
   if (f.type === "filter") { launch({ app: "files", state: { filter: f.id } }); return; }
   const app = appFor(f.type);

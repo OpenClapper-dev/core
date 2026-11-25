@@ -67,7 +67,7 @@ const APPS: AppDef[] = [
     fromRoute: filesFromRoute, about: "The real places where it is filmed, on a map" },
   { id: "photo", name: "Photo", glyph: "image", color: 4, tier: "core", singleton: false, opens: ["photo"], defaultSize: { w: 1100, h: 760 }, minSize: { w: 480, h: 360 }, component: PhotoApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "photo", id: rest } : null }), about: "One photo with its facts" },
-  { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: true, opens: ["folder", "collection", "filter"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
+  { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: false, opens: ["folder", "collection", "filter"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
     fromRoute: filesFromRoute, about: "Folders of the project and of your home" },
   { id: "shot", name: "Shot", glyph: "slate", color: 1, tier: "core", singleton: false, opens: ["shot"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 720, h: 480 }, component: ShotApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "shot", id: rest } : null }), about: "A shot: its properties, content and progression" },
