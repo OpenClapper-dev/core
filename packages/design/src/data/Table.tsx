@@ -1,7 +1,7 @@
 import type { ComponentChildren, JSX } from "preact";
 import { Icon } from "../core/Icon";
-import { Checkbox } from "../forms/Checkbox";
 import { cx } from "../util";
+import { clickSelect } from "./useMarquee";
 
 /** A column of a Table. */
 export interface TableColumn {
@@ -25,9 +25,9 @@ export interface TableProps extends Omit<JSX.HTMLAttributes<HTMLTableElement>, "
   onSelect?: (ids: string[]) => void;
   /** Row with the keyboard cursor. */
   cursor?: string;
-  /** Adds a checkbox column. Ticking is the selection; a click on the row then only moves the cursor (onCursor). */
+  /** Several rows can be selected, as in an OS file manager: a click selects the row, Ctrl/⌘-click adds or removes it, Shift-click selects the range from the cursor. */
   selectable?: boolean;
-  /** A row was clicked: make it the current one. Without it, a click on a row of a selectable table does nothing. */
+  /** The row last clicked (the anchor of a Shift-click). */
   onCursor?: (id: string) => void;
   /** A row was double-clicked. */
   onOpen?: (id: string) => void;
@@ -36,12 +36,10 @@ export interface TableProps extends Omit<JSX.HTMLAttributes<HTMLTableElement>, "
 }
 
 export function Table({ columns = [], rows = [], sort, onSort, selected = [], onSelect, cursor, selectable, onCursor, onOpen, rowProps, className, ...rest }: TableProps) {
-  const all = rows.length > 0 && rows.every(r => selected.includes(r.id));
   const emit = (ids: string[]) => onSelect && onSelect(ids);
   return (
     <table role="grid" className={cx("oc-table", className)} {...rest}>
       <thead><tr>
-        {selectable && <th className="oc-table__check"><Checkbox checked={all} indeterminate={!all && selected.length > 0} onChange={() => emit(all ? [] : rows.map(r => r.id))} aria-label="Select all" /></th>}
         {columns.map(c => {
           const dir = sort && sort.key === c.key ? sort.dir : null;
           return (
@@ -58,8 +56,7 @@ export function Table({ columns = [], rows = [], sort, onSort, selected = [], on
           const sel = selected.includes(r.id);
           const { className: rowClass, ...more } = rowProps?.(r.id) ?? {};
           return (
-            <tr key={r.id} {...more} data-row-id={r.id} aria-selected={sel} className={cx(cursor === r.id && "is-cursor", rowClass as string | undefined)} onClick={selectable ? (onCursor ? () => onCursor(r.id) : undefined) : () => emit([r.id])} onDblClick={onOpen ? () => onOpen(r.id) : undefined}>
-              {selectable && <td className="oc-table__check" onClick={e => e.stopPropagation()}><Checkbox checked={sel} onChange={() => emit(sel ? selected.filter(i => i !== r.id) : selected.concat(r.id))} aria-label="Select row" /></td>}
+            <tr key={r.id} {...more} data-row-id={r.id} aria-selected={sel} className={cx(cursor === r.id && "is-cursor", rowClass as string | undefined)} onClick={selectable ? (e) => { emit(clickSelect(rows.map(x => x.id), selected, cursor ?? null, r.id, e)); onCursor?.(r.id); } : () => emit([r.id])} onDblClick={onOpen ? () => onOpen(r.id) : undefined}>
               {columns.map(c => <td key={c.key} className={cx(c.numeric && "is-num", c.mono && "is-mono")}>{r[c.key]}</td>)}
             </tr>
           );

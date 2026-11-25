@@ -1,5 +1,5 @@
 // The board view of the file browser (docs/rewrite/07-organisation.md, "Finding and bulk editing"): the
-// files listed, in lanes by the value of one single-choice property; dragging a file (or the ticked ones)
+// files listed, in lanes by the value of one single-choice property; dragging a file (or the selected ones)
 // to another lane sets it. It replaces the first app's Metadata board and works on every file type, with
 // its layouts: lanes as columns or rows, S · M · L, or Fit (every lane shares the board, nothing scrolls).
 import { useState } from "preact/hooks";
@@ -20,7 +20,7 @@ interface Props {
   layout: BoardLayout;
   onLayout: (l: BoardLayout) => void;
   selected: readonly string[];
-  /** A file as a card (the browser's own, with its picture, tick and menu). */
+  /** A file as a card (the browser's own, with its picture and menu). */
   card: (f: FileRec, i: number) => preact.ComponentChildren;
 }
 
@@ -70,7 +70,7 @@ export function Board({ projectId, items, defs, layout, onLayout, selected, card
               onDragOver={(e) => { if (!ops.hasDrag(e)) return; e.preventDefault(); e.dataTransfer!.dropEffect = "move"; if (over !== l.id) setOver(l.id); }}
               onDragLeave={(e) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setOver((o) => (o === l.id ? null : o)); }}
               onDrop={drop(l.id)}>
-              <header className="st-lane__head"><i style={{ background: colorCss(l.color) }} /><strong>{l.label}</strong><span className="st-note">{list.length}</span>{selected.length > 0 && list.some((f) => selected.includes(f.id)) && <span className="st-note">· {list.filter((f) => selected.includes(f.id)).length} ticked</span>}</header>
+              <header className="st-lane__head"><i style={{ background: colorCss(l.color) }} /><strong>{l.label}</strong><span className="st-note">{list.length}</span>{selected.length > 0 && list.some((f) => selected.includes(f.id)) && <span className="st-note">· {list.filter((f) => selected.includes(f.id)).length} selected</span>}</header>
               <div className="st-lane__cards">{list.map((f, i) => card(f, i))}</div>
             </section>
           );

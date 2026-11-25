@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Breadcrumb, BrowserLayout, Button, Chip, CollectionTag, colorCss, DropdownMenu, EmptyState, FileCard, FileGrid, Icon, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, SidebarNav,
-  StatusBar, Table, TextInput, Toolbar, ToolbarSpacer, Tree, UploadBadge, moved, useDockLayout, useSort,
+  AppIcon, Badge, Breadcrumb, BrowserLayout, Button, Chip, clickSelect, CollectionTag, colorCss, DropdownMenu, EmptyState, FileCard, FileGrid, Icon, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, SidebarNav,
+  StatusBar, Table, TextInput, Toolbar, ToolbarSpacer, Tree, UploadBadge, moved, useDockLayout, useMarquee, useSort,
 } from "@openclapper/design";
 import { evaluate, fileTypes, matchesSearch, valueText, type FilterBody, type FilterGroup } from "@openclapper/model";
 import { Board, BOARD_DEFAULT, type BoardLayout } from "../Board";
@@ -70,8 +70,8 @@ export const LocationsApp = (p: AppProps) => <FilesApp {...p} entry="locations" 
 /**
  * The file browser (docs/rewrite/ux-1-files.md) in its entries: **Files**, the folder trees of a
  * project and of the account home; **Media**, the project's photos and collections. A list or a
- * grid, search, a properties panel; clicking makes a file the current one, ticking selects files
- * for acting on several. Photos are imported by dropping image files or with Import.
+ * grid, search, a properties panel; selecting is an OS file manager's (a click, Ctrl/Shift-click,
+ * a rectangle on the empty part), and the panel shows what is selected. Photos are imported by dropping image files or with Import.
  */
 export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }: AppProps & { entry?: Entry }) {
   const media = entry === "media";
@@ -117,7 +117,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const setSort = (s: Sort) => { setSortState(s); remember(`${entry}.sort`, s); };
   const setView = (v: View) => { setViewState(v); remember(`${entry}.view`, v); };
   const setSpread = (v: boolean) => { setSpreadState(v); remember("media.spread", v); };
-  // Two different things: the current file (one click; what the panel shows) and the ticked files (for acting on several).
+  // The selection (what the panel shows and actions act on) and its anchor: the file last clicked or reached with the keys.
   const [cur, setCur] = useState<string | null>(null);
   const [sel, setSel] = useState<string[]>([]);
   const clear = () => { setSel([]); setCur(null); };
@@ -176,7 +176,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     return [...out].sort((a, b) => first(b) - first(a) || dir * k(a).localeCompare(k(b), undefined, { numeric: true, sensitivity: "base" }));
   }, [files, here, q, types.join(), sort.key, sort.dir, flat, media, mnav, spread, openColl, JSON.stringify(filter)]);
   const ids = items.map((f) => f.id);
-  const chosen = (sel.length ? sel : cur ? [cur] : []).map((id) => map.get(id)).filter((f): f is FileRec => !!f);
+  const chosen = sel.map((id) => map.get(id)).filter((f): f is FileRec => !!f);
   const one = chosen.length === 1 ? chosen[0] : null;
   const photosIn = (list: FileRec[]) => list.filter((f) => f.type === "photo");
 
@@ -194,7 +194,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     } catch (e) { toastError(e); }
   };
   /** A new shot, set or location, named by its pattern; current at once (double-click opens it). */
-  const newOf = async (type: string) => { try { const id = crypto.randomUUID(); await store.create(root, type, { id, container: shotsOnly ? null : here }); setCur(id); } catch (e) { toastError(e); } };
+  const newOf = async (type: string) => { try { const id = crypto.randomUUID(); await store.create(root, type, { id, container: shotsOnly ? null : here }); setSel([id]); setCur(id); } catch (e) { toastError(e); } };
   const newShot = () => newOf("shot");
   const open = (f: FileRec) => {
     if (f.type === "collection" && media) { setMnav(`coll:${f.id}`); setQ(""); clear(); return; }
@@ -203,13 +203,11 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     if (f.type === "photo") { launch({ app: "photo", resource: { type: "photo", id: f.id }, title: f.name, state: { list: ids.filter((id) => map.get(id)?.type === "photo") } }); return; }
     ops.openFile(f, map);
   };
-  const tick = (id: string) => setSel((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
-  const pick = (id: string, e: MouseEvent) => {
-    if (e.metaKey || e.ctrlKey) tick(id);
-    else if (e.shiftKey && (cur || sel.length)) { const a = ids.indexOf(cur ?? sel[sel.length - 1]), b = ids.indexOf(id); setSel([...new Set([...sel, ...ids.slice(Math.min(a, b), Math.max(a, b) + 1)])]); }
-    else setCur(id);
-  };
-  /** What an action on `f` acts on: every ticked file when `f` is one of them, else `f` alone. */
+  const pick = (id: string, e: MouseEvent) => { setSel(clickSelect(ids, sel, cur, id, e)); if (!e.shiftKey) setCur(id); };
+  /** One file selected and the anchor on it (the keys, a right-click outside the selection). */
+  const selectOnly = (id: string) => { setSel([id]); setCur(id); };
+  const marquee = useMarquee({ items: "[data-file-id]", attr: "data-file-id", selected: sel, onSelect: setSel });
+  /** What an action on `f` acts on: every selected file when `f` is one of them, else `f` alone. */
   const group = (f: FileRec) => (sel.includes(f.id) ? chosen : [f]);
   const desktop = store.fixedFolder(all, "desktop");
   const pins = pinsOf(projectId, prefs.pins);
@@ -237,7 +235,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     ];
   };
   const fileMenu = (f: FileRec, e: MouseEvent) => {
-    if (!sel.includes(f.id)) setCur(f.id);
+    if (!sel.includes(f.id)) selectOnly(f.id);
     const list = group(f), many = list.length > 1;
     const t = targetOf(f, map);
     const pinned = pins.some((p) => "file" in p && p.file === f.id);
@@ -275,7 +273,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     ]);
   };
 
-  // ---- Dragging: rows and cards carry the ticked files (or themselves); folders, collections, the tree and the path take them.
+  // ---- Dragging: rows and cards carry the selected files (or themselves); folders, collections, the tree and the path take them.
   const dragStart = (f: FileRec) => (e: DragEvent) => ops.setDrag(e, group(f).map((x) => x.id));
   const dropTarget = (key: string, container: string | null, toHome = home) => ({
     onDragOver: (e: DragEvent) => {
@@ -310,8 +308,8 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
 
   useKeys(bind("files", {
     search: () => search.current?.querySelector("input")?.focus(),
-    down: () => { const i = cur ? ids.indexOf(cur) : -1; if (ids.length) setCur(ids[Math.min(ids.length - 1, i + 1)]); },
-    up: () => { const i = cur ? ids.indexOf(cur) : ids.length; if (ids.length) setCur(ids[Math.max(0, i - 1)]); },
+    down: () => { const i = cur ? ids.indexOf(cur) : -1; if (ids.length) selectOnly(ids[Math.min(ids.length - 1, i + 1)]); },
+    up: () => { const i = cur ? ids.indexOf(cur) : ids.length; if (ids.length) selectOnly(ids[Math.max(0, i - 1)]); },
     open: () => { if (one) open(one); else return false; },
     parent: () => { if (here) go({ folder: map.get(here)?.container ?? null }); else if (openColl) setMnav("all"); else return false; },
     rename: () => { if (one) void ops.renameFile(one); else return false; },
@@ -375,7 +373,6 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       {media && mnav === "all" && !q && <Segmented label="Collections" value={spread ? "spread" : "stack"} onChange={(v) => setSpread(v === "spread")} options={[{ value: "stack", icon: "layers", title: "Collections as one tile" }, { value: "spread", icon: "grid", title: "Collections spread out" }]} />}
       <Segmented label="View" value={shownView} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }, ...(!home ? [{ value: "board", icon: "columns" as const, title: "Board: lanes by a property" }] : []), ...(mapped ? [{ value: "map", icon: "pin" as const, title: "Map: the files with a position" }] : [])]} />
       {!home && !shotsOnly && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
-      {shotsOnly && <Button size="sm" variant="primary" icon="plus" onClick={() => void newOf(only!)}>New {onlyKind!.label.toLowerCase()}</Button>}
       {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }, { id: "set", label: "Set", icon: "home" as const }, { id: "location", label: "Location", icon: "location" as const }, { id: "canvas", label: "Canvas", icon: "brush" as const }, { id: "timeline", label: "Timeline", icon: "timeline" as const }] : [])]} onSelect={(id) => void (id === "shot" || id === "set" || id === "location" || id === "timeline" ? newOf(id) : id === "canvas" ? ops.newCanvas(root, here) : ops.newFolder(root, here))} />}
       <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={resetPanels} />
       <input ref={picker} type="file" accept={IMAGE_TYPES} multiple hidden onChange={(e) => { const t = e.currentTarget; if (t.files?.length) importAll(t.files); t.value = ""; }} />
@@ -405,7 +402,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
         stack={stack ? { srcs: stack.filter((p) => p.photo?.stored.thumbnail).slice(0, 40).map((p) => imageUrl(p.id, "thumbnail")), count: stack.length } : undefined}
         tint={coll && !(openColl && f.type === "photo") ? tintOf(coll) : undefined} mark={mark} upload={uploadOf(f)}
         title={f.type === "photo" && coll && f.type !== coll.type ? `In the collection “${coll.name}”` : undefined}
-        selected={sel.includes(f.id)} current={cur === f.id} dropTarget={dropOn === f.id} onClick={(e) => pick(f.id, e)} onTick={() => tick(f.id)} onOpen={() => open(f)} {...rowDrag(f, i)} />
+        selected={sel.includes(f.id)} dropTarget={dropOn === f.id} onClick={(e) => pick(f.id, e)} onOpen={() => open(f)} data-file-id={f.id} {...rowDrag(f, i)} />
     );
   };
   const nameCell = (f: FileRec) => {
@@ -428,10 +425,10 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const main = error && !files ? <EmptyState icon="cloud-off" title="Could not load the files" action={<Button onClick={() => void store.loadRoot(root).catch(toastError)}>Try again</Button>}>{error}</EmptyState>
     : !files ? null
     : !items.length ? empty
-    : shownView === "map" ? <MapView items={items} defs={defs} current={cur} onCurrent={setCur} onOpen={open} />
+    : shownView === "map" ? <MapView items={items} defs={defs} current={cur} onCurrent={selectOnly} onOpen={open} />
     : shownView === "board" && !home ? <Board projectId={projectId} items={items} defs={defs} layout={board} onLayout={setBoard} selected={sel} card={card} />
     : shownView === "list" ? (
-      <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => rowDrag(map.get(id)!)}
+      <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => ({ ...rowDrag(map.get(id)!), "data-file-id": id })}
         columns={media
           ? [{ key: "name", label: "Name", sortable: true }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 130 }, { key: "size", label: "Size", numeric: true, width: 110 }]
           : shotsOnly ? [{ key: "name", label: "Name", sortable: true }, ...columnDefs.map((d) => ({ key: `p:${d.id}`, label: d.name })), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]
@@ -441,18 +438,18 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
           id: f.id, name: nameCell(f), type: kindOf(f.type).label, where: where(f), created: day(f.created_at), coll: collCell(f),
           taken: f.photo ? day(f.photo.taken_at) : "", size: f.photo ? `${f.photo.width} × ${f.photo.height}` : "",
         }))} />
-    ) : <FileGrid ticking={sel.length > 0}>{items.map(card)}{handOrder && sort_.ghost((from) => <div className="st-ghost">{card(items[from], -1)}</div>)}</FileGrid>;
+    ) : <FileGrid>{items.map(card)}{handOrder && sort_.ghost((from) => <div className="st-ghost">{card(items[from], -1)}</div>)}</FileGrid>;
 
   // ---- Properties: nothing chosen, one file, or several.
   const info = (
     <div className="st-info">
-      {!chosen.length ? <EmptyState icon="info" title={media ? (openColl?.name ?? "Media") : path.length ? path[path.length - 1].name : rootLabel}>{count(items.length)}. Click one to see its properties. Tick several to act on them together.</EmptyState>
+      {!chosen.length ? <EmptyState icon="info" title={media ? (openColl?.name ?? "Media") : path.length ? path[path.length - 1].name : rootLabel}>{count(items.length)}. Click one to see its properties; Ctrl-click or drag a rectangle to select several.</EmptyState>
         : one ? <OneFile key={one.id} f={one} files={all} map={map} facts={facts(one)} where={where(one)} who={(id) => (id === me?.id ? "You" : (id && people.get(id)) || "Someone else")} onOpen={() => open(one)} icon={icon(one, 48)}
           props={!home ? <PropertySections projectId={projectId} targets={[one]} defs={defs} files={all} /> : null} />
         : (
           <>
             <header className="st-info__head">
-              <span className="st-info__icon"><Icon name="files" size={20} /><strong>{count(chosen.length, "file")} ticked</strong></span>
+              <span className="st-info__icon"><Icon name="files" size={20} /><strong>{count(chosen.length, "file")} selected</strong></span>
               <span className="st-note">{[...new Set(chosen.map((f) => kindOf(f.type).plural))].join(", ")}</span>
             </header>
             <div className="st-info__acts">
@@ -474,16 +471,16 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
       dock={{ layout: panels, onLayoutChange: setPanels, zoneSizes: { left: 220, right: 300, bottom: 220 }, panels: [{ id: "nav", title: media ? "Media" : "Folders", icon: media ? "image" : "folder", body: sidebar }, ...(nav === "all" ? [{ id: "info", title: "Properties", icon: "info" as const, body: info }] : [])] }}
       statusBar={nav === "bin" ? undefined : (
         <StatusBar>
-          {count(items.length)}{sel.length > 0 && <> · <strong>{sel.length} ticked</strong> <Chip icon="close" onToggle={() => setSel([])}>Clear</Chip></>}
+          {count(items.length)}{sel.length > 0 && <> · <strong>{sel.length} selected</strong> <Chip icon="close" onToggle={() => setSel([])}>Clear</Chip></>}
           {waiting.length > 0 && <> · {count(waiting.length - stuck.length, "upload")} running</>}
           {stuck.length > 0 && <> · <strong>{stuck.length} stuck</strong> ({stuck[0].error}) <Chip icon="refresh" onToggle={retryUploads}>Try again</Chip> <Chip icon="close" onToggle={dropStuck}>Give up</Chip></>}
           {handOrder && <> · drag photos to set their order</>}
         </StatusBar>
       )}>
       {nav === "bin" ? <BinView root={root} /> : (
-        <div className={`st-scroll${dropOn === "here" ? " is-drop" : ""}`} {...dropTarget("here", importTo())} onContextMenu={emptyMenu} onClick={(e) => { if (e.target === e.currentTarget) clear(); }}>
+        <div className={`st-scroll${dropOn === "here" ? " is-drop" : ""}`} {...dropTarget("here", importTo())} onContextMenu={emptyMenu} onPointerDown={marquee.onPointerDown}>
           {filterOpen && !home && (
-            <div className="st-filterbar">
+            <div className="st-filterbar" data-no-marquee>
               <FilterBuilder group={filter} fields={filterFields(defs, all)} onChange={setFilter} />
               <div className="st-filterbar__foot">
                 <span className="st-note">{count(items.length, "file")} match{savedFilter ? ` · the filter “${savedFilter.name}”` : ""}</span>
@@ -494,6 +491,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
             </div>
           )}
           {main}
+          {marquee.band}
         </div>
       )}
     </BrowserLayout>
