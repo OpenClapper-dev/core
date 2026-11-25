@@ -60,8 +60,8 @@ describe("who gets in", () => {
     await json(call(bare, "GET", "/api/users", { jwt: await jwt({ email: "op@example.test", aud: [""], iss: "https://" }) }), 401);
   });
 
-  test("whoami names the instance: empty for production, the label for a second one (staging)", async () => {
-    expect(await json(call(bypass, "GET", "/api/whoami"), 200)).toMatchObject({ instance: "" });
+  test("whoami names the instance: development under the local bypass, the label for a second one (staging)", async () => {
+    expect(await json(call(bypass, "GET", "/api/whoami"), 200)).toMatchObject({ instance: "development" });
     expect(await json(call({ ...bypass, INSTANCE_LABEL: "staging" }, "GET", "/api/whoami"), 200)).toMatchObject({ instance: "staging" });
   });
 

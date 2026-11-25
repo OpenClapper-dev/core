@@ -20,8 +20,9 @@ const BASE_TITLE = document.title;
 const tabFromHash = (): Tab => (location.hash === "#monitoring" ? "monitoring" : location.hash === "#audit" ? "audit" : "board");
 /** The instance as an environment mark (colour and label): none set is production; the dev server is development. */
 const envOf = (instance: string) => (!instance || instance === "production" ? "production" : instance === "staging" ? "staging" : "development");
-/** The instance's own icon, the one index.html links. */
-const icon = (document.querySelector('link[rel="icon"]') as HTMLLinkElement | null)?.href ?? "";
+/** The instance's own icon, the one index.html links; a build served locally (the admin Worker on :8788) switches to the development set. */
+const linked = (document.querySelector('link[rel="icon"]') as HTMLLinkElement | null)?.href ?? "";
+const iconFor = (env: string) => (env === "development" ? linked.replace(/\/icons\/[^/]+\//, "/icons/dev/") : linked);
 
 /**
  * The admin board (issue #116): instance totals, every account (create, block, reset the password,
@@ -52,6 +53,8 @@ export function App() {
     addEventListener("hashchange", sync);
     return () => removeEventListener("hashchange", sync);
   }, []);
+  const env = import.meta.env.DEV ? "development" : envOf(instance);
+  useEffect(() => { document.querySelectorAll<HTMLLinkElement>('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((l) => { l.href = env === "development" ? l.href.replace(/\/icons\/[^/]+\//, "/icons/dev/") : l.href; }); }, [env]);
   const go = (t: Tab) => { location.hash = t === "board" ? "" : `#${t}`; setTab(t); };
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
@@ -66,7 +69,7 @@ export function App() {
   return (
     <div className="adm">
       <header className="adm-head">
-        <span className="adm-brand">{icon && <img src={icon} alt="" width={24} height={24} />}OpenClapper admin<EnvMarker env={import.meta.env.DEV ? "development" : envOf(instance)} /></span>
+        <span className="adm-brand">{linked && <img src={iconFor(env)} alt="" width={24} height={24} />}OpenClapper admin<EnvMarker env={env} /></span>
         <Segmented label="Page" value={tab} onChange={(v: string) => go(v as Tab)} options={TABS.map((t) => ({ ...t }))} />
         <span className="adm-head__end">
           <span className="adm-meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span className="adm-num">{__OPENCLAPPER_VERSION__} ({__OPENCLAPPER_COMMIT__})</span></span>

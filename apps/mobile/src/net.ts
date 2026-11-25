@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 /**
  * Whether the server was reachable on the last API call. "The phone has a network" is not the
- * question (expo-network answers that, for originals on Wi-Fi): what matters is whether the Worker answers. Set by api.ts; starts optimistic.
+ * question: what matters is whether the Worker answers. Set by api.ts; starts optimistic.
  */
 let online = true;
 const listeners = new Set<(v: boolean) => void>();

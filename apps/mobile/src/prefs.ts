@@ -20,10 +20,8 @@ export interface Prefs {
   lensNames: "phone" | "focal";
   /** Collection mode asks for a name when a collection starts, ends, or never (the camera's collection mode, B8). */
   askCollectionName: "never" | "start" | "end";
-  /** Originals wait for Wi-Fi; thumbnail and preview go at once. */
-  originalsOnWifi: boolean;
 }
-export const DEFAULT_PREFS: Prefs = { theme: "auto", collectionMark: "bar", lensNames: "phone", askCollectionName: "never", originalsOnWifi: false };
+export const DEFAULT_PREFS: Prefs = { theme: "auto", collectionMark: "bar", lensNames: "phone", askCollectionName: "never" };
 
 interface Cached { userId: string | null; fileId: string | null; prefs: Prefs; dirty: (keyof Prefs)[] }
 const cache = persisted<Cached>("prefs.v2", { userId: null, fileId: null, prefs: DEFAULT_PREFS, dirty: [] });

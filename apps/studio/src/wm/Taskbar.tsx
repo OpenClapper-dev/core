@@ -38,7 +38,7 @@ export function togglePin(projectId: string, all: Record<string, Pin[]>, pin: Pi
 }
 
 /** A menu that opens from a taskbar button, on the side away from the bar. */
-const below = (e: MouseEvent) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); return { x: r.left, y: r.top < innerHeight / 2 ? r.bottom + 4 : r.top - 4 }; };
+const below = (e: MouseEvent) => { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); return { x: r.left, right: r.right, y: r.top < innerHeight / 2 ? r.bottom + 4 : r.top - 4 }; };
 
 /**
  * The taskbar, on any edge: the launcher, the task view, the pins, the active desktop's windows,
@@ -136,7 +136,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
     ...desks.map((d, i): MenuEntry => ({ id: d.id, label: d.name, icon: "desktop", checked: d.id === active ? true : undefined, kbd: i < 9 ? `⌘Alt${i + 1}` : undefined, run: () => wm.switchDesk(d.id) })),
     { separator: true },
     { id: "new", label: "New desktop", icon: "plus", kbd: "⌘Alt N", run: () => { wm.addDesk({ go: true }); } },
-    { id: "view", label: "Task view…", icon: "layers", kbd: "⌘Alt V", run: () => openOverlay("taskview") },
+    { id: "view", label: "Task view…", icon: "task-view", kbd: "⌘Alt V", run: () => openOverlay("taskview") },
   ]);
 
   const launcherOpen = overlay === "launcher";
@@ -152,7 +152,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
   return (
     <>
       <Bar edge={prefs.taskbarEdge} align={prefs.taskbarAlign} launcherOpen={launcherOpen} onLauncher={() => openOverlay(launcherOpen ? null : "launcher")}
-        leading={<TaskbarButton icon="layers" label={`Task view (⌘Alt V) · ${desks.find((d) => d.id === active)?.name ?? ""}`} active={overlay === "taskview"} count={desks.length > 1 ? desks.findIndex((d) => d.id === active) + 1 : undefined}
+        leading={<TaskbarButton icon="task-view" label={`Task view (⌘Alt V) · ${desks.find((d) => d.id === active)?.name ?? ""}`} active={overlay === "taskview"} count={desks.length > 1 ? desks.findIndex((d) => d.id === active) + 1 : undefined}
           onClick={() => openOverlay(overlay === "taskview" ? null : "taskview")} onContextMenu={deskMenu} />}
         pinsDraggable groupProps={groupProps} onTask={onTask} onTaskMenu={onTaskMenu}
         pinned={pins.map((p) => {

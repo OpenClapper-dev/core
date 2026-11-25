@@ -14,7 +14,8 @@ interface PromptAsk { kind: "prompt"; title: string; label: string; value: strin
 
 /** A menu entry with what it does; separators and headings as in the design system's menu. */
 export type MenuEntry = (Extract<MenuItemData, { id: string }> & { run: () => void }) | Exclude<MenuItemData, { id: string }>;
-interface OpenMenu { x: number; y: number; items: MenuEntry[] }
+/** `right`: where a menu opened from a button ends when it has to open leftwards (the button's right edge). */
+interface OpenMenu { x: number; y: number; right?: number; items: MenuEntry[] }
 
 let menu: OpenMenu | null = null;
 /** A dialog of an app's own making (a folder picker), drawn above every window until it closes itself. */
@@ -49,12 +50,12 @@ export function prompt(q: { title: string; label: string; value?: string; confir
   return new Promise((done) => { ask?.done(null as never); ask = { kind: "prompt", value: "", confirmLabel: "Save", ...q, done }; notify(); });
 }
 
-/** Open a menu at the pointer (a right-click), or at a point (below a button). Entries that are false are left out. */
-export function contextMenu(at: MouseEvent | { x: number; y: number }, items: (MenuEntry | false | null | undefined)[]) {
+/** Open a menu at the pointer (a right-click), or at a point (below a button, with its right edge for opening leftwards). Entries that are false are left out. */
+export function contextMenu(at: MouseEvent | { x: number; y: number; right?: number }, items: (MenuEntry | false | null | undefined)[]) {
   if (at instanceof Event) at.preventDefault();
   const list = items.filter((i): i is MenuEntry => !!i);
   if (!list.length) return;
-  menu = { x: "clientX" in at ? at.clientX : at.x, y: "clientY" in at ? at.clientY : at.y, items: list };
+  menu = "clientX" in at ? { x: at.clientX, y: at.clientY, items: list } : { x: at.x, y: at.y, right: at.right, items: list };
   notify();
 }
 export const closeMenu = () => { if (menu) { menu = null; notify(); } };
@@ -67,7 +68,7 @@ function MenuHost({ m }: { m: OpenMenu }) {
     const el = box.current?.firstElementChild as HTMLElement | null;
     if (!el) return;
     const r = el.getBoundingClientRect();
-    setPos({ x: Math.max(4, m.x + r.width > innerWidth - 4 ? m.x - r.width : m.x), y: Math.max(4, m.y + r.height > innerHeight - 4 ? m.y - r.height : m.y) });
+    setPos({ x: Math.max(4, m.x + r.width > innerWidth - 4 ? (m.right ?? m.x) - r.width : m.x), y: Math.max(4, m.y + r.height > innerHeight - 4 ? m.y - r.height : m.y) });
   }, [m]);
   return (
     <div ref={box} className="st-menuhost" data-overlay>

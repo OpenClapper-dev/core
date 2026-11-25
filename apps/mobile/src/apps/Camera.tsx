@@ -57,7 +57,8 @@ function Camera({ active }: { active: boolean }) {
   const lens: Lens | null = lensList.find((l) => l.id === chosen) ?? lensList.find((l) => l.main) ?? lensList[0] ?? set.lenses[0] ?? null;
   const lensLabel = (l: Lens) => (names === "focal" && l.focal35 ? `${Math.round(l.focal35)}` : l.name);
   const camera = devices.find((d) => d.id === lens?.camera) ?? devices.find((d) => d.position === "back") ?? null;
-  const output = usePhotoOutput({ targetResolution: CommonResolutions.UHD_4_3, quality: 0.92, qualityPrioritization: "balanced" });
+  // Full quality (#426): the sensor's largest 4:3 picture, the least compression; the original is stored untouched.
+  const output = usePhotoOutput({ targetResolution: CommonResolutions.HIGHEST_4_3, quality: 1, qualityPrioritization: "quality" });
   const [torch, setTorch] = useState(false);
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);

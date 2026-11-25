@@ -11,6 +11,8 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   folder: { glyph: "folder", color: 5 },
   shortcut: { glyph: "shortcut", color: 0 },
   preferences: { glyph: "settings", color: 0 },
+  device: { glyph: "mobile", color: 6 },
+  layout: { glyph: "camera-layout", color: 3 },
   photo: { glyph: "image", color: 4 },
   collection: { glyph: "layers", color: 4 },
   shot: { glyph: "slate", color: 1 },
@@ -48,7 +50,12 @@ export function targetOf(f: FileRec, files: ReadonlyMap<string, FileRec>): Targe
 }
 
 /** How a file shows as an icon or a row: a shortcut takes the look of what it opens. */
+/** The fixed folders' own glyphs: a first-class folder like an OS's Desktop, not a padlock. */
+const FIXED_GLYPH: Record<string, IconName> = { desktop: "desktop", settings: "settings" };
+export const fixedGlyph = (fixed: string): IconName => FIXED_GLYPH[fixed] ?? "folder";
+
 export function lookOf(f: FileRec, files: ReadonlyMap<string, FileRec>): { glyph: IconName; color: number; shortcut: boolean; broken: boolean } {
+  if (f.fixed) return { glyph: fixedGlyph(f.fixed), color: 5, shortcut: false, broken: false };
   if (f.type !== "shortcut") return { ...kindOf(f.type), shortcut: false, broken: false };
   const t = targetOf(f, files);
   if (!t) return { glyph: "shortcut", color: 0, shortcut: true, broken: true };
