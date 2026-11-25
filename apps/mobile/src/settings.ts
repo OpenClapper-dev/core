@@ -12,9 +12,20 @@ export interface LocalSettings {
   /** Keep the active project's thumbnails and previews on the phone (Media without a connection). */
   keepProject: boolean;
   logging: boolean;
+  /** How large the camera's buttons are on this device (#426): small on a phone, large on a tablet. */
+  cameraButtons?: CameraButtonSize;
 }
+export type CameraButtonSize = "s" | "m" | "l";
+/** The camera's button sizes (dp): the button, its icon, the shutter. */
+export const CAMERA_BUTTONS: Record<CameraButtonSize, { size: number; icon: number; shutter: number }> = {
+  s: { size: 40, icon: 18, shutter: 64 },
+  m: { size: 48, icon: 22, shutter: 76 },
+  l: { size: 60, icon: 28, shutter: 92 },
+};
 
 export const settings = persisted<LocalSettings>("settings.v2", { offlineMode: false, keepProject: false, logging: false });
+/** This device's camera button sizes. */
+export const useCameraButtons = () => CAMERA_BUTTONS[settings.use().cameraButtons ?? "m"];
 
 export function setSettings(change: Partial<LocalSettings>) {
   settings.set((s) => ({ ...s, ...change }));

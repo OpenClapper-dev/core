@@ -10,7 +10,7 @@ The phone takes photos. A capture is one photo: queued at once, visible in Media
 - **Real lenses only** ([phone app](phone-app.md#this-device-srcdevicets-srclensests)): a lens is opened as the logical camera at the lens's zoom, or as a camera of its own. No digital zoom, so every photo is the full picture of one real lens and its EXIF describes it. A phone with one lens shows no lens rail.
 - **Lens names**: as the phone calls them (0.5×, 1×, 5×), or by the reported full-frame focal length (Setup, Camera; the account's preference).
 - **Built-in layout**: held upright, the lens rail above the control row; in landscape the control row stands at the right (beside the tab bar), the lens rail at the far left. Control row: uploads (count, red when something is stuck; opens Setup, Uploads), the last photo (opens it in Media), the shutter, the torch (filled when on). A strip over the picture names the project and the lens in use.
-- Camera buttons are outlined when off and filled in the accent colour when on.
+- Camera buttons are black with a white outline and a white icon when off, so they read over any picture, and filled in the accent colour when on (#426). Their size (with the shutter and the last-photo thumbnail) is chosen per device in Setup › Camera: small (40 dp), medium (48), large (60), kept in this device's settings (`cameraButtons`).
 
 ## What a capture produces (`src/media/pipeline.ts`)
 

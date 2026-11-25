@@ -22,6 +22,7 @@ import { allLayouts, chooseLayout, useLayout } from "../camera/layouts";
 import { captureFact, collecting, endCollection, frameBox, frames, liveView, nextFolder, startCollection, toggles, type FrameChoice } from "../camera/state";
 import { Button, Empty, FIXED, Hint, Icon, ListRow, makeStyles, num, RADIUS, SectionLabel, Seg, Sheet, SheetList, SIZE, Slider, toast, type, useTheme, Block, type IconName } from "../ui";
 import { registerApp } from "./registry";
+import { useCameraButtons } from "../settings";
 
 /**
  * The camera (docs/features/camera-layouts.md, docs/rewrite/03-capture.md): the phone takes photos; everything else
@@ -34,6 +35,7 @@ const sideways = (e: Edge) => e === "left" || e === "right";
 const JUSTIFY: Record<Distribution, "flex-start" | "center" | "flex-end" | "space-between" | "space-around"> = { start: "flex-start", center: "center", end: "flex-end", between: "space-between", around: "space-around" };
 
 function Camera({ active }: { active: boolean }) {
+  const sizes = useCameraButtons();
   const s = useStyles();
   const { width, height } = useWindowDimensions();
   const project = useProject();
@@ -166,7 +168,7 @@ function Camera({ active }: { active: boolean }) {
     if (c.kind === "readout") { const r = readout(i.control); return r ? <Text key={i.control} style={[s.tag, r.warn && s.tagWarn]} numberOfLines={1}>{r.text}</Text> : null; }
     if (c.kind === "shutter") return (
       <Pressable key="shutter" accessibilityRole="button" accessibilityLabel="Take a photo" disabled={!ready || busy || preview} onPress={() => void shoot()}
-        style={({ pressed }) => [s.shutter, pressed && { transform: [{ scale: 0.94 }] }, (!ready || busy) && { opacity: 0.6 }]}><View style={s.shutterInner} /></Pressable>
+        style={({ pressed }) => [s.shutter, { width: sizes.shutter, height: sizes.shutter, borderRadius: sizes.shutter / 2 }, pressed && { transform: [{ scale: 0.94 }] }, (!ready || busy) && { opacity: 0.6 }]}><View style={[s.shutterInner, { width: sizes.shutter - 16, height: sizes.shutter - 16, borderRadius: (sizes.shutter - 16) / 2 }]} /></Pressable>
     );
     if (i.control === "lenses") {
       if (lensList.length < 2) return null;
@@ -200,7 +202,7 @@ function Camera({ active }: { active: boolean }) {
       case "layout": return btn(undefined, () => setSheet("layout"));
       case "uploads": return btn(undefined, () => openApp("setup", "uploads"), { text: counts.waiting ? String(counts.waiting) : undefined, warn: counts.stuck > 0 });
       case "last": return (
-        <Pressable key="last" accessibilityRole="button" accessibilityLabel="Last photo" disabled={!last} onPress={() => last && openApp("media", last.id)} style={s.thumb}>
+        <Pressable key="last" accessibilityRole="button" accessibilityLabel="Last photo" disabled={!last} onPress={() => last && openApp("media", last.id)} style={[s.thumb, { width: sizes.size, height: sizes.size }]}>
           {last && <Image source={queuedUri(last) ? { uri: queuedUri(last)! } : imageSource(last.id, "thumbnail")} style={StyleSheet.absoluteFill} />}
         </Pressable>
       );
@@ -367,15 +369,20 @@ function NameInput({ value, onChange, placeholder }: { value: string; onChange: 
   return <TextInput value={value} onChangeText={onChange} placeholder={placeholder} placeholderTextColor={c.textDim} maxLength={120} style={[s.input, { color: c.text, borderColor: c.border, backgroundColor: c.surface }]} />;
 }
 
-/** A camera control (ux-5-phone.md): outlined when off, filled in the accent colour when on; with text it is a pill. */
+/**
+ * A camera control (ux-5-phone.md): black with a white outline and a white icon when off, so it reads over any
+ * picture (#426: no see-through fill, no muted outline); filled in the accent colour when on; with text a pill.
+ * Its size is this device's choice (Setup › Camera buttons).
+ */
 function CamButton({ icon, text, label, on, warn, disabled, onPress }: { icon?: IconName; text?: string; label: string; on?: boolean; warn?: boolean; disabled?: boolean; onPress: () => void }) {
   const s = useStyles();
   const { c } = useTheme();
-  const fg = on ? c.onAccent : disabled ? "rgba(255,255,255,.4)" : FIXED.white;
+  const sizes = useCameraButtons();
+  const fg = on ? c.onAccent : FIXED.white;
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: !!on, disabled }}
-      style={({ pressed }) => [s.cam, text !== undefined && s.camPill, on && { backgroundColor: c.accent, borderColor: c.accent }, warn && { borderColor: FIXED.record }, pressed && !on && { backgroundColor: "rgba(255,255,255,.16)" }]}>
-      {icon && <Icon name={icon} size={22} color={warn ? FIXED.record : fg} />}
+      style={({ pressed }) => [s.cam, { minWidth: sizes.size, height: sizes.size, borderRadius: sizes.size / 2 }, text !== undefined && s.camPill, on && { backgroundColor: c.accent, borderColor: c.accent }, warn && { borderColor: FIXED.record }, pressed && { opacity: 0.7 }, disabled && { opacity: 0.45 }]}>
+      {icon && <Icon name={icon} size={sizes.icon} color={warn ? FIXED.record : fg} />}
       {text !== undefined && <Text style={[s.camText, { color: fg }]}>{text}</Text>}
     </Pressable>
   );
@@ -400,14 +407,14 @@ const useStyles = makeStyles(() => ({
   tagWarn: { backgroundColor: FIXED.record },
   strip: { flexDirection: "row", gap: 8, alignItems: "center" },
   stripV: { flexDirection: "column" },
-  stepped: { flexDirection: "row", alignItems: "center", gap: 4, padding: 3, borderRadius: 28, borderWidth: 2, borderColor: "rgba(255,255,255,.5)" },
+  stepped: { flexDirection: "row", alignItems: "center", gap: 4, padding: 3, borderRadius: 28, borderWidth: 2, borderColor: FIXED.white, backgroundColor: FIXED.black },
   steppedValue: { ...type("label", "bold"), color: FIXED.white, minWidth: 44, textAlign: "center", ...num },
   ctl: { alignItems: "center", gap: 2 },
   ctlLabel: { ...type("caption", "bold"), fontSize: 10, color: FIXED.white, opacity: 0.85 },
-  thumb: { width: SIZE.touchMin, height: SIZE.touchMin, borderRadius: RADIUS.sm, overflow: "hidden", borderWidth: 2, borderColor: "rgba(255,255,255,.5)", backgroundColor: "rgba(255,255,255,.08)" },
+  thumb: { width: SIZE.touchMin, height: SIZE.touchMin, borderRadius: RADIUS.sm, overflow: "hidden", borderWidth: 2, borderColor: FIXED.white, backgroundColor: FIXED.black },
   shutter: { width: SIZE.shutter, height: SIZE.shutter, borderRadius: SIZE.shutter / 2, borderWidth: 4, borderColor: FIXED.white, alignItems: "center", justifyContent: "center" },
   shutterInner: { width: SIZE.shutter - 16, height: SIZE.shutter - 16, borderRadius: (SIZE.shutter - 16) / 2, backgroundColor: FIXED.white },
-  cam: { minWidth: SIZE.touchMin, height: SIZE.touchMin, borderRadius: SIZE.touchMin / 2, borderWidth: 2, borderColor: "rgba(255,255,255,.7)", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 4 },
+  cam: { minWidth: SIZE.touchMin, height: SIZE.touchMin, borderRadius: SIZE.touchMin / 2, borderWidth: 2, borderColor: FIXED.white, backgroundColor: FIXED.black, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 4 },
   camPill: { paddingHorizontal: 14 },
   camText: { ...type("label", "bold"), ...num },
   previewChip: { position: "absolute", left: 12, right: 12, top: "45%", flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", backgroundColor: FIXED.white, borderRadius: 20, paddingVertical: 8 },
