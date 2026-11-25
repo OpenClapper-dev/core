@@ -63,6 +63,9 @@ importers:
       '@openclapper/design':
         specifier: workspace:*
         version: link:../../packages/design
+      '@openclapper/ext-flows':
+        specifier: workspace:*
+        version: link:../../packages/ext-flows
       '@openclapper/ext-hardware':
         specifier: workspace:*
         version: link:../../packages/ext-hardware
@@ -185,6 +188,9 @@ importers:
       '@openclapper/design':
         specifier: workspace:*
         version: link:../../packages/design
+      '@openclapper/ext-flows':
+        specifier: workspace:*
+        version: link:../../packages/ext-flows
       '@openclapper/ext-hardware':
         specifier: workspace:*
         version: link:../../packages/ext-hardware
@@ -213,6 +219,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@openclapper/ext-flows':
+        specifier: workspace:*
+        version: link:../../packages/ext-flows
       '@openclapper/ext-hardware':
         specifier: workspace:*
         version: link:../../packages/ext-hardware
@@ -241,6 +250,15 @@ importers:
       preact:
         specifier: ^10.27.0
         version: 10.29.8
+
+  packages/ext-flows:
+    dependencies:
+      '@openclapper/ext-hardware':
+        specifier: workspace:*
+        version: link:../ext-hardware
+      '@openclapper/model':
+        specifier: workspace:*
+        version: link:../model
 
   packages/ext-hardware:
     dependencies:

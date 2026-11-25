@@ -46,4 +46,5 @@ The Worker registers every extension whatever the projects switch: an extension'
 
 | Extension | Needs | Brings |
 | --- | --- | --- |
+| Flows ([flows](flows.md)) | Hardware | The file type flow; the Flows app in the Studio and on the phone and tablet |
 | Hardware ([hardware](hardware.md)) | — | Lights, batteries, cameras, video transmitters in the device registry; pairing; the phone as proxy; Devices across types; Hardware on the phone; the camera control Hardware |

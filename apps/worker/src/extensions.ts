@@ -4,6 +4,7 @@
  * its routes and tables are its own.
  */
 import "@openclapper/ext-hardware";
+import "@openclapper/ext-flows";
 import type { Router } from "@openclapper/service-kit";
 import type { Ctx } from "./index.ts";
 import { registerHardwareRoutes } from "./ext/hardware/routes.ts";

@@ -10,6 +10,7 @@
     "@noble/hashes": "2.4.0",
     "@openclapper/design": "workspace:*",
     "@openclapper/fov-math": "workspace:*",
+    "@openclapper/ext-flows": "workspace:*",
     "@openclapper/ext-hardware": "workspace:*",
     "@openclapper/model": "workspace:*",
     "@openclapper/vocab": "workspace:*",

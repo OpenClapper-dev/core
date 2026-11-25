@@ -2,10 +2,9 @@ import { CCU_TYPE, type CameraTelemetry, type CcuMessage } from "./cameraControl
 import { CURVES, EFFECTS, type Curve, type EffectId, type EffectSettings, type LightState } from "./lighting.ts";
 
 /**
- * The light proxy (#307): the phone keeps the Bluetooth connections and runs the drivers; the Studio
- * controls the lights through the per-user phone room (apps/worker/src/preview.ts). These are the
- * messages both sides agree on. The phone validates every command it receives (parseLightCommand):
- * the Studio is trusted no more than any client.
+ * What a device is told and what it reports (#307): the commands and the live state the phone's drivers and
+ * every client agree on; the messages that carry them are in protocol.ts (the link's `hardware` channel). The
+ * phone checks every command it receives (parseLightCommand): no client is trusted more than another.
  */
 
 /** One change to a fixture, in normalised units: intensity and saturation 0..1, hue 0..360, kelvin, G/M −50..50. */
@@ -69,61 +68,8 @@ export interface FixtureLive {
   asleep?: boolean;
 }
 
-/** Phone → Studio, on every change (at most a few times a second) and when asked. */
-export interface ProxyState {
-  type: "lights.state";
-  /** The phone's device id and model, so the Studio can name it. */
-  phone: { id: string; model: string | null };
-  /** Proxy mode on: the phone holds every paired fixture and takes commands. */
-  proxy: boolean;
-  fixtures: FixtureLive[];
-}
-
-/**
- * Studio → phone. `lights.hello` asks the proxy for its state now (a Studio tab just opened);
- * `lights.sync` makes it re-read the fixture list (the Studio added, renamed or deleted one through
- * the API); `lights.scan` starts or stops a scan for nearby devices; `lights.provision` pairs a mesh
- * fixture with the phone's network, or runs its setup again (`fresh`: after a reset, a new address);
- * `lights.reconnect` drops every connection and connects again, one by one (#318).
- */
-export type ProxyRequest =
-  | { type: "lights.command"; fixtureId: string; command: LightCommand }
-  | { type: "lights.hello" }
-  | { type: "lights.sync" }
-  | { type: "lights.reconnect" }
-  /** Run a sequence on the phone itself (#321): it fetches exactly this revision (updatedAt) and plays it on its own clock. */
-  | { type: "lights.run"; sequenceId: string; revision: string; fromMs: number }
-  | { type: "lights.run.stop" }
-  | { type: "lights.scan"; on: boolean }
-  | { type: "lights.provision"; fixtureId: string; fresh?: boolean };
-
-/**
- * Phone → Studio (#321): a sequence running on the phone. Sent on every change, every RUN_REPORT_MS
- * while playing, and on `lights.hello`. `atMs` is the position when sent.
- */
-export interface RunState {
-  type: "lights.run.state";
-  phase: "idle" | "loading" | "playing" | "error";
-  sequenceId: string | null;
-  name?: string;
-  revision?: string;
-  atMs: number;
-  durationMs?: number;
-  loop?: boolean;
-  error?: string;
-}
-export const RUN_REPORT_MS = 250;
-
 /** A device the phone's scan found; `kinds` are the models it looks like (best first). */
 export interface ScannedDevice { address: string; name: string | null; rssi: number | null; kinds: string[] }
-
-/** Phone → Studio while scanning (10 s per scan), at most every few hundred ms. */
-export interface ScanState {
-  type: "lights.scan.state";
-  phase: "idle" | "scanning" | "done" | "error";
-  message?: string;
-  found: ScannedDevice[];
-}
 
 /** The steps of pairing a mesh light; a resume (provisioned earlier, not configured) runs only the last two. */
 export const PROVISION_STAGES = ["find", "invite", "keys", "confirm", "data", "reconnect", "configure"] as const;
@@ -137,17 +83,6 @@ export const PROVISION_STAGE_LABELS: Record<ProvisionStage, string> = {
   reconnect: "Reconnect through its proxy",
   configure: "Configure it",
 };
-
-/** Phone → Studio while pairing a mesh light. */
-export interface ProvisionState {
-  type: "lights.provision.state";
-  fixtureId: string;
-  phase: "running" | "done" | "error";
-  stage: ProvisionStage | null;
-  /** Only reconnect + configure: the light was provisioned before. */
-  resume: boolean;
-  error?: string;
-}
 
 const num = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
 const EFFECT_IDS = new Set<string>(EFFECTS.map((e) => e.id));

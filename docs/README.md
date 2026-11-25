@@ -26,6 +26,7 @@ Reference documentation for the whole app. Start with [architecture](architectur
 | [features/monitoring.md](features/monitoring.md) | Storage monitoring in the admin plane: the daily snapshot, the operator's marks, the optional Cloudflare overlay |
 | [features/projects.md](features/projects.md) | Projects as a hard scope, the active project on both clients |
 | [features/capture.md](features/capture.md) | Phone camera: real lenses, what a capture produces, import, the upload queue |
+| [features/flows.md](features/flows.md) | The Flows extension: flows as files, light and camera tracks, playing, running on the phone (rebuild, B10) |
 | [features/hardware.md](features/hardware.md) | The Hardware extension: catalogue with declared controls, hardware devices in the registry, mesh networks, the `hardware` channel (rebuild, B9) |
 | [features/extensions.md](features/extensions.md) | Extensions: the per-project switch, packaging, the build rule, the registration points (rebuild, B9) |
 | [features/camera-layouts.md](features/camera-layouts.md) | Camera layouts (bars, controls, readouts, look, options), the device's layout, the phone link with channels (rebuild, B8) |

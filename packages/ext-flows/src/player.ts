@@ -1,46 +1,60 @@
-import { fixtureKind } from "./lighting.ts";
-import type { LightCommand } from "./lightProxy.ts";
-import { commandsFor, inFade, nativeStep, sampleTrack, SEQUENCE_TICK_MS, type LightSequence, type SequenceSample } from "./lightSequence.ts";
+import { controlCommand, fixtureKind, modelOf, type LightCommand, type Value } from "@openclapper/ext-hardware";
+import { commandsFor, inFade, nativeStep, sampleControls, sampleTrack, FLOW_TICK_MS, type Flow, type SequenceSample } from "./flow.ts";
 
 /**
- * Playing a light sequence (#304, shared since #321): the Studio's preview through the proxy and the
- * phone's own run use this one implementation, so a sequence plays the same wherever it runs.
+ * Playing a flow (docs/features/flows.md; #304, shared since #321): the Studio's preview through the proxy and the
+ * phone's own run use this one implementation, so a flow plays the same wherever it runs.
  */
 
-export type SendLight = (fixtureId: string, cmd: LightCommand) => void;
+export type SendLight = (device: string, cmd: LightCommand) => void;
 
 /**
  * Samples every assigned, unmuted track at t and sends the difference to what its light last got.
  * While playing, a light that fades by itself gets one native fade per tile and nothing in between;
  * a light with switchable smoothing (NEEWER) jumps at keyframes and smooths inside fades.
  */
-export class SequenceEmitter {
+export class FlowEmitter {
   private sent = new Map<string, SequenceSample | null>();
   private fadeKeys = new Map<string, string | null>();
   private smoothSent = new Map<string, boolean>();
+  private controlsSent = new Map<string, Record<string, Value>>();
 
   /** Forget what was sent: the next emit sends every value again. `smoothing` too unless false (a loop keeps it). */
   reset(smoothing = true) {
     this.sent.clear();
     this.fadeKeys.clear();
+    this.controlsSent.clear();
     if (smoothing) this.smoothSent.clear();
   }
 
-  emit(seq: LightSequence, t: number, playback: boolean, send: SendLight) {
+  emit(seq: Flow, t: number, playback: boolean, send: SendLight) {
     for (const tr of seq.tracks) {
-      if (!tr.fixtureId || tr.muted) continue;
-      const caps = fixtureKind(tr.kindId)?.caps;
+      if (!tr.device || tr.muted) continue;
+      const model = modelOf(tr.model);
+      if (model?.type === "camera") {
+        // A camera track: the controls its keyframes hold, sent when they change (they jump).
+        const now = sampleControls(tr.keyframes, t), before = this.controlsSent.get(tr.id) ?? {};
+        for (const [id, v] of Object.entries(now)) {
+          if (before[id] === v) continue;
+          const c = model.controls.find((x) => x.id === id);
+          const cmd = c && controlCommand(model, c, v, undefined);
+          if (cmd) send(tr.device, cmd);
+        }
+        this.controlsSent.set(tr.id, now);
+        continue;
+      }
+      const caps = fixtureKind(tr.model)?.caps;
       const prev = this.sent.get(tr.id) ?? null;
       const step = playback && caps?.fade
         ? nativeStep(tr.keyframes, t, prev, this.fadeKeys.get(tr.id) ?? null)
         : { ...commandsFor(prev, sampleTrack(tr.keyframes, t)), key: null };
       if (caps?.smoothing) {
         const smooth = !playback || inFade(tr.keyframes, t);
-        if (this.smoothSent.get(tr.id) !== smooth) { this.smoothSent.set(tr.id, smooth); send(tr.fixtureId, { op: "smooth", on: smooth }); }
+        if (this.smoothSent.get(tr.id) !== smooth) { this.smoothSent.set(tr.id, smooth); send(tr.device, { op: "smooth", on: smooth }); }
       }
       this.sent.set(tr.id, step.sent);
       this.fadeKeys.set(tr.id, step.key);
-      for (const c of step.commands) send(tr.fixtureId, c);
+      for (const c of step.commands) send(tr.device, c);
     }
   }
 }
@@ -52,22 +66,22 @@ export interface PlayerClock {
 }
 
 /**
- * Plays a sequence from a position on a clock: a tick every SEQUENCE_TICK_MS; at the end it loops
+ * Plays a sequence from a position on a clock: a tick every FLOW_TICK_MS; at the end it loops
  * (sending everything again) or stops after sending the last state. `sequence` is read on every tick,
  * so the Studio's edits while playing take effect at once.
  */
-export class SequencePlayer {
-  readonly emitter = new SequenceEmitter();
+export class FlowPlayer {
+  readonly emitter = new FlowEmitter();
   private timer: unknown = null;
   private running = false;
   private start = 0;
 
-  private readonly sequence: () => LightSequence | null;
+  private readonly sequence: () => Flow | null;
   private readonly send: SendLight;
   private readonly clock: PlayerClock;
   private readonly on: { tick?: (t: number) => void; end?: (t: number) => void };
 
-  constructor(sequence: () => LightSequence | null, send: SendLight, clock: PlayerClock, on: { tick?: (t: number) => void; end?: (t: number) => void } = {}) {
+  constructor(sequence: () => Flow | null, send: SendLight, clock: PlayerClock, on: { tick?: (t: number) => void; end?: (t: number) => void } = {}) {
     this.sequence = sequence;
     this.send = send;
     this.clock = clock;
@@ -89,7 +103,7 @@ export class SequencePlayer {
     this.start = this.clock.now() - fromMs;
     this.running = true;
     this.tick();
-    if (this.running) this.timer = this.clock.setInterval(() => this.tick(), SEQUENCE_TICK_MS);
+    if (this.running) this.timer = this.clock.setInterval(() => this.tick(), FLOW_TICK_MS);
   }
 
   stop() {

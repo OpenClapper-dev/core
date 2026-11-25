@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import type { LightCommand } from "./lightProxy.ts";
-import { START_KEYFRAME, type LightSequence } from "./lightSequence.ts";
-import { SequencePlayer } from "./sequencePlayer.ts";
+import type { LightCommand } from "@openclapper/ext-hardware";
+import { START_KEYFRAME, type Flow } from "./flow.ts";
+import { FlowPlayer } from "./player.ts";
 
 function clock() {
   let now = 0;
@@ -17,9 +17,9 @@ function clock() {
   };
 }
 
-const seq = (loop: boolean, kindId = "neewer-fs230b"): LightSequence => ({
+const seq = (loop: boolean, model = "neewer-fs230b"): Flow => ({
   id: "s", name: "S", durationMs: 1000, loop, updatedAt: "",
-  tracks: [{ id: "t", name: "T", kindId, fixtureId: "f", keyframes: [
+  tracks: [{ id: "t", name: "T", model, device: "f", keyframes: [
     { id: START_KEYFRAME, at: 0, power: true, intensity: 0.2, kelvin: 4000, gm: 0 },
     { id: "k", at: 500, intensity: 1, fadeIn: "linear" },
   ] }],
@@ -31,7 +31,7 @@ test("plays from a position on its own clock, and stops after sending the last s
   const ticks: number[] = [];
   let ended: number | null = null;
   const s = seq(false);
-  const p = new SequencePlayer(() => s, (_id, cmd) => sent.push(cmd), c, { tick: (t) => ticks.push(t), end: (t) => { ended = t; } });
+  const p = new FlowPlayer(() => s, (_id, cmd) => sent.push(cmd), c, { tick: (t) => ticks.push(t), end: (t) => { ended = t; } });
   p.play(0);
   assert.ok(sent.some((x) => x.op === "power") && sent.some((x) => x.op === "cct"));
   c.advance(1000);
@@ -47,7 +47,7 @@ test("a loop starts over and sends every value again", () => {
   const c = clock();
   const sent: LightCommand[] = [];
   const s = seq(true);
-  const p = new SequencePlayer(() => s, (_id, cmd) => sent.push(cmd), c);
+  const p = new FlowPlayer(() => s, (_id, cmd) => sent.push(cmd), c);
   p.play(0);
   const powersBefore = sent.filter((x) => x.op === "power").length;
   c.advance(1100);
@@ -62,7 +62,7 @@ test("a light that fades by itself gets one native fade for the tile", () => {
   const sent: LightCommand[] = [];
   const s = { ...seq(false, "aputure-mc") };
   s.tracks = [{ ...s.tracks[0], keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.2, kelvin: 4000, gm: 0 }, { id: "k", at: 1000, intensity: 1, fadeIn: "linear" }] }];
-  const p = new SequencePlayer(() => s, (_id, cmd) => sent.push(cmd), c);
+  const p = new FlowPlayer(() => s, (_id, cmd) => sent.push(cmd), c);
   p.play(0);
   c.advance(900);
   // The start state once, then one fade and nothing in between.

@@ -1,6 +1,6 @@
 # Cameras
 
-> **First app (v0.16.0).** The rebuild's page is [hardware](hardware.md) (step B9, [#381](https://github.com/OpenClapper-dev/core/issues/381)); the driver and protocol details below still hold. Code moved: `packages/vocab/src/{lighting,lightProxy,cameraControl,lightSequence,sequencePlayer}.ts` → `packages/ext-hardware/src/`, `apps/mobile/src/fixtures/` → `apps/mobile/src/ext/hardware/bt/`, `src/ble/` → `src/ext/hardware/ble/`.
+> **First app (v0.16.0).** The rebuild's page is [hardware](hardware.md) (step B9, [#381](https://github.com/OpenClapper-dev/core/issues/381)); the driver and protocol details below still hold. Code moved: `packages/vocab/src/{lighting,lightProxy,cameraControl}.ts` → `packages/ext-hardware/src/`, `apps/mobile/src/fixtures/` → `apps/mobile/src/ext/hardware/bt/`, `src/ble/` → `src/ext/hardware/ble/`.
 
 Control a Blackmagic Pocket Cinema Camera over Bluetooth from the Studio, through the phone proxy like the lights ([lights](lights.md#the-phone-as-proxy-studio-devices-307); issue [#318](https://github.com/OpenClapper-dev/core/issues/318)). First camera: the owner's Pocket Cinema Camera 6K (the original).
 
