@@ -12,12 +12,13 @@ import {
 } from "@openclapper/design";
 import {
   BLACKOUT_TINTS, BUILTIN_LAYOUTS, CONTROLS, FRAME_COLOURS, FRAME_WIDTHS, REFERENCE_STEPS, copyLayout, isBuiltinLayout, layoutError, unplaced,
-  type Bar, type ControlId, type Distribution, type Edge, type LayoutBody, type LayoutItem,
+  focalsOf, type Bar, type ControlId, type Distribution, type Edge, type LayoutBody, type LayoutItem,
 } from "@openclapper/model";
+import { presetsIn } from "../optics";
 import * as api from "../api";
 import type { FileRec } from "../api";
 import * as store from "../files";
-import { confirm, toastError } from "../hosts";
+import { confirm, contextMenu, toastError } from "../hosts";
 import { sendLink, usePhoneLink } from "../phoneLink";
 import { activeExtensions, extensionOn, type AppProps } from "./registry";
 
@@ -30,7 +31,7 @@ const SAMPLE_FOCALS = ["24", "35", "50", "85"];
 const sideways = (e: Edge) => e === "left" || e === "right";
 interface DeviceBody { lenses?: { id: string; name: string; focal35: number | null; main?: boolean }[]; camera?: { portrait: { w: number; h: number }; landscape: { w: number; h: number } } | null; screen?: { portrait: { w: number; h: number }; landscape: { w: number; h: number } } | null; layout?: string }
 
-export function LayoutsApp({ win, setTitle, setRoute }: AppProps) {
+export function LayoutsApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const { files } = store.useRoot("home");
   const [cur, setCur] = useState<string>(() => win.resource?.id ?? "viewfinder");
   useEffect(() => { setTitle("Camera layouts"); setRoute(cur); }, [cur]);
@@ -39,10 +40,10 @@ export function LayoutsApp({ win, setTitle, setRoute }: AppProps) {
   const devices = files.filter((f) => f.type === "device");
   const file = isBuiltinLayout(cur) ? null : layouts.find((l) => l.id === cur) ?? null;
   const id = isBuiltinLayout(cur) || file ? cur : "viewfinder";
-  return <Editor key={id} id={id} file={file} layouts={layouts} devices={devices} onPick={setCur} />;
+  return <Editor key={id} id={id} file={file} layouts={layouts} devices={devices} onPick={setCur} projectId={projectId} />;
 }
 
-function Editor({ id, file, layouts, devices, onPick }: { id: string; file: FileRec | null; layouts: FileRec[]; devices: FileRec[]; onPick: (id: string) => void }) {
+function Editor({ id, file, layouts, devices, onPick, projectId }: { id: string; file: FileRec | null; layouts: FileRec[]; devices: FileRec[]; onPick: (id: string) => void; projectId: string }) {
   const builtin = isBuiltinLayout(id) ? BUILTIN_LAYOUTS[id] : null;
   const locked = !!builtin;
   const [body, setBody] = useState<LayoutBody>(() => (builtin ? copyLayout(builtin.body) : (file!.body as unknown as LayoutBody)));
@@ -81,9 +82,14 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
   // The live preview: while the Studio previews, every change goes to the phone.
   const [previewing, setPreviewing] = useState(false);
   const phone = link.phones[0];
-  const preview = () => sendLink({ ch: "layout", type: "preview", layout: latest.current, orientation: key, device: body.device });
+  // For previewing only, never part of the layout (#426): which device's camera and lenses, which optics preset's
+  // focal lengths, and the grid that outlines every bar (also on the device's live preview).
+  const [asDevice, setAsDevice] = useState<string>("");
+  const [withPreset, setWithPreset] = useState<string>("");
+  const [grid, setGrid] = useState(false);
+  const preview = () => sendLink({ ch: "layout", type: "preview", layout: latest.current, orientation: key, device: body.device, grid });
   useEffect(() => { if (!link.previewing && previewing) setPreviewing(false); }, [link.previewing]);
-  useEffect(() => { if (previewing && !wrong) preview(); }, [previewing, body, key]);
+  useEffect(() => { if (previewing && !wrong) preview(); }, [previewing, body, key, grid]);
   useEffect(() => () => { if (previewing) sendLink({ ch: "layout", type: "stop" }); }, [previewing]);
   const pillState = !link.open || !link.phones.length ? "none" : previewing ? "preview" : "connected";
 
@@ -132,7 +138,11 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
   };
 
   // ---------- The preview: the device's camera with the bars around the picture ----------
-  const dev = devices.find((d) => d.id === body.device);
+  // The device shown: the one picked for the preview, else the one showing the live preview, else the one the layout is designed for.
+  const dev = devices.find((d) => d.id === (asDevice || (previewing ? phone?.id : null) || body.device));
+  const project = store.useRoot({ project: projectId });
+  const presets = presetsIn(project.files ?? []);
+  const preset = presets.find((p) => p.id === withPreset);
   const db = (dev?.body ?? {}) as DeviceBody;
   const area = db.camera ?? db.screen ?? GENERIC;
   const { w, h } = land ? area.landscape : area.portrait;
@@ -151,7 +161,8 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
     else if (c.kind === "shutter") el = <Shutter />;
     else if (i.control === "last") el = <span className="lay-last"><Icon name="image" size={20} /></span>;
     else if (c.kind === "strip") {
-      const vals = i.control === "lenses" ? lenses : SAMPLE_FOCALS, now = vals[Math.min(1, vals.length - 1)] ?? "–";
+      const focals = preset ? focalsOf(preset.body.lenses).map(String) : SAMPLE_FOCALS;
+      const vals = i.control === "lenses" ? lenses : focals, now = vals[Math.min(1, vals.length - 1)] ?? "–";
       // Stepped: three full-size parts a thumb can hit, back, the value, on; stacked in an upright bar.
       el = i.display === "stepped"
         ? <span className={cx("lay-step", vertical && "is-v")}><CameraButton icon={vertical ? "chevron-up" : "chevron-left"} label={`Previous: ${c.label}`} /><b>{now}</b><CameraButton icon={vertical ? "chevron-down" : "chevron-right"} label={`Next: ${c.label}`} /></span>
@@ -159,13 +170,34 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
     } else el = <span className="lay-ctl"><CameraButton icon={c.icon as IconName} label={c.label} pressed={i.control === "blackout" && body.look.blackoutOn} />{i.label && "short" in c && <small>{c.short}</small>}</span>;
     // An extension's control while the project has it off: kept in the layout, greyed here, left out on the phone.
     const off = !extensionOn(c.extension);
-    return <span key={i.control} data-ctl={i.control} className={cx("lay-slot", drag?.ctl === i.control && "is-dragged", off && "is-off")} title={off ? `${c.label}: needs its extension, left out on the phone` : locked ? c.label : `${c.label}: drag to move it`} onPointerDown={grab(i.control)}>{el}</span>;
+    return <span key={i.control} data-ctl={i.control} className={cx("lay-slot", drag?.ctl === i.control && "is-dragged", off && "is-off")} title={off ? `${c.label}: needs its extension, left out on the phone` : locked ? c.label : `${c.label}: drag to move it, click to find it in Bars, right-click to remove it`}
+      onPointerDown={grab(i.control)} onClick={() => findInBars(i.control)} onContextMenu={(e) => controlMenu(e, i.control)}>{el}</span>;
   };
   const drawBar = (b: Bar) => (
     <div key={b.id} data-bar={b.id} data-axis={sideways(b.edge) ? "y" : "x"} className={cx("lay-bar", b.over && "is-over", sideways(b.edge) ? "is-v" : "is-h", `is-${b.distribution}`, b.items.some((i) => i.control === "shutter") && "has-shutter")}>
       {b.items.map((i) => draw(i, sideways(b.edge)))}{!b.items.length && <small className="lay-bar__empty">{b.name}</small>}
     </div>
   );
+  /** A click on a control in the preview: its entry in Bars scrolls into view and flashes (#426). */
+  const panelRef = useRef<HTMLDivElement>(null);
+  const findInBars = (ctl: ControlId) => {
+    const li = panelRef.current?.closest(".oc-app")?.querySelector<HTMLElement>(`.lay-items [data-ctl="${ctl}"]`);
+    if (!li) return;
+    li.scrollIntoView({ block: "center", behavior: "smooth" });
+    li.classList.remove("is-flash");
+    void li.offsetWidth;
+    li.classList.add("is-flash");
+  };
+  /** Right-click on a control in the preview: remove it, or find it in Bars (#426). */
+  const controlMenu = (e: MouseEvent, ctl: ControlId) => {
+    e.preventDefault();
+    const bar = bars.find((b) => b.items.some((i) => i.control === ctl));
+    contextMenu(e, [
+      { heading: CONTROLS[ctl].label },
+      { id: "find", label: "Show in Bars", icon: "search", run: () => findInBars(ctl) },
+      { id: "remove", label: ctl === "shutter" ? "The shutter cannot be removed" : "Remove", icon: "trash", danger: true, disabled: locked || ctl === "shutter" || !bar, run: () => bar && patchBar(bar.id, { items: bar.items.filter((y) => y.control !== ctl) }) },
+    ]);
+  };
   const at = (e: Edge) => bars.filter((b) => b.edge === e && !b.over).map(drawBar);
   const over = EDGES.map(([e]) => { const mine = bars.filter((b) => b.edge === e && b.over); return mine.length > 0 && <div key={e} className={cx("lay-over", `lay-over--${e}`)}>{mine.map(drawBar)}</div>; });
   const view = (
@@ -178,7 +210,7 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
   // Upright, top and bottom bars take the full width and the side bars the height left between them; in landscape the other way round.
   const shown = (
     <div className="lay-device" style={{ width: w * k + 16, height: h * k + 16 }}>
-      <div className={cx("lay-screen", land && "is-land")} style={{ width: w, height: h, scale: String(k) }}>
+      <div ref={panelRef} className={cx("lay-screen", land && "is-land", grid && "is-grid")} style={{ width: w, height: h, scale: String(k) }}>
         {land ? <>{at("left")}<div className="lay-mid">{at("top")}{view}{at("bottom")}</div>{at("right")}</> : <>{at("top")}<div className="lay-mid">{at("left")}{view}{at("right")}</div>{at("bottom")}</>}
       </div>
     </div>
@@ -265,6 +297,11 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
         {locked ? <strong className="st-title">{name}</strong> : <TextInput size="sm" value={name} aria-label="Name" maxLength={120} style={{ width: 200 }} onInput={(e) => setName(e.currentTarget.value)} onBlur={rename} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />}
         {locked ? <Badge icon="lock">Built in, read-only</Badge> : <span className="lay-saved">{status === "invalid" ? <><Icon name="warning" size={12} />Not saved yet</> : status === "waiting" ? "Changed" : <><Icon name="check" size={12} />Saved</>}</span>}
         <Segmented label="Orientation" value={key} onChange={(v) => setLand(v === "landscape")} options={[{ value: "portrait", label: "Upright" }, { value: "landscape", label: "Landscape" }]} />
+        <Select size="sm" aria-label="Preview as a device" value={asDevice} onChange={setAsDevice} title="Whose camera and real lenses the preview shows; for previewing only"
+          options={[{ value: "", label: previewing && phone?.id ? `As ${phone.name || "the device"} (live)` : body.device ? `As ${devices.find((d) => d.id === body.device)?.name ?? "its device"}` : "As a usual phone" }, ...devices.filter((d) => d.id !== body.device).map((d) => ({ value: d.id, label: `As ${d.name}` }))]} />
+        <Select size="sm" aria-label="Preview with an optics preset" value={withPreset} onChange={setWithPreset} title="Whose focal lengths the focal length control shows; for previewing only"
+          options={[{ value: "", label: "Sample focal lengths" }, ...presets.map((p) => ({ value: p.id, label: `With ${p.name}` }))]} />
+        <Button size="sm" variant="quiet" icon="grid" selected={grid} onClick={() => setGrid(!grid)} title="Outline every bar, here and on the device's live preview">Grid</Button>
         <ToolbarSpacer />
         <button type="button" className={cx("lay-pill", `is-${pillState}`)} disabled={pillState === "none" || !!wrong} title={pillState === "none" ? "Open the app on a phone signed in to this account" : previewing ? "Stop the preview on the phone" : "Show this layout on the phone while you change it"}
           onClick={() => { if (previewing) { sendLink({ ch: "layout", type: "stop" }); setPreviewing(false); } else setPreviewing(true); }}><i />{pillText}</button>

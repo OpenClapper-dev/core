@@ -7,7 +7,7 @@ import { CONTROLS, focalsOf, REFERENCE_STEPS, type Bar, type ControlId, type Dis
 import { canCall, putFile } from "../api";
 import { measureCamera, useLensSet } from "../device";
 import type { Lens } from "../lenses";
-import { leavePreview } from "../link";
+import { leavePreview, previewLayout } from "../link";
 import { log } from "../log";
 import { libraryFile, loadLibrary, useLibrary, usePresets } from "../media/library";
 import { addCapture } from "../media/pipeline";
@@ -56,6 +56,7 @@ function Camera({ active }: { active: boolean }) {
   const presets = usePresets();
   const lib = useLibrary();
   const { layout, preview, orientation } = useLayout();
+  const grid = !!previewLayout.use()?.grid;
   const body: LayoutBody = layout.body;
   const landscape = orientation ? orientation === "landscape" : width > height;
   const arrangement = landscape ? body.landscape : body.portrait;
@@ -221,7 +222,7 @@ function Camera({ active }: { active: boolean }) {
   const drawBar = (b: Bar) => {
     const v = sideways(b.edge);
     return (
-      <View key={b.id} pointerEvents={preview ? "none" : "auto"} style={[s.bar, v ? s.barV : s.barH, b.over && s.barOver, preview && { opacity: 0.85 }, { justifyContent: JUSTIFY[b.distribution] }, b.items.some((x) => x.control === "shutter") && (v ? { minWidth: 96 } : { minHeight: 96 })]}>
+      <View key={b.id} pointerEvents={preview ? "none" : "auto"} style={[s.bar, v ? s.barV : s.barH, b.over && s.barOver, preview && { opacity: 0.85 }, preview && grid && s.barGrid, { justifyContent: JUSTIFY[b.distribution] }, b.items.some((x) => x.control === "shutter") && (v ? { minWidth: 96 } : { minHeight: 96 })]}>
         {b.items.map((i) => control(i, v))}
       </View>
     );
@@ -449,6 +450,7 @@ const useStyles = makeStyles(() => ({
   strip: { flexDirection: "row", gap: 8, alignItems: "center" },
   stripV: { flexDirection: "column" },
   stepped: { flexDirection: "row", alignItems: "center", gap: 4, padding: 3, borderRadius: 28, borderWidth: 2, borderColor: FIXED.white, backgroundColor: FIXED.black },
+  barGrid: { borderWidth: 1, borderStyle: "dashed", borderColor: FIXED.white, backgroundColor: FIXED.glass },
   zoom: { flexDirection: "row", alignItems: "center", padding: 4, borderRadius: 28, backgroundColor: FIXED.black, borderWidth: 2, borderColor: FIXED.white },
   zoomV: { flexDirection: "column" },
   zoomTrack: { position: "relative" },
