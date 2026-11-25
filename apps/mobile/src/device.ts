@@ -28,7 +28,13 @@ interface DeviceState {
   /** Tabs, name or layout changed here and not saved yet. */
   dirty: { tabs?: boolean; name?: boolean; layout?: boolean };
 }
-export const device = persisted<DeviceState>("device.v1", { userId: null, file: null, tabs: DEFAULT_TABS, dirty: {} });
+/**
+ * Kept under `device.v2`: the first app (v0.16.0) stored its device specs under `device.v1`, a different shape, so a
+ * phone that ran it read that entry and had no tabs. A stored value of another shape counts as none: registering
+ * again finds the device by its fingerprint and takes its tabs and layout from the server.
+ */
+const isDeviceState = (v: unknown) => typeof v === "object" && v !== null && Array.isArray((v as DeviceState).tabs) && (v as DeviceState).tabs.every((t) => typeof t === "string") && typeof (v as DeviceState).dirty === "object" && (v as DeviceState).dirty !== null;
+export const device = persisted<DeviceState>("device.v2", { userId: null, file: null, tabs: DEFAULT_TABS, dirty: {} }, isDeviceState);
 
 /** The real lenses as last read from the camera (persisted, so Setup can list them with the camera closed). */
 export const lenses = persisted<LensSet>("lenses.v1", { lenses: [], torch: false });
