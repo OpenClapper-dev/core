@@ -100,20 +100,21 @@ export function knownPreferences(body: Record<string, unknown>): Record<string, 
 }
 
 /** The settings pages and the root each lives in: one file per page (#426). */
-export const SETTINGS_PAGES = { project: "project", extensions: "project", appearance: "home", account: "home", shortcuts: "home" } as const;
+export const SETTINGS_PAGES = { general: "project", properties: "project", naming: "project", extensions: "project", customizations: "project", appearance: "home", account: "home", shortcuts: "home" } as const;
 export type SettingsPage = keyof typeof SETTINGS_PAGES;
 /** Their names, as the server makes them. */
-export const SETTINGS_PAGE_NAMES: Record<SettingsPage, string> = { project: "Project", extensions: "Extensions", appearance: "Appearance", account: "Account", shortcuts: "Shortcuts" };
+export const SETTINGS_PAGE_NAMES: Record<SettingsPage, string> = { general: "General", properties: "Properties", naming: "Naming patterns", extensions: "Extensions", customizations: "Customizations", appearance: "Appearance", account: "Account", shortcuts: "Shortcuts" };
 
 /**
- * A settings page as a file (#426): the project's (Project, Extensions) in its Settings folder, a
- * person's (Appearance, Account, Shortcuts) in their home's. It names its page; what the page sets
+ * A settings page as a file (#426): one per tab, the project's (General, Properties, Naming patterns, Extensions,
+ * Customizations) in its Settings folder, a person's (Appearance, Account, Shortcuts) in their home's. The property
+ * definitions and naming patterns stay files of their own in the Settings folder; the browser lists the pages only. It names its page; what the page sets
  * lives where it always did (the project, the preferences file, the account), so the file is how a
  * page is found, opened and pinned. Made by the server with the folder; never renamed or deleted.
  */
 export const SETTINGS: FileType = {
   type: "settings", label: "Settings page", plural: "Settings pages", roots: ["project", "home"], onlyIn: "settings", made: "system", version: 1,
-  empty: () => ({ page: "project" }),
+  empty: () => ({ page: "general" }),
   check(body) {
     for (const k of Object.keys(body)) if (k !== "page") return `a settings page has no "${k}"`;
     return typeof body.page === "string" && body.page in SETTINGS_PAGES ? null : "page is not a settings page";

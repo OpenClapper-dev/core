@@ -66,7 +66,7 @@ describe("settings pages (#426)", () => {
     const all = (await ok<{ files: (FileOut & { body: { page: string } })[] }>(api(u.token, "GET", `/api/files?project_id=${project}&body=1`))).files;
     const settings = all.find((f) => f.fixed === "settings")!.id;
     const pages = all.filter((f) => f.type === "settings");
-    expect(pages.map((f) => [f.name, f.body.page, f.container]).sort()).toEqual([["Extensions", "extensions", settings], ["Project", "project", settings]]);
+    expect(pages.map((f) => [f.name, f.body.page, f.container]).sort()).toEqual([["Customizations", "customizations", settings], ["Extensions", "extensions", settings], ["General", "general", settings], ["Naming patterns", "naming", settings], ["Properties", "properties", settings]]);
     const page = pages[0].id;
     expect((await put(page, { name: "Mine" }, 400)).error).toMatch(/kept by the server/);
     expect((await put(uuid(), { type: "settings", project_id: project, container: settings, body: { page: "project" } }, 400)).error).toMatch(/kept by the server/);
