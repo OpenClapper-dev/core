@@ -114,9 +114,11 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted, li
   };
   const apply = (b: CanvasBody, bid: string | null) => { setDoc(b); setBaseId(bid); latest.current = { doc: b, baseId: bid }; setRev((r) => r + 1); };
 
-  // The live socket: the editor when this window holds the lock, else a viewer; opened again on Edit and Stop editing, and after a drop.
+  // The live socket: the editor when this window holds the lock, else a viewer; opened again on Edit and Stop editing, and
+  // after a drop. In every project, so who edits is never stale (#426); strokes and the canvas stream only in a realtime one.
+  const streaming = useRef(live === "realtime");
+  streaming.current = live === "realtime";
   useEffect(() => {
-    if (live !== "realtime") return;
     let ws: WebSocket | null = null, done = false, retry: ReturnType<typeof setTimeout> | undefined;
     const open = () => {
       const s = new WebSocket(`${location.origin.replace(/^http/, "ws")}/api/canvases/${file.id}/live?holder=${holder}`);
@@ -126,18 +128,19 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted, li
         if (held.current) return;
         let m: { type?: string; body?: CanvasBody; base?: string | null; draft?: Draft | null; by?: string | null };
         try { m = JSON.parse(String(e.data)) as typeof m; } catch { return; }
-        if (m.type === "doc" && m.body) { apply(m.body, m.base ?? null); setRemoteDraft(null); }
-        else if (m.type === "draft") setRemoteDraft(m.draft ?? null);
+        if (m.type === "doc" && m.body) { if (streaming.current) { apply(m.body, m.base ?? null); setRemoteDraft(null); } }
+        else if (m.type === "draft") { if (streaming.current) setRemoteDraft(m.draft ?? null); }
         else if (m.type === "saved") void reread(false).catch(() => {});
-        else if (m.type === "editor") { setLockedBy(m.by ? nameOf(m.by) : null); if (!m.by) setRemoteDraft(null); }
+        else if (m.type === "editor") { setLockedBy(m.by ? nameOf(m.by) : null); if (!m.by) { setRemoteDraft(null); void reread(false).catch(() => {}); } }
       };
       s.onclose = () => { if (sock.current === s) { sock.current = null; setConnected(false); } if (!done) retry = setTimeout(open, 3000); };
     };
     open();
     return () => { done = true; clearTimeout(retry); if (sock.current === ws) { sock.current = null; setConnected(false); } ws?.close(); };
-  }, [live, editing]);
+  }, [editing]);
   /** Sends the canvas (or the stroke being drawn) to the viewers, at most every SEND_MS; the last state always goes. */
   const send = (what: { doc: true } | { draft: Draft | null }) => {
+    if (!streaming.current) return;
     const st = sendState.current;
     if ("doc" in what) { st.doc = true; st.draft = null; } else st.draft = what.draft;
     if (st.timer) return;
