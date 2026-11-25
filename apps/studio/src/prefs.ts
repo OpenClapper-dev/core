@@ -30,9 +30,12 @@ export interface Prefs {
   clipHoldMs: number;
   /** A canvas made from a photo starts with the frame the photo was taken with. */
   canvasTakesFrame: boolean;
+  /** The file browser's table per kind of list (folders, Photos, Shots, …): which columns show and how wide (#426). */
+  columns: Record<string, ColumnSetup>;
 }
+export interface ColumnSetup { visible?: string[]; widths?: Record<string, number> }
 
-export const DEFAULT_PREFS: Prefs = { theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
+export const DEFAULT_PREFS: Prefs = { columns: {}, theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
 export type PrefsState = "local" | "loading" | "saved" | "saving" | "unsaved";
 
 let prefs: Prefs = { ...DEFAULT_PREFS, theme: getTheme() };

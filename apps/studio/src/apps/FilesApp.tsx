@@ -21,7 +21,7 @@ import { CollectionSections, PhotoFactsSections, thumbOf } from "../photoParts";
 import { CoverArt, coverOf } from "../shots/Cover";
 import { MapView, positionOf } from "../places/map";
 import { presetsIn } from "../optics";
-import { usePrefs, type Pin } from "../prefs";
+import { setPrefs, usePrefs, type Pin } from "../prefs";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
 import { pinsOf, togglePin as togglePinIn } from "../wm/Taskbar";
@@ -381,6 +381,30 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
   const crumbs = media
     ? [{ id: "all", label: "Photos" }, ...(openColl ? [{ id: openColl.id, label: openColl.name }] : mnav === "collections" ? [{ id: "collections", label: "Collections" }] : mnav === "loose" ? [{ id: "loose", label: "Not in a collection" }] : [])]
     : [{ id: "root", label: rootLabel }, ...path.map((f) => ({ id: f.id, label: f.name }))];
+  // ---- Columns (#426): every column this kind of list can show, the ones shown and their widths, kept with the account
+  // per kind (folders, Photos, Shots, Sets, Locations). Properties are columns too; the Shots list starts with its own.
+  const listKind = home ? "home" : entry;
+  const typeDefs = (type: string) => defs.filter((d) => d.def.attached.some((a) => a.type === type));
+  const propCols = (media ? typeDefs("photo") : only ? typeDefs(only) : defs).map((d) => ({ key: `p:${d.id}`, label: d.name, def: d }));
+  const baseCols: { key: string; label: string; sortable?: boolean; mono?: boolean; numeric?: boolean; width?: number }[] = media
+    ? [{ key: "name", label: "Name", sortable: true }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 130 }, { key: "size", label: "Size", numeric: true, width: 110 }, { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]
+    : only ? [{ key: "name", label: "Name", sortable: true }, { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]
+    : [{ key: "name", label: "Name", sortable: true }, { key: "type", label: "Type", sortable: true, width: 140 }, ...(flat ? [{ key: "where", label: "In" }] : []), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }];
+  const allCols = [...baseCols.slice(0, 1), ...(only ? propCols.map((c) => ({ key: c.key, label: c.label })) : []), ...baseCols.slice(1), ...(only ? [] : propCols.map((c) => ({ key: c.key, label: c.label })))];
+  const defaultVisible = media ? ["name", "coll", "taken", "size"] : only ? ["name", ...propCols.filter((c) => c.def.def.attached.some((a) => a.type === only && !a.hidden)).map((c) => c.key), "created"] : ["name", "type", "where", "created"];
+  const setup = prefs.columns[listKind] ?? {};
+  const visible = new Set(["name", ...(setup.visible ?? defaultVisible)]);
+  const shownCols = allCols.filter((c) => visible.has(c.key)).map((c) => ({ ...c, width: setup.widths?.[c.key] ?? (c as { width?: number }).width }));
+  const columnDefs = propCols.filter((c) => visible.has(c.key)).map((c) => c.def);
+  const setColumns = (patch: { visible?: string[]; widths?: Record<string, number> }) => setPrefs({ columns: { ...prefs.columns, [listKind]: { ...setup, ...patch } } });
+  const toggleColumn = (key: string) => setColumns({ visible: allCols.map((c) => c.key).filter((k) => k !== "name" && (k === key ? !visible.has(k) : visible.has(k))) });
+  // A search that matched in a property whose column is hidden says so on the row (search covers every property).
+  const hiddenMatch = (f: FileRec) => {
+    if (!q) return null;
+    const needle = q.toLowerCase();
+    const d = defs.find((x) => !visible.has(`p:${x.id}`) && f.values?.[x.id] !== undefined && valueText(x.def, f.values![x.id], (id) => map.get(id)?.name).toLowerCase().includes(needle));
+    return d ? `${d.name}: ${valueText(d.def, f.values![d.id], (id) => map.get(id)?.name)}` : null;
+  };
   const toolbar = nav === "bin" ? null : (
     <Toolbar>
       <Breadcrumb items={crumbs} onNavigate={(id) => (media ? (id === "all" ? setMnav("all") : undefined) : go({ folder: id === "root" ? null : id }))}
@@ -395,6 +419,8 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
       <Segmented label="View" value={shownView} onChange={(v) => setView(v as View)} options={[{ value: "list", icon: "list", title: "List" }, { value: "grid", icon: "grid", title: "Grid" }, ...(!home ? [{ value: "board", icon: "columns" as const, title: "Board: lanes by a property" }] : []), ...(mapped ? [{ value: "map", icon: "pin" as const, title: "Map: the files with a position" }] : [])]} />
       {!home && !shotsOnly && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
       {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }, { id: "set", label: "Set", icon: "home" as const }, { id: "location", label: "Location", icon: "location" as const }, { id: "canvas", label: "Canvas", icon: "brush" as const }, { id: "timeline", label: "Timeline", icon: "timeline" as const }] : [])]} onSelect={(id) => void (id === "shot" || id === "set" || id === "location" || id === "timeline" ? newOf(id) : id === "canvas" ? ops.newCanvas(root, here) : ops.newFolder(root, here))} />}
+      {shownView === "list" && <DropdownMenu size="sm" variant="quiet" icon="columns" label="Columns" align="end" items={[{ heading: "Columns" }, ...allCols.filter((c) => c.key !== "name").map((c) => ({ id: c.key, label: c.label, checked: visible.has(c.key) })), { separator: true }, { id: "reset", label: "As they were", icon: "refresh" }]}
+        onSelect={(id: string) => (id === "reset" ? setColumns({ visible: undefined, widths: undefined }) : toggleColumn(id))} />}
       <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={resetPanels} />
       <input ref={picker} type="file" accept={IMAGE_TYPES} multiple hidden onChange={(e) => { const t = e.currentTarget; if (t.files?.length) importAll(t.files); t.value = ""; }} />
     </Toolbar>
@@ -429,10 +455,9 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
   const nameCell = (f: FileRec) => {
     const thumb = thumbOf(f, all);
     const up = uploadOf(f);
-    return <span className="st-name">{thumb ? <img className="st-mini" src={thumb} alt="" loading="lazy" /> : icon(f, 20)}{f.name}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}{up && <UploadBadge state={up} />}</span>;
+    const hit = hiddenMatch(f);
+    return <span className="st-name">{thumb ? <img className="st-mini" src={thumb} alt="" loading="lazy" /> : icon(f, 20)}{f.name}{lookOf(f, map).shortcut && <Icon name="shortcut" size={12} label="Shortcut" />}{up && <UploadBadge state={up} />}{hit && <span className="st-note st-hit">· {hit}</span>}</span>;
   };
-  // The Shots list shows the shot properties as columns: the shot list as a table.
-  const columnDefs = shotsOnly ? defs.filter((d) => d.def.attached.some((a) => a.type === only && !a.hidden)) : [];
   const valueCell = (d: Definition, f: FileRec) => {
     const v = f.values?.[d.id];
     if (v === undefined) return <span className="st-note">–</span>;
@@ -450,10 +475,7 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
     : shownView === "board" && !home ? <Board projectId={projectId} items={items} defs={defs} layout={board} onLayout={setBoard} selected={sel} card={card} />
     : shownView === "list" ? (
       <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => ({ ...rowDrag(map.get(id)!), "data-file-id": id })}
-        columns={media
-          ? [{ key: "name", label: "Name", sortable: true }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 130 }, { key: "size", label: "Size", numeric: true, width: 110 }]
-          : shotsOnly ? [{ key: "name", label: "Name", sortable: true }, ...columnDefs.map((d) => ({ key: `p:${d.id}`, label: d.name })), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]
-          : [{ key: "name", label: "Name", sortable: true }, { key: "type", label: "Type", sortable: true, width: 140 }, ...(flat ? [{ key: "where", label: "In" }] : []), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]}
+        columns={shownCols} onResize={(key, w) => setColumns({ widths: { ...setup.widths, [key]: w } })}
         rows={items.map((f) => ({
           ...Object.fromEntries(columnDefs.map((d) => [`p:${d.id}`, valueCell(d, f)])),
           id: f.id, name: nameCell(f), type: kindOf(f.type).label, where: where(f), created: day(f.created_at), coll: collCell(f),
