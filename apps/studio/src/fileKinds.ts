@@ -24,6 +24,8 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   location: { glyph: "location", color: 3 },
   timeline: { glyph: "timeline", color: 6 },
 };
+/** How an extension's file type looks (from its extensions.ts entry). */
+export function registerFileLook(type: string, look: { glyph: IconName; color: number }) { LOOK[type] = look; }
 /** Labels of types later steps register, so a property can be attached to them before they exist. */
 const LATER: Record<string, [string, string]> = { timeline: ["Timeline", "Timelines"] };
 

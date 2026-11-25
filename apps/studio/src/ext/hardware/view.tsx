@@ -15,7 +15,7 @@ import * as store from "../../files";
 import { confirm, toast, toastError } from "../../hosts";
 import type { DeviceCells } from "../../devices";
 import { ControlView, useHeld } from "./Controls";
-import { command, request, useHardware, type HardwareCtx } from "./link";
+import { command, isBusy, request, useHardware, type HardwareCtx } from "./link";
 
 export const TYPE_LOOK: Record<HardwareType, { icon: IconName; color: number }> = { light: { icon: "light-fixture", color: 3 }, battery: { icon: "battery", color: 4 }, camera: { icon: "video", color: 1 }, transmitter: { icon: "antenna", color: 8 } };
 const bodyOf = (d: FileRec) => d.body as unknown as HardwareBody;
@@ -73,13 +73,14 @@ export function Card({ d, all, ctx }: { d: FileRec; all: FileRec[]; ctx: Hardwar
   const held = useHeld();
   const first = controlGroups(m, "everywhere")[0];
   const quick = first?.controls.filter((c) => c.kind !== "outputs" && c.kind !== "effect").slice(0, m.type === "camera" ? 2 : 5) ?? [];
-  const ready = l?.link === "ready";
+  const ready = l?.link === "ready" && !isBusy(d.id);
   return (
     <>
       <DeviceCard icon={TYPE_LOOK[m.type].icon} color={TYPE_LOOK[m.type].color} name={d.name} sub={modelName(m)} off={b.asleep || (!ready && m.transport !== "wifi")} onOpen={() => setOpen(true)}
         connection={<ConnectionMark tone={link.tone} label={link.label} />} battery={ch.known ? <BatteryBar charge={ch.charge} minutes={ch.minutes} label={ch.from ? `Battery ${ch.from}` : "Charge"} /> : undefined}
         actions={<DeviceMenu d={d} ctx={ctx} onOpen={() => setOpen(true)} />}>
         {quick.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={!ready} send={(cmd) => command(d.id, cmd)} />)}
+        {isBusy(d.id) && <span className="hw-note">A flow drives it now</span>}
         {m.type === "camera" && l?.telemetry?.camera?.timecode && <span className="hw-tc">{l.telemetry.camera.timecode}</span>}
         {m.feeds.length > 0 && <span className="hw-note">{m.feeds.map((f) => `${f.label}: on the phone only`).join(" · ")}</span>}
         {m.type === "battery" && <span className="hw-note">{powerText(d, all)}</span>}
@@ -113,7 +114,7 @@ async function remove(d: FileRec) {
 function Panel({ d, all, ctx, onClose }: { d: FileRec; all: FileRec[]; ctx: HardwareCtx; onClose: () => void }) {
   const b = bodyOf(d), m = modelOf(b.model)!;
   const l = liveOf(ctx, d.id), link = linkOf(d, ctx);
-  const ready = l?.link === "ready";
+  const ready = l?.link === "ready" && !isBusy(d.id);
   const held = useHeld();
   const [name, setName] = useState(d.name);
   const groups = controlGroups(m, "everywhere");

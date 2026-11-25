@@ -1,10 +1,10 @@
 /* The Camera layouts app (docs/features/camera-layouts.md). The preview draws the camera in its fixed over-content colours. */
-.lay-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.lay-note { margin: 0; padding: var(--space-3) var(--space-5); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .lay-pad { padding: var(--space-2) var(--space-5); }
 .lay-row { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
-.lay-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: var(--font-size-xs); }
+.lay-saved { display: inline-flex; align-items: center; gap: 4px; color: var(--text-secondary); font-size: var(--font-size-2xs); }
 /* The phone link: no phone, connected, previewing. */
-.lay-pill { display: inline-flex; align-items: center; gap: 6px; height: var(--control-h-sm); padding: 0 10px; border: var(--border-w) solid var(--border-control); border-radius: 999px; background: var(--surface); color: var(--text); font: var(--font-size-xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
+.lay-pill { display: inline-flex; align-items: center; gap: 6px; height: var(--control-h-sm); padding: 0 10px; border: var(--border-w) solid var(--border-control); border-radius: 999px; background: var(--surface); color: var(--text); font: var(--font-size-2xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
 .lay-pill:disabled { cursor: default; color: var(--text-secondary); }
 .lay-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--text-disabled); }
 .lay-pill.is-connected i { background: var(--warning); }
@@ -63,7 +63,7 @@
 .lay-item:hover { background: var(--surface-hover); }
 .lay-item > .oc-icon:first-child { color: var(--text-disabled); }
 .lay-item__name { flex: 1; min-width: 80px; }
-.lay-item--empty { justify-content: center; color: var(--text-secondary); font-size: var(--font-size-xs); border: var(--border-w) dashed var(--border-control); cursor: default; }
+.lay-item--empty { justify-content: center; color: var(--text-secondary); font-size: var(--font-size-2xs); border: var(--border-w) dashed var(--border-control); cursor: default; }
 .lay-swatches { display: inline-flex; gap: 6px; }
 .lay-swatches button { width: 22px; height: 22px; border: var(--border-w) solid var(--border-control); border-radius: 50%; cursor: pointer; }
 .lay-swatches button.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
@@ -72,13 +72,13 @@
 .dev-body { flex: 1; min-height: 0; overflow: auto; background: var(--surface-sunken); }
 .dev-cards { display: grid; gap: var(--space-5); padding: var(--space-6); }
 .dev-part { flex: 1 1 220px; min-width: 200px; align-self: flex-start; }
-.dev-part h4, .hw-group h4 { margin: 0 0 var(--space-3); font-size: var(--font-size-xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
+.dev-part h4, .hw-group h4 { margin: 0 0 var(--space-3); font-size: var(--font-size-2xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
 .dev-hidden { margin: var(--space-6) var(--space-6) 0; padding: var(--space-4) var(--space-5); border: var(--border-w) dashed var(--border-control); border-radius: var(--radius-card); color: var(--text-secondary); font-size: var(--font-size-sm); }
 .dev-fact { margin: 0 0 var(--space-2); font-size: var(--font-size-sm); }
 .dev-tabs { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
 .dev-tabs li { display: flex; align-items: center; gap: var(--space-2); min-height: 30px; }
 .dev-tabs li.is-off { color: var(--text-secondary); }
-.dev-tabs li.is-fixed { gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-xs); }
+.dev-tabs li.is-fixed { gap: var(--space-3); color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .dev-take { margin-top: var(--space-5); }
 .dev-type { display: inline-flex; align-items: center; gap: 6px; }
 

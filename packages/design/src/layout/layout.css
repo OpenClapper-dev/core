@@ -97,12 +97,12 @@ button.oc-card:focus-visible{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4
 .oc-dock__group.is-rail .oc-dock__tab>svg+span{display:none}
 .oc-dock__group.is-rail .oc-dock__tab:not(:has(svg))>span{display:inline;writing-mode:vertical-rl}
 .oc-dock__group.is-rail .oc-dock__tab:not(:has(svg)){height:auto;padding:var(--space-3) 0}
-.oc-dock__edge{position:absolute;z-index:20;display:grid;place-items:center;align-content:center;gap:var(--space-2);border:2px dashed var(--accent);border-radius:var(--radius-control);background:color-mix(in srgb,var(--surface) 84%,var(--accent));color:var(--text);font:var(--weight-regular) var(--font-size-xs)/1.2 var(--font-sans)}
+.oc-dock__edge{position:absolute;z-index:20;display:grid;place-items:center;align-content:center;gap:var(--space-2);border:2px dashed var(--accent);border-radius:var(--radius-control);background:color-mix(in srgb,var(--surface) 84%,var(--accent));color:var(--text);font:var(--weight-regular) var(--font-size-2xs)/1.2 var(--font-sans)}
 .oc-dock__edge--left{left:6px;top:6px;bottom:6px;width:84px}
 .oc-dock__edge--right{right:6px;top:6px;bottom:6px;width:84px}
 .oc-dock__edge--bottom{left:96px;right:96px;bottom:6px;height:64px}
 .oc-dock__drop{position:fixed;z-index:calc(var(--z-modal) + 20);display:grid;place-items:center;box-sizing:border-box;border:2px solid var(--accent);border-radius:var(--radius-xs);background:color-mix(in srgb,var(--accent) 22%,transparent);pointer-events:none;transition:left var(--dur-fast) linear,top var(--dur-fast) linear,width var(--dur-fast) linear,height var(--dur-fast) linear}
-.oc-dock__drop>span{padding:2px var(--space-4);border-radius:var(--radius-pill);background:var(--accent);color:var(--text-on-accent);font:var(--weight-bold) var(--font-size-xs)/1.6 var(--font-sans)}
+.oc-dock__drop>span{padding:2px var(--space-4);border-radius:var(--radius-pill);background:var(--accent);color:var(--text-on-accent);font:var(--weight-bold) var(--font-size-2xs)/1.6 var(--font-sans)}
 .oc-dock__ghost{position:fixed;z-index:calc(var(--z-modal) + 21);display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-2) var(--space-4);border-radius:var(--radius-control);background:var(--accent);color:var(--text-on-accent);font:var(--weight-bold) var(--font-size-sm)/1.4 var(--font-sans);box-shadow:var(--shadow-menu);pointer-events:none}
 .oc-dock__zone--left.is-min .oc-dock__group,.oc-dock__zone--right.is-min .oc-dock__group{flex:1 1 auto!important}
 .oc-dock__group.is-slim.is-rail:not(.is-collapsed)>.oc-dock__head{flex:none;border-bottom:var(--border-w) solid var(--border-divider)}

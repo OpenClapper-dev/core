@@ -75,7 +75,7 @@
 .oc-filecard__tick:hover{background:var(--over-ink)}
 .oc-filecard__tick.is-on{border-color:var(--accent);background:var(--accent);color:var(--text-on-accent,#fff)}
 .oc-filecard__name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:var(--weight-medium)}
-.oc-filecard__meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);font-size:var(--font-size-xs)}
+.oc-filecard__meta{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-secondary);font-size:var(--font-size-2xs)}
 .oc-table tr.is-drop>td{background:var(--marquee);box-shadow:inset 0 1px 0 var(--accent),inset 0 -1px 0 var(--accent)}
 .oc-table tbody tr{cursor:pointer}
 .oc-filecard__count{position:absolute;right:4px;bottom:4px;padding:1px 5px;border-radius:8px;background:var(--over-ink);color:var(--over-paper);font:var(--weight-bold) var(--font-size-2xs)/1.4 var(--font-mono)}
@@ -96,7 +96,7 @@
 .oc-upload{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--over-mask);color:var(--over-paper)}
 .oc-upload--stuck{background:var(--danger);color:var(--surface)}
 /* Devices (U6): the connection mark, the battery bar, the device card. */
-.oc-conn{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:var(--font-size-xs);color:var(--text-secondary);white-space:nowrap}
+.oc-conn{display:inline-flex;align-items:center;gap:6px;min-width:0;font-size:var(--font-size-2xs);color:var(--text-secondary);white-space:nowrap}
 .oc-conn>i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--text-disabled)}
 .oc-conn--ok>i{background:var(--success)}
 .oc-conn--warn>i{background:var(--warning)}
@@ -117,7 +117,7 @@
 .oc-device__who>.oc-batt{justify-self:stretch}
 .oc-device__name{display:grid;min-width:0}
 .oc-device__name strong,.oc-device__name small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.oc-device__name small{color:var(--text-secondary);font-size:var(--font-size-xs)}
+.oc-device__name small{color:var(--text-secondary);font-size:var(--font-size-2xs)}
 .oc-device__what{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--space-4) var(--space-6)}
 .oc-device__actions{flex:none;display:flex;gap:var(--space-2)}
 @media (max-width:720px){.oc-device{flex-direction:column}.oc-device__who{width:100%}}

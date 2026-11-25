@@ -32,8 +32,10 @@ export class FlowEmitter {
       if (!tr.device || tr.muted) continue;
       const model = modelOf(tr.model);
       if (model?.type === "camera") {
-        // A camera track: the controls its keyframes hold, sent when they change (they jump).
+        // A camera track: the controls its keyframes hold, sent when they change (they jump). Recording starts and
+        // stops only while the flow plays: scrubbing with Live on must not start a take.
         const now = sampleControls(tr.keyframes, t), before = this.controlsSent.get(tr.id) ?? {};
+        if (!playback) { delete now.record; if ("record" in before) now.record = before.record; }
         for (const [id, v] of Object.entries(now)) {
           if (before[id] === v) continue;
           const c = model.controls.find((x) => x.id === id);

@@ -35,6 +35,14 @@ test("the player sends a camera's controls when they change", () => {
   assert.deepEqual(data, ["10.1=[0,0,0,0,0]", "10.1=[2,0,0,0,0]", "1.14=[1600]"]);
 });
 
+test("Live (not playing) never starts or stops a recording", () => {
+  const sent: LightCommand[] = [];
+  const e = new FlowEmitter();
+  const flow = { id: "f", name: "F", updatedAt: "", ...emptyFlow(), tracks: [cam] } as Flow;
+  e.emit(flow, 2500, false, (_d, c) => sent.push(c));
+  assert.deepEqual(sent.map((c) => (c.op === "ccu" ? `${c.message.category}.${c.message.parameter}` : c.op)), ["1.14"]);
+});
+
 test("run requests are checked", () => {
   assert.deepEqual(parseFlowRequest({ type: "run", flow: "6f1c2c1e-1111-4111-8111-111111111111", revision: "2026-11-25T10:00:00.000Z", fromMs: 0 }), { type: "run", flow: "6f1c2c1e-1111-4111-8111-111111111111", revision: "2026-11-25T10:00:00.000Z", fromMs: 0 });
   assert.equal(parseFlowRequest({ type: "run", flow: "x", revision: "r", fromMs: 0 }), null);
