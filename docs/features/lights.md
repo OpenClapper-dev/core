@@ -1,6 +1,6 @@
 # Lights
 
-> **First app (v0.16.0).** The rebuild's page is [hardware](hardware.md) (step B9, [#381](https://github.com/OpenClapper-dev/core/issues/381)); the driver and protocol details below still hold. Code moved: `packages/vocab/src/{lighting,lightProxy,cameraControl,lightSequence,sequencePlayer}.ts` → `packages/ext-hardware/src/`, `apps/mobile/src/fixtures/` → `apps/mobile/src/ext/hardware/bt/`, `src/ble/` → `src/ext/hardware/ble/`.
+> **First app (v0.16.0).** The rebuild's page is [hardware](hardware.md) (step B9, [#381](https://github.com/OpenClapper-dev/core/issues/381)); the driver and protocol details below still hold. Code moved: `packages/vocab/src/{lighting,lightProxy,cameraControl}.ts` → `packages/ext-hardware/src/`, `lightSequence.ts` and `sequencePlayer.ts` → `packages/ext-flows/src/flow.ts` and `player.ts` (sequences are now [flows](flows.md)), `apps/mobile/src/fixtures/` → `apps/mobile/src/ext/hardware/bt/`, `src/ble/` → `src/ext/hardware/ble/`.
 
 Control film lights and read a battery from the phone, so one app drives every fixture on set and, later, keyframed sequences can drive them together (epic [#206](https://github.com/OpenClapper-dev/core/issues/206)). Setup → **Lights** pairs and lists them.
 

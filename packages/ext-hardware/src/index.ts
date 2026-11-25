@@ -20,8 +20,6 @@ registerCameraControl("hardware", { label: "Hardware", icon: "light-fixture", sh
 export * from "./lighting.ts";
 export * from "./lightProxy.ts";
 export * from "./cameraControl.ts";
-export * from "./lightSequence.ts";
-export * from "./sequencePlayer.ts";
 export * from "./catalogue.ts";
 export * from "./device.ts";
 export * from "./protocol.ts";

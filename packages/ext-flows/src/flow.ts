@@ -1,18 +1,17 @@
-import type { Curve, EffectId, EffectSettings } from "./lighting.ts";
-import { FADE_MAX_MS, type LightCommand } from "./lightProxy.ts";
+import { CAMERA_CONTROLS, FADE_MAX_MS, modelOf, type Curve, type EffectId, type EffectSettings, type LightCommand, type Value } from "@openclapper/ext-hardware";
 
 /**
- * Light sequences (#304). A sequence has tracks; a track has a type (a fixture kind) and, as a
- * separate step, the light it drives. Its keyframes hold values: between two keyframes the light
+ * Flows (docs/features/flows.md; the first app's light sequences, #304). A flow has tracks; a track has a type (a
+ * catalogue model: a light or a camera) and, as a separate step, the device it drives. A light track: Its keyframes hold values: between two keyframes the light
  * keeps the first one's values and jumps at the second, unless a fade connects them (the second
  * keyframe's `fadeIn`, a tile on the gap in the editor): then every value that differs fades over
  * the gap with the fade's curve. Every track starts with a fixed start keyframe at 0 holding a
  * complete state, so a sequence never inherits what a light happened to show. Played by sampling
- * every SEQUENCE_TICK_MS; lights that fade by themselves (#289) get one native fade per fade tile.
+ * every FLOW_TICK_MS; lights that fade by themselves (#289) get one native fade per fade tile.
  */
 
-export const SEQUENCE_TICK_MS = 100;
-export const SEQUENCE_MAX_MS = 60 * 60_000;
+export const FLOW_TICK_MS = 100;
+export const FLOW_MAX_MS = 60 * 60_000;
 /** The start keyframe's id on every track. */
 export const START_KEYFRAME = "start";
 
@@ -38,15 +37,17 @@ export interface Keyframe {
   effect?: { id: EffectId | null; settings?: EffectSettings };
   /** The fixture's dimming curve from here on. */
   curve?: Curve;
+  /** On a camera track: catalogue controls set from here on (record, ISO…), by control id; they jump, never fade. */
+  controls?: Record<string, Value>;
 }
 
-export interface SequenceTrack {
+export interface FlowTrack {
   id: string;
   name: string;
   /** FIXTURE_KINDS id: which lights it can drive. */
-  kindId: string;
+  model: string;
   /** The light it drives; null until assigned (an unassigned track does not play). */
-  fixtureId: string | null;
+  device: string | null;
   /** Temporarily left out of playback and Live, like a muted track in an audio editor. */
   muted?: boolean;
   /** One of TRACK_COLORS (#323): the label's stripe, the lane's tint, the keyframes' border. */
@@ -54,14 +55,14 @@ export interface SequenceTrack {
   keyframes: Keyframe[];
 }
 
-export interface LightSequence {
+export interface Flow {
   id: string;
   name: string;
   durationMs: number;
   loop: boolean;
-  tracks: SequenceTrack[];
+  tracks: FlowTrack[];
   /** Named checkpoints and ranges (#323); absent on sequences saved before them. */
-  markers?: SequenceMarker[];
+  markers?: FlowMarker[];
   updatedAt: string;
 }
 
@@ -72,14 +73,14 @@ export const TRACK_COLORS = 8;
  * A marker (#323): a named point (`end` absent) or range (`at` to `end`), across the whole
  * sequence or on one track (`trackId`). Only for finding your way: playback ignores markers.
  */
-export interface SequenceMarker {
+export interface FlowMarker {
   id: string;
   at: number;
   end?: number;
   name: string;
   trackId?: string;
 }
-export const SEQUENCE_MARKERS_MAX = 200;
+export const FLOW_MARKERS_MAX = 200;
 export const MARKER_NAME_MAX = 60;
 
 /** What a track says at one moment; undefined: no keyframe has set it. */
@@ -95,8 +96,9 @@ export interface SequenceSample {
   curve?: Curve;
 }
 
-/** A start keyframe: on, half intensity, white in the middle of the kind's range (or colour without white). */
-export function startKeyframe(kind: { caps: { cct: { min: number; max: number } | null; hsi: boolean } } | undefined): Keyframe {
+/** A start keyframe: a light on, half intensity, white in the middle of its range (or colour without white); a camera not recording. */
+export function startKeyframe(kind: { caps: { cct: { min: number; max: number } | null; hsi: boolean; camera?: boolean } } | undefined): Keyframe {
+  if (kind?.caps.camera) return { id: START_KEYFRAME, at: 0, controls: { record: false } };
   const cct = kind?.caps.cct;
   return {
     id: START_KEYFRAME, at: 0, power: true, intensity: 0.5,
@@ -166,6 +168,16 @@ export function sampleTrack(keyframes: readonly Keyframe[], t: number): Sequence
   }
   return out;
 }
+
+/** A camera track's controls at `t`: every value the keyframes up to `t` set (they jump). */
+export function sampleControls(keyframes: readonly Keyframe[], t: number): Record<string, Value> {
+  const out: Record<string, Value> = {};
+  for (const k of sorted(keyframes)) { if (k.at > t) break; Object.assign(out, k.controls ?? {}); }
+  return out;
+}
+
+/** The camera controls a flow can set: those that hold a value (no buttons, no per-output table). */
+export const FLOW_CAMERA_CONTROLS = CAMERA_CONTROLS.filter((c) => c.kind === "switch" || c.kind === "choice" || c.kind === "number" || c.kind === "range");
 
 /** Rounded to what a light can show, so a slow fade does not send a command every tick for nothing. */
 function quantize(s: SequenceSample): SequenceSample {
@@ -258,9 +270,9 @@ export function nativeStep(keyframes: readonly Keyframe[], t: number, prev: Sequ
   return { commands: [...base.commands, cmd], sent: { ...base.sent, ...target, power: base.sent.power }, key };
 }
 
-export const SEQUENCE_NAME_MAX = 120;
-export const SEQUENCE_TRACKS_MAX = 64;
-export const SEQUENCE_KEYFRAMES_MAX = 2000;
+export const FLOW_NAME_MAX = 120;
+export const FLOW_TRACKS_MAX = 64;
+export const FLOW_KEYFRAMES_MAX = 2000;
 
 const isNum = (v: unknown, min: number, max: number): v is number => typeof v === "number" && Number.isFinite(v) && v >= min && v <= max;
 const CURVE_IDS = ["linear", "exp", "log", "s"];
@@ -269,21 +281,22 @@ const CURVE_IDS = ["linear", "exp", "log", "s"];
  * A sequence's tracks as the Worker stores them (#304): checked strictly (they come from the editor),
  * unknown fields dropped. Returns the clean tracks, or an error naming the first problem.
  */
-export function parseSequenceTracks(v: unknown, durationMs: number, isKind: (id: string) => boolean, isEffect: (id: string) => boolean): { tracks: SequenceTrack[] } | { error: string } {
+export function parseFlowTracks(v: unknown, durationMs: number, isKind: (id: string) => boolean, isEffect: (id: string) => boolean): { tracks: FlowTrack[] } | { error: string } {
   if (!Array.isArray(v)) return { error: "tracks must be an array" };
-  if (v.length > SEQUENCE_TRACKS_MAX) return { error: `at most ${SEQUENCE_TRACKS_MAX} tracks` };
+  if (v.length > FLOW_TRACKS_MAX) return { error: `at most ${FLOW_TRACKS_MAX} tracks` };
   let total = 0;
-  const tracks: SequenceTrack[] = [];
+  const tracks: FlowTrack[] = [];
   for (const [i, raw] of v.entries()) {
     const t = (raw ?? {}) as Record<string, unknown>;
     const where = `tracks[${i}]`;
     if (typeof t.id !== "string" || !t.id || t.id.length > 64) return { error: `${where}.id is missing` };
     if (typeof t.name !== "string" || !t.name.trim() || t.name.length > 60) return { error: `${where}.name must be 1–60 characters` };
-    if (typeof t.kindId !== "string" || !isKind(t.kindId)) return { error: `${where}.kindId is not a known light type` };
-    if (t.fixtureId != null && (typeof t.fixtureId !== "string" || t.fixtureId.length > 64)) return { error: `${where}.fixtureId is not an id` };
+    if (typeof t.model !== "string" || !isKind(t.model)) return { error: `${where}.model is not a light or camera of the catalogue` };
+    const camera = modelOf(t.model)?.type === "camera";
+    if (t.device != null && (typeof t.device !== "string" || t.device.length > 64)) return { error: `${where}.device is not an id` };
     if (!Array.isArray(t.keyframes)) return { error: `${where}.keyframes must be an array` };
     total += t.keyframes.length;
-    if (total > SEQUENCE_KEYFRAMES_MAX) return { error: `at most ${SEQUENCE_KEYFRAMES_MAX} keyframes per sequence` };
+    if (total > FLOW_KEYFRAMES_MAX) return { error: `at most ${FLOW_KEYFRAMES_MAX} keyframes per sequence` };
     const keyframes: Keyframe[] = [];
     for (const [j, rk] of t.keyframes.entries()) {
       const k = (rk ?? {}) as Record<string, unknown>;
@@ -300,6 +313,19 @@ export function parseSequenceTracks(v: unknown, durationMs: number, isKind: (id:
         out[f] = k[f] as number;
       }
       if (k.curve != null) { if (!CURVE_IDS.includes(k.curve as string)) return { error: `${at}.curve is not a curve` }; out.curve = k.curve as Curve; }
+      if (k.controls != null) {
+        if (!camera || typeof k.controls !== "object" || Array.isArray(k.controls)) return { error: `${at}.controls belong to a camera track` };
+        const controls: Record<string, Value> = {};
+        for (const [id, v] of Object.entries(k.controls as Record<string, unknown>)) {
+          const c = FLOW_CAMERA_CONTROLS.find((x) => x.id === id);
+          if (!c) return { error: `${at}.controls.${id} is not a camera control a flow can set` };
+          const ok = c.kind === "switch" ? typeof v === "boolean" : c.kind === "choice" ? c.options.some((o) => o.value === v) : c.kind === "number" || c.kind === "range" ? isNum(v, c.min, c.max) : false;
+          if (!ok) return { error: `${at}.controls.${id} is out of range` };
+          controls[id] = v as Value;
+        }
+        out.controls = controls;
+      }
+      if (camera && (out.power !== undefined || out.intensity !== undefined || out.kelvin !== undefined || out.hue !== undefined || out.fadeIn)) return { error: `${at}: a camera track sets camera controls only, without fades` };
       if (k.effect != null) {
         const e = k.effect as Record<string, unknown>;
         if (typeof e !== "object" || (e.id !== null && (typeof e.id !== "string" || !isEffect(e.id)))) return { error: `${at}.effect is not a known effect` };
@@ -309,7 +335,7 @@ export function parseSequenceTracks(v: unknown, durationMs: number, isKind: (id:
     }
     if (!keyframes.some((k) => k.id === START_KEYFRAME && k.at === 0)) return { error: `${where} has no start keyframe at 0` };
     if (t.color != null && (!Number.isInteger(t.color) || !isNum(t.color, 0, TRACK_COLORS - 1))) return { error: `${where}.color is not a track colour` };
-    tracks.push({ id: t.id, name: t.name.trim(), kindId: t.kindId, fixtureId: (t.fixtureId as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), ...(t.color != null ? { color: t.color as number } : {}), keyframes });
+    tracks.push({ id: t.id, name: t.name.trim(), model: t.model, device: (t.device as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), ...(t.color != null ? { color: t.color as number } : {}), keyframes });
   }
   return { tracks };
 }
@@ -318,11 +344,11 @@ export function parseSequenceTracks(v: unknown, durationMs: number, isKind: (id:
  * A sequence's markers as the Worker stores them (#323): checked strictly, unknown fields dropped.
  * A marker on a track that is not in the sequence (removed) becomes one across the sequence.
  */
-export function parseSequenceMarkers(v: unknown, durationMs: number, trackIds: ReadonlySet<string>): { markers: SequenceMarker[] } | { error: string } {
+export function parseFlowMarkers(v: unknown, durationMs: number, trackIds: ReadonlySet<string>): { markers: FlowMarker[] } | { error: string } {
   if (v == null) return { markers: [] };
   if (!Array.isArray(v)) return { error: "markers must be an array" };
-  if (v.length > SEQUENCE_MARKERS_MAX) return { error: `at most ${SEQUENCE_MARKERS_MAX} markers` };
-  const markers: SequenceMarker[] = [];
+  if (v.length > FLOW_MARKERS_MAX) return { error: `at most ${FLOW_MARKERS_MAX} markers` };
+  const markers: FlowMarker[] = [];
   for (const [i, raw] of v.entries()) {
     const m = (raw ?? {}) as Record<string, unknown>;
     const where = `markers[${i}]`;

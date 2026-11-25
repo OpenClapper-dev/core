@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { commandsFor, ease, inFade, nativeFades, nativeStep, parseSequenceTracks, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./lightSequence.ts";
+import { commandsFor, ease, inFade, nativeFades, nativeStep, parseFlowTracks, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./flow.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const start = (x: Omit<Keyframe, "id" | "at">) => kf(0, x, START_KEYFRAME);
@@ -93,22 +93,22 @@ test("inFade: true only inside a fade tile", () => {
 
 test("stored tracks are checked strictly and cleaned", () => {
   const isKind = (id: string) => id === "aputure-mc", isEffect = (id: string) => id === "fire";
-  const good = [{ id: "t1", name: " MC 1 ", kindId: "aputure-mc", fixtureId: null, extra: 1, keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4900, gm: 0, junk: true }, { id: "k", at: 500, fadeIn: "s", effect: { id: "fire" } }] }];
-  const ok = parseSequenceTracks(good, 1000, isKind, isEffect);
+  const good = [{ id: "t1", name: " MC 1 ", model: "aputure-mc", device: null, extra: 1, keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4900, gm: 0, junk: true }, { id: "k", at: 500, fadeIn: "s", effect: { id: "fire" } }] }];
+  const ok = parseFlowTracks(good, 1000, isKind, isEffect);
   assert.ok("tracks" in ok);
-  assert.deepEqual(ok.tracks[0], { id: "t1", name: "MC 1", kindId: "aputure-mc", fixtureId: null, keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4900, gm: 0 }, { id: "k", at: 500, fadeIn: "s", effect: { id: "fire" } }] });
-  const bad = (patch: Record<string, unknown>, kf: Record<string, unknown> = {}) => parseSequenceTracks([{ ...good[0], ...patch, keyframes: [{ ...good[0].keyframes[0] }, { id: "k", at: 500, ...kf }] }], 1000, isKind, isEffect);
-  assert.ok("error" in bad({ kindId: "x" }));
+  assert.deepEqual(ok.tracks[0], { id: "t1", name: "MC 1", model: "aputure-mc", device: null, keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4900, gm: 0 }, { id: "k", at: 500, fadeIn: "s", effect: { id: "fire" } }] });
+  const bad = (patch: Record<string, unknown>, kf: Record<string, unknown> = {}) => parseFlowTracks([{ ...good[0], ...patch, keyframes: [{ ...good[0].keyframes[0] }, { id: "k", at: 500, ...kf }] }], 1000, isKind, isEffect);
+  assert.ok("error" in bad({ model: "x" }));
   assert.ok("error" in bad({}, { at: 5000 }));
   assert.ok("error" in bad({}, { intensity: 2 }));
   assert.ok("error" in bad({}, { effect: { id: "disco" } }));
-  assert.ok("error" in parseSequenceTracks([{ ...good[0], keyframes: [{ id: "k", at: 0 }] }], 1000, isKind, isEffect));
+  assert.ok("error" in parseFlowTracks([{ ...good[0], keyframes: [{ id: "k", at: 0 }] }], 1000, isKind, isEffect));
 });
 
 test("markers (#323): points and ranges, a removed track's marker goes across the sequence", async () => {
-  const { parseSequenceMarkers } = await import("./lightSequence.ts");
-  const r = parseSequenceMarkers([{ id: "a", at: 100.4, name: " In " }, { id: "b", at: 200, end: 900, name: "", trackId: "t" }, { id: "c", at: 0, name: "x", trackId: "gone" }], 1000, new Set(["t"]));
+  const { parseFlowMarkers } = await import("./flow.ts");
+  const r = parseFlowMarkers([{ id: "a", at: 100.4, name: " In " }, { id: "b", at: 200, end: 900, name: "", trackId: "t" }, { id: "c", at: 0, name: "x", trackId: "gone" }], 1000, new Set(["t"]));
   assert.deepEqual(r, { markers: [{ id: "a", at: 100, name: "In" }, { id: "b", at: 200, end: 900, name: "", trackId: "t" }, { id: "c", at: 0, name: "x" }] });
-  assert.ok("error" in parseSequenceMarkers([{ id: "a", at: 500, end: 400, name: "" }], 1000, new Set()));
-  assert.deepEqual(parseSequenceMarkers(undefined, 1000, new Set()), { markers: [] });
+  assert.ok("error" in parseFlowMarkers([{ id: "a", at: 500, end: 400, name: "" }], 1000, new Set()));
+  assert.deepEqual(parseFlowMarkers(undefined, 1000, new Set()), { markers: [] });
 });
