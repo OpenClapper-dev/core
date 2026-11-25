@@ -25,8 +25,8 @@ const liveOf = (ctx: HardwareCtx, id: string): FixtureLive | undefined => ctx.st
 function linkOf(d: FileRec, ctx: HardwareCtx): { tone: Tone; label: string } {
   const b = bodyOf(d), m = modelOf(b.model), l = liveOf(ctx, d.id);
   if (b.asleep) return { tone: "off", label: "Asleep · not connecting" };
-  if (m?.transport === "wifi") return { tone: "off", label: "On the phone only" };
-  if (!ctx.state) return { tone: "off", label: ctx.link.open ? "No proxy" : "Phone link offline" };
+  if (m?.transport === "wifi") return { tone: "off", label: "On the device only" };
+  if (!ctx.state) return { tone: "off", label: ctx.link.open ? "No proxy" : "Device link offline" };
   switch (l?.link) {
     case "ready": return { tone: "ok", label: "Connected" };
     case "silent": return { tone: "warn", label: "In the mesh, not answering (off?)" };
@@ -82,7 +82,7 @@ export function Card({ d, all, ctx }: { d: FileRec; all: FileRec[]; ctx: Hardwar
         {quick.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={!ready} send={(cmd) => command(d.id, cmd)} />)}
         {isBusy(d.id) && <span className="hw-note">A flow drives it now</span>}
         {m.type === "camera" && l?.telemetry?.camera?.timecode && <span className="hw-tc">{l.telemetry.camera.timecode}</span>}
-        {m.feeds.length > 0 && <span className="hw-note">{m.feeds.map((f) => `${f.label}: on the phone only`).join(" · ")}</span>}
+        {m.feeds.length > 0 && <span className="hw-note">{m.feeds.map((f) => `${f.label}: on the device only`).join(" · ")}</span>}
         {m.type === "battery" && <span className="hw-note">{powerText(d, all)}</span>}
         {(m.takesBattery || m.powers) && m.type !== "battery" && <span className="hw-note">{powerText(d, all)}</span>}
       </DeviceCard>
@@ -106,7 +106,7 @@ async function sleep(d: FileRec, _ctx: HardwareCtx) {
 }
 async function remove(d: FileRec) {
   const m = modelOf(bodyOf(d).model)!;
-  if (!(await confirm({ danger: true, title: `Remove “${d.name}”?`, message: m.transport === "mesh" && bodyOf(d).mesh ? "It goes to the recycle bin. The light keeps the phone's network keys until it is reset on the light itself." : "It goes to the recycle bin.", confirmLabel: "Remove" }))) return;
+  if (!(await confirm({ danger: true, title: `Remove “${d.name}”?`, message: m.transport === "mesh" && bodyOf(d).mesh ? "It goes to the recycle bin. The light keeps the device's network keys until it is reset on the light itself." : "It goes to the recycle bin.", confirmLabel: "Remove" }))) return;
   try { await store.bin("home", [d.id]); request({ type: "sync" }); } catch (e) { toastError(e); }
 }
 
@@ -130,14 +130,14 @@ function Panel({ d, all, ctx, onClose }: { d: FileRec; all: FileRec[]; ctx: Hard
   return (
     <Dialog fixed className="hw-panel" title={<span className="hw-panel__title"><AppIcon glyph={TYPE_LOOK[m.type].icon} color={TYPE_LOOK[m.type].color} size={20} />{d.name}<small>{modelName(m)}</small></span>} onClose={onClose}>
       <div className="hw-panel__state"><ConnectionMark tone={link.tone} label={link.label} />{cam?.timecode && <span className="hw-tc">{cam.timecode}</span>}{cam?.protocolVersion && <small>protocol {cam.protocolVersion}</small>}</div>
-      {m.type === "camera" && !ready && <p className="st-note">First connection: the camera shows a 6-digit PIN in its Bluetooth menu; type it into the pairing dialog on the proxy phone. Bluetooth must be on in the camera's Setup menu.</p>}
-      {m.feeds.length > 0 && <Banner tone="info" title={`${m.feeds.map((f) => f.label).join(", ")}: on the phone only`}>It comes over the transmitter's own Wi-Fi, which only the phone joins. Open the device in Hardware on the phone.</Banner>}
+      {m.type === "camera" && !ready && <p className="st-note">First connection: the camera shows a 6-digit PIN in its Bluetooth menu; type it into the pairing dialog on the proxy device. Bluetooth must be on in the camera's Setup menu.</p>}
+      {m.feeds.length > 0 && <Banner tone="info" title={`${m.feeds.map((f) => f.label).join(", ")}: on the device only`}>It comes over the transmitter's own Wi-Fi, which only the device joins. Open the device in Hardware on the device.</Banner>}
 
       {m.transport === "mesh" && (
         <section className="hw-group">
           <h4>Pairing</h4>
           {prov && <Banner tone={prov.phase === "error" ? "danger" : prov.phase === "done" ? "success" : "info"} title={prov.phase === "error" ? prov.error ?? "Pairing failed" : prov.phase === "done" ? "Paired" : prov.stage ? PROVISION_STAGE_LABELS[prov.stage] : "Starting…"} />}
-          {!b.mesh && <p className="st-note">Not paired with the phone's network yet. Remove the light from Sidus Link first, or reset it.</p>}
+          {!b.mesh && <p className="st-note">Not paired with the device's network yet. Remove the light from Sidus Link first, or reset it.</p>}
           <div className="hw-row">
             <Button size="sm" variant={b.mesh ? "secondary" : "primary"} icon="bluetooth" disabled={!ctx.state || prov?.phase === "running"} onClick={() => request({ type: "provision", device: d.id })}>{b.mesh ? "Run setup again" : "Pair with OpenClapper"}</Button>
             {b.mesh && <Button size="sm" variant="secondary" icon="refresh" disabled={!ctx.state || prov?.phase === "running"} onClick={() => request({ type: "provision", device: d.id, fresh: true })}>Pair again (after a reset)</Button>}
@@ -193,7 +193,7 @@ export function Toolbar({ files, ctx }: { files: FileRec[]; ctx: HardwareCtx }) 
   const s = ctx.state;
   return (
     <>
-      <span className={cx("lay-pill", s ? "is-preview" : "is-none")} title="The phone that holds the Bluetooth connections (Hardware on the phone, its proxy switch)"><i />{s ? `Proxy: ${s.phone.name || "a phone"}` : "No proxy"}</span>
+      <span className={cx("lay-pill", s ? "is-preview" : "is-none")} title="The device that holds the Bluetooth connections (Hardware on the device, its proxy switch)"><i />{s ? `Proxy: ${s.phone.name || "a device"}` : "No proxy"}</span>
       <Button size="sm" variant="quiet" icon="refresh" disabled={!s} title="Drops every connection and connects again, one by one; the lights keep their state" onClick={() => { request({ type: "reconnect" }); toast("Reconnecting, one device at a time", { tone: "info" }); }}>Reconnect all</Button>
       <Button size="sm" variant="secondary" icon="plus" onClick={() => setAdding(true)}>Add a device</Button>
       {adding && <AddDevice files={files} ctx={ctx} onClose={() => setAdding(false)} />}
@@ -219,7 +219,7 @@ function AddDevice({ ctx, onClose }: { files: FileRec[]; ctx: HardwareCtx; onClo
       await store.loadRoot("home");
       request({ type: "sync" });
       if (model.transport === "mesh") setTimeout(() => request({ type: "provision", device: id }), 500);
-      toast(model.transport === "mesh" ? "Added; the phone pairs it now" : "Added", { tone: "info" });
+      toast(model.transport === "mesh" ? "Added; the device pairs it now" : "Added", { tone: "info" });
       onClose();
     } catch (e) { toastError(e instanceof ApiError ? e : e); } finally { setBusy(false); }
   };
@@ -241,9 +241,9 @@ function AddDevice({ ctx, onClose }: { files: FileRec[]; ctx: HardwareCtx; onClo
         <div className="hw-add__cols">
           <section>
             <h4>{proxy ? (scan?.phase === "scanning" ? "Found nearby · scanning…" : "Found nearby") : "Found nearby"}</h4>
-            {!proxy && <Banner tone="info" title="No proxy">The phone scans: open Hardware on the phone and switch its proxy on.</Banner>}
+            {!proxy && <Banner tone="info" title="No proxy">The device scans: open Hardware on the device and switch its proxy on.</Banner>}
             {scan?.phase === "error" && <Banner tone="danger" title={scan.message ?? "Scan failed"} />}
-            {proxy && !scan?.found.length && (scan?.phase === "scanning" ? <Spinner /> : <EmptyState icon="bluetooth" title="Nothing found">Switch the device on and keep it close to the phone.</EmptyState>)}
+            {proxy && !scan?.found.length && (scan?.phase === "scanning" ? <Spinner /> : <EmptyState icon="bluetooth" title="Nothing found">Switch the device on and keep it close to the device.</EmptyState>)}
             <List>{scan?.found.map((f) => (
               <ListRow key={f.address} leading={<AppIcon glyph={f.kinds.length ? TYPE_LOOK[modelOf(f.kinds[0])!.type].icon : "bluetooth"} color={f.kinds.length ? TYPE_LOOK[modelOf(f.kinds[0])!.type].color : 0} size={20} />}
                 meta={[f.kinds.length ? `Likely ${modelName(modelOf(f.kinds[0])!)}` : null, f.address, f.rssi !== null ? `${f.rssi} dBm` : null].filter(Boolean).join(" · ")} onClick={() => setPicked(f)}>{f.name ?? f.address}</ListRow>
@@ -254,7 +254,7 @@ function AddDevice({ ctx, onClose }: { files: FileRec[]; ctx: HardwareCtx; onClo
             <h4>Supported hardware</h4>
             <List>{CATALOGUE.map((x) => (
               <ListRow key={x.id} leading={<AppIcon glyph={TYPE_LOOK[x.type].icon} color={TYPE_LOOK[x.type].color} size={20} />}
-                meta={x.transport === "wifi" ? "Add without a scan · picture on the phone only" : `${TYPE_LABELS[x.type].label} · ${x.transport === "mesh" ? "Bluetooth Mesh" : "Bluetooth"}`}
+                meta={x.transport === "wifi" ? "Add without a scan · picture on the device only" : `${TYPE_LABELS[x.type].label} · ${x.transport === "mesh" ? "Bluetooth Mesh" : "Bluetooth"}`}
                 onClick={x.transport === "wifi" ? () => setModel(x) : undefined}>{modelName(x)}</ListRow>
             ))}</List>
           </section>

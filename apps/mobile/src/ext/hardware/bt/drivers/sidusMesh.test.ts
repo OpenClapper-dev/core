@@ -124,5 +124,5 @@ test("a Lightning strike goes out once, with the running effect's options", asyn
 test("without the network's keys on this phone the connection is refused", async () => {
   const { node } = setup();
   const driver = sidusMesh({ access: () => ({ keysFor: () => null }) });
-  await assert.rejects(driver.open(node.link(), [mc("MC 3", 3)], () => {}), /keys are not on this phone/);
+  await assert.rejects(driver.open(node.link(), [mc("MC 3", 3)], () => {}), /keys are not on this device/);
 });

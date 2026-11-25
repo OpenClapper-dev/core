@@ -53,7 +53,7 @@ export function sidusMesh(o: SidusOptions): Driver {
     async open(link: Link, fixtures: Fixture[], sink: (id: string, t: Telemetry) => void): Promise<Session> {
       const networkId = fixtures.find((f) => f.mesh)?.mesh?.networkId;
       const net = networkId ? o.access()?.keysFor(networkId) : null;
-      if (!networkId || !net) throw new Error("this light's network keys are not on this phone, or another phone controls it (Setup → Lights → Key backup)");
+      if (!networkId || !net) throw new Error("this light's network keys are not on this device, or another device controls it (Setup → Lights → Key backup)");
       const session = new MeshSession(link, net.keys, net.seq, { log: o.log, onIvIndex: net.onIvIndex, setupWaitMs: o.setupWaitMs });
       await session.start();
       const byUnicast = new Map(fixtures.filter((f) => f.mesh).map((f) => [f.mesh!.unicast, f]));
@@ -88,7 +88,7 @@ export function sidusMesh(o: SidusOptions): Driver {
       });
 
       const toLight = async (f: Fixture, payload: Uint8Array, times = repeats) => {
-        if (!f.mesh) throw new Error("this light is not on the phone's mesh");
+        if (!f.mesh) throw new Error("this light is not on the device's mesh");
         for (let i = 0; i < times; i++) {
           if (i) await wait(o.repeatGapMs ?? 40);
           await session.send({ dst: f.mesh.unicast, access: bytes([TELINK_OPCODE], payload), key: app });

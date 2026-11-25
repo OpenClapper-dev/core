@@ -123,7 +123,7 @@ const holderFor = (n: MeshNetwork) => (hasKeys(n.id) ? deviceId() : null);
 /** 409: another phone holds the network now. Take the server's record, which says so, and stop pushing. */
 async function lostTo409(n: MeshNetwork, err: unknown): Promise<boolean> {
   if (!(err instanceof ApiError) || err.status !== 409) return false;
-  log("warn", "mesh network is in use on another phone", { network: n.id });
+  log("warn", "mesh network is in use on another device", { network: n.id });
   try {
     const server = (await meshApi.list()).find((x) => x.id === n.id);
     if (server) adoptMeshNetwork(server);
@@ -163,7 +163,7 @@ export async function ensureNetwork(): Promise<MeshNetwork> {
 /** Keep a provisioned light's device key, before anything else happens with it. */
 export function rememberNode(networkId: string, unicast: number, devKey: Uint8Array, configured = false, info?: NodeInfo) {
   const s = readSecrets(networkId);
-  if (!s) throw new Error("the network's keys are not on this phone");
+  if (!s) throw new Error("the network's keys are not on this device");
   writeSecrets(networkId, { ...s, nodes: { ...s.nodes, [String(unicast)]: { devKey: hexOf(devKey), configured, info } } });
 }
 

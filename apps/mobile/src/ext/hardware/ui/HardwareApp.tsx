@@ -14,11 +14,11 @@ import { DeviceScreen } from "./Device";
 import { KeyBackup } from "./KeyBackup";
 import { BatteryBar, LinkMark, TypeTag, chargeOf, linkOf } from "./parts";
 
-/** How the list shows, kept on this phone. */
+/** How the list shows, kept on this device. */
 const view = persisted<"table" | "cards">("hardware.view.v1", "table");
 
 /**
- * Hardware on the phone and tablet (docs/features/hardware.md, U6 "On the phone"): the account's lights, batteries,
+ * Hardware on the phone and tablet (docs/features/hardware.md, U6 "On the device"): the account's lights, batteries,
  * cameras and transmitters as a table (a tap opens a device) or as cards with their controls; the proxy switch
  * (this phone holds the connections, for itself, the Studio and other phones); adding a device; Reconnect all; the
  * mesh key backup.
@@ -41,10 +41,10 @@ export function HardwareApp({ active }: { active: boolean }) {
   return (
     <Screen header={<Header title="Hardware" sub={`${devices.length} device${devices.length === 1 ? "" : "s"}`} actions={[{ icon: "plus", label: "Add a device", onPress: () => setPage("add") }, { icon: "lock", label: "Key backup", onPress: () => setPage("keys") }]} />}>
       <Block>
-        <Toggle label="This phone holds the connections" value={running} onChange={(on) => (on ? startProxy() : stopProxy())}
-          meta={running ? `Proxy on · ${link.studios ? `${link.studios} Studio tab${link.studios === 1 ? "" : "s"} attached` : "no Studio open"} · the screen stays on` : state?.proxy ? `Another phone holds them: ${state.phone.name || "a phone"}` : "Off: nothing is connected"} />
+        <Toggle label="This device holds the connections" value={running} onChange={(on) => (on ? startProxy() : stopProxy())}
+          meta={running ? `Proxy on · ${link.studios ? `${link.studios} Studio tab${link.studios === 1 ? "" : "s"} attached` : "no Studio open"} · the screen stays on` : state?.proxy ? `Another device holds them: ${state.phone.name || "a device"}` : "Off: nothing is connected"} />
         {running && <KeepAwake />}
-        {running && !link.open && <Hint>Not connected to the server: only this phone can control the devices now.</Hint>}
+        {running && !link.open && <Hint>Not connected to the server: only this device can control the devices now.</Hint>}
       </Block>
       <Block>
         <Seg block accessibilityLabel="View" value={v} onChange={(x) => view.set(x)} options={[{ id: "table", label: "Table" }, { id: "cards", label: "Cards" }]} />

@@ -16,7 +16,7 @@ const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 const bodyOf = (f: FileRec): FlowBody => ({ ...emptyFlow(), ...(f.body as Partial<FlowBody>) });
 
 /**
- * Flows on the phone and tablet (docs/features/flows.md, "On the phone"): the project's flows, run on the phone itself
+ * Flows on the phone and tablet (docs/features/flows.md, "On the device"): the project's flows, run on the phone itself
  * as on set (through the phone that holds the connections), and the Studio's flow editor in a web view, the one editor
  * for every client.
  */
@@ -45,7 +45,7 @@ export function FlowsApp({ active }: { active: boolean }) {
   return (
     <Screen header={<Header title="Flows" sub={project?.name} actions={[{ icon: "plus", label: "New flow", onPress: () => void make() }]} />}>
       <RunBanner run={run} />
-      {!state?.proxy && <Block><Hint>Running a flow needs a phone that holds the connections: switch its proxy on in Hardware.</Hint></Block>}
+      {!state?.proxy && <Block><Hint>Running a flow needs a device that holds the connections: switch its proxy on in Hardware.</Hint></Block>}
       {flows === null ? <ActivityIndicator style={{ marginTop: 24 }} />
         : !flows.length ? <Block><Empty icon="timeline" title="No flows yet" body="Tracks of lights and cameras, keyframes on them, played from here or the Studio." /><Button icon="plus" label="New flow" onPress={() => void make()} /></Block>
         : flows.map((f) => { const b = bodyOf(f); return <ListRow key={f.id} icon="timeline" title={f.name} meta={`${secs(b.durationMs)} · ${b.tracks.length} track${b.tracks.length === 1 ? "" : "s"}${b.loop ? " · loops" : ""}${run?.flow === f.id && run.phase === "playing" ? " · running" : ""}`} onPress={() => setOpen(f.id)} />; })}
@@ -66,7 +66,7 @@ function RunBanner({ run }: { run: RunState | null }) {
   );
 }
 
-/** One flow: what it drives, run it on the phone, open it in the editor. */
+/** One flow: what it drives, run it on the device, open it in the editor. */
 function FlowPage({ f, run, proxy, back, onEdit }: { f: FileRec; run: RunState | null; proxy: boolean; back: () => void; onEdit: () => void }) {
   const s = useStyles();
   const b = bodyOf(f);
@@ -76,8 +76,8 @@ function FlowPage({ f, run, proxy, back, onEdit }: { f: FileRec; run: RunState |
     <Screen header={<Header title={f.name} sub={`Flow · ${secs(b.durationMs)}${b.loop ? " · loops" : ""}`} onBack={back} actions={[{ icon: "edit", label: "Edit the flow", onPress: onEdit }]} />}>
       <RunBanner run={run} />
       <Block>
-        <Button icon="play" label={runsThis ? "Running" : "Run on the phone"} disabled={!proxy || busy || !canCall()} onPress={() => request({ type: "run", flow: f.id, revision: f.updated_at, fromMs: 0 })} />
-        <Hint>{proxy ? "The phone that holds the connections plays it on its own clock, as on set; it keeps playing when the Studio closes." : "No phone holds the connections: switch the proxy on in Hardware."}</Hint>
+        <Button icon="play" label={runsThis ? "Running" : "Run on the device"} disabled={!proxy || busy || !canCall()} onPress={() => request({ type: "run", flow: f.id, revision: f.updated_at, fromMs: 0 })} />
+        <Hint>{proxy ? "The device that holds the connections plays it on its own clock, as on set; it keeps playing when the Studio closes." : "No device holds the connections: switch the proxy on in Hardware."}</Hint>
       </Block>
       <Block>
         <SectionLabel>{`${b.tracks.length} track${b.tracks.length === 1 ? "" : "s"}`}</SectionLabel>

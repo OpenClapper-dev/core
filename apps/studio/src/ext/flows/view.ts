@@ -17,6 +17,9 @@ function useLocal<T>(key: string, fallback: T, valid: (v: unknown) => boolean): 
 export const useFlowView = () => useLocal<FlowView>("flows.view.v1", DEFAULT_VIEW, (v) => typeof v === "object" && v !== null);
 export const useKeyframeSize = () => useLocal<"s" | "m" | "l">("flows.kfSize.v1", "s", (v) => v === "s" || v === "m" || v === "l");
 /** The height of every track (px); a track sized by hand keeps its own until this is set again. */
+/** How far the time axis is stretched: 1 fits the flow's length into the window, more scrolls sideways (#426). */
+export const ZOOM_MIN = 1, ZOOM_MAX = 32;
+export const useZoom = () => useLocal<number>("flows.zoom.v1", 1, (v) => typeof v === "number" && v >= ZOOM_MIN && v <= ZOOM_MAX);
 export const useTrackHeight = () => useLocal<number>("flows.trackHeight.v1", 64, (v) => typeof v === "number" && v >= 40 && v <= 240);
 
 /**

@@ -125,9 +125,9 @@ async function startScan() {
   scanStop?.();
   scanFound = [];
   sendScan("scanning");
-  if (!(await askBluetooth())) { sendScan("error", "Bluetooth permission denied on the phone: allow “Nearby devices” for OpenClapper."); return; }
+  if (!(await askBluetooth())) { sendScan("error", "Bluetooth permission denied on the device: allow “Nearby devices” for OpenClapper."); return; }
   const adapter = await adapterState().catch(() => "unknown" as const);
-  if (adapter !== "on") { sendScan("error", adapter === "off" ? "Bluetooth is off on the phone." : `Bluetooth is not available on the phone (${adapter}).`); return; }
+  if (adapter !== "on") { sendScan("error", adapter === "off" ? "Bluetooth is off on the device." : `Bluetooth is not available on the device (${adapter}).`); return; }
   log("info", "proxy: scan started");
   const end = setTimeout(() => stopScan("done"), SCAN_MS);
   const halt = scan(
@@ -156,7 +156,7 @@ async function provision(deviceId: string, fresh: boolean) {
   await syncDevices();
   const f = getFixtures().find((x) => x.id === deviceId);
   const resume = !!f?.mesh && !fresh;
-  if (!f) { provisioning = false; state({ phase: "error", stage: null, resume, error: "The phone does not know this light yet; try again." }); return; }
+  if (!f) { provisioning = false; state({ phase: "error", stage: null, resume, error: "The device does not know this light yet; try again." }); return; }
   pause();
   let stage: HardwareProvision["stage"] = null;
   try {
