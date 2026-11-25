@@ -29,6 +29,34 @@ export function sniffImageType(head: Uint8Array): ImageType | null {
   return null;
 }
 
+/**
+ * The pixel size of a JPEG, PNG or WebP from its header, or null when it cannot be read. Enough to refuse a picture
+ * over a size limit without decoding it.
+ */
+export function imageSize(b: Uint8Array): { width: number; height: number } | null {
+  const u16 = (i: number) => (b[i] << 8) | b[i + 1], le16 = (i: number) => b[i] | (b[i + 1] << 8), le24 = (i: number) => b[i] | (b[i + 1] << 8) | (b[i + 2] << 16);
+  const u32 = (i: number) => ((b[i] << 24) | (b[i + 1] << 16) | (b[i + 2] << 8) | b[i + 3]) >>> 0;
+  const type = sniffImageType(b.subarray(0, 16));
+  if (type === "image/png" && b.length >= 24) return { width: u32(16), height: u32(20) };
+  if (type === "image/jpeg") {
+    for (let i = 2; i + 9 < b.length;) {
+      if (b[i] !== 0xff) { i++; continue; }
+      const m = b[i + 1];
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { width: u16(i + 7), height: u16(i + 5) };
+      if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
+      i += 2 + u16(i + 2);
+    }
+    return null;
+  }
+  if (type === "image/webp" && b.length >= 30) {
+    const chunk = String.fromCharCode(...b.subarray(12, 16));
+    if (chunk === "VP8X") return { width: le24(24) + 1, height: le24(27) + 1 };
+    if (chunk === "VP8 ") return { width: le16(26) & 0x3fff, height: le16(28) & 0x3fff };
+    if (chunk === "VP8L") { const v = b[21] | (b[22] << 8) | (b[23] << 16) | (b[24] << 24); return { width: (v & 0x3fff) + 1, height: ((v >> 14) & 0x3fff) + 1 }; }
+  }
+  return null;
+}
+
 export const imageExt = (type: string) => (type === "image/png" ? "png" : type === "image/webp" ? "webp" : type === "image/heic" ? "heic" : "jpg");
 
 /**

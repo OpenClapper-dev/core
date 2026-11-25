@@ -152,3 +152,24 @@ body.wm-gesture { user-select: none; }
 .st-start { display: flex; flex-direction: column; min-height: 0; }
 .st-start__title { display: inline-flex; align-items: center; gap: var(--space-3); font: var(--weight-semibold) var(--font-size-md)/1 var(--font-sans); }
 .st-start__body { padding: var(--space-5); }
+
+/* All projects as cards, grouped by workspace (#426); the project's picture and description in General. */
+.st-pgroup { display: grid; gap: var(--space-4); margin-top: var(--space-6); }
+.st-pgroup__head { display: flex; align-items: center; gap: var(--space-3); margin: 0; font: var(--weight-semibold) var(--font-size-md)/1.3 var(--font-sans); }
+.st-pcards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: var(--space-4); }
+.st-pcard { display: flex; flex-direction: column; min-width: 0; border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-card); background: var(--surface); overflow: hidden; }
+.st-pcard.is-open { border-color: var(--selection-border); }
+.st-pcard__pic { display: grid; place-items: center; aspect-ratio: 16 / 9; background: var(--surface-sunken); overflow: hidden; }
+.st-pcard__pic > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.st-pcard__body { display: grid; gap: var(--space-2); padding: var(--space-4) var(--space-5) var(--space-2); min-width: 0; }
+.st-pcard__name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.st-pcard__desc { margin: 0; color: var(--text-secondary); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.st-pcard__act { display: flex; justify-content: flex-end; gap: var(--space-2); padding: var(--space-2) var(--space-4) var(--space-4); margin-top: auto; }
+.st-plook { display: grid; grid-template-columns: minmax(160px, 240px) 1fr; gap: var(--space-5); align-items: start; }
+.st-plook__pic { border-radius: var(--radius-card); }
+.st-plook__side { display: grid; gap: var(--space-3); min-width: 0; }
+.st-plook__upload { cursor: pointer; }
+@container (max-width: 520px) { .st-plook { grid-template-columns: 1fr; } }
+/* A workspace in Settings › Workspaces: a row that opens its page. */
+.st-wsrow { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-control); }
+.st-wsrow:hover { background: var(--surface-hover); }

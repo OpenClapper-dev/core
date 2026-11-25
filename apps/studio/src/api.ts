@@ -3,7 +3,7 @@ import type { FrameValues } from "@openclapper/model";
 
 export interface Me { user: { id: string; email: string; name: string | null }; workspaces: { id: string; name: string; role: WorkspaceRole; personal: boolean }[] }
 export type WorkspaceRole = "owner" | "admin" | "editor" | "viewer";
-export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: CanvasLive; /** The master timeline: the order of the project's timelines. */ master: string[]; /** The extensions switched on (docs/rewrite/08-extensions.md). */ extensions: string[] }
+export interface Project { id: string; name: string; workspace_id: string; created_at: string; updated_at: string | null; file_count: number; canvas_live: CanvasLive; /** The master timeline: the order of the project's timelines. */ master: string[]; /** The extensions switched on (docs/rewrite/08-extensions.md). */ extensions: string[]; /** What it is about (#426). */ description: string; /** When its picture was set; null: none. */ picture_at: string | null }
 /** How watchers of a canvas see it change while someone edits it: at once, or every few seconds. */
 export type CanvasLive = "realtime" | "gradual";
 export interface ServerBuild { version: string; commit: string; instance: string }
@@ -60,7 +60,16 @@ export const signIn = (email: string, password: string) => send<unknown>("POST",
 export const signOut = () => fetch("/api/auth/logout", { method: "POST", credentials: "same-origin" }).then(() => undefined);
 
 export const fetchProjects = () => get<{ projects: Project[] }>("/api/projects").then((r) => r.projects);
-export const putProject = (id: string, body: { name: string; workspace_id?: string; canvas_live?: CanvasLive; master?: string[]; extensions?: string[] }) => send<{ project: Project }>("PUT", `/api/projects/${id}`, body).then((r) => r.project);
+/** A project's picture (#426): its URL, versioned by when it was set; null without one. */
+export const projectPictureUrl = (p: Project) => (p.picture_at ? `/api/projects/${p.id}/picture?v=${encodeURIComponent(p.picture_at)}` : null);
+export async function putProjectPicture(id: string, body: Blob): Promise<Project> {
+  const res = await fetch(`/api/projects/${id}/picture`, { method: "PUT", credentials: "same-origin", headers: { "content-type": "application/octet-stream" }, body });
+  const b = (await res.json().catch(() => ({}))) as { project?: Project; error?: string };
+  if (!res.ok || !b.project) throw new ApiError(res.status, b.error ?? `Upload failed (${res.status})`);
+  return b.project;
+}
+export const deleteProjectPicture = (id: string) => send<{ project: Project }>("DELETE", `/api/projects/${id}/picture`).then((r) => r.project);
+export const putProject = (id: string, body: { name: string; workspace_id?: string; canvas_live?: CanvasLive; master?: string[]; extensions?: string[]; description?: string }) => send<{ project: Project }>("PUT", `/api/projects/${id}`, body).then((r) => r.project);
 export const deleteProject = (id: string) => send<{ deleted: string }>("DELETE", `/api/projects/${id}`);
 
 /** A file as the API gives it (docs/api.md). `body` and `refs` come with single-file answers and with lists that ask for them. */
