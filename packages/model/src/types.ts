@@ -184,6 +184,8 @@ export interface DeviceLens {
   focal35: number | null;
   /** The zoom factor of the logical camera at which this lens takes over, where the camera reports one. */
   zoom: number | null;
+  /** Switched off on the device (#426): a lens a driver reports that is not there; no app offers it. */
+  off?: boolean;
 }
 
 /**
@@ -208,6 +210,7 @@ export const DEVICE: FileType = {
       if (!isRecord(l) || !short(l.id, 60) || !short(l.name, 20)) return "a lens has an id and a name";
       if (!(l.focal35 === null || (typeof l.focal35 === "number" && l.focal35 > 0 && l.focal35 < 2000))) return "a lens's focal35 is a positive number or null";
       if (!(l.zoom === null || (typeof l.zoom === "number" && l.zoom > 0 && l.zoom < 1000))) return "a lens's zoom is a positive number or null";
+      if (l.off !== undefined && typeof l.off !== "boolean") return "a lens's off is true or false";
     }
     if (!(body.screen === null || (isRecord(body.screen) && size(body.screen.portrait) && size(body.screen.landscape)))) return "screen holds portrait and landscape sizes";
     if (!Array.isArray(body.tabs) || body.tabs.length > 20 || !body.tabs.every((t) => typeof t === "string" && APP_ID.test(t))) return "tabs must be a list of app ids";

@@ -139,7 +139,7 @@ function Editor({ id, file, layouts, devices, onPick }: { id: string; file: File
   const k = Math.min(1, 620 / h, 860 / w);
   const placed = bars.flatMap((b) => b.items.map((i) => i.control));
   const lensNames = (body.options.lensNames === "account" ? "phone" : body.options.lensNames);
-  const devLenses = db.lenses?.length ? db.lenses : [{ id: "w", name: "0.5×", focal35: 13 }, { id: "m", name: "1×", focal35: 24, main: true }, { id: "t", name: "5×", focal35: 120 }];
+  const devLenses = db.lenses?.length ? db.lenses.filter((l) => !(l as { off?: boolean }).off) : [{ id: "w", name: "0.5×", focal35: 13 }, { id: "m", name: "1×", focal35: 24, main: true }, { id: "t", name: "5×", focal35: 120 }];
   const lenses = (body.options.lenses.mode === "main" ? devLenses.filter((l) => l.main ?? l.name === "1×").slice(0, 1) : body.options.lenses.mode === "pick" ? devLenses.filter((l) => body.options.lenses.pick.includes(l.id)) : devLenses)
     .map((l) => (lensNames === "focal" && l.focal35 ? String(Math.round(l.focal35)) : l.name));
   const framed = placed.some((c) => ["frame", "focal", "fit", "blackout", "reference", "upright"].includes(c));

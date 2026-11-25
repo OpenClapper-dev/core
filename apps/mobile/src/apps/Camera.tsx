@@ -5,7 +5,7 @@ import { Camera as VisionCamera, CommonResolutions, useCameraDevices, useCameraP
 import { DELIVERIES, FORMATS, PRIMES, opticsFrame } from "@openclapper/fov-math";
 import { CONTROLS, focalsOf, REFERENCE_STEPS, type Bar, type ControlId, type Distribution, type Edge, type LayoutBody, type LayoutItem, type PresetBody } from "@openclapper/model";
 import { canCall, putFile } from "../api";
-import { lenses as lensStore, measureCamera } from "../device";
+import { measureCamera, useLensSet } from "../device";
 import type { Lens } from "../lenses";
 import { leavePreview } from "../link";
 import { log } from "../log";
@@ -22,7 +22,8 @@ import { allLayouts, chooseLayout, useLayout } from "../camera/layouts";
 import { captureFact, collecting, endCollection, frameBox, frames, liveView, nextFolder, startCollection, toggles, type FrameChoice } from "../camera/state";
 import { Button, Empty, FIXED, Hint, Icon, ListRow, makeStyles, num, RADIUS, SectionLabel, Seg, Sheet, SheetList, SIZE, Slider, toast, type, useTheme, Block, type IconName } from "../ui";
 import { registerApp } from "./registry";
-import { useCameraButtons } from "../settings";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { settings, useCameraButtons } from "../settings";
 
 /**
  * The camera (docs/features/camera-layouts.md, docs/rewrite/03-capture.md): the phone takes photos; everything else
@@ -36,13 +37,21 @@ const JUSTIFY: Record<Distribution, "flex-start" | "center" | "flex-end" | "spac
 
 function Camera({ active }: { active: boolean }) {
   const sizes = useCameraButtons();
+  // The Camera tab's own orientation (#426, this device's setting): held in landscape or portrait while the tab is
+  // open, whatever way the device is held; the app turns freely again when another tab comes to the front.
+  const orient = settings.use().cameraOrientation ?? "auto";
+  useEffect(() => {
+    if (!active || orient === "auto") return;
+    void ScreenOrientation.lockAsync(orient === "landscape" ? ScreenOrientation.OrientationLock.LANDSCAPE : ScreenOrientation.OrientationLock.PORTRAIT_UP).catch((e) => log("warn", "camera: orientation not locked", e));
+    return () => { void ScreenOrientation.unlockAsync().catch(() => undefined); };
+  }, [active, orient]);
   const s = useStyles();
   const { width, height } = useWindowDimensions();
   const project = useProject();
   const prefs = usePrefs();
   const perm = useCameraPermission();
   const devices = useCameraDevices();
-  const set = lensStore.use();
+  const set = useLensSet();
   const chosen = lensChoice.use();
   const presets = usePresets();
   const lib = useLibrary();
@@ -180,7 +189,7 @@ function Camera({ active }: { active: boolean }) {
     }
     if (i.control === "focal") {
       if (!frame || frame.kind === "aspect") return null;
-      if (preset?.lenses.kind === "zoom") return <View key="focal" style={{ width: vertical ? 64 : 220 }}><Slider label="Focal length" value={frame.focal} min={preset.lenses.from} max={preset.lenses.to} format={(v) => `${v} mm`} onChange={setFocal} /></View>;
+      if (preset?.lenses.kind === "zoom") return <ZoomRange key="focal" vertical={vertical} value={frame.focal} min={preset.lenses.from} max={preset.lenses.to} onChange={setFocal} />;
       if (i.display === "stepped" || frame.kind === "free") return <Stepped key="focal" vertical={vertical} value={`${frame.focal}`} label="Focal length" onStep={(d) => { const k = focals.indexOf(frame.focal), n = focals[k < 0 ? 0 : k + d]; if (n) setFocal(n); }} />;
       return <View key="focal" style={[s.strip, vertical && s.stripV]}>{focals.map((mm) => <CamButton key={mm} label={`${mm} mm`} on={mm === frame.focal} onPress={() => setFocal(mm)} text={String(mm)} />)}</View>;
     }
@@ -282,6 +291,38 @@ function Blackout({ box, w, h, color }: { box: { left: number; top: number; widt
 }
 
 /** A strip shown one value at a time: back, the value, on; three parts a thumb can hit, stacked in an upright bar. */
+/**
+ * A zoom lens's focal length on the camera (#426): along its bar, horizontal in a top or bottom bar, vertical in a side
+ * bar (longer at the top); − and + step one millimetre, the track is dragged. Never wider or taller than its bar allows.
+ */
+function ZoomRange({ vertical, value, min, max, onChange }: { vertical: boolean; value: number; min: number; max: number; onChange: (mm: number) => void }) {
+  const s = useStyles();
+  const sizes = useCameraButtons();
+  const LEN = 150;
+  const frac = max > min ? (value - min) / (max - min) : 0;
+  const at = (x: number, y: number) => {
+    const f = Math.min(1, Math.max(0, vertical ? 1 - y / LEN : x / LEN));
+    const mm = Math.round(min + f * (max - min));
+    if (mm !== value) onChange(mm);
+  };
+  const track = (
+    <View style={[s.zoomTrack, vertical ? { width: 32, height: LEN } : { width: LEN, height: 32 }]}
+      onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} onResponderTerminationRequest={() => false}
+      onResponderGrant={(e) => at(e.nativeEvent.locationX, e.nativeEvent.locationY)} onResponderMove={(e) => at(e.nativeEvent.locationX, e.nativeEvent.locationY)}>
+      <View pointerEvents="none" style={[s.zoomRail, vertical ? { width: 4, height: LEN, left: 14 } : { height: 4, width: LEN, top: 14 }]} />
+      <View pointerEvents="none" style={[s.zoomThumb, vertical ? { left: 6, top: (1 - frac) * LEN - 10 } : { top: 6, left: frac * LEN - 10 }]} />
+    </View>
+  );
+  const less = <CamButton icon="minus" label="Shorter focal length" disabled={value <= min} onPress={() => onChange(Math.max(min, value - 1))} />;
+  const more = <CamButton icon="plus" label="Longer focal length" disabled={value >= max} onPress={() => onChange(Math.min(max, value + 1))} />;
+  return (
+    <View style={[s.zoom, vertical && s.zoomV, { gap: Math.round(sizes.size / 4) }]} accessibilityLabel={`Focal length ${value} mm`}>
+      {vertical ? <>{more}{track}{less}</> : <>{less}{track}{more}</>}
+      <Text style={s.zoomValue}>{`${value} mm`}</Text>
+    </View>
+  );
+}
+
 function Stepped({ vertical, value, label, onStep }: { vertical: boolean; value: string; label: string; onStep: (d: -1 | 1) => void }) {
   const s = useStyles();
   return (
@@ -408,6 +449,12 @@ const useStyles = makeStyles(() => ({
   strip: { flexDirection: "row", gap: 8, alignItems: "center" },
   stripV: { flexDirection: "column" },
   stepped: { flexDirection: "row", alignItems: "center", gap: 4, padding: 3, borderRadius: 28, borderWidth: 2, borderColor: FIXED.white, backgroundColor: FIXED.black },
+  zoom: { flexDirection: "row", alignItems: "center", padding: 4, borderRadius: 28, backgroundColor: FIXED.black, borderWidth: 2, borderColor: FIXED.white },
+  zoomV: { flexDirection: "column" },
+  zoomTrack: { position: "relative" },
+  zoomRail: { position: "absolute", borderRadius: 2, backgroundColor: FIXED.white, opacity: 0.6 },
+  zoomThumb: { position: "absolute", width: 20, height: 20, borderRadius: 10, backgroundColor: FIXED.white },
+  zoomValue: { ...type("caption", "bold"), color: FIXED.white, ...num, minWidth: 44, textAlign: "center" },
   steppedValue: { ...type("label", "bold"), color: FIXED.white, minWidth: 44, textAlign: "center", ...num },
   ctl: { alignItems: "center", gap: 2 },
   ctlLabel: { ...type("caption", "bold"), fontSize: 10, color: FIXED.white, opacity: 0.85 },

@@ -105,7 +105,7 @@ function PhoneCard({ d, devices, layouts, connected }: { d: FileRec; devices: Fi
       <div className="dev-part">
         <h4>What it reported</h4>
         <p className="dev-fact">Screen {b.screen ? `${b.screen.portrait.w} × ${b.screen.portrait.h}` : "unknown"}{b.camera ? ` · camera area ${b.camera.portrait.w} × ${b.camera.portrait.h}` : ""}</p>
-        <p className="dev-fact">{b.lenses.length ? b.lenses.map((l) => `${l.name}${l.focal35 ? ` (${l.focal35} mm)` : " (no focal length)"}`).join(", ") : "No lenses reported yet"}</p>
+        <p className="dev-fact">{b.lenses.length ? b.lenses.map((l) => `${l.name}${l.focal35 ? ` (${l.focal35} mm)` : " (no focal length)"}${(l as { off?: boolean }).off ? ", switched off" : ""}`).join(", ") : "No lenses reported yet"}</p>
       </div>
       <div className="dev-part">
         <h4>Tabs</h4>

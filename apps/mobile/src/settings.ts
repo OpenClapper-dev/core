@@ -14,6 +14,8 @@ export interface LocalSettings {
   logging: boolean;
   /** How large the camera's buttons are on this device (#426): small on a phone, large on a tablet. */
   cameraButtons?: CameraButtonSize;
+  /** How the app turns while the Camera tab is open (#426): as the device is held, or always landscape or portrait. */
+  cameraOrientation?: "auto" | "landscape" | "portrait";
 }
 export type CameraButtonSize = "s" | "m" | "l";
 /** The camera's button sizes (dp): the button, its icon, the shutter. */
