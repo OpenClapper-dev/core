@@ -27,7 +27,10 @@ let release: (() => void) | null = null;
 let paused = false;
 /** (Re)takes a lease on every awake device, letting go of the previous one after. Sleeping devices get no connection attempts. */
 function lease() { const prev = release; release = hub.acquire(getFixtures().filter((f) => !f.asleep).map((f) => f.id), "proxy"); prev?.(); }
-function pause() { paused = true; release?.(); release = null; }
+/** Told when the proxy lets go of its connections (stopped, or a pairing takes the radio): a running flow stops then. */
+const letGo = new Set<() => void>();
+export function onLetGo(cb: () => void): () => void { letGo.add(cb); return () => { letGo.delete(cb); }; }
+function pause() { paused = true; release?.(); release = null; for (const cb of letGo) cb(); }
 function resumeLeases() { paused = false; if (running) lease(); }
 let stopFns: (() => void)[] = [];
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -196,6 +199,7 @@ export function startProxy(): () => void {
 export function stopProxy() {
   if (!running) return;
   running = false;
+  for (const cb of letGo) cb();
   for (const fn of stopFns) fn();
   stopFns = [];
   scanStop?.(); scanStop = null;

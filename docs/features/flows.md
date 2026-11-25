@@ -36,6 +36,14 @@ The app **Flows** (one window for the project's flows): the list of flows in a p
 - **Playing**: Space plays from the playhead and, again, stops and goes back to where play started; K stops where it is. **Live** (on by default) sends the state at the playhead while stopped, and every edit; a camera's recording is never started or stopped by Live, only by playing. While a flow plays from here, its devices are locked in Devices. A proxy that appears again gets everything sent anew.
 - **Run on phone** (from the start, or the button beside it from the playhead): the editor saves first and the phone plays exactly that revision; meanwhile the flow is locked, its playhead follows the phone, and Play and Live are off for every flow. Stop in the banner or Space stops it.
 
+## On the phone and tablet (`apps/mobile/src/ext/flows/`)
+
+The app **Flows** (a tab like any other while the project has the extension on):
+
+- **The project's flows** with their length, tracks and whether they loop; **New flow** (needs a connection) opens it in the editor.
+- **A flow**: its tracks (model, keyframes, device, muted), **Run on the phone** (from the start, through the phone that holds the connections), and **Edit**: the Studio's flow editor in a web view (`#/embed/flow/<id>`, the session as for the tablet canvas), the one editor for every client. It saves on its own; back closes it.
+- **The run** (`run.ts`, kept from the first app's `sequenceRun.ts`): the proxy phone fetches the named revision (asked again a few times while the server still has the previous one), plays it with the shared player through its own connections, reports its state, and keeps playing when the Studio closes. A banner shows it with **Stop**, here and in the Studio. It stops when the proxy lets go of its connections: the proxy switched off, or a pairing taking the radio.
+
 ## On the server
 
 No routes of its own: a flow is a file (`/api/files`), its lock and live room are the core's.
