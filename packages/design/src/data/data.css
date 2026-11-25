@@ -13,6 +13,9 @@
 .oc-row>.oc-icon:last-child{color:var(--text-secondary)}
 .oc-table{width:100%;border-collapse:collapse;color:var(--text);font:var(--weight-regular) var(--font-size-md)/1 var(--font-sans)}
 .oc-table th{position:sticky;top:0;z-index:1;height:var(--row-h-lg);padding:0 var(--space-4);border-bottom:var(--border-w) solid var(--border-control);background:var(--surface);color:var(--text-secondary);font-weight:var(--weight-medium);text-align:left;white-space:nowrap}
+.oc-table th.is-resizable{position:sticky}
+.oc-table__grip{position:absolute;top:6px;bottom:6px;right:-3px;z-index:2;width:7px;cursor:col-resize;border-right:var(--border-w) solid var(--border-divider)}
+.oc-table__grip:hover{border-right:2px solid var(--accent)}
 .oc-table th[aria-sort]{color:var(--text);font-weight:var(--weight-bold)}
 .oc-table__sort{display:inline-flex;align-items:center;gap:var(--space-2);height:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:default}
 .oc-table__sort:hover{color:var(--text)}

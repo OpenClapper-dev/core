@@ -66,6 +66,10 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   // A canvas made from a photo starts with the frame the photo was taken with (docs/features/camera-layouts.md).
   canvasTakesFrame: (v) => typeof v === "boolean",
   clipHoldMs: (v) => typeof v === "number" && Number.isInteger(v) && v >= 100 && v <= 3_600_000,
+  // The file browser's table per kind of list (#426): which columns show, in order, and their widths.
+  columns: (v) => isRecord(v) && Object.keys(v).length <= 20 && Object.entries(v).every(([kind, c]) => /^[a-z]{1,20}$/.test(kind) && isRecord(c)
+    && (c.visible === undefined || (Array.isArray(c.visible) && c.visible.length <= 100 && c.visible.every((k) => typeof k === "string" && k.length <= 80)))
+    && (c.widths === undefined || (isRecord(c.widths) && Object.keys(c.widths).length <= 100 && Object.entries(c.widths).every(([k, w]) => k.length <= 80 && Number.isInteger(w) && (w as number) >= 40 && (w as number) <= 1200)))),
   // The taskbar's pins per project: apps by id, files by id.
   pins: (v) => isRecord(v) && Object.entries(v).every(([project, list]) => UUID.test(project) && Array.isArray(list) && list.length <= 60
     && list.every((p) => isRecord(p) && Object.keys(p).length === 1 && (typeof p.app === "string" ? APP_ID.test(p.app) : typeof p.file === "string" && UUID.test(p.file)))),

@@ -173,3 +173,4 @@ body.wm-gesture { user-select: none; }
 /* A workspace in Settings › Workspaces: a row that opens its page. */
 .st-wsrow { width: 100%; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--radius-control); }
 .st-wsrow:hover { background: var(--surface-hover); }
+.st-hit { margin-left: var(--space-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
