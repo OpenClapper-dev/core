@@ -2,6 +2,7 @@ import { DurableObject } from "cloudflare:workers";
 import { assertUuid, HttpError, type Router } from "@openclapper/service-kit";
 import { fileType } from "@openclapper/model";
 import { accessFile } from "./files.ts";
+import { assertAccess } from "./tenancy.ts";
 import type { Ctx, Env } from "./index.ts";
 
 /**
@@ -32,6 +33,23 @@ const readHolder = (v: string | null) => {
 };
 
 export function registerLiveRoutes(r: Router<Ctx>) {
+  /**
+   * A root's live socket (#426): `?project_id=` or `?home=1`. It hears `changed` whenever a write changed a file of
+   * the root, from any client, so open file lists read it again instead of waiting for a reload.
+   */
+  r.on("GET", "/api/live/root", async (ctx) => {
+    const { env, request, url, tenant } = ctx;
+    if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") throw new HttpError(426, "websocket upgrade expected");
+    const project = url.searchParams.get("project_id");
+    let key: string;
+    if (url.searchParams.get("home") === "1") key = `home:${tenant.userId}`;
+    else if (project) { const pid = assertUuid(project, "project_id"); await assertAccess(ctx, "project", pid, "viewer"); key = pid; }
+    else throw new HttpError(400, "name a root: project_id, or home");
+    const to = new URL(request.url);
+    to.search = new URLSearchParams({ role: "viewer", user: tenant.userId, holder: "root-watcher" }).toString();
+    return env.CANVAS_LIVE.get(env.CANVAS_LIVE.idFromName(`root:${key}`)).fetch(new Request(to, request));
+  });
+
   /** The live socket of a lockable file (`?holder=`): the editor when this window holds the lock, else a viewer. */
   r.on("GET", "/api/canvases/:id/live", async (ctx, { id }) => {
     const { env, request, url, tenant } = ctx;
@@ -57,6 +75,13 @@ export async function tellRoom(env: Env, fileId: string, msg: { type: "lock"; by
   try {
     await env.CANVAS_LIVE.get(env.CANVAS_LIVE.idFromName(fileId)).fetch(new Request("https://room/notify", { method: "POST", body: JSON.stringify({ file: fileId, ...msg }) }));
   } catch (e) { console.warn("live: room not told", fileId, e); }
+}
+
+/** A root's files changed (#426): its room ("root:<project id>" or "root:home:<user id>") tells every open client. */
+export async function rootChanged(env: Env, root: string) {
+  try {
+    await env.CANVAS_LIVE.get(env.CANVAS_LIVE.idFromName(`root:${root}`)).fetch(new Request("https://room/notify", { method: "POST", body: JSON.stringify({ type: "changed" }) }));
+  } catch (e) { console.warn("live: root not told", root, e); }
 }
 
 type Role = "editor" | "viewer";
@@ -107,7 +132,7 @@ export class CanvasRoom extends DurableObject<Env> {
 
   /** From the lock routes and saves: every socket hears who edits now; a lock's end is watched with an alarm. */
   private async notify(m: { file: string; type: string; by?: string | null; until?: string | null }): Promise<Response> {
-    if (m.type === "saved") { this.sendAll({ type: "saved" }); return new Response(null, { status: 204 }); }
+    if (m.type === "saved" || m.type === "changed") { this.sendAll({ type: m.type }); return new Response(null, { status: 204 }); }
     await this.ctx.storage.put("file", m.file);
     this.sendAll({ type: "editor", by: m.by ?? null });
     if (m.by && m.until) { await this.ctx.storage.put("lock", { by: m.by, until: m.until }); await this.ctx.storage.setAlarm(new Date(m.until).getTime() + 1000); }

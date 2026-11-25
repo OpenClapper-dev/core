@@ -3,6 +3,7 @@
  * Every request except signing in needs a user: a session from the auth provider
  * (`@openclapper/auth-provider`, first-party.ts by default). The routes are in routes.ts.
  */
+import { rootChanged } from "./live.ts";
 import { provider } from "@openclapper/auth-provider";
 import { HttpError, json } from "@openclapper/service-kit";
 import { purgeExpired } from "./files.ts";
@@ -34,6 +35,8 @@ export interface Ctx {
   url: URL;
   identity: Identity;
   tenant: Tenant;
+  /** The roots this request may change, noted by the access checks (tenancy.ts `touch`). */
+  touched?: Set<string>;
 }
 
 /** A session, everywhere: local development signs in too (dev@localhost, `make init`), so it behaves like production. */
@@ -64,7 +67,14 @@ export default {
         if (!(await provider.allow(identity, capability, env))) throw new HttpError(403, "not allowed for this account");
       }
       const tenant = await loadTenant(env, identity.userId);
-      return await router.handle(request.method, url.pathname, { request, env, url, identity, tenant });
+      const touched = new Set<string>();
+      const res = await router.handle(request.method, url.pathname, { request, env, url, identity, tenant, touched });
+      // A write that went through: the roots it changed hear it, so open clients read them again (#426). Taking or
+      // renewing an edit lock is not a change of the files.
+      if (request.method !== "GET" && request.method !== "HEAD" && res.status < 400 && touched.size && !url.pathname.endsWith("/lock")) {
+        await Promise.all([...touched].map((root) => rootChanged(env, root)));
+      }
+      return res;
     } catch (err) {
       if (err instanceof HttpError) return json({ error: err.message }, err.status);
       console.error("unhandled", err);

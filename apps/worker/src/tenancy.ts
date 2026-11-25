@@ -34,7 +34,14 @@ export async function loadTenant(env: { DB: D1Database }, userId: string): Promi
 export interface Access {
   env: { DB: D1Database };
   tenant: Tenant;
+  /**
+   * The roots a request was allowed to change ("<project id>" or "home:<user id>"), noted by the access checks; after
+   * a write that succeeded the Worker tells each root's live room, so open clients read it again (#426).
+   */
+  touched?: Set<string>;
 }
+/** Notes a root a write may change (see Access.touched). */
+export const touch = (a: Access, root: string, min: Role) => { if (min !== "viewer") a.touched?.add(root); };
 
 /**
  * Each owned kind → SQL from one id up to its workspace (no row = the id does not exist). Files are
@@ -64,7 +71,9 @@ export function assertRank(a: Access, workspaceId: string | null | undefined, mi
  * workspace's row answers like a missing one (404), so ids reveal nothing. Returns the workspace id.
  */
 export async function assertAccess(a: Access, kind: Owned, id: string, min: Role): Promise<string> {
-  return assertRank(a, await workspaceOf(a.env, kind, id), min, `${kind} not found`);
+  const ws = assertRank(a, await workspaceOf(a.env, kind, id), min, `${kind} not found`);
+  if (kind === "project") touch(a, id, min);
+  return ws;
 }
 
 /**
@@ -84,7 +93,9 @@ export async function accessIfExists(a: Access, kind: Owned, id: string, min: Ro
 export async function assertRef(a: Access, kind: Owned, id: string, min: Role = "editor"): Promise<string> {
   const ws = await workspaceOf(a.env, kind, id);
   if (!ws || !a.tenant.ranks.has(ws)) throw new HttpError(400, `${kind}_id does not exist`);
-  return assertRank(a, ws, min);
+  const rank = assertRank(a, ws, min);
+  if (kind === "project") touch(a, id, min);
+  return rank;
 }
 
 export const assertProjectRef = (a: Access, projectId: string, min: Role = "editor") => assertRef(a, "project", projectId, min);

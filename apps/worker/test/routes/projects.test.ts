@@ -43,3 +43,22 @@ describe("a project's description and picture", () => {
     expect((await api(u.token, "GET", `/api/projects/${id}/picture`)).status).toBe(404);
   });
 });
+
+describe("a root's live room (#426)", () => {
+  test("a watcher of a project hears every write that changed its files; another workspace cannot watch", async () => {
+    const id = uuid();
+    await ok(api(u.token, "PUT", `/api/projects/${id}`, { name: `L ${id}` }), 201);
+    const watch = (token: string) => api(token, "GET", `/api/live/root?project_id=${id}`, undefined, { Upgrade: "websocket" });
+    expect([403, 404]).toContain((await watch(other.token)).status);
+    const inbox: { type: string }[] = [];
+    const ws = (await watch(u.token)).webSocket!;
+    ws.accept();
+    ws.addEventListener("message", (e) => { inbox.push(JSON.parse(String(e.data)) as { type: string }); });
+    const folder = uuid();
+    await ok(api(u.token, "PUT", `/api/files/${folder}`, { type: "folder", project_id: id, name: "New" }), 201);
+    await ok(api(u.token, "POST", "/api/files/bin", { ids: [folder] }));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(inbox.filter((m) => m.type === "changed").length).toBe(2);
+    ws.close(1000);
+  });
+});
