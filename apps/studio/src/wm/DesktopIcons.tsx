@@ -191,7 +191,7 @@ export function DesktopIcons({ projectId, shellMenu }: { projectId: string; shel
       { id: "open", label: "Open", icon: "external", kbd: "↵", run: () => open(f) },
       { id: "rename", label: f.type === "shortcut" ? "Rename shortcut…" : "Rename…", icon: "edit", kbd: "F2", run: () => void ops.renameFile(f) },
       { id: "files", label: f.type === "shortcut" && t && "file" in t ? "Show what it points at" : "Show in Files", icon: "folder-open", disabled: f.type === "shortcut" && !!t && "app" in t,
-        run: () => { launch({ app: "files", state: { folder: f.type === "shortcut" && t && "file" in t ? t.file.container : desktop?.id ?? null } }); } },
+        run: () => ops.openFolder(f.type === "shortcut" && t && "file" in t ? t.file.container : desktop?.id ?? null) },
       { separator: true },
       { id: "bin", label: "Move to the recycle bin", icon: "trash", danger: true, kbd: "Del", run: () => remove([f]) },
     ]);
@@ -204,7 +204,7 @@ export function DesktopIcons({ projectId, shellMenu }: { projectId: string; shel
       { id: "folder", label: "New folder", icon: "folder-plus", disabled: !desktop, run: () => void ops.newFolder(root, desktop!.id).then((f) => f && place([[f.id, want]])) },
       { id: "shortcut", label: "New shortcut…", icon: "shortcut", disabled: !desktop, run: () => openDialog((close) => <ShortcutPicker files={all} close={close} onPick={(t) => void ops.makeShortcut(root, all, t, desktop!.id).then((f) => f && place([[f.id, want]]))} />) },
       { id: "arrange", label: "Arrange icons", icon: "grid", disabled: !icons.length, run: arrange },
-      { id: "open", label: "Open the Desktop folder", icon: "folder-open", disabled: !desktop, run: () => { launch({ app: "files", state: { folder: desktop!.id } }); } },
+      { id: "open", label: "Open the Desktop folder", icon: "folder-open", disabled: !desktop, run: () => ops.openFolder(desktop!.id) },
       { separator: true },
       ...shellMenu,
     ]);

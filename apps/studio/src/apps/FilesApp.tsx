@@ -25,6 +25,7 @@ import { usePrefs, type Pin } from "../prefs";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
 import { pinsOf, togglePin as togglePinIn } from "../wm/Taskbar";
+import * as wm from "../wm/wm";
 import { BinView } from "./BinView";
 import { appDef, launch, type AppProps } from "./registry";
 
@@ -130,6 +131,8 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const map = useMemo(() => store.byId(all), [files]);
   // A folder or collection that is gone (binned elsewhere) leaves the window at the top level.
   const here = !media && folder && map.get(folder) && kindOf(map.get(folder)!.type).holds ? folder : null;
+  // The window names the folder it shows, so opening that folder elsewhere brings this window up (one window per folder).
+  useEffect(() => { if (!media) wm.setResource(win.id, here ? { type: map.get(here)!.type, id: here } : null); }, [here, media]);
   useEffect(() => { if (files && folder && !here && !media) setFolder(null); }, [files, folder, here]);
   const openColl = mnav.startsWith("coll:") ? map.get(mnav.slice(5)) : undefined;
   useEffect(() => { if (files && mnav.startsWith("coll:") && !openColl) setMnav("all"); }, [files, mnav, openColl]);
@@ -181,7 +184,11 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const photosIn = (list: FileRec[]) => list.filter((f) => f.type === "photo");
 
   const resetFilter = () => { setFilter({ match: "all", rules: [] }); setFilterFile(null); setFilterOpen(false); };
-  const go = (to: { home?: boolean; folder?: string | null }) => { if (to.home !== undefined) setHome(to.home); setFolder(to.folder ?? null); setNav("all"); setQ(""); setTypes([]); resetFilter(); clear(); };
+  const go = (to: { home?: boolean; folder?: string | null }) => {
+    // One window per folder (#426): a folder another window shows comes to the front there.
+    const other = to.folder && wm.getAllWindows().find((w) => w.app === "files" && w.id !== win.id && w.resource?.id === to.folder);
+    if (other) { wm.focus(other.id); return; }
+    if (to.home !== undefined) setHome(to.home); setFolder(to.folder ?? null); setNav("all"); setQ(""); setTypes([]); resetFilter(); clear(); };
   /** The filter as a file's body. */
   const filterBody = (): FilterBody => ({ ...filter, ...(types.length ? { types } : {}), ...(q ? { q } : {}) });
   const saveFilter = async () => {
@@ -241,6 +248,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     const pinned = pins.some((p) => "file" in p && p.file === f.id);
     contextMenu(e, [
       !many && { id: "open", label: "Open", icon: "external", kbd: "↵", run: () => open(f) },
+      !many && !media && kindOf(f.type).holds && { id: "window", label: "Open in a new window", icon: "window", run: () => ops.openFolder(f.id, f.home, f.type) },
       !many && f.type === "shortcut" && t && "file" in t && { id: "reveal", label: "Show what it points at", icon: "folder-open", run: () => { go({ folder: t.file.container }); setCur(t.file.id); } },
       !many && f.type === "photo" && !home && { id: "canvas", label: "Make a canvas", icon: "brush", run: () => void ops.canvasFromPhoto(f, map) },
       !many && f.type === "photo" && !!f.photo?.stored.original && { id: "orig", label: "Download the original", icon: "download", run: () => { const a = document.createElement("a"); a.href = imageUrl(f.id, "original"); a.download = f.name; a.click(); } },

@@ -236,6 +236,16 @@ export function setResource(id: string, resource: ResourceRef | null): boolean {
   return true;
 }
 
+/** A window's button moved in the taskbar: the window goes before `before` in the order (the end when null). */
+export function reorder(id: string, before: string | null) {
+  const w = windows.find((x) => x.id === id);
+  if (!w || id === before) return;
+  const rest = windows.filter((x) => x.id !== id);
+  const at = before ? rest.findIndex((x) => x.id === before) : -1;
+  windows = at < 0 ? [...rest, w] : [...rest.slice(0, at), w, ...rest.slice(at)];
+  notify();
+}
+
 /** Nothing focused: the desktop itself has focus (the URL shows #/). */
 export function focusDesktop() {
   if (focused === null) return;

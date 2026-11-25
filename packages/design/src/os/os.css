@@ -80,6 +80,10 @@
 .oc-taskbar__clock{padding:0 var(--space-4);font:var(--weight-medium) var(--font-size-sm)/1 var(--font-mono);font-variant-numeric:tabular-nums}
 .oc-task{position:relative;flex:none;display:inline-flex;align-items:center;justify-content:center;gap:var(--space-3);min-width:32px;max-width:180px;height:calc(var(--taskbar-h) - 8px);padding:0 var(--space-4);box-sizing:border-box;border:0;border-radius:var(--radius-control);background:transparent;color:inherit;font:var(--weight-medium) var(--font-size-sm)/1 var(--font-sans);white-space:nowrap;cursor:default}
 .oc-task--icon{width:32px;padding:0}
+.oc-task.is-drop-before{box-shadow:inset 2px 0 0 var(--accent)}
+.oc-task.is-drop-after{box-shadow:inset -2px 0 0 var(--accent)}
+.oc-taskbar--left .oc-task.is-drop-before,.oc-taskbar--right .oc-task.is-drop-before{box-shadow:inset 0 2px 0 var(--accent)}
+.oc-taskbar--left .oc-task.is-drop-after,.oc-taskbar--right .oc-task.is-drop-after{box-shadow:inset 0 -2px 0 var(--accent)}
 .oc-task__count{position:absolute;right:1px;top:1px;min-width:12px;padding:0 2px;box-sizing:border-box;border-radius:var(--radius-pill);background:var(--surface);color:var(--text);font:var(--weight-bold) var(--font-size-2xs)/12px var(--font-mono);text-align:center}
 .oc-taskbar--center>.oc-taskbar__spacer{flex:1}
 .oc-task{cursor:pointer}

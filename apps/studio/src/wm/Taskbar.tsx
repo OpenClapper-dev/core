@@ -28,6 +28,7 @@ function useClock(): string {
 export const DEFAULT_PINS: Pin[] = [{ app: "files" }, { app: "media" }, { app: "project" }];
 const pinId = (p: Pin) => ("app" in p ? `app:${p.app}` : `file:${p.file}`);
 const PIN_DRAG = "application/x-oc-pin";
+const TASK_DRAG = "application/x-oc-task";
 
 export const pinsOf = (projectId: string, pins: Record<string, Pin[]>) => pins[projectId] ?? DEFAULT_PINS;
 function setPins(projectId: string, all: Record<string, Pin[]>, next: Pin[]) { setPrefs({ pins: { ...all, [projectId]: next } }); }
@@ -42,7 +43,9 @@ const below = (e: MouseEvent) => { const r = (e.currentTarget as HTMLElement).ge
 
 /**
  * The taskbar, on any edge: the launcher, the task view, the pins, the active desktop's windows,
- * then project, Go to…, theme, account and clock. An app's pin and its windows are one button.
+ * then project, Go to…, theme, account and clock. A single-window app's pin and its window are one
+ * button; every window of an app with one window per file or folder has a button of its own (#426),
+ * and those buttons are reordered by dragging.
  */
 export function Taskbar({ projectId }: { projectId: string }) {
   const windows = wm.useWindows();
@@ -61,8 +64,10 @@ export function Taskbar({ projectId }: { projectId: string }) {
   // A pin whose app this build does not have, or whose file is gone, is not shown (it comes back with it).
   const pins = pinsOf(projectId, prefs.pins).filter((p) => ("app" in p ? appDef(p.app) : !files || fileMap.has(p.file)));
   const pinned = (app: string) => pins.some((p) => "app" in p && p.app === app);
-  const winsOf = (p: Pin) => ("app" in p ? windows.filter((w) => w.app === p.app) : []);
-  const running = windows.filter((w) => !pinned(w.app)); // insertion order: z churn must not shuffle the tasks
+  // Only a single-window app's pin is also its window's button; per-file apps' windows stand on their own.
+  const absorbs = (app: string) => pinned(app) && !!appDef(app)?.singleton;
+  const winsOf = (p: Pin) => ("app" in p && absorbs(p.app) ? windows.filter((w) => w.app === p.app) : []);
+  const running = windows.filter((w) => !absorbs(w.app)); // the windows' order: z churn must not shuffle the tasks
   const isActive = (w: Win) => w.id === focusedId && w.mode !== "min";
   const toggleWin = (w: Win) => (isActive(w) ? wm.minimize(w.id) : wm.focus(w.id));
   const winEntries = (wins: Win[]): MenuEntry[] => wins.map((w) => ({ id: w.id, label: w.title, checked: w.id === focusedId ? true : undefined, run: () => wm.focus(w.id) }));
@@ -92,16 +97,35 @@ export function Taskbar({ projectId }: { projectId: string }) {
     if (w) contextMenu(e, windowMenu(w, [{ id: "pin", label: "Pin app to taskbar", icon: "pin", run: () => togglePin(projectId, prefs.pins, { app: w.app }) }, { separator: true }]));
   };
 
-  // Pins are reordered by dragging one onto another's place.
+  // Pins are reordered by dragging one onto another's place, window buttons likewise among themselves.
   const [dropAt, setDropAt] = useState<number | null>(null);
+  const [taskDrop, setTaskDrop] = useState<number | null>(null);
   const indexAt = (e: DragEvent) => { const el = (e.target as HTMLElement).closest<HTMLElement>("[data-pin-index]"); return el ? Number(el.dataset.pinIndex) : pins.length; };
+  /** The window button the pointer is over, before or after its middle, as the index the dragged one would take. */
+  const taskIndexAt = (e: DragEvent) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-task-index]");
+    if (!el) return running.length;
+    const r = el.getBoundingClientRect(), side = prefs.taskbarEdge === "left" || prefs.taskbarEdge === "right" ? e.clientY > r.top + r.height / 2 : e.clientX > r.left + r.width / 2;
+    return Number(el.dataset.taskIndex) + (side ? 1 : 0);
+  };
   const groupProps = {
-    onDragStart: (e: DragEvent) => { const id = (e.target as HTMLElement).closest<HTMLElement>("[data-pin-id]")?.dataset.pinId; if (id && e.dataTransfer) { e.dataTransfer.setData(PIN_DRAG, id); e.dataTransfer.effectAllowed = "move"; } },
-    onDragOver: (e: DragEvent) => { const pin = e.dataTransfer?.types.includes(PIN_DRAG); if (!pin && !ops.hasDrag(e)) return; e.preventDefault(); e.dataTransfer!.dropEffect = pin ? "move" : "copy"; setDropAt(indexAt(e)); },
-    onDragLeave: (e: DragEvent) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) setDropAt(null); },
+    onDragStart: (e: DragEvent) => {
+      const t = e.target as HTMLElement, id = t.closest<HTMLElement>("[data-pin-id]")?.dataset.pinId, task = t.closest<HTMLElement>("[data-task-id]")?.dataset.taskId;
+      if (id && e.dataTransfer) { e.dataTransfer.setData(PIN_DRAG, id); e.dataTransfer.effectAllowed = "move"; }
+      else if (task && e.dataTransfer) { e.dataTransfer.setData(TASK_DRAG, task); e.dataTransfer.effectAllowed = "move"; }
+    },
+    onDragOver: (e: DragEvent) => {
+      if (e.dataTransfer?.types.includes(TASK_DRAG)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setTaskDrop(taskIndexAt(e)); return; }
+      const pin = e.dataTransfer?.types.includes(PIN_DRAG); if (!pin && !ops.hasDrag(e)) return; e.preventDefault(); e.dataTransfer!.dropEffect = pin ? "move" : "copy"; setDropAt(indexAt(e));
+    },
+    onDragLeave: (e: DragEvent) => { if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node | null)) { setDropAt(null); setTaskDrop(null); } },
+    onDragEnd: () => { setDropAt(null); setTaskDrop(null); },
     onDrop: (e: DragEvent) => {
       e.preventDefault();
       setDropAt(null);
+      setTaskDrop(null);
+      const task = e.dataTransfer?.getData(TASK_DRAG);
+      if (task) { const at = taskIndexAt(e); wm.reorder(task, running[at]?.id ?? null); return; }
       const at = indexAt(e);
       // Files dragged here from Files or the desktop are pinned at that place.
       const dropped = ops.readDrag(e);
@@ -154,7 +178,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
       <Bar edge={prefs.taskbarEdge} align={prefs.taskbarAlign} launcherOpen={launcherOpen} onLauncher={() => openOverlay(launcherOpen ? null : "launcher")}
         leading={<TaskbarButton icon="task-view" label={`Task view (⌘Alt V) · ${desks.find((d) => d.id === active)?.name ?? ""}`} active={overlay === "taskview"} count={desks.length > 1 ? desks.findIndex((d) => d.id === active) + 1 : undefined}
           onClick={() => openOverlay(overlay === "taskview" ? null : "taskview")} onContextMenu={deskMenu} />}
-        pinsDraggable groupProps={groupProps} onTask={onTask} onTaskMenu={onTaskMenu}
+        pinsDraggable tasksDraggable dropAt={taskDrop !== null ? { group: "tasks", index: taskDrop } : dropAt !== null ? { group: "pins", index: dropAt } : null} groupProps={groupProps} onTask={onTask} onTaskMenu={onTaskMenu}
         pinned={pins.map((p) => {
           const def = "app" in p ? appDef(p.app) : undefined;
           const file = "file" in p ? fileMap.get(p.file) : undefined;
