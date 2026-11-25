@@ -20,14 +20,14 @@ The owner talks to you in English.
 | Path | What |
 | --- | --- |
 | `apps/worker/src` | API routes (`files.ts`: one set for every file type; `projects.ts`, `workspaces.ts`; registered in `routes.ts`), `authn/` (sign-in, sessions, the provider seam), `tenancy.ts` (workspace access checks) |
-| `apps/admin` | Admin plane: its own Worker (`src/index.ts`) and board (`ui/`) behind its own Cloudflare Access app; user management across the instance |
+| `apps/admin` | Admin plane: its own Worker (`src/index.ts`) and board (`ui/`, on `@openclapper/design`) behind its own Cloudflare Access app; user management across the instance |
 | `apps/worker/migrations` | D1 schema, numbered, additive; `0001_rewrite_baseline.sql` is the rebuild's baseline |
 | `packages/model` | The rebuild's shared model (`@openclapper/model`): file types, the rules for their bodies and references, placement; used by the Worker and the rebuilt clients |
 | `apps/studio/src` | The rebuilt Studio on `@openclapper/design`: `wm/` (desktop shell: `Shell.tsx`, window manager `wm.ts`, taskbar, task view, route bridge), `apps/` (one file per app + `registry.ts`), `files.ts` (the file store) + `fileOps.tsx` (what one does with files) + `fileKinds.ts`, `media.ts` (import and the upload queue) + `collections.tsx` + `photoParts.tsx`, `hosts.tsx` (toast, confirm, prompt, context menu, dialog), `prefs.ts` (preferences, kept with the account), `theme.ts`, `shortcuts.ts` (every shortcut) + `keys.ts` (`bind`), `shell.css` |
 | `apps/mobile` | `App.tsx` (the shell: gates, the tab bar that turns, tabs per device), `src/shell/` (gates, sign-in state, back handling), `src/apps/` (one file per app + `registry.ts`), `src/ui/` (component library on the design tokens and glyphs: `theme.tsx`, primitives by design-system group, `chrome.tsx` header/screen/rows/bars, `dialogs.tsx` confirm + toast), `api.ts`, `sync.ts`, `projects.ts`, `prefs.ts` (the account preferences), `device.ts` + `lenses.ts` (registration, real lenses), `settings.ts` (this phone), `store.ts` + `kv.ts` (persisted state); `src/ble`, `src/fixtures` (hardware drivers, kept for the Hardware extension, not mounted) |
 | `packages/vocab` | The first app's shared vocabularies, still used by its clients until they are rebuilt; nothing new goes here |
 | `packages/fov-math` | Camera/lens/FOV/overlay/reframe math |
-| `packages/ui` | The first app's web design system (`@openclapper/ui`); still used by the admin board, goes at the cutover |
+| `packages/ui` | The first app's web design system (`@openclapper/ui`); nothing uses it any more, deleted at the cutover |
 | `packages/design` + `apps/specimen` | The design system (`@openclapper/design`, `docs/rewrite/`) of the rebuilt clients and its specimen app (`make specimen`); never on the same page as `@openclapper/ui`. Fixes to how something looks or behaves go here, not into an app |
 | `packages/service-kit` | What both Workers share: `http.ts` router + `assert*` helpers, Access verification, password hashing |
 

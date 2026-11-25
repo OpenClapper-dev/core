@@ -1,6 +1,6 @@
 import { render } from "preact";
-// The web design system (tokens, component classes and components), shared with the Studio.
-import "@openclapper/ui";
+// The design system's one stylesheet (tokens, fonts, every component), as in the Studio; then the board's layout.
+import "@openclapper/design/styles.css";
 import "./admin.css";
 import { App } from "./App";
 

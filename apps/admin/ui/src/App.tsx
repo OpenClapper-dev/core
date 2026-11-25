@@ -1,26 +1,33 @@
 import { useEffect, useState } from "preact/hooks";
-import { Banner, Button, ConfirmHost, Empty, IconButton, InstanceBadge, instanceTitle, Loading, Mark, Seg, THEME_CYCLE, THEME_ICON, THEME_LABEL, toast, ToastHost, useTheme } from "@openclapper/ui";
+import { Banner, Button, EmptyState, EnvMarker, Segmented, Spinner } from "@openclapper/design";
 import { Users } from "./Accounts";
 import { Audit } from "./Audit";
 import { fetchCloudflare, fetchOverview, fetchStorage, fetchUsers, fetchWorkspaces, whoami, type AdminUser, type AdminWorkspace, type CfOverlay, type Overview, type StorageReport } from "./api";
+import { Hosts, toast } from "./hosts";
 import { Monitoring, type Range } from "./Monitoring";
 import { bytes, Tile } from "./shared";
+import { GLYPH, LABEL, NEXT, useTheme } from "./theme";
 import { Workspaces } from "./Workspaces";
 
 type Tab = "board" | "monitoring" | "audit";
 const TABS = [
-  { id: "board", label: "Board", icon: "view-dashboard-outline" },
-  { id: "monitoring", label: "Monitoring", icon: "chart-line" },
-  { id: "audit", label: "Audit", icon: "history" },
+  { value: "board", label: "Board", icon: "grid" },
+  { value: "monitoring", label: "Monitoring", icon: "histogram" },
+  { value: "audit", label: "Audit", icon: "history" },
 ] as const;
 /** The tab title from index.html; whoami puts the instance in front of it ("staging · OpenClapper admin"). */
 const BASE_TITLE = document.title;
 const tabFromHash = (): Tab => (location.hash === "#monitoring" ? "monitoring" : location.hash === "#audit" ? "audit" : "board");
+/** The instance as an environment mark (colour and label): none set is production; the dev server is development. */
+const envOf = (instance: string) => (!instance || instance === "production" ? "production" : instance === "staging" ? "staging" : "development");
+/** The instance's own icon, the one index.html links. */
+const icon = (document.querySelector('link[rel="icon"]') as HTMLLinkElement | null)?.href ?? "";
 
 /**
  * The admin board (issue #116): instance totals, every account (create, block, reset the password,
  * delete) and every workspace with its size; a Monitoring tab (epic #67) with storage over time and
  * the operator's marks; an Audit tab (#224) with every change made here. Operators sign in through Cloudflare Access.
+ * On the rebuilt app's design system (#426), like the Studio.
  */
 export function App() {
   const [me, setMe] = useState<string | null>(null);
@@ -34,7 +41,7 @@ export function App() {
   const [tab, setTab] = useState<Tab>(tabFromHash);
   const [error, setError] = useState<string | null>(null);
   const [theme, setTheme] = useTheme();
-  const load = () => Promise.all([whoami().then((w) => { setMe(w.email); setInstance(w.instance); document.title = instanceTitle(BASE_TITLE, w.instance); }), fetchOverview().then(setOverview), fetchUsers().then(setUsers), fetchWorkspaces().then(setWorkspaces), fetchStorage(range).then(setStorage)])
+  const load = () => Promise.all([whoami().then((w) => { setMe(w.email); setInstance(w.instance); document.title = w.instance ? `${w.instance} · ${BASE_TITLE}` : BASE_TITLE; }), fetchOverview().then(setOverview), fetchUsers().then(setUsers), fetchWorkspaces().then(setWorkspaces), fetchStorage(range).then(setStorage)])
     .then(() => setError(null)).catch((e: Error) => setError(e.message));
   useEffect(() => { void load(); }, []);
   useEffect(() => { fetchStorage(range).then(setStorage).catch((e: Error) => toast(e.message, "danger")); }, [range]);
@@ -48,7 +55,7 @@ export function App() {
   const go = (t: Tab) => { location.hash = t === "board" ? "" : `#${t}`; setTab(t); };
 
   const act = async (fn: () => Promise<unknown>, ok?: string) => {
-    try { await fn(); if (ok) toast(ok); await load(); } catch (e) { toast((e as Error).message, "danger"); }
+    try { await fn(); if (ok) toast(ok, "success"); await load(); } catch (e) { toast((e as Error).message, "danger"); }
   };
   // The banner judges the larger of the two totals: the bucket's own snapshot, and the account-wide R2 total when the overlay is on (what is billed).
   const account = overlay?.configured ? overlay.r2.data?.total_bytes ?? null : null;
@@ -57,24 +64,25 @@ export function App() {
   const worst = crossed[crossed.length - 1];
 
   return (
-    <div class="admin">
-      <header class="admin__head">
-        <span class="admin__brand"><Mark size={24} surface="admin" />OpenClapper admin<InstanceBadge label={instance} /></span>
-        <Seg options={TABS} value={tab} label="Page" onChange={go} />
-        <span class="admin__headend">
-          <span class="meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span class="num">{__OPENCLAPPER_VERSION__} ({__OPENCLAPPER_COMMIT__})</span></span>
-          <IconButton icon={THEME_ICON[theme]} label={THEME_LABEL[theme]} title={THEME_LABEL[theme]} onClick={() => setTheme(THEME_CYCLE[theme])} />
+    <div className="adm">
+      <header className="adm-head">
+        <span className="adm-brand">{icon && <img src={icon} alt="" width={24} height={24} />}OpenClapper admin<EnvMarker env={import.meta.env.DEV ? "development" : envOf(instance)} /></span>
+        <Segmented label="Page" value={tab} onChange={(v: string) => go(v as Tab)} options={TABS.map((t) => ({ ...t }))} />
+        <span className="adm-head__end">
+          <span className="adm-meta">{me ? `Signed in as ${me} (Cloudflare Access) · ` : ""}<span className="adm-num">{__OPENCLAPPER_VERSION__} ({__OPENCLAPPER_COMMIT__})</span></span>
+          <Button size="sm" variant="quiet" icon={GLYPH[theme]} label={LABEL[theme]} title={LABEL[theme]} onClick={() => setTheme(NEXT[theme])} />
         </span>
       </header>
       {worst && judged && (
-        <Banner kind="warn" icon="flag" role="alert" title={`Storage is past your mark "${worst.label}": ${bytes(judged.bytes)} ${judged.what}`}
-          meta={crossed.length > 1 ? `Also past: ${crossed.slice(0, -1).map((m) => m.label).join(", ")}` : undefined}
-          action={tab === "board" ? <Button size="sm" kind="ghost" onClick={() => go("monitoring")}>Monitoring</Button> : undefined} />
+        <Banner tone="warning" icon="flag" role="alert" title={`Storage is past your mark "${worst.label}": ${bytes(judged.bytes)} ${judged.what}`}
+          action={tab === "board" ? <Button size="sm" variant="quiet" onClick={() => go("monitoring")}>Monitoring</Button> : undefined}>
+          {crossed.length > 1 ? `Also past: ${crossed.slice(0, -1).map((m) => m.label).join(", ")}` : undefined}
+        </Banner>
       )}
-      {error && <Empty icon="cloud-alert" title="Could not load" actions={<Button onClick={() => void load()}>Try again</Button>}>{error}</Empty>}
-      {!error && !overview && <Loading />}
+      {error && <EmptyState icon="cloud-off" title="Could not load">{error}<div className="adm-pad"><Button onClick={() => void load()}>Try again</Button></div></EmptyState>}
+      {!error && !overview && <div className="adm-center"><Spinner /></div>}
       {tab === "board" && overview && (
-        <div class="admin__tiles">
+        <div className="adm-tiles">
           <Tile label="Accounts" value={overview.users} sub={`${overview.active_30d} active in 30 days${overview.blocked ? ` · ${overview.blocked} blocked` : ""}`} />
           <Tile label="Workspaces" value={overview.workspaces} sub={`${overview.projects} projects`} />
           <Tile label="Files" value={overview.files} sub={`${overview.photos} photos`} />
@@ -85,8 +93,7 @@ export function App() {
       {tab === "board" && workspaces && <Workspaces list={workspaces} />}
       {tab === "audit" && <Audit />}
       {tab === "monitoring" && storage && <Monitoring report={storage} overlay={overlay} range={range} onRange={setRange} onSaved={() => fetchStorage(range).then(setStorage)} />}
-      <ConfirmHost />
-      <ToastHost />
+      <Hosts />
     </div>
   );
 }

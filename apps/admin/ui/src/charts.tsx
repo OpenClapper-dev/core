@@ -60,39 +60,39 @@ export function LineChart({ points, marks = [], format, height = 220, label }: {
   const h = hover === null ? null : points[hover];
   const summary = points.length ? `${label}: ${points.length} days from ${shortDay(points[0].day)} to ${shortDay(points[points.length - 1].day)}, latest ${format(points[points.length - 1].value)}` : `${label}: no data yet`;
   return (
-    <div class="admin-chart" ref={box}>
+    <div className="adm-chart" ref={box}>
       {width > 0 && (
         <svg width={w} height={height} role="img" aria-label={summary} onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
-          {ticks.map((v) => <g key={v}><line class="admin-chart__grid" x1={pad.l} x2={w - pad.r} y1={Y(v)} y2={Y(v)} /><text class="admin-chart__tick" x={pad.l - 8} y={Y(v)} text-anchor="end" dominant-baseline="middle">{format(v)}</text></g>)}
-          {dayTicks.map((p) => <text key={p.day} class="admin-chart__tick" x={X(t(p.day))} y={height - 8} text-anchor="middle">{shortDay(p.day)}</text>)}
+          {ticks.map((v) => <g key={v}><line className="adm-chart__grid" x1={pad.l} x2={w - pad.r} y1={Y(v)} y2={Y(v)} /><text className="adm-chart__tick" x={pad.l - 8} y={Y(v)} text-anchor="end" dominant-baseline="middle">{format(v)}</text></g>)}
+          {dayTicks.map((p) => <text key={p.day} className="adm-chart__tick" x={X(t(p.day))} y={height - 8} text-anchor="middle">{shortDay(p.day)}</text>)}
           {marks.map((m) => (
             <g key={m.bytes}>
-              <line class="admin-chart__mark" x1={pad.l} x2={w - pad.r} y1={Y(m.bytes)} y2={Y(m.bytes)} />
-              <text class="admin-chart__marklabel" x={w - pad.r} y={Y(m.bytes) - 4} text-anchor="end">{m.label} · {format(m.bytes)}</text>
+              <line className="adm-chart__mark" x1={pad.l} x2={w - pad.r} y1={Y(m.bytes)} y2={Y(m.bytes)} />
+              <text className="adm-chart__marklabel" x={w - pad.r} y={Y(m.bytes) - 4} text-anchor="end">{m.label} · {format(m.bytes)}</text>
             </g>
           ))}
-          {points.length > 1 && <path class="admin-chart__line" d={path} />}
-          {points.length === 1 && <circle class="admin-chart__dot" cx={X(xs[0])} cy={Y(points[0].value)} r={4} />}
-          {h && <g><line class="admin-chart__cross" x1={X(t(h.day))} x2={X(t(h.day))} y1={pad.t} y2={pad.t + ih} /><circle class="admin-chart__dot" cx={X(t(h.day))} cy={Y(h.value)} r={5} /></g>}
+          {points.length > 1 && <path className="adm-chart__line" d={path} />}
+          {points.length === 1 && <circle className="adm-chart__dot" cx={X(xs[0])} cy={Y(points[0].value)} r={4} />}
+          {h && <g><line className="adm-chart__cross" x1={X(t(h.day))} x2={X(t(h.day))} y1={pad.t} y2={pad.t + ih} /><circle className="adm-chart__dot" cx={X(t(h.day))} cy={Y(h.value)} r={5} /></g>}
         </svg>
       )}
-      {h && <div class="admin-chart__tip" style={{ left: `${Math.min(X(t(h.day)), w - 160)}px` }}><strong>{shortDay(h.day)}</strong> <span class="num">{format(h.value)}</span></div>}
-      {!points.length && <div class="admin-chart__empty meta">No snapshot yet: the first one is written by tonight's cron.</div>}
+      {h && <div className="adm-chart__tip" style={{ left: `${Math.min(X(t(h.day)), w - 160)}px` }}><strong>{shortDay(h.day)}</strong> <span className="adm-num">{format(h.value)}</span></div>}
+      {!points.length && <div className="adm-chart__empty meta">No snapshot yet: the first one is written by tonight's cron.</div>}
     </div>
   );
 }
 
 /** A tiny trend without axes, for a table cell; the title carries the numbers for hover. */
 export function Sparkline({ points, format, width = 120, height = 28 }: { points: Point[]; format: (v: number) => string; width?: number; height?: number }) {
-  if (points.length < 2) return <span class="meta">—</span>;
+  if (points.length < 2) return <span className="adm-meta">—</span>;
   const xs = points.map((p) => t(p.day));
   const x0 = Math.min(...xs), span = Math.max(Math.max(...xs) - x0, dayMs);
   const top = Math.max(1, ...points.map((p) => p.value));
   const d = points.map((p, i) => `${i ? "L" : "M"}${(2 + ((t(p.day) - x0) / span) * (width - 4)).toFixed(1)},${(height - 2 - (p.value / top) * (height - 4)).toFixed(1)}`).join(" ");
   return (
-    <svg class="admin-spark" width={width} height={height} role="img" aria-label={`${format(points[0].value)} to ${format(points[points.length - 1].value)} over ${points.length} days`}>
+    <svg className="adm-spark" width={width} height={height} role="img" aria-label={`${format(points[0].value)} to ${format(points[points.length - 1].value)} over ${points.length} days`}>
       <title>{shortDay(points[0].day)} {format(points[0].value)} → {shortDay(points[points.length - 1].day)} {format(points[points.length - 1].value)}</title>
-      <path class="admin-chart__line" d={d} />
+      <path className="adm-chart__line" d={d} />
     </svg>
   );
 }
