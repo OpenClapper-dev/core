@@ -12,8 +12,8 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   shortcut: { glyph: "shortcut", color: 0 },
   preferences: { glyph: "settings", color: 0 },
   settings: { glyph: "settings", color: 2 },
-  device: { glyph: "mobile", color: 6 },
-  layout: { glyph: "camera-layout", color: 3 },
+  device: { glyph: "mobile", color: 16 },
+  layout: { glyph: "camera-layout", color: 13 },
   photo: { glyph: "image", color: 4 },
   collection: { glyph: "layers", color: 4 },
   shot: { glyph: "slate", color: 1 },
@@ -22,7 +22,7 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   naming: { glyph: "edit", color: 0 },
   // Types of later steps, named already by properties and naming patterns.
   canvas: { glyph: "brush", color: 7 },
-  preset: { glyph: "lens", color: 6 },
+  preset: { glyph: "lens", color: 8 },
   set: { glyph: "home", color: 2 },
   location: { glyph: "location", color: 3 },
   timeline: { glyph: "timeline", color: 6 },
@@ -52,12 +52,12 @@ export function targetOf(f: FileRec, files: ReadonlyMap<string, FileRec>): Targe
 
 /** How a file shows as an icon or a row: a shortcut takes the look of what it opens. */
 const PAGE_GLYPH: Record<string, IconName> = { general: "slate", properties: "tag", naming: "edit", customizations: "sliders", extensions: "extension", appearance: "palette", account: "user", shortcuts: "keyboard" };
-/** The fixed folders' own glyphs: a first-class folder like an OS's Desktop, not a padlock. */
+/** The fixed folders' own glyphs: a first-class folder like an OS's Desktop, not a padlock; in the system's grey, not a folder's blue (#426). */
 const FIXED_GLYPH: Record<string, IconName> = { desktop: "desktop", settings: "settings" };
 export const fixedGlyph = (fixed: string): IconName => FIXED_GLYPH[fixed] ?? "folder";
 
 export function lookOf(f: FileRec, files: ReadonlyMap<string, FileRec>): { glyph: IconName; color: number; shortcut: boolean; broken: boolean } {
-  if (f.fixed && f.type === "folder") return { glyph: fixedGlyph(f.fixed), color: 5, shortcut: false, broken: false };
+  if (f.fixed && f.type === "folder") return { glyph: fixedGlyph(f.fixed), color: 0, shortcut: false, broken: false };
   // A settings page (#426): its page's glyph; the person's in one colour, the project's in another.
   if (f.type === "settings") return { glyph: PAGE_GLYPH[(f.body as { page?: string } | undefined)?.page ?? ""] ?? "settings", color: f.home ? 8 : 2, shortcut: false, broken: false };
   if (f.type !== "shortcut") return { ...kindOf(f.type), shortcut: false, broken: false };

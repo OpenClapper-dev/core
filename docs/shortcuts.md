@@ -83,7 +83,6 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | --- | --- |
 | ← | Previous photo |
 | → | Next photo |
-| F | Preview or full size |
 
 ## Timeline
 

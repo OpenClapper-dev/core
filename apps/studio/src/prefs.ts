@@ -24,6 +24,8 @@ export interface Prefs {
   icons: Record<string, Record<string, { c: number; r: number }>>;
   /** The recycle bin has an icon on the desktop. */
   binOnDesktop: boolean;
+  /** Taskbar items hidden (#426); the launcher and the task view always stay. */
+  taskbarHide: TaskbarItem[];
   /** How a collection's colour is drawn on its photos and its tile: a bar below or to the left, a dot, or a frame. */
   collectionMark: "bar" | "barleft" | "dot" | "frame";
   /** How long a clip added to a timeline holds, unless the timeline has a value of its own. */
@@ -33,9 +35,10 @@ export interface Prefs {
   /** The file browser's table per kind of list (folders, Photos, Shots, …): which columns show and how wide (#426). */
   columns: Record<string, ColumnSetup>;
 }
+export type TaskbarItem = "clock" | "account" | "theme" | "search" | "project";
 export interface ColumnSetup { visible?: string[]; widths?: Record<string, number> }
 
-export const DEFAULT_PREFS: Prefs = { columns: {}, theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
+export const DEFAULT_PREFS: Prefs = { columns: {}, taskbarHide: [], theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
 export type PrefsState = "local" | "loading" | "saved" | "saving" | "unsaved";
 
 let prefs: Prefs = { ...DEFAULT_PREFS, theme: getTheme() };

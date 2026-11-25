@@ -1,7 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
-import { FormField, Kbd, Segmented, SettingsGroup, SettingsLayout, Switch } from "@openclapper/design";
+import { Checkbox, FormField, Kbd, Segmented, SettingsGroup, SettingsLayout, Switch } from "@openclapper/design";
 import { useInstance } from "../instance";
-import { setPrefs, usePrefs, usePrefsState, type Edge } from "../prefs";
+import { setPrefs, usePrefs, usePrefsState, type Edge, type TaskbarItem } from "../prefs";
 import { SCOPES, keysLabel, shortcutsOf, type ScopeId } from "../shortcuts";
 import { THEMES, useTheme, type Theme } from "../theme";
 import * as store from "../files";
@@ -18,6 +18,9 @@ const isTab = (v: unknown): v is Tab => typeof v === "string" && (TABS.includes(
 const TITLE: Record<(typeof TABS)[number], string> = { workspaces: "Workspaces", appearance: "Appearance", account: "Account", shortcuts: "Keyboard shortcuts", about: "About", general: "General", customizations: "Customizations", properties: "Properties", naming: "Naming patterns", extensions: "Extensions", projects: "All projects" };
 /** A settings page file's page, as a tab (#426: one file per page; "project" is the General page). */
 const PAGE_TAB: Record<string, Tab> = { general: "general", properties: "properties", naming: "naming", customizations: "customizations", extensions: "extensions", appearance: "appearance", account: "account", shortcuts: "shortcuts" };
+
+/** Taskbar items one can hide (#426), in the order they sit. */
+const TASKBAR_ITEMS: [TaskbarItem, string][] = [["project", "Switch project"], ["search", "Search"], ["theme", "Theme"], ["account", "Account"], ["clock", "Clock"]];
 
 /** Every shortcut of the registry, scope by scope: the same list as the `?` sheet and docs/shortcuts.md. */
 export function ShortcutList() {
@@ -82,6 +85,7 @@ export function SettingsApp({ win, projectId, setTitle, setRoute }: AppProps) {
           <SettingsGroup title="Taskbar">
             <FormField label="Position"><span><Segmented label="Taskbar position" value={prefs.taskbarEdge} onChange={(v) => setPrefs({ taskbarEdge: v as Edge })} options={[{ value: "bottom", label: "Bottom" }, { value: "top", label: "Top" }, { value: "left", label: "Left" }, { value: "right", label: "Right" }]} /></span></FormField>
             <FormField label="Apps and windows" hint="Along a side bar, the start is its top."><span><Segmented label="Taskbar alignment" value={prefs.taskbarAlign} onChange={(v) => setPrefs({ taskbarAlign: v as "start" | "center" })} options={[{ value: "start", label: "At the start" }, { value: "center", label: "Centred" }]} /></span></FormField>
+            <FormField label="Shown" hint="The launcher and the task view always stay."><span className="st-checks">{TASKBAR_ITEMS.map(([id, label]) => <Checkbox key={id} checked={!(prefs.taskbarHide ?? []).includes(id)} onChange={() => setPrefs({ taskbarHide: (prefs.taskbarHide ?? []).includes(id) ? prefs.taskbarHide.filter((x) => x !== id) : [...(prefs.taskbarHide ?? []), id] })}>{label}</Checkbox>)}</span></FormField>
           </SettingsGroup>
           <p className="st-note">{saved === "unsaved" ? "Not saved to your account yet: the server could not be reached. It is kept in this browser and saved when it answers again." : "These follow your account to every browser. Window layouts stay with the browser, because they depend on the screen."}</p>
           <SettingsGroup title="Media">

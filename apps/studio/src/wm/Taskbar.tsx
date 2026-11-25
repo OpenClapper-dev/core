@@ -172,6 +172,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
     return () => window.removeEventListener("keydown", esc, true);
   }, [launcherOpen]);
   const env = envOf(instance);
+  const hide = new Set(prefs.taskbarHide ?? []);
   const next = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
   return (
     <>
@@ -188,11 +189,11 @@ export function Taskbar({ projectId }: { projectId: string }) {
         })}
         tasks={running.map((w) => { const def = appDef(w.app); return { id: w.id, title: w.title, icon: <AppIcon glyph={def?.glyph} color={def?.color} size={20} />, state: isActive(w) ? "active" as const : w.mode === "min" ? "minimized" as const : "running" as const }; })}>
         {env !== "production" && <EnvMarker env={env} className="st-env" />}
-        <TaskbarButton icon="slate" label={`Switch project · ${project?.name ?? ""}`} onClick={projectMenu}>{project?.name ?? "—"}</TaskbarButton>
-        <TaskbarButton icon="search" label="Search (⌘K)" onClick={() => openOverlay("palette")} />
-        <TaskbarButton icon={theme === "auto" ? "desktop" : theme === "light" ? "sun" : "moon"} label={`${THEME_LABEL[theme]} (click for ${next === "auto" ? "the system's" : next})`} onClick={() => setTheme(next)} />
-        <TaskbarButton icon="user" label={me ? `Account · ${me.email}` : "Account"} onClick={userMenu} />
-        <TaskbarClock>{clock}</TaskbarClock>
+        {!hide.has("project") && <TaskbarButton icon="slate" label={`Switch project · ${project?.name ?? ""}`} onClick={projectMenu}>{project?.name ?? "—"}</TaskbarButton>}
+        {!hide.has("search") && <TaskbarButton icon="search" label="Search (⌘K)" onClick={() => openOverlay("palette")} />}
+        {!hide.has("theme") && <TaskbarButton icon={theme === "auto" ? "desktop" : theme === "light" ? "sun" : "moon"} label={`${THEME_LABEL[theme]} (click for ${next === "auto" ? "the system's" : next})`} onClick={() => setTheme(next)} />}
+        {!hide.has("account") && <TaskbarButton icon="user" label={me ? `Account · ${me.email}` : "Account"} onClick={userMenu} />}
+        {!hide.has("clock") && <TaskbarClock>{clock}</TaskbarClock>}
       </Bar>
       {launcherOpen && (
         <div className="st-launcher" data-overlay data-edge={prefs.taskbarEdge} data-align={prefs.taskbarAlign} onPointerDown={(e) => { if (e.target === e.currentTarget) closeOverlay(); }}>
