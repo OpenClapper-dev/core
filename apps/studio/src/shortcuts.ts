@@ -53,7 +53,7 @@ export const SHORTCUTS = [
   { scope: "global", action: "palette", keys: ["Mod+k"], label: "Go to… (command palette)" },
   { scope: "global", action: "sheet", keys: ["?"], label: "All shortcuts" },
   { scope: "global", action: "goFiles", keys: ["f"], chord: "g", label: "Open Files" },
-  { scope: "global", action: "goMedia", keys: ["m"], chord: "g", label: "Open Media" },
+  { scope: "global", action: "goMedia", keys: ["m"], chord: "g", label: "Open Photos (Files)" },
   { scope: "global", action: "goProject", keys: ["p"], chord: "g", label: "Open Project" },
   { scope: "global", action: "goSettings", keys: [","], chord: "g", label: "Open Settings" },
   { scope: "global", action: "back", keys: ["Escape"], info: true, label: "Close or back out one level" },

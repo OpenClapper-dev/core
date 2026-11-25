@@ -18,6 +18,7 @@ import { usePeople } from "../people";
 import { PresetFlow, type draftOf } from "../PresetFlow";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
+import { StartScreen } from "./StartScreen";
 import type { AppProps } from "./registry";
 
 const SAVE_AFTER_MS = 700;
@@ -35,7 +36,12 @@ export const baseOf = (f: FileRec | undefined): BasePhoto | null => (f && f.type
   view: f.photo?.angle_of_view ? { horizontal: f.photo.angle_of_view.horizontal, vertical: f.photo.angle_of_view.vertical } : null,
 } : null);
 
-export function CanvasApp({ win, projectId, setTitle, setRoute, focused }: AppProps) {
+/** A canvas; opened without one, the start screen of the project's canvases (#426). */
+export function CanvasApp(p: AppProps) {
+  return p.win.resource?.type === "canvas" ? <CanvasView {...p} /> : <StartScreen winId={p.win.id} projectId={p.projectId} type="canvas" setTitle={p.setTitle} setRoute={p.setRoute} />;
+}
+
+function CanvasView({ win, projectId, setTitle, setRoute, focused }: AppProps) {
   const id = win.resource?.type === "canvas" ? win.resource.id : null;
   const { files } = useRoot({ project: projectId });
   const file = id ? files?.find((f) => f.id === id) : undefined;
@@ -44,7 +50,6 @@ export function CanvasApp({ win, projectId, setTitle, setRoute, focused }: AppPr
   const project = useProjects().list?.find((p) => p.id === projectId);
   const people = usePeople(project?.workspace_id);
   useEffect(() => { setTitle(file ? file.name : "Canvas"); setRoute(id ?? ""); }, [file?.name, id]);
-  if (!id) return <EmptyState icon="brush" title="No canvas">Open a canvas from Files, or make one: New, Canvas; or from a photo, Make a canvas.</EmptyState>;
   if (!files) return <div className="st-center"><Spinner /></div>;
   if (!file || file.deleted_at) return <EmptyState icon="brush" title="This canvas is gone">It was deleted or moved to the recycle bin.</EmptyState>;
   return <Editing key={file.id} live={project?.canvas_live} active={focused} file={file} files={files} projectId={projectId} me={{ id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" }} nameOf={(u) => (u === me?.id ? "You" : people.get(u) ?? "Someone")} />;

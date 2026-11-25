@@ -29,7 +29,7 @@ const CHAPTER_COLOURS = [6, 2, 4, 3, 7, 1, 5, 8];
 export function MasterApp({ projectId, setTitle, setRoute, focused }: AppProps) {
   const { files, bin } = store.useRoot({ project: projectId });
   const project = useProjects().list?.find((p) => p.id === projectId);
-  useEffect(() => { setTitle("Master timeline"); setRoute(""); }, []);
+  useEffect(() => { setTitle("Master timeline"); setRoute("master"); }, []);
   if (!files || !project) return <div className="oc-app st-center"><Spinner /></div>;
   return <Master files={files} bin={bin ?? []} project={project} active={focused} />;
 }

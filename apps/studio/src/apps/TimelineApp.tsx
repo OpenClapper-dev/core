@@ -9,7 +9,7 @@ import type { ComponentChildren } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
-  AppIcon, Badge, Banner, Button, Checkbox, ColorChooser, colorCss, Dock, DropdownMenu, EmptyState, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, Slider, Spinner, StatusBar, Switch, TextInput, Toolbar, ToolbarSpacer,
+  AppIcon, Badge, Banner, FileCard, Button, Checkbox, ColorChooser, colorCss, Dock, DropdownMenu, EmptyState, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, Slider, Spinner, StatusBar, Switch, TextInput, Toolbar, ToolbarSpacer,
   cx, dockCollapse, dockShow, useDockLayout, useSort, type DockPanel,
 } from "@openclapper/design";
 import { emptyCanvas, HOLD_MS, timelineRefs, type CanvasBody, type Clip, type PresetBody, type TimelineBody } from "@openclapper/model";
@@ -35,6 +35,9 @@ import { clock } from "../shots/progressionParts";
 import { at as atTime, blocksOf, chaptersOf, moveClips, type Block, type Seg } from "../timeline/cut";
 import { Editing } from "./CanvasApp";
 import { launch, type AppProps } from "./registry";
+import { StartScreen } from "./StartScreen";
+import * as wm from "../wm/wm";
+import { MasterApp } from "./MasterApp";
 import { ShotWindow } from "./ShotApp";
 
 const SAVE_AFTER_MS = 600;
@@ -48,11 +51,25 @@ const bodyOf = (f: FileRec): TimelineBody => ({ clips: [], holdMs: null, ...(f.b
 /** `#/timeline/<id>?t=12.5`: the timeline and where the playhead was. */
 export function timelineFromRoute(rest: string) {
   const [id, q] = rest.split("?");
+  if (id === "master") return { resource: MASTER, state: undefined };
   const t = Number(new URLSearchParams(q ?? "").get("t"));
   return { resource: id ? { type: "timeline", id } : null, state: Number.isFinite(t) && t > 0 ? { t: t * 1000 } : undefined };
 }
 
-export function TimelineApp({ win, resource, projectId, setTitle, setRoute, focused }: AppProps) {
+/**
+ * A timeline, or the project's master timeline (the order of its timelines, #426: one app); opened
+ * without one, the start screen of the project's timelines with the master first.
+ */
+export function TimelineApp(p: AppProps) {
+  if (p.resource?.type === "master") return <MasterApp {...p} />;
+  if (p.resource) return <TimelineView {...p} />;
+  const master = <FileCard key="master" name="Master timeline" meta="The order of the timelines" art={<AppIcon glyph="film" color={1} size={48} />} title="Open the master timeline" onClick={() => wm.setResource(p.win.id, MASTER)} />;
+  return <StartScreen winId={p.win.id} projectId={p.projectId} type="timeline" extra={master} setTitle={p.setTitle} setRoute={p.setRoute} />;
+}
+/** The master timeline as a window's resource: one per project, so one id stands for it. */
+export const MASTER = { type: "master", id: "master" } as const;
+
+function TimelineView({ win, resource, projectId, setTitle, setRoute, focused }: AppProps) {
   const id = resource?.id ?? "";
   const { files, bin } = store.useRoot({ project: projectId });
   const f = files?.find((x) => x.id === id);
@@ -512,7 +529,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
     <div className="oc-app">
       <Toolbar>
         <AppIcon glyph="timeline" color={6} size={24} /><strong className="st-title">{f.name}</strong>
-        <Button size="sm" variant="quiet" icon="film" title="Open the master timeline: the order of the project's timelines" onClick={() => launch({ app: "master" })}>{master.includes(f.id) ? `No. ${master.indexOf(f.id) + 1} in the master` : "Not in the master"}</Button>
+        <Button size="sm" variant="quiet" icon="film" title="Open the master timeline: the order of the project's timelines" onClick={() => launch({ app: "timeline", resource: MASTER, title: "Master timeline" })}>{master.includes(f.id) ? `No. ${master.indexOf(f.id) + 1} in the master` : "Not in the master"}</Button>
         {lock.editing
           ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the timeline go and keep watching it: someone else can edit it now" onClick={() => void lock.stop(flush)}>Stop editing</Button>
           : <span className="tl-viewing"><Icon name="eye" size={14} /><span>{lock.by === "You" ? "Editing in another window of yours" : lock.by ? `${lock.by} is editing` : "Nobody is editing"}</span><Button size="sm" variant="primary" icon="edit" disabled={!!lock.by} onClick={() => void lock.edit()}>Edit</Button></span>}

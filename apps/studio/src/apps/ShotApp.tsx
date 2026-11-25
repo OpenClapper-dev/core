@@ -32,6 +32,7 @@ import { Pic } from "../shots/Pic";
 import { see, type Mode, type PicCtx, type PicRef, type Seen } from "../shots/picture";
 import { DefaultFrame, clock } from "../shots/progressionParts";
 import { Editing } from "./CanvasApp";
+import { StartScreen } from "./StartScreen";
 import type { AppProps } from "./registry";
 
 const SCALE = 80; // px per second in the progression strip
@@ -43,7 +44,12 @@ const PLACE_PANELS: DockLayout = { right: { tabs: ["props"] }, bottom: { tabs: [
 const HOSTED_PANELS: DockLayout = { right: { tabs: ["props"] }, bottom: { tabs: ["prog", "content"] } };
 const isPicture = (f: FileRec | undefined) => !!f && (f.type === "photo" || f.type === "canvas");
 
-export function ShotApp({ win, resource, projectId, setTitle, setRoute, focused }: AppProps) {
+/** A shot, set or location (by the window's app); opened without one, the start screen of that type (#426). */
+export function ShotApp(p: AppProps) {
+  return p.resource ? <ShotView {...p} /> : <StartScreen winId={p.win.id} projectId={p.projectId} type={p.win.app} setTitle={p.setTitle} setRoute={p.setRoute} />;
+}
+
+function ShotView({ win, resource, projectId, setTitle, setRoute, focused }: AppProps) {
   const id = resource?.id ?? "";
   const { files, bin } = store.useRoot({ project: projectId });
   const f = files?.find((x) => x.id === id);
