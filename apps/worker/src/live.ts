@@ -17,6 +17,10 @@ import type { Ctx, Env } from "./index.ts";
  * `{ type: "saved" }` (after a save, when the canvas was too large to send).
  * Room → viewers: the same `doc`, `draft` and `saved`, and `{ type: "editor", by }` when an editor connects, renews
  * or leaves (by: a user id, or null).
+ *
+ * The lock itself is live in every project (#426): the lock routes tell the room when it is taken, renewed or let
+ * go, a save tells it `saved`, and an alarm at the lock's end says when it ran out, so who edits is never stale on
+ * any client, the device's Flows editor included. Only the content (`doc`, `draft`) waits for a realtime project.
  */
 
 /** Larger messages are dropped: the editor then sends none and viewers read the canvas from the API after each save. */
@@ -28,19 +32,16 @@ const readHolder = (v: string | null) => {
 };
 
 export function registerLiveRoutes(r: Router<Ctx>) {
-  /**
-   * The live socket of a canvas (`?holder=`): the editor when this window holds the lock, else a viewer.
-   * `409` when the project watches its canvases every 5 seconds instead.
-   */
+  /** The live socket of a lockable file (`?holder=`): the editor when this window holds the lock, else a viewer. */
   r.on("GET", "/api/canvases/:id/live", async (ctx, { id }) => {
     const { env, request, url, tenant } = ctx;
     if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") throw new HttpError(426, "websocket upgrade expected");
     const f = await accessFile(ctx, assertUuid(id, "id"), "viewer");
     if (!fileType(f.type)?.lockable) throw new HttpError(400, "only a file edited under a lock is watched live");
     const holder = readHolder(url.searchParams.get("holder"));
-    const row = await env.DB.prepare("SELECT f.lock_by, f.lock_holder, f.lock_until, p.canvas_live FROM files f JOIN projects p ON p.id = f.project_id WHERE f.id = ?1")
-      .bind(f.id).first<{ lock_by: string | null; lock_holder: string | null; lock_until: string | null; canvas_live: string }>();
-    if (row?.canvas_live !== "realtime") throw new HttpError(409, "this project's canvases are not watched in realtime");
+    const row = await env.DB.prepare("SELECT lock_by, lock_holder, lock_until FROM files WHERE id = ?1")
+      .bind(f.id).first<{ lock_by: string | null; lock_holder: string | null; lock_until: string | null }>();
+    if (!row) throw new HttpError(404, "file not found");
     const editor = row.lock_by === tenant.userId && row.lock_holder === holder && !!row.lock_until && row.lock_until > new Date().toISOString();
     const to = new URL(request.url);
     to.search = new URLSearchParams({ role: editor ? "editor" : "viewer", user: tenant.userId, holder }).toString();
@@ -48,12 +49,24 @@ export function registerLiveRoutes(r: Router<Ctx>) {
   });
 }
 
+/**
+ * Tells a file's room what changed outside it: the lock (who holds it now, and until when) or a save. Never fails
+ * the request that changed it: the room is a convenience, the database is the truth.
+ */
+export async function tellRoom(env: Env, fileId: string, msg: { type: "lock"; by: string | null; until: string | null } | { type: "saved" }) {
+  try {
+    await env.CANVAS_LIVE.get(env.CANVAS_LIVE.idFromName(fileId)).fetch(new Request("https://room/notify", { method: "POST", body: JSON.stringify({ file: fileId, ...msg }) }));
+  } catch (e) { console.warn("live: room not told", fileId, e); }
+}
+
 type Role = "editor" | "viewer";
 interface Who { user: string; holder: string }
 
 export class CanvasRoom extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
-    const q = new URL(request.url).searchParams;
+    const url = new URL(request.url);
+    if (url.pathname === "/notify") return this.notify(await request.json());
+    const q = url.searchParams;
     const role = q.get("role") === "editor" ? "editor" : "viewer";
     const who: Who = { user: q.get("user") ?? "", holder: q.get("holder") ?? "" };
     const { 0: client, 1: server } = new WebSocketPair();
@@ -63,8 +76,11 @@ export class CanvasRoom extends DurableObject<Env> {
     server.serializeAttachment(who);
     if (role === "editor") this.send("viewer", { type: "editor", by: who.user });
     else {
+      // Who edits: the editor's socket, else the lock as the routes last told it (one taken without a socket: the device).
       const ed = this.open("editor")[0];
-      server.send(JSON.stringify({ type: "editor", by: ed ? (ed.deserializeAttachment() as Who).user : null }));
+      const lock = await this.ctx.storage.get<{ by: string; until: string }>("lock");
+      const held = lock && new Date(lock.until).getTime() > Date.now() ? lock.by : null;
+      server.send(JSON.stringify({ type: "editor", by: ed ? (ed.deserializeAttachment() as Who).user : held }));
     }
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -88,6 +104,29 @@ export class CanvasRoom extends DurableObject<Env> {
     try { ws.close(code === 1005 ? 1000 : code); } catch { /* already closed */ }
     if (this.ctx.getTags(ws)[0] === "editor" && this.open("editor", ws).length === 0) this.send("viewer", { type: "editor", by: null });
   }
+
+  /** From the lock routes and saves: every socket hears who edits now; a lock's end is watched with an alarm. */
+  private async notify(m: { file: string; type: string; by?: string | null; until?: string | null }): Promise<Response> {
+    if (m.type === "saved") { this.sendAll({ type: "saved" }); return new Response(null, { status: 204 }); }
+    await this.ctx.storage.put("file", m.file);
+    this.sendAll({ type: "editor", by: m.by ?? null });
+    if (m.by && m.until) { await this.ctx.storage.put("lock", { by: m.by, until: m.until }); await this.ctx.storage.setAlarm(new Date(m.until).getTime() + 1000); }
+    else { await this.ctx.storage.delete("lock"); await this.ctx.storage.deleteAlarm(); }
+    return new Response(null, { status: 204 });
+  }
+
+  /** The lock's end passed: unless it was renewed, it ran out, and everyone hears it is free. */
+  async alarm() {
+    const file = await this.ctx.storage.get<string>("file");
+    if (!file) return;
+    const row = await this.env.DB.prepare("SELECT lock_by, lock_until FROM files WHERE id = ?1").bind(file).first<{ lock_by: string | null; lock_until: string | null }>();
+    const until = row?.lock_until ? new Date(row.lock_until).getTime() : 0;
+    if (row?.lock_by && until > Date.now()) { await this.ctx.storage.setAlarm(until + 1000); return; }
+    await this.ctx.storage.delete("lock");
+    this.sendAll({ type: "editor", by: null });
+  }
+
+  private sendAll(msg: unknown) { this.send("viewer", msg); this.send("editor", msg); }
 
   async webSocketError(ws: WebSocket) {
     await this.webSocketClose(ws, 1011);

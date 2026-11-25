@@ -7,7 +7,8 @@ import {
   addKeyframe, addMarker, addTrack, fmtSeconds, FlowPlayer, patchMarker, patchTrack, removeKeys, removeTrack, setDuration, setKeyframe,
   DEFAULT_VIEW, START_KEYFRAME, VIEW_LABELS, type Flow, type FlowBody, type FlowView, type Keyframe, type KeyframeSize,
 } from "@openclapper/ext-flows";
-import { ApiError, canCall, lockFile, unlockFile } from "../../../api";
+import { ApiError, authHeaders, canCall, lockFile, unlockFile } from "../../../api";
+import { API_URL } from "../../../config";
 import { log } from "../../../log";
 import { useBack } from "../../../shell/back";
 import { Banner, Block, Button, Header, Hint, IconButton, Input, ListRow, makeStyles, Seg, Sheet, SheetList, Slider, Toggle, type, useTheme } from "../../../ui";
@@ -76,7 +77,23 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
     };
     void take();
     const h = setInterval(() => void take(), RENEW_MS);
-    return () => { stop = true; clearInterval(h); if (holderRef.current) void unlockFile(flow.id, holderRef.current).catch(() => undefined); };
+    // The file's live room (#426): who edits is never stale. Freed: take it at once; saved elsewhere: read it again.
+    let ws: WebSocket | null = null, retry: ReturnType<typeof setTimeout> | undefined;
+    const open = () => {
+      if (stop || flow.updatedAt === null || !canCall()) return;
+      // React Native's WebSocket takes headers: the session goes as it does for every call (link.ts).
+      const s = new (WebSocket as unknown as new (url: string, protocols: string[] | null, opts: { headers: Record<string, string> }) => WebSocket)(`${API_URL.replace(/^http/, "ws")}/api/canvases/${flow.id}/live?holder=${holder}`, null, { headers: authHeaders() });
+      ws = s;
+      s.onmessage = (e) => {
+        let m: { type?: string; by?: string | null };
+        try { m = JSON.parse(String(e.data)) as typeof m; } catch { return; }
+        if (m.type === "editor" && !m.by && !holderRef.current) void take();
+        else if (m.type === "saved" && !holderRef.current) void loadFlows(flow.projectId);
+      };
+      s.onclose = () => { if (ws === s) ws = null; if (!stop) retry = setTimeout(open, 5000); };
+    };
+    open();
+    return () => { stop = true; clearInterval(h); clearTimeout(retry); ws?.close(); if (holderRef.current) void unlockFile(flow.id, holderRef.current).catch(() => undefined); };
   }, [flow.id]);
   const locked = lock.state === "theirs" || lock.state === "asking";
   // Read-only, it shows the flow as its editor last saved it.
