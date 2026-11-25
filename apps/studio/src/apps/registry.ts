@@ -3,12 +3,11 @@ import type { IconName } from "@openclapper/design";
 import * as wm from "../wm/wm";
 import type { ResourceRef, Size, Win } from "../wm/wm";
 import { BinApp } from "./BinApp";
-import { FilesApp, LocationsApp, MediaApp, SetsApp, ShotsApp, filesFromRoute, mediaFromRoute } from "./FilesApp";
+import { FilesApp, filesFromRoute } from "./FilesApp";
 import { PhotoApp } from "./PhotoApp";
 import { CanvasApp } from "./CanvasApp";
 import { ShotApp } from "./ShotApp";
 import { TimelineApp, timelineFromRoute } from "./TimelineApp";
-import { MasterApp } from "./MasterApp";
 import { LayoutsApp, layoutsFromRoute } from "./LayoutsApp";
 import { DevicesApp } from "./DevicesApp";
 import { PresetsApp } from "./PresetsApp";
@@ -57,18 +56,10 @@ export interface AppDef {
 }
 
 const APPS: AppDef[] = [
-  { id: "media", name: "Media", glyph: "image", color: 4, tier: "core", singleton: true, defaultSize: { w: 1100, h: 700 }, minSize: { w: 560, h: 360 }, component: MediaApp,
-    fromRoute: mediaFromRoute, about: "Photos and collections; import" },
-  { id: "shots", name: "Shots", glyph: "slate", color: 1, tier: "core", singleton: true, defaultSize: { w: 1100, h: 680 }, minSize: { w: 560, h: 360 }, component: ShotsApp,
-    fromRoute: filesFromRoute, about: "The shot list: shots with their properties, as a list or a board" },
-  { id: "sets", name: "Sets", glyph: "home", color: 2, tier: "core", singleton: true, defaultSize: { w: 1100, h: 680 }, minSize: { w: 560, h: 360 }, component: SetsApp,
-    fromRoute: filesFromRoute, about: "The places in the story where scenes play" },
-  { id: "locations", name: "Locations", glyph: "location", color: 3, tier: "core", singleton: true, defaultSize: { w: 1100, h: 680 }, minSize: { w: 560, h: 360 }, component: LocationsApp,
-    fromRoute: filesFromRoute, about: "The real places where it is filmed, on a map" },
   { id: "photo", name: "Photo", glyph: "image", color: 4, tier: "core", singleton: false, opens: ["photo"], defaultSize: { w: 1100, h: 760 }, minSize: { w: 480, h: 360 }, component: PhotoApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "photo", id: rest } : null }), about: "One photo with its facts" },
   { id: "files", name: "Files", glyph: "folder", color: 5, tier: "core", singleton: false, opens: ["folder", "collection", "filter"], defaultSize: { w: 1040, h: 660 }, minSize: { w: 560, h: 360 }, component: FilesApp,
-    fromRoute: filesFromRoute, about: "Folders of the project and of your home" },
+    fromRoute: filesFromRoute, about: "Folders of the project and of your home; photos, shots, sets and locations" },
   { id: "shot", name: "Shot", glyph: "slate", color: 1, tier: "core", singleton: false, opens: ["shot"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 720, h: 480 }, component: ShotApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "shot", id: rest } : null }), about: "A shot: its properties, content and progression" },
   { id: "set", name: "Set", glyph: "home", color: 2, tier: "core", singleton: false, opens: ["set"], defaultSize: { w: 1100, h: 720 }, minSize: { w: 640, h: 420 }, component: ShotApp,
@@ -77,7 +68,6 @@ const APPS: AppDef[] = [
     fromRoute: (rest) => ({ resource: rest ? { type: "location", id: rest } : null }), about: "A location: the real place, with what was gathered there" },
   { id: "timeline", name: "Timeline", glyph: "timeline", color: 6, tier: "standard", singleton: false, opens: ["timeline"], defaultSize: { w: 1320, h: 840 }, minSize: { w: 760, h: 500 }, component: TimelineApp,
     fromRoute: timelineFromRoute, about: "A rough cut: clips with hold times, played back" },
-  { id: "master", name: "Master timeline", glyph: "film", color: 1, tier: "standard", singleton: true, defaultSize: { w: 1280, h: 800 }, minSize: { w: 720, h: 480 }, component: MasterApp, about: "The project's timelines in order, played end to end" },
   { id: "layouts", name: "Camera layouts", glyph: "camera-layout", color: 3, tier: "core", singleton: true, opens: ["layout"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 760, h: 520 }, component: LayoutsApp,
     fromRoute: layoutsFromRoute, about: "Which controls the phone's camera shows, and where" },
   { id: "devices", name: "Devices", glyph: "mobile", color: 6, tier: "core", singleton: true, opens: ["device"], defaultSize: { w: 1040, h: 720 }, minSize: { w: 600, h: 400 }, component: DevicesApp, about: "Your phones and tablets: their tabs and camera layout" },

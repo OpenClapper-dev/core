@@ -8,6 +8,7 @@ import { bind, useKeys } from "../keys";
 import { imageUrl } from "../media";
 import { PhotoFactsSections } from "../photoParts";
 import * as wm from "../wm/wm";
+import { StartScreen } from "./StartScreen";
 import type { AppProps } from "./registry";
 
 /**
@@ -15,7 +16,12 @@ import type { AppProps } from "./registry";
  * the list it was opened from (or its collection, else its folder). The preview shows at once; the
  * original is loaded on request.
  */
-export function PhotoApp({ win, resource, projectId, setTitle, setRoute }: AppProps) {
+/** One photo; opened without one, the start screen of the project's photos (#426). */
+export function PhotoApp(p: AppProps) {
+  return p.resource ? <PhotoView {...p} /> : <StartScreen winId={p.win.id} projectId={p.projectId} type="photo" canCreate={false} setTitle={p.setTitle} setRoute={p.setRoute} />;
+}
+
+function PhotoView({ win, resource, projectId, setTitle, setRoute }: AppProps) {
   const { files } = store.useRoot({ project: projectId });
   const all = files ?? [];
   const map = store.byId(all);

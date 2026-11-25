@@ -147,3 +147,8 @@ body.wm-gesture { user-select: none; }
 .st-board--rows.st-board--l .st-lane__cards { --lane-card: 220px; }
 .st-board--rows.st-board--fit .st-lane { flex: 1 1 0; min-height: 0; }
 .st-board--rows.st-board--fit .st-lane__cards { --lane-card: 96px; }
+
+/* An app's start screen (apps/StartScreen.tsx, #426): its files of one type to open, and New. */
+.st-start { display: flex; flex-direction: column; min-height: 0; }
+.st-start__title { display: inline-flex; align-items: center; gap: var(--space-3); font: var(--weight-semibold) var(--font-size-md)/1 var(--font-sans); }
+.st-start__body { padding: var(--space-5); }

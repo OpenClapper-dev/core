@@ -38,7 +38,7 @@ export type Entry = "files" | "media" | "shots" | "sets" | "locations";
 const TYPED: Partial<Record<Entry, string>> = { shots: "shot", sets: "set", locations: "location" };
 /** Media's side bar: everything, the collections, the photos in none, or one collection's photos. */
 type MediaNav = "all" | "collections" | "loose" | `coll:${string}`;
-interface Launch { folder?: string | null; home?: boolean; bin?: boolean; collection?: string; filter?: string }
+interface Launch { entry?: Entry; folder?: string | null; home?: boolean; bin?: boolean; collection?: string; filter?: string }
 /** Files a person does not browse among the others: they live in Settings and are edited in the Project app. */
 const SETTINGS_TYPES = ["property", "naming", "preferences"];
 
@@ -51,22 +51,28 @@ const IMAGE_TYPES = "image/jpeg,image/png,image/webp";
 /** What follows `#/files` in the address bar, as a launch. */
 export function filesFromRoute(rest: string): { state: Launch } {
   const [a, b] = rest.split("/");
+  if (a === "photos") return { state: { entry: "media", collection: b || undefined } };
+  if (a === "shots" || a === "sets" || a === "locations") return { state: { entry: a } };
   if (a === "bin") return { state: { bin: true } };
   if (a === "home") return { state: { home: true, folder: b || null } };
   if (a === "filter" && b) return { state: { filter: b } };
   return { state: { folder: a || null } };
 }
-/** What follows `#/media`: a collection's id, or nothing. */
-export const mediaFromRoute = (rest: string): { state: Launch } => ({ state: { collection: rest || undefined } });
+/** The quick-access entries of the side bar (#426): the one browser set to photos, shots, sets or locations, like an OS's Pictures or Documents. */
+const QUICK: { id: Entry; label: string; icon: "image" | "slate" | "home" | "location" }[] = [
+  { id: "media", label: "Photos", icon: "image" }, { id: "shots", label: "Shots", icon: "slate" }, { id: "sets", label: "Sets", icon: "home" }, { id: "locations", label: "Locations", icon: "location" },
+];
 
-/** The Media app: the one browser, set to photos and collections. */
-export const MediaApp = (p: AppProps) => <FilesApp {...p} entry="media" />;
-/** The Shots app: the one browser, set to shots. */
-export const ShotsApp = (p: AppProps) => <FilesApp {...p} entry="shots" />;
-/** The Sets app: the one browser, set to sets (the places in the story). */
-export const SetsApp = (p: AppProps) => <FilesApp {...p} entry="sets" />;
-/** The Locations app: the one browser, set to locations (the real places), with the map. */
-export const LocationsApp = (p: AppProps) => <FilesApp {...p} entry="locations" />;
+/**
+ * The Files app: one browser, which a window shows as a folder or as one of the quick-access entries.
+ * Switching the entry starts the browser afresh for it (its own sort, view and panels).
+ */
+export function FilesApp(p: AppProps) {
+  const asked = p.win.state as Launch | undefined;
+  const [at, setAt] = useState<{ entry: Entry; launch: Launch | undefined }>({ entry: asked?.entry ?? "files", launch: asked });
+  useEffect(() => { if (p.win.stateSeq && asked) setAt({ entry: asked.entry ?? "files", launch: asked }); }, [p.win.stateSeq]);
+  return <Browser key={at.entry} {...p} entry={at.entry} start={at.launch} onEntry={(entry) => setAt({ entry, launch: { entry } })} />;
+}
 
 /**
  * The file browser (docs/rewrite/ux-1-files.md) in its entries: **Files**, the folder trees of a
@@ -74,21 +80,22 @@ export const LocationsApp = (p: AppProps) => <FilesApp {...p} entry="locations" 
  * grid, search, a properties panel; selecting is an OS file manager's (a click, Ctrl/Shift-click,
  * a rectangle on the empty part), and the panel shows what is selected. Photos are imported by dropping image files or with Import.
  */
-export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }: AppProps & { entry?: Entry }) {
+function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: AppProps & { entry: Entry; start: Launch | undefined; onEntry: (e: Entry) => void }) {
   const media = entry === "media";
   // Shots, Sets, Locations: the browser set to one type, flat, with that type's properties as columns.
   const only = TYPED[entry] ?? null;
   const shotsOnly = !!only;
   const onlyKind = only ? kindOf(only) : null;
-  const asked = win.state as Launch | undefined;
+  const asked = start;
   const [home, setHome] = useState(!media && !!asked?.home);
   const [folder, setFolder] = useState<string | null>(asked?.folder ?? null);
   const [nav, setNav] = useState<"all" | "bin">(asked?.bin ? "bin" : "all");
   const [mnav, setMnav] = useState<MediaNav>(asked?.collection ? `coll:${asked.collection}` : "all");
   useEffect(() => {
-    if (!asked || !win.stateSeq) return;
-    if (media) setMnav(asked.collection ? `coll:${asked.collection}` : "all");
-    else { setHome(!!asked.home); setFolder(asked.folder ?? null); setNav(asked.bin ? "bin" : "all"); setFilterFile(asked.filter ?? null); }
+    const again = win.state as Launch | undefined;
+    if (!again || !win.stateSeq || (again.entry ?? "files") !== entry) return;
+    if (media) setMnav(again.collection ? `coll:${again.collection}` : "all");
+    else { setHome(!!again.home); setFolder(again.folder ?? null); setNav(again.bin ? "bin" : "all"); setFilterFile(again.filter ?? null); }
     clear();
   }, [win.stateSeq]);
 
@@ -132,7 +139,7 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   // A folder or collection that is gone (binned elsewhere) leaves the window at the top level.
   const here = !media && folder && map.get(folder) && kindOf(map.get(folder)!.type).holds ? folder : null;
   // The window names the folder it shows, so opening that folder elsewhere brings this window up (one window per folder).
-  useEffect(() => { if (!media) wm.setResource(win.id, here ? { type: map.get(here)!.type, id: here } : null); }, [here, media]);
+  useEffect(() => { wm.setResource(win.id, here && entry === "files" ? { type: map.get(here)!.type, id: here } : null); }, [here, entry]);
   useEffect(() => { if (files && folder && !here && !media) setFolder(null); }, [files, folder, here]);
   const openColl = mnav.startsWith("coll:") ? map.get(mnav.slice(5)) : undefined;
   useEffect(() => { if (files && mnav.startsWith("coll:") && !openColl) setMnav("all"); }, [files, mnav, openColl]);
@@ -148,9 +155,9 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const mark = prefs.collectionMark;
 
   useEffect(() => {
-    if (shotsOnly) { setTitle(`${onlyKind!.plural} · ${savedFilter ? savedFilter.name : rootLabel}`); setRoute(savedFilter ? `filter/${savedFilter.id}` : ""); return; }
+    if (shotsOnly) { setTitle(`${onlyKind!.plural} · ${savedFilter ? savedFilter.name : rootLabel}`); setRoute(entry); return; }
     if (savedFilter && !media) { setTitle(`Files · ${savedFilter.name}`); setRoute(`filter/${savedFilter.id}`); return; }
-    if (media) { setTitle(`Media · ${openColl ? openColl.name : mnav === "collections" ? "Collections" : mnav === "loose" ? "Not in a collection" : rootLabel}`); setRoute(openColl ? openColl.id : ""); return; }
+    if (media) { setTitle(`Photos · ${openColl ? openColl.name : mnav === "collections" ? "Collections" : mnav === "loose" ? "Not in a collection" : rootLabel}`); setRoute(openColl ? `photos/${openColl.id}` : "photos"); return; }
     setTitle(nav === "bin" ? "Files · Recycle bin" : `Files · ${path.length ? path[path.length - 1].name : rootLabel}`);
     setRoute(nav === "bin" ? "bin" : `${home ? "home" : ""}${home && here ? "/" : ""}${here ?? ""}`);
   }, [media, mnav, openColl?.name, nav, home, here, rootLabel, path.map((f) => f.name).join("/"), savedFilter?.name]);
@@ -336,8 +343,10 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
   const filters = home ? [] : all.filter((f) => f.type === "filter" && !f.internal_of).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
   const filterNav = filters.length ? [{ label: "Filters", items: filters.map((f) => ({ id: `filter:${f.id}`, label: f.name, icon: "filter" as const })) }] : [];
   const pickFilter = (id: string) => { const fid = id.slice(7); setQ(""); setTypes([]); setFilterFile(fid); setNav("all"); clear(); };
+  const quick = <SidebarNav value={entry === "files" ? undefined : entry} onChange={(id) => onEntry(id as Entry)} sections={[{ label: "Quick access", items: [...(entry === "files" ? [] : [{ id: "files", label: "Folders", icon: "folder" as const }]), ...QUICK] }]} />;
   const sidebar = shotsOnly ? (
     <div className="st-side">
+      {quick}
       <SidebarNav value={savedFilter ? `filter:${savedFilter.id}` : "all"} onChange={(id) => (id === "all" ? (resetFilter(), clear()) : pickFilter(id))} sections={[
         { items: [{ id: "all", label: `All ${onlyKind!.plural.toLowerCase()}`, icon: onlyKind!.glyph, count: all.filter((f) => f.type === only && !f.internal_of).length }] },
         ...filterNav,
@@ -345,8 +354,9 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
     </div>
   ) : media ? (
     <div className="st-side">
+      {quick}
       <SidebarNav value={mnav} onChange={(id) => { setMnav(id as MediaNav); clear(); }} sections={[
-        { items: [{ id: "all", label: "All media", icon: "image", count: all.filter((f) => f.type === "photo").length }, { id: "collections", label: "Collections", icon: "layers", count: collections.length }, { id: "loose", label: "Not in a collection", icon: "file" }] },
+        { items: [{ id: "all", label: "All photos", icon: "image", count: all.filter((f) => f.type === "photo").length }, { id: "collections", label: "Collections", icon: "layers", count: collections.length }, { id: "loose", label: "Not in a collection", icon: "file" }] },
         ...(collections.length ? [{ label: "Collections", items: collections.map((c) => ({ id: `coll:${c.id}`, label: c.name, icon: "layers" as const, count: photosOf(c, all).length })) }] : []),
       ]} />
     </div>
@@ -360,13 +370,14 @@ export function FilesApp({ win, projectId, setTitle, setRoute, entry = "files" }
         rowProps={(id) => (home ? { ...dropTarget(`tree-${id}`, id === "home" ? null : id), className: dropOn === `tree-${id}` ? "is-drop" : undefined } : undefined)} />
       <SidebarNav value={nav === "bin" ? "bin" : savedFilter ? `filter:${savedFilter.id}` : undefined} onChange={(id) => { if (id === "bin") { setNav("bin"); clear(); } else pickFilter(id); }}
         sections={[...filterNav, { items: [{ id: "bin", label: "Recycle bin", icon: "trash", count: bin?.length || undefined }] }]} />
+      {quick}
     </div>
   );
 
   // ---- Toolbar.
   const allTypes = fileTypes().filter((t) => all.some((f) => f.type === t.type && !f.fixed));
   const crumbs = media
-    ? [{ id: "all", label: "Media" }, ...(openColl ? [{ id: openColl.id, label: openColl.name }] : mnav === "collections" ? [{ id: "collections", label: "Collections" }] : mnav === "loose" ? [{ id: "loose", label: "Not in a collection" }] : [])]
+    ? [{ id: "all", label: "Photos" }, ...(openColl ? [{ id: openColl.id, label: openColl.name }] : mnav === "collections" ? [{ id: "collections", label: "Collections" }] : mnav === "loose" ? [{ id: "loose", label: "Not in a collection" }] : [])]
     : [{ id: "root", label: rootLabel }, ...path.map((f) => ({ id: f.id, label: f.name }))];
   const toolbar = nav === "bin" ? null : (
     <Toolbar>

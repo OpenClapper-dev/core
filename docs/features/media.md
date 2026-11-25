@@ -20,7 +20,7 @@ On the phone: Media and import in [phone app](phone-app.md#media-srcappsmediatsx
 - **Where an upload stands** shows as a badge on its tile and its row: waiting, preview sent (the original follows), stuck. A step the server refuses as wrong stays stuck; anything else (no connection, a server error) is tried again by itself, waiting longer each time. The status bar counts running and stuck uploads, with Try again and Give up. Closing the page while uploads run asks first.
 - The name of a new photo is the file's name without its extension (naming patterns come with step B4).
 
-## Media app (`apps/FilesApp.tsx` as `MediaApp`, route `#/media[/<collectionId>]`)
+## Photos in Files (`apps/FilesApp.tsx`, quick access "Photos", route `#/files/photos[/<collectionId>]`)
 
 The one file browser, set to photos ([09 · shells](../rewrite/09-shells.md)). Everything of [Files](files.md) holds (click and tick, the properties panel, context menus, keys, panels); in addition:
 

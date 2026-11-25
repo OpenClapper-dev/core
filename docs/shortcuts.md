@@ -10,7 +10,7 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | ⌘K | Go to… (command palette) |
 | ? | All shortcuts |
 | G F | Open Files |
-| G M | Open Media |
+| G M | Open Photos (Files) |
 | G P | Open Project |
 | G , | Open Settings |
 | Esc | Close or back out one level |

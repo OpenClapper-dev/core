@@ -20,6 +20,7 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 - **Motion** comes from the design system's window frame: opening, closing (a closed window fades, then leaves the store), minimising toward its taskbar button, and maximise, snap and restore as one move.
 - Click anywhere in a window to bring it to the front. Right-click the title bar for minimise, maximise, snap, **Move to** another desktop, and close.
 - **One window per file:** opening something that is open focuses its window, on whichever desktop it is. An app marked `singleton` has one window in all.
+- **Start screens** (`apps/StartScreen.tsx`, #426): an app for one file opened without one (from the launcher) shows the project's files of its type, newest first, with search and New, as a desktop program does; a click opens that file in the same window (or brings up its window if it is open). Photo has no New (photos are imported); Timeline lists the master timeline first.
 - **Closing** asks first when the app registered a guard (`wm/closeGuards.ts`).
 - **Layout per project and browser** (`wm/desktopState.ts`): windows, z-order, each window's route and the desktops in `localStorage["desktop.<projectId>"]` (`v: 3`; anything else starts fresh), saved 600 ms after a change, on a project switch and on `pagehide`.
 
@@ -34,7 +35,7 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 
 - **Taskbar** (`wm/Taskbar.tsx` on the design system's `Taskbar`): the launcher, task view, the **pins**, one button per window of the active desktop (click focuses, or minimises the focused one; right-click: pin the app, the window's menu; drag to reorder, a line shows where it lands), then the instance marker, the project switcher (with "Manage projects…"), Go to… (⌘K), the theme (as the system → light → dark), the account menu and the clock.
   - **Position and alignment** (Settings › Appearance): on any edge; items at the start or centred. On a side bar the labels are tooltips and the clock takes two lines.
-  - **Pins** are apps, folders and files: a single-window app's pin is also the button of its window, with a bar under it while it is open; an app with one window per file or folder (Files, Photo, Shot, Canvas, …) launches from its pin and each of its windows keeps a button of its own (#426); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files, Media and Project.
+  - **Pins** are apps, folders and files: a single-window app's pin is also the button of its window, with a bar under it while it is open; an app with one window per file or folder (Files, Photo, Shot, Canvas, …) launches from its pin and each of its windows keeps a button of its own (#426); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files and Project.
 - **Launcher** (the design system's `Launcher`): every app with a search field, extensions in their own group; right-click pins an app to the taskbar. Esc or a click beside it closes it.
 - **Go to…** (⌘K, the design system's `CommandPalette`): apps, open windows, the other projects, and the shell's actions (theme, show desktop, task view, new desktop, shortcuts, reload, sign out).
 - **Desktop:** clicking it takes focus away from the windows (the URL shows `#/`). Its icons are the files of the project's Desktop folder and the recycle bin ([files](files.md#desktop-icons-wmdesktopiconstsx-wmgridts)).
@@ -46,9 +47,9 @@ An app declares its name, glyph and colour, tier, whether it is one window in al
 
 | App | File | What |
 | --- | --- | --- |
-| Files | `apps/FilesApp.tsx` | The file browser: folders of the project and of the account home, one window per folder ([files](files.md)) |
-| Media | `apps/FilesApp.tsx` (`MediaApp`) | The same browser set to photos and collections, with import ([media](media.md)) |
+| Files | `apps/FilesApp.tsx` | The file browser: folders of the project and of the account home, one window per folder ([files](files.md)); its side bar's **quick access** sets it to Photos (collections, import; [media](media.md)), Shots, Sets or Locations, as an OS's Pictures or Documents (#426: these were apps of their own) |
 | Photo | `apps/PhotoApp.tsx` | One photo with its facts, one window per photo ([media](media.md#photo-app-appsphotoapptsx-route-photoid)) |
+| Shot, Set, Location, Canvas, Timeline | `apps/ShotApp.tsx`, `CanvasApp.tsx`, `TimelineApp.tsx` | One file per window; Timeline also shows the project's master timeline ([timeline](timeline.md)) |
 | Recycle bin | `apps/BinApp.tsx` | What was deleted: restore, delete permanently, empty |
 | Project | `apps/ProjectApp.tsx` | This project (name, facts, delete) and all projects (open, new, rename, delete). Properties, naming patterns and extensions join with their steps |
 | Settings | `apps/SettingsApp.tsx`, `apps/AccountPage.tsx` | Appearance (theme, taskbar, the bin on the desktop), Account (who is signed in, change password, workspaces with members and roles), shortcuts, about |
