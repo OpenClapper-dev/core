@@ -237,6 +237,7 @@ function PendingNote() {
 }
 
 function CameraPage({ back }: { back: () => void }) {
+  const local = settings.use();
   const { layout } = useLayout();
   const own = ownLayouts.use();
   const { c } = useTheme();
@@ -244,6 +245,11 @@ function CameraPage({ back }: { back: () => void }) {
   const edit = (p: Parameters<typeof editLayout>[1]) => editLayout(layout.id, p);
   return (
     <Screen header={<Header title="Camera" sub="The layout on this device, and your preferences" onBack={back} />}>
+      <Block>
+        <SectionLabel>Buttons on this device</SectionLabel>
+        <Seg accessibilityLabel="Camera button size" block value={local.cameraButtons ?? "m"} onChange={(v) => setSettings({ cameraButtons: v })} options={[{ id: "s", label: "Small" }, { id: "m", label: "Medium" }, { id: "l", label: "Large" }]} />
+        <Hint>The size of the camera's buttons and shutter here only: small suits a phone, large a tablet.</Hint>
+      </Block>
       <Block><SectionLabel>Camera layout on this device</SectionLabel></Block>
       {allLayouts().map((l) => <ListRow key={l.id} icon={l.builtin ? "lock" : "camera-layout"} title={l.name} meta={l.builtin ? "Built in" : undefined} selected={layout.id === l.id} trailing={null} onPress={() => chooseLayout(l.id)} />)}
       <Block><Hint>{own.length ? "" : "Layouts of your own are made in the Studio (Camera layouts). "}Which controls a layout shows, and where, is arranged in the Studio; its look and options can be changed here too.</Hint></Block>
