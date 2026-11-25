@@ -167,6 +167,8 @@ describe("another workspace's resources", () => {
 
   test("an account home is its owner's alone", async () => {
     const w = await fresh();
+    // B's home is listed once first: the first listing makes its Settings folder and pages (#426).
+    await ok(api(b.token, "GET", "/api/files?home=1"));
     const before = await snapshot();
     const refused: [string, string, unknown?][] = [
       ["GET", `/api/files/${w.home}`], ["GET", `/api/files/${w.home}/uses`], ["PUT", `/api/files/${w.home}`, folderBody({ home: true }, "taken")],

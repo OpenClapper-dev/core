@@ -1,4 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
+import { knownPreferences } from "@openclapper/model";
 import { get, putFile, type FileRec } from "./api";
 import { getTheme, onTheme, setTheme, type Theme } from "./theme";
 
@@ -59,7 +60,7 @@ async function save() {
   state = "saving"; notify();
   try {
     fileId ??= crypto.randomUUID();
-    await putFile(fileId, { type: "preferences", home: true, name: "Preferences", body: prefs });
+    await putFile(fileId, { type: "preferences", home: true, name: "Preferences", body: knownPreferences(prefs as unknown as Record<string, unknown>) });
     if (userId !== mine) return;
     state = "saved";
     cache();

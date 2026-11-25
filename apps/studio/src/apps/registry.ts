@@ -11,7 +11,6 @@ import { TimelineApp, timelineFromRoute } from "./TimelineApp";
 import { LayoutsApp, layoutsFromRoute } from "./LayoutsApp";
 import { DevicesApp } from "./DevicesApp";
 import { PresetsApp } from "./PresetsApp";
-import { ProjectApp } from "./ProjectApp";
 import { SettingsApp } from "./SettingsApp";
 
 /**
@@ -76,10 +75,8 @@ const APPS: AppDef[] = [
   { id: "presets", name: "Optics presets", glyph: "lens", color: 6, tier: "standard", singleton: true, opens: ["preset"], defaultSize: { w: 1000, h: 640 }, minSize: { w: 560, h: 380 }, component: PresetsApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "preset", id: rest } : null }), about: "Cameras with their lenses, for frames on a canvas" },
   { id: "bin", name: "Recycle bin", glyph: "trash", color: 0, tier: "core", singleton: true, defaultSize: { w: 900, h: 560 }, minSize: { w: 520, h: 320 }, component: BinApp, about: "What was deleted, for 30 days" },
-  { id: "project", name: "Project", glyph: "slate", color: 2, tier: "core", singleton: true, defaultSize: { w: 860, h: 600 }, minSize: { w: 520, h: 360 }, component: ProjectApp,
-    fromRoute: (rest) => ({ state: { tab: rest } }), about: "This project and all projects" },
-  { id: "settings", name: "Settings", glyph: "settings", color: 0, tier: "core", singleton: true, opens: ["preferences"], defaultSize: { w: 820, h: 600 }, minSize: { w: 480, h: 360 }, component: SettingsApp,
-    fromRoute: (rest) => ({ state: { tab: rest } }), about: "Appearance, account, shortcuts" },
+  { id: "settings", name: "Settings", glyph: "settings", color: 0, tier: "core", singleton: true, opens: ["settings", "preferences", "property", "naming"], defaultSize: { w: 900, h: 640 }, minSize: { w: 480, h: 360 }, component: SettingsApp,
+    fromRoute: (rest) => ({ state: { tab: rest } }), about: "Yours, the project's and all projects: appearance, account, shortcuts, properties, naming, extensions" },
 ];
 
 let active: readonly string[] = [];

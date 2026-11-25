@@ -62,9 +62,6 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   lensNames: (v) => oneOf(v, ["phone", "focal"]),
   // Collection mode asks for a name when a collection starts, when it ends, or never.
   askCollectionName: (v) => oneOf(v, ["never", "start", "end"]),
-  // No longer read (#426: the original is always sent at once); still accepted, since the clients write a stored
-  // file back whole. Goes when the preferences become one settings file per page (#426).
-  originalsOnWifi: (v) => typeof v === "boolean",
   // How long a clip added to a timeline holds, unless the timeline says otherwise (docs/features/timeline.md).
   // A canvas made from a photo starts with the frame the photo was taken with (docs/features/camera-layouts.md).
   canvasTakesFrame: (v) => typeof v === "boolean",
@@ -96,6 +93,33 @@ export const PREFERENCES: FileType = {
 };
 
 registerFileType(PREFERENCES);
+
+/** The keys of a stored preferences body this version knows: what a client writes back (a key that went is dropped). */
+export function knownPreferences(body: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(Object.entries(body).filter(([k]) => k in PREFERENCE_RULES));
+}
+
+/** The settings pages and the root each lives in: one file per page (#426). */
+export const SETTINGS_PAGES = { project: "project", extensions: "project", appearance: "home", account: "home", shortcuts: "home" } as const;
+export type SettingsPage = keyof typeof SETTINGS_PAGES;
+/** Their names, as the server makes them. */
+export const SETTINGS_PAGE_NAMES: Record<SettingsPage, string> = { project: "Project", extensions: "Extensions", appearance: "Appearance", account: "Account", shortcuts: "Shortcuts" };
+
+/**
+ * A settings page as a file (#426): the project's (Project, Extensions) in its Settings folder, a
+ * person's (Appearance, Account, Shortcuts) in their home's. It names its page; what the page sets
+ * lives where it always did (the project, the preferences file, the account), so the file is how a
+ * page is found, opened and pinned. Made by the server with the folder; never renamed or deleted.
+ */
+export const SETTINGS: FileType = {
+  type: "settings", label: "Settings page", plural: "Settings pages", roots: ["project", "home"], onlyIn: "settings", made: "system", version: 1,
+  empty: () => ({ page: "project" }),
+  check(body) {
+    for (const k of Object.keys(body)) if (k !== "page") return `a settings page has no "${k}"`;
+    return typeof body.page === "string" && body.page in SETTINGS_PAGES ? null : "page is not a settings page";
+  },
+};
+registerFileType(SETTINGS);
 
 const HEX = /^#[0-9a-f]{6}$/i;
 

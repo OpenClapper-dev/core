@@ -25,7 +25,7 @@ function useClock(): string {
 }
 
 /** What a project's taskbar starts with. */
-export const DEFAULT_PINS: Pin[] = [{ app: "files" }, { app: "project" }];
+export const DEFAULT_PINS: Pin[] = [{ app: "files" }, { app: "settings" }];
 const pinId = (p: Pin) => ("app" in p ? `app:${p.app}` : `file:${p.file}`);
 const PIN_DRAG = "application/x-oc-pin";
 const TASK_DRAG = "application/x-oc-task";
@@ -146,7 +146,7 @@ export function Taskbar({ projectId }: { projectId: string }) {
     { heading: "Project" },
     ...projects.map((p): MenuEntry => ({ id: p.id, label: p.name, checked: p.id === projectId ? true : undefined, icon: "slate", run: () => { if (p.id !== projectId) void switchProject(p.id).then((ok) => ok && toast(`Now working on ${p.name}`)); } })),
     { separator: true },
-    { id: "manage", label: "Manage projects…", icon: "settings", run: () => { launch({ app: "project", state: { tab: "projects" } }); } },
+    { id: "manage", label: "Manage projects…", icon: "settings", run: () => { launch({ app: "settings", state: { tab: "projects" } }); } },
   ]);
   const me = user.status === "signed-in" ? user.me.user : null;
   const userMenu = (e: MouseEvent) => me && contextMenu(below(e), [

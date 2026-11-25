@@ -76,7 +76,7 @@ test("where a file may sit", () => {
   assert.equal(placementError(DEFINITION, settings, "project"), null);
   assert.match(placementError(DEFINITION, null, "project")!, /lives in the Settings folder/);
   assert.match(placementError(DEFINITION, folder, "project")!, /lives in the Settings folder/);
-  assert.match(placementError(FOLDER, settings, "project")!, /holds only properties/);
+  assert.match(placementError(FOLDER, settings, "project")!, /holds only .*properties/);
 });
 
 test("containers and types bound to a fixed folder are never internal files", () => {
