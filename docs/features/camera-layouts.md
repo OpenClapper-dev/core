@@ -57,6 +57,9 @@ One connection between a person's Studio tabs and their phones and tablets: `GET
 - **Saving**: 0.6 s after the last change, and only while the layout is valid; until then a banner says what is missing ("Not saved yet").
 - **The phone link pill**: no phone (or the link offline), "<phone> connected", "Previewing on <phone>". A click starts the live preview: the phone shows the layout as it is changed, in the orientation shown; a click again, closing the app or the phone leaving the preview ends it. Nothing is saved on the phone.
 
+- **For previewing only** (#426, never saved in the layout): *As …* picks whose camera and real lenses the preview shows (default: the device showing the live preview, else the one the layout is designed for, else a usual phone; switched-off lenses are left out); *With …* picks an optics preset whose focal lengths the focal length control shows (to see early whether many primes fit a strip); **Grid** outlines every bar with a faint fill, here and on the device's live preview.
+- **From the preview**: a click on a control scrolls its entry in Bars into view and flashes it; a right-click offers *Show in Bars* and *Remove* (not the shutter).
+
 ## The camera on the phone (`apps/mobile/src/apps/Camera.tsx`, `src/camera/`, `src/link.ts`)
 
 - **The layout in use**: the device's choice (`device.layout`, chosen with the Layout control or in Setup, or set from the Studio), else the Viewfinder; the account's layouts are kept on the phone (loaded with each sync) so the camera opens with them offline. A layout the Studio previews takes its place meanwhile: its bars are dimmed and do nothing, the shutter is off, a chip "Studio preview · buttons off · tap to leave" ends it. A preview never outlives the link.

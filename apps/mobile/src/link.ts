@@ -20,7 +20,8 @@ let retry: ReturnType<typeof setTimeout> | undefined;
 const channels = new Map<string, Set<(m: Msg) => void>>();
 
 /** A camera layout the Studio shows on this phone while it is changed there; nothing is saved. */
-export const previewLayout = persisted<{ layout: unknown; orientation: "portrait" | "landscape" } | null>("linkPreview.v1", null);
+/** The Studio's live preview of a layout; `grid`: every bar outlined, as the Studio's layout grid (#426). */
+export const previewLayout = persisted<{ layout: unknown; orientation: "portrait" | "landscape"; grid?: boolean } | null>("linkPreview.v1", null);
 
 /** Whether the link is open, and how many Studio tabs are (as the room last said; null: not heard yet). */
 let status: { open: boolean; studios: number | null } = { open: false, studios: null };
@@ -60,7 +61,7 @@ function open() {
   s.onmessage = (e) => {
     let m: Msg;
     try { m = JSON.parse(String(e.data)) as Msg; } catch { return; }
-    if (m.ch === "layout" && m.type === "preview") previewLayout.set({ layout: m.layout, orientation: m.orientation === "landscape" ? "landscape" : "portrait" });
+    if (m.ch === "layout" && m.type === "preview") previewLayout.set({ layout: m.layout, orientation: m.orientation === "landscape" ? "landscape" : "portrait", grid: m.grid === true });
     else if (m.ch === "layout" && m.type === "stop") previewLayout.set(null);
     else if (m.ch === "link" && m.type === "readout") void syncDevice().then(hello);
     else if (m.ch === "link" && m.type === "presence") setStatus({ studios: typeof m.studios === "number" ? m.studios : null });
