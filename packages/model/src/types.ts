@@ -56,6 +56,8 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   taskbarEdge: (v) => oneOf(v, ["bottom", "top", "left", "right"]),
   taskbarAlign: (v) => oneOf(v, ["start", "center"]),
   binOnDesktop: (v) => typeof v === "boolean",
+  // Taskbar items the person hides (#426); the launcher and the task view always stay.
+  taskbarHide: (v) => Array.isArray(v) && v.length <= 5 && new Set(v).size === v.length && v.every((x) => oneOf(x, ["clock", "account", "theme", "search", "project"])),
   // How a collection's colour is drawn on its photos (docs/rewrite/ux-1-files.md).
   collectionMark: (v) => oneOf(v, ["bar", "barleft", "dot", "frame"]),
   // The camera's lenses by the phone's own names (0.5×, 1×) or by focal length (docs/rewrite/ux-5-phone.md).

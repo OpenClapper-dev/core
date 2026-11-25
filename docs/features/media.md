@@ -38,4 +38,4 @@ In **Files** photos show with their thumbnails and collections as folders you ca
 
 ## Photo app (`apps/PhotoApp.tsx`, route `#/photo/<id>`)
 
-One photo, large, on the stage, with its facts in a panel. ← and → step through the list it was opened from (else its collection, else its folder), and the window follows the photo it shows. The preview shows at once; **Full size** (`F`) loads the original. The name can be changed in the toolbar; the original can be downloaded.
+One photo, large, on the stage, with its facts in a panel. ← and → step through the list it was opened from (else its collection, else its folder), and the window follows the photo it shows. The preview shows at once and the original replaces it as soon as it has loaded (the status bar says while it loads; #426: no Preview / Full size switch). The name can be changed in the toolbar; the original can be downloaded.

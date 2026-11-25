@@ -64,7 +64,7 @@
 .lay-item > .oc-icon:first-child { color: var(--text-disabled); }
 .lay-item__name { flex: 1; min-width: 80px; }
 .lay-item--empty { justify-content: center; color: var(--text-secondary); font-size: var(--font-size-2xs); border: var(--border-w) dashed var(--border-control); cursor: default; }
-.lay-swatches { display: inline-flex; gap: 6px; }
+.lay-swatches { display: inline-flex; flex-wrap: wrap; gap: 8px; padding: 4px; }
 .lay-swatches button { width: 22px; height: 22px; border: var(--border-w) solid var(--border-control); border-radius: 50%; cursor: pointer; }
 .lay-swatches button.is-on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
 

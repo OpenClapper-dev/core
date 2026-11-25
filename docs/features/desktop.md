@@ -34,7 +34,7 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 ## Taskbar, launcher, palette
 
 - **Taskbar** (`wm/Taskbar.tsx` on the design system's `Taskbar`): the launcher, task view, the **pins**, one button per window of the active desktop (click focuses, or minimises the focused one; right-click: pin the app, the window's menu; drag to reorder, a line shows where it lands), then the instance marker, the project switcher (with "Manage projects…"), Search (⌘K), the theme (as the system → light → dark), the account menu and the clock.
-  - **Position and alignment** (Settings › Appearance): on any edge; items at the start or centred. On a side bar the labels are tooltips and the clock takes two lines.
+  - **Position and alignment** (Settings › Appearance): on any edge; items at the start or centred. **Shown** (#426): switch project, search, theme, account and the clock can each be hidden; the launcher and the task view always stay. On a side bar the labels are tooltips and the clock takes two lines.
   - **Pins** are apps, folders and files: a single-window app's pin is also the button of its window, with a bar under it while it is open; an app with one window per file or folder (Files, Photo, Shot, Canvas, …) launches from its pin and each of its windows keeps a button of its own (#426); a folder or file pin opens it. Pin from the launcher or a window's taskbar menu (apps), from a file's menu in Files, or by dragging files from Files or icons from the desktop onto the taskbar (dropped between pins they land there); reorder by dragging. Pins are a preference, kept per project (`prefs.ts`). A project starts with Files and Settings.
 - **Launcher** (the design system's `Launcher`): every app with a search field, extensions in their own group; right-click pins an app to the taskbar. Esc or a click beside it closes it.
 - **Search** (⌘K or the taskbar's search button; `wm/Search.tsx` on the design system's `CommandPalette` with `large`, #426): every file of the project and of the account home (by name and property values, with its picture, type and path; the newest first, at most 40 per group), the open windows and the apps. The matched part is marked (`--match`). Search only: no actions, no project switching.
@@ -43,7 +43,7 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 
 ## Apps (`apps/registry.ts`)
 
-An app declares its name, glyph and colour, tier, whether it is one window in all, the file types it opens, its sizes, and how a deep link becomes a launch. The shell knows apps only through the registry; each build step adds the apps it builds.
+An app declares its name, glyph and colour (every app and extension its own tile, #426: the 8 categorical colours, and for the rest an outlined tile, its border and glyph in a colour, `AppIcon` colours 10–18; Flows has the bulb), tier, whether it is one window in all, the file types it opens, its sizes, and how a deep link becomes a launch. The shell knows apps only through the registry; each build step adds the apps it builds.
 
 | App | File | What |
 | --- | --- | --- |

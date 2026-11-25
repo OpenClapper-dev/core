@@ -32,7 +32,7 @@ button.oc-card{padding:0;cursor:default}
 button.oc-card:hover{background:var(--surface-hover)}
 button.oc-card:focus-visible{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4px var(--focus-ring)}
 .oc-card.is-selected{border-color:var(--selection-border);background:var(--selection);box-shadow:inset 0 0 0 var(--border-w) var(--selection-border)}
-.oc-props{display:flex;flex-direction:column;color:var(--text);font:var(--weight-regular) var(--font-size-md)/1 var(--font-sans)}
+.oc-props{container-type:inline-size;display:flex;flex-direction:column;color:var(--text);font:var(--weight-regular) var(--font-size-md)/1 var(--font-sans)}
 .oc-props__section{border-bottom:var(--border-w) solid var(--border-divider)}
 .oc-props__head{display:flex;align-items:center;gap:var(--space-2);width:100%;height:var(--row-h-lg);padding:0 var(--space-4);border:0;background:transparent;color:var(--text);font:var(--weight-bold) var(--font-size-md)/1 var(--font-sans);text-align:left;cursor:default}
 .oc-props__head:hover{background:var(--surface-hover)}
@@ -47,6 +47,14 @@ button.oc-card:focus-visible{outline:0;box-shadow:0 0 0 1px var(--focus),0 0 0 4
 .oc-props__value--truncate{white-space:nowrap;text-overflow:ellipsis}
 .oc-props__value.is-num{text-align:right}
 .oc-props__unit{margin-left:var(--space-2);color:var(--text-secondary)}
+/* A control never has its selection or focus ring cut off (#426): the value cell of a control row does not clip. */
+.oc-props__row--control>.oc-props__value{overflow:visible;padding-block:3px}
+.oc-props__row--control>.oc-props__value>*{max-width:100%}
+/* Too narrow for label and control side by side: the label goes above and the control takes the full width (#426). */
+@container (max-width:340px){
+  .oc-props__row--control{grid-template-columns:minmax(0,1fr);gap:var(--space-2);padding-block:var(--space-2)}
+  .oc-props__row--control>.oc-props__value>*{width:100%}
+}
 .oc-field{display:grid;gap:var(--space-2);min-width:0;color:var(--text);font:var(--weight-regular) var(--font-size-md)/var(--leading-ui) var(--font-sans)}
 .oc-field__label{font-weight:var(--weight-medium);font-size:var(--font-size-sm)}
 .oc-field__req{margin-left:var(--space-2);color:var(--text-secondary);font-weight:var(--weight-regular)}

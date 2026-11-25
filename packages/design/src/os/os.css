@@ -1,5 +1,7 @@
 .oc-appicon{flex:none;display:inline-grid;place-items:center;border-radius:22%;background:var(--text-secondary);color:var(--surface)}
 .oc-appicon--c1{background:var(--cat-1)}.oc-appicon--c2{background:var(--cat-2)}.oc-appicon--c3{background:var(--cat-3)}.oc-appicon--c4{background:var(--cat-4)}.oc-appicon--c5{background:var(--cat-5)}.oc-appicon--c6{background:var(--cat-6)}.oc-appicon--c7{background:var(--cat-7)}.oc-appicon--c8{background:var(--cat-8)}
+.oc-appicon--ink{--oc-ink:var(--text-secondary);box-sizing:border-box;border:2px solid var(--oc-ink);background:var(--surface-sunken);color:var(--oc-ink)}
+.oc-appicon--i1{--oc-ink:var(--cat-1)}.oc-appicon--i2{--oc-ink:var(--cat-2)}.oc-appicon--i3{--oc-ink:var(--cat-3)}.oc-appicon--i4{--oc-ink:var(--cat-4)}.oc-appicon--i5{--oc-ink:var(--cat-5)}.oc-appicon--i6{--oc-ink:var(--cat-6)}.oc-appicon--i7{--oc-ink:var(--cat-7)}.oc-appicon--i8{--oc-ink:var(--cat-8)}
 .oc-appicon.is-off{border:var(--border-w) dashed var(--border-control);background:transparent;color:var(--text-disabled)}
 .oc-env{display:inline-flex;align-items:center;gap:var(--space-2);height:22px;padding:0 var(--space-4);border-radius:var(--radius-sm);background:var(--env-production);color:var(--on-env);font:var(--weight-bold) var(--font-size-2xs)/1 var(--font-sans);white-space:nowrap}
 .oc-env--staging{background:var(--env-staging)}

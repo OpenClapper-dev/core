@@ -112,7 +112,6 @@ export const SHORTCUTS = [
   // ---- Photo
   { scope: "photo", action: "prev", keys: ["ArrowLeft"], label: "Previous photo" },
   { scope: "photo", action: "next", keys: ["ArrowRight"], label: "Next photo" },
-  { scope: "photo", action: "full", keys: ["f"], label: "Preview or full size" },
 
   // ---- Timeline (docs/features/timeline.md)
   { scope: "timeline", action: "play", keys: [" "], display: "Space", label: "Play or pause" },

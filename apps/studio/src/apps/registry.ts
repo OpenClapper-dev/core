@@ -36,7 +36,7 @@ export interface AppDef {
   id: string;
   name: string;
   glyph: IconName;
-  /** 0 neutral, 1 to 8 categorical (the design system's app icon). */
+  /** 0 neutral, 1 to 8 categorical, 10 to 18 the outlined tile in a colour (the design system's app icon); every app its own (#426). */
   color: number;
   tier: "core" | "standard" | "extension";
   /** The extension that brings it: listed only while the project has it on; a window of it says it needs it. */
@@ -67,14 +67,14 @@ const APPS: AppDef[] = [
     fromRoute: (rest) => ({ resource: rest ? { type: "location", id: rest } : null }), about: "A location: the real place, with what was gathered there" },
   { id: "timeline", name: "Timeline", glyph: "timeline", color: 6, tier: "standard", singleton: false, opens: ["timeline"], defaultSize: { w: 1320, h: 840 }, minSize: { w: 760, h: 500 }, component: TimelineApp,
     fromRoute: timelineFromRoute, about: "A rough cut: clips with hold times, played back" },
-  { id: "layouts", name: "Camera layouts", glyph: "camera-layout", color: 3, tier: "core", singleton: true, opens: ["layout"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 760, h: 520 }, component: LayoutsApp,
+  { id: "layouts", name: "Camera layouts", glyph: "camera-layout", color: 13, tier: "core", singleton: true, opens: ["layout"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 760, h: 520 }, component: LayoutsApp,
     fromRoute: layoutsFromRoute, about: "Which controls the phone's camera shows, and where" },
-  { id: "devices", name: "Devices", glyph: "mobile", color: 6, tier: "core", singleton: true, opens: ["device"], defaultSize: { w: 1040, h: 720 }, minSize: { w: 600, h: 400 }, component: DevicesApp, about: "Your phones and tablets: their tabs and camera layout" },
+  { id: "devices", name: "Devices", glyph: "mobile", color: 16, tier: "core", singleton: true, opens: ["device"], defaultSize: { w: 1040, h: 720 }, minSize: { w: 600, h: 400 }, component: DevicesApp, about: "Your phones and tablets: their tabs and camera layout" },
   { id: "canvas", name: "Canvas", glyph: "brush", color: 7, tier: "core", singleton: false, opens: ["canvas"], defaultSize: { w: 1280, h: 820 }, minSize: { w: 720, h: 480 }, component: CanvasApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "canvas", id: rest } : null }), about: "Draw, place photos and frame them" },
-  { id: "presets", name: "Optics presets", glyph: "lens", color: 6, tier: "standard", singleton: true, opens: ["preset"], defaultSize: { w: 1000, h: 640 }, minSize: { w: 560, h: 380 }, component: PresetsApp,
+  { id: "presets", name: "Optics presets", glyph: "lens", color: 8, tier: "standard", singleton: true, opens: ["preset"], defaultSize: { w: 1000, h: 640 }, minSize: { w: 560, h: 380 }, component: PresetsApp,
     fromRoute: (rest) => ({ resource: rest ? { type: "preset", id: rest } : null }), about: "Cameras with their lenses, for frames on a canvas" },
-  { id: "bin", name: "Recycle bin", glyph: "trash", color: 0, tier: "core", singleton: true, defaultSize: { w: 900, h: 560 }, minSize: { w: 520, h: 320 }, component: BinApp, about: "What was deleted, for 30 days" },
+  { id: "bin", name: "Recycle bin", glyph: "trash", color: 10, tier: "core", singleton: true, defaultSize: { w: 900, h: 560 }, minSize: { w: 520, h: 320 }, component: BinApp, about: "What was deleted, for 30 days" },
   { id: "settings", name: "Settings", glyph: "settings", color: 0, tier: "core", singleton: true, opens: ["settings", "preferences", "property", "naming"], defaultSize: { w: 900, h: 640 }, minSize: { w: 480, h: 360 }, component: SettingsApp,
     fromRoute: (rest) => ({ state: { tab: rest } }), about: "Yours, the project's and all projects: appearance, account, shortcuts, properties, naming, extensions" },
 ];
