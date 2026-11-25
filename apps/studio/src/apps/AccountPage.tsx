@@ -117,21 +117,11 @@ function WorkspaceCard({ ws, meId, onChanged }: { ws: Workspace; meId: string; o
   );
 }
 
-/** Settings › Account: who is signed in, the password, and the workspaces they are in with members and roles. */
+/** Settings › Account: who is signed in and the password; nothing else (#426: workspaces have their own section). */
 export function AccountPage() {
   const user = useUser();
-  const [list, setList] = useState<Workspace[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const load = () => fetchWorkspaces().then((w) => { setList(w); setError(null); }, (e: Error) => setError(e.message));
-  useEffect(() => { void load(); }, []);
   if (user.status !== "signed-in") return null;
   const me = user.me.user;
-  const newWorkspace = async () => {
-    const name = await prompt({ title: "New workspace", label: "Name", confirmLabel: "Create" });
-    if (!name) return;
-    // The list of one's workspaces is part of who is signed in: read that again too.
-    try { await putWorkspace(crypto.randomUUID(), name); await load(); void boot(); } catch (e) { toastError(e); }
-  };
   return (
     <>
       <SettingsGroup title="Signed in">
@@ -144,15 +134,51 @@ export function AccountPage() {
           <Button icon="lock" onClick={() => openDialog((close) => <PasswordDialog email={me.email} close={close} />)}>Change password</Button>
         </div>
       </SettingsGroup>
-      <SettingsGroup title="Workspaces">
-        <div className="st-setrow">
-          <span className="st-note">Every project belongs to one workspace; its members see it with their role. Your personal workspace is yours; invite people into a shared one. Viewers look, editors change content, admins also manage editors and viewers, the owner also admins.</span>
-          <Button icon="plus" onClick={() => void newWorkspace()}>New workspace</Button>
-        </div>
-        {error && <p className="st-note">{error}</p>}
-        {!list && !error && <Spinner />}
-        {list?.map((w) => <WorkspaceCard key={w.id} ws={w} meId={me.id} onChanged={() => void load()} />)}
-      </SettingsGroup>
     </>
   );
+}
+
+/** The workspaces one belongs to, read once per Settings window and again after a change. */
+export function useWorkspaceList(): { list: Workspace[] | null; error: string | null; reload: () => void } {
+  const [list, setList] = useState<Workspace[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const reload = () => { void fetchWorkspaces().then((w) => { setList(w); setError(null); }, (e: Error) => setError(e.message)); };
+  useEffect(reload, []);
+  return { list, error, reload };
+}
+
+/**
+ * Settings › Workspaces (#426): every workspace you belong to, with your role, its members and projects; one opens on
+ * its own page. A workspace is shared, so it is a page of Settings, not a file.
+ */
+export function WorkspacesPage({ list, error, reload, onOpen }: { list: Workspace[] | null; error: string | null; reload: () => void; onOpen: (id: string) => void }) {
+  const newWorkspace = async () => {
+    const name = await prompt({ title: "New workspace", label: "Name", confirmLabel: "Create" });
+    if (!name) return;
+    // The list of one's workspaces is part of who is signed in: read that again too.
+    try { const id = crypto.randomUUID(); await putWorkspace(id, name); reload(); void boot(); onOpen(id); } catch (e) { toastError(e); }
+  };
+  return (
+    <SettingsGroup title="Your workspaces">
+      <div className="st-setrow">
+        <span className="st-note">Every project belongs to one workspace; its members see it with their role. Your personal workspace is yours; invite people into a shared one. Viewers look, editors change content, admins also manage members.</span>
+        <Button icon="plus" onClick={() => void newWorkspace()}>New workspace</Button>
+      </div>
+      {error && <p className="st-note">{error}</p>}
+      {!list && !error && <Spinner />}
+      {list?.map((w) => (
+        <button key={w.id} type="button" className="st-setrow st-wsrow" onClick={() => onOpen(w.id)}>
+          <span><strong>{w.name}</strong> {w.personal && <Badge>Personal</Badge>}<br /><span className="st-note">Your role: {ROLE_LABEL[w.role]} · {w.member_count} member{w.member_count === 1 ? "" : "s"} · {w.project_count} project{w.project_count === 1 ? "" : "s"}</span></span>
+          <span className="st-note">Open ›</span>
+        </button>
+      ))}
+    </SettingsGroup>
+  );
+}
+
+/** One workspace's page: rename, members and roles, a new project in it. */
+export function WorkspacePage({ ws, onChanged }: { ws: Workspace; onChanged: () => void }) {
+  const user = useUser();
+  if (user.status !== "signed-in") return null;
+  return <WorkspaceCard ws={ws} meId={user.me.user.id} onChanged={onChanged} />;
 }

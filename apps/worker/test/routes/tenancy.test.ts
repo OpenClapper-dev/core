@@ -40,6 +40,9 @@ const ROUTES: Record<string, Case> = {
   "PUT /api/projects/:id": { kind: "id", path: (a) => `/api/projects/${a.project}`, body: (a) => ({ name: named(a, "project") }) },
   // A's project still has its files: the delete answers 409 for A, past the workspace check.
   "DELETE /api/projects/:id": { kind: "id", path: (a) => `/api/projects/${a.project}`, ownerStatus: [409] },
+  "PUT /api/projects/:id/picture": { kind: "exempt", why: "the body is raw bytes, which the generic case cannot send; projects.test.ts checks another workspace's upload is refused" },
+  "GET /api/projects/:id/picture": { kind: "exempt", why: "the owner's project has no picture here (404 like a refusal); projects.test.ts checks another workspace gets 404 for one that has" },
+  "DELETE /api/projects/:id/picture": { kind: "id", path: (a) => `/api/projects/${a.project}/picture` },
 
   "GET /api/files": { kind: "id", path: (a) => `/api/files?project_id=${a.project}` },
   "GET /api/files/:id": { kind: "id", path: (a) => `/api/files/${a.folder}` },

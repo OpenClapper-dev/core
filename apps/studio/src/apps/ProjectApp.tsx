@@ -1,9 +1,9 @@
 import { useEffect, useState } from "preact/hooks";
-import { Badge, Button, EmptyState, FormField, PropertyList, PropertyRow, PropertySection, Segmented, Select, SettingsGroup, Table, TextInput } from "@openclapper/design";
-import { ApiError } from "../api";
+import { AppIcon, Badge, Button, EmptyState, FormField, PropertyList, PropertyRow, PropertySection, Segmented, Select, SettingsGroup, TextArea, TextInput } from "@openclapper/design";
+import { ApiError, projectPictureUrl, type Project } from "../api";
 import { confirm, prompt, toast, toastError } from "../hosts";
 import { switchProject } from "../project";
-import { removeProject, saveProject, setCanvasLive, useProjects } from "../projects";
+import { removeProject, saveProject, setCanvasLive, setDescription, setPicture, useProjects } from "../projects";
 import { useUser } from "../user";
 import { useCatalogue } from "../props";
 import { NamingPage } from "./project/Naming";
@@ -95,6 +95,9 @@ export function ProjectPage({ tab, winId, projectId }: { tab: ProjectTab; winId:
               </span>
             </FormField>
           </SettingsGroup>
+          <SettingsGroup title="Picture and description">
+            <ProjectLook p={current} />
+          </SettingsGroup>
           <SettingsGroup title="About this project">
             <PropertyList>
               <PropertySection title="Facts" icon="info">
@@ -120,22 +123,70 @@ export function ProjectPage({ tab, winId, projectId }: { tab: ProjectTab; winId:
             {editable.length > 1 && <Select size="sm" value={newWs || editable.find((w) => w.personal)?.id || editable[0].id} onChange={setNewWs} options={editable.map((w) => ({ value: w.id, label: w.name }))} aria-label="Workspace of the new project" />}
             <Button variant="primary" icon="plus" disabled={editable.length === 0} onClick={() => void create()}>New project</Button>
           </span>
-          {projects.length === 0 ? <EmptyState icon="slate" title="No project yet" /> : (
-            <Table className="st-projects" cursor={projectId} onOpen={(id) => void open(id)}
-              columns={[{ key: "name", label: "Name" }, { key: "ws", label: "Workspace" }, { key: "files", label: "Files", numeric: true }, { key: "created", label: "Created" }, { key: "act", label: "", width: 190 }]}
-              rows={projects.map((p) => ({
-                id: p.id,
-                name: <span className="st-inline"><strong>{p.name}</strong>{p.id === projectId && <Badge tone="accent">Open</Badge>}</span>,
-                ws: wsName(p.workspace_id), files: String(p.file_count), created: day(p.created_at),
-                act: <span className="st-inline st-inline--end">
-                  {p.id !== projectId && <Button size="sm" onClick={() => void open(p.id)}>Open</Button>}
-                  <Button size="sm" variant="quiet" icon="edit" label={`Rename ${p.name}`} onClick={() => void askRename(p.id, p.name)} />
-                  <Button size="sm" variant="quiet" icon="trash" label={`Delete ${p.name}`} onClick={() => void remove(p.id)} />
-                </span>,
-              }))} />
-          )}
+          {projects.length === 0 ? <EmptyState icon="slate" title="No project yet" /> : workspaces.filter((w) => projects.some((p) => p.workspace_id === w.id)).map((w) => (
+            <section key={w.id} className="st-pgroup">
+              <h3 className="st-pgroup__head">{w.name}{w.personal && <Badge>Personal</Badge>}<span className="st-note">{projects.filter((p) => p.workspace_id === w.id).length} project{projects.filter((p) => p.workspace_id === w.id).length === 1 ? "" : "s"}</span></h3>
+              <div className="st-pcards">
+                {projects.filter((p) => p.workspace_id === w.id).map((p) => (
+                  <ProjectCard key={p.id} p={p} open={p.id === projectId} onOpen={() => void open(p.id)} onRename={() => void askRename(p.id, p.name)} onDelete={() => void remove(p.id)} />
+                ))}
+              </div>
+            </section>
+          ))}
         </>
       )}
     </>
+  );
+}
+
+/** A project as a card (#426): its picture, name, description and facts; open, rename, delete. Room for more facts later. */
+function ProjectCard({ p, open, onOpen, onRename, onDelete }: { p: Project; open: boolean; onOpen: () => void; onRename: () => void; onDelete: () => void }) {
+  const pic = projectPictureUrl(p);
+  return (
+    <article className={`st-pcard${open ? " is-open" : ""}`} onDblClick={open ? undefined : onOpen}>
+      <div className="st-pcard__pic">{pic ? <img src={pic} alt="" loading="lazy" /> : <AppIcon glyph="slate" color={2} size={40} />}</div>
+      <div className="st-pcard__body">
+        <span className="st-inline"><strong className="st-pcard__name">{p.name}</strong>{open && <Badge tone="accent">Open</Badge>}</span>
+        {p.description ? <p className="st-pcard__desc">{p.description}</p> : <p className="st-note">No description</p>}
+        <span className="st-note">{p.file_count} file{p.file_count === 1 ? "" : "s"} · created {day(p.created_at)}</span>
+      </div>
+      <div className="st-pcard__act">
+        {!open && <Button size="sm" onClick={onOpen}>Open</Button>}
+        <Button size="sm" variant="quiet" icon="edit" label={`Rename ${p.name}`} onClick={onRename} />
+        <Button size="sm" variant="quiet" icon="trash" label={`Delete ${p.name}`} onClick={onDelete} />
+      </div>
+    </article>
+  );
+}
+
+/** The project's picture (uploaded from the computer, scaled to fit 2000 × 2000) and its description, saved on leaving the field. */
+function ProjectLook({ p }: { p: Project }) {
+  const [text, setText] = useState(p.description);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setText(p.description); }, [p.id, p.description]);
+  const pic = projectPictureUrl(p);
+  const choose = (e: Event) => {
+    const file = (e.currentTarget as HTMLInputElement).files?.[0];
+    (e.currentTarget as HTMLInputElement).value = "";
+    if (!file) return;
+    if (file.size > 40 * 1024 * 1024) { toast("That image is too large to use (at most 40 MB before it is scaled)", { tone: "warning" }); return; }
+    setBusy(true);
+    void setPicture(p, file).then(() => toast("Picture set"), toastError).finally(() => setBusy(false));
+  };
+  return (
+    <div className="st-plook">
+      <div className="st-pcard__pic st-plook__pic">{pic ? <img src={pic} alt="" /> : <AppIcon glyph="slate" color={2} size={48} />}</div>
+      <div className="st-plook__side">
+        <span className="st-inline">
+          <label className="oc-btn oc-btn--secondary oc-btn--sm st-plook__upload">{busy ? "Uploading…" : pic ? "Replace picture…" : "Upload a picture…"}<input type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={busy} onChange={choose} /></label>
+          {pic && <Button size="sm" variant="quiet" icon="trash" disabled={busy} onClick={() => { setBusy(true); void setPicture(p, null).catch(toastError).finally(() => setBusy(false)); }}>Remove</Button>}
+        </span>
+        <span className="st-note">JPEG, PNG or WebP; a larger one is scaled to fit 2000 × 2000.</span>
+        <FormField label="Description" htmlFor={`pd-${p.id}`}>
+          <TextArea id={`pd-${p.id}`} rows={4} maxLength={2000} value={text} placeholder="What this project is about" onInput={(e) => setText(e.currentTarget.value)}
+            onBlur={() => { if (text.trim() !== p.description) void setDescription(p, text.trim()).catch(toastError); }} />
+        </FormField>
+      </div>
+    </div>
   );
 }

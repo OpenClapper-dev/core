@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { switchExtension } from "@openclapper/model";
-import { deleteProject, fetchProjects, putProject, type Project } from "./api";
+import { deleteProject, fetchProjects, putProject, type Project, deleteProjectPicture, putProjectPicture } from "./api";
 
 /**
  * The projects the signed-in person can reach: one list for the picker, the taskbar's switcher and
@@ -45,6 +45,32 @@ export async function setMaster(p: Project, master: string[]): Promise<void> {
 /** Switches an extension on or off for the project, with what it needs or what needs it (docs/rewrite/08-extensions.md). */
 export async function setExtension(p: Project, id: string, on: boolean): Promise<void> {
   const next = await putProject(p.id, { name: p.name, extensions: switchExtension(p.extensions ?? [], id, on) });
+  put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
+}
+
+/** What the project is about (#426). */
+export async function setDescription(p: Project, description: string): Promise<void> {
+  const next = await putProject(p.id, { name: p.name, description });
+  put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
+}
+
+/**
+ * The project's picture (#426): scaled down in the browser to fit 2000 × 2000 (the server takes at most 4 MP and
+ * 5 MB), as a JPEG; null removes it.
+ */
+export async function setPicture(p: Project, file: File | null): Promise<void> {
+  let next: Project;
+  if (!file) next = await deleteProjectPicture(p.id);
+  else {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
+    const c = new OffscreenCanvas(Math.round(bmp.width * k), Math.round(bmp.height * k));
+    const g = c.getContext("2d")!;
+    g.imageSmoothingQuality = "high";
+    g.drawImage(bmp, 0, 0, c.width, c.height);
+    bmp.close();
+    next = await putProjectPicture(p.id, await c.convertToBlob({ type: "image/jpeg", quality: 0.88 }));
+  }
   put({ list: [...getProjects().filter((x) => x.id !== next.id), next].sort(byName), error: null });
 }
 
