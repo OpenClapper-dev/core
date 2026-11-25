@@ -52,7 +52,7 @@ An app declares its name, glyph and colour, tier, whether it is one window in al
 | Shot, Set, Location, Canvas, Timeline | `apps/ShotApp.tsx`, `CanvasApp.tsx`, `TimelineApp.tsx` | One file per window; Timeline also shows the project's master timeline ([timeline](timeline.md)) |
 | Recycle bin | `apps/BinApp.tsx` | What was deleted: restore, delete permanently, empty |
 
-| Settings | `apps/SettingsApp.tsx`, `apps/AccountPage.tsx`, `apps/ProjectApp.tsx` (the project's pages) | You (Appearance, Account, Shortcuts, About), this project (Project: name, facts, delete; Properties; Naming patterns; Extensions) and all projects (open, new, rename, delete). Opens the settings page files, property definitions and naming patterns at their page (#426: the Project app folded in) |
+| Settings | `apps/SettingsApp.tsx`, `apps/AccountPage.tsx`, `apps/ProjectApp.tsx` (the project's pages) | You (Appearance, Account, Shortcuts, About), this project (General: name, facts, delete; Properties; Naming patterns; Extensions; Customizations: the project's behaviour, so far how canvases update while edited) and all projects (open, new, rename, delete). Opens the settings page files, property definitions and naming patterns at their page (#426: the Project app folded in) |
 
 ## Preferences (`prefs.ts`, `theme.ts`)
 

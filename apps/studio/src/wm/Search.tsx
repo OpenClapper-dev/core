@@ -35,7 +35,7 @@ export function Search({ projectId, onClose }: { projectId: string; onClose: () 
     return { id: `file-${f.id}`, group: "Files", label: f.name, meta: where(f, inHome), keywords: values, art: thumb ? <img src={thumb} alt="" loading="lazy" /> : <AppIcon glyph={l.glyph} color={l.color} size={24} /> };
   };
   const items: PaletteItem[] = useMemo(() => {
-    const listed = (list: FileRec[]) => list.filter((f) => !f.internal_of && !f.fixed && f.type !== "preferences").sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at));
+    const listed = (list: FileRec[]) => list.filter((f) => !f.internal_of && !f.fixed && !["preferences", "property", "naming"].includes(f.type)).sort((a, b) => (b.updated_at ?? b.created_at).localeCompare(a.updated_at ?? a.created_at));
     return [
       ...windows.map((w): PaletteItem => { const d = appDef(w.app); return { id: `win-${w.id}`, group: "Open windows", label: w.title, meta: d?.name, art: <AppIcon glyph={d?.glyph} color={d?.color} size={24} /> }; }),
       ...apps().map((a): PaletteItem => ({ id: `app-${a.id}`, group: "Apps", label: a.name, meta: a.about, art: <AppIcon glyph={a.glyph} color={a.color} size={24} /> })),

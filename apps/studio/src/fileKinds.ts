@@ -51,7 +51,7 @@ export function targetOf(f: FileRec, files: ReadonlyMap<string, FileRec>): Targe
 }
 
 /** How a file shows as an icon or a row: a shortcut takes the look of what it opens. */
-const PAGE_GLYPH: Record<string, IconName> = { project: "slate", extensions: "extension", appearance: "palette", account: "user", shortcuts: "keyboard" };
+const PAGE_GLYPH: Record<string, IconName> = { general: "slate", properties: "tag", naming: "edit", customizations: "sliders", extensions: "extension", appearance: "palette", account: "user", shortcuts: "keyboard" };
 /** The fixed folders' own glyphs: a first-class folder like an OS's Desktop, not a padlock. */
 const FIXED_GLYPH: Record<string, IconName> = { desktop: "desktop", settings: "settings" };
 export const fixedGlyph = (fixed: string): IconName => FIXED_GLYPH[fixed] ?? "folder";

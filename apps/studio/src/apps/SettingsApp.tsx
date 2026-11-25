@@ -13,9 +13,9 @@ import type { ResourceRef } from "../wm/wm";
 
 const TABS = ["appearance", "account", "shortcuts", "about", ...PROJECT_TABS] as const;
 type Tab = (typeof TABS)[number];
-const TITLE: Record<Tab, string> = { appearance: "Appearance", account: "Account", shortcuts: "Keyboard shortcuts", about: "About", general: "Project", properties: "Properties", naming: "Naming patterns", extensions: "Extensions", projects: "All projects" };
+const TITLE: Record<Tab, string> = { appearance: "Appearance", account: "Account", shortcuts: "Keyboard shortcuts", about: "About", general: "General", customizations: "Customizations", properties: "Properties", naming: "Naming patterns", extensions: "Extensions", projects: "All projects" };
 /** A settings page file's page, as a tab (#426: one file per page; "project" is the General page). */
-const PAGE_TAB: Record<string, Tab> = { project: "general", extensions: "extensions", appearance: "appearance", account: "account", shortcuts: "shortcuts" };
+const PAGE_TAB: Record<string, Tab> = { general: "general", properties: "properties", naming: "naming", customizations: "customizations", extensions: "extensions", appearance: "appearance", account: "account", shortcuts: "shortcuts" };
 
 /** Every shortcut of the registry, scope by scope: the same list as the `?` sheet and docs/shortcuts.md. */
 export function ShortcutList() {
@@ -64,7 +64,7 @@ export function SettingsApp({ win, projectId, setTitle, setRoute }: AppProps) {
     <SettingsLayout value={tab} onChange={(id) => setTab(id as Tab)} title={tab === "general" ? project?.name ?? "Project" : TITLE[tab]} wide={tab === "properties" || tab === "naming"}
       sections={[
         { label: "You", items: [{ id: "appearance", label: "Appearance", icon: "palette" }, { id: "account", label: "Account", icon: "user" }, { id: "shortcuts", label: "Shortcuts", icon: "keyboard" }, { id: "about", label: "About", icon: "info" }] },
-        { label: "This project", items: [{ id: "general", label: "Project", icon: "slate" }, { id: "properties", label: "Properties", icon: "tag" }, { id: "naming", label: "Naming patterns", icon: "edit" }, { id: "extensions", label: "Extensions", icon: "extension" }] },
+        { label: "This project", items: [{ id: "general", label: "General", icon: "slate" }, { id: "properties", label: "Properties", icon: "tag" }, { id: "naming", label: "Naming patterns", icon: "edit" }, { id: "extensions", label: "Extensions", icon: "extension" }, { id: "customizations", label: "Customizations", icon: "sliders" }] },
         { label: "All projects", items: [{ id: "projects", label: "Projects", icon: "files" }] },
       ]}>
       {(PROJECT_TABS as readonly string[]).includes(tab) && <ProjectPage tab={tab as ProjectTab} winId={win.id} projectId={projectId} />}

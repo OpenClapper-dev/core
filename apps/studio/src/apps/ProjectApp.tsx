@@ -12,7 +12,7 @@ import { ExtensionsPage } from "./project/Extensions";
 import "../catalogue.css";
 
 /** The project's pages in Settings (#426: the Project app folded into Settings). */
-export const PROJECT_TABS = ["general", "properties", "naming", "extensions", "projects"] as const;
+export const PROJECT_TABS = ["general", "properties", "naming", "extensions", "customizations", "projects"] as const;
 export type ProjectTab = (typeof PROJECT_TABS)[number];
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 /** A name the server refused because it is taken reads better than "409". */
@@ -73,6 +73,18 @@ export function ProjectPage({ tab, winId, projectId }: { tab: ProjectTab; winId:
       {tab === "properties" && <PropertiesPage projectId={projectId} files={catalogue.files} defs={catalogue.defs} />}
       {tab === "naming" && <NamingPage projectId={projectId} files={catalogue.files} patterns={catalogue.patterns} />}
       {tab === "extensions" && current && <ExtensionsPage project={current} />}
+      {/* Customizations (#426): how this project behaves for everyone in it; user policies join here later. */}
+      {tab === "customizations" && current && (
+        <>
+          <SettingsGroup title="Canvases while someone edits them">
+            <Segmented label="Live updates" value={current.canvas_live ?? "realtime"} onChange={(v) => void setCanvasLive(current, v as "realtime" | "gradual").catch(toastError)}
+              options={[{ value: "realtime", label: "Realtime" }, { value: "gradual", label: "Every 5 seconds" }]} />
+            <p className="st-note">{(current.canvas_live ?? "realtime") === "realtime"
+              ? "Everyone watching a canvas sees each change and each stroke as it is drawn, and sees at once when the person editing lets it go. It runs on a Durable Object per open canvas, which counts against the Cloudflare plan."
+              : "Everyone watching a canvas sees each save as soon as it is made, and at once when it is free to edit; the changes and strokes in between are not streamed. Who edits is always live."}</p>
+          </SettingsGroup>
+        </>
+      )}
       {tab === "general" && current && (
         <>
           <SettingsGroup title="Name">
@@ -83,13 +95,6 @@ export function ProjectPage({ tab, winId, projectId }: { tab: ProjectTab; winId:
               </span>
             </FormField>
           </SettingsGroup>
-          <SettingsGroup title="Canvases while someone edits them">
-            <Segmented label="Live updates" value={current.canvas_live ?? "realtime"} onChange={(v) => void setCanvasLive(current, v as "realtime" | "gradual").catch(toastError)}
-              options={[{ value: "realtime", label: "Realtime" }, { value: "gradual", label: "Every 5 seconds" }]} />
-            <p className="st-note">{(current.canvas_live ?? "realtime") === "realtime"
-              ? "Everyone watching a canvas sees each change and each stroke as it is drawn, and sees at once when the person editing lets it go. It runs on a Durable Object per open canvas, which counts against the Cloudflare plan."
-              : "Everyone watching a canvas sees it as it was saved, read again every 5 seconds, and sees within 5 seconds when it is free to edit. It only reads the database."}</p>
-          </SettingsGroup>
           <SettingsGroup title="About this project">
             <PropertyList>
               <PropertySection title="Facts" icon="info">
@@ -99,7 +104,7 @@ export function ProjectPage({ tab, winId, projectId }: { tab: ProjectTab; winId:
               </PropertySection>
               <PropertySection title="Fixed folders" icon="lock">
                 <PropertyRow label="Desktop" value="What is in it shows as icons on the desktop" />
-                <PropertyRow label="Settings" value="Holds the project's properties and naming patterns" />
+                <PropertyRow label="Settings" value="One file per settings tab: General, Properties, Naming patterns, Extensions, Customizations" />
               </PropertySection>
             </PropertyList>
           </SettingsGroup>
