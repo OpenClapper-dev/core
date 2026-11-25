@@ -25,6 +25,9 @@ export default defineConfig(({ command }) => {
     define: build,
     build: { outDir: "dist", emptyOutDir: true, sourcemap: false },
     server: {
+      // Its own port (scripts/ports.mjs), never another: taken, it fails instead of moving onto the admin board's.
+      port: 5173,
+      strictPort: true,
       // Local dev: proxy API calls to `wrangler dev` (apps/worker; sign in as dev@localhost, make init).
       // ws: the phone link's socket.
       proxy: { "/api": { target: "http://localhost:8787", ws: true }, "/health": "http://localhost:8787" },

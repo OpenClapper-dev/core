@@ -82,6 +82,21 @@ Worker tests (unit and route tests, see [testing](testing.md)): `pnpm -C apps/wo
 
 Agents can click through the Studio with the Playwright MCP: headless Chrome against `localhost:5173` (`pnpm dev` running). It is set up per machine, not in the repo: `claude mcp add playwright -- npx -y @playwright/mcp@latest --headless --isolated`, then `npx playwright install --with-deps chrome`. Snapshots land in `.playwright-mcp/` (gitignored). The phone app cannot be driven this way.
 
+## Ports
+
+Every local server has its own port, and each Worker its own debugger port; the table is `scripts/ports.mjs` (`node scripts/ports.mjs list`):
+
+| Server | Port | Debugger |
+| --- | --- | --- |
+| Worker (`make worker`, `make dev`, `make mobile`) | 8787 | 9229 |
+| Studio (`make studio`, `make dev`) | 5173 | |
+| Admin board (`make admin`) | 5174 | |
+| Admin board's Worker (`make admin`) | 8788 | 9230 |
+| Design specimens (`make specimen`) | 5175 | |
+| Metro (`make mobile`) | 8081 | |
+
+No server moves to another port when its own is taken (Vite `strictPort`, wrangler `--port`, Expo `--port`). Every start command (`pnpm dev`, `dev:worker`, `dev:studio`, `dev:admin`, `dev:specimen`, `dev:mobile`, `make all`) first checks its ports and, when one is taken, says which process holds it and how to stop it (`make all` running: use it or `make all-down`). `scripts/ports.test.mjs` keeps the configs and commands in step with the table.
+
 ## Phone dev loop (development build)
 
 ```sh
@@ -100,7 +115,7 @@ make studio      # beside it: the Studio on :5173 against the same local Worker
 - **On GitHub instead**: Actions → **Build phone app** → Run workflow with `variant: dev` (in a deployment repository its Build phone app workflow passes the same input). Same runner setup as the release build. With the four key secrets in the environment it builds OpenClapper Dev (APK and App Bundle; `track: internal` uploads the bundle); without them OpenClapper Dev Local, `openclapper-dev-local-<version>-<commit>.apk`, from the same template debug key, so it installs over a local `make dev-build` and vice versa. Either is the run's artifact for 3 days.
 - In the dev client, open the `exp.direct` URL Metro prints (or pick the server in the launcher). Shake or the notification opens the dev menu.
 
-- `scripts/dev-all.sh` (`make all`) opens a tmux session `openclapper`: Worker, Studio (:5173) and admin board (:5174, its Worker on :8788) stacked on the left, `make mobile` on the right (it and the admin pane wait for the Worker: mobile only adds a tunnel, and two wranglers starting together collide on their inspector port), and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on :8787, :5173 or Metro's :8081, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
+- `scripts/dev-all.sh` (`make all`) opens a tmux session `openclapper`: Worker, Studio (:5173) and admin board (:5174, its Worker on :8788) stacked on the left, `make mobile` on the right (it and the admin pane wait for the Worker: mobile only adds a tunnel to it, and the admin board's Worker shares its local D1); it checks every port first, and a **control strip** across the bottom showing which servers answer (● up, ○ down). Click it, then `r` restarts the three servers in their panes, `q` stops everything and closes the session, `d` detaches. Mouse mode is on, panes stay open after a crash so the error is readable, and running `make all` again attaches. Ctrl-C in a server pane stops just that server and leaves a shell to run it again. From another terminal: `make all-down` (Ctrl-C to every server, then it stops anything started from this repo that still listens on one of the ports below, plus a stray `cloudflared`; other folders' processes are left alone, then the session closes) and `make all-restart` (the same as `r`).
 - `scripts/mobile.sh` starts `wrangler dev --tunnel` on :8787, or, when `make dev`/`make worker` already runs there, only a quick tunnel to it (`wrangler tunnel quick-start`), waits for the `https://….trycloudflare.com` URL, then starts Metro (`expo start --dev-client --tunnel --clear`) with `EXPO_PUBLIC_API_URL` set to it and `EXPO_PUBLIC_STORAGE_SCOPE=local`. It refuses to start while an `apps/mobile/.env*` file sets `EXPO_PUBLIC_*`: in development Expo serves those files ahead of the environment (`expo/virtual/env`), so the app would talk to that server instead of the tunnel. Ctrl-C stops both. Both tunnels are needed because WSL2 in NAT mode is not reachable from the phone over LAN.
 - Expo Go no longer runs the app: react-native-vision-camera (issue #26) is a native module it does not ship.
 - Sign in once with `dev@localhost` / `openclapper-local-dev`: `make init` (`scripts/dev-init.sh`) makes that local user.

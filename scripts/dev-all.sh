@@ -3,8 +3,8 @@
 #   left, top to bottom: the Worker (:8787), the Studio (:5173), the admin board (:5174, its Worker :8788)
 #   right: make mobile (tunnel + Metro)
 #   bottom, full width: the control pane (which servers are up; r restarts them, q stops everything).
-# The mobile and admin panes wait for the Worker: mobile.sh only adds a tunnel to it (one Worker, one local D1),
-# and two wranglers starting at the same moment collide on their inspector port.
+# The mobile and admin panes wait for the Worker: mobile.sh only adds a tunnel to it (one Worker, one local D1), and
+# the admin board's Worker shares its local D1 files. Every server has its own port and debugger port (scripts/ports.mjs).
 #   up (default)  start it, or attach when it is already running
 #   down          Ctrl-C every server, stop what of this repo still holds the ports, close the session
 #   restart       the servers again in their panes (the session and its layout stay); starts it when it is not up
@@ -15,8 +15,8 @@ set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 session="${SESSION:-openclapper}"
 port="${PORT:-8787}"
-# Worker, Studio, admin board + its Worker, Metro.
-ports=("$port" 5173 5174 8788 8081)
+# Worker, Studio, admin board + its Worker, Metro, and the two Workers' debuggers (scripts/ports.mjs).
+ports=("$port" 5173 5174 8788 8081 9229 9230)
 names=(worker studio admin mobile)
 
 command -v tmux >/dev/null || { echo "tmux is not installed (sudo apt install tmux)." >&2; exit 1; }
@@ -93,6 +93,8 @@ up() {
     attach
     return
   fi
+  # Every port free before anything starts; else it says which process holds one (scripts/ports.mjs).
+  node "$root/scripts/ports.mjs" need worker studio admin admin-worker metro || exit 1
 
   # A server that exits keeps its pane open, so its last error stays readable.
   tmux new-session -d -s "$session" -n stack -c "$root" -x "$(tput cols 2>/dev/null || echo 200)" -y "$(tput lines 2>/dev/null || echo 50)"

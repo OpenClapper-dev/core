@@ -5,7 +5,7 @@
   "license": "Apache-2.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 5175",
+    "dev": "vite",
     "build": "tsc -p . && vite build",
     "typecheck": "tsc -p ."
   },

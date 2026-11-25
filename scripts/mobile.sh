@@ -14,6 +14,8 @@ if envs=$(grep -ls "^[[:space:]]*EXPO_PUBLIC_" "$root"/apps/mobile/.env* 2>/dev/
   echo "Remove the EXPO_PUBLIC_* lines (or the files); make mobile sets them itself." >&2
   exit 1
 fi
+# Ports: scripts/ports.mjs. Metro has to be free (the Worker on :$port may be reused, see below).
+node "$root/scripts/ports.mjs" need metro
 port="${PORT:-8787}"
 log="$(mktemp -t openclapper-worker.XXXXXX.log)"
 
@@ -27,7 +29,7 @@ elif (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
   exit 1
 else
   echo "Starting the local Worker with a quick tunnel (log: $log)…"
-  (cd "$root/apps/worker" && exec pnpm exec wrangler dev --port "$port" --tunnel) >"$log" 2>&1 &
+  (cd "$root/apps/worker" && exec pnpm exec wrangler dev --port "$port" --inspector-port 9229 --tunnel) >"$log" 2>&1 &
 fi
 worker=$!
 trap 'kill "$worker" 2>/dev/null; wait "$worker" 2>/dev/null || true' EXIT
@@ -49,4 +51,4 @@ echo "Local Worker: $url  (Studio: make studio → http://localhost:5173)"
 cd "$root/apps/mobile"
 # For the dev client, "OpenClapper Dev" from Google Play or "OpenClapper Dev Local" (make dev-build): both
 # have the scheme APP_VARIANT=development gives, so the QR code opens either.
-EXPO_PUBLIC_API_URL="$url" EXPO_PUBLIC_STORAGE_SCOPE=local APP_VARIANT=development pnpm exec expo start --dev-client --tunnel --clear
+EXPO_PUBLIC_API_URL="$url" EXPO_PUBLIC_STORAGE_SCOPE=local APP_VARIANT=development pnpm exec expo start --dev-client --tunnel --clear --port 8081

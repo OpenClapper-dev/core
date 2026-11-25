@@ -25,7 +25,7 @@ export default defineConfig(({ command }) => {
     plugins: [preact(), watchUi],
     define: build,
     build: { outDir: "../dist", emptyOutDir: true, sourcemap: false },
-    // Local dev: the admin Worker (`pnpm -C apps/admin dev:worker`, ADMIN_DEV_BYPASS on) on :8788.
+    // Local dev: the admin Worker (`pnpm -C apps/admin dev:worker`, ADMIN_DEV_BYPASS on) on :8788. Ports: scripts/ports.mjs.
     server: { port: 5174, strictPort: true, proxy: { "/api": "http://localhost:8788" } },
   };
 });
