@@ -356,7 +356,7 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
     </div>
   );
 
-  const [panels, setPanels] = useDockLayout(hosted ? "flows-hosted" : "flows", hosted ? { right: { tabs: ["chosen"] } } : { left: { tabs: ["flows"] }, right: { tabs: ["chosen"] } });
+  const [panels, setPanels] = useDockLayout(hosted ? "flows-hosted-v2" : "flows", hosted ? { bottom: { tabs: ["chosen"] } } : { left: { tabs: ["flows"] }, right: { tabs: ["chosen"] } });
   const dock: DockPanel[] = [
     ...(hosted ? [] : [{ id: "flows", title: "Flows", icon: "timeline" as const, actions: onNew ? <Button size="sm" variant="quiet" icon="plus" onClick={onNew}>New flow</Button> : undefined, body: <>{list}{props}</> }]),
     { id: "chosen", title: "Chosen", icon: "cursor", body: <>{hosted && props}{chosen}</> },
@@ -372,7 +372,7 @@ export function FlowEditor({ f, projectId, active, list, onNew, onGone, hosted }
           ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the flow go and keep watching it: someone else can edit it now" onClick={() => void lock.stop(async () => { await flush(); })}>Stop editing</Button>
           : <span className="tl-viewing"><Icon name="eye" size={14} /><span>{lock.by === "You" ? "Editing in another window of yours" : lock.by ? `${lock.by} is editing` : "Nobody is editing"}</span><Button size="sm" variant="primary" icon="edit" disabled={!!lock.by} onClick={() => void lock.edit()}>Edit</Button></span>}
       </Toolbar>
-      <Dock panels={dock} layout={panels} onLayoutChange={setPanels} zoneSizes={{ left: 280, right: 340 }}>{stage}</Dock>
+      <Dock panels={dock} layout={panels} onLayoutChange={setPanels} zoneSizes={{ left: 280, right: 340, bottom: 280 }}>{stage}</Dock>
       <StatusBar>{body.tracks.length} tracks · {body.tracks.reduce((n, t) => n + t.keyframes.length, 0)} keyframes · {(body.markers ?? []).length} markers{body.loop ? " · loops" : ""}{playing ? " · playing" : ""} · {!lock.editing ? (lock.live ? "Read-only, live" : "Read-only, read again every 5 s") : status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : "Saved"}</StatusBar>
     </div>
   );

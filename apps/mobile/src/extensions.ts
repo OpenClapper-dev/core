@@ -6,3 +6,5 @@
  */
 import "@openclapper/ext-hardware";
 import "./ext/hardware";
+import "@openclapper/ext-flows";
+import "./ext/flows";
