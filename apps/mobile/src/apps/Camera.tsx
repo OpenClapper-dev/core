@@ -22,8 +22,7 @@ import { allLayouts, chooseLayout, useLayout } from "../camera/layouts";
 import { captureFact, collecting, endCollection, frameBox, frames, liveView, nextFolder, startCollection, toggles, type FrameChoice } from "../camera/state";
 import { Button, Empty, FIXED, Hint, Icon, ListRow, makeStyles, num, RADIUS, SectionLabel, Seg, Sheet, SheetList, SIZE, Slider, toast, type, useTheme, Block, type IconName } from "../ui";
 import { registerApp } from "./registry";
-import * as ScreenOrientation from "expo-screen-orientation";
-import { settings, useCameraButtons } from "../settings";
+import { useCameraButtons } from "../settings";
 
 /**
  * The camera (docs/features/camera-layouts.md, docs/rewrite/03-capture.md): the phone takes photos; everything else
@@ -37,14 +36,7 @@ const JUSTIFY: Record<Distribution, "flex-start" | "center" | "flex-end" | "spac
 
 function Camera({ active }: { active: boolean }) {
   const sizes = useCameraButtons();
-  // The Camera tab's own orientation (#426, this device's setting): held in landscape or portrait while the tab is
-  // open, whatever way the device is held; the app turns freely again when another tab comes to the front.
-  const orient = settings.use().cameraOrientation ?? "auto";
-  useEffect(() => {
-    if (!active || orient === "auto") return;
-    void ScreenOrientation.lockAsync(orient === "landscape" ? ScreenOrientation.OrientationLock.LANDSCAPE : ScreenOrientation.OrientationLock.PORTRAIT_UP).catch((e) => log("warn", "camera: orientation not locked", e));
-    return () => { void ScreenOrientation.unlockAsync().catch(() => undefined); };
-  }, [active, orient]);
+  // The tab's own orientation (this device's setting) and a Studio preview's turn the whole screen: App.tsx locks it.
   const s = useStyles();
   const { width, height } = useWindowDimensions();
   const project = useProject();
