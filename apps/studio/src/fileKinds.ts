@@ -4,7 +4,7 @@ import type { FileRec } from "./api";
 import { appDef } from "./apps/registry";
 
 /**
- * How each file type looks in the Studio: its glyph and its colour (0 neutral, 1 to 8 categorical).
+ * How each file type looks in the Studio: its glyph and its colour (the app icon colours: 0 light grey, 1 to 8 categorical, 9 to 12 the extra ones).
  * Names come from the shared model; a type without an entry here still shows, as a plain file.
  */
 const LOOK: Record<string, { glyph: IconName; color: number }> = {
@@ -12,8 +12,8 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   shortcut: { glyph: "shortcut", color: 0 },
   preferences: { glyph: "settings", color: 0 },
   settings: { glyph: "settings", color: 2 },
-  device: { glyph: "mobile", color: 16 },
-  layout: { glyph: "camera-layout", color: 13 },
+  device: { glyph: "mobile", color: 9 },
+  layout: { glyph: "camera-layout", color: 10 },
   photo: { glyph: "image", color: 4 },
   collection: { glyph: "layers", color: 4 },
   shot: { glyph: "slate", color: 1 },

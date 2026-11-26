@@ -6,9 +6,9 @@ import { registerFileLook } from "../../fileKinds";
 import { FlowsApp } from "./FlowsApp";
 
 registerApp({
-  id: "flows", name: "Flows", glyph: "bulb", color: 14, tier: "extension", extension: "flows", singleton: true, opens: ["flow"],
+  id: "flows", name: "Flows", glyph: "bulb", color: 11, tier: "extension", extension: "flows", singleton: true, opens: ["flow"],
   defaultSize: { w: 1320, h: 820 }, minSize: { w: 760, h: 480 }, component: FlowsApp,
   fromRoute: (rest) => ({ resource: rest ? { type: "flow", id: rest } : null }), about: "Timed programmes for lights and cameras",
 });
-registerFileLook("flow", { glyph: "bulb", color: 14 });
+registerFileLook("flow", { glyph: "bulb", color: 11 });
 registerPhoneTab({ id: "flows", label: "Flows", icon: "timeline", extension: "flows" });

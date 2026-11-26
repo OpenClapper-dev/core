@@ -4,7 +4,7 @@ import type { IconName } from "../core/glyphs";
 import { cx } from "../util";
 import { AppIcon } from "./AppIcon";
 
-const FILE_KIND: Record<string, [IconName, number]> = { folder: ["folder", 5], file: ["file", 0], bin: ["trash", 0], app: ["window", 6] };
+const FILE_KIND: Record<string, [IconName, number]> = { folder: ["folder", 5], file: ["file", 0], bin: ["trash", 12], app: ["window", 6] };
 
 /** A file or folder on the desktop or in a file browser, at icon, list or grid size. */
 export interface FileTileProps extends Omit<JSX.ButtonHTMLAttributes<HTMLButtonElement>, "name" | "icon" | "selected"> {

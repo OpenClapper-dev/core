@@ -75,6 +75,8 @@ Epic [#156](https://github.com/OpenClapper-dev/core/issues/156). Web only (the p
 
 **Font and icons on the web** are bundled, not loaded from a CDN (#224): `@openclapper/ui` imports Atkinson Hyperlegible Next from `@fontsource/atkinson-hyperlegible-next` (weights 400 to 800, latin and latin-ext; SIL OFL 1.1, its licence ships in the package) and the icon font from `@mdi/font` (7.4.47, Apache 2.0), so Vite emits the font files with the build and the CSP needs `font-src 'self'` only.
 
+**App icons inside the product** (`AppIcon`, every app and file type of the Studio): the same family at small size, a **slate tile**. A dark board (`--app-body`) with the clapstick across its top in the app's colour and the glyph in white on the board; the stick is striped from 24 px and a plain bar below. It looks the same in both themes (fixed tokens), with a faint rim (`--app-rim`) on the Dark desktop only. Colours: `color` 0 light grey, 1 to 8 the categorical hues (their Dark values, bright enough on the board), 9 green, 10 cyan, 11 violet, 12 dark grey (`--app-0` to `--app-12`); every app has its own. An extension that is not on is the dashed outline with a grey glyph.
+
 **App icon and mark** (#249, replacing the striped family of #170; the generator, its geometry and the review pages are in the gitignored `references/logo-redesign/`: `build-icons.mjs` writes every file below, `icons.json` holds the exact paths). One family: the **slate corner**, a clapperboard cropped to its hinge corner (the striped stick rising off the top-left, the hinge, the board running off the tile to the bottom-right), with a glyph per surface cut out of the board face:
 - **Phone**: a portrait phone with a lens.
 - **Studio**: a window.

@@ -76,7 +76,7 @@ body.wm-gesture { user-select: none; }
 /* Desktop icons: each in its own cell, placed by the shell. */
 .st-icon { position: absolute; display: flex; justify-content: center; }
 .st-icon > .oc-file { cursor: pointer; }
-.st-bin-full .oc-appicon { box-shadow: inset 0 -3px 0 var(--accent); }
+.st-bin-full .oc-appicon { border-radius: 22%; box-shadow: 0 3px 0 var(--accent); }
 .st-pick { display: grid; gap: var(--space-4); }
 .st-pick > .oc-input { width: 100%; }
 .st-pick__list { max-height: 300px; overflow: auto; }
