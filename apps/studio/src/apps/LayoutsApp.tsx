@@ -31,13 +31,24 @@ const SAMPLE_FOCALS = ["24", "35", "50", "85"];
 const sideways = (e: Edge) => e === "left" || e === "right";
 interface DeviceBody { lenses?: { id: string; name: string; focal35: number | null; main?: boolean }[]; camera?: { portrait: { w: number; h: number }; landscape: { w: number; h: number } } | null; screen?: { portrait: { w: number; h: number }; landscape: { w: number; h: number } } | null; layout?: string }
 
+/**
+ * How the preview is looked at (orientation, as which device, with which preset, the grid): kept while the Studio
+ * is open, across layouts and closing the editor (#426), not saved; previewing only, never part of a layout.
+ */
+const kept = { land: false, asDevice: "", withPreset: "", grid: false };
+function useKept<K extends keyof typeof kept>(k: K): [(typeof kept)[K], (v: (typeof kept)[K]) => void] {
+  const [v, setV] = useState(kept[k]);
+  return [v, (next) => { kept[k] = next; setV(next); }];
+}
+
 export function LayoutsApp({ win, projectId, setTitle, setRoute }: AppProps) {
   const { files } = store.useRoot("home");
   const [cur, setCur] = useState<string>(() => win.resource?.id ?? "viewfinder");
   useEffect(() => { setTitle("Camera layouts"); setRoute(cur); }, [cur]);
   if (!files) return <div className="oc-app st-center"><Spinner /></div>;
   const layouts = files.filter((f) => f.type === "layout").sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  const devices = files.filter((f) => f.type === "device");
+  // Phones and tablets only: the hardware extension's lights and transmitters are device files too, without a camera (#426).
+  const devices = files.filter((f) => f.type === "device" && ["phone", "tablet"].includes(String((f.body as { kind?: unknown }).kind)));
   const file = isBuiltinLayout(cur) ? null : layouts.find((l) => l.id === cur) ?? null;
   const id = isBuiltinLayout(cur) || file ? cur : "viewfinder";
   return <Editor key={id} id={id} file={file} layouts={layouts} devices={devices} onPick={setCur} projectId={projectId} />;
@@ -48,7 +59,7 @@ function Editor({ id, file, layouts, devices, onPick, projectId }: { id: string;
   const locked = !!builtin;
   const [body, setBody] = useState<LayoutBody>(() => (builtin ? copyLayout(builtin.body) : (file!.body as unknown as LayoutBody)));
   const [name, setName] = useState(builtin?.name ?? file!.name);
-  const [land, setLand] = useState(false);
+  const [land, setLand] = useKept("land");
   const [status, setStatus] = useState<"saved" | "waiting" | "invalid">("saved");
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latest = useRef(body);
@@ -84,9 +95,9 @@ function Editor({ id, file, layouts, devices, onPick, projectId }: { id: string;
   const phone = link.phones[0];
   // For previewing only, never part of the layout (#426): which device's camera and lenses, which optics preset's
   // focal lengths, and the grid that outlines every bar (also on the device's live preview).
-  const [asDevice, setAsDevice] = useState<string>("");
-  const [withPreset, setWithPreset] = useState<string>("");
-  const [grid, setGrid] = useState(false);
+  const [asDevice, setAsDevice] = useKept("asDevice");
+  const [withPreset, setWithPreset] = useKept("withPreset");
+  const [grid, setGrid] = useKept("grid");
   const preview = () => sendLink({ ch: "layout", type: "preview", layout: latest.current, orientation: key, device: body.device, grid });
   useEffect(() => { if (!link.previewing && previewing) setPreviewing(false); }, [link.previewing]);
   useEffect(() => { if (previewing && !wrong) preview(); }, [previewing, body, key, grid]);
@@ -163,8 +174,12 @@ function Editor({ id, file, layouts, devices, onPick, projectId }: { id: string;
     else if (c.kind === "strip") {
       const focals = preset ? focalsOf(preset.body.lenses).map(String) : SAMPLE_FOCALS;
       const vals = i.control === "lenses" ? lenses : focals, now = vals[Math.min(1, vals.length - 1)] ?? "–";
+      // A zoom preset: the slider the device shows for it, whatever the item's display (#426).
+      const zoom = i.control === "focal" && preset?.body.lenses.kind === "zoom" ? preset.body.lenses : null;
       // Stepped: three full-size parts a thumb can hit, back, the value, on; stacked in an upright bar.
-      el = i.display === "stepped"
+      el = zoom
+        ? <span className={cx("lay-zoom", vertical && "is-v")}><CameraButton icon={vertical ? "plus" : "minus"} label={vertical ? "Longer focal length" : "Shorter focal length"} /><span className="lay-zoom__track"><i style={{ [vertical ? "bottom" : "left"]: "30%" }} /></span><CameraButton icon={vertical ? "minus" : "plus"} label={vertical ? "Shorter focal length" : "Longer focal length"} /><b>{Math.round(zoom.from + (zoom.to - zoom.from) * 0.3)} mm</b></span>
+        : i.display === "stepped"
         ? <span className={cx("lay-step", vertical && "is-v")}><CameraButton icon={vertical ? "chevron-up" : "chevron-left"} label={`Previous: ${c.label}`} /><b>{now}</b><CameraButton icon={vertical ? "chevron-down" : "chevron-right"} label={`Next: ${c.label}`} /></span>
         : <span className={cx("lay-strip", vertical && "is-v")}>{vals.map((v) => <CameraButton key={v} label={v} pressed={v === now}>{v}</CameraButton>)}</span>;
     } else el = <span className="lay-ctl"><CameraButton icon={c.icon as IconName} label={c.label} pressed={i.control === "blackout" && body.look.blackoutOn} />{i.label && "short" in c && <small>{c.short}</small>}</span>;
@@ -227,7 +242,7 @@ function Editor({ id, file, layouts, devices, onPick, projectId }: { id: string;
         {b.items.map((i) => { const c = CONTROLS[i.control]; return (
           <li key={i.control} data-ctl={i.control} className={cx("lay-item", drag?.ctl === i.control && "is-dragged")} onPointerDown={grab(i.control)}>
             <Icon name="grip" size={12} /><Icon name={c.icon as IconName} /><span className="lay-item__name">{c.label}{!extensionOn(c.extension) && <small> · needs its extension</small>}</span>
-            {c.kind === "strip" && <span data-nodrag><Segmented label="Shown as" value={i.display ?? "list"} disabled={locked} onChange={(v) => patchItem(i.control, { display: v as "list" | "stepped" })} options={[{ value: "list", label: "All" }, { value: "stepped", label: "Stepped" }]} /></span>}
+            {c.kind === "strip" && <span data-nodrag title={i.control === "focal" ? "How a preset's primes are shown: all at once, or one at a time with back and on. A zoom preset is always a slider." : undefined}><Segmented label={i.control === "focal" ? "Primes shown as" : "Shown as"} value={i.display ?? "list"} disabled={locked} onChange={(v) => patchItem(i.control, { display: v as "list" | "stepped" })} options={[{ value: "list", label: "All" }, { value: "stepped", label: "Stepped" }]} /></span>}
             {i.control === "lenses" && <span data-nodrag><Segmented label="Length" value={i.size ?? "fit"} disabled={locked} onChange={(v) => patchItem(i.control, { size: v as "fill" | "fit" })} options={[{ value: "fit", label: "Fit" }, { value: "fill", label: "Fill" }]} /></span>}
             {c.kind === "button" && <span data-nodrag><Checkbox checked={!!i.label} disabled={locked} onChange={(v) => patchItem(i.control, { label: v || undefined })}>Label</Checkbox></span>}
             <Button size="sm" variant="quiet" icon="close" label={i.control === "shutter" ? "The shutter cannot be removed" : `Remove ${c.label}`} disabled={locked || i.control === "shutter"} data-nodrag onClick={() => patchBar(b.id, { items: b.items.filter((y) => y.control !== i.control) })} />
@@ -296,7 +311,7 @@ function Editor({ id, file, layouts, devices, onPick, projectId }: { id: string;
         <Icon name="camera-layout" size={20} />
         {locked ? <strong className="st-title">{name}</strong> : <TextInput size="sm" value={name} aria-label="Name" maxLength={120} style={{ width: 200 }} onInput={(e) => setName(e.currentTarget.value)} onBlur={rename} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} />}
         {locked ? <Badge icon="lock">Built in, read-only</Badge> : <span className="lay-saved">{status === "invalid" ? <><Icon name="warning" size={12} />Not saved yet</> : status === "waiting" ? "Changed" : <><Icon name="check" size={12} />Saved</>}</span>}
-        <Segmented label="Orientation" value={key} onChange={(v) => setLand(v === "landscape")} options={[{ value: "portrait", label: "Upright" }, { value: "landscape", label: "Landscape" }]} />
+        <Segmented label="Orientation" value={key} onChange={(v) => setLand(v === "landscape")} options={[{ value: "portrait", label: "Portrait" }, { value: "landscape", label: "Landscape" }]} title="The arrangement edited and previewed; a device showing the live preview turns to it" />
         <Select size="sm" aria-label="Preview as a device" value={asDevice} onChange={setAsDevice} title="Whose camera and real lenses the preview shows; for previewing only"
           options={[{ value: "", label: previewing && phone?.id ? `As ${phone.name || "the device"} (live)` : body.device ? `As ${devices.find((d) => d.id === body.device)?.name ?? "its device"}` : "As a usual phone" }, ...devices.filter((d) => d.id !== body.device).map((d) => ({ value: d.id, label: `As ${d.name}` }))]} />
         <Select size="sm" aria-label="Preview with an optics preset" value={withPreset} onChange={setWithPreset} title="Whose focal lengths the focal length control shows; for previewing only"
