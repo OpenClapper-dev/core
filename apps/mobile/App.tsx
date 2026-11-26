@@ -15,13 +15,15 @@ import { appOf, usableApp, type PhoneApp } from "./src/apps/registry";
 import { device } from "./src/device";
 import { usePrefs } from "./src/prefs";
 import { useExtensionsOn, useProject } from "./src/projects";
-import { apply as applySettings } from "./src/settings";
+import { apply as applySettings, settings } from "./src/settings";
 import { handleBack } from "./src/shell/back";
 import { LoginForm, ProjectGate, SignInGate } from "./src/shell/Gates";
 import { initialLogin, login as loginState, skipped } from "./src/shell/signin";
 import { setTabOpener } from "./src/shell/nav";
 import { startSync } from "./src/sync";
-import { startLink } from "./src/link";
+import { previewLayout, startLink } from "./src/link";
+import * as ScreenOrientation from "expo-screen-orientation";
+import { log } from "./src/log";
 import { ConfirmHost, Icon, makeStyles, PALETTES, resolveTheme, SIZE, ThemeProvider, ToastHost, type, useTheme } from "./src/ui";
 
 // Offline mode and logging take effect before the first request; the sign-in gate is decided once.
@@ -72,6 +74,19 @@ function App() {
   const current = tabs.find((t) => t.id === tab) ?? tabs[0];
   const go = (id: string) => { setTab(id); setOpened((o) => (o.includes(id) ? o : [...o, id])); };
   useEffect(() => { setTabOpener((id) => { if (!tabs.some((t) => t.id === id)) return false; go(id); return true; }); return () => setTabOpener(null); }, [tabs]);
+
+  // The screen's orientation, one owner for the whole app (#426): while the Studio previews a layout, the app is
+  // turned to the orientation picked there, as the first app did; else the Camera tab holds its own setting while in
+  // front; else the app turns as the device is held.
+  const preview = previewLayout.use();
+  const cameraOrientation = settings.use().cameraOrientation ?? "auto";
+  const lockTo = preview ? preview.orientation : current.id === "camera" && cameraOrientation !== "auto" ? cameraOrientation : null;
+  useEffect(() => {
+    const p = lockTo === "landscape" ? ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE)
+      : lockTo === "portrait" ? ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP)
+        : ScreenOrientation.unlockAsync();
+    p.catch((e) => log("warn", "orientation not locked", { lockTo, error: e }));
+  }, [lockTo]);
 
   // Android back: a screen that can go back takes it; then the first tab; then out of the app.
   useEffect(() => {
