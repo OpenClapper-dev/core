@@ -21,30 +21,49 @@ log="$(mktemp -t openclapper-worker.XXXXXX.log)"
 
 # A Worker already running (make dev / make worker) is reused: only the tunnel starts. A second
 # Worker on another port would share the same local D1 files, and the Studio proxies to :$port.
-if curl -fs -o /dev/null "http://localhost:$port/api/ping" 2>/dev/null; then
-  echo "Reusing the local Worker on :$port; starting a quick tunnel to it (log: $log)…"
-  (cd "$root/apps/worker" && exec pnpm exec wrangler tunnel quick-start "http://localhost:$port") >"$log" 2>&1 &
+if curl -fs -o /dev/null "http://localhost:$port/api/ping" 2>/dev/null; then reuse=1
 elif (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
   echo "Port $port is taken by something that is not the Worker. Free it first." >&2
   exit 1
-else
-  echo "Starting the local Worker with a quick tunnel (log: $log)…"
-  (cd "$root/apps/worker" && exec pnpm exec wrangler dev --port "$port" --inspector-port 9229 --tunnel) >"$log" 2>&1 &
+else reuse=0
 fi
-worker=$!
-trap 'kill "$worker" 2>/dev/null; wait "$worker" 2>/dev/null || true' EXIT
+start() {
+  if [ "$reuse" = 1 ]; then
+    echo "Reusing the local Worker on :$port; starting a quick tunnel to it (log: $log)…"
+    (cd "$root/apps/worker" && exec pnpm exec wrangler tunnel quick-start "http://localhost:$port") >"$log" 2>&1 &
+  else
+    echo "Starting the local Worker with a quick tunnel (log: $log)…"
+    (cd "$root/apps/worker" && exec pnpm exec wrangler dev --port "$port" --inspector-port 9229 --tunnel) >"$log" 2>&1 &
+  fi
+  worker=$!
+}
+worker=""
+trap '[ -n "$worker" ] && kill "$worker" 2>/dev/null; wait 2>/dev/null || true' EXIT
 
+# The quick tunnel's address. Only a tunnel's own name counts: words joined by hyphens. Its errors name
+# https://api.trycloudflare.com, which once went to the phones as the server, so nothing connected.
+# Quick tunnels have no uptime guarantee: when one cannot be had (a timeout, 429 too many requests),
+# try again after a pause, four times in all, before giving up.
 url=""
-for _ in $(seq 1 90); do
-  url="$(grep -o 'https://[a-z0-9-]*\.trycloudflare\.com' "$log" | head -1 || true)"
+for wait_s in 0 15 45 90; do
+  if [ "$wait_s" -gt 0 ]; then echo "No quick tunnel ($(grep -m1 -o 'failed.*' "$log" | cut -c1-120 || true)); trying again in $wait_s s…" >&2; sleep "$wait_s"; fi
+  : >"$log"
+  start
+  for _ in $(seq 1 90); do
+    url="$(grep -oE 'https://[a-z0-9]+(-[a-z0-9]+)+\.trycloudflare\.com' "$log" | head -1 || true)"
+    [ -n "$url" ] && break
+    kill -0 "$worker" 2>/dev/null || break
+    sleep 1
+  done
   [ -n "$url" ] && break
-  kill -0 "$worker" 2>/dev/null || { cat "$log" >&2; echo "The Worker or tunnel exited." >&2; exit 1; }
-  sleep 1
+  kill "$worker" 2>/dev/null; wait "$worker" 2>/dev/null || true; worker=""
 done
-[ -n "$url" ] || { cat "$log" >&2; echo "No tunnel URL after 90 s." >&2; exit 1; }
+[ -n "$url" ] || { cat "$log" >&2; echo "No quick tunnel after four tries (Cloudflare's quick tunnels have no uptime guarantee); try again later." >&2; exit 1; }
 
-# The tunnel answers a few seconds after the URL is printed.
-for _ in $(seq 1 30); do curl -fs -o /dev/null "$url/api/ping" 2>/dev/null && break; sleep 1; done
+# The tunnel answers a few seconds after the URL is printed; a tunnel that never answers is no use.
+ok=0
+for _ in $(seq 1 30); do curl -fs -o /dev/null "$url/api/ping" 2>/dev/null && { ok=1; break; }; sleep 1; done
+[ "$ok" = 1 ] || { cat "$log" >&2; echo "The tunnel $url does not answer /api/ping." >&2; exit 1; }
 echo "Local Worker: $url  (Studio: make studio → http://localhost:5173)"
 
 # --clear: EXPO_PUBLIC_* values are inlined, and the URL is new on every run.
