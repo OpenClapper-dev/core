@@ -250,12 +250,24 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     try { await store.bin({ project: projectId }, [f.id]); onGone?.(); } catch (e) { toastError(e); }
   };
   const duplicate = async () => { try { await store.duplicate(f, { name: `${f.name}, copy`.slice(0, 120) }); } catch (e) { toastError(e); } };
-  /** Fit height: every track shares the room there is. */
+  /**
+   * Fit height: every track shares the room there is. Measured, not guessed: what is not a track (ruler, markers,
+   * padding, the add row) and what a row has beyond the track height (the graph's strip, borders) come off first.
+   */
   const stageRef = useRef<HTMLDivElement>(null);
   const fitHeight = () => {
-    const room = (stageRef.current?.querySelector(".fl-scroll")?.clientHeight ?? 400) - 80;
+    const scroll = stageRef.current?.querySelector<HTMLElement>(".fl-scroll");
+    const rows = [...(scroll?.querySelectorAll<HTMLElement>(".fl-row[data-row]") ?? [])];
+    if (!scroll || !rows.length) return;
+    const tracksNow = rows.reduce((n, r) => n + r.offsetHeight, 0);
+    // The content's own height (scrollHeight is the visible height while the content is shorter).
+    const content = [...scroll.children].reduce((n, c) => n + (c as HTMLElement).offsetHeight, 0);
+    const other = content - tracksNow;
+    // Per row: its set minimum beyond the track height (the graph's strip) and its border; not what the label column
+    // forces at a small height, which goes away as the rows grow.
+    const beyond = rows.reduce((n, r) => n + (parseFloat(r.style.minHeight) || 0) - (heights[r.dataset.row!] ?? trackHeight) + r.offsetHeight - r.clientHeight, 0);
     setHeights({});
-    setTrackHeight(Math.round(Math.min(240, Math.max(40, room / Math.max(1, body.tracks.length)))));
+    setTrackHeight(Math.min(240, Math.max(40, Math.floor((scroll.clientHeight - other - beyond) / rows.length))));
   };
 
   // ---------- What is chosen ----------
