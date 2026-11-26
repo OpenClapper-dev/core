@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { randomUUID } from "expo-crypto";
 import { AppState, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type LayoutChangeEvent } from "react-native";
 import { Camera as VisionCamera, CommonResolutions, useCameraDevices, useCameraPermission, usePhotoOutput } from "react-native-vision-camera";
@@ -291,39 +291,68 @@ function Blackout({ box, w, h, color }: { box: { left: number; top: number; widt
   );
 }
 
-/** A strip shown one value at a time: back, the value, on; three parts a thumb can hit, stacked in an upright bar. */
 /**
  * A zoom lens's focal length on the camera (#426): along its bar, horizontal in a top or bottom bar, vertical in a side
- * bar (longer at the top); − and + step one millimetre, the track is dragged. Never wider or taller than its bar allows.
+ * bar (longer at the top); − and + step one millimetre, the track is dragged. The track takes the room its bar has
+ * left, from 150 down to 56 points, so the control never runs off the screen.
+ *
+ * While dragging, the thumb follows a value of its own and the focal length is set at most every 80 ms and on
+ * release: setting it writes storage and redraws the camera, and doing that on every move made the thumb lag and
+ * jump back. The finger is read in page coordinates against where the track is, not `locationX`, which is relative
+ * to whatever view is under the finger.
  */
 function ZoomRange({ vertical, value, min, max, onChange }: { vertical: boolean; value: number; min: number; max: number; onChange: (mm: number) => void }) {
   const s = useStyles();
   const sizes = useCameraButtons();
-  const LEN = 150;
-  const frac = max > min ? (value - min) / (max - min) : 0;
-  const at = (x: number, y: number) => {
-    const f = Math.min(1, Math.max(0, vertical ? 1 - y / LEN : x / LEN));
-    const mm = Math.round(min + f * (max - min));
-    if (mm !== value) onChange(mm);
+  const trackRef = useRef<View>(null);
+  const [len, setLen] = useState(150);
+  const origin = useRef<{ x: number; y: number } | null>(null);
+  const [drag, setDrag] = useState<number | null>(null);
+  const sent = useRef<{ at: number; mm: number; timer: ReturnType<typeof setTimeout> | null }>({ at: 0, mm: value, timer: null });
+  useEffect(() => () => { if (sent.current.timer) clearTimeout(sent.current.timer); }, []);
+  const shown = drag ?? value;
+  const frac = max > min ? (shown - min) / (max - min) : 0;
+  const send = (mm: number, now: boolean) => {
+    const t = sent.current;
+    if (t.timer) { clearTimeout(t.timer); t.timer = null; }
+    const go = () => { t.at = Date.now(); if (mm !== t.mm || now) { t.mm = mm; onChange(mm); } };
+    if (now || Date.now() - t.at >= 80) go(); else t.timer = setTimeout(go, 80 - (Date.now() - t.at));
   };
+  const mmAt = (pageX: number, pageY: number) => {
+    const o = origin.current;
+    if (!o) return null;
+    const f = Math.min(1, Math.max(0, vertical ? 1 - (pageY - o.y) / len : (pageX - o.x) / len));
+    return Math.round(min + f * (max - min));
+  };
+  const move = (pageX: number, pageY: number) => { const mm = mmAt(pageX, pageY); if (mm === null) return; setDrag(mm); send(mm, false); };
+  const end = (pageX: number, pageY: number) => { const mm = mmAt(pageX, pageY) ?? drag; origin.current = null; if (mm !== null) send(mm, true); setDrag(null); };
   const track = (
-    <View style={[s.zoomTrack, vertical ? { width: 32, height: LEN } : { width: LEN, height: 32 }]}
+    <View ref={trackRef} style={[s.zoomTrack, vertical ? { width: 32, flexBasis: 150, flexShrink: 1, minHeight: 56 } : { height: 32, flexBasis: 150, flexShrink: 1, minWidth: 56 }]}
+      onLayout={(e) => setLen(Math.max(1, vertical ? e.nativeEvent.layout.height : e.nativeEvent.layout.width))}
       onStartShouldSetResponder={() => true} onMoveShouldSetResponder={() => true} onResponderTerminationRequest={() => false}
-      onResponderGrant={(e) => at(e.nativeEvent.locationX, e.nativeEvent.locationY)} onResponderMove={(e) => at(e.nativeEvent.locationX, e.nativeEvent.locationY)}>
-      <View pointerEvents="none" style={[s.zoomRail, vertical ? { width: 4, height: LEN, left: 14 } : { height: 4, width: LEN, top: 14 }]} />
-      <View pointerEvents="none" style={[s.zoomThumb, vertical ? { left: 6, top: (1 - frac) * LEN - 10 } : { top: 6, left: frac * LEN - 10 }]} />
+      onResponderGrant={(e) => {
+        const { pageX, pageY } = e.nativeEvent;
+        sent.current.mm = value;
+        trackRef.current?.measure((_x, _y, _w, _h, px, py) => { origin.current = { x: px, y: py }; move(pageX, pageY); });
+      }}
+      onResponderMove={(e) => move(e.nativeEvent.pageX, e.nativeEvent.pageY)}
+      onResponderRelease={(e) => end(e.nativeEvent.pageX, e.nativeEvent.pageY)}
+      onResponderTerminate={() => { origin.current = null; if (drag !== null) send(drag, true); setDrag(null); }}>
+      <View pointerEvents="none" style={[s.zoomRail, vertical ? { width: 4, top: 0, bottom: 0, left: 14 } : { height: 4, left: 0, right: 0, top: 14 }]} />
+      <View pointerEvents="none" style={[s.zoomThumb, vertical ? { left: 6, top: (1 - frac) * len - 10 } : { top: 6, left: frac * len - 10 }]} />
     </View>
   );
   const less = <CamButton icon="minus" label="Shorter focal length" disabled={value <= min} onPress={() => onChange(Math.max(min, value - 1))} />;
   const more = <CamButton icon="plus" label="Longer focal length" disabled={value >= max} onPress={() => onChange(Math.min(max, value + 1))} />;
   return (
-    <View style={[s.zoom, vertical && s.zoomV, { gap: Math.round(sizes.size / 4) }]} accessibilityLabel={`Focal length ${value} mm`}>
+    <View style={[s.zoom, vertical && s.zoomV, { gap: Math.round(sizes.size / 4) }]} accessibilityLabel={`Focal length ${shown} mm`}>
       {vertical ? <>{more}{track}{less}</> : <>{less}{track}{more}</>}
-      <Text style={s.zoomValue}>{`${value} mm`}</Text>
+      <Text style={s.zoomValue}>{`${shown} mm`}</Text>
     </View>
   );
 }
 
+/** A strip shown one value at a time: back, the value, on; three parts a thumb can hit, stacked in an upright bar. */
 function Stepped({ vertical, value, label, onStep }: { vertical: boolean; value: string; label: string; onStep: (d: -1 | 1) => void }) {
   const s = useStyles();
   return (
@@ -451,7 +480,7 @@ const useStyles = makeStyles(() => ({
   stripV: { flexDirection: "column" },
   stepped: { flexDirection: "row", alignItems: "center", gap: 4, padding: 3, borderRadius: 28, borderWidth: 2, borderColor: FIXED.white, backgroundColor: FIXED.black },
   barGrid: { borderWidth: 1, borderStyle: "dashed", borderColor: FIXED.white, backgroundColor: FIXED.glass },
-  zoom: { flexDirection: "row", alignItems: "center", padding: 4, borderRadius: 28, backgroundColor: FIXED.black, borderWidth: 2, borderColor: FIXED.white },
+  zoom: { flexDirection: "row", alignItems: "center", flexShrink: 1, minWidth: 0, minHeight: 0, padding: 4, borderRadius: 28, backgroundColor: FIXED.black, borderWidth: 2, borderColor: FIXED.white },
   zoomV: { flexDirection: "column" },
   zoomTrack: { position: "relative" },
   zoomRail: { position: "absolute", borderRadius: 2, backgroundColor: FIXED.white, opacity: 0.6 },
