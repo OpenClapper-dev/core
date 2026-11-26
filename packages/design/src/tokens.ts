@@ -52,6 +52,7 @@ export const TOKENS = {
     "chart4": "#BE123C",
     "chart5": "#4338CA",
     "knob": "#FFFFFF",
+    "appRim": "rgba(0,0,0,0)",
     "shadow": {
       "window": "0 2px 6px rgba(0,0,0,.10)",
       "windowFocused": "0 8px 24px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12)",
@@ -112,6 +113,7 @@ export const TOKENS = {
     "chart4": "#FF7F9E",
     "chart5": "#9A9BFF",
     "knob": "#F4F4F2",
+    "appRim": "rgba(255,255,255,.16)",
     "shadow": {
       "window": "0 2px 8px rgba(0,0,0,.5)",
       "windowFocused": "0 10px 30px rgba(0,0,0,.7)",
@@ -131,7 +133,22 @@ export const TOKENS = {
     "overHuman": "#00E5FF",
     "overRec": "#FF2D2D",
     "overPin": "#FFFFFF",
-    "overPinInk": "#000000"
+    "overPinInk": "#000000",
+    "appBody": "#1B1B1C",
+    "appGlyph": "#F4F4F2",
+    "app0": "#D9D9D6",
+    "app1": "#F08A5D",
+    "app2": "#E0B050",
+    "app3": "#9CCB5A",
+    "app4": "#4FC9BB",
+    "app5": "#5BB8F0",
+    "app6": "#9A9BFF",
+    "app7": "#E580EE",
+    "app8": "#FF7F9E",
+    "app9": "#5FD08A",
+    "app10": "#56C7E0",
+    "app11": "#C29BFF",
+    "app12": "#8C8C8E"
   },
   "ENV": {
     "production": "#1E3FBF",

@@ -52,6 +52,21 @@
   --over-rec: #FF2D2D;
   --over-pin: #FFFFFF;
   --over-pin-ink: #000000;
+  --app-body: #1B1B1C;
+  --app-glyph: #F4F4F2;
+  --app-0: #D9D9D6;
+  --app-1: #F08A5D;
+  --app-2: #E0B050;
+  --app-3: #9CCB5A;
+  --app-4: #4FC9BB;
+  --app-5: #5BB8F0;
+  --app-6: #9A9BFF;
+  --app-7: #E580EE;
+  --app-8: #FF7F9E;
+  --app-9: #5FD08A;
+  --app-10: #56C7E0;
+  --app-11: #C29BFF;
+  --app-12: #8C8C8E;
   --env-production: #1E3FBF;
   --env-staging: #B8471F;
   --env-development: #3B7A1A;
@@ -179,6 +194,7 @@
   --chart-4: #BE123C;
   --chart-5: #4338CA;
   --knob: var(--grey-0);
+  --app-rim: rgba(0,0,0,0);
   --shadow-window: 0 2px 6px rgba(0,0,0,.10);
   --shadow-window-focused: 0 8px 24px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12);
   --shadow-menu: 0 6px 16px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
@@ -240,6 +256,7 @@
   --chart-4: #FF7F9E;
   --chart-5: #9A9BFF;
   --knob: var(--grey-50);
+  --app-rim: rgba(255,255,255,.16);
   --shadow-window: 0 2px 8px rgba(0,0,0,.5);
   --shadow-window-focused: 0 10px 30px rgba(0,0,0,.7);
   --shadow-menu: 0 8px 20px rgba(0,0,0,.6);
@@ -300,6 +317,7 @@
   --chart-4: #BE123C;
   --chart-5: #4338CA;
   --knob: var(--grey-0);
+  --app-rim: rgba(0,0,0,0);
   --shadow-window: 0 2px 6px rgba(0,0,0,.10);
   --shadow-window-focused: 0 8px 24px rgba(0,0,0,.18), 0 1px 3px rgba(0,0,0,.12);
   --shadow-menu: 0 6px 16px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10);
@@ -359,6 +377,7 @@
   --chart-4: #FF7F9E;
   --chart-5: #9A9BFF;
   --knob: var(--grey-50);
+  --app-rim: rgba(255,255,255,.16);
   --shadow-window: 0 2px 8px rgba(0,0,0,.5);
   --shadow-window-focused: 0 10px 30px rgba(0,0,0,.7);
   --shadow-menu: 0 8px 20px rgba(0,0,0,.6);

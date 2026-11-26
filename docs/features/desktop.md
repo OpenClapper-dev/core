@@ -43,7 +43,7 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 
 ## Apps (`apps/registry.ts`)
 
-An app declares its name, glyph and colour (every app and extension its own tile, #426: the 8 categorical colours, and for the rest an outlined tile, its border and glyph in a colour, `AppIcon` colours 10–18; Flows has the bulb), tier, whether it is one window in all, the file types it opens, its sizes, and how a deep link becomes a launch. The shell knows apps only through the registry; each build step adds the apps it builds.
+An app declares its name, glyph and colour (every app and extension its own colour, #426: `AppIcon` is a slate tile with the clapstick in the app's colour, 0 to 12, see `docs/design.md`; Flows has the bulb), tier, whether it is one window in all, the file types it opens, its sizes, and how a deep link becomes a launch. The shell knows apps only through the registry; each build step adds the apps it builds.
 
 | App | File | What |
 | --- | --- | --- |

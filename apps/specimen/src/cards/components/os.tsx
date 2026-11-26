@@ -31,6 +31,8 @@ function Demo() {
           <L>environment · app icon 16 · 24 · 32 · 48 · off</L>
           <div className="r"><EnvMarker /><EnvMarker env="staging" /><EnvMarker env="development" /></div>
           <div className="r">{ai("camera", 1, 16)}{ai("camera", 1, 24)}{ai("camera", 1, 32)}{ai("camera", 1, 48)}<AppIcon glyph="sun" size={32} off /></div>
+          <L>app icon colours 0 to 12</L>
+          <div className="r">{Array.from({ length: 13 }, (_, i) => <AppIcon key={i} glyph="camera" color={i} size={32} label={`colour ${i}`} />)}</div>
         </div>
         <div style={{ position: "relative" }}>
           <Launcher style={{ position: "static", width: "100%" }} apps={[{ id: "f", label: "Files", glyph: "folder", color: 5 }, { id: "c", label: "Camera", glyph: "camera", color: 1 }, { id: "m", label: "Map", glyph: "map", color: 3 }, { id: "t", label: "Timeline", glyph: "film", color: 8 }, { id: "s", label: "Settings", glyph: "sliders" }]} extensions={[{ id: "l", label: "Lights", glyph: "sun", color: 2 }, { id: "x", label: "Flows", glyph: "layers", enabled: false }]} />
