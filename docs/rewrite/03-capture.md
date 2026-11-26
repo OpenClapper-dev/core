@@ -80,6 +80,8 @@ The camera library lists the physical lenses and documents the zoom values at wh
 
 The optics frame needs to know what the phone sees right now. There is one source: what the camera reports for the real lens in use, its 35 mm-equivalent focal length (the camera library documents this value per physical lens, `CameraDevice.focalLength`). The angle follows from it the same way as from a photo's EXIF (workshop 02).
 
+**Corrected in #426:** on Android the library's `focalLength` is the *physical* focal length (`LENS_INFO_AVAILABLE_FOCAL_LENGTHS`, 7.1 mm on the motorola's main lens) despite its documentation, which made every optics frame about 3.5 times too small. The source is now Camera2 itself, read by the app's own module `apps/mobile/modules/camera-optics`: focal length × 43.27 mm ÷ the diagonal of the sensor's active area. Still one source and no fallbacks; each capture's EXIF `FocalLengthIn35mmFilm` is only compared, and a difference over 10 % goes to the debug log.
+
 No fallbacks: no learning from the phone's photos, no typed value, no assumed default (today's 25 mm), no "equivalent times zoom". A lens without a reported value gets no optics frame, the control says why, and it is treated as a bug to fix; the camera, aspect frames and everything else keep working.
 
 ### Camera layouts

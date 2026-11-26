@@ -1,3 +1,4 @@
+import { cameraOptics } from "../modules/camera-optics";
 import { Dimensions, Platform } from "react-native";
 import * as Application from "expo-application";
 import { randomUUID } from "expo-crypto";
@@ -54,10 +55,12 @@ export function useLensSet(): LensSet {
 }
 let lensesRead = false;
 function readLenses() {
-  const set = lensSet(getAllCameraDevices() as unknown as CamLike[]);
+  // The 35 mm equivalents from Camera2 (#426); none in a dev client built before the module (no optics frame then).
+  const optics = cameraOptics();
+  const set = lensSet(getAllCameraDevices() as unknown as CamLike[], new Map(optics.flatMap((o) => (o.focal35 ? [[o.id, o.focal35] as const] : []))));
   if (!set.lenses.length) return;
   lensesRead = true;
-  if (JSON.stringify(set) !== JSON.stringify(lenses.get())) { lenses.set(set); log("info", "lenses", set); void syncDevice(); }
+  if (JSON.stringify(set) !== JSON.stringify(lenses.get())) { lenses.set(set); log("info", "lenses", { ...set, optics }); void syncDevice(); }
 }
 addOnCameraDevicesChangedListener(() => readLenses());
 setTimeout(readLenses, 0);
