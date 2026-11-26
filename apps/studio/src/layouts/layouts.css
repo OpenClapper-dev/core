@@ -38,6 +38,17 @@
 .lay-strip.is-v { flex-direction: column; }
 .lay-strip .oc-cam__btn { min-width: 44px; height: 40px; padding: 0 6px; }
 /* Stepped: back, the value, on. Three parts a thumb can hit. */
+/* A zoom preset's slider, as the device draws it: − track + and the value; the track gives way to its bar's room. */
+.lay-zoom { display: inline-flex; align-items: center; gap: 8px; min-width: 0; padding: 4px; border: 2px solid var(--over-paper); border-radius: 28px; background: var(--over-ink); }
+.lay-zoom.is-v { flex-direction: column; min-height: 0; }
+.lay-zoom .oc-cam__btn { flex: none; width: 40px; height: 40px; }
+.lay-zoom__track { position: relative; flex: 0 1 150px; min-width: 56px; height: 32px; }
+.lay-zoom.is-v .lay-zoom__track { width: 32px; height: auto; min-width: 0; min-height: 56px; align-self: stretch; }
+.lay-zoom__track::before { content: ""; position: absolute; left: 0; right: 0; top: 14px; height: 4px; border-radius: 2px; background: var(--over-paper); opacity: .6; }
+.lay-zoom.is-v .lay-zoom__track::before { left: 14px; right: auto; top: 0; bottom: 0; width: 4px; height: auto; }
+.lay-zoom__track > i { position: absolute; top: 6px; width: 20px; height: 20px; margin-left: -10px; border-radius: 50%; background: var(--over-paper); }
+.lay-zoom.is-v .lay-zoom__track > i { top: auto; left: 6px; margin: 0 0 -10px; }
+.lay-zoom > b { flex: none; min-width: 44px; text-align: center; font: 700 12px/1 var(--font-mono); color: var(--over-paper); }
 .lay-step { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border: 2px solid color-mix(in srgb, var(--over-paper) 50%, transparent); border-radius: 28px; }
 .lay-step.is-v { flex-direction: column; }
 .lay-step > b { min-width: 44px; text-align: center; font: 700 14px/44px var(--font-mono); color: var(--over-paper); }
