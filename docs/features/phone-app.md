@@ -40,7 +40,7 @@ The app registers its device itself (`POST /api/devices/register`, [api](../api.
 2. Separate back cameras (wide, ultra-wide, tele): each is opened on its own.
 3. Otherwise the default back camera only.
 
-Each lens keeps the 35 mm equivalent the camera reports (`focal35`; none means no optics frame on it) and its name as the phone calls it (0.5×, 1×, 5×). Renaming the device and changing its tabs save to the file (`PUT /api/files/:id`); offline they wait for the next sync.
+Each lens keeps its 35 mm equivalent (`focal35`: Camera2's focal length × 43.27 mm ÷ the active sensor diagonal, from the app's module `modules/camera-optics`, #426; the camera library's own `focalLength` is the physical one on Android and is not used as an equivalent; none means no optics frame on it, as in a dev client built before the module). Each capture compares it with the photo's EXIF `FocalLengthIn35mmFilm` and logs a difference over 10 % and its name as the phone calls it (0.5×, 1×, 5×). Renaming the device and changing its tabs save to the file (`PUT /api/files/:id`); offline they wait for the next sync.
 
 ## Camera
 

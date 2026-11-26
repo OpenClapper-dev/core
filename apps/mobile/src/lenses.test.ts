@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { lensSet, zoomName, type CamLike } from "./lenses.ts";
+import { lensSet as setOf, zoomName, type CamLike } from "./lenses.ts";
 
+/** The equivalents as the camera-optics module would give them: here the test's focal lengths. */
+const eqOf = (list: CamLike[]): Map<string, number> => new Map(list.flatMap((d) => [...(d.focalLength ? [[d.id, d.focalLength] as [string, number]] : []), ...eqOf(d.physicalDevices)]));
+const lensSet = (list: CamLike[], eqs = eqOf(list)) => setOf(list, eqs);
 const cam = (p: Partial<CamLike> & { id: string }): CamLike => ({ position: "back", type: "wide-angle", isVirtualDevice: false, physicalDevices: [], zoomLensSwitchFactors: [], minZoom: 1, maxZoom: 10, hasTorch: true, ...p });
 
 test("zoom names", () => {
@@ -42,4 +45,13 @@ test("one back camera: the main lens only", () => {
 
 test("no back camera: no lenses", () => {
   assert.deepEqual(lensSet([cam({ id: "1", position: "front" })]).lenses, []);
+});
+
+test("the equivalent comes from the optics, not the library's physical focal length (#426)", () => {
+  // The motorola edge 50 pro: the library says 7.1 mm for the main lens and 2.1 mm for the ultra-wide.
+  const devs = [cam({ id: "0", type: "dual-wide", isVirtualDevice: true, minZoom: 0.5, maxZoom: 8, physicalDevices: [cam({ id: "2", focalLength: 7.1 }), cam({ id: "3", type: "ultra-wide-angle", focalLength: 2.1 })] })];
+  const set = setOf(devs, new Map([["2", 24.9], ["3", 12.6]]));
+  assert.deepEqual(set.lenses.map((l) => [l.name, l.focal35]), [["0.5×", 12.6], ["1×", 24.9]]);
+  // A build without the module: no equivalent, so no optics frame, rather than a wrong one.
+  assert.deepEqual(setOf(devs, new Map()).lenses.map((l) => l.focal35), [null, null]);
 });

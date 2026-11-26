@@ -175,7 +175,7 @@ function DevicePage({ back }: { back: () => void }) {
       {email && <FieldRow label="Belongs to" value={email} />}
       <Block><SectionLabel>Real lenses, as the camera reports them</SectionLabel><Hint>Switch off a lens the camera reports but the device does not have: no app offers it any more.</Hint></Block>
       {set.lenses.length ? set.lenses.map((l) => (
-        <Toggle key={l.id} icon="lens" label={l.name + (l.main ? " · main" : "")} meta={(l.focal35 ? `${l.focal35} mm equivalent · ${hAov(l.focal35)}° wide` : "No focal length reported: no optics frame on this lens") + (l.main ? " · the main lens is always on" : off.includes(l.id) ? " · switched off: no app offers it" : "")}
+        <Toggle key={l.id} icon="lens" label={l.name + (l.main ? " · main" : "")} meta={(l.focal35 ? `${l.focal35} mm equivalent · ${hAov(l.focal35)}° wide` : "No 35 mm equivalent known (this app build reads no lens optics; update it): no optics frame on this lens") + (l.main ? " · the main lens is always on" : off.includes(l.id) ? " · switched off: no app offers it" : "")}
           value={l.main || !off.includes(l.id)} disabled={l.main} onChange={(on) => setLensOff(l.id, !on)} />
       )) : <Block><Hint>Not read yet: open the camera once.</Hint></Block>}
       <Block><Hint>No digital zoom: every photo is the full picture of one real lens.</Hint></Block>

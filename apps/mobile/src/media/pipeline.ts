@@ -42,6 +42,18 @@ async function sizeOf(uri: string, exif: Exif): Promise<{ width: number; height:
   try { return { width: ref.width, height: ref.height }; } finally { ref.release(); }
 }
 
+/**
+ * The lens's 35 mm equivalent (Camera2, camera-optics) against what the photo's EXIF says (#426): a difference over
+ * 10 % goes to the debug log, so a phone whose optics read wrong shows up there. Nothing is changed by it.
+ */
+function checkEquivalent(lens: Lens | null, exif: Exif) {
+  const tag = Number(exif.FocalLengthIn35mmFilm);
+  if (!lens || !Number.isFinite(tag) || tag <= 0) return;
+  if (!lens.focal35) { log("warn", "lens has no equivalent, the photo says", { lens: lens.name, exif35: tag }); return; }
+  const off = Math.abs(tag - lens.focal35) / lens.focal35;
+  if (off > 0.1) log("warn", "lens equivalent differs from the photo's EXIF", { lens: lens.name, focal35: lens.focal35, exif35: tag, off: Math.round(off * 100) / 100 });
+}
+
 /** A photo just taken: the camera's JPEG, its size as delivered, the lens it was taken with. */
 /** `more`: the folder or collection it goes into (collection mode, the folder for new photos) and the frame on the screen as a fact. */
 export async function addCapture(projectId: string, jpeg: Uint8Array, size: { width: number; height: number }, lens: Lens | null, more: { container?: string | null; frame?: Record<string, unknown> | null } = {}): Promise<string> {
@@ -49,6 +61,7 @@ export async function addCapture(projectId: string, jpeg: Uint8Array, size: { wi
   const original = queueFile(`${id}-original.jpg`);
   original.write(jpeg);
   const exif = readExif(jpeg);
+  checkEquivalent(lens, exif);
   const d = await derivatives(id, original, uprightSize(size.width, size.height, exif.Orientation));
   const readout = readoutOf(exif);
   enqueue({
