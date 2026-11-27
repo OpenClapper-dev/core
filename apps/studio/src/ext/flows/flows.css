@@ -107,9 +107,10 @@
 .fl-chan__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 28px; }
 .fl-lockrow { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: var(--space-3); }
 /* Customize (#426): the account's choices, scrolling inside the popover when there are many lights. */
-.fl-custom { display: grid; gap: var(--space-4); padding: var(--space-3) var(--space-4); width: min(420px, 90vw); max-height: 70vh; overflow-y: auto; }
+/* As wide as the popover lets it (460 px, less near the window's edge); the boxes take one column or two, as fits. The popover scrolls, not this. */
+.fl-custom { display: grid; gap: var(--space-4); padding: var(--space-3) var(--space-4); width: min(420px, calc(100vw - 48px)); box-sizing: border-box; }
 .fl-custom section { display: grid; gap: var(--space-2); }
-.fl-custom__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2) var(--space-4); }
+.fl-custom__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--space-2) var(--space-4); }
 /* The View panel (#426): its boxes wrap. Narrow at a side they stack and stretch; wide below they stand in a row. */
 .fl-view { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); }
 .fl-view__row { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
