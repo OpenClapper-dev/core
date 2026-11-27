@@ -113,6 +113,8 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
   // A shot's progressions (files inside it, in its content); the one played is the thumbnail's, unless another is chosen.
   const progs = kind === "shot" ? content.map((id) => live(files, id)).filter((x): x is FileRec => x?.type === "progression") : [];
   const cover = coverRef(f, files, frameIds);
+  // The entry the thumbnail comes from: the first photo, canvas or progression of the content.
+  const thumbAt = content.findIndex((id) => ["photo", "canvas", "progression"].includes(live(files, id)?.type ?? ""));
   const [chosen, setChosen] = useState<string | null>(null);
   const progFile = progs.find((p) => p.id === chosen) ?? progs.find((p) => p.id === cover?.progression) ?? progs[0];
   const prog = progFile ? progressionOf(progFile) : null;
@@ -208,7 +210,7 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
       <Block style={{ paddingTop: 12 }}><SectionLabel>{`Content · ${content.length}`}</SectionLabel></Block>
       {content.length ? (
         <ScrollView horizontal contentContainerStyle={{ gap: 4, paddingHorizontal: 8 }}>
-          {content.map((id, i) => { const x = files.get(id); return <Thumb key={id + i} r={entryRef(id)} def={x?.type === "progression" ? progressionOf(x).frame : null} files={files} w={thumbW} on={sel?.list === "content" && sel.i === i} label={x?.name ?? "Missing file"} onPress={() => { setT(null); if (x?.type === "progression") { setChosen(id); setPick({ list: "prog", i: 0 }); } else setPick({ list: "content", i }); }} onLongPress={() => setMenu(i)} />; })}
+          {content.map((id, i) => { const x = files.get(id); return <Thumb key={id + i} r={entryRef(id)} def={x?.type === "progression" ? progressionOf(x).frame : null} files={files} w={thumbW} on={sel?.list === "content" && sel.i === i} label={`${x?.name ?? "Missing file"}${i === thumbAt ? " · thumbnail" : ""}`} onPress={() => { setT(null); if (x?.type === "progression") { setChosen(id); setPick({ list: "prog", i: 0 }); } else setPick({ list: "content", i }); }} onLongPress={() => setMenu(i)} />; })}
         </ScrollView>
       ) : <Block><Hint>Nothing yet. Add photos and canvases of the project; press and hold one for more.</Hint></Block>}
       <Block style={{ paddingTop: 8, flexDirection: "row", gap: 8 }}>
@@ -226,6 +228,7 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
         <Sheet visible title={files.get(content[menu])?.name ?? "Missing file"} onClose={() => setMenu(null)}>
           <SheetList>
             {files.get(content[menu])?.type === "canvas" && <ListRow icon="brush" title="Draw on it" onPress={() => { const id = content[menu]; setMenu(null); setEditing(id); }} />}
+            {menu !== thumbAt && live(files, content[menu]) && ["photo", "canvas", "progression"].includes(live(files, content[menu])!.type) && <ListRow icon="image" title="Use as thumbnail" trailing={null} onPress={() => { const n = [content[menu], ...content.filter((_, i) => i !== menu)]; setMenu(null); void saveContent(n); }} />}
             {menu > 0 && <ListRow icon="arrow-left" title="Earlier" trailing={null} onPress={() => { const n = [...content]; [n[menu - 1], n[menu]] = [n[menu], n[menu - 1]]; setMenu(null); void saveContent(n); }} />}
             {menu < content.length - 1 && <ListRow icon="arrow-right" title="Later" trailing={null} onPress={() => { const n = [...content]; [n[menu + 1], n[menu]] = [n[menu], n[menu + 1]]; setMenu(null); void saveContent(n); }} />}
             {files.get(content[menu])?.type !== "progression" && <ListRow icon="close" title="Remove from the content" trailing={null} titleColor={c.danger} onPress={() => { const n = content.filter((_, i) => i !== menu); setMenu(null); setPick(null); void saveContent(n); }} />}

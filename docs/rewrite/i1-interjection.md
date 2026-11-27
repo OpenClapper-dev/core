@@ -39,6 +39,8 @@ After workshops 01–06 the owner brought a set of connected features that cut a
 
 ### Progression ([04](04-shots.md))
 
+> **Changed by #426 feedback 4:** a progression is a file of its own inside the shot (an internal file listed in its content), a shot can hold several, its files count as the shot's content, the generator makes one zoom block, and the thumbnail is the first photo, canvas or progression of the content. See [04](04-shots.md#progression). What follows is the decision as it was.
+
 - A shot can carry one **progression**: a timed order of pictures. A picture is a photo, a canvas, or one frame of a canvas. No non-visual files, no shots, no timelines, no other progression.
 - It is separate from the shot's content list and built from the timeline's components.
 - Its timing is its own (per item, or one total length split across the items).
@@ -76,7 +78,7 @@ A reference can point at one frame of a canvas, not only at the canvas. A progre
 
 - **"Facet" is retired; the word is "property".** A photo's device, angle of view and EXIF are properties of the kind "facts of the file type" ([04](04-shots.md)): shown in the same list, searchable, and read-only (typing an angle of view by hand stays deferred, [02](02-optics.md)). This is the writer's reconciliation of 01 and 04, not a separate decision of the owner.
 - **No built-in note or description** on any file (owner). The fixed properties are name, type, created, updated, created by.
-- **A shot's thumbnail** is the first picture of its progression, else the first photo or canvas in its content list.
+- **A shot's thumbnail** is the first picture of its progression, else the first photo or canvas in its content list (changed by #426 feedback 4: the first photo, canvas or progression of the content).
 
 ## Pages changed
 
