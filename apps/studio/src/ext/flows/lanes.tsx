@@ -5,7 +5,7 @@
 import { useRef, useState } from "preact/hooks";
 import { Button, Icon, Popover, Select, cx } from "@openclapper/design";
 import { effectName, fixtureKind, modelOf, type FixtureLive } from "@openclapper/ext-hardware";
-import { fmtSeconds, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep } from "@openclapper/ext-flows";
+import { fmtSeconds, NATIVE_FADES, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep } from "@openclapper/ext-flows";
 import type { FileRec } from "../../api";
 import { graphPoints, keyframeLevel, lightColour, shortLabel, type FlowView } from "./view";
 
@@ -268,11 +268,13 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
         {!camera && ks.slice(1).map((k, i) => {
           const from = ks[i];
           const on = p.tile?.trackId === tr.id && p.tile.toId === k.id;
+          // Stepped or run by the light is a distinction only while native fades are on (off since #426).
+          const native = NATIVE_FADES && !!kind?.caps.fade;
           return (
-            <button key={`gap-${k.id}`} type="button" className={cx("fl-gap", k.fadeIn && "is-fade", k.fadeIn && kind?.caps.fade && k.fadeStepped && "is-stepped", on && "is-selected")} style={{ left: pct(from.at), width: pct(k.at - from.at) }}
-              title={k.fadeIn ? `Fade ${fmtSeconds(from.at)}–${fmtSeconds(k.at)} (${CURVE_LABELS[k.fadeIn]})${kind?.caps.fade ? (k.fadeStepped ? ": in steps every 0.1 s" : ": the light runs it by itself") : ""}` : "Jump here; click to fade instead"}
+            <button key={`gap-${k.id}`} type="button" className={cx("fl-gap", k.fadeIn && "is-fade", k.fadeIn && native && k.fadeStepped && "is-stepped", on && "is-selected")} style={{ left: pct(from.at), width: pct(k.at - from.at) }}
+              title={k.fadeIn ? `Fade ${fmtSeconds(from.at)}–${fmtSeconds(k.at)} (${CURVE_LABELS[k.fadeIn]})${native ? (k.fadeStepped ? ": in steps every 0.1 s" : ": the light runs it by itself") : ""}` : "Jump here; click to fade instead"}
               disabled={p.locked} onPointerDown={(e) => e.stopPropagation()} onClick={() => p.onTile(tr.id, k.id)}>
-              {k.fadeIn ? <span className="fl-gap__label">{CURVE_LABELS[k.fadeIn]}{kind?.caps.fade && k.fadeStepped ? " · steps" : ""}</span> : <span className="fl-gap__add">+ Fade</span>}
+              {k.fadeIn ? <span className="fl-gap__label">{CURVE_LABELS[k.fadeIn]}{native && k.fadeStepped ? " · steps" : ""}</span> : <span className="fl-gap__add">+ Fade</span>}
             </button>
           );
         })}

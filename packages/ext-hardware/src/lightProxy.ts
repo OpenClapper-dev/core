@@ -11,7 +11,8 @@ import { CURVES, EFFECTS, type Curve, type EffectId, type EffectSettings, type L
 export type LightCommand =
   | { op: "power"; on: boolean }
   | { op: "intensity"; value: number }
-  | { op: "cct"; kelvin: number; gm: number }
+  /** `intensity`: set with the white in one frame; only the phone's queue adds it (Driver.whiteCarriesIntensity), it is not taken from the wire. */
+  | { op: "cct"; kelvin: number; gm: number; intensity?: number }
   | { op: "hsi"; h: number; s: number; i: number }
   | { op: "curve"; curve: Curve }
   /** Run a built-in effect at the current intensity, or stop it (null). */
