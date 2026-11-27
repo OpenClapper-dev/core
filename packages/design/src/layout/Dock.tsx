@@ -8,13 +8,13 @@ import { ResizablePanel } from "./ResizablePanel";
 
 export type DockZone = "left" | "right" | "bottom";
 /** One place for panels: a single panel, or several as tabs. Collapsed, only its head shows. */
-export interface DockGroup { tabs: string[]; active?: string; collapsed?: boolean }
+export interface DockGroup { tabs: string[]; active?: string; collapsed?: boolean; /** A fit place the user resized: its length along the split in px. Without it the place is as big as its content. */ px?: number }
 /** Places beside each other (row) or above each other (col), with their shares of the room. */
 export interface DockSplit { dir: "row" | "col"; kids: DockNode[]; sizes?: number[] }
 export type DockNode = DockGroup | DockSplit;
 /** Where every panel of a window sits: left and right of the middle, and below it. */
 export type DockLayout = Partial<Record<DockZone, DockNode | null>>;
-export interface DockPanel { id: string; title: string; icon?: IconName; /** The panel's own controls: a row inside the panel, under the head. The head carries only the tabs and the collapse button. */ actions?: ComponentChildren; body: ComponentChildren; /** Needs little room (a strip of tools): its place is only as big as its content, a rail at a side or beside another panel, a bar above or below one. */ slim?: boolean; /** A few settings: as big as its content along its split, but otherwise a whole panel (name, collapse); the others share the rest. */ fit?: boolean }
+export interface DockPanel { id: string; title: string; icon?: IconName; /** The panel's own controls: a row inside the panel, under the head. The head carries only the tabs and the collapse button. */ actions?: ComponentChildren; body: ComponentChildren; /** Needs little room (a strip of tools): its place is only as big as its content, a rail at a side or beside another panel, a bar above or below one. */ slim?: boolean; /** A few settings: as big as its content along its split until its border is dragged (a double-click on the border returns it to its content), but otherwise a whole panel (name, collapse); the others share the rest. */ fit?: boolean }
 type Side = "left" | "right" | "top" | "bottom" | "center";
 type Target = { zone: DockZone } | { panel: string; side: Side } | { tab: string; before: boolean };
 
@@ -146,8 +146,11 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
     const bar = e.currentTarget, prev = bar.previousElementSibling!.getBoundingClientRect(), next = bar.nextElementSibling!.getBoundingClientRect();
     const pa = dir === "row" ? prev.width : prev.height, pb = dir === "row" ? next.width : next.height, s0 = dir === "row" ? e.clientX : e.clientY;
     const ida = groupsOf(a)[0].tabs[0], idb = groupsOf(b)[0].tabs[0];
+    // A fit place has no share of the room: it takes the length it is dragged to, the other place the rest.
+    const fa = isGroup(a) && fitOf(a), fb = !fa && isGroup(b) && fitOf(b);
     const move = (m: PointerEvent) => {
       const na = Math.max(64, Math.min(pa + pb - 64, pa + (dir === "row" ? m.clientX : m.clientY) - s0));
+      if (fa || fb) { const id = fa ? ida : idb, px = Math.round(fa ? na : pa + pb - na); onLayoutChange(each(layout, (n) => mapGroups(n, (g) => (g.tabs.includes(id) ? { ...g, px } : g)))); return; }
       const set = (n: DockNode | null | undefined): DockNode | null => {
         if (!n || isGroup(n)) return n ?? null;
         const i = n.kids.findIndex((k) => holds(k, ida)), j = n.kids.findIndex((k) => holds(k, idb));
@@ -167,8 +170,8 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
       return (
         <div key={groupsOf(n)[0].tabs[0] + n.dir} className={cx("oc-dock__split", `oc-dock__split--${n.dir}`)} style={size != null ? { flex: `${size} 1 0px` } : undefined}>
           {n.kids.flatMap((k, i) => {
-            const prev = n.kids[i - 1], fixedKid = (x: DockNode) => isGroup(x) && (!!x.collapsed || slimOf(x) || fitOf(x));
-            return [i > 0 && !fixedKid(prev) && !fixedKid(k) && <i key={`bar${i}`} role="separator" aria-orientation={n.dir === "row" ? "vertical" : "horizontal"} className={cx("oc-dock__bar", `oc-dock__bar--${n.dir}`)} title="Drag to share the room" onPointerDown={share(prev, k, n.dir)} />, draw(k, zone, all, n.dir, n.sizes?.[i] ?? 1)];
+            const prev = n.kids[i - 1], fixedKid = (x: DockNode) => isGroup(x) && (!!x.collapsed || slimOf(x)), fitKid = i > 0 ? [prev, k].find((x): x is DockGroup => isGroup(x) && fitOf(x)) : undefined;
+            return [i > 0 && !fixedKid(prev) && !fixedKid(k) && <i key={`bar${i}`} role="separator" aria-orientation={n.dir === "row" ? "vertical" : "horizontal"} className={cx("oc-dock__bar", `oc-dock__bar--${n.dir}`)} title={fitKid ? "Drag to resize, double-click to fit the content" : "Drag to share the room"} onPointerDown={share(prev, k, n.dir)} onDblClick={fitKid ? () => patch(fitKid.tabs[0], { px: undefined }) : undefined} />, draw(k, zone, all, n.dir, n.sizes?.[i] ?? 1)];
           })}
         </div>
       );
@@ -177,7 +180,7 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
     // A collapsed place and a slim one take the same shape: a rail where they stand beside something, a bar where they lie above or below.
     const slim = slimOf(n), folded = !!n.collapsed && !slim, fit = !slim && fitOf(n), fixed = folded || slim || fit, rail = (folded || slim) && (all ? zone !== "bottom" : parent === "row");
     return (
-      <section key={n.tabs[0]} data-dock-group={n.tabs.join(" ")} className={cx("oc-dock__group", folded && "is-collapsed", slim && "is-slim", rail && "is-rail", slim && !rail && "is-bar", fit && "is-fit")} style={{ flex: fixed ? "none" : `${size ?? 1} 1 0px` }}>
+      <section key={n.tabs[0]} data-dock-group={n.tabs.join(" ")} className={cx("oc-dock__group", folded && "is-collapsed", slim && "is-slim", rail && "is-rail", slim && !rail && "is-bar", fit && "is-fit")} style={{ flex: fit && n.px != null ? `0 1 ${n.px}px` : fixed ? "none" : `${size ?? 1} 1 0px` }}>
         <header className="oc-dock__head">
           <span className={cx("oc-dock__tabs", n.tabs.length > 1 && "is-many")} role="tablist">
             {n.tabs.map((t) => {
@@ -191,7 +194,7 @@ export function Dock({ panels, layout, onLayoutChange, zones = ZONES, zoneSizes,
               );
             })}
           </span>
-          {!fixed && <button type="button" className="oc-dock__fold" aria-label={`Collapse ${panel.title}`} title="Collapse" onClick={() => patch(active, { collapsed: true })}><Icon name="minus" size={12} /></button>}
+          {!folded && !slim && <button type="button" className="oc-dock__fold" aria-label={`Collapse ${panel.title}`} title="Collapse" onClick={() => patch(active, { collapsed: true })}><Icon name="minus" size={12} /></button>}
         </header>
         {!folded && panel.actions != null && <div className="oc-dock__actions">{panel.actions}</div>}
         {!folded && <div className="oc-dock__body">{panel.body}</div>}
