@@ -49,6 +49,11 @@ registerFileType(SHORTCUT);
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const oneOf = (v: unknown, list: readonly string[]) => typeof v === "string" && list.includes(v);
+/** A light's parameters by the catalogue's control ids (the same list as ext-flows' LIGHT_PARAMS, which tests it). */
+const LIGHT_PARAM_IDS = ["power", "intensity", "kelvin", "gm", "colour", "effect", "curve"] as const;
+/** What a flow keyframe's panel can leave out besides the parameters (#426). */
+const KEYFRAME_FIELD_IDS = ["at", "marginBefore", "marginAfter"] as const;
+const idList = (v: unknown, ids: readonly string[]) => Array.isArray(v) && v.length <= ids.length && new Set(v).size === v.length && v.every((x) => oneOf(x, ids));
 
 /** What a person's preferences may hold; every key is optional, a missing one means the default. */
 const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
@@ -67,6 +72,10 @@ const PREFERENCE_RULES: Record<string, (v: unknown) => boolean> = {
   // How long a clip added to a timeline holds, unless the timeline says otherwise (docs/features/timeline.md).
   // A canvas made from a photo starts with the frame the photo was taken with (docs/features/camera-layouts.md).
   canvasTakesFrame: (v) => typeof v === "boolean",
+  // A light's parameters hidden per catalogue model (#426): in flows and on device cards; nothing hidden by default.
+  lightParamsHidden: (v) => isRecord(v) && Object.keys(v).length <= 50 && Object.entries(v).every(([model, list]) => /^[a-z0-9-]{1,40}$/.test(model) && idList(list, LIGHT_PARAM_IDS)),
+  // What a flow keyframe's panel leaves out (#426), in the Studio and on the device: its time, margins, parameters.
+  keyframeFieldsHidden: (v) => idList(v, [...KEYFRAME_FIELD_IDS, ...LIGHT_PARAM_IDS]),
   clipHoldMs: (v) => typeof v === "number" && Number.isInteger(v) && v >= 100 && v <= 3_600_000,
   // The file browser's table per kind of list (#426): which columns show, in order, and their widths.
   columns: (v) => isRecord(v) && Object.keys(v).length <= 20 && Object.entries(v).every(([kind, c]) => /^[a-z]{1,20}$/.test(kind) && isRecord(c)
