@@ -14,6 +14,7 @@ import { ApiError, send, type FileRec } from "../../api";
 import * as store from "../../files";
 import { confirm, toast, toastError } from "../../hosts";
 import type { DeviceCells } from "../../devices";
+import { usePrefs } from "../../prefs";
 import { ControlView, useHeld } from "./Controls";
 import { command, isBusy, request, useHardware, type HardwareCtx } from "./link";
 
@@ -71,7 +72,9 @@ export function Card({ d, all, ctx }: { d: FileRec; all: FileRec[]; ctx: Hardwar
   const [open, setOpen] = useState(false);
   const l = liveOf(ctx, d.id), link = linkOf(d, ctx), ch = chargeOf(d, all, ctx);
   const held = useHeld();
-  const first = controlGroups(m, "everywhere")[0];
+  // What the account hides of this model (#426, Flows → Customize).
+  const hidden = usePrefs().lightParamsHidden?.[m.id];
+  const first = controlGroups(m, "everywhere", hidden)[0];
   const quick = first?.controls.filter((c) => c.kind !== "outputs" && c.kind !== "effect").slice(0, m.type === "camera" ? 2 : 5) ?? [];
   const ready = l?.link === "ready" && !isBusy(d.id);
   return (
@@ -117,7 +120,7 @@ function Panel({ d, all, ctx, onClose }: { d: FileRec; all: FileRec[]; ctx: Hard
   const ready = l?.link === "ready" && !isBusy(d.id);
   const held = useHeld();
   const [name, setName] = useState(d.name);
-  const groups = controlGroups(m, "everywhere");
+  const groups = controlGroups(m, "everywhere", usePrefs().lightParamsHidden?.[m.id]);
   const [shut, setShut] = useState(() => new Set(groups.filter((g) => g.folded).map((g) => g.group)));
   const prov = ctx.provision?.device === d.id ? ctx.provision : null;
   const batteries = all.filter((x) => modelOf(bodyOf(x).model)?.powers);

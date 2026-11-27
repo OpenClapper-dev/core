@@ -21,8 +21,12 @@ export interface Prefs {
   lensNames: "phone" | "focal";
   /** Collection mode asks for a name when a collection starts, ends, or never (the camera's collection mode, B8). */
   askCollectionName: "never" | "start" | "end";
+  /** A light's parameters hidden per catalogue model (#426): in flows and on device cards (the Studio's too). */
+  lightParamsHidden: Record<string, string[]>;
+  /** What every flow keyframe's sheet leaves out (#426): its time, margins, parameters (the Studio's panel too). */
+  keyframeFieldsHidden: string[];
 }
-export const DEFAULT_PREFS: Prefs = { theme: "auto", collectionMark: "bar", lensNames: "phone", askCollectionName: "never" };
+export const DEFAULT_PREFS: Prefs = { theme: "auto", collectionMark: "bar", lensNames: "phone", askCollectionName: "never", lightParamsHidden: {}, keyframeFieldsHidden: [] };
 
 interface Cached { userId: string | null; fileId: string | null; prefs: Prefs; dirty: (keyof Prefs)[] }
 const cache = persisted<Cached>("prefs.v2", { userId: null, fileId: null, prefs: DEFAULT_PREFS, dirty: [] });

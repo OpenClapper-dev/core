@@ -6,6 +6,7 @@ import { useLinkStatus } from "../../../link";
 import { useBack } from "../../../shell/back";
 import { persisted } from "../../../store";
 import { Block, Button, Empty, Header, Hint, makeStyles, Screen, SectionLabel, Seg, toast, Toggle, type } from "../../../ui";
+import { usePrefs } from "../../../prefs";
 import { syncDevices, useDevices, type HardwareDevice } from "../library";
 import { command, hello, reconnectAll, startProxy, stopProxy, useHardware } from "../proxy";
 import { AddDevice } from "./AddDevice";
@@ -88,7 +89,7 @@ export function Card({ d, all, live, proxy, onOpen }: { d: HardwareDevice; all: 
   const link = linkOf(d, l, proxy);
   const ch = chargeOf(d, all, live);
   const held = useHeld();
-  const first = controlGroups(m, "phone")[0]?.controls.filter((c) => c.kind === "switch" || c.kind === "range" || c.kind === "button").slice(0, 4) ?? [];
+  const first = controlGroups(m, "phone", usePrefs().lightParamsHidden?.[m.id])[0]?.controls.filter((c) => c.kind === "switch" || c.kind === "range" || c.kind === "button").slice(0, 4) ?? [];
   return (
     <Block>
       <View style={s.cardHead}>

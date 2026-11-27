@@ -1,8 +1,15 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkFile, extensionsError, fileType } from "@openclapper/model";
+import { checkFile, extensionsError, fileType, PREFERENCES } from "@openclapper/model";
 import type { LightCommand } from "@openclapper/ext-hardware";
-import { FlowEmitter, emptyFlow, flowError, parseFlowRequest, sampleControls, START_KEYFRAME, startKeyframe, type Flow, type FlowTrack } from "./index.ts";
+import { FlowEmitter, emptyFlow, flowError, KEYFRAME_FIELDS, LIGHT_PARAMS, modelParams, parseFlowRequest, sampleControls, START_KEYFRAME, startKeyframe, type Flow, type FlowTrack } from "./index.ts";
+
+test("the account's preferences take every parameter and panel field the editors can hide (#426)", () => {
+  assert.equal(PREFERENCES.check({ lightParamsHidden: { "aputure-mc": [...LIGHT_PARAMS] }, keyframeFieldsHidden: [...KEYFRAME_FIELDS, ...LIGHT_PARAMS] }, []), null);
+  // A model's parameters are its catalogue's light controls; a camera has none.
+  assert.ok(modelParams("aputure-mc").includes("intensity"));
+  assert.deepEqual(modelParams("bmd-pocket-6k"), []);
+});
 
 const cam: FlowTrack = { id: "c", name: "A cam", model: "bmd-pocket-6k", device: "6f1c2c1e-1111-4111-8111-111111111111", keyframes: [{ id: START_KEYFRAME, at: 0, controls: { record: false } }, { id: "k1", at: 2000, controls: { record: true, iso: 1600 } }, { id: "k2", at: 5000, controls: { record: false } }] };
 

@@ -231,11 +231,15 @@ export const CATALOGUE: readonly Model[] = [
 
 export const modelOf = (id: unknown): Model | undefined => CATALOGUE.find((m) => m.id === id);
 export const modelName = (m: Model) => `${m.brand} ${m.model}`;
-/** A model's controls by group, in order, with whether the group starts folded. */
-export function controlGroups(m: Model, where: Where): { group: string; folded: boolean; controls: Control[] }[] {
+/**
+ * A model's controls by group, in order, with whether the group starts folded. `hidden`: control ids the account
+ * hides for this model (#426, the same ids as a flow's light parameters); hiding the effect hides its trigger too.
+ */
+export function controlGroups(m: Model, where: Where, hidden: readonly string[] = []): { group: string; folded: boolean; controls: Control[] }[] {
   const out: { group: string; folded: boolean; controls: Control[] }[] = [];
   for (const c of m.controls) {
     if (c.where === "phone" && where !== "phone") continue;
+    if (hidden.includes(c.id) || (c.id === "trigger" && hidden.includes("effect"))) continue;
     let g = out.find((x) => x.group === c.group);
     if (!g) out.push((g = { group: c.group, folded: !!m.folded?.includes(c.group), controls: [] }));
     g.controls.push(c);

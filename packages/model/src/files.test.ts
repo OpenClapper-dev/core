@@ -103,6 +103,10 @@ test("preferences: known keys with valid values, in an account home", async () =
   assert.match(err(checkFile(PREFERENCES, { pins: { [project]: [{ app: "files", file: id }] } }, 1, null))!, /pins is not valid/);
   assert.match(err(checkFile(PREFERENCES, { icons: { [project]: { bin: { c: -1, r: 0 } } } }, 1, null))!, /icons is not valid/);
   assert.match(err(checkFile(PREFERENCES, { colour: "red" }, 1, null))!, /no "colour"/);
+  // Flows and device cards (#426): light parameters hidden per model, keyframe panel fields hidden.
+  assert.equal(err(checkFile(PREFERENCES, { lightParamsHidden: { "aputure-mc": ["power", "gm", "curve"] }, keyframeFieldsHidden: ["at", "intensity"] }, 1, null)), null);
+  assert.match(err(checkFile(PREFERENCES, { lightParamsHidden: { "aputure-mc": ["brightness"] } }, 1, null))!, /lightParamsHidden is not valid/);
+  assert.match(err(checkFile(PREFERENCES, { keyframeFieldsHidden: ["at", "at"] }, 1, null))!, /keyframeFieldsHidden is not valid/);
   assert.match(placementError(PREFERENCES, null, "project")!, /belongs to an account home/);
   assert.equal(placementError(PREFERENCES, null, "home"), null);
 });
