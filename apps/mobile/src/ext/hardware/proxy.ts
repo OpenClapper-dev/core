@@ -11,7 +11,7 @@ import { adapterState, scan } from "./ble/link";
 import { askBluetooth } from "./ble/permissions";
 import { suggestKinds } from "./bt/registry";
 import { hub, watchAppState } from "./hub";
-import { getDevices, getFixtures, onDevicesChange, syncDevices } from "./library";
+import { getDevices, getFixtures, onDevicesChange, onSleepSent, syncDevices } from "./library";
 import { provisionFixture } from "./provisionFlow";
 
 /**
@@ -25,8 +25,16 @@ const STATE_EVERY_MS = 200;
 let running = false;
 let release: (() => void) | null = null;
 let paused = false;
-/** (Re)takes a lease on every awake device, letting go of the previous one after. Sleeping devices get no connection attempts. */
-function lease() { const prev = release; release = hub.acquire(getFixtures().filter((f) => !f.asleep).map((f) => f.id), "proxy"); prev?.(); }
+/**
+ * (Re)takes a lease on every awake device, letting go of the previous one after. Sleeping devices get no connection
+ * attempts, and a link only they used closes now rather than after the grace period (Sleep takes effect at once).
+ */
+function lease() {
+  const prev = release, all = getFixtures();
+  release = hub.acquire(all.filter((f) => !f.asleep).map((f) => f.id), "proxy");
+  prev?.();
+  for (const f of all) if (f.asleep) hub.release(f.id).catch((e) => log("info", "proxy: asleep device not let go", { device: f.id, error: e }));
+}
 /** Told when the proxy lets go of its connections (stopped, or a pairing takes the radio): a running flow stops then. */
 const letGo = new Set<() => void>();
 export function onLetGo(cb: () => void): () => void { letGo.add(cb); return () => { letGo.delete(cb); }; }
@@ -87,6 +95,9 @@ function handle(r: HardwareRequest) {
       hub.send(r.device, r.command).catch((err) => log("info", "proxy: command not sent", { device: r.device, op: r.command.op, error: err }));
   }
 }
+
+// A sleep or wake made on this phone reached the server: the proxy (here or on another phone) takes the list again.
+onSleepSent(() => request({ type: "sync" }));
 
 /** Everything on the channel: requests (acted on only while this phone is the proxy) and other phones' reports. */
 onChannel(HARDWARE_CHANNEL, (m) => {

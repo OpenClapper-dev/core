@@ -4,10 +4,10 @@ import { useKeepAwake } from "expo-keep-awake";
 import { PROVISION_STAGE_LABELS, controlGroups, formatValue, modelName, modelOf, stateValue, type FixtureLive } from "@openclapper/ext-hardware";
 import { canCall } from "../../../api";
 import { Banner, Block, Button, confirm, Header, Hint, Input, ListRow, Row, Screen, SectionLabel, Sheet, SheetList, toast } from "../../../ui";
-import { removeDevice, renameDevice, setAsleep, setPower, useDevices, type HardwareDevice } from "../library";
+import { removeDevice, renameDevice, setPower, useDevices, type HardwareDevice } from "../library";
 import { command, request, useHardware } from "../proxy";
 import { ControlView, useHeld } from "./Controls";
-import { BatteryBar, LinkMark, TypeTag, chargeOf, linkOf } from "./parts";
+import { BatteryBar, LinkMark, TypeTag, chargeOf, linkOf, toggleSleep } from "./parts";
 import { Picture } from "./Picture";
 
 /**
@@ -27,14 +27,12 @@ export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void 
   const held = useHeld();
   const [name, setName] = useState<string | null>(null);
   const [power, setPowerOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
   const online = canCall();
   const charge = chargeOf(d, all, live);
   const batteries = all.filter((x) => modelOf(x.body.model)?.powers);
   const powers = all.filter((x) => x.body.poweredBy === d.id);
   const prov = provision?.device === d.id ? provision : null;
 
-  const sleep = () => { setBusy(true); setAsleep(d, !d.body.asleep).then(() => { request({ type: "sync" }); toast(d.body.asleep ? `${d.name} woken` : `${d.name} asleep`); }, () => toast("Could not change sleep: the server is not reachable", "danger")).finally(() => setBusy(false)); };
   const rename = () => { const to = name?.trim(); setName(null); if (to && to !== d.name) void renameDevice(d, to).then(() => request({ type: "sync" }), () => toast("Not renamed: the server is not reachable", "danger")); };
   const remove = async () => {
     const mesh = m.transport === "mesh" && d.body.mesh;
@@ -96,8 +94,8 @@ export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void 
       <Block>
         <SectionLabel>Device</SectionLabel>
         <Row label="Name"><Input value={name ?? d.name} onChangeText={setName} onEndEditing={rename} onSubmitEditing={rename} maxLength={120} editable={online} /></Row>
-        <Button kind="secondary" icon={d.body.asleep ? "sun" : "moon"} label={d.body.asleep ? "Wake" : "Sleep"} busy={busy} disabled={!online} onPress={sleep} />
-        <Hint>An asleep device gets no connection attempts until it is woken.</Hint>
+        <Button kind="secondary" icon={d.body.asleep ? "sun" : "moon"} label={d.body.asleep ? "Wake" : "Sleep"} onPress={() => toggleSleep(d)} />
+        <Hint>An asleep device gets no connection attempts until it is woken. It takes effect at once, also offline.</Hint>
         <Button kind="danger" icon="trash" label="Remove" disabled={!online} onPress={() => void remove()} />
         <Hint>{m.pairing}</Hint>
       </Block>
