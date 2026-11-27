@@ -11,13 +11,13 @@ import { ApiError, authHeaders, canCall, lockFile, unlockFile } from "../../../a
 import { API_URL } from "../../../config";
 import { log } from "../../../log";
 import { useBack } from "../../../shell/back";
-import { Banner, Block, Button, Header, Hint, IconButton, Input, ListRow, makeStyles, Seg, Sheet, SheetList, Slider, Toggle, type, useTheme } from "../../../ui";
+import { Banner, Block, Button, Chip, Header, Hint, IconButton, Input, ListRow, makeStyles, Seg, Sheet, SheetList, Slider, Toggle, type, useTheme } from "../../../ui";
 import { hub } from "../../hardware/hub";
 import { useDevices } from "../../hardware/library";
 import { proxyRunning, startProxy, useHardware } from "../../hardware/proxy";
 import { loadFlows, saveFlow, usePendingOf, type LocalFlow } from "../store";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, TrackInspect } from "./Inspect";
-import { Lanes, MARKS_H, RULER_H, type AxisLock, type Pick } from "./Lanes";
+import { Lanes, MARKS_H, RULER_H, type AxisLock, type Mode, type Pick } from "./Lanes";
 
 const RENEW_MS = 30_000;
 const ZOOM_MAX = 32, HEIGHT_MIN = 48, HEIGHT_MAX = 240;
@@ -43,7 +43,9 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const [body, setBody] = useState<FlowBody>(flow.body);
   const [name, setName] = useState(flow.name);
   const [pick, setPick] = useState<Pick>(null);
-  const [insert, setInsert] = useState(false);
+  // Whether what is chosen shows its sheet: only a tap in Edit mode or on a track label opens it (#426).
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<Mode>("select");
   const dv = deviceView.use();
   const setDv = (p: Partial<DeviceView>) => deviceView.set((x) => ({ ...x, ...p }));
   const zoom = dv.zoom;
@@ -146,8 +148,9 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const track = pick && (pick.kind === "kf" || pick.kind === "fade" || pick.kind === "track") ? body.tracks.find((t) => t.id === (pick.kind === "track" ? pick.id : pick.track)) : undefined;
   const kf = pick && (pick.kind === "kf" || pick.kind === "fade") ? track?.keyframes.find((k) => k.id === pick.id) : undefined;
   const marker = pick?.kind === "marker" ? body.markers?.find((m) => m.id === pick.id) : undefined;
-  const choose = (p: Pick) => {
+  const choose = (p: Pick, show = false) => {
     setPick(p);
+    setOpen(show && !!p);
     if (playing) return;
     if (p?.kind === "kf") { const k = body.tracks.find((t) => t.id === p.track)?.keyframes.find((x) => x.id === p.id); if (k) setPlayhead(k.at); }
     if (p?.kind === "marker") { const m = body.markers?.find((x) => x.id === p.id); if (m) setPlayhead(m.at); }
@@ -158,12 +161,13 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
 
   const inspector = locked ? null
     : kf && track && pick?.kind === "kf" ? (camera
-      ? <CameraKeyframe kf={kf} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); setPick(null); }} />
-      : <LightKeyframe kf={kf} track={track} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); setPick(null); }} />)
+      ? <CameraKeyframe kf={kf} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} />
+      : <LightKeyframe kf={kf} track={track} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} />)
     : kf && track && pick?.kind === "fade" ? <FadeInspect kf={kf} track={track} onChange={(curve) => { const n = { ...kf }; if (curve) n.fadeIn = curve; else delete n.fadeIn; setKf(n); }} onStepped={(st) => setKf({ ...kf, fadeStepped: st || undefined })} />
-    : marker ? <MarkerInspect m={marker} durationMs={body.durationMs} onChange={(fn) => change((b) => patchMarker(b, marker.id, fn))} onDelete={() => { change((b) => removeKeys(b, new Set([`@m/${marker.id}`]))); setPick(null); }} />
-    : track && pick?.kind === "track" ? <TrackInspect t={track} devices={devices} onChange={(fn) => change((b) => patchTrack(b, track.id, fn))} onDelete={() => { change((b) => removeTrack(b, track.id)); setPick(null); }} />
+    : marker ? <MarkerInspect m={marker} durationMs={body.durationMs} onChange={(fn) => change((b) => patchMarker(b, marker.id, fn))} onDelete={() => { change((b) => removeKeys(b, new Set([`@m/${marker.id}`]))); unpick(); }} />
+    : track && pick?.kind === "track" ? <TrackInspect t={track} devices={devices} onChange={(fn) => change((b) => patchTrack(b, track.id, fn))} onDelete={() => { change((b) => removeTrack(b, track.id)); unpick(); }} />
     : null;
+  function unpick() { setPick(null); setOpen(false); }
   const pickTitle = pick?.kind === "kf" ? `${kf?.id === START_KEYFRAME ? "Start" : "Keyframe"} · ${track?.name ?? ""}` : pick?.kind === "fade" ? `Into ${fmtSeconds(kf?.at ?? 0)} · ${track?.name ?? ""}` : pick?.kind === "marker" ? "Marker" : pick?.kind === "track" ? "Track" : "";
 
   const status = lock.state === "theirs" ? `${lock.by} is editing it: read-only here` : lock.state === "offline" ? (unsent ? "Offline · changes kept here" : "Offline · editing here") : unsent ? "Saving…" : "Saved";
@@ -172,11 +176,13 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       <Header title={name || "Flow"} sub={`${fmtSeconds(body.durationMs)} · ${status}`} onBack={back}
         actions={[{ icon: "settings", label: "Flow settings", onPress: () => setSheet("flow") }]} />
       <View style={s.bar}>
-        <Seg accessibilityLabel="Tap on a lane" value={insert ? "insert" : "select"} onChange={(v) => setInsert(v === "insert")} options={[{ id: "select", icon: "cursor" }, { id: "insert", icon: "plus" }]} disabled={locked} />
+        {/* Modes (#426): Select moves, Insert adds, Edit opens what is tapped; only Edit opens a sheet. */}
+        <Seg accessibilityLabel="Mode" value={mode} onChange={setMode} disabled={locked}
+          options={[{ id: "select", icon: "cursor", label: "Select" }, { id: "insert", icon: "plus", label: "Insert" }, { id: "edit", icon: "edit", label: "Edit" }]} />
         <IconButton icon="eye" label="View" onPress={() => setSheet("view")} />
-        {/* Axis locks for dragging a keyframe (#426): one at a time, since both would hold it still. */}
-        <IconButton icon="clock" label="Lock time: a drag changes only the intensity" on={dv.axisLock === "time"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "time" ? undefined : "time" })} />
-        <IconButton icon="brightness" label="Lock intensity: a drag changes only the time" on={dv.axisLock === "level"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "level" ? undefined : "level" })} />
+        {/* Axis locks for dragging a keyframe (#426): the padlock shows what a drag holds; one at a time, since both would hold it still. */}
+        <Chip label="Time" icon={dv.axisLock === "time" ? "lock" : "unlock"} selected={dv.axisLock === "time"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "time" ? undefined : "time" })} />
+        <Chip label="Intensity" icon={dv.axisLock === "level" ? "lock" : "unlock"} selected={dv.axisLock === "level"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "level" ? undefined : "level" })} />
         <View style={{ flex: 1 }} />
         <Text style={s.time}>{fmtClock(playhead)}</Text>
         <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
@@ -197,14 +203,19 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       {unsent?.error && <Block><Banner kind="warn" icon="warning" title="Not saved to the server" meta={`${unsent.error}. It stays on this device; change it to try again.`} /></Block>}
       {!holds && <Block><Hint>Playing and Live drive the lights connected to this device: hold the connections here.</Hint><Button kind="secondary" icon="bluetooth" label="Hold the connections here" onPress={() => { startProxy(); }} /></Block>}
       <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
-      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisLock={dv.axisLock} laneHeight={dv.height} insert={insert} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
-        onPick={choose} onSeek={(t) => { if (!playing) setPlayhead(t); }}
+      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisLock={dv.axisLock} laneHeight={dv.height} mode={mode} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
+        onPick={(p) => choose(p, p?.kind === "track" || mode === "edit")} onSeek={(t) => { if (!playing) setPlayhead(t); }}
         onAddKeyframe={(trackId, t) => { const r = addKeyframe(latest.current.body, trackId, t, randomUUID()); if (r.keyframe) { change(() => r.body); choose({ kind: "kf", track: trackId, id: r.keyframe.id }); if (!playing) setPlayhead(r.keyframe.at); } }}
         onAddMarker={(t) => { const r = addMarker(latest.current.body, t, randomUUID()); change(() => r.body); choose({ kind: "marker", id: r.marker.id }); }}
+        onMoveMarker={(id, t) => change((b) => patchMarker(b, id, (m) => {
+          // A range keeps its length and stays inside the flow.
+          const len = m.end !== undefined ? m.end - m.at : 0, at = Math.min(b.durationMs - len, Math.max(0, t));
+          return m.end !== undefined ? { ...m, at, end: at + len } : { ...m, at };
+        }))}
         onMoveKeyframe={(trackId, k, t, level) => change((b) => setKeyframe(b, trackId, { ...k, at: t, ...(level !== undefined ? { intensity: Math.round(level * 100) / 100, ...(level > 0 && k.power === false ? { power: true } : {}) } : {}) }))}
         onAddTrack={() => setSheet("track")} />
       </View>
-      <Sheet visible={!!inspector} title={pickTitle} onClose={() => setPick(null)} height={0.6}>{inspector}</Sheet>
+      <Sheet visible={open && !!inspector} title={pickTitle} onClose={() => setOpen(false)} height={0.6}>{inspector}</Sheet>
       <Sheet visible={sheet === "track"} title="Add a track" onClose={() => setSheet(null)} height={0.7}>
         <SheetList>
           {CATALOGUE.filter((m) => m.type === "light" || m.type === "camera").map((m) => (
@@ -237,7 +248,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
 
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.bg },
-  bar: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
+  bar: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
   time: { ...type("label", "semibold"), color: c.text, fontVariant: ["tabular-nums"], marginRight: 4 },
   form: { gap: 14 },
   sizes: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
