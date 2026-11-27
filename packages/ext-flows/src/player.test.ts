@@ -71,3 +71,16 @@ test("native fades are off: a light that could fade by itself gets the fade in s
   assert.equal(sent.filter((x) => x.op === "fade").length, 0);
   assert.equal(sent.filter((x) => x.op === "intensity").length, 10);
 });
+
+test("a locked parameter sends the start keyframe's value only (#426)", () => {
+  const c = clock();
+  const sent: LightCommand[] = [];
+  const s = seq(false);
+  s.tracks = [{ ...s.tracks[0], locked: ["intensity"], keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.2, kelvin: 4000, gm: 0 }, { id: "k", at: 500, intensity: 1, kelvin: 5600 }] }];
+  const p = new FlowPlayer(() => s, (_id, cmd) => sent.push(cmd), c);
+  p.play(0);
+  c.advance(1000);
+  // White follows the keyframe; intensity stays at the start's 20 %.
+  assert.deepEqual(sent.filter((x) => x.op === "intensity").map((x) => (x as { value: number }).value), [0.2]);
+  assert.ok(sent.some((x) => x.op === "cct" && x.kelvin === 5600));
+});

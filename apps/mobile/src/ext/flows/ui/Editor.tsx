@@ -4,7 +4,7 @@ import { persisted } from "../../../store";
 import { randomUUID } from "expo-crypto";
 import { CATALOGUE, modelOf } from "@openclapper/ext-hardware";
 import {
-  addKeyframe, addMarker, addTrack, fmtClock, fmtSeconds, FlowPlayer, LEVEL_STEPS, patchMarker, patchTrack, removeKeys, removeTrack, setDuration, setKeyframe,
+  addKeyframe, addMarker, addTrack, fmtClock, fmtSeconds, FlowPlayer, LEVEL_STEPS, patchMarker, patchTrack, removeKeys, removeTrack, setDuration, setKeyframe, setLock as lockParam,
   DEFAULT_VIEW, START_KEYFRAME, VIEW_LABELS, type Flow, type FlowBody, type FlowView, type Keyframe, type KeyframeSize, type LevelStep,
 } from "@openclapper/ext-flows";
 import { ApiError, authHeaders, canCall, lockFile, unlockFile } from "../../../api";
@@ -162,7 +162,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const inspector = locked ? null
     : kf && track && pick?.kind === "kf" ? (camera
       ? <CameraKeyframe kf={kf} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} />
-      : <LightKeyframe kf={kf} track={track} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} />)
+      : <LightKeyframe kf={kf} track={track} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} onLock={(p, on) => change((b) => lockParam(b, track.id, p, on))} />)
     : kf && track && pick?.kind === "fade" ? <FadeInspect kf={kf} track={track} onChange={(curve) => { const n = { ...kf }; if (curve) n.fadeIn = curve; else delete n.fadeIn; setKf(n); }} onStepped={(st) => setKf({ ...kf, fadeStepped: st || undefined })} />
     : marker ? <MarkerInspect m={marker} durationMs={body.durationMs} onChange={(fn) => change((b) => patchMarker(b, marker.id, fn))} onDelete={() => { change((b) => removeKeys(b, new Set([`@m/${marker.id}`]))); unpick(); }} />
     : track && pick?.kind === "track" ? <TrackInspect t={track} devices={devices} onChange={(fn) => change((b) => patchTrack(b, track.id, fn))} onDelete={() => { change((b) => removeTrack(b, track.id)); unpick(); }} />

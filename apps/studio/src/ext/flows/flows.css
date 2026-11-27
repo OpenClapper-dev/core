@@ -103,3 +103,6 @@
 .fl-colour { display: grid; grid-template-columns: 1fr 72px; gap: var(--space-3); align-items: stretch; }
 .fl-colour__sliders { display: grid; gap: var(--space-3); min-width: 0; }
 .fl-colour__swatch { display: block; min-height: 56px; border-radius: var(--radius-control); border: var(--border-w) solid var(--border-control); }
+/* The start keyframe's locks (#426): beside a value's label, or beside its slider. */
+.fl-chan__head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); min-height: 28px; }
+.fl-lockrow { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: var(--space-3); }

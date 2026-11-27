@@ -10,7 +10,7 @@ import {
   cx, useDockLayout, type DockPanel,
 } from "@openclapper/design";
 import { CATALOGUE, fixtureKind, modelOf, type HardwareBody } from "@openclapper/ext-hardware";
-import { addKeyframe as addKeyframeTo, FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, moveKeyframes, setKeyframe, setMargin, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
+import { addKeyframe as addKeyframeTo, setLock, FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, moveKeyframes, setKeyframe, setMargin, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
 import * as api from "../../api";
 import type { FileRec } from "../../api";
 import type { AppProps } from "../../apps/registry";
@@ -284,7 +284,8 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     ? <div className="fl-inspect"><p className="fl-note">{runsThis ? "Running on the device: locked until it stops." : "Read-only: Edit to change it."}</p></div>
     : selKf && selTrack ? (modelOf(selTrack.model)?.type === "camera"
       ? <CameraKeyframe key={selKf.id} kf={selKf} durationMs={body.durationMs} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()} />
-      : <LightKeyframe key={selKf.id} kf={selKf} track={selTrack} durationMs={body.durationMs} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()} />)
+      : <LightKeyframe key={selKf.id} kf={selKf} track={selTrack} durationMs={body.durationMs} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()}
+        onLock={(p, on) => change((b) => setLock(b, selTrack.id, p, on))} />)
     : tileKf && tileTrack ? <FadeInspect kf={tileKf} track={tileTrack}
       onChange={(curve) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (curve) n.fadeIn = curve; else { delete n.fadeIn; delete n.fadeStepped; } return n; }) }))}
       onStepped={(st) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (st) n.fadeStepped = true; else delete n.fadeStepped; return n; }) }))} />

@@ -3,21 +3,32 @@
 import type { ComponentChildren } from "preact";
 import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, Switch, TextInput } from "@openclapper/design";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam } from "@openclapper/ext-flows";
 import { CURVE_LABELS } from "./lanes";
 
 function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
   return <label className="hw-ctl hw-ctl--range"><small>{label}<b>{format(value)}</b></small><Slider value={value} min={min} max={max} step={step} onChange={onChange} aria-label={label} /></label>;
 }
+/**
+ * A lock on the start keyframe (#426): locked, this value holds for the whole track and no other keyframe can set
+ * it. The padlock shows the state; its label says what it does.
+ */
+function Lock({ param, locked, onLock }: { param: LightParam; locked?: readonly LightParam[]; onLock?: (p: LightParam, on: boolean) => void }) {
+  if (!onLock) return null;
+  const on = !!locked?.includes(param);
+  return <Button size="sm" variant="quiet" icon={on ? "lock" : "unlock"} selected={on} title={on ? `${PARAM_LABELS[param]} is locked: the whole track keeps this value. Click to unlock` : `Lock ${PARAM_LABELS[param].toLowerCase()} for the whole track`} onClick={() => onLock(param, !on)}>{on ? "Locked" : "Lock"}</Button>;
+}
 /** A value a keyframe may set: checked, it sets it; unchecked, the value before holds. The start keyframe always sets it. */
-function Channel({ label, on, fixed, toggle, children }: { label: string; on: boolean; fixed?: boolean; toggle: (on: boolean) => void; children: ComponentChildren }) {
+function Channel({ label, on, fixed, toggle, lock, children }: { label: string; on: boolean; fixed?: boolean; toggle: (on: boolean) => void; /** The start keyframe's lock beside the label. */ lock?: ComponentChildren; children: ComponentChildren }) {
   return (
     <div className="fl-chan">
-      {fixed ? <strong>{label}</strong> : <Checkbox checked={on} onChange={() => toggle(!on)}>{label}</Checkbox>}
+      <div className="fl-chan__head">{fixed ? <strong>{label}</strong> : <Checkbox checked={on} onChange={() => toggle(!on)}>{label}</Checkbox>}{lock}</div>
       {(on || fixed) && children}
     </div>
   );
 }
+/** A slider with the start keyframe's lock beside it. */
+const Locked = ({ lock, children }: { lock?: ComponentChildren; children: ComponentChildren }) => (lock ? <div className="fl-lockrow">{children}{lock}</div> : <>{children}</>);
 const Seconds = ({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (ms: number) => void }) => (
   <label className="hw-ctl"><small>{label} (s)</small><NumberInput size="sm" value={value / 1000} step={SNAP_MS / 1000} min={min / 1000} max={max / 1000} onChange={(v: number) => { if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, snap(v * 1000)))); }} /></label>
 );
@@ -36,9 +47,13 @@ function Margins({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: numbe
 }
 
 /** One keyframe of a light track: when, and which values it sets. */
-export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { kf: Keyframe; track: FlowTrack; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void }) {
+export function LightKeyframe({ kf, track, durationMs, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LightParam, on: boolean) => void }) {
   const kind = fixtureKind(track.model), caps = kind?.caps, m = modelOf(track.model);
   const isStart = kf.id === START_KEYFRAME;
+  // The start keyframe sets the locks; on the others a locked parameter is not shown (the start's value holds).
+  const lock = (p: LightParam) => (isStart ? <Lock param={p} locked={track.locked} onLock={onLock} /> : null);
+  const shown = (p: LightParam) => isStart || !track.locked?.includes(p);
+  const lockedHere = isStart ? [] : (track.locked ?? []);
   const set = (patch: Partial<Keyframe>) => onChange({ ...kf, ...patch });
   const drop = (...keys: (keyof Keyframe)[]) => { const n = { ...kf }; for (const k of keys) delete n[k]; onChange(n); };
   const mode = kf.hue !== undefined ? "colour" : kf.kelvin !== undefined ? "white" : "leave";
@@ -50,12 +65,13 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
       {isStart ? <p className="fl-note">What the light shows when the flow starts. It always sets power, intensity and the light, so a flow never starts from whatever the light showed before.</p>
         : <Seconds label="At" value={kf.at} min={SNAP_MS} max={durationMs} onChange={(at) => set({ at })} />}
       <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
-      <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))}>
+      {lockedHere.length > 0 && <p className="fl-note">Locked on the start keyframe for the whole track: {lockedHere.map((p) => PARAM_LABELS[p]).join(", ")}.</p>}
+      {shown("power") && <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))} lock={lock("power")}>
         <Segmented label="Power" value={kf.power ? "on" : "off"} onChange={(v: string) => set({ power: v === "on" })} options={[{ value: "off", label: "Off" }, { value: "on", label: "On" }]} />
-      </Channel>
-      <Channel label="Intensity" fixed={isStart} on={kf.intensity !== undefined} toggle={(on) => (on ? set({ intensity: 0.5 }) : drop("intensity"))}>
+      </Channel>}
+      {shown("intensity") && <Channel label="Intensity" fixed={isStart} on={kf.intensity !== undefined} toggle={(on) => (on ? set({ intensity: 0.5 }) : drop("intensity"))} lock={lock("intensity")}>
         <Range label="Intensity" value={Math.round((kf.intensity ?? 0.5) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ intensity: x / 100 })} />
-      </Channel>
+      </Channel>}
       {(cct || caps?.hsi) && (
         <div className="fl-chan">
           <strong>Light</strong>
@@ -69,21 +85,21 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
             }}
             options={[...(isStart ? [] : [{ value: "leave", label: "As before" }]), ...(cct ? [{ value: "white", label: "White" }] : []), ...(caps?.hsi ? [{ value: "colour", label: "Colour" }] : [])]} />
           {mode === "white" && cct && <>
-            <Range label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} />
-            {cct.gm && <Range label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} step={1} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} />}
+            {shown("kelvin") && <Locked lock={lock("kelvin")}><Range label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} /></Locked>}
+            {cct.gm && shown("gm") && <Locked lock={lock("gm")}><Range label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} step={1} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} /></Locked>}
           </>}
           {/* The colour the sliders make, live, drawn as the lanes draw it (#426). */}
-          {mode === "colour" && <div className="fl-colour">
+          {mode === "colour" && shown("colour") && <Locked lock={lock("colour")}><div className="fl-colour">
             <div className="fl-colour__sliders">
               <Range label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} step={1} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
               <Range label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
             </div>
             <i className="fl-colour__swatch" aria-hidden="true" style={{ background: lightColour({ mode: "colour", hue: kf.hue ?? 0, sat: kf.sat ?? 1 }) ?? undefined }} />
-          </div>}
+          </div></Locked>}
         </div>
       )}
-      {!!caps?.effects?.length && m && (
-        <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))}>
+      {!!caps?.effects?.length && m && shown("effect") && (
+        <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))} lock={lock("effect")}>
           <Select size="sm" aria-label="Effect" value={fx ?? "off"} onChange={(v: string) => { const id = v === "off" ? null : (v as EffectId); set({ effect: id ? { id, settings: effectSettingsOf(id) } : { id: null } }); }}
             options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => ({ value: id, label: effectName(id) }))]} />
           {fx && EFFECT_OPTIONS[fx] && effectOptions(m, fx).filter((o) => optionShown(o, settings)).map((o) => o.control.kind === "choice"
@@ -92,8 +108,8 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
               format={(v) => ((o.control as { max: number }).max === 11 && v === 11 ? "Random" : formatValue((o.control as { format: "plain" }).format, v))} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} /> : null)}
         </Channel>
       )}
-      {caps?.curves && (
-        <Channel label="Dimming curve" on={kf.curve !== undefined} toggle={(on) => (on ? set({ curve: "linear" }) : drop("curve"))}>
+      {caps?.curves && shown("curve") && (
+        <Channel label="Dimming curve" on={kf.curve !== undefined} toggle={(on) => (on ? set({ curve: "linear" }) : drop("curve"))} lock={lock("curve")}>
           <Select size="sm" aria-label="Dimming curve" value={kf.curve ?? "linear"} onChange={(v: string) => set({ curve: v as Curve })} options={CURVES.map((c) => ({ value: c, label: CURVE_LABELS[c] }))} />
         </Channel>
       )}

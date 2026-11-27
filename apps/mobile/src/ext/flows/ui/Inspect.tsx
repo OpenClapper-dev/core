@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam } from "@openclapper/ext-flows";
 import { Button, catColor, Chip, Hint, Input, makeStyles, Seg, Slider, Toggle, type, useTheme } from "../../../ui";
 import type { HardwareDevice } from "../../hardware/library";
 
@@ -16,15 +16,32 @@ function Part({ label, children }: { label: string; children: ReactNode }) {
   const s = useStyles();
   return <View style={s.part}><Text style={s.label}>{label}</Text>{children}</View>;
 }
+/**
+ * A lock on the start keyframe (#426): locked, this value holds for the whole track and no other keyframe can set
+ * it. The padlock shows the state.
+ */
+function Lock({ param, locked, onLock }: { param: LightParam; locked?: readonly LightParam[]; onLock?: (p: LightParam, on: boolean) => void }) {
+  if (!onLock) return null;
+  const on = !!locked?.includes(param);
+  return <Chip label={on ? "Locked" : "Lock"} icon={on ? "lock" : "unlock"} selected={on} onPress={() => onLock(param, !on)} />;
+}
 /** A value a keyframe may set: on, it sets it; off, the value before holds. The start keyframe always sets it. */
-function Channel({ label, on, fixed, toggle, children }: { label: string; on: boolean; fixed?: boolean; toggle: (on: boolean) => void; children: ReactNode }) {
+function Channel({ label, on, fixed, toggle, lock, children }: { label: string; on: boolean; fixed?: boolean; toggle: (on: boolean) => void; /** The start keyframe's lock beside the label. */ lock?: ReactNode; children: ReactNode }) {
   const s = useStyles();
   return (
     <View style={s.part}>
-      {fixed ? <Text style={s.label}>{label}</Text> : <Toggle label={label} value={on} onChange={toggle} />}
+      <View style={s.head}>
+        <View style={{ flex: 1 }}>{fixed ? <Text style={s.label}>{label}</Text> : <Toggle label={label} value={on} onChange={toggle} />}</View>
+        {lock}
+      </View>
       {(on || fixed) && children}
     </View>
   );
+}
+/** A slider with the start keyframe's lock beside it. */
+function Locked({ lock, children }: { lock?: ReactNode; children: ReactNode }) {
+  const s = useStyles();
+  return lock ? <View style={s.head}><View style={{ flex: 1 }}>{children}</View>{lock}</View> : <>{children}</>;
 }
 function Choices<T extends string | number>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
   const s = useStyles();
@@ -44,10 +61,14 @@ const Margins = ({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: numbe
   </>
 );
 
-export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { kf: Keyframe; track: FlowTrack; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void }) {
+export function LightKeyframe({ kf, track, durationMs, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LightParam, on: boolean) => void }) {
   const s = useStyles();
   const kind = fixtureKind(track.model), caps = kind?.caps, m = modelOf(track.model);
   const isStart = kf.id === START_KEYFRAME;
+  // The start keyframe sets the locks; on the others a locked parameter is not shown (the start's value holds).
+  const lock = (p: LightParam) => (isStart ? <Lock param={p} locked={track.locked} onLock={onLock} /> : null);
+  const shown = (p: LightParam) => isStart || !track.locked?.includes(p);
+  const lockedHere = isStart ? [] : (track.locked ?? []);
   const set = (patch: Partial<Keyframe>) => onChange({ ...kf, ...patch });
   const drop = (...keys: (keyof Keyframe)[]) => { const n = { ...kf }; for (const k of keys) delete n[k]; onChange(n); };
   const mode = kf.hue !== undefined ? "colour" : kf.kelvin !== undefined ? "white" : "leave";
@@ -59,12 +80,13 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
       {isStart ? <Hint>What the light shows when the flow starts: power, intensity and the light are always set, so a flow never starts from whatever the light showed before.</Hint>
         : <At kf={kf} durationMs={durationMs} onChange={(at) => set({ at })} />}
       <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
-      <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))}>
+      {lockedHere.length > 0 && <Hint>{`Locked on the start keyframe for the whole track: ${lockedHere.map((p) => PARAM_LABELS[p]).join(", ")}.`}</Hint>}
+      {shown("power") && <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))} lock={lock("power")}>
         <Seg accessibilityLabel="Power" value={kf.power ? "on" : "off"} onChange={(v) => set({ power: v === "on" })} options={[{ id: "off", label: "Off" }, { id: "on", label: "On" }]} block />
-      </Channel>
-      <Channel label="Intensity" fixed={isStart} on={kf.intensity !== undefined} toggle={(on) => (on ? set({ intensity: 0.5 }) : drop("intensity"))}>
+      </Channel>}
+      {shown("intensity") && <Channel label="Intensity" fixed={isStart} on={kf.intensity !== undefined} toggle={(on) => (on ? set({ intensity: 0.5 }) : drop("intensity"))} lock={lock("intensity")}>
         <Slider label="Intensity" value={Math.round((kf.intensity ?? 0.5) * 100)} min={0} max={100} format={(x) => `${x} %`} onChange={(x) => set({ intensity: x / 100 })} />
-      </Channel>
+      </Channel>}
       {(cct || caps?.hsi) && (
         <Part label="Light">
           <Seg accessibilityLabel="White or colour" value={mode} block
@@ -77,21 +99,21 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
             }}
             options={[...(isStart ? [] : [{ id: "leave" as const, label: "As before" }]), ...(cct ? [{ id: "white" as const, label: "White" }] : []), ...(caps?.hsi ? [{ id: "colour" as const, label: "Colour" }] : [])]} />
           {mode === "white" && cct && <>
-            <Slider label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} />
-            {cct.gm && <Slider label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} />}
+            {shown("kelvin") && <Locked lock={lock("kelvin")}><Slider label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} /></Locked>}
+            {cct.gm && shown("gm") && <Locked lock={lock("gm")}><Slider label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} /></Locked>}
           </>}
           {/* The colour the sliders make, live, drawn as the lanes draw it (#426). */}
-          {mode === "colour" && <View style={s.colour}>
+          {mode === "colour" && shown("colour") && <Locked lock={lock("colour")}><View style={s.colour}>
             <View style={s.colourSliders}>
               <Slider label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
               <Slider label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
             </View>
             <View style={[s.swatch, { backgroundColor: lightColour({ mode: "colour", hue: kf.hue ?? 0, sat: kf.sat ?? 1 }) ?? undefined }]} />
-          </View>}
+          </View></Locked>}
         </Part>
       )}
-      {!!caps?.effects?.length && m && (
-        <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))}>
+      {!!caps?.effects?.length && m && shown("effect") && (
+        <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))} lock={lock("effect")}>
           <Choices value={fx ?? "off"} onChange={(v) => { const id = v === "off" ? null : (v as EffectId); set({ effect: id ? { id, settings: effectSettingsOf(id) } : { id: null } }); }}
             options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => ({ value: id as string, label: effectName(id) }))]} />
           {fx && EFFECT_OPTIONS[fx] && effectOptions(m, fx).filter((o) => optionShown(o, settings)).map((o) => o.control.kind === "choice"
@@ -100,8 +122,8 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
               format={(v) => ((o.control as { max: number }).max === 11 && v === 11 ? "Random" : formatValue((o.control as { format: "plain" }).format, v))} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} /> : null)}
         </Channel>
       )}
-      {caps?.curves && (
-        <Channel label="Dimming curve" on={kf.curve !== undefined} toggle={(on) => (on ? set({ curve: "linear" }) : drop("curve"))}>
+      {caps?.curves && shown("curve") && (
+        <Channel label="Dimming curve" on={kf.curve !== undefined} toggle={(on) => (on ? set({ curve: "linear" }) : drop("curve"))} lock={lock("curve")}>
           <Choices value={kf.curve ?? "linear"} onChange={(v) => set({ curve: v as Curve })} options={CURVES.map((c) => ({ value: c as string, label: CURVE_LABELS[c] }))} />
         </Channel>
       )}
@@ -190,6 +212,7 @@ export function TrackInspect({ t, devices, onChange, onDelete }: { t: FlowTrack;
 const useStyles = makeStyles((c) => ({
   wrap: { gap: 14, paddingBottom: 8 },
   part: { gap: 8 },
+  head: { flexDirection: "row", alignItems: "center", gap: 8 },
   label: { ...type("label", "semibold"), color: c.text },
   note: { ...type("caption"), color: c.textDim },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

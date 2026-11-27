@@ -5,7 +5,7 @@
 import { useRef, useState } from "preact/hooks";
 import { Button, Icon, Popover, Select, cx } from "@openclapper/design";
 import { effectName, fixtureKind, modelOf, type FixtureLive } from "@openclapper/ext-hardware";
-import { fmtSeconds, NATIVE_FADES, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep } from "@openclapper/ext-flows";
+import { fmtSeconds, NATIVE_FADES, playedKeyframes, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep } from "@openclapper/ext-flows";
 import type { FileRec } from "../../api";
 import { graphPoints, keyframeLevel, lightColour, shortLabel, type FlowView } from "./view";
 
@@ -101,10 +101,11 @@ export function Lanes(p: LanesProps) {
     const picked = markOf(key);
     const [ptid, pkid] = picked ? ["", ""] : splitKey(key);
     const ptrack = flow.tracks.find((t) => t.id === ptid);
-    const graphLane = p.view.graph && ptrack && modelOf(ptrack.model)?.type === "light" ? (e.currentTarget as HTMLElement).closest<HTMLElement>(".fl-lane") : null;
+    // A locked intensity (#426) is the start keyframe's: only there does a drag up or down set it.
+    const graphLane = p.view.graph && ptrack && modelOf(ptrack.model)?.type === "light" && (pkid === START_KEYFRAME || !ptrack.locked?.includes("intensity")) ? (e.currentTarget as HTMLElement).closest<HTMLElement>(".fl-lane") : null;
     // Where the intensity starts: the snap goes from there (the View's intensity snap, #426).
     const pkf = ptrack?.keyframes.find((x) => x.id === pkid);
-    const plevel = graphLane && ptrack && pkf ? keyframeLevel([...ptrack.keyframes].sort((a, b) => a.at - b.at), pkf) : null;
+    const plevel = graphLane && ptrack && pkf ? keyframeLevel(playedKeyframes(ptrack), pkf) : null;
     const x0 = e.clientX, y0 = e.clientY, perPx = msPerPx(), base = flow.tracks;
     const dMin = origin.size ? Math.max(...[...origin.values()].map((o) => o.min - o.at)) : 0, dMax = origin.size ? Math.min(...[...origin.values()].map((o) => flow.durationMs - o.reach)) : 0;
     let moved = false;
@@ -188,6 +189,9 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
   const camera = model?.type === "camera";
   const kind = fixtureKind(tr.model);
   const ks = [...tr.keyframes].sort((a, b) => a.at - b.at);
+  // What plays (#426): locked parameters at the start keyframe's value; the graph, the fill and the labels show it.
+  const played = [...playedKeyframes(tr)].sort((a, b) => a.at - b.at);
+  const playedOf = (k: Keyframe) => played.find((x) => x.id === k.id) ?? k;
   const global = (flow.markers ?? []).filter((m) => !m.trackId);
   // A device drives at most one track of a flow.
   const taken = new Set(flow.tracks.filter((t) => t.id !== tr.id && t.device).map((t) => t.device!));
@@ -262,7 +266,7 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
         ])}
         {p.view.graph && !camera && (
           <svg className="fl-graph" viewBox={`0 0 ${flow.durationMs} 1`} preserveAspectRatio="none" aria-hidden="true">
-            <polyline points={graphPoints(tr.keyframes, flow.durationMs)} vector-effect="non-scaling-stroke" />
+            <polyline points={graphPoints(played, flow.durationMs)} vector-effect="non-scaling-stroke" />
           </svg>
         )}
         {!camera && ks.slice(1).map((k, i) => {
@@ -280,13 +284,13 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
         })}
         {ks.map((k) => {
           const key = keyOf(tr.id, k.id);
-          const top = p.view.graph && !camera ? `calc(var(--g-top) + ${(1 - keyframeLevel(ks, k)).toFixed(4)} * var(--g-h))` : undefined;
-          const fill = p.view.fill && !camera ? lightColour(sampleTrack(ks, k.at)) : null;
-          const label = p.view.labels || camera ? shortLabel(tr.model, k, !p.view.badges) : "";
+          const top = p.view.graph && !camera ? `calc(var(--g-top) + ${(1 - keyframeLevel(played, k)).toFixed(4)} * var(--g-h))` : undefined;
+          const fill = p.view.fill && !camera ? lightColour(sampleTrack(played, k.at)) : null;
+          const label = p.view.labels || camera ? shortLabel(tr.model, playedOf(k), !p.view.badges) : "";
           return [
             <button key={k.id} type="button" data-key={key}
               className={cx("fl-kf", k.id === START_KEYFRAME && "is-start", p.sel.has(key) && "is-selected", camera && "is-camera", camera && k.controls?.record === true && "is-rec", k.hue !== undefined && "is-colour", k.effect?.id && "is-effect", fill && "has-fill", p.view.badges && k.power === false && "is-off")}
-              style={{ left: pct(k.at), ...(top ? { top } : {}), ...(fill ? { "--kf-fill": fill } : {}) }} title={`${k.id === START_KEYFRAME ? "Start · " : ""}${fmtSeconds(k.at)} · ${shortLabel(tr.model, k) || "sets nothing"}`}
+              style={{ left: pct(k.at), ...(top ? { top } : {}), ...(fill ? { "--kf-fill": fill } : {}) }} title={`${k.id === START_KEYFRAME ? "Start · " : ""}${fmtSeconds(k.at)} · ${shortLabel(tr.model, playedOf(k)) || "sets nothing"}`}
               onPointerDown={(e) => p.pressKf(e, key)} onPointerEnter={() => setHover(key)} />,
             ...(trims(key) ? (["before", "after"] as const).filter((side) => side === "after" || k.id !== START_KEYFRAME).map((side) => {
               const ms = (side === "before" ? k.marginBeforeMs : k.marginAfterMs) ?? 0;

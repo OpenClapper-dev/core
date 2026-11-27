@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { PanResponder, Pressable, ScrollView, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import { effectName, modelOf } from "@openclapper/ext-hardware";
-import { fmtSeconds, graphLine, keyframeLevel, lightColour, sampleTrack, shortLabel, snap, snapLevel, START_KEYFRAME, type FlowBody, type FlowMarker, type FlowTrack, type FlowView, type Keyframe, type KeyframeSize } from "@openclapper/ext-flows";
+import { fmtSeconds, graphLine, keyframeLevel, lightColour, playedKeyframes, sampleTrack, shortLabel, snap, snapLevel, START_KEYFRAME, type FlowBody, type FlowMarker, type FlowTrack, type FlowView, type Keyframe, type KeyframeSize } from "@openclapper/ext-flows";
 import { catColor, Icon, makeStyles, num, type, useTheme } from "../../../ui";
 
 /** What is chosen in the lanes: one keyframe, the fade into one, a marker, or a track. */
@@ -130,11 +130,14 @@ function Lane({ t, x, at, width, h, dot, view, levelStep, axisLock, duration, in
   const { c } = useTheme();
   const col = catColor(c, (t.color ?? 0) + 1);
   const kfs = [...t.keyframes].sort((a, b) => a.at - b.at);
+  // What plays (#426): locked parameters at the start keyframe's value; the graph, the fill and the labels show it.
+  const played = [...playedKeyframes(t)].sort((a, b) => a.at - b.at);
+  const levelLocked = !!t.locked?.includes("intensity");
   const camera = modelOf(t.model)?.type === "camera";
   const graph = view.graph && !camera;
   const room = Math.max(1, h - 2 * pad(dot));
   const yOf = (level: number) => (graph ? pad(dot) + (1 - level) * room : h / 2);
-  const line = graph ? graphLine(kfs, duration).map(([time, y]) => `${x(time).toFixed(1)},${(pad(dot) + y * room).toFixed(1)}`).join(" ") : "";
+  const line = graph ? graphLine(played, duration).map(([time, y]) => `${x(time).toFixed(1)},${(pad(dot) + y * room).toFixed(1)}`).join(" ") : "";
   return (
     <Pressable style={[s.lane, { height: h, backgroundColor: c.surfaceSunken }, t.muted && { opacity: 0.4 }]} onPress={(e) => { if (insert) onAdd(at(e.nativeEvent.locationX)); else onPick(null); }}>
       {/* Margins (#426): a band before and after a keyframe that has one, stronger on the chosen keyframe. */}
@@ -156,12 +159,12 @@ function Lane({ t, x, at, width, h, dot, view, levelStep, axisLock, duration, in
         );
       })}
       {kfs.map((k) => {
-        const level = camera ? 0.5 : keyframeLevel(kfs, k);
-        const fill = view.fill && !camera ? lightColour(sampleTrack(kfs, k.at)) : null;
-        const label = view.labels || camera ? shortLabel(t.model, k, !view.badges) : "";
+        const level = camera ? 0.5 : keyframeLevel(played, k);
+        const fill = view.fill && !camera ? lightColour(sampleTrack(played, k.at)) : null;
+        const label = view.labels || camera ? shortLabel(t.model, played.find((x) => x.id === k.id) ?? k, !view.badges) : "";
         return (
           <Dot key={k.id} k={k} left={x(k.at)} top={yOf(level)} size={dot} color={col} fill={fill} camera={camera} graph={graph} room={room} level={level} levelStep={levelStep}
-            fixTime={k.id === START_KEYFRAME || axisLock === "time"} fixLevel={axisLock === "level"}
+            fixTime={k.id === START_KEYFRAME || axisLock === "time"} fixLevel={axisLock === "level" || (levelLocked && k.id !== START_KEYFRAME)}
             label={label} badge={view.badges && k.effect?.id ? effectName(k.effect.id) : null} off={view.badges && k.power === false}
             on={pick?.kind === "kf" && pick.track === t.id && pick.id === k.id} locked={!drags}
             onPress={() => onPick({ kind: "kf", track: t.id, id: k.id })} onDrop={(dx, dl) => onMove(k, dx === 0 ? k.at : at(x(k.at) + dx), dl === null ? undefined : snapLevel(level, level + dl, levelStep))} />

@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { commandsFor, ease, inFade, nativeFades, nativeStep, parseFlowTracks, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./flow.ts";
+import { commandsFor, ease, inFade, nativeFades, nativeStep, parseFlowTracks, playedKeyframes, sampleTrack, START_KEYFRAME, startKeyframe, type Keyframe } from "./flow.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const start = (x: Omit<Keyframe, "id" | "at">) => kf(0, x, START_KEYFRAME);
@@ -111,4 +111,38 @@ test("markers (#323): points and ranges, a removed track's marker goes across th
   assert.deepEqual(r, { markers: [{ id: "a", at: 100, name: "In" }, { id: "b", at: 200, end: 900, name: "", trackId: "t" }, { id: "c", at: 0, name: "x" }] });
   assert.ok("error" in parseFlowMarkers([{ id: "a", at: 500, end: 400, name: "" }], 1000, new Set()));
   assert.deepEqual(parseFlowMarkers(undefined, 1000, new Set()), { markers: [] });
+});
+
+test("a locked parameter plays the start keyframe's value on the whole track; stored values stay", () => {
+  const keyframes = [start({ power: true, intensity: 0.2, kelvin: 3200, gm: 0 }), kf(1000, { intensity: 0.9, kelvin: 5600 }), kf(2000, { hue: 120, sat: 1 }), kf(3000, { kelvin: 4300, gm: 5 })];
+  const played = playedKeyframes({ keyframes, locked: ["intensity", "kelvin"] });
+  assert.equal(sampleTrack(played, 1500).intensity, 0.2);
+  assert.equal(sampleTrack(played, 1500).kelvin, 3200);
+  // Colour is not locked: the switch to colour and back to white still happens, white at the start's kelvin.
+  assert.equal(sampleTrack(played, 2500).mode, "colour");
+  assert.equal(sampleTrack(played, 3000).mode, "white");
+  assert.equal(sampleTrack(played, 3000).kelvin, 3200);
+  assert.equal(sampleTrack(played, 3000).gm, 5);
+  // The body is untouched: unlocking brings the values back.
+  assert.equal(keyframes[1].intensity, 0.9);
+  assert.equal(sampleTrack(playedKeyframes({ keyframes }), 1500).intensity, 0.9);
+  // A parameter the start leaves unset, locked: nothing else sets it.
+  const fx = playedKeyframes({ keyframes: [start({ intensity: 0.5 }), kf(1000, { effect: { id: "fire" } })], locked: ["effect"] });
+  assert.equal(sampleTrack(fx, 1500).effect, undefined);
+  // Colour locks hue and saturation together.
+  const col = playedKeyframes({ keyframes: [start({ hue: 10, sat: 0.5 }), kf(1000, { hue: 200 })], locked: ["colour"] });
+  assert.deepEqual([sampleTrack(col, 1500).hue, sampleTrack(col, 1500).sat], [10, 0.5]);
+});
+
+test("locks are checked: light parameters, each once, none on a camera", () => {
+  const isKind = (id: string) => id === "aputure-mc" || id === "bmd-pocket-6k", isEffect = () => true;
+  const tr = (locked: unknown, model = "aputure-mc") => parseFlowTracks([{ id: "t", name: "T", model, device: null, locked, keyframes: [{ id: START_KEYFRAME, at: 0, intensity: 0.5 }] }], 1000, isKind, isEffect);
+  const ok = tr(["intensity", "colour"]);
+  assert.ok("tracks" in ok && ok.tracks[0].locked?.join() === "intensity,colour");
+  const none = tr([]);
+  assert.ok("tracks" in none && none.tracks[0].locked === undefined);
+  assert.ok("error" in tr(["brightness"]));
+  assert.ok("error" in tr(["intensity", "intensity"]));
+  assert.ok("error" in tr("intensity"));
+  assert.ok("error" in parseFlowTracks([{ id: "c", name: "C", model: "bmd-pocket-6k", device: null, locked: ["intensity"], keyframes: [{ id: START_KEYFRAME, at: 0, controls: {} }] }], 1000, isKind, isEffect));
 });

@@ -1,7 +1,7 @@
 // Editing a flow (docs/features/flows.md): the changes both editors make, as pure functions on the body, so the
 // Studio's and the phone's editors follow the same rules. Ids come from the caller (each client has its own UUIDs).
 import { fixtureKind, modelOf } from "@openclapper/ext-hardware";
-import { sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "./flow.ts";
+import { sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam } from "./flow.ts";
 import type { FlowBody } from "./index.ts";
 
 /** Times snap to half seconds (#426): keyframes, markers, margins, the length. Older times off that grid stay until moved. */
@@ -41,7 +41,14 @@ export function addTrack(b: FlowBody, modelId: string, id: string): FlowBody {
 }
 
 export const patchTrack = (b: FlowBody, trackId: string, fn: (t: FlowTrack) => FlowTrack): FlowBody => ({ ...b, tracks: b.tracks.map((t) => (t.id === trackId ? fn(t) : t)) });
-export const removeTrack = (b: FlowBody, trackId: string): FlowBody => ({ ...b, tracks: b.tracks.filter((t) => t.id !== trackId), markers: (b.markers ?? []).filter((m) => m.trackId !== trackId) });
+/** A parameter locked on a track's start keyframe, or unlocked (#426); with no locks left, none is stored. */
+export const setLock = (b: FlowBody, trackId: string, p: LightParam, on: boolean): FlowBody => patchTrack(b, trackId, (t) => {
+  const locked = (t.locked ?? []).filter((x) => x !== p).concat(on ? [p] : []);
+  const n: FlowTrack = { ...t, locked };
+  if (!locked.length) delete n.locked;
+  return n;
+});
+export const removeTrack =(b: FlowBody, trackId: string): FlowBody => ({ ...b, tracks: b.tracks.filter((t) => t.id !== trackId), markers: (b.markers ?? []).filter((m) => m.trackId !== trackId) });
 
 /**
  * A keyframe at a time on a track (snapped; none when one is there already): a light's carries the intensity the
