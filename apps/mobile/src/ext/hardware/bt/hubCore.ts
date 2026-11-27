@@ -184,7 +184,7 @@ export class Hub {
     if (cmd.op !== "status") this.sentAt.set(fixtureId, this.d.clock.now());
     // Camera messages coalesce per parameter, not per op: a zebra change must not replace a queued ISO (#318).
     const key = cmd.op === "ccu" ? `${fixtureId}:ccu:${cmd.message.category}.${cmd.message.parameter}` : `${fixtureId}:${cmd.op}`;
-    return rec.queue.push(key, async () => {
+    return rec.queue.push(fixtureId, key, async () => {
       if (!rec.session) throw new Error("not connected");
       await rec.session.send(f, cmd);
       this.states.set(fixtureId, applyCommand(this.states.get(fixtureId) ?? {}, cmd));
