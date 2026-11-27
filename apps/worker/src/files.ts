@@ -6,7 +6,7 @@ import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper
 import type { Ctx, Env } from "./index.ts";
 import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys, shotFrameStatements } from "./canvas.ts";
 import { copyPhotos, objectsOf, removeOrphans } from "./photos.ts";
-import { nextName, refitValues, searchTexts, templateStatements, valuesOf } from "./properties.ts";
+import { nextName, refitValues, searchTexts, valuesOf } from "./properties.ts";
 import { assertAccess, assertProjectRef, assertRank, touch, type Access, type Role } from "./tenancy.ts";
 
 /**
@@ -216,7 +216,7 @@ function writeRefs(env: Env, id: string, refs: Ref[]): D1PreparedStatement[] {
 /** The settings pages of one kind of root (#426). */
 const pagesOf = (root: "project" | "home") => (Object.keys(SETTINGS_PAGES) as SettingsPage[]).filter((p) => SETTINGS_PAGES[p] === root);
 
-/** The fixed folders of a new project, its settings pages and the default property template in its Settings, in the batch that creates it. */
+/** The fixed folders of a new project, and its settings pages, in the batch that creates it. */
 export function fixedFolders(env: Env, projectId: string, userId: string): D1PreparedStatement[] {
   const ids = Object.fromEntries(Object.keys(FIXED_FOLDERS).map((k) => [k, crypto.randomUUID()]));
   return [
@@ -225,7 +225,6 @@ export function fixedFolders(env: Env, projectId: string, userId: string): D1Pre
     ...pagesOf("project").map((page) =>
       env.DB.prepare("INSERT INTO files (id, project_id, type, name, container, created_by, body, body_version) VALUES (?1, ?2, 'settings', ?3, ?4, ?5, ?6, 1)")
         .bind(crypto.randomUUID(), projectId, SETTINGS_PAGE_NAMES[page], ids.settings, userId, JSON.stringify({ page }))),
-    ...templateStatements(env, projectId, ids.settings, userId),
   ];
 }
 

@@ -31,8 +31,11 @@ export function positionOf(f: FileRec, defs: readonly Definition[]): LatLng | nu
 
 const pinIcon = (color: number, on: boolean) => L.divIcon({ className: "", html: `<span class="pl-pin${on ? " is-on" : ""}" style="--c: var(--cat-${color}, var(--accent))"></span>`, iconSize: [22, 30], iconAnchor: [11, 30], popupAnchor: [0, -28] });
 
-/** The browser's map view: one pin per file with a position; a click makes it current, the popup opens it. */
-export function MapView({ items, defs, current, onCurrent, onOpen }: { items: readonly FileRec[]; defs: readonly Definition[]; current: string | null; onCurrent: (id: string) => void; onOpen: (f: FileRec) => void }) {
+/**
+ * The browser's map view: one pin per file with a position; a click makes it current, the popup opens it.
+ * A project starts without a position property (#426), so the map offers to add one.
+ */
+export function MapView({ items, defs, current, onCurrent, onOpen, onAddPosition }: { items: readonly FileRec[]; defs: readonly Definition[]; current: string | null; onCurrent: (id: string) => void; onOpen: (f: FileRec) => void; onAddPosition?: () => void }) {
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.LayerGroup | null>(null);
@@ -72,7 +75,9 @@ export function MapView({ items, defs, current, onCurrent, onOpen }: { items: re
   return (
     <div className="pl-view">
       <div ref={box} className="pl-map" />
-      {none > 0 && <span className="pl-note">{none} of {items.length} without a position</span>}
+      {onAddPosition && !defs.some((d) => d.def.field === "position")
+        ? <div className="pl-note pl-note--add"><span>Nothing here has a position yet: locations need a Position property to be pinned.</span><Button size="sm" variant="primary" icon="plus" onClick={onAddPosition}>Add a Position property</Button></div>
+        : none > 0 && <span className="pl-note">{none} of {items.length} without a position</span>}
     </div>
   );
 }

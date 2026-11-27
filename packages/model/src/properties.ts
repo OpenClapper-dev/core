@@ -169,7 +169,7 @@ export function valueText(def: PropertyDef, v: unknown, nameOf: (id: string) => 
   }
 }
 
-// ---------- The template of a new project ----------
+// ---------- Option ids, and what a view offers to add ----------
 
 /** An option id from its label. */
 export const optionId = (label: string, taken: Iterable<string> = []): string => {
@@ -179,28 +179,20 @@ export const optionId = (label: string, taken: Iterable<string> = []): string =>
   while (used.has(id)) id = `${base}-${n++}`;
   return id;
 };
-const opts = (list: [string, Colour][]): ChoiceOption[] => { const ids: string[] = []; return list.map(([label, color]) => { const id = optionId(label, ids); ids.push(id); return { id, label, color }; }); };
+
+/** A property a view can add with one click. */
+export interface Starter { name: string; def: Omit<PropertyDef, "order"> }
 
 /**
- * What a new project starts with (07-organisation.md, "Default template"): for shots a typical shot
- * list, for a canvas its kind, "Set" on shots, "Locations" on sets, an address and a position on locations (09a). Every one can be changed, hidden or deleted.
+ * A new project starts without properties (07-organisation.md, changed by #426): a view that needs one
+ * offers to add it, made as the first template had it (09a-places.md). A position on locations for the
+ * map, "Set" on shots and "Locations" on sets for who points at a set or a location.
  */
-export const TEMPLATE: { name: string; def: Omit<PropertyDef, "order"> }[] = [
-  { name: "Scene", def: { field: "text", section: "Script", attached: [{ type: "shot" }] } },
-  { name: "Shot no.", def: { field: "text", section: "Script", attached: [{ type: "shot" }] } },
-  { name: "Set", def: { field: "reference", targets: ["set"], many: false, section: "Script", attached: [{ type: "shot" }] } },
-  { name: "INT / EXT", def: { field: "choice", options: opts([["INT", 6], ["EXT", 4]]), section: "Script", attached: [{ type: "shot" }, { type: "set" }] } },
-  { name: "Day / Night", def: { field: "choice", options: opts([["Day", 3], ["Night", 1], ["Dusk", 2], ["Dawn", 7]]), section: "Script", attached: [{ type: "shot" }, { type: "set" }] } },
-  { name: "Shot size", def: { field: "choice", options: opts([["EWS", 1], ["WS", 6], ["MS", 4], ["MCU", 3], ["CU", 2], ["ECU", 7]]), section: "Camera", attached: [{ type: "shot" }] } },
-  { name: "Angle", def: { field: "choice", options: opts([["Eye level", 0], ["High", 6], ["Low", 2], ["Top", 7], ["Dutch", 8]]), section: "Camera", attached: [{ type: "shot" }] } },
-  { name: "Movement", def: { field: "multi", options: opts([["Static", 0], ["Pan", 6], ["Tilt", 4], ["Push in", 2], ["Pull out", 5], ["Tracking", 3], ["Crane", 7]]), section: "Camera", attached: [{ type: "shot" }] } },
-  { name: "Support", def: { field: "choice", options: opts([["Tripod", 0], ["Handheld", 2], ["Dolly", 6], ["Gimbal", 4], ["Slider", 3], ["Crane", 7], ["Drone", 5]]), section: "Camera", attached: [{ type: "shot" }] } },
-  { name: "Lens", def: { field: "text", section: "Camera", attached: [{ type: "shot" }] } },
-  { name: "Locations", def: { field: "reference", targets: ["location"], many: true, section: "Places", attached: [{ type: "set" }] } },
-  { name: "Address", def: { field: "long", section: "Places", attached: [{ type: "location" }] } },
-  { name: "Position", def: { field: "position", section: "Places", attached: [{ type: "location" }] } },
-  { name: "Kind", def: { field: "choice", options: opts([["Floor plan", 6], ["Lighting diagram", 2], ["Blocking", 3], ["Storyboard", 4]]), attached: [{ type: "canvas" }] } },
-];
+export const STARTERS: Record<"position" | "set" | "locations", Starter> = {
+  position: { name: "Position", def: { field: "position", section: "Places", attached: [{ type: "location" }] } },
+  set: { name: "Set", def: { field: "reference", targets: ["set"], many: false, section: "Script", attached: [{ type: "shot" }] } },
+  locations: { name: "Locations", def: { field: "reference", targets: ["location"], many: true, section: "Places", attached: [{ type: "set" }] } },
+};
 
 // ---------- Naming patterns ----------
 

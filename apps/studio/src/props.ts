@@ -1,4 +1,4 @@
-import { defaultPattern, optionId, TEMPLATE, type PropertyDef } from "@openclapper/model";
+import { defaultPattern, optionId, STARTERS, type PropertyDef } from "@openclapper/model";
 import * as api from "./api";
 import type { FileRec } from "./api";
 import { create, fixedFolder, loadRoot, saveBody, useRoot } from "./files";
@@ -42,13 +42,9 @@ export async function saveDefinition(d: Definition, change: { name?: string; def
   finally { await loadRoot({ project: d.file.project_id! }); }
 }
 
-/** The default properties, for a project made before they existed (or that deleted them all). */
-export async function addTemplate(projectId: string, files: readonly FileRec[] | null) {
-  const have = new Set(definitionsIn(files).map((d) => d.name.toLowerCase()));
-  let order = definitionsIn(files).reduce((m, d) => Math.max(m, d.def.order), -1) + 1;
-  for (const t of TEMPLATE) if (!have.has(t.name.toLowerCase())) await api.createFile({ project: projectId }, crypto.randomUUID(), { type: "property", name: t.name, container: settingsOf(files), body: { ...t.def, order: order++ } });
-  await loadRoot({ project: projectId });
-}
+/** Adds a property a view needs (a project starts without any), made like "New property" makes one. */
+export const addStarter = (projectId: string, files: readonly FileRec[] | null, which: keyof typeof STARTERS) =>
+  createDefinition(projectId, files, STARTERS[which].name, STARTERS[which].def);
 
 /** A new option for a choice: a free id and the next colour. */
 export const newOption = (def: PropertyDef, label: string) => ({ id: optionId(label, (def.options ?? []).map((o) => o.id)), label, color: ((def.options?.length ?? 0) % 8) + 1 });

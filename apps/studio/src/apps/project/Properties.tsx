@@ -7,7 +7,7 @@ import { FIELD_TYPES, isChoice, type FieldType, type PropertyDef } from "@opencl
 import type { FileRec } from "../../api";
 import { kindOf } from "../../fileKinds";
 import { confirm, toast, toastError } from "../../hosts";
-import { addTemplate, createDefinition, newOption, PROPERTY_TYPES, saveDefinition, type Definition } from "../../props";
+import { createDefinition, newOption, PROPERTY_TYPES, saveDefinition, type Definition } from "../../props";
 import { bin } from "../../files";
 import { ColourButton, FIELD_ICON, fieldLabel, OnIcons } from "./parts";
 import { AiEdit } from "./AiEdit";
@@ -60,8 +60,7 @@ export function PropertiesPage({ projectId, files, defs }: { projectId: string; 
         )}
         {!defs.length && (
           <section className="pc-group">
-            <p className="pc-empty">This project has no properties yet.</p>
-            <p><Button size="sm" onClick={() => void addTemplate(projectId, files).catch(toastError)}>Add the default properties</Button></p>
+            <p className="pc-empty">This project has no properties yet. Make one with New property; the map, sets and locations offer the ones they need.</p>
           </section>
         )}
         {sections.map((s) => (

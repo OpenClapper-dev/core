@@ -67,12 +67,12 @@ A **reference** is a property whose value is one or several files of a given typ
 - A removed file shows as a missing reference.
 - It is a generic field type: a project can define references of its own.
 
-In the default template of a new project: "Set" on shots (one set) and "Locations" on sets (any number of locations).
+"Set" on shots (one set) and "Locations" on sets (any number of locations), added with one click where a set lists its shots and a location its sets (changed by #426 feedback 4: no longer in a default template, a new project starts blank).
 
 ### Geography
 
-- **Address** is a text property on locations, in the default template.
-- **New field type: position.** Coordinates, set by placing a pin on a map or by typing them. In the default template it is on locations. Like every field type it is generic: a project can attach a position to other file types.
+- **Address** is a text property on locations, one a project adds itself (changed by #426 feedback 4: no default template).
+- **New field type: position.** Coordinates, set by placing a pin on a map or by typing them. The map offers to add one on locations (changed by #426 feedback 4: no default template). Like every field type it is generic: a project can attach a position to other file types.
 - **Map view.** The file browser gets a fourth view next to list, grid and board ([07](07-organisation.md)): the files that carry a position, on a map.
 - **No lookup for now.** Finding an address on the map automatically is added later; it would send addresses to an outside service.
 - **Photos still record no position** at capture ([01](01-media.md)).

@@ -9,7 +9,7 @@
  */
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import {
-  attachedTo, defaultPattern, fileType, filesNamed, fitValue, isEmptyValue, MAX_BULK, patternProblems, renderName, TEMPLATE, valueError, valueText,
+  attachedTo, defaultPattern, fileType, filesNamed, fitValue, isEmptyValue, MAX_BULK, patternProblems, renderName, valueError, valueText,
   type PropertyDef,
 } from "@openclapper/model";
 import { accessFile } from "./files.ts";
@@ -63,12 +63,6 @@ export async function nextName(env: Env, projectId: string, type: string, facts:
   const counter = (await env.DB.prepare("INSERT INTO name_counters (project_id, type, next) VALUES (?1, ?2, 1) ON CONFLICT (project_id, type) DO UPDATE SET next = next + 1 RETURNING next")
     .bind(projectId, type).first<{ next: number }>())!.next;
   return renderName(p.pattern, p.digits, { type, label, counter, at: new Date(), ...facts });
-}
-
-/** The template's definitions, as the statements that make them in a new project's Settings folder. */
-export function templateStatements(env: Env, projectId: string, settingsId: string, userId: string): D1PreparedStatement[] {
-  return TEMPLATE.map((t, i) => env.DB.prepare("INSERT INTO files (id, project_id, type, name, container, created_by, body, body_version) VALUES (?1, ?2, 'property', ?3, ?4, ?5, ?6, 1)")
-    .bind(crypto.randomUUID(), projectId, t.name, settingsId, userId, JSON.stringify({ ...t.def, order: i })));
 }
 
 // ---------- Search ----------

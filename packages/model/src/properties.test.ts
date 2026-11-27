@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { allowedOptions, definitionError, fitValue, fold, matchesSearch, optionId, patternProblems, renderName, TEMPLATE, valueError, valueText, type PropertyDef } from "./properties.ts";
+import { allowedOptions, definitionError, fitValue, fold, matchesSearch, optionId, patternProblems, renderName, STARTERS, valueError, valueText, type PropertyDef } from "./properties.ts";
 
 const PARENT = "0b8e5e3e-6f3a-4c1e-9a2b-1c2d3e4f5a6b";
 const line: PropertyDef = { field: "choice", options: [{ id: "u1", label: "U1", color: 1 }, { id: "u4", label: "U4", color: 2 }], attached: [{ type: "location" }], order: 0 };
@@ -9,8 +9,8 @@ const station: PropertyDef = {
   dependsOn: { property: PARENT, map: { u1: ["kudamm"], u4: ["nolle"] } },
 };
 
-test("the template is valid", () => {
-  for (const t of TEMPLATE) assert.equal(definitionError({ ...t.def, order: 0 } as unknown as Record<string, unknown>), null, t.name);
+test("the properties a view offers are valid", () => {
+  for (const t of Object.values(STARTERS)) assert.equal(definitionError({ ...t.def, order: 0 } as unknown as Record<string, unknown>), null, t.name);
 });
 
 test("definitions: unknown keys, options only on choices, dependsOn maps to own options", () => {

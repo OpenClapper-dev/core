@@ -97,7 +97,7 @@ The third kind is reserved: a feature that has to calculate with a property brin
 | Hidden | Per file type; values are kept |
 
 - **Structure is flat.** Sections are headings; there are no nested groups.
-- **Default template** of a new project: for shots a typical shot list (scene, shot number, shot size, angle, movement, support, lens, INT/EXT, day or night); for a canvas a "kind" (floor plan, lighting diagram, blocking, storyboard); none for other types. The places workshop adds "Set" on shots ([09a](09a-places.md)).
+- **A project starts blank** (changed by #426 feedback 4; it was a default template: a typical shot list for shots, a "kind" for canvases, "Set" on shots from [09a](09a-places.md)). Views offer to add what they need with one click (the map a Position, a set's shots a Set, a location's sets Locations). Project templates later.
 - **Deleting a definition** bins it with its values; a restore brings both back.
 - **AI import** as today: a prompt explains the format, the answer is imported as definitions.
 - The reference and position field types were added by the places workshop ([09a](09a-places.md)).
