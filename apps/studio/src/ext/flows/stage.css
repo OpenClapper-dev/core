@@ -2,7 +2,9 @@
    The paper and what is on it are content (like a photo): their colours come from ext-flows (STAGE_INK), set inline. */
 .fl-st { flex: none; display: flex; flex-direction: column; min-height: 140px; background: var(--surface); }
 .fl-st__bar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-height: 36px; padding: var(--space-1) var(--space-3); border-bottom: var(--border-w) solid var(--border-divider); background: var(--surface-sunken); }
-.fl-st__title { display: inline-flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-3) 0 var(--space-2); font: var(--weight-bold) var(--font-size-sm)/1 var(--font-sans); }
+.fl-st__pick { display: inline-flex; align-items: center; gap: var(--space-2); padding-left: var(--space-2); }
+.fl-st__pick .oc-selectbox { max-width: 200px; }
+.fl-st__title { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 var(--space-1); font: var(--weight-bold) var(--font-size-sm)/1.2 var(--font-sans); }
 .fl-st__sep { flex: none; width: var(--border-w); height: 18px; margin: 0 var(--space-2); background: var(--border-divider); }
 .fl-st__spacer { flex: 1; }
 .fl-st__count { color: var(--text-secondary); font-size: var(--font-size-2xs); }

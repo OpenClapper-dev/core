@@ -127,8 +127,8 @@ export interface Flow {
   tracks: FlowTrack[];
   /** Named checkpoints and ranges (#323); absent on sequences saved before them. */
   markers?: FlowMarker[];
-  /** The stage (#426, stage.ts): a drawing with a widget per placed light track; absent until one is drawn or placed. */
-  stage?: FlowStage;
+  /** The stages (#426, stage.ts): drawings with a widget per light track placed on them; absent or empty until one is made. */
+  stages?: FlowStage[];
   updatedAt: string;
 }
 

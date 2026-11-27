@@ -1,14 +1,15 @@
-// A flow's stage in the Studio (docs/features/flows.md, "The stage"; #426 feedback round 8): above the lanes, a drawing
-// on dark paper made with the canvas's tools (canvas/objects.tsx), and a widget per placed light track showing what
+// A flow's stages in the Studio (docs/features/flows.md, "The stage"; #426 feedback round 8): above the lanes, the stage
+// shown (one of the flow's perspectives, picked in its bar), a drawing on dark paper made with the canvas's tools (canvas/objects.tsx), and a widget per placed light track showing what
 // the track plays at the playhead. Everything a widget shows and how it is shaped comes from @openclapper/ext-flows,
 // so the phone's Stage view shows the same.
 import "../../canvas/canvas.css";
 import "./stage.css";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Button, cx, Icon, Popover, Segmented, Slider, TextInput, type IconName } from "@openclapper/design";
+import type { ComponentChildren } from "preact";
 import { modelOf } from "@openclapper/ext-hardware";
 import {
-  beamOpacity, beamPath, ceilingShape, effectOpacity, emptyStage, fmtClock, glowRadius, isCeiling, poolRadius, setMount, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
+  beamOpacity, beamPath, ceilingShape, effectOpacity, fmtClock, glowRadius, isCeiling, poolRadius, setMount, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
   type Flow, type FlowStage, type FlowTrack, type StageLight, type StageMount, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { eraseAt } from "../../canvas/erase";
@@ -140,7 +141,10 @@ type Act =
   | { type: "erase" };
 
 export interface StagePaneProps {
-  flow: Flow; t: number; editing: boolean;
+  /** The stage shown: one of the flow's, or the empty first one before anything is on it. */
+  flow: Flow; stage: FlowStage; t: number; editing: boolean;
+  /** The stage picker and its menu, at the start of the bar. */
+  picker: ComponentChildren;
   drawing: StageDrawing; onDrawing: (d: StageDrawing) => void;
   sel: StageSel; onSel: (s: StageSel) => void;
   /** The track chosen in the lanes (its keyframe, its label): its widget shows a ring. */
@@ -152,9 +156,9 @@ export interface StagePaneProps {
   onChange: (fn: (s: FlowStage) => FlowStage) => void;
 }
 
-/** The stage pane: its bar (the canvas's tools, colours, the underlay) and the paper. */
+/** The stage pane: its bar (the stage picker, the canvas's tools, colours, the underlay) and the paper. */
 export function StagePane(p: StagePaneProps) {
-  const stage = p.flow.stage ?? emptyStage();
+  const stage = p.stage;
   const H = STAGE_W / stage.aspect;
   const { tool, colour, stencil } = p.drawing;
   const paper = useRef<HTMLDivElement>(null);
@@ -243,7 +247,7 @@ export function StagePane(p: StagePaneProps) {
   return (
     <div className="fl-st" style={{ height: `${p.height}px` }}>
       <div className="fl-st__bar">
-        <span className="fl-st__title"><Icon name="frame" size={15} />Stage</span>
+        {p.picker}
         {STAGE_TOOLS.map((x) => <Button key={x.id} size="sm" variant={tool === x.id ? "secondary" : "quiet"} selected={tool === x.id} icon={x.icon} label={`${x.label} (${x.kbd})`} disabled={!p.editing && x.id !== "select"} onClick={() => setTool(x.id)} />)}
         {tool === "stencil" && <Popover trigger={<Button size="sm" icon={stencil} iconAfter="chevron-down">Stencil</Button>}><div className="cv-stencils">{STENCILS.map((s) => <button type="button" key={s} title={s} className={cx(stencil === s && "is-on")} onClick={() => p.onDrawing({ ...p.drawing, stencil: s })}><Icon name={s} size={20} /></button>)}</div></Popover>}
         <span className="fl-st__sep" />
@@ -286,8 +290,7 @@ export function StagePane(p: StagePaneProps) {
 }
 
 /** The panel "Place a light": the flow's light tracks, dragged onto the paper or placed in its middle. */
-export function PlacePalette({ flow, editing, onPlace, onLocate }: { flow: Flow; editing: boolean; onPlace: (track: string, at?: P) => void; onLocate: (track: string) => void }) {
-  const stage = flow.stage ?? emptyStage();
+export function PlacePalette({ flow, stage, editing, onPlace, onLocate }: { flow: Flow; stage: FlowStage; editing: boolean; onPlace: (track: string, at?: P) => void; onLocate: (track: string) => void }) {
   const lights = flow.tracks.filter(isLight), cams = flow.tracks.filter((t) => !isLight(t));
   const drag = (e: PointerEvent, tr: FlowTrack) => {
     if (e.button > 0 || !editing || (e.target as HTMLElement).closest("button")) return;
@@ -312,7 +315,7 @@ export function PlacePalette({ flow, editing, onPlace, onLocate }: { flow: Flow;
           <li key={tr.id} className={cx(on ? "is-placed" : editing && "can-drag")} onPointerDown={on ? undefined : (e) => drag(e, tr)} title={on || !editing ? undefined : "Drag onto the stage"}
             style={tr.color !== undefined ? { "--track-c": `var(--cat-${tr.color + 1})` } : undefined}>
             <span className="fl-pal__dot" /><MiniWidget tr={tr} mount={pl?.mount} />
-            <span className="fl-pal__txt"><b>{tr.name}</b><small>{on ? "On the stage" : `${m ? `${m.brand} ${m.model}` : tr.model}${editing ? " · drag onto the stage" : ""}`}</small></span>
+            <span className="fl-pal__txt"><b>{tr.name}</b><small>{on ? `On ${stage.name}` : `${m ? `${m.brand} ${m.model}` : tr.model}${editing ? " · drag onto the stage" : ""}`}</small></span>
             {on ? <Button size="sm" variant="quiet" icon="crosshair" label="Show it on the stage" onClick={() => onLocate(tr.id)} /> : <Button size="sm" disabled={!editing} onClick={() => onPlace(tr.id)}>Place</Button>}
           </li>
         );
@@ -329,8 +332,8 @@ const MOUNTS: { value: StageMount; label: string; title: string }[] = [
 ];
 
 /** The chosen widget: its track, how it hangs and where it points, what it shows at the playhead. */
-export function LightInspect({ flow, track, t, editing, onLight, onShowTrack, onRemove }: { flow: Flow; track: string; t: number; editing: boolean; onLight: (fn: (l: StageLight) => StageLight) => void; onShowTrack: () => void; onRemove: () => void }) {
-  const tr = flow.tracks.find((x) => x.id === track), l = flow.stage?.lights.find((x) => x.track === track);
+export function LightInspect({ flow, stage, track, t, editing, onLight, onShowTrack, onRemove }: { flow: Flow; stage: FlowStage; track: string; t: number; editing: boolean; onLight: (fn: (l: StageLight) => StageLight) => void; onShowTrack: () => void; onRemove: () => void }) {
+  const tr = flow.tracks.find((x) => x.id === track), l = stage.lights.find((x) => x.track === track);
   if (!tr || !l) return null;
   const s = widgetState(tr, t), m = modelOf(tr.model), ceiling = isCeiling(l);
   const turn = (rot: number) => onLight((x) => ({ ...x, rot }));
@@ -338,6 +341,7 @@ export function LightInspect({ flow, track, t, editing, onLight, onShowTrack, on
     <div className="fl-inspect" style={tr.color !== undefined ? { "--track-c": `var(--cat-${tr.color + 1})` } : undefined}>
       <h3 className="fl-chosen__title"><i />{tr.name}</h3>
       <dl className="fl-kv">
+        <dt>Stage</dt><dd>{stage.name}</dd>
         <dt>Model</dt><dd>{m ? `${m.brand} ${m.model}` : tr.model}</dd>
         <dt>Device</dt><dd>{tr.device ? "Assigned" : "None: the stage plays it anyway"}</dd>
         <dt>Mounted</dt><dd><Segmented label="Mounted" value={ceiling ? "ceiling" : "aimed"} disabled={!editing} options={MOUNTS} onChange={(v) => onLight((x) => setMount(x, v as StageMount))} /></dd>
@@ -352,15 +356,15 @@ export function LightInspect({ flow, track, t, editing, onLight, onShowTrack, on
       </dl>
       <div className="hw-row">
         <Button size="sm" variant="quiet" icon="timeline" onClick={onShowTrack}>Show track</Button>
-        {editing && <Button size="sm" variant="quiet" icon="close" onClick={onRemove}>Remove from the stage</Button>}
+        {editing && <Button size="sm" variant="quiet" icon="close" onClick={onRemove}>Remove from this stage</Button>}
       </div>
     </div>
   );
 }
 
 /** A chosen drawn object: its colour (the bar's swatches), its text, Delete. */
-export function ObjectInspect({ flow, id, editing, onChange, onDelete }: { flow: Flow; id: string; editing: boolean; onChange: (fn: (o: Obj) => Obj) => void; onDelete: () => void }) {
-  const raw = flow.stage?.objects.find((o) => o.id === id);
+export function ObjectInspect({ stage, id, editing, onChange, onDelete }: { stage: FlowStage; id: string; editing: boolean; onChange: (fn: (o: Obj) => Obj) => void; onDelete: () => void }) {
+  const raw = stage.objects.find((o) => o.id === id);
   if (!raw) return null;
   const o = toEdit(raw);
   return (

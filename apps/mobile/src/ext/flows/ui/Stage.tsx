@@ -6,19 +6,22 @@ import { modelOf } from "@openclapper/ext-hardware";
 import { arrowHead, PENS, smooth, STROKE_UNIT, taper, TEXT_SIZE, type CanvasObject, type DrawPoint } from "@openclapper/model";
 import {
   beamOpacity, beamPath, ceilingShape, effectOpacity, emptyStage, fmtClock, fmtSeconds, glowRadius, isCeiling, poolRadius, START_KEYFRAME, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
-  type FlowBody, type FlowTrack, type StageLight, type WidgetPart,
+  type FlowBody, type FlowStage, type FlowTrack, type StageLight, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { imageSource } from "../../../media/cache";
 import { Button, catColor, Icon, IconButton, makeStyles, type, useTheme, type IconName } from "../../../ui";
 
+/** What a flow without stages shows: an empty paper. */
+const NONE = emptyStage("none", "Stage 1");
+
 /**
- * A flow's stage on the device (docs/features/flows.md, "The stage"; #426): read only. The drawing made in the
+ * A flow's stage on the device (docs/features/flows.md, "The stage"; #426): read only; one of its stages, picked above it. The drawing made in the
  * Studio and a widget per placed light showing what its track plays at the playhead, drawn from the same shared
  * shapes, beams and motions as the Studio's. Nothing is drawn, placed or moved here; a widget tapped shows its state.
  */
-export function StageView({ body, t, onShowTrack }: { body: FlowBody; t: number; onShowTrack: (track: string) => void }) {
+export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBody; stage: FlowStage | null; t: number; onShowTrack: (track: string) => void }) {
   const s = useStyles();
-  const stage = body.stage ?? emptyStage();
+  const stage = shown ?? NONE;
   const [room, setRoom] = useState({ w: 0, h: 0 });
   const [chosen, setChosen] = useState<string | null>(null);
   const H = STAGE_W / stage.aspect;

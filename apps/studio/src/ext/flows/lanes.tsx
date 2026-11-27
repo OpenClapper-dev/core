@@ -185,6 +185,12 @@ function MarkStrip(p: LanesProps & { markers: FlowMarker[]; trackId?: string; pc
   );
 }
 
+/** Where a track stands (#426): " · on the stage" with one stage, " · on 2 of 3 stages" with several. */
+function onStages(flow: Flow, track: string): string {
+  const all = flow.stages ?? [], n = all.filter((s) => s.lights.some((l) => l.track === track)).length;
+  return !n ? "" : all.length === 1 ? " · on the stage" : ` · on ${n} of ${all.length} stages`;
+}
+
 function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; pressKf: (e: PointerEvent, key: string) => void; timeAt: (x: number) => number; gesture: Gesture }) {
   const { tr, flow, pct } = p;
   const model = modelOf(tr.model);
@@ -238,7 +244,7 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
           <div className="fl-label__top">
             <input className="fl-name" value={tr.name} aria-label="Track name" disabled={p.locked} maxLength={60} onChange={(e) => { const name = e.currentTarget.value.trim(); if (name) p.onTrack(tr.id, (t) => ({ ...t, name })); }} />
           </div>
-          <span className="fl-label__kind">{model ? `${model.brand} ${model.model}` : tr.model}{flow.stage?.lights.some((l) => l.track === tr.id) ? " · on the stage" : ""}</span>
+          <span className="fl-label__kind">{model ? `${model.brand} ${model.model}` : tr.model}{onStages(flow, tr.id)}</span>
           <Select size="sm" aria-label={`Device for ${tr.name}`} value={tr.device ?? ""} disabled={p.locked}
             onChange={(id: string) => p.onTrack(tr.id, (t) => ({ ...t, device: id || null }))}
             options={[{ value: "", label: model ? `No ${model.model} assigned` : "Not assigned" }, ...missing, ...options]} />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FLOWS_CHANNEL, FlowPlayer, parseFlowRequest, RUN_REPORT_MS, type Flow, type FlowBody, type FlowRequest, type RunState } from "@openclapper/ext-flows";
+import { flowBodyOf, FLOWS_CHANNEL, FlowPlayer, parseFlowRequest, RUN_REPORT_MS, type Flow, type FlowRequest, type RunState } from "@openclapper/ext-flows";
 import { getFile } from "../../api";
 import { onChannel, onLinkOpen, sendLink } from "../../link";
 import { log } from "../../log";
@@ -51,7 +51,7 @@ async function run(id: string, revision: string, fromMs: number) {
     for (let i = 0; i < FETCH_TRIES && !got; i++) {
       if (i) await new Promise((r) => setTimeout(r, FETCH_GAP_MS));
       const f = await getFile(id);
-      if (f.updated_at === revision && f.type === "flow") got = { id: f.id, name: f.name, updatedAt: f.updated_at, ...(f.body as unknown as FlowBody) };
+      if (f.updated_at === revision && f.type === "flow") got = { id: f.id, name: f.name, updatedAt: f.updated_at, ...flowBodyOf(f.body, f.body_version) };
     }
   } catch (e) {
     if (mine !== gen) return;

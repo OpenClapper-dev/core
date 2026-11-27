@@ -5,7 +5,7 @@ import { randomUUID } from "expo-crypto";
 import { CATALOGUE, modelOf } from "@openclapper/ext-hardware";
 import {
   addKeyframe, addMarker, addTrack, fmtClock, fmtSeconds, FlowPlayer, LEVEL_STEPS, patchMarker, patchTrack, removeKeys, removeTrack, setDuration, setKeyframe, setLock as lockParam,
-  DEFAULT_VIEW, START_KEYFRAME, VIEW_LABELS, type Flow, type FlowBody, type FlowView, type Keyframe, type KeyframeSize, type LevelStep,
+  DEFAULT_VIEW, stageOf, START_KEYFRAME, VIEW_LABELS, type Flow, type FlowBody, type FlowView, type Keyframe, type KeyframeSize, type LevelStep,
 } from "@openclapper/ext-flows";
 import { ApiError, authHeaders, canCall, lockFile, unlockFile } from "../../../api";
 import { API_URL } from "../../../config";
@@ -29,6 +29,7 @@ interface DeviceView {
   /** Intensity drags snap to this many percent; absent (kept before it existed): 1. */ levelStep?: LevelStep;
   /** A keyframe drag kept to one axis (#426): "time" moves only its time, "level" only its intensity. (axisLock, the inverse, is left behind.) */ axisFocus?: AxisFocus;
   /** Track view (the lanes) or Stage view (#426, read only), kept on the device. */ pane?: "track" | "stage";
+  /** The stage shown per flow (flow id → stage id; #426), when a flow has several. */ stages?: Record<string, string>;
 }
 const deviceView = persisted<DeviceView>("flows.view.v1", { view: DEFAULT_VIEW, kfSize: "m", zoom: 1, height: 64 },
   (v) => typeof v === "object" && v !== null && typeof (v as DeviceView).zoom === "number" && typeof (v as DeviceView).height === "number");
@@ -61,7 +62,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [live, setLive] = useState(true);
-  const [sheet, setSheet] = useState<"flow" | "track" | "view" | "customize" | null>(null);
+  const [sheet, setSheet] = useState<"flow" | "track" | "view" | "customize" | "stages" | null>(null);
   const [lock, setLock] = useState<Lock>({ state: "asking" });
   const devices = useDevices();
   const hw = useHardware();
@@ -111,6 +112,9 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   }, [flow.id]);
   const locked = lock.state === "theirs" || lock.state === "asking";
   const stageOn = dv.pane === "stage";
+  // The stage shown (#426): one of the flow's perspectives, kept on the device per flow (the 50 most recent).
+  const stages = body.stages ?? [], shownStage = stageOf(stages, dv.stages?.[flow.id]);
+  const showStage = (id: string) => setDv({ stages: Object.fromEntries([...Object.entries(dv.stages ?? {}).filter(([k]) => k !== flow.id).slice(-49), [flow.id, id]]) });
   // Read-only, it shows the flow as its editor last saved it.
   useEffect(() => { if (lock.state === "theirs") { setBody(flow.body); setName(flow.name); } }, [flow.body, flow.name, lock.state]);
 
@@ -228,7 +232,11 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       {unsent?.error && <Block><Banner kind="warn" icon="warning" title="Not saved to the server" meta={`${unsent.error}. It stays on this device; change it to try again.`} /></Block>}
       {!holds && <Block><Hint>Without the connections held here, Play drives the stage only. Playing and Live drive the lights connected to this device once it holds them.</Hint><Button kind="secondary" icon="bluetooth" label="Hold the connections here" onPress={() => { startProxy(); }} /></Block>}
       {stageOn ? <>
-        <StageView body={body} t={playhead} onShowTrack={(id) => { setDv({ pane: "track" }); choose({ kind: "track", id }, true); }} />
+        {/* A few stages as a switch, more as a list in a sheet. */}
+        {stages.length > 1 && <View style={s.stages}>{stages.length <= 3
+          ? <Seg accessibilityLabel="Stage shown" value={shownStage?.id ?? null} onChange={showStage} options={stages.map((x) => ({ id: x.id, label: x.name }))} />
+          : <Chip icon="frame" label={`${shownStage?.name ?? "Stage"} · ${stages.length} stages`} selected onPress={() => setSheet("stages")} />}</View>}
+        <StageView body={body} stage={shownStage} t={playhead} onShowTrack={(id) => { setDv({ pane: "track" }); choose({ kind: "track", id }, true); }} />
         <MiniScrubber body={body} t={playhead} onSeek={(t) => { setPlayhead(t); if (playing) player.current?.play(t); }} />
       </> : (
       <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
@@ -252,6 +260,11 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
             <ListRow key={m.id} icon={m.type === "camera" ? "video" : "light-fixture"} title={`${m.brand} ${m.model}`} meta={devices.filter((d) => d.body.model === m.id).map((d) => d.name).join(", ") || undefined}
               onPress={() => { const id = randomUUID(); change((b) => addTrack(b, m.id, id)); setSheet(null); }} />
           ))}
+        </SheetList>
+      </Sheet>
+      <Sheet visible={sheet === "stages"} title="Stages" onClose={() => setSheet(null)} height={0.6}>
+        <SheetList>
+          {stages.map((x) => <ListRow key={x.id} icon="frame" title={x.name} meta={`${x.lights.length} ${x.lights.length === 1 ? "light" : "lights"} placed`} selected={x.id === shownStage?.id} onPress={() => { showStage(x.id); setSheet(null); }} />)}
         </SheetList>
       </Sheet>
       <Sheet visible={sheet === "view"} title="View" onClose={() => setSheet(null)}>
@@ -293,4 +306,5 @@ const useStyles = makeStyles((c) => ({
   sizes: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
   box: { flex: 1, minWidth: 220, flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: c.borderSubtle, borderRadius: 8, backgroundColor: c.surfaceSunken },
   label: { ...type("label", "semibold"), color: c.text },
+  stages: { flexDirection: "row", paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
 }));
