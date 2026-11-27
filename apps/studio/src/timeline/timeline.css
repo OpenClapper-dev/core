@@ -15,8 +15,6 @@
 /* The strip. */
 .tl-scroll { flex: 1; min-height: 0; overflow: auto; }
 .tl-lanes { position: relative; padding: 0 16px var(--space-4); box-sizing: content-box; }
-.tl-ruler { position: relative; height: 26px; border-bottom: var(--border-w) solid var(--border-divider); cursor: pointer; touch-action: none; }
-.tl-ruler > span { position: absolute; top: 0; bottom: 0; padding: 4px 0 0 4px; border-left: var(--border-w) solid var(--border-control); color: var(--text-secondary); font: var(--font-size-2xs)/1 var(--font-mono); white-space: nowrap; pointer-events: none; }
 .tl-chapters { position: relative; height: 22px; margin: 3px 0; }
 .tl-chapters > button { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 0 6px; box-sizing: border-box; overflow: hidden; border: 0; border-left: 3px solid var(--c); border-radius: 3px; background: color-mix(in srgb, var(--c) 26%, var(--surface)); color: var(--text); font: var(--weight-bold) var(--font-size-2xs)/1 var(--font-sans); white-space: nowrap; cursor: pointer; }
 .tl-chapters > button:hover { background: color-mix(in srgb, var(--c) 42%, var(--surface)); }
@@ -38,8 +36,7 @@
 .tl-clip__label small { display: inline-flex; align-items: center; gap: 2px; color: var(--text-secondary); }
 .tl-clip__label i { font-style: normal; color: var(--text-secondary); }
 .tl-clip:hover .sh-item__grip::after { opacity: .9; }
-.tl-playhead { position: absolute; top: 0; bottom: var(--space-4); width: 2px; margin-left: 15px; background: var(--over-rec); pointer-events: none; z-index: 3; }
-.tl-playhead > b { position: absolute; top: 0; left: -6px; width: 14px; height: 14px; border-radius: 50%; background: var(--over-rec); pointer-events: auto; cursor: ew-resize; }
+.tl-lanes > .oc-playhead { bottom: var(--space-4); }
 .tl-insert { position: fixed; z-index: 900; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; }
 
 /* Lists in the side panels. */

@@ -9,7 +9,7 @@
  * then, so a page's own letter never swallows a section jump.
  */
 
-export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin" | "photo" | "timeline" | "flows";
+export type ScopeId = "global" | "wm" | "files" | "desktop" | "bin" | "photo" | "timeline" | "shot" | "flows";
 
 export interface Scope {
   label: string;
@@ -29,6 +29,7 @@ export const SCOPES: Record<ScopeId, Scope> = {
   bin: { label: "Recycle bin", with: [] },
   photo: { label: "Photo", with: [] },
   timeline: { label: "Timeline", with: [] },
+  shot: { label: "Shot · progression", with: [] },
   flows: { label: "Flows (extension)", with: [] },
 };
 
@@ -131,6 +132,26 @@ export const SHORTCUTS = [
   { scope: "timeline", action: "undo", keys: ["Mod+z"], label: "Undo" },
   { scope: "timeline", action: "redo", keys: ["Mod+Z", "Mod+y"], display: "Mod+Shift+Z", label: "Redo" },
   { scope: "timeline", action: "pick", keys: ["Shift+Click"], info: true, label: "Choose several clips: Shift adds a range, Ctrl one more" },
+
+  // ---- A shot's progression (docs/features/shots.md, #426 feedback 4); not while the shot is mounted in a timeline
+  { scope: "shot", action: "play", keys: [" "], display: "Space", label: "Play or pause the progression" },
+  { scope: "shot", action: "back", keys: ["ArrowLeft"], label: "Playhead 0.1 s back" },
+  { scope: "shot", action: "forward", keys: ["ArrowRight"], label: "Playhead 0.1 s on" },
+  { scope: "shot", action: "backMore", keys: ["Shift+ArrowLeft"], display: "Shift+←", label: "Playhead 1 s back" },
+  { scope: "shot", action: "forwardMore", keys: ["Shift+ArrowRight"], display: "Shift+→", label: "Playhead 1 s on" },
+  { scope: "shot", action: "start", keys: ["Home"], label: "Playhead to the start" },
+  { scope: "shot", action: "end", keys: ["End"], label: "Playhead to the end" },
+  { scope: "shot", action: "remove", keys: ["Delete", "Backspace"], display: "Delete", label: "Delete the chosen items" },
+  { scope: "shot", action: "cut", keys: ["Mod+x"], label: "Cut the chosen items" },
+  { scope: "shot", action: "copy", keys: ["Mod+c"], label: "Copy the chosen items" },
+  { scope: "shot", action: "paste", keys: ["Mod+v"], label: "Paste after the chosen items, or at the playhead" },
+  { scope: "shot", action: "duplicate", keys: ["Mod+d"], label: "Duplicate the chosen items" },
+  { scope: "shot", action: "all", keys: ["Mod+a"], label: "Choose every item" },
+  { scope: "shot", action: "undo", keys: ["Mod+z"], label: "Undo" },
+  { scope: "shot", action: "redo", keys: ["Mod+Z", "Mod+y"], display: "Mod+Shift+Z", label: "Redo" },
+  { scope: "shot", action: "clear", keys: ["Escape"], pass: true, label: "Clear the choice, or back to the playhead" },
+  { scope: "shot", action: "pick", keys: ["Shift+Click", "Drag"], info: true, label: "Shift adds a range, Ctrl one more; drag over the track for a box, drag items to move them" },
+  { scope: "shot", action: "zoom", keys: ["Mod+Wheel"], info: true, label: "Zoom the track" },
 
   // ---- Flows (docs/features/flows.md)
   { scope: "flows", action: "play", keys: [" "], display: "Space", label: "Play from the playhead; again: stop and go back to where play started" },

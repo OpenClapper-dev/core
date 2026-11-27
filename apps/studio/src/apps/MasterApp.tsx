@@ -7,6 +7,7 @@ import "../timeline/timeline.css";
 import { useEffect, useMemo, useState } from "preact/hooks";
 import {
   AppIcon, Button, Dock, DropdownMenu, EmptyState, Icon, PropertyList, PropertyRow, PropertySection, Segmented, Slider, Spinner, StatusBar, Toolbar, ToolbarSpacer, cx, moved, useDockLayout, useSort, type DockPanel,
+  Playhead, TimeRuler, useTimeScrub,
 } from "@openclapper/design";
 import type { PresetBody, TimelineBody } from "@openclapper/model";
 import * as api from "../api";
@@ -109,13 +110,11 @@ function Master({ files, bin, project, active }: { files: FileRec[]; bin: FileRe
     addEventListener("keydown", key); return () => removeEventListener("keydown", key);
   }, [active]);
 
-  const stepS = [5, 10, 15, 30, 60, 120, 300, 600].find((x) => x * scale >= 64) ?? 1200;
-  const ticks = Array.from({ length: Math.floor(total / 1000 / stepS) + 1 }, (_, i) => i * stepS);
-  const scrub = (e: PointerEvent) => { e.preventDefault(); const r = (e.currentTarget as HTMLElement).closest(".tl-lanes")!.querySelector(".tl-ruler")!.getBoundingClientRect(); const to = (m: PointerEvent) => seek(((m.clientX - r.left) / scale) * 1000); to(e); const up = () => { removeEventListener("pointermove", to); removeEventListener("pointerup", up); }; addEventListener("pointermove", to); addEventListener("pointerup", up); };
+  const scrub = useTimeScrub(scale, seek);
   const strip = !reels.length ? <p className="sh-note">No timeline is in the master yet. Add one from the Timelines panel.</p> : (
     <div className="tl-scroll" onWheel={(e) => { if (e.ctrlKey) { e.preventDefault(); setScale((s) => Math.min(160, Math.max(1, s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))); } }}>
       <div className="tl-lanes" style={{ width: px(total) }}>
-        <div className="tl-ruler" onPointerDown={scrub}>{ticks.map((s) => <span key={s} style={{ left: s * scale }}>{clock(s * 1000)}</span>)}</div>
+        <TimeRuler scale={scale} seconds={total / 1000} scrub={scrub} />
         <div className="tl-chapters">{reels.map((r, i) => <button type="button" key={r.file.id} style={{ left: px(r.start), width: px(r.len), "--c": `var(--cat-${CHAPTER_COLOURS[i % 8]})` }} onClick={() => pick(r)}><Icon name="timeline" size={10} />{r.file.name}</button>)}</div>
         <div className="tl-track">
           {reels.map((r, i) => {
@@ -133,7 +132,7 @@ function Master({ files, bin, project, active }: { files: FileRec[]; bin: FileRe
           })}
           {sort.ghost((i) => <div className="tl-clip is-current" style={{ width: "100%" }}><span className="tl-clip__label"><b>{reels[i].file.name}</b></span></div>)}
         </div>
-        <i className="tl-playhead" style={{ left: px(Math.min(t, total)) }}><b onPointerDown={scrub} title="Drag to scrub" /></i>
+        <Playhead left={16 + px(Math.min(t, total))} scrub={scrub} />
       </div>
     </div>
   );

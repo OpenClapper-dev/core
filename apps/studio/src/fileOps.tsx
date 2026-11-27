@@ -48,6 +48,8 @@ export function openFile(f: FileRec, files: ReadonlyMap<string, FileRec>) {
     return;
   }
   if (kindOf(f.type).holds) { openFolder(f.id, f.home, f.type); return; }
+  // A file made only inside another (a shot's progression) opens with the file it lives in.
+  if (f.internal_of && fileType(f.type)?.insideOf) { const parent = files.get(f.internal_of); if (parent) { openFile(parent, files); return; } }
   // A filter opens in the file browser, which lists what matches it now.
   if (f.type === "filter") { launch({ app: "files", state: { filter: f.id } }); return; }
   const app = appFor(f.type);
