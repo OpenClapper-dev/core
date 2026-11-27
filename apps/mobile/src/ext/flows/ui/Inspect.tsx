@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, fmtSeconds, MARKER_NAME_MAX, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, fmtSeconds, MARKER_NAME_MAX, NATIVE_FADES, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
 import { Button, catColor, Chip, Hint, Input, makeStyles, Seg, Slider, Toggle, type, useTheme } from "../../../ui";
 import type { HardwareDevice } from "../../hardware/library";
 
@@ -136,7 +136,8 @@ export function CameraKeyframe({ kf, durationMs, onChange, onDelete }: { kf: Key
 
 export function FadeInspect({ kf, track, onChange, onStepped }: { kf: Keyframe; track: FlowTrack; onChange: (curve: Curve | null) => void; onStepped: (stepped: boolean) => void }) {
   const s = useStyles();
-  const native = !!fixtureKind(track.model)?.caps.fade;
+  // How the fade runs is a choice only while native fades are on (off since #426).
+  const native = NATIVE_FADES && !!fixtureKind(track.model)?.caps.fade;
   return (
     <View style={s.wrap}>
       <Seg accessibilityLabel="Transition" value={kf.fadeIn ? "fade" : "jump"} onChange={(v) => onChange(v === "fade" ? kf.fadeIn ?? "linear" : null)} options={[{ id: "jump", label: "Jump" }, { id: "fade", label: "Fade" }]} block />

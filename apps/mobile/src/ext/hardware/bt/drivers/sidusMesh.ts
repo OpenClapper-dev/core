@@ -46,6 +46,7 @@ export function sidusMesh(o: SidusOptions): Driver {
     id: "sidus-mesh",
     linkKey: (f) => (f.mesh ? `mesh:${f.mesh.networkId}` : `unpaired:${f.id}`),
     rate: { minIntervalMs: 120 },
+    whiteCarriesIntensity: true,
     // Every light is asked at once and its battery every minute: one that never answers is off (#318).
     answers: { firstMs: 8000, staleMs: 150_000 },
     // Any light of the network can be the proxy; unpaired ones cannot.
@@ -119,7 +120,12 @@ export function sidusMesh(o: SidusOptions): Driver {
               return toLight(f, fx ? effect(fx.id, cmd.value, fx.settings) : intensity(cmd.value));
             }
             // White or colour leaves a running effect, as in the maker's app.
-            case "cct": last.set(f.id, { ...l, kelvin: cmd.kelvin, gm: cmd.gm }); running.set(f.id, null); return toLight(f, cct(cmd.kelvin, l.intensity, cmd.gm));
+            case "cct": {
+              const i = cmd.intensity ?? l.intensity;
+              last.set(f.id, { intensity: i, kelvin: cmd.kelvin, gm: cmd.gm });
+              running.set(f.id, null);
+              return toLight(f, cct(cmd.kelvin, i, cmd.gm));
+            }
             case "hsi": last.set(f.id, { ...l, intensity: cmd.i }); running.set(f.id, null); return toLight(f, hsi(cmd.h, cmd.s, cmd.i));
             case "effect":
               running.set(f.id, cmd.effect ? { id: cmd.effect, settings: cmd.settings } : null);

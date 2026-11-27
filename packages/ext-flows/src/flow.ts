@@ -7,10 +7,17 @@ import { CAMERA_CONTROLS, FADE_MAX_MS, modelOf, type Curve, type EffectId, type 
  * keyframe's `fadeIn`, a tile on the gap in the editor): then every value that differs fades over
  * the gap with the fade's curve. Every track starts with a fixed start keyframe at 0 holding a
  * complete state, so a sequence never inherits what a light happened to show. Played by sampling
- * every FLOW_TICK_MS; lights that fade by themselves (#289) get one native fade per fade tile.
+ * every FLOW_TICK_MS; every fade goes in those steps (native fades are off, NATIVE_FADES).
  */
 
 export const FLOW_TICK_MS = 100;
+/**
+ * Native fades (#289: the MC runs a fade tile by itself) are switched off (#426): on the owner's lights they were
+ * unreliable and started oddly, so every fade tile goes in steps every FLOW_TICK_MS on every light. The code stays
+ * (nativeFades, nativeStep, the `fade` command) to try again; while this is false the player never sends `fade`, the
+ * editors offer no choice of how a fade runs, and stored `fadeStepped` values are kept but mean nothing.
+ */
+export const NATIVE_FADES: boolean = false;
 export const FLOW_MAX_MS = 60 * 60_000;
 /** The start keyframe's id on every track. */
 export const START_KEYFRAME = "start";
@@ -21,7 +28,7 @@ export interface Keyframe {
   at: number;
   /** A fade from the previous keyframe into this one, with this curve; absent: jump here. */
   fadeIn?: Curve;
-  /** On a light that fades by itself (#289): send this fade in steps every 0.1 s instead, to compare. */
+  /** On a light that fades by itself (#289): send this fade in steps every 0.1 s instead. Ignored while NATIVE_FADES is off. */
   fadeStepped?: boolean;
   power?: boolean;
   /** 0..1 */
