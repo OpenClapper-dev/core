@@ -4,7 +4,7 @@
 // bottom; frames on a base photo drawn with the optics math; comments; view modes, Compare, zoom and pan,
 // snapping. It edits a canvas body; the Canvas app saves it, keeps its history and holds the edit lock.
 import "./canvas.css";
-import type { ComponentChildren, JSX } from "preact";
+import type { ComponentChildren } from "preact";
 import { createPortal } from "preact/compat";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
@@ -12,20 +12,16 @@ import {
   type IconName, type MenuItemData,
 } from "@openclapper/design";
 import { DELIVERIES, FORMATS, PRIMES, SQUEEZES } from "@openclapper/fov-math";
-import { focalsOf, type CanvasBody, type CanvasComment as Comment, type CanvasFrame as Frame, type Colour, type Look, type ObjKind as Kind, type PenType, type PresetBody } from "@openclapper/model";
+import { focalsOf, type CanvasBody, type CanvasComment as Comment, type CanvasFrame as Frame, type Colour, type Look, type PenType, type PresetBody } from "@openclapper/model";
 import { eraseAt, type EraseMode } from "./erase";
-import { clampCentre, lookFilter, NO_LOOK, PENS, rectOf as rectIn, smooth, taper, toEdit, toStore, type BasePhoto, type Obj, type P } from "./geometry";
+import { clampCentre, lookFilter, NO_LOOK, PENS, rectOf as rectIn, toEdit, toStore, type BasePhoto, type Obj, type P } from "./geometry";
+import { DraftView, KIND, objectFromDraft, ObjectView, STENCILS, type Draft } from "./objects";
 
 type Tool = "select" | "pen" | "eraser" | "line" | "arrow" | "rect" | "ellipse" | "text" | "stencil" | "picture" | "comment";
 const TOOLS: { id: Tool; icon: IconName; label: string; kbd: string }[] = [
   { id: "select", icon: "cursor", label: "Move", kbd: "V" }, { id: "pen", icon: "pencil", label: "Pen", kbd: "P" }, { id: "eraser", icon: "eraser", label: "Eraser", kbd: "E" }, { id: "line", icon: "line-tool", label: "Line", kbd: "L" }, { id: "arrow", icon: "arrow-up-right", label: "Arrow", kbd: "A" },
   { id: "rect", icon: "square", label: "Rectangle", kbd: "R" }, { id: "ellipse", icon: "circle", label: "Ellipse", kbd: "O" }, { id: "text", icon: "text", label: "Text", kbd: "T" }, { id: "stencil", icon: "stencil", label: "Stencil", kbd: "S" }, { id: "picture", icon: "image", label: "Place a photo", kbd: "I" }, { id: "comment", icon: "comment", label: "Comment: click a point, or drag a region", kbd: "C" },
 ];
-const KIND: Record<Kind, { label: string; icon: IconName }> = {
-  pen: { label: "Pen", icon: "pencil" }, line: { label: "Line", icon: "line-tool" }, arrow: { label: "Arrow", icon: "arrow-up-right" }, rect: { label: "Rectangle", icon: "square" }, ellipse: { label: "Ellipse", icon: "circle" },
-  text: { label: "Text", icon: "text" }, stencil: { label: "Stencil", icon: "stencil" }, picture: { label: "Picture", icon: "image" }, group: { label: "Group", icon: "group" },
-};
-const STENCILS: IconName[] = ["camera", "video", "light-fixture", "bulb", "sun", "moon", "user", "users", "flag", "microphone", "drone", "slate", "practical", "battery", "plug", "antenna", "pin", "building", "trees", "mountain", "wind", "cloud", "umbrella", "star", "lock", "eye"];
 const BLANK_ASPECTS: { label: string; ratio: number }[] = [{ label: "16:9", ratio: 16 / 9 }, { label: "4:3", ratio: 4 / 3 }, { label: "3:2", ratio: 1.5 }, { label: "1:1", ratio: 1 }, { label: "3:4", ratio: 3 / 4 }, { label: "9:16", ratio: 9 / 16 }, { label: "A4 landscape", ratio: 297 / 210 }, { label: "A4 portrait", ratio: 210 / 297 }];
 type Act =
   | { type: "move"; start: P; orig: Record<string, P>; box: [number, number, number, number] }
@@ -89,9 +85,7 @@ export interface CanvasEditorProps {
   /** Whether its window has the focus: keys act only then. */
   active?: boolean;
 }
-
-/** A stroke or box being drawn, with what it is drawn with. */
-export interface Draft { tool: string; pts: [number, number][]; pen: PenType; stroke: Colour; width: number }
+export type { Draft } from "./objects";
 
 export function CanvasEditor(props: CanvasEditorProps) {
   const { base, presets, photos, me, access } = props;
@@ -225,6 +219,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
     const p = at(e);
     if (tool === "eraser") { act.current = { type: "erase", last: p }; rub([p]); return; }
     if (tool === "text" || tool === "stencil" || tool === "picture") {
+      // No focus change from this press, or it would take the focus from the text about to be typed in place.
+      e.preventDefault();
       if (tool === "picture" && !placing) return;
       const ph = tool === "picture" ? photos.find((x) => x.id === placing) : undefined;
       const size: P = tool === "text" ? [0.26, 0.06] : tool === "stencil" ? [0.07, 0.07 * aspect] : [0.3, 0.3];
@@ -297,15 +293,13 @@ export function CanvasEditor(props: CanvasEditorProps) {
     if (a?.type !== "draw") return;
     setDraft(null);
     const xs = a.pts.map((q) => q[0]), ys = a.pts.map((q) => q[1]);
-    let x = Math.min(...xs), y = Math.min(...ys), w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+    const x = Math.min(...xs), y = Math.min(...ys), w = Math.max(...xs) - x, h = Math.max(...ys) - y;
     if (a.tool === "comment" && redraw) { const point = w < 0.02 && h < 0.02; setComments((cs) => cs.map((c) => (c.id === redraw ? (point ? (({ w: _w, h: _h, ...rest }) => ({ ...rest, x: a.pts[0][0], y: a.pts[0][1] }))(c) : { ...c, x, y, w, h }) : c))); setSelC(redraw); setRedraw(null); setTool("select"); return; }
     if (a.tool === "comment") { setWords(""); setSelC(null); setCompose(w < 0.02 && h < 0.02 ? { x: a.pts[0][0], y: a.pts[0][1] } : { x, y, w, h }); return; }
-    if (w < 0.006 && h < 0.006) { if (a.tool === "pen") return; w = 0.16; h = a.tool === "line" || a.tool === "arrow" ? 0 : 0.12; a.pts = [[x, y], [x + w, y + h]]; }
-    const line = a.tool === "pen" || a.tool === "line" || a.tool === "arrow";
     // A pen stroke keeps a point only every few pixels, so a body stays small.
-    let pts = a.pts;
-    if (a.tool === "pen" && pts.length > 2) { const r = box.current!.getBoundingClientRect(), min = 2.5 / Math.max(r.width, r.height); pts = pts.filter((q, i) => i === 0 || i === pts.length - 1 || Math.hypot(q[0] - pts[i - 1][0], q[1] - pts[i - 1][1]) > min); }
-    const o: Obj = { id: uid(), kind: a.tool as Kind, name: KIND[a.tool as Kind].label, x, y, w: Math.max(w, 0.001), h: Math.max(h, 0.001), ...(line ? { pts: pts.map((q): P => [w ? (q[0] - x) / w : 0, h ? (q[1] - y) / h : 0]) } : {}), ...(a.tool === "pen" ? { pen: penType } : {}), stroke, width: strokeW, opacity: 1, visible: true, locked: false };
+    const r = box.current!.getBoundingClientRect();
+    const o = objectFromDraft(a.tool as "pen" | "line" | "arrow" | "rect" | "ellipse", a.pts, { id: uid(), pen: penType, stroke, width: strokeW, minStep: 2.5 / Math.max(r.width, r.height) });
+    if (!o) return;
     setObjs((os) => [...os, o]); setRootSel(false); setSelF(null); setSel([o.id]); setTab("layers");
   };
   const grabO = (e: PointerEvent, o: Obj) => {
@@ -363,35 +357,10 @@ export function CanvasEditor(props: CanvasEditorProps) {
     return () => { window.removeEventListener("keydown", key); window.removeEventListener("keyup", keyup); };
   });
 
-  // Drawing one object. Lines live in a layer the size of the surface, so arrowheads and strokes keep their shape.
+  // Drawing one object (objects.tsx, shared with a flow's stage).
   const abs = (o: Pick<Obj, "x" | "y" | "w" | "h">, q: P): P => [o.x + q[0] * o.w, o.y + q[1] * o.h];
-  const draw = (o: Obj, ghost = false) => {
-    const c = colorCss(o.stroke), common = { "data-obj": o.id, onPointerDown: ghost ? undefined : (e: PointerEvent) => grabO(e, o) };
-    if (o.kind === "pen" || o.kind === "line" || o.kind === "arrow") {
-      const q = (o.pts ?? []).map((x): P => { const a = abs(o, x); return [Number((a[0] * 1000).toFixed(1)), Number((a[1] * VH).toFixed(1))]; });
-      const pen = PENS[o.pen ?? "pen"], w = o.width * 1.3 * (o.kind === "pen" ? pen.scale : 1), d = o.kind === "pen" ? smooth(q) : `M${q.map((x) => x.join(" ")).join(" L")}`;
-      return (
-        <svg key={o.id} {...common} className="cv-vec" viewBox={`0 0 1000 ${VH}`} preserveAspectRatio="none" style={{ opacity: o.opacity * (o.kind === "pen" ? pen.opacity : 1), mixBlendMode: o.kind === "pen" && pen.blend ? (pen.blend as "screen") : undefined }}>
-          {o.kind === "arrow" && <defs><marker id={`m${o.id}`} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill={c} /></marker></defs>}
-          <g transform={o.rot ? `rotate(${o.rot} ${(o.x + o.w / 2) * 1000} ${(o.y + o.h / 2) * VH})` : undefined}>
-            {o.kind === "pen" && pen.taper ? <path d={taper(q, w)} fill={c} /> : <path d={d} fill="none" stroke={c} stroke-width={w} stroke-linecap={o.kind === "pen" ? pen.cap : "round"} stroke-linejoin="round" stroke-dasharray={o.kind === "pen" && pen.dash ? pen.dash.join(" ") : undefined} marker-end={o.kind === "arrow" ? `url(#m${o.id})` : undefined} />}
-            <path className="cv-vec__hit" d={d} fill="none" stroke="transparent" stroke-width={Math.max(18, w)} />
-          </g>
-        </svg>
-      );
-    }
-    const st: JSX.CSSProperties = { left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, opacity: o.opacity, color: c, transform: o.rot ? `rotate(${o.rot}deg)` : undefined };
-    // Widths are thousandths of the surface's width, as in the render.
-    if (o.kind === "rect" || o.kind === "ellipse") return <div key={o.id} {...common} className={cx("cv-obj", `cv-obj--${o.kind}`)} style={{ ...st, border: `calc(${o.width * 0.13}cqw) solid ${c}`, background: o.fill != null ? colorCss(o.fill) : undefined }} />;
-    if (o.kind === "text") return editing === o.id
-      ? <div key={`${o.id}-edit`} data-obj={o.id} className="cv-obj cv-obj--text is-editing" style={{ ...st, "--fs": o.h * 78 }} contentEditable spellcheck={false}
-          ref={(el) => { if (el && document.activeElement !== el) { el.textContent = o.text ?? ""; el.focus(); const r = document.createRange(); r.selectNodeContents(el); const g = getSelection(); g?.removeAllRanges(); g?.addRange(r); } }}
-          onPointerDown={(e) => e.stopPropagation()} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); (e.currentTarget as HTMLElement).blur(); } else if (e.key === "Escape") { (e.currentTarget as HTMLElement).textContent = o.text ?? ""; (e.currentTarget as HTMLElement).blur(); } }}
-          onBlur={(e) => { const t = (e.currentTarget as HTMLElement).innerText.replace(/\n+$/, ""); patchO([o.id], { text: t || "Text" }); setEditing(null); }} />
-      : <div key={o.id} {...common} className="cv-obj cv-obj--text" style={{ ...st, "--fs": o.h * 78 }} onDblClick={() => !locked && tool === "select" && !frozen(o) && setEditing(o.id)}>{o.text}</div>;
-    if (o.kind === "stencil") return <div key={o.id} {...common} className="cv-obj cv-obj--stencil" style={st}><Icon name={(o.icon ?? "camera") as IconName} size={24} stroke={1.6} /></div>;
-    return <div key={o.id} {...common} className="cv-obj cv-obj--picture" style={st}>{o.photo && <img src={props.photoSrc(o.photo)} alt="" draggable={false} style={{ filter: lookFilter(o.look) }} />}</div>;
-  };
+  const draw = (o: Obj, ghost = false) => <ObjectView key={o.id} o={o} vh={VH} photoSrc={props.photoSrc} onGrab={ghost ? undefined : (e) => grabO(e, o)}
+    editing={editing === o.id} onText={(t) => { patchO([o.id], { text: t }); setEditing(null); }} onEdit={() => { if (!locked && tool === "select" && !frozen(o)) setEditing(o.id); }} />;
   const one = sel.length === 1 ? byId.get(sel[0]) ?? null : null;
   const marks = sel.map((s) => byId.get(s)).filter((o): o is Obj => !!o);
 
@@ -599,12 +568,7 @@ export function CanvasEditor(props: CanvasEditorProps) {
   );
 
   /** A stroke or box being drawn: this window's, or (a viewer) the editor's. */
-  const drawDraft = (d: Draft) => {
-    if (d.tool === "pen" || d.tool === "line" || d.tool === "arrow") return draw({ id: "draft", kind: d.tool as Kind, name: "", x: 0, y: 0, w: 1, h: 1, pts: d.pts, pen: d.pen, stroke: d.stroke, width: d.width, opacity: 1, visible: true, locked: false }, true);
-    const [a, b] = d.pts;
-    if (!a || !b) return null;
-    return <div className={cx("cv-obj", d.tool === "comment" ? "cv-region" : `cv-obj--${d.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: d.tool === "comment" ? undefined : `calc(${d.width * 0.13}cqw) solid ${colorCss(d.stroke)}`, pointerEvents: "none" }} />;
-  };
+  const drawDraft = (d: Draft) => <DraftView d={d} vh={VH} />;
   const selBox = one && !frozen(one) ? bounds(one) : null;
   // A viewer: what changes the canvas cannot be used and looks it (muted like a disabled control); comments stay readable.
   const ro = locked ? { inert: true, className: "cv-readonly" } : {};

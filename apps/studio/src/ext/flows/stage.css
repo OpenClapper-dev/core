@@ -1,0 +1,58 @@
+/* A flow's stage (docs/features/flows.md, "The stage"): its bar, the paper, the widgets, the splitter, the palette.
+   The paper and what is on it are content (like a photo): their colours come from ext-flows (STAGE_INK), set inline. */
+.fl-st { flex: none; display: flex; flex-direction: column; min-height: 140px; background: var(--surface); }
+.fl-st__bar { flex: none; display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); min-height: 36px; padding: var(--space-1) var(--space-3); border-bottom: var(--border-w) solid var(--border-divider); background: var(--surface-sunken); }
+.fl-st__title { display: inline-flex; align-items: center; gap: var(--space-3); padding: 0 var(--space-3) 0 var(--space-2); font: var(--weight-bold) var(--font-size-sm)/1 var(--font-sans); }
+.fl-st__sep { flex: none; width: var(--border-w); height: 18px; margin: 0 var(--space-2); background: var(--border-divider); }
+.fl-st__spacer { flex: 1; }
+.fl-st__count { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.fl-st__swatches { display: inline-flex; gap: var(--space-2); }
+.fl-st__swatch { width: 18px; height: 18px; padding: 0; border: var(--border-w) solid var(--border-control); border-radius: 50%; cursor: pointer; }
+.fl-st__swatch.is-on { outline: var(--border-w-strong) solid var(--focus); outline-offset: 2px; }
+.fl-st__swatch:disabled { cursor: default; opacity: .5; }
+.fl-st__under { display: grid; gap: var(--space-4); padding: var(--space-3); width: min(400px, 90vw); }
+.fl-st__fit { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; padding: var(--space-3); container-type: size; overflow: hidden; background: var(--surface-sunken); }
+/* The paper keeps its aspect inside the room it has; its inside is the container the drawn objects are sized by. */
+.fl-paper { position: relative; width: min(100cqw, 100cqh * var(--aspect)); aspect-ratio: var(--aspect); overflow: hidden; touch-action: none; user-select: none; border-radius: var(--radius-xs); background: var(--photo-bg); }
+.fl-paper__in { position: absolute; inset: 0; container-type: size; background-image: linear-gradient(var(--fl-grid) 1px, transparent 1px), linear-gradient(90deg, var(--fl-grid) 1px, transparent 1px); background-size: 4% calc(4% * var(--aspect)); }
+.fl-paper__under { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.fl-paper__hint { position: absolute; left: var(--space-4); bottom: var(--space-3); padding: 2px var(--space-3); border-radius: var(--radius-xs); background: var(--scrim); color: var(--grey-200); font-size: var(--font-size-2xs); pointer-events: none; }
+.fl-paper:not(.is-select):not(.is-view) { cursor: crosshair; }
+.fl-paper.is-text { cursor: text; }
+.fl-paper.is-eraser { cursor: cell; }
+.fl-widgets { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.fl-widgets .fl-w, .fl-widgets .fl-w__turn { pointer-events: auto; cursor: pointer; }
+.fl-widgets .fl-w.is-movable { cursor: grab; }
+.fl-widgets .fl-w__turn { cursor: grab; }
+.fl-w__name { font: var(--weight-bold) 18px/1 var(--font-sans); pointer-events: none; }
+.fl-w__line { font: var(--weight-medium) 14px/1 var(--font-mono); pointer-events: none; }
+.fl-w__flash { fill: none; stroke: currentColor; color: var(--grey-0); stroke-width: 3; pointer-events: none; animation: fl-flash 1.1s ease-out 2; }
+@keyframes fl-flash { 0% { opacity: 1; r: 20px; } 100% { opacity: 0; r: 64px; } }
+@media (prefers-reduced-motion: reduce) { .fl-w__flash { animation: none; } }
+/* The divider between the stage and the lanes: dragged to share the room. */
+.fl-split { flex: none; height: 7px; cursor: row-resize; position: relative; background: var(--surface-sunken); border-block: var(--border-w) solid var(--border-divider); touch-action: none; }
+.fl-split::after { content: ""; position: absolute; left: 50%; top: 2px; width: 36px; height: 1px; margin-left: -18px; border-block: var(--border-w) solid var(--border-control); }
+.fl-split:hover, .fl-split.is-drag { background: var(--accent-tint); }
+/* The palette: a light track per row, dragged onto the paper. */
+.fl-pal { list-style: none; margin: 0; padding: var(--space-2); display: grid; gap: var(--space-1); }
+.fl-pal li { display: flex; align-items: center; gap: var(--space-3); min-height: 40px; padding: var(--space-2) var(--space-3); border-radius: var(--radius-control); font-size: var(--font-size-sm); touch-action: none; }
+.fl-pal li.can-drag { cursor: grab; }
+.fl-pal li.can-drag:hover { background: var(--surface-hover); }
+.fl-pal li.is-cam { opacity: .6; }
+.fl-pal__dot { flex: none; align-self: stretch; width: 4px; border-radius: 2px; background: var(--track-c, var(--text-secondary)); }
+.fl-pal__txt { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.fl-pal__txt b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fl-pal__txt small { font-size: var(--font-size-2xs); color: var(--text-secondary); }
+.fl-pal li.is-placed .fl-pal__txt small { color: var(--success); }
+.fl-mini { flex: none; width: 30px; height: 30px; border-radius: var(--radius-xs); background: var(--photo-bg); }
+.fl-ghost { position: fixed; z-index: var(--z-toast); pointer-events: none; padding: var(--space-2) var(--space-4); border: var(--border-w) solid var(--accent); border-radius: var(--radius-control); background: var(--surface-raised); box-shadow: var(--shadow-menu); font: var(--weight-semibold) var(--font-size-sm)/1.2 var(--font-sans); transform: translate(-50%, -130%); }
+/* The chosen widget's panel. */
+.fl-chosen__title { display: flex; align-items: center; gap: var(--space-3); margin: 0; font-size: var(--font-size-md); }
+.fl-chosen__title i { width: 10px; height: 10px; border-radius: 50%; background: var(--track-c, var(--text-secondary)); }
+.fl-kv { display: grid; grid-template-columns: 88px 1fr; gap: var(--space-3) var(--space-4); margin: 0; font-size: var(--font-size-sm); align-items: center; }
+.fl-kv dt { color: var(--text-secondary); }
+.fl-kv dd { margin: 0; font-variant-numeric: tabular-nums; }
+.fl-kv__sw { display: inline-block; width: 12px; height: 12px; margin-right: var(--space-3); vertical-align: -2px; border-radius: 3px; border: var(--border-w) solid var(--border-control); }
+.fl-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+/* A track whose widget is chosen on the stage. */
+.fl-label.is-marked { background: var(--selection); }

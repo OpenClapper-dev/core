@@ -31,6 +31,8 @@ export interface LanesProps {
   onTile: (trackId: string, toId: string) => void; onPickTrack: (trackId: string) => void;
   onTrack: (trackId: string, fn: (t: FlowTrack) => FlowTrack) => void; onRemoveTrack: (trackId: string) => void; onMoveTrack: (trackId: string, before: string | null) => void;
   onHeight: (trackId: string, h: number) => void;
+  /** The track whose widget is chosen on the stage (#426): its label shows it. */
+  marked?: string | null;
   onMarkerAdd: (at: number, end?: number, trackId?: string) => void; onMarkerPick: (id: string) => void; onMarkerResize: (id: string, edge: "at" | "end", at: number) => void;
 }
 type Gesture = (move: (e: PointerEvent) => void, up?: (e: PointerEvent) => void) => void;
@@ -230,13 +232,13 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
 
   return (
     <div className={cx("fl-row", drag === "from" && "is-dragged")} data-row={tr.id} style={{ minHeight: `${height}px`, ...(tr.color !== undefined ? { "--track-c": `var(--cat-${tr.color + 1})` } : {}) }}>
-      <div className={cx("fl-label", tr.color !== undefined && "has-colour")}>
+      <div className={cx("fl-label", tr.color !== undefined && "has-colour", p.marked === tr.id && "is-marked")}>
         <span className="fl-label__grip" onPointerDown={grip} title="Drag to reorder the tracks"><Icon name="grip" size={14} /></span>
         <div className="fl-label__text">
           <div className="fl-label__top">
             <input className="fl-name" value={tr.name} aria-label="Track name" disabled={p.locked} maxLength={60} onChange={(e) => { const name = e.currentTarget.value.trim(); if (name) p.onTrack(tr.id, (t) => ({ ...t, name })); }} />
           </div>
-          <span className="fl-label__kind">{model ? `${model.brand} ${model.model}` : tr.model}</span>
+          <span className="fl-label__kind">{model ? `${model.brand} ${model.model}` : tr.model}{flow.stage?.lights.some((l) => l.track === tr.id) ? " · on the stage" : ""}</span>
           <Select size="sm" aria-label={`Device for ${tr.name}`} value={tr.device ?? ""} disabled={p.locked}
             onChange={(id: string) => p.onTrack(tr.id, (t) => ({ ...t, device: id || null }))}
             options={[{ value: "", label: model ? `No ${model.model} assigned` : "Not assigned" }, ...missing, ...options]} />
