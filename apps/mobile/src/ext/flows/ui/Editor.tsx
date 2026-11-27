@@ -251,7 +251,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       </Sheet>
       <Sheet visible={sheet === "stages"} title="Stages" onClose={() => setSheet(null)} height={0.6}>
         <SheetList>
-          {stages.map((x) => <ListRow key={x.id} icon="frame" title={x.name} meta={`${x.lights.length} lights placed`} selected={x.id === shownStage?.id} onPress={() => { showStage(x.id); setSheet(null); }} />)}
+          {stages.map((x) => <ListRow key={x.id} icon="frame" title={x.name} meta={`${x.lights.length} ${x.lights.length === 1 ? "light" : "lights"} placed`} selected={x.id === shownStage?.id} onPress={() => { showStage(x.id); setSheet(null); }} />)}
         </SheetList>
       </Sheet>
       <Sheet visible={sheet === "view"} title="View" onClose={() => setSheet(null)}>

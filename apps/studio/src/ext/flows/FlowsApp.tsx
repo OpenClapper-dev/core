@@ -275,7 +275,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     if (name?.trim() && name.trim() !== stage.name) changeStages((l) => l.map((s) => (s.id === stage.id ? { ...s, name: name.trim() } : s)));
   };
   const deleteStage = async () => {
-    const what = [stage.objects.length && `${stage.objects.length} drawn`, stage.lights.length && `${stage.lights.length} lights placed`, stage.underlay && "an underlay"].filter(Boolean).join(", ");
+    const what = [stage.objects.length && `${stage.objects.length} drawn`, stage.lights.length && `${stage.lights.length} ${stage.lights.length === 1 ? "light" : "lights"} placed`, stage.underlay && "an underlay"].filter(Boolean).join(", ");
     if (!(await confirm({ title: `Delete “${stage.name}”?`, message: `${what ? `Its drawing and placements go with it (${what}). ` : ""}The tracks stay. Undo brings it back.`, confirmLabel: "Delete", danger: true }))) return;
     const i = stages.findIndex((s) => s.id === stage.id), next = stages[i + 1] ?? stages[i - 1];
     changeStages((l) => l.filter((s) => s.id !== stage.id));
