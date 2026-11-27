@@ -4,10 +4,31 @@ import { fixtureKind, modelOf } from "@openclapper/ext-hardware";
 import { sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "./flow.ts";
 import type { FlowBody } from "./index.ts";
 
-/** Times snap to a tenth of a second, the player's tick. */
-export const SNAP_MS = 100;
+/** Times snap to whole seconds (#426): keyframes, markers, the length. Older sub-second times stay until moved. */
+export const SNAP_MS = 1000;
 export const snap = (ms: number) => Math.round(ms / SNAP_MS) * SNAP_MS;
-export const fmtSeconds = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+/** A time in whole seconds; one that is not (kept from before #426) shows its tenths. */
+export const fmtSeconds = (ms: number) => `${ms % 1000 === 0 ? ms / 1000 : (ms / 1000).toFixed(1)} s`;
+/** The playhead's time: tenths, since it runs between the seconds while playing. */
+export const fmtClock = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
+
+/** The intensity snaps a drag offers (#426), in percent: a setting of the device's view, not a rule on stored values. */
+export const LEVEL_STEPS = [1, 5, 10] as const;
+export type LevelStep = (typeof LEVEL_STEPS)[number];
+
+/**
+ * An intensity dragged from `from` towards `to` (0..1), snapped to every `step` percent. From a level off that grid
+ * (set exactly in the inspector) the first stop is the next grid line in the drag's direction, never one behind it:
+ * from 3 % with steps of 5, up gives 5 and down 0.
+ */
+export function snapLevel(from: number, to: number, step: number): number {
+  const f = from * 100, t = Math.min(100, Math.max(0, to * 100));
+  let n = Math.round(t / step) * step;
+  const off = Math.abs(f / step - Math.round(f / step)) > 1e-6;
+  if (off && t > f) n = Math.max(n, Math.ceil(f / step) * step);
+  if (off && t < f) n = Math.min(n, Math.floor(f / step) * step);
+  return Math.min(100, Math.max(0, n)) / 100;
+}
 
 /** A new track for a light or camera model: named after it, a colour no track uses yet, its start keyframe. */
 export function addTrack(b: FlowBody, modelId: string, id: string): FlowBody {
@@ -35,10 +56,14 @@ export function addKeyframe(b: FlowBody, trackId: string, at: number, id: string
   return { body: patchTrack(b, trackId, (x) => ({ ...x, keyframes: [...x.keyframes, k] })), keyframe: k };
 }
 
-/** A keyframe replaced (the start keyframe stays at 0); its time snapped within the flow and kept off another's. */
+/**
+ * A keyframe replaced (the start keyframe stays at 0); a changed time snapped within the flow and kept off another's.
+ * An unchanged time stays as stored, so editing a value never moves a keyframe set before whole seconds.
+ */
 export function setKeyframe(b: FlowBody, trackId: string, k: Keyframe): FlowBody {
   return patchTrack(b, trackId, (t) => {
-    const at = k.id === START_KEYFRAME ? 0 : Math.min(b.durationMs, Math.max(SNAP_MS, snap(k.at)));
+    const was = t.keyframes.find((x) => x.id === k.id);
+    const at = k.id === START_KEYFRAME ? 0 : was && was.at === k.at ? k.at : Math.min(b.durationMs, Math.max(SNAP_MS, snap(k.at)));
     if (t.keyframes.some((x) => x.id !== k.id && x.at === at)) return t;
     return { ...t, keyframes: t.keyframes.map((x) => (x.id === k.id ? { ...k, at } : x)) };
   });

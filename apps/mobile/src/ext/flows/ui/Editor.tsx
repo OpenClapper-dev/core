@@ -4,8 +4,8 @@ import { persisted } from "../../../store";
 import { randomUUID } from "expo-crypto";
 import { CATALOGUE, modelOf } from "@openclapper/ext-hardware";
 import {
-  addKeyframe, addMarker, addTrack, fmtSeconds, FlowPlayer, patchMarker, patchTrack, removeKeys, removeTrack, setDuration, setKeyframe,
-  DEFAULT_VIEW, START_KEYFRAME, VIEW_LABELS, type Flow, type FlowBody, type FlowView, type Keyframe, type KeyframeSize,
+  addKeyframe, addMarker, addTrack, fmtClock, fmtSeconds, FlowPlayer, LEVEL_STEPS, patchMarker, patchTrack, removeKeys, removeTrack, setDuration, setKeyframe,
+  DEFAULT_VIEW, START_KEYFRAME, VIEW_LABELS, type Flow, type FlowBody, type FlowView, type Keyframe, type KeyframeSize, type LevelStep,
 } from "@openclapper/ext-flows";
 import { ApiError, authHeaders, canCall, lockFile, unlockFile } from "../../../api";
 import { API_URL } from "../../../config";
@@ -17,12 +17,16 @@ import { useDevices } from "../../hardware/library";
 import { proxyRunning, startProxy, useHardware } from "../../hardware/proxy";
 import { loadFlows, saveFlow, usePendingOf, type LocalFlow } from "../store";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, TrackInspect } from "./Inspect";
-import { Lanes, MARKS_H, RULER_H, type Pick } from "./Lanes";
+import { Lanes, MARKS_H, RULER_H, type AxisLock, type Pick } from "./Lanes";
 
 const RENEW_MS = 30_000;
 const ZOOM_MAX = 32, HEIGHT_MIN = 48, HEIGHT_MAX = 240;
 /** What the lanes show and how large, on this device (#426): the Studio's View options, keyframe size, width and height. */
-interface DeviceView { view: FlowView; kfSize: KeyframeSize; zoom: number; height: number }
+interface DeviceView {
+  view: FlowView; kfSize: KeyframeSize; zoom: number; height: number;
+  /** Intensity drags snap to this many percent; absent (kept before it existed): 1. */ levelStep?: LevelStep;
+  /** A keyframe drag kept to one axis (a pen on set): "time" holds its time, "level" its intensity. */ axisLock?: AxisLock;
+}
 const deviceView = persisted<DeviceView>("flows.view.v1", { view: DEFAULT_VIEW, kfSize: "m", zoom: 1, height: 64 },
   (v) => typeof v === "object" && v !== null && typeof (v as DeviceView).zoom === "number" && typeof (v as DeviceView).height === "number");
 type Lock = { state: "mine"; holder: string } | { state: "offline" } | { state: "theirs"; by: string } | { state: "asking" };
@@ -170,8 +174,11 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       <View style={s.bar}>
         <Seg accessibilityLabel="Tap on a lane" value={insert ? "insert" : "select"} onChange={(v) => setInsert(v === "insert")} options={[{ id: "select", icon: "cursor" }, { id: "insert", icon: "plus" }]} disabled={locked} />
         <IconButton icon="eye" label="View" onPress={() => setSheet("view")} />
+        {/* Axis locks for dragging a keyframe (#426): one at a time, since both would hold it still. */}
+        <IconButton icon="clock" label="Lock time: a drag changes only the intensity" on={dv.axisLock === "time"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "time" ? undefined : "time" })} />
+        <IconButton icon="brightness" label="Lock intensity: a drag changes only the time" on={dv.axisLock === "level"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "level" ? undefined : "level" })} />
         <View style={{ flex: 1 }} />
-        <Text style={s.time}>{fmtSeconds(playhead)}</Text>
+        <Text style={s.time}>{fmtClock(playhead)}</Text>
         <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
         <IconButton icon={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} disabled={!holds && !playing} onPress={play} color={playing ? c.danger : c.accent} />
       </View>
@@ -190,7 +197,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       {unsent?.error && <Block><Banner kind="warn" icon="warning" title="Not saved to the server" meta={`${unsent.error}. It stays on this device; change it to try again.`} /></Block>}
       {!holds && <Block><Hint>Playing and Live drive the lights connected to this device: hold the connections here.</Hint><Button kind="secondary" icon="bluetooth" label="Hold the connections here" onPress={() => { startProxy(); }} /></Block>}
       <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
-      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} laneHeight={dv.height} insert={insert} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
+      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisLock={dv.axisLock} laneHeight={dv.height} insert={insert} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
         onPick={choose} onSeek={(t) => { if (!playing) setPlayhead(t); }}
         onAddKeyframe={(trackId, t) => { const r = addKeyframe(latest.current.body, trackId, t, randomUUID()); if (r.keyframe) { change(() => r.body); choose({ kind: "kf", track: trackId, id: r.keyframe.id }); if (!playing) setPlayhead(r.keyframe.at); } }}
         onAddMarker={(t) => { const r = addMarker(latest.current.body, t, randomUUID()); change(() => r.body); choose({ kind: "marker", id: r.marker.id }); }}
@@ -211,6 +218,8 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
           {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Toggle key={k} label={VIEW_LABELS[k]} meta={k === "graph" ? "Drag a keyframe up or down to set its intensity" : undefined} value={dv.view[k]} onChange={(on) => setDv({ view: { ...dv.view, [k]: on } })} />)}
           <Text style={s.label}>Keyframes</Text>
           <Seg accessibilityLabel="Keyframe size" block value={dv.kfSize} onChange={(v) => setDv({ kfSize: v })} options={[{ id: "s", label: "Small · pen" }, { id: "m", label: "Medium" }, { id: "l", label: "Large · finger" }]} />
+          <Text style={s.label}>Intensity snap while dragging</Text>
+          <Seg accessibilityLabel="Intensity snap while dragging" block value={String(dv.levelStep ?? 1)} onChange={(v) => setDv({ levelStep: Number(v) as LevelStep })} options={LEVEL_STEPS.map((n) => ({ id: String(n), label: `${n} %` }))} />
         </View>
       </Sheet>
       <Sheet visible={sheet === "flow"} title="Flow" onClose={() => setSheet(null)}>

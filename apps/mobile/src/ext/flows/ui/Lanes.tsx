@@ -2,10 +2,12 @@ import { useRef, useState } from "react";
 import { PanResponder, Pressable, ScrollView, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from "react-native";
 import Svg, { Polyline } from "react-native-svg";
 import { effectName, modelOf } from "@openclapper/ext-hardware";
-import { fmtSeconds, graphLine, keyframeLevel, lightColour, sampleTrack, shortLabel, snap, START_KEYFRAME, type FlowBody, type FlowMarker, type FlowTrack, type FlowView, type Keyframe, type KeyframeSize } from "@openclapper/ext-flows";
+import { fmtSeconds, graphLine, keyframeLevel, lightColour, sampleTrack, shortLabel, snap, snapLevel, START_KEYFRAME, type FlowBody, type FlowMarker, type FlowTrack, type FlowView, type Keyframe, type KeyframeSize } from "@openclapper/ext-flows";
 import { catColor, Icon, makeStyles, num, type, useTheme } from "../../../ui";
 
 /** What is chosen in the lanes: one keyframe, the fade into one, a marker, or a track. */
+/** A keyframe drag held to one axis (#426): "time" keeps its time, "level" its intensity. */
+export type AxisLock = "time" | "level";
 export type Pick = { kind: "kf" | "fade"; track: string; id: string } | { kind: "marker"; id: string } | { kind: "track"; id: string } | null;
 
 export const LABEL_W = 112, RULER_H = 32, MARKS_H = 28;
@@ -21,8 +23,8 @@ const pad = (dot: number) => dot / 2 + 4;
  * strip and one lane per track, `zoom` times the screen's width and scrolling sideways, the track labels beside them.
  * In Insert mode a tap on a lane adds a keyframe and a tap on the strip a marker; a keyframe is dragged in time.
  */
-export function Lanes({ body, zoom, insert, playhead, pick, locked, view, kfSize, laneHeight, onPick, onSeek, onAddKeyframe, onAddMarker, onMoveKeyframe, onAddTrack, deviceName }: {
-  body: FlowBody; zoom: number; insert: boolean; playhead: number; pick: Pick; locked: boolean; view: FlowView; kfSize: KeyframeSize; laneHeight: number;
+export function Lanes({ body, zoom, insert, playhead, pick, locked, view, kfSize, laneHeight, levelStep, axisLock, onPick, onSeek, onAddKeyframe, onAddMarker, onMoveKeyframe, onAddTrack, deviceName }: {
+  body: FlowBody; zoom: number; insert: boolean; playhead: number; pick: Pick; locked: boolean; view: FlowView; kfSize: KeyframeSize; laneHeight: number; /** Intensity drags snap to this many percent. */ levelStep: number; axisLock?: AxisLock;
   onPick: (p: Pick) => void; onSeek: (t: number) => void; onAddKeyframe: (track: string, t: number) => void; onAddMarker: (t: number) => void;
   /** A keyframe dragged: to a time, and with the graph to a level (0..1; undefined: unchanged). */ onMoveKeyframe: (track: string, kf: Keyframe, t: number, level?: number) => void; onAddTrack: () => void; deviceName: (id: string | null) => string;
 }) {
@@ -62,7 +64,7 @@ export function Lanes({ body, zoom, insert, playhead, pick, locked, view, kfSize
               {markers.map((m) => <MarkerChip key={m.id} m={m} x={x} on={pick?.kind === "marker" && pick.id === m.id} onPress={() => onPick({ kind: "marker", id: m.id })} />)}
             </Pressable>
             {body.tracks.map((t) => (
-              <Lane key={t.id} t={t} x={x} at={at} width={width} h={laneHeight} dot={DOT_SIZES[kfSize]} view={view} duration={body.durationMs} insert={insert && !locked} locked={locked} pick={pick} onPick={onPick} onAdd={(time) => onAddKeyframe(t.id, time)} onMove={(kf, time, level) => onMoveKeyframe(t.id, kf, time, level)} />
+              <Lane key={t.id} t={t} x={x} at={at} width={width} h={laneHeight} dot={DOT_SIZES[kfSize]} view={view} levelStep={levelStep} axisLock={axisLock} duration={body.durationMs} insert={insert && !locked} locked={locked} pick={pick} onPick={onPick} onAdd={(time) => onAddKeyframe(t.id, time)} onMove={(kf, time, level) => onMoveKeyframe(t.id, kf, time, level)} />
             ))}
             <View pointerEvents="none" style={[s.playhead, { left: x(playhead) }]} />
           </View>
@@ -101,8 +103,8 @@ function MarkerChip({ m, x, on, onPress }: { m: FlowMarker; x: (t: number) => nu
  * keyframes sit at their level on the line and dragging up or down sets it; light colour fills a dot with what the
  * light shows there; value labels and badges say what a keyframe sets.
  */
-function Lane({ t, x, at, width, h, dot, view, duration, insert, locked, pick, onPick, onAdd, onMove }: {
-  t: FlowTrack; x: (t: number) => number; at: (px: number) => number; width: number; h: number; dot: number; view: FlowView; duration: number; insert: boolean; locked: boolean; pick: Pick;
+function Lane({ t, x, at, width, h, dot, view, levelStep, axisLock, duration, insert, locked, pick, onPick, onAdd, onMove }: {
+  t: FlowTrack; x: (t: number) => number; at: (px: number) => number; width: number; h: number; dot: number; view: FlowView; levelStep: number; axisLock?: AxisLock; duration: number; insert: boolean; locked: boolean; pick: Pick;
   onPick: (p: Pick) => void; onAdd: (t: number) => void; onMove: (kf: Keyframe, t: number, level?: number) => void;
 }) {
   const s = useStyles();
@@ -130,10 +132,11 @@ function Lane({ t, x, at, width, h, dot, view, duration, insert, locked, pick, o
         const fill = view.fill && !camera ? lightColour(sampleTrack(kfs, k.at)) : null;
         const label = view.labels || camera ? shortLabel(t.model, k, !view.badges) : "";
         return (
-          <Dot key={k.id} k={k} left={x(k.at)} top={yOf(level)} size={dot} color={col} fill={fill} camera={camera} graph={graph} room={room} level={level}
+          <Dot key={k.id} k={k} left={x(k.at)} top={yOf(level)} size={dot} color={col} fill={fill} camera={camera} graph={graph} room={room} level={level} levelStep={levelStep}
+            fixTime={k.id === START_KEYFRAME || axisLock === "time"} fixLevel={axisLock === "level"}
             label={label} badge={view.badges && k.effect?.id ? effectName(k.effect.id) : null} off={view.badges && k.power === false}
             on={pick?.kind === "kf" && pick.track === t.id && pick.id === k.id} locked={locked}
-            onPress={() => onPick({ kind: "kf", track: t.id, id: k.id })} onDrop={(dx, dl) => onMove(k, at(x(k.at) + dx), dl === null ? undefined : Math.min(1, Math.max(0, level + dl)))} />
+            onPress={() => onPick({ kind: "kf", track: t.id, id: k.id })} onDrop={(dx, dl) => onMove(k, dx === 0 ? k.at : at(x(k.at) + dx), dl === null ? undefined : snapLevel(level, level + dl, levelStep))} />
         );
       })}
     </Pressable>
@@ -141,31 +144,32 @@ function Lane({ t, x, at, width, h, dot, view, duration, insert, locked, pick, o
 }
 
 /** A keyframe: tap to choose it; drag sideways to move it in time (not the start keyframe), up or down for its level (graph on). */
-function Dot({ k, left, top, size, color, fill, camera, graph, room, level, label, badge, off, on, locked, onPress, onDrop }: {
-  k: Keyframe; left: number; top: number; size: number; color: string; fill: string | null; camera: boolean; graph: boolean; room: number; level: number;
+function Dot({ k, left, top, size, color, fill, camera, graph, room, level, levelStep, fixTime, fixLevel, label, badge, off, on, locked, onPress, onDrop }: {
+  k: Keyframe; left: number; top: number; size: number; color: string; fill: string | null; camera: boolean; graph: boolean; room: number; level: number; levelStep: number; /** Held in time (the start keyframe, or Lock time). */ fixTime: boolean; /** Held in intensity (Lock intensity). */ fixLevel: boolean;
   label: string; badge: string | null; off: boolean; on: boolean; locked: boolean; onPress: () => void; onDrop: (dx: number, dLevel: number | null) => void;
 }) {
   const s = useStyles();
   const { c } = useTheme();
   const [drag, setDrag] = useState({ dx: 0, dy: 0 });
-  const r = useRef({ onDrop, onPress, locked, start: k.id === START_KEYFRAME, graph, room });
-  r.current = { onDrop, onPress, locked, start: k.id === START_KEYFRAME, graph, room };
+  const r = useRef({ onDrop, onPress, locked, fixTime, levels: graph && !fixLevel, room });
+  r.current = { onDrop, onPress, locked, fixTime, levels: graph && !fixLevel, room };
   const pan = useRef(PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onMoveShouldSetPanResponder: (_e, g) => !r.current.locked && Math.abs(g.dx) + Math.abs(g.dy) > 6,
     onPanResponderTerminationRequest: () => false,
-    onPanResponderMove: (_e, g) => { if (!r.current.locked) setDrag({ dx: r.current.start ? 0 : g.dx, dy: r.current.graph ? g.dy : 0 }); },
+    onPanResponderMove: (_e, g) => { if (!r.current.locked) setDrag({ dx: r.current.fixTime ? 0 : g.dx, dy: r.current.levels ? g.dy : 0 }); },
     onPanResponderRelease: (_e, g) => {
       setDrag({ dx: 0, dy: 0 });
       const moved = Math.abs(g.dx) + Math.abs(g.dy) > 6;
       if (!moved || r.current.locked) { r.current.onPress(); return; }
-      const dx = r.current.start ? 0 : g.dx, dl = r.current.graph ? -g.dy / r.current.room : null;
+      const dx = r.current.fixTime ? 0 : g.dx, dl = r.current.levels ? -g.dy / r.current.room : null;
       if (dx !== 0 || dl !== null) r.current.onDrop(dx, dl);
     },
     onPanResponderTerminate: () => setDrag({ dx: 0, dy: 0 }),
   })).current;
-  const shown = graph ? Math.min(1, Math.max(0, level - drag.dy / room)) : null;
-  const y = top + (graph ? drag.dy : 0);
+  const shown = graph ? snapLevel(level, level - drag.dy / room, levelStep) : null;
+  // While dragging up or down the dot sits on the snapped level it will take.
+  const y = shown !== null && drag.dy !== 0 ? top - (shown - level) * room : top;
   return (
     <>
       <View {...pan.panHandlers} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Keyframe at ${fmtSeconds(k.at)}`}

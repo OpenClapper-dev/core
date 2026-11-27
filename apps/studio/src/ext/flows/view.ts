@@ -1,7 +1,7 @@
 // What a flow's lanes show (docs/features/flows.md, "In the Studio"): a light's colour, the intensity graph, short
 // labels of what a keyframe sets; and the view switches and keyframe size, kept per browser.
 import { useState } from "preact/hooks";
-import { DEFAULT_VIEW, type FlowView } from "@openclapper/ext-flows";
+import { DEFAULT_VIEW, LEVEL_STEPS, type FlowView, type LevelStep } from "@openclapper/ext-flows";
 export { graphPoints, keyframeLevel, lightColour, shortLabel, VIEW_LABELS, type FlowView } from "@openclapper/ext-flows";
 
 /** A per-browser setting (a viewer's convenience, not the flow's). */
@@ -17,4 +17,6 @@ export const useKeyframeSize = () => useLocal<"s" | "m" | "l">("flows.kfSize.v1"
 export const ZOOM_MIN = 1, ZOOM_MAX = 32;
 export const useZoom = () => useLocal<number>("flows.zoom.v1", 1, (v) => typeof v === "number" && v >= ZOOM_MIN && v <= ZOOM_MAX);
 export const useTrackHeight = () => useLocal<number>("flows.trackHeight.v1", 64, (v) => typeof v === "number" && v >= 40 && v <= 240);
+/** What an intensity drag snaps to, in percent (#426): 1 keeps the old feel; any percent can still be typed in. */
+export const useLevelStep = () => useLocal<LevelStep>("flows.levelStep.v1", 1, (v) => (LEVEL_STEPS as readonly unknown[]).includes(v));
 

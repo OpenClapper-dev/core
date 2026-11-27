@@ -3,8 +3,8 @@
 import type { ComponentChildren } from "preact";
 import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, Switch, TextInput } from "@openclapper/design";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, MARKER_NAME_MAX, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
-import { CURVE_LABELS, fmt, snap, SNAP_MS } from "./lanes";
+import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, MARKER_NAME_MAX, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import { CURVE_LABELS } from "./lanes";
 
 function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
   return <label className="hw-ctl hw-ctl--range"><small>{label}<b>{format(value)}</b></small><Slider value={value} min={min} max={max} step={step} onChange={onChange} aria-label={label} /></label>;
@@ -19,7 +19,7 @@ function Channel({ label, on, fixed, toggle, children }: { label: string; on: bo
   );
 }
 const Seconds = ({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (ms: number) => void }) => (
-  <label className="hw-ctl"><small>{label} (s)</small><NumberInput size="sm" value={value / 1000} step={0.1} min={min / 1000} max={max / 1000} onChange={(v: number) => { if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, snap(v * 1000)))); }} /></label>
+  <label className="hw-ctl"><small>{label} (s)</small><NumberInput size="sm" value={value / 1000} step={1} min={min / 1000} max={max / 1000} onChange={(v: number) => { if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, snap(v * 1000)))); }} /></label>
 );
 
 /** One keyframe of a light track: when, and which values it sets. */
@@ -123,7 +123,7 @@ export function FadeInspect({ kf, track, onChange, onStepped }: { kf: Keyframe; 
   const native = !!fixtureKind(track.model)?.caps.fade;
   return (
     <div className="fl-inspect">
-      <strong>Into {fmt(kf.at)} · {track.name}</strong>
+      <strong>Into {fmtSeconds(kf.at)} · {track.name}</strong>
       <Segmented label="Transition" value={kf.fadeIn ? "fade" : "jump"} onChange={(v: string) => onChange(v === "fade" ? kf.fadeIn ?? "linear" : null)} options={[{ value: "jump", label: "Jump" }, { value: "fade", label: "Fade" }]} />
       {kf.fadeIn && <div className="fl-chan"><strong>Curve</strong><Segmented label="Fade curve" value={kf.fadeIn} onChange={(c: string) => onChange(c as Curve)} options={CURVES.map((c) => ({ value: c, label: CURVE_LABELS[c] }))} /></div>}
       {kf.fadeIn && native && <div className="fl-chan"><strong>Run by</strong><Segmented label="How the fade runs" value={kf.fadeStepped ? "steps" : "light"} onChange={(v: string) => onStepped(v === "steps")} options={[{ value: "light", label: "The light (smooth)" }, { value: "steps", label: "Steps every 0.1 s" }]} /></div>}

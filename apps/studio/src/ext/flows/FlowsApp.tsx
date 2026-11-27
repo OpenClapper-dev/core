@@ -10,7 +10,7 @@ import {
   cx, useDockLayout, type DockPanel,
 } from "@openclapper/design";
 import { CATALOGUE, fixtureKind, modelOf, type HardwareBody } from "@openclapper/ext-hardware";
-import { FlowPlayer, FLOW_MAX_MS, inFade, sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type Keyframe, type SendLight } from "@openclapper/ext-flows";
+import { FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, sampleTrack, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
 import * as api from "../../api";
 import type { FileRec } from "../../api";
 import type { AppProps } from "../../apps/registry";
@@ -23,9 +23,9 @@ import { useProjects } from "../../projects";
 import { useUser } from "../../user";
 import { command as sendCommand, setBusyDevices, useHardware } from "../hardware/link";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, NothingChosen, SelectionInspect, TrackInspect } from "./inspect";
-import { fmt, keyOf, Lanes, markKey, markOf, snap, SNAP_MS, splitKey } from "./lanes";
+import { keyOf, Lanes, markKey, markOf, splitKey } from "./lanes";
 import { requestRun, useRun } from "./run";
-import { useFlowView, useKeyframeSize, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
+import { useFlowView, useKeyframeSize, useLevelStep, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
 
 const SAVE_AFTER_MS = 400;
 const TRACK_MODELS = CATALOGUE.filter((m) => m.type === "light" || m.type === "camera");
@@ -45,7 +45,7 @@ export function FlowsApp({ projectId, setTitle, setRoute, resource, focused }: A
   if (!files) return <div className="oc-app st-center"><Spinner /></div>;
   const list = (
     <List className="fl-list">
-      {flows.map((x) => <ListRow key={x.id} icon="timeline" selected={x.id === chosen} onClick={() => setChosen(x.id)} meta={fmt(bodyOf(x).durationMs)}>{x.name}</ListRow>)}
+      {flows.map((x) => <ListRow key={x.id} icon="timeline" selected={x.id === chosen} onClick={() => setChosen(x.id)} meta={fmtSeconds(bodyOf(x).durationMs)}>{x.name}</ListRow>)}
       {!flows.length && <EmptyState icon="timeline" title="No flows yet">Tracks of lights and cameras, keyframes on them, played through a device.</EmptyState>}
     </List>
   );
@@ -177,6 +177,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const [mode, setMode] = useState<"select" | "insert">("select");
   const [kfSize, setKfSize] = useKeyframeSize();
   const [view, setView] = useFlowView();
+  const [levelStep, setLevelStep] = useLevelStep();
   const [trackHeight, setTrackHeight] = useTrackHeight();
   const [zoom, setZoom] = useZoom();
   const [heights, setHeights] = useState<Record<string, number>>({});
@@ -220,7 +221,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   };
   const patchMarker = (id: string, fn: (m: FlowMarker) => FlowMarker) => change((b) => ({ ...b, markers: (b.markers ?? []).map((m) => (m.id === id ? fn(m) : m)) }));
   const markRange = () => {
-    if (rangeIn.current === null) { rangeIn.current = playhead; toast(`In at ${fmt(playhead)}: move the playhead, Shift+M again for the out point`, { tone: "info" }); return; }
+    if (rangeIn.current === null) { rangeIn.current = playhead; toast(`In at ${fmtSeconds(playhead)}: move the playhead, Shift+M again for the out point`, { tone: "info" }); return; }
     const a = Math.min(rangeIn.current, playhead), b = Math.max(rangeIn.current, playhead);
     rangeIn.current = null;
     if (b - a < SNAP_MS) { toast("A range needs an out point after its in point", { tone: "info" }); return; }
@@ -295,7 +296,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
 
   // ---------- The stage ----------
   const lanes = (
-    <Lanes flow={flow} zoom={zoom} mode={mode} kfSize={kfSize} view={view} trackHeight={trackHeight} heights={heights} devices={devices} liveOf={(id) => hw.state?.devices.find((d) => d.id === id)}
+    <Lanes flow={flow} zoom={zoom} mode={mode} kfSize={kfSize} view={view} levelStep={levelStep} trackHeight={trackHeight} heights={heights} devices={devices} liveOf={(id) => hw.state?.devices.find((d) => d.id === id)}
       playhead={runsThis ? runAt : playhead} playing={playing || runsThis} locked={readonly} sel={sel} tile={tile}
       onSeek={(t) => { if (!playing && !runsThis) setPlayhead(t); }} onAdd={addKeyframe}
       onSelect={(keys, add) => select(keys, add)} onToggle={(key) => { const n = new Set(sel); if (n.has(key)) n.delete(key); else n.add(key); setTile(null); setSel(n); }}
@@ -324,6 +325,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
           <div className="fl-menu">
             {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Switch key={k} checked={view[k]} onChange={(on: boolean) => setView({ ...view, [k]: on })}>{VIEW_LABELS[k]}</Switch>)}
             <label className="hw-ctl"><small>Keyframes</small><Segmented label="Keyframe size" value={kfSize} onChange={(v: string) => setKfSize(v as "s" | "m" | "l")} options={[{ value: "s", label: "S" }, { value: "m", label: "M" }, { value: "l", label: "L" }]} /></label>
+            <label className="hw-ctl"><small>Intensity snap</small><Segmented label="Intensity snap while dragging" value={String(levelStep)} onChange={(v: string) => setLevelStep(Number(v) as LevelStep)} options={LEVEL_STEPS.map((n) => ({ value: String(n), label: `${n} %` }))} /></label>
           </div>
         </Popover>
         {/* Size (#426): two grouped boxes in the bar, each a slider and its Fit. */}
@@ -337,7 +339,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         </div>
         <Switch checked={live} onChange={setLive}>Live</Switch>
         <ToolbarSpacer />
-        <span className="fl-time">{fmt(runsThis ? runAt : playhead)} / {fmt(flow.durationMs)}</span>
+        <span className="fl-time">{fmtClock(runsThis ? runAt : playhead)} / {fmtSeconds(flow.durationMs)}</span>
         <Button size="sm" variant="quiet" icon="skip-back" label="To the start" disabled={runsThis} onClick={() => { setPlaying(false); setPlayhead(0); }} />
         <Button size="sm" variant="secondary" icon="mobile" disabled={!proxy || runActive} title="Run on the device from the start: it plays on its own, without the relay, as on set" onClick={() => void runOnPhone(0)}>Run on device</Button>
         <Button size="sm" variant="quiet" icon="skip-forward" label="Run on the device from the playhead" disabled={!proxy || runActive} onClick={() => void runOnPhone(playhead)} />

@@ -35,14 +35,14 @@ export function Button({ label, onPress, kind = "primary", disabled, icon, busy,
   );
 }
 
-/** Square icon-only button (48 dp, 2 dp border) with an accessible name. */
-export function IconButton({ icon, label, onPress, onLongPress, disabled, color, size = SIZE.touchMin, plain }: { icon: IconName; label: string; onPress: () => void; onLongPress?: () => void; disabled?: boolean; color?: string; size?: number; /** No border (header lead). */ plain?: boolean }) {
+/** Square icon-only button (48 dp, 2 dp border) with an accessible name; `on` makes it a toggle shown filled while on. */
+export function IconButton({ icon, label, onPress, onLongPress, disabled, color, size = SIZE.touchMin, plain, on }: { icon: IconName; label: string; onPress: () => void; onLongPress?: () => void; disabled?: boolean; color?: string; size?: number; /** No border (header lead). */ plain?: boolean; /** A toggle: on or off (undefined: a plain button). */ on?: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   return (
-    <Pressable onPress={onPress} onLongPress={onLongPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={label} hitSlop={4}
-      style={({ pressed }) => [s.iconBtn, { width: size, height: size }, plain && { borderColor: "transparent", backgroundColor: "transparent" }, pressed && { backgroundColor: c.surfaceSunken }, disabled && { borderStyle: "dashed", borderColor: c.textDisabled }]}>
-      <Icon name={icon} size={26} color={disabled ? c.textDisabled : color} />
+    <Pressable onPress={onPress} onLongPress={onLongPress} disabled={disabled} accessibilityRole={on === undefined ? "button" : "togglebutton"} accessibilityLabel={label} accessibilityState={on === undefined ? undefined : { checked: on, disabled }} hitSlop={4}
+      style={({ pressed }) => [s.iconBtn, { width: size, height: size }, plain && { borderColor: "transparent", backgroundColor: "transparent" }, pressed && { backgroundColor: c.surfaceSunken }, on && { backgroundColor: c.accent, borderColor: c.accent }, disabled && { borderStyle: "dashed", borderColor: c.textDisabled }]}>
+      <Icon name={icon} size={26} color={disabled ? c.textDisabled : on ? c.onAccent : color} />
     </Pressable>
   );
 }
