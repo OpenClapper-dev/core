@@ -417,7 +417,6 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         </Banner></div>
       )}
       {run?.phase === "error" && run.flow === f.id && <div className="fl-run"><Banner tone="danger" title={run.error ?? "Not started on the device"} /></div>}
-      {!proxy && <div className="fl-run"><Banner tone="neutral" icon="mobile" title="No proxy: Play drives the stage only">Switch the proxy on in Hardware on the device to drive the lights, preview or run.</Banner></div>}
       {stageLayout.on && <>
         <StagePane flow={flow} t={runsThis ? runAt : playhead} editing={!readonly} drawing={drawing} onDrawing={setDrawing} sel={stageSel} onSel={pickOnStage}
           marked={selTrack?.id ?? tileTrack?.id ?? pickedTrack?.id ?? null} flash={flash} height={stageLayout.h} photos={photos} onChange={changeStage} />
