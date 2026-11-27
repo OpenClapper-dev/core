@@ -189,3 +189,8 @@
 .sh-src { cursor: pointer; }
 .sh-src.is-off { cursor: not-allowed; opacity: .55; }
 .sh-src .oc-thumb__meta, .sh-src small { font-size: 11px; }
+/* Drawing a progression's overlay: the picture at the playhead behind the transparent paper. */
+.sh-backdrop { background: transparent; }
+.sh-backdrop.is-dim { opacity: .55; }
+.sh-backnote { display: flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-5); color: var(--text-secondary); font-size: var(--font-size-2xs); border-bottom: var(--border-w) solid var(--border-divider); }
+.sh-backnote strong { color: var(--text); }
