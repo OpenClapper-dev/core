@@ -5,11 +5,11 @@
 import "../../canvas/canvas.css";
 import "./stage.css";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { Button, cx, Icon, Popover, Slider, TextInput, type IconName } from "@openclapper/design";
+import { Button, cx, Icon, Popover, Segmented, Slider, TextInput, type IconName } from "@openclapper/design";
 import { modelOf } from "@openclapper/ext-hardware";
 import {
-  beamOpacity, beamPath, effectOpacity, emptyStage, fmtClock, glowRadius, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
-  type Flow, type FlowStage, type FlowTrack, type StageLight, type WidgetShape,
+  beamOpacity, beamPath, ceilingShape, effectOpacity, emptyStage, fmtClock, glowRadius, isCeiling, poolRadius, setMount, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
+  type Flow, type FlowStage, type FlowTrack, type StageLight, type StageMount, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { eraseAt } from "../../canvas/erase";
 import { toEdit, toStore, type Obj, type P } from "../../canvas/geometry";
@@ -42,21 +42,26 @@ function useFrames(on: boolean): number {
   return now;
 }
 
-/** The parts of a widget's body, facing +x; the face takes the light's colour (or an unlit grey). */
-function Body({ shape, face, muted }: { shape: WidgetShape; face: string; muted?: boolean }) {
+/** The parts of a widget's body (aimed: facing +x; ceiling: seen from below); the face takes the light's colour (or an unlit grey). */
+function Body({ shape, face, muted }: { shape: { parts: WidgetPart[] }; face: string; muted?: boolean }) {
   return <g opacity={muted ? 0.45 : 1} stroke-dasharray={muted ? "3 2" : undefined}>{shape.parts.map((p, i) => p.kind === "rect"
     ? <rect key={i} x={p.x} y={p.y} width={p.w} height={p.h} rx={p.r} fill={p.face ? face : STAGE_INK.body} stroke={p.face ? "none" : STAGE_INK.rim} stroke-width={1.5} />
     : <path key={i} d={p.d} fill={p.face ? face : STAGE_INK.body} stroke={STAGE_INK.rim} stroke-width={1.5} />)}</g>;
 }
 
 /** A small picture of a track's widget (the palette, the chosen panel). */
-export function MiniWidget({ tr }: { tr: FlowTrack }) {
-  return <svg className="fl-mini" viewBox="-34 -30 68 60" aria-hidden="true"><g transform="translate(-10 0)"><Body shape={widgetShape(tr.model)} face={trackInk(tr)} /></g></svg>;
+export function MiniWidget({ tr, mount }: { tr: FlowTrack; mount?: StageMount }) {
+  return <svg className="fl-mini" viewBox="-34 -30 68 60" aria-hidden="true">{mount === "ceiling"
+    ? <Body shape={ceilingShape(tr.model)} face={trackInk(tr)} />
+    : <g transform="translate(-10 0)"><Body shape={widgetShape(tr.model)} face={trackInk(tr)} /></g>}</svg>;
 }
 
 interface WidgetsProps { flow: Flow; stage: FlowStage; t: number; sel: StageSel; marked: string | null; flash: string | null; editing: boolean; onGrab: (e: PointerEvent, l: StageLight, how: "move" | "turn") => void }
 
-/** The widgets: beams under bodies under tags, each sampled at the playhead; the chosen one with a ring and a handle to turn it. */
+/**
+ * The widgets: beams (an aimed light's wedge, a ceiling light's pool) under bodies under tags, each sampled at the
+ * playhead; the chosen one with a ring and, when aimed, a handle to turn it.
+ */
 function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: WidgetsProps) {
   const H = STAGE_W / stage.aspect;
   const placed = stage.lights.map((l) => ({ l, tr: flow.tracks.find((x) => x.id === l.track) })).filter((x): x is { l: StageLight; tr: FlowTrack } => !!x.tr);
@@ -67,9 +72,16 @@ function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: Widget
   return (
     <svg className="fl-widgets" viewBox={`0 0 ${STAGE_W} ${H}`} preserveAspectRatio="none">
       <g>{placed.map(({ l, tr }, i) => {
-        const s = states[i], g = widgetShape(tr.model), [x, y] = at(l), c = s.colour ?? "#ffffff", id = `w${tr.id}`;
+        const s = states[i], [x, y] = at(l), c = s.colour ?? "#ffffff", id = `w${tr.id}`;
         if (!s.on) return null;
         const fx = s.effect ? effectOpacity(s.effect.family, now) : 1;
+        if (isCeiling(l)) return (
+          <g key={tr.id} transform={`translate(${x} ${y})`} opacity={beamOpacity(s.level) * fx} style={{ pointerEvents: "none" }}>
+            <defs><radialGradient id={`${id}p`}><stop offset="0" stop-color={c} stop-opacity=".8" /><stop offset=".4" stop-color={c} stop-opacity=".4" /><stop offset="1" stop-color={c} stop-opacity="0" /></radialGradient></defs>
+            <circle r={poolRadius(ceilingShape(tr.model), s.level)} fill={`url(#${id}p)`} />
+          </g>
+        );
+        const g = widgetShape(tr.model);
         return (
           <g key={tr.id} transform={`translate(${x} ${y}) rotate(${l.rot})`} opacity={beamOpacity(s.level) * fx} style={{ pointerEvents: "none" }}>
             <defs>
@@ -85,7 +97,9 @@ function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: Widget
         const s = states[i], [x, y] = at(l);
         return (
           <g key={tr.id} className={cx("fl-w", editing && "is-movable")} data-light={tr.id} transform={`translate(${x} ${y})`} onPointerDown={(e) => onGrab(e, l, "move")}>
-            <g transform={`rotate(${l.rot})`}><Body shape={widgetShape(tr.model)} face={s.on ? s.colour ?? "#ffffff" : STAGE_INK.unlit} muted={s.muted} /></g>
+            {isCeiling(l)
+              ? <Body shape={ceilingShape(tr.model)} face={s.on ? s.colour ?? "#ffffff" : STAGE_INK.unlit} muted={s.muted} />
+              : <g transform={`rotate(${l.rot})`}><Body shape={widgetShape(tr.model)} face={s.on ? s.colour ?? "#ffffff" : STAGE_INK.unlit} muted={s.muted} /></g>}
             <circle r={36} fill="transparent" />
           </g>
         );
@@ -107,7 +121,7 @@ function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: Widget
           <g key={`r${tr.id}`}>
             {tr.id === flash && <circle className="fl-w__flash" cx={x} cy={y} r={20} />}
             {tr.id === ring && <circle cx={x} cy={y} r={42} fill="none" stroke={STAGE_INK.select} stroke-width={1.5} stroke-dasharray="5 4" style={{ pointerEvents: "none" }} />}
-            {tr.id === ring && sel?.kind === "light" && editing && <>
+            {tr.id === ring && sel?.kind === "light" && editing && !isCeiling(l) && <>
               <line x1={x + Math.cos(a) * 42} y1={y + Math.sin(a) * 42} x2={hx} y2={hy} stroke={STAGE_INK.select} stroke-width={1.5} stroke-dasharray="5 4" style={{ pointerEvents: "none" }} />
               <circle className="fl-w__turn" cx={hx} cy={hy} r={9} fill={STAGE_INK.paper} stroke={STAGE_INK.select} stroke-width={2} onPointerDown={(e) => onGrab(e, l, "turn")}><title>Turn (Shift: free)</title></circle>
             </>}
@@ -290,11 +304,11 @@ export function PlacePalette({ flow, editing, onPlace, onLocate }: { flow: Flow;
   return (
     <ul className="fl-pal">
       {lights.map((tr) => {
-        const on = stage.lights.some((l) => l.track === tr.id), m = modelOf(tr.model);
+        const pl = stage.lights.find((l) => l.track === tr.id), on = !!pl, m = modelOf(tr.model);
         return (
           <li key={tr.id} className={cx(on ? "is-placed" : editing && "can-drag")} onPointerDown={on ? undefined : (e) => drag(e, tr)} title={on || !editing ? undefined : "Drag onto the stage"}
             style={tr.color !== undefined ? { "--track-c": `var(--cat-${tr.color + 1})` } : undefined}>
-            <span className="fl-pal__dot" /><MiniWidget tr={tr} />
+            <span className="fl-pal__dot" /><MiniWidget tr={tr} mount={pl?.mount} />
             <span className="fl-pal__txt"><b>{tr.name}</b><small>{on ? "On the stage" : `${m ? `${m.brand} ${m.model}` : tr.model}${editing ? " · drag onto the stage" : ""}`}</small></span>
             {on ? <Button size="sm" variant="quiet" icon="crosshair" label="Show it on the stage" onClick={() => onLocate(tr.id)} /> : <Button size="sm" disabled={!editing} onClick={() => onPlace(tr.id)}>Place</Button>}
           </li>
@@ -306,18 +320,25 @@ export function PlacePalette({ flow, editing, onPlace, onLocate }: { flow: Flow;
   );
 }
 
-/** The chosen widget: its track, where it points, what it shows at the playhead. */
-export function LightInspect({ flow, track, t, editing, onTurn, onShowTrack, onRemove }: { flow: Flow; track: string; t: number; editing: boolean; onTurn: (rot: number) => void; onShowTrack: () => void; onRemove: () => void }) {
+const MOUNTS: { value: StageMount; label: string; title: string }[] = [
+  { value: "aimed", label: "Aimed", title: "On a stand or a wall, pointing across the floor" },
+  { value: "ceiling", label: "Ceiling", title: "Hung overhead, looking down: a pool of light" },
+];
+
+/** The chosen widget: its track, how it hangs and where it points, what it shows at the playhead. */
+export function LightInspect({ flow, track, t, editing, onLight, onShowTrack, onRemove }: { flow: Flow; track: string; t: number; editing: boolean; onLight: (fn: (l: StageLight) => StageLight) => void; onShowTrack: () => void; onRemove: () => void }) {
   const tr = flow.tracks.find((x) => x.id === track), l = flow.stage?.lights.find((x) => x.track === track);
   if (!tr || !l) return null;
-  const s = widgetState(tr, t), m = modelOf(tr.model);
+  const s = widgetState(tr, t), m = modelOf(tr.model), ceiling = isCeiling(l);
+  const turn = (rot: number) => onLight((x) => ({ ...x, rot }));
   return (
     <div className="fl-inspect" style={tr.color !== undefined ? { "--track-c": `var(--cat-${tr.color + 1})` } : undefined}>
       <h3 className="fl-chosen__title"><i />{tr.name}</h3>
       <dl className="fl-kv">
         <dt>Model</dt><dd>{m ? `${m.brand} ${m.model}` : tr.model}</dd>
         <dt>Device</dt><dd>{tr.device ? "Assigned" : "None: the stage plays it anyway"}</dd>
-        <dt>Turned</dt><dd>{editing ? <span className="hw-row"><Button size="sm" variant="quiet" icon="rotate" label="Turn left 15°" onClick={() => onTurn((l.rot + 345) % 360)} /><b className="fl-num">{l.rot}°</b><Button size="sm" variant="quiet" icon="rotate-cw" label="Turn right 15°" onClick={() => onTurn((l.rot + 15) % 360)} /></span> : `${l.rot}°`}</dd>
+        <dt>Mounted</dt><dd><Segmented label="Mounted" value={ceiling ? "ceiling" : "aimed"} disabled={!editing} options={MOUNTS} onChange={(v) => onLight((x) => setMount(x, v as StageMount))} /></dd>
+        {!ceiling && <><dt>Turned</dt><dd>{editing ? <span className="hw-row"><Button size="sm" variant="quiet" icon="rotate" label="Turn left 15°" onClick={() => turn((l.rot + 345) % 360)} /><b className="fl-num">{l.rot}°</b><Button size="sm" variant="quiet" icon="rotate-cw" label="Turn right 15°" onClick={() => turn((l.rot + 15) % 360)} /></span> : `${l.rot}°`}</dd></>}
       </dl>
       <small className="fl-note">At the playhead, {fmtClock(t)}</small>
       <dl className="fl-kv">

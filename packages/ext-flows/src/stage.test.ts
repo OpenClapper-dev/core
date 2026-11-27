@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { EFFECTS } from "@openclapper/ext-hardware";
 import { emptyFlow, flowError, FLOW, removeTrack, START_KEYFRAME, type FlowBody, type FlowTrack, type Keyframe } from "./index.ts";
-import { beamPath, EFFECT_FAMILY, effectOpacity, emptyStage, STAGE_OBJECTS_MAX, widgetShape, widgetState, type FlowStage } from "./stage.ts";
+import { beamPath, ceilingShape, EFFECT_FAMILY, effectOpacity, emptyStage, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const lamp: FlowTrack = { id: "t1", name: "Lamp 1", model: "aputure-mc", device: null, keyframes: [kf(0, { power: false, intensity: 0.8, kelvin: 3200, gm: 0 }, START_KEYFRAME), kf(3000, { power: true }), kf(6000, { hue: 0, sat: 1, intensity: 1 }), kf(8000, { effect: { id: "fire" } })] };
@@ -70,4 +70,29 @@ test("the beam's shape follows the fixture: the MC soft and wide, the FS narrowe
   assert.ok(fs3.len[1] > fs.len[1]);
   assert.match(beamPath(mc, 1), /^M10.5 -13.5 L160.5 -60.0 L160.5 60.0 L10.5 13.5 Z$/);
   assert.ok(fs.parts.some((p) => p.face));
+});
+
+test("a light hangs aimed (the default) or from the ceiling; nothing else", () => {
+  const at = (mount: unknown) => withStage({ ...emptyStage(), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 90, mount }] });
+  assert.equal(flowError(at("ceiling")), null);
+  assert.equal(flowError(at("aimed")), null);
+  const hung = setMount({ track: "t1", x: 0.5, y: 0.5, rot: 90 }, "ceiling");
+  assert.deepEqual(hung, { track: "t1", x: 0.5, y: 0.5, rot: 90, mount: "ceiling" });
+  assert.deepEqual(setMount(hung, "aimed"), { track: "t1", x: 0.5, y: 0.5, rot: 90 }); // the default is no key; the turn kept
+  assert.match(flowError(at("wall"))!, /mount is aimed or ceiling/);
+  assert.match(flowError(withStage({ ...emptyStage(), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0, tilt: 3 }] }))!, /is \{ track, x, y, rot, mount\? \}/);
+});
+
+test("a ceiling light: a pool growing with the level, its tag under it (above at the paper's foot), its turn ignored", () => {
+  const mc = ceilingShape("aputure-mc"), fs = ceilingShape("neewer-fs230b"), fs3 = ceilingShape("neewer-fs300b");
+  assert.ok(poolRadius(mc, 1) > poolRadius(mc, 0.2) && poolRadius(mc, 0) >= mc.r);
+  assert.ok(fs3.pool[1] > fs.pool[1] && fs3.r > fs.r);
+  assert.ok(mc.parts.some((p) => p.face) && fs.parts.some((p) => p.face));
+  const H = STAGE_W / (16 / 9);
+  const mid = tagAt({ track: "t1", x: 0.5, y: 0.5, rot: 0, mount: "ceiling" }, 16 / 9, 120);
+  assert.deepEqual(mid, tagAt({ track: "t1", x: 0.5, y: 0.5, rot: 200, mount: "ceiling" }, 16 / 9, 120));
+  assert.ok(mid[0] === 500 && mid[1] > H / 2);
+  assert.ok(tagAt({ track: "t1", x: 0.5, y: 0.98, rot: 0, mount: "ceiling" }, 16 / 9, 120)[1] < 0.98 * H);
+  // Aimed: behind the light, as before.
+  assert.ok(tagAt({ track: "t1", x: 0.5, y: 0.5, rot: 0 }, 16 / 9, 120)[0] < 500);
 });
