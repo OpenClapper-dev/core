@@ -42,7 +42,7 @@ One build for all three windows.
 | **The entry's own panel** | The side panel has a second tab named after the chosen picture: its place in the progression, its frame, its own properties and facts. This is the other app's inspector mounted in the window. A frame's focal length can be changed there while the stage follows |
 | **Editing in place** | "Edit here" (or a double-click) on a canvas mounts the canvas tool of [U2](ux-2-canvas.md) where the stage and side panel were. A bar above it says which file is being edited, whether it is internal or also used elsewhere, and offers "Edit a copy instead". The lists below fold away and can be pulled up to switch to another canvas |
 | **Internal files** | A canvas made inside a shot ("New canvas", the generator, the overlay) carries a lock mark and is listed in the shot's panel under "Internal files" with what it is used for. "Make it a project file" releases it, one way, after a confirmation |
-| **Thumbnail** | The first picture of the progression (a star marks it), else the first picture of the content. The panel's header shows it and says which rule applied |
+| **Thumbnail** | Changed by #426 feedback 4: the first entry of the content that is a photo, a canvas or a progression (a progression shows its first picture); a "Thumbnail" badge marks it, "Use as thumbnail" moves an entry to the top; no star. Before: the first picture of the progression (a star marked it), else the first picture of the content. The panel's header shows it and says which rule applied |
 | **Empty shot** | Shot 09: the stage offers to add files or to draw a canvas |
 | **Deleting** | "Move to the recycle bin" in the toolbar's menu names the internal files that go with the shot |
 
@@ -93,7 +93,7 @@ The panels of round 2 became a part of the design system (`Dock`) and every prot
 - **Free-form values** are allowed wherever a preset is: the default frame and the generator.
 - **The generator makes zooms only,** in steps or smooth. No pan or tilt.
 - **A progression item can be a smooth move** between two frames of one canvas over a time.
-- **The model stays:** the progression belongs to the shot, and what is made inside a shot is an internal file. Moving the progression onto the canvas was considered and dropped, because a progression across several photos needs the shot.
+- **The model stays:** the progression belongs to the shot, and what is made inside a shot is an internal file. Moving the progression onto the canvas was considered and dropped, because a progression across several photos needs the shot. Changed by #426 feedback 4: a progression is now a file of its own inside the shot (an internal file listed in its content), and a shot can hold several ([04](04-shots.md#progression)).
 
 ## Changes to specification pages
 

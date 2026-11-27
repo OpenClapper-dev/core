@@ -5,10 +5,14 @@ import { at, blocksOf, chaptersOf, filmOf, moveClips, type CutFile } from "./cut
 
 const files = new Map<string, CutFile>([
   ["p1", { id: "p1", type: "photo", name: "Photo", deleted_at: null }],
-  ["s1", { id: "s1", type: "shot", name: "Zoom", deleted_at: null, body: { progression: { timing: { mode: "even", total: 3000 }, frame: null, overlayShown: true } },
+  ["s1", { id: "s1", type: "shot", name: "Zoom", deleted_at: null, refs: [{ kind: "content", to: "g1", data: null }, { kind: "content", to: "p1", data: null }] }],
+  ["g1", { id: "g1", type: "progression", name: "Progression 1", deleted_at: null, internal_of: "s1", body: { timing: { mode: "even", total: 3000 }, frame: null, overlayShown: true },
     refs: [{ kind: "item", to: "c1", data: { ms: 500 } }, { kind: "item", to: "c1", data: { ms: 500, frame: "f2" } }, { kind: "item", to: "c1", data: { ms: 500, frame: "f3" } }, { kind: "overlay", to: "o1", data: null }] }],
-  ["s2", { id: "s2", type: "shot", name: "Still", deleted_at: null, refs: [{ kind: "content", to: "gone", data: null }, { kind: "content", to: "p1", data: null }] }],
-  ["c1", { id: "c1", type: "canvas", name: "Series", deleted_at: null }],
+  ["s2", { id: "s2", type: "shot", name: "Still", deleted_at: null, refs: [{ kind: "content", to: "gone", data: null }, { kind: "content", to: "p1", data: null }, { kind: "content", to: "g2", data: null }] }],
+  ["g2", { id: "g2", type: "progression", name: "Not the thumbnail", deleted_at: null, internal_of: "s2", body: { timing: { mode: "each" }, frame: null, overlayShown: true }, refs: [{ kind: "item", to: "c1", data: { ms: 500 } }] }],
+  ["s3", { id: "s3", type: "shot", name: "Steps", deleted_at: null, refs: [{ kind: "content", to: "g3", data: null }] }],
+  ["g3", { id: "g3", type: "progression", name: "Zoom block", deleted_at: null, internal_of: "s3", body: { timing: { mode: "each" }, frame: null, overlayShown: false }, refs: [{ kind: "item", to: "c1", data: { ms: 3000, zoom: { mode: "steps", ease: false } } }] }],
+  ["c1", { id: "c1", type: "canvas", name: "Series", deleted_at: null, body: { frames: [{ id: "f1" }, { id: "f2" }, { id: "f3" }] } }],
   ["x", { id: "x", type: "photo", name: "Binned", deleted_at: "2026-11-24" }],
 ]);
 const clips: Clip[] = [
@@ -19,7 +23,13 @@ const clips: Clip[] = [
   { id: "e", file: "x", ms: 500 },
 ];
 
-test("a shot with a progression plays it at its own timing; the clip's own time does not count", () => {
+test("a shot whose thumbnail is a progression plays a zoom block step by step", () => {
+  const [b] = blocksOf([{ id: "z", file: "s3", ms: 9999 }], files);
+  assert.deepEqual(b.segs.map((s) => [s.ms, s.ref?.frame, s.overlay]), [[1000, "f1", null], [1000, "f2", null], [1000, "f3", null]]);
+  assert.equal(b.fixed, true);
+});
+
+test("a shot whose thumbnail is a progression plays it at its own timing; the clip's own time does not count", () => {
   const b = blocksOf(clips, files);
   assert.deepEqual(b.map((x) => [x.start, x.len, x.fixed]), [[0, 2000, false], [2000, 3000, true], [5000, 1500, false], [6500, 1000, false], [7500, 500, false]]);
   assert.deepEqual(b[1].segs.map((s) => [s.ms, s.ref?.frame, s.overlay]), [[1000, undefined, "o1"], [1000, "f2", "o1"], [1000, "f3", "o1"]]);

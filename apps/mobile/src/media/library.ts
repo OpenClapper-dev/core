@@ -86,11 +86,11 @@ export function loadLibrary(): Promise<void> {
       const root = { project_id: project.id };
       // Photos with their property values; folders, collections and the property definitions with their bodies.
       // Canvases without their bodies (those can be large): a canvas's page loads its own.
-      // Shots, sets and locations with their lists (references) and bodies; canvases made inside a shot too (internal).
+      // Shots, sets and locations with their lists (references) and bodies, and the progressions inside shots; canvases made inside a shot or a progression too (internal).
       const [photos, holders, places] = await Promise.all([
         listFiles(root, { type: "photo,canvas", values: true, refs: true, internal: true }),
         listFiles(root, { type: "folder,collection,property,preset", body: true }),
-        listFiles(root, { type: "shot,set,location", body: true, refs: true, values: true }),
+        listFiles(root, { type: "shot,set,location,progression", body: true, refs: true, values: true, internal: true }),
       ]);
       store.set({ projectId: project.id, files: [...holders.filter((f) => !f.fixed), ...photos, ...places], loaded: new Date().toISOString() });
       if (settings.get().keepProject) void keepOnPhone();

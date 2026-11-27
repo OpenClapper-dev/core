@@ -26,6 +26,7 @@ const LOOK: Record<string, { glyph: IconName; color: number }> = {
   set: { glyph: "home", color: 2 },
   location: { glyph: "location", color: 3 },
   timeline: { glyph: "timeline", color: 6 },
+  progression: { glyph: "slideshow", color: 10 },
 };
 /** How an extension's file type looks (from its extensions.ts entry). */
 export function registerFileLook(type: string, look: { glyph: IconName; color: number }) { LOOK[type] = look; }

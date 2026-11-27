@@ -1,10 +1,10 @@
 import {
   BIN_RETENTION_DAYS, canBeInternal, checkFile, containerTypes, defaultName, matchesSearch, FIXED_FOLDERS, fileType, SETTINGS_PAGE_NAMES, SETTINGS_PAGES, type SettingsPage, fileTypes, MAX_BULK, MAX_CONTAINER_DEPTH, MAX_FILE_NAME,
-  nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Ref, type RootKind, type ShotBody, keepGuarded } from "@openclapper/model";
+  insideError, nameError, placementError, type Body, type CanvasBody, type FileType, type PresetBody, type Progression, type Ref, type RootKind, keepGuarded } from "@openclapper/model";
 import { tellRoom } from "./live.ts";
 import { assertUuid, HttpError, json, readJson, type Router } from "@openclapper/service-kit";
 import type { Ctx, Env } from "./index.ts";
-import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, frameStatements, removeRenders, renderKeys, shotFrameStatements } from "./canvas.ts";
+import { assertNotLocked, assertPresetChange, assertPresetsFree, copyFrames, copyRenders, defaultFrameStatements, frameStatements, removeRenders, renderKeys } from "./canvas.ts";
 import { copyPhotos, objectsOf, removeOrphans } from "./photos.ts";
 import { nextName, refitValues, searchTexts, valuesOf } from "./properties.ts";
 import { assertAccess, assertProjectRef, assertRank, touch, type Access, type Role } from "./tenancy.ts";
@@ -408,14 +408,21 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const container = b.container === undefined ? stored?.container ?? null : b.container === null ? null : assertUuid(b.container, "container");
     if (internalOf && container) throw new HttpError(400, "an internal file sits in no container");
     if (stored?.fixed && (name !== stored.name || container !== stored.container)) throw new HttpError(400, `the ${stored.name} folder cannot be renamed or moved`);
-    // One editor at a time: a file someone else holds is read-only (canvas.ts).
+    // One editor at a time: a file someone else holds is read-only (canvas.ts). A file without a lock of its
+    // own made inside one with a lock (a shot's progression) is edited under its parent's lock.
     if (stored) await assertNotLocked(ctx, fid, t.type);
+    const parent = internalOf ? await env.DB.prepare("SELECT f.id, f.type, f.project_id, f.home_of, f.deleted_at FROM files f WHERE f.id = ?1").bind(internalOf).first<FileRow>() : null;
+    const underParent = !!parent && !t.lockable && !!fileType(parent.type)?.lockable;
+    if (underParent) await assertNotLocked(ctx, parent!.id, parent!.type);
 
     if (!stored && internalOf) {
       if (!canBeInternal(t) || !t.roots.includes(root.kind)) throw new HttpError(400, `a ${t.label.toLowerCase()} cannot be an internal file`);
-      const parent = await env.DB.prepare("SELECT f.project_id, f.home_of, f.deleted_at FROM files f WHERE f.id = ?1").bind(internalOf).first<FileRow>();
       if (!parent || parent.deleted_at || !sameRoot(rootOf(parent), root)) throw new HttpError(400, "internal_of: no such file here");
+      const inside = insideError(t, parent.type);
+      if (inside) throw new HttpError(400, inside);
     } else if (!stored || container !== stored.container) {
+      const inside = stored ? null : insideError(t, null);
+      if (inside) throw new HttpError(400, inside);
       await assertPlace(env, root, container, [{ id: fid, type: t, isNew: !stored }]);
     }
 
@@ -449,13 +456,16 @@ export function registerFileRoutes(r: Router<Ctx>) {
     if (save?.refs) stmts.push(...writeRefs(env, fid, save.refs));
     // A canvas's frames are kept where the server can find them (is a preset's lens in use).
     if (t.type === "canvas" && save) stmts.push(...frameStatements(env, fid, save.body as unknown as CanvasBody));
-    // A shot's default frame from a preset uses that lens as much as a frame on a canvas does.
-    if (t.type === "shot" && save) stmts.push(...shotFrameStatements(env, fid, save.body as unknown as ShotBody));
+    // A progression's default frame from a preset uses that lens as much as a frame on a canvas does.
+    if (t.type === "progression" && save) stmts.push(...defaultFrameStatements(env, fid, (save.body as unknown as Progression).frame));
+    // What changes inside a file under its parent's lock changes the parent: its watchers read it again.
+    if (underParent) stmts.push(env.DB.prepare("UPDATE files SET updated_at = ?2 WHERE id = ?1").bind(parent!.id, at));
     await env.DB.batch(stmts);
     // A changed definition: values that no longer fit it are fitted or dropped.
     if (t.type === "property" && stored && save && root.projectId) await refitValues(env, root.projectId, fid);
     // Whoever watches a lockable file hears at once that it was saved (#426: from any client, the device's too).
     if (stored && t.lockable) await tellRoom(env, fid, { type: "saved" });
+    if (underParent) await tellRoom(env, parent!.id, { type: "saved" });
     return json({ file: await fileOut(env, fid) }, stored ? 200 : 201);
   });
 
@@ -633,6 +643,8 @@ export function registerFileRoutes(r: Router<Ctx>) {
     const b = await readObject(request);
     if (f.deleted_at) throw new HttpError(409, "the file is in the recycle bin; restore it first");
     if (!f.internal_of) throw new HttpError(400, "this is not an internal file");
+    const t = typeOf(f.type);
+    if (t.insideOf) throw new HttpError(400, `a ${t.label.toLowerCase()} lives inside its ${(fileType(t.insideOf[0])?.label ?? "file").toLowerCase()}`);
     const container = b.container == null ? null : assertUuid(b.container, "container");
     await assertPlace(env, rootOf(f), container, [{ id: f.id, type: typeOf(f.type) }]);
     await env.DB.prepare("UPDATE files SET internal_of = NULL, container = ?2, updated_at = ?3 WHERE id = ?1").bind(f.id, container, now()).run();

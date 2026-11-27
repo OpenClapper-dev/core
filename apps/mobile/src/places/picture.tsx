@@ -48,6 +48,17 @@ const between = (a: Rect, b: Rect, u: number): Rect => {
   return { x: cx - w / 2, y: cy - h / 2, w, h };
 };
 
+/** A canvas's frame ids in their order (what a zoom block runs through), from the bodies read so far; a missing body is read. */
+export function useFrameIds(files: ReadonlyMap<string, FileRec>): (id: string) => string[] {
+  useBodies();
+  return (id) => {
+    const f = files.get(id);
+    if (f?.type !== "canvas") return [];
+    want(f);
+    return bodies.get(f.id)?.body?.frames.map((x) => x.id) ?? [];
+  };
+}
+
 /** What a reference shows: the image, the surface's aspect and the frame (fractions of the surface); null when missing. */
 export function useSeen(ref: PicRef | null, files: ReadonlyMap<string, FileRec>, presets: ReadonlyMap<string, PresetBody>, def: FrameValues | null, u = 0) {
   useBodies();

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { FlatList, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from "react-native";
 import { randomUUID } from "expo-crypto";
-import { emptyCanvas, itemTimes, shotCover, type FrameValues, type ItemData, type ShotBody } from "@openclapper/model";
+import { emptyCanvas, itemAt, itemTimes, itemUnits, newProgression, shotCover, type FrameValues, type ItemData, type Progression, type Ref } from "@openclapper/model";
 import { authHeaders, canCall, canvasImageUrl, putFile, type FileRec } from "../api";
 import { loadLibrary, takeFile, useDefinitions, useLibraryMap, usePlaces, usePresets } from "../media/library";
 import { MapWeb } from "../places/MapWeb";
-import { Picture, useSeen, type PicRef } from "../places/picture";
+import { Picture, useFrameIds, useSeen, type PicRef } from "../places/picture";
 import { useProject } from "../projects";
 import { useBack } from "../shell/back";
 import { onOpen, openApp } from "../shell/nav";
@@ -29,18 +29,27 @@ const KINDS: Record<Kind, { app: string; label: string; plural: string; icon: Ic
 };
 const isPos = (v: unknown): v is { lat: number; lng: number } => !!v && typeof v === "object" && typeof (v as { lat: unknown }).lat === "number";
 
-/** The picture a shot, set or location is shown by: its progression's first item, else the first photo or canvas of its content. */
-function coverRef(f: FileRec, files: ReadonlyMap<string, FileRec>): { ref: PicRef; def: FrameValues | null } | null {
-  const c = shotCover((f.refs ?? []) as Parameters<typeof shotCover>[0], (id) => { const x = files.get(id); return x && !x.deleted_at ? x.type : null; });
+const live = (files: ReadonlyMap<string, FileRec>, id: string) => { const x = files.get(id); return x && !x.deleted_at ? x : undefined; };
+const contentOf = (f: FileRec) => (f.refs ?? []).filter((r) => r.kind === "content").map((r) => r.to);
+const progressionOf = (f: FileRec | undefined): Progression => ({ ...newProgression(), ...(f?.body as Partial<Progression> | undefined) });
+
+/**
+ * The picture a shot, set or location is shown by (#426 feedback 4): the first photo, canvas or progression of its
+ * content; a progression through its first item and its default frame. `progression` is that progression's id.
+ */
+function coverRef(f: FileRec, files: ReadonlyMap<string, FileRec>, frameIds: (id: string) => string[]): { ref: PicRef; def: FrameValues | null; progression: string | null } | null {
+  const c = shotCover((f.refs ?? []) as Ref[], (id) => live(files, id)?.type ?? null, (id) => (live(files, id)?.refs ?? []) as Ref[]);
   if (!c) return null;
-  return { ref: { to: c.to, frame: c.frame }, def: c.rule === "progression" ? (f.body as Partial<ShotBody> | undefined)?.progression?.frame ?? null : null };
+  if (!c.progression) return { ref: { to: c.to }, def: null, progression: null };
+  const a = itemAt(c.data ?? { ms: 1000 }, frameIds(c.to), 0);
+  return { ref: { to: c.to, frame: a.frame, move: a.move }, def: progressionOf(live(files, c.progression)).frame, progression: c.progression };
 }
 
 function Tile({ f, files, onPress }: { f: FileRec; files: ReadonlyMap<string, FileRec>; onPress: () => void }) {
   const s = useStyles();
   const { width } = useWindowDimensions();
   const presets = usePresets();
-  const cover = coverRef(f, files);
+  const cover = coverRef(f, files, useFrameIds(files));
   const seen = useSeen(cover?.ref ?? null, files, presets, cover?.def ?? null);
   const cols = Math.max(2, Math.floor(width / 200)), w = width / cols - 2;
   return (
@@ -99,16 +108,25 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
   const presets = usePresets();
   const defs = useDefinitions();
   const kind = f.type as Kind, k = KINDS[kind];
-  const refs = f.refs ?? [];
-  const content = refs.filter((r) => r.kind === "content").map((r) => r.to);
-  const prog = kind === "shot" ? (f.body as Partial<ShotBody> | undefined)?.progression ?? null : null;
-  const items = prog ? refs.filter((r) => r.kind === "item").map((r) => ({ to: r.to, data: r.data as unknown as ItemData })) : [];
-  const overlayId = prog ? refs.find((r) => r.kind === "overlay")?.to : undefined;
+  const frameIds = useFrameIds(files);
+  const content = contentOf(f);
+  // A shot's progressions (files inside it, in its content); the one played is the thumbnail's, unless another is chosen.
+  const progs = kind === "shot" ? content.map((id) => live(files, id)).filter((x): x is FileRec => x?.type === "progression") : [];
+  const cover = coverRef(f, files, frameIds);
+  const [chosen, setChosen] = useState<string | null>(null);
+  const progFile = progs.find((p) => p.id === chosen) ?? progs.find((p) => p.id === cover?.progression) ?? progs[0];
+  const prog = progFile ? progressionOf(progFile) : null;
+  const items = progFile ? (progFile.refs ?? []).filter((r) => r.kind === "item").map((r) => ({ to: r.to, data: r.data as unknown as ItemData })) : [];
+  const overlayId = progFile?.refs?.find((r) => r.kind === "overlay")?.to;
   const overlay = overlayId ? files.get(overlayId) : undefined;
   const overlaySrc = prog?.overlayShown && overlay && overlay.updated_at !== overlay.created_at ? { uri: canvasImageUrl(overlay, "render"), headers: authHeaders() } : null;
-  const times = prog ? itemTimes(prog.timing, items.map((i) => i.data)) : [];
+  const times = prog ? itemTimes(prog.timing, items.map((i) => ({ ms: i.data.ms, units: itemUnits(i.data, frameIds(i.to).length) }))) : [];
   const total = times.reduce((a, b) => a + b, 0);
   const starts = times.map((_, i) => times.slice(0, i).reduce((a, b) => a + b, 0));
+  /** What an item shows at `u`: a zoom block runs through its canvas's frames. */
+  const itemRef = (it: { to: string; data: ItemData }, u: number) => { const a = itemAt(it.data, frameIds(it.to), u); return { ref: { to: it.to, frame: a.frame, move: a.move } as PicRef, u: a.u }; };
+  /** What a content entry shows: a progression its first picture. */
+  const entryRef = (id: string): PicRef => { const x = live(files, id); if (x?.type !== "progression") return { to: id }; const c = coverRef({ ...f, refs: [{ kind: "content", to: id, data: null }] }, files, frameIds); return c?.ref ?? { to: id }; };
   const [pick, setPick] = useState<{ list: "prog" | "content"; i: number } | null>(null);
   const [t, setT] = useState<number | null>(null);
   const [adding, setAdding] = useState(false);
@@ -130,14 +148,15 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
   const playing = t !== null ? Math.max(0, starts.findIndex((st, i) => t < st + times[i])) : null;
   const sel = playing !== null ? { list: "prog" as const, i: playing } : pick ?? (items.length ? { list: "prog" as const, i: 0 } : content.length ? { list: "content" as const, i: 0 } : null);
   const item = sel?.list === "prog" ? items[sel.i] : null;
-  const ref: PicRef | null = !sel ? null : item ? { to: item.to, frame: item.data.frame, move: item.data.move } : { to: content[sel.i] };
-  const u = playing !== null && t !== null ? Math.min(1, (t - starts[playing]) / times[playing]) : 0;
-  const seen = useSeen(ref, files, presets, item ? prog!.frame : null, u);
+  const raw = playing !== null && t !== null ? Math.min(1, (t - starts[playing]) / times[playing]) : 0;
+  const at = item ? itemRef(item, raw) : null;
+  const ref: PicRef | null = !sel ? null : at ? at.ref : entryRef(content[sel.i]);
+  const seen = useSeen(ref, files, presets, item ? prog!.frame : null, at?.u ?? 0);
 
-  /** Saves the content list; the progression and overlay stay as they are. */
+  /** Saves the content list (a shot keeps nothing else; its progressions are files of their own). */
   const saveContent = async (next: string[]) => {
     if (!canCall()) { toast("Changing the content needs a connection", "danger"); return; }
-    try { takeFile(await putFile(f.id, { type: f.type, project_id: f.project_id!, refs: [...next.map((to) => ({ kind: "content", to })), ...refs.filter((r) => r.kind !== "content").map((r) => ({ kind: r.kind, to: r.to, data: r.data }))] })); }
+    try { takeFile(await putFile(f.id, { type: f.type, project_id: f.project_id!, refs: next.map((to) => ({ kind: "content", to })) })); }
     catch (e) { toast(`Not saved: ${(e as Error).message}`, "danger"); }
   };
   const rename = async () => {
@@ -174,11 +193,11 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
           <Block style={{ paddingTop: 8 }}>
             <View style={s.row}>
               <IconButton icon={t !== null ? "pause" : "play"} label={t !== null ? "Pause" : "Play the progression"} disabled={!items.length} onPress={() => setT(t !== null ? null : 0)} />
-              <Text style={s.meta}>{items.length} {items.length === 1 ? "picture" : "pictures"} · {(total / 1000).toFixed(1)} s{t !== null ? ` · ${(t / 1000).toFixed(1)} s` : ""}</Text>
+              <Text style={s.meta}>{progFile?.name}{progFile?.id === cover?.progression ? " (thumbnail)" : ""} · {items.length} {items.length === 1 ? "picture" : "pictures"} · {(total / 1000).toFixed(1)} s{t !== null ? ` · ${(t / 1000).toFixed(1)} s` : ""}</Text>
             </View>
           </Block>
           <ScrollView horizontal contentContainerStyle={{ gap: 4, paddingHorizontal: 8 }}>
-            {items.map((it, i) => <Thumb key={i} r={{ to: it.to, frame: it.data.frame }} def={prog.frame} files={files} w={thumbW} on={sel?.list === "prog" && sel.i === i} label={`${(times[i] / 1000).toFixed(1)} s`} onPress={() => { setT(null); setPick({ list: "prog", i }); }} />)}
+            {items.map((it, i) => <Thumb key={i} r={itemRef(it, 0).ref} def={prog.frame} files={files} w={thumbW} on={sel?.list === "prog" && sel.i === i} label={`${(times[i] / 1000).toFixed(1)} s`} onPress={() => { setT(null); setPick({ list: "prog", i }); }} />)}
           </ScrollView>
         </>
       )}
@@ -189,7 +208,7 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
       <Block style={{ paddingTop: 12 }}><SectionLabel>{`Content · ${content.length}`}</SectionLabel></Block>
       {content.length ? (
         <ScrollView horizontal contentContainerStyle={{ gap: 4, paddingHorizontal: 8 }}>
-          {content.map((id, i) => { const x = files.get(id); return <Thumb key={id + i} r={{ to: id }} def={null} files={files} w={thumbW} on={sel?.list === "content" && sel.i === i} label={x?.name ?? "Missing file"} onPress={() => { setT(null); setPick({ list: "content", i }); }} onLongPress={() => setMenu(i)} />; })}
+          {content.map((id, i) => { const x = files.get(id); return <Thumb key={id + i} r={entryRef(id)} def={x?.type === "progression" ? progressionOf(x).frame : null} files={files} w={thumbW} on={sel?.list === "content" && sel.i === i} label={x?.name ?? "Missing file"} onPress={() => { setT(null); if (x?.type === "progression") { setChosen(id); setPick({ list: "prog", i: 0 }); } else setPick({ list: "content", i }); }} onLongPress={() => setMenu(i)} />; })}
         </ScrollView>
       ) : <Block><Hint>Nothing yet. Add photos and canvases of the project; press and hold one for more.</Hint></Block>}
       <Block style={{ paddingTop: 8, flexDirection: "row", gap: 8 }}>
@@ -209,7 +228,7 @@ function Form({ f, files, back }: { f: FileRec; files: ReadonlyMap<string, FileR
             {files.get(content[menu])?.type === "canvas" && <ListRow icon="brush" title="Draw on it" onPress={() => { const id = content[menu]; setMenu(null); setEditing(id); }} />}
             {menu > 0 && <ListRow icon="arrow-left" title="Earlier" trailing={null} onPress={() => { const n = [...content]; [n[menu - 1], n[menu]] = [n[menu], n[menu - 1]]; setMenu(null); void saveContent(n); }} />}
             {menu < content.length - 1 && <ListRow icon="arrow-right" title="Later" trailing={null} onPress={() => { const n = [...content]; [n[menu + 1], n[menu]] = [n[menu], n[menu + 1]]; setMenu(null); void saveContent(n); }} />}
-            <ListRow icon="close" title="Remove from the content" trailing={null} titleColor={c.danger} onPress={() => { const n = content.filter((_, i) => i !== menu); setMenu(null); setPick(null); void saveContent(n); }} />
+            {files.get(content[menu])?.type !== "progression" && <ListRow icon="close" title="Remove from the content" trailing={null} titleColor={c.danger} onPress={() => { const n = content.filter((_, i) => i !== menu); setMenu(null); setPick(null); void saveContent(n); }} />}
           </SheetList>
         </Sheet>
       )}

@@ -50,7 +50,7 @@ A new numbered file for every change; an applied one is never edited.
 
 `property_values(file_id → files CASCADE, definition_id → files CASCADE, value JSON)`, primary key (file, definition): a property's value on a file ([properties](features/properties.md)). The definition is a file of the type `property` in the project's Settings folder; the value's shape follows its field type (`packages/model/src/properties.ts`). A reference value also keeps `refs` rows of kind `property` with `data: { property }`, rewritten whenever the file's values change and removed when the definition is purged.
 
-`frames(canvas_id → files CASCADE, frame_id, preset_id, focal, is_picture)`: a canvas's frames, rewritten from its body on every save, so whether a preset's lens is in use is one query ([canvas](features/canvas.md)). A shot's default frame from a preset is a row too (frame id `default`, [shots](features/shots.md)).
+`frames(canvas_id → files CASCADE, frame_id, preset_id, focal, is_picture)`: a canvas's frames, rewritten from its body on every save, so whether a preset's lens is in use is one query ([canvas](features/canvas.md)). A progression's default frame from a preset is a row too (frame id `default`, keyed by the progression's id; [shots](features/shots.md)). Migration 0013 moved the rows shots had.
 
 `renders(file_id → files CASCADE, part render|thumbnail, type, bytes, at)`: a canvas's flattened images in R2 under `canvases/<file id>/<part>`.
 
