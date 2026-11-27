@@ -349,7 +349,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   // Through the shared rule, so a new time or margin pushes the neighbours as a drag does (#426).
   const setKf = (tr: FlowTrack, _k: Keyframe) => (next: Keyframe) => change((b) => setKeyframe(b, tr.id, next));
   const chosen = stageSel?.kind === "light"
-    ? <LightInspect flow={flow} track={stageSel.track} t={runsThis ? runAt : playhead} editing={!readonly} onTurn={(rot) => changeStage((s) => ({ ...s, lights: s.lights.map((l) => (l.track === stageSel.track ? { ...l, rot } : l)) }))} onShowTrack={() => showTrack(stageSel.track)} onRemove={() => removeStageSel()} />
+    ? <LightInspect flow={flow} track={stageSel.track} t={runsThis ? runAt : playhead} editing={!readonly} onLight={(fn) => changeStage((s) => ({ ...s, lights: s.lights.map((l) => (l.track === stageSel.track ? fn(l) : l)) }))} onShowTrack={() => showTrack(stageSel.track)} onRemove={() => removeStageSel()} />
     : stageSel?.kind === "obj"
     ? <ObjectInspect flow={flow} id={stageSel.id} editing={!readonly} onChange={(fn) => changeStage((s) => ({ ...s, objects: s.objects.map((o) => (o.id === stageSel.id ? toStore(fn(toEdit(o))) : o)) }))} onDelete={() => removeStageSel()} />
     : readonly && (selKf || tileKf || marker || pickedTrack)

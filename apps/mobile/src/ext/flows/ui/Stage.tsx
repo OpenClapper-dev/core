@@ -5,8 +5,8 @@ import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Re
 import { modelOf } from "@openclapper/ext-hardware";
 import { arrowHead, PENS, smooth, STROKE_UNIT, taper, TEXT_SIZE, type CanvasObject, type DrawPoint } from "@openclapper/model";
 import {
-  beamOpacity, beamPath, effectOpacity, emptyStage, fmtClock, fmtSeconds, glowRadius, START_KEYFRAME, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
-  type FlowBody, type FlowTrack, type StageLight, type WidgetShape,
+  beamOpacity, beamPath, ceilingShape, effectOpacity, emptyStage, fmtClock, fmtSeconds, glowRadius, isCeiling, poolRadius, START_KEYFRAME, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
+  type FlowBody, type FlowTrack, type StageLight, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { imageSource } from "../../../media/cache";
 import { Button, catColor, Icon, IconButton, makeStyles, type, useTheme, type IconName } from "../../../ui";
@@ -44,10 +44,19 @@ export function StageView({ body, t, onShowTrack }: { body: FlowBody; t: number;
           <Svg width={w} height={h} viewBox={`0 0 ${STAGE_W} ${H}`} style={s.fill}>
             {stage.objects.filter((o) => o.visible && o.kind !== "stencil").map((o) => <Drawn key={o.id} o={o} vh={H} />)}
             {placed.map(({ l, tr }, i) => {
-              const st = states[i], g = widgetShape(tr.model), c = st.colour ?? "#ffffff", id = `w${i}`;
+              const st = states[i], c = st.colour ?? "#ffffff", id = `w${i}`;
               if (!st.on) return null;
+              const fade = beamOpacity(st.level) * (st.effect ? effectOpacity(st.effect.family, now) : 1);
+              // A ceiling light: a pool of light around it, no direction (as the Studio draws it).
+              if (isCeiling(l)) return (
+                <G key={`b${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H})`} opacity={fade}>
+                  <Defs><RadialGradient id={`${id}p`}><Stop offset="0" stopColor={c} stopOpacity={0.8} /><Stop offset="0.4" stopColor={c} stopOpacity={0.4} /><Stop offset="1" stopColor={c} stopOpacity={0} /></RadialGradient></Defs>
+                  <Circle cx={0} cy={0} r={poolRadius(ceilingShape(tr.model), st.level)} fill={`url(#${id}p)`} />
+                </G>
+              );
+              const g = widgetShape(tr.model);
               return (
-                <G key={`b${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H}) rotate(${l.rot})`} opacity={beamOpacity(st.level) * (st.effect ? effectOpacity(st.effect.family, now) : 1)}>
+                <G key={`b${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H}) rotate(${l.rot})`} opacity={fade}>
                   <Defs>
                     <RadialGradient id={`${id}g`}><Stop offset="0" stopColor={c} stopOpacity={0.95} /><Stop offset="0.45" stopColor={c} stopOpacity={0.45} /><Stop offset="1" stopColor={c} stopOpacity={0} /></RadialGradient>
                     <LinearGradient id={`${id}b`} x1="0" y1="0" x2="1" y2="0"><Stop offset="0" stopColor={c} stopOpacity={0.7} /><Stop offset="1" stopColor={c} stopOpacity={0} /></LinearGradient>
@@ -58,8 +67,8 @@ export function StageView({ body, t, onShowTrack }: { body: FlowBody; t: number;
               );
             })}
             {placed.map(({ l, tr }, i) => (
-              <G key={`w${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H}) rotate(${l.rot})`}>
-                <Body shape={widgetShape(tr.model)} face={states[i].on ? states[i].colour ?? "#ffffff" : STAGE_INK.unlit} muted={states[i].muted} />
+              <G key={`w${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H})${isCeiling(l) ? "" : ` rotate(${l.rot})`}`}>
+                <Body shape={isCeiling(l) ? ceilingShape(tr.model) : widgetShape(tr.model)} face={states[i].on ? states[i].colour ?? "#ffffff" : STAGE_INK.unlit} muted={states[i].muted} />
               </G>
             ))}
             {placed.map(({ l, tr }, i) => {
@@ -84,7 +93,7 @@ export function StageView({ body, t, onShowTrack }: { body: FlowBody; t: number;
           {!placed.length && !stage.objects.length && <Text style={s.empty}>Nothing on the stage yet: it is drawn and lights are placed in the Studio.</Text>}
         </Pressable>
       )}
-      {pick && <Card tr={pick.tr} t={t} onShowTrack={() => onShowTrack(pick.tr.id)} onClose={() => setChosen(null)} />}
+      {pick && <Card tr={pick.tr} l={pick.l} t={t} onShowTrack={() => onShowTrack(pick.tr.id)} onClose={() => setChosen(null)} />}
     </View>
   );
 }
@@ -123,8 +132,8 @@ function Drawn({ o, vh }: { o: CanvasObject; vh: number }) {
   return null;
 }
 
-/** A widget's body after its fixture, facing +x; the face takes the light's colour. */
-function Body({ shape, face, muted }: { shape: WidgetShape; face: string; muted?: boolean }) {
+/** A widget's body after its fixture (aimed: facing +x; ceiling: seen from below); the face takes the light's colour. */
+function Body({ shape, face, muted }: { shape: { parts: WidgetPart[] }; face: string; muted?: boolean }) {
   return <G opacity={muted ? 0.45 : 1}>{shape.parts.map((p, i) => p.kind === "rect"
     ? <Rect key={i} x={p.x} y={p.y} width={p.w} height={p.h} rx={p.r} fill={p.face ? face : STAGE_INK.body} stroke={p.face ? "none" : STAGE_INK.rim} strokeWidth={1.5} strokeDasharray={muted ? [3, 2] : undefined} />
     : <Path key={i} d={p.d} fill={p.face ? face : STAGE_INK.body} stroke={STAGE_INK.rim} strokeWidth={1.5} strokeDasharray={muted ? [3, 2] : undefined} />)}</G>;
@@ -142,7 +151,7 @@ function useClock(on: boolean): number {
 }
 
 /** A tapped widget's state at the playhead (read only). */
-function Card({ tr, t, onShowTrack, onClose }: { tr: FlowTrack; t: number; onShowTrack: () => void; onClose: () => void }) {
+function Card({ tr, l, t, onShowTrack, onClose }: { tr: FlowTrack; l: StageLight; t: number; onShowTrack: () => void; onClose: () => void }) {
   const s = useStyles();
   const { c } = useTheme();
   const st = widgetState(tr, t), m = modelOf(tr.model);
@@ -154,7 +163,7 @@ function Card({ tr, t, onShowTrack, onClose }: { tr: FlowTrack; t: number; onSho
         <Text style={s.cardTitle} numberOfLines={1}>{tr.name}</Text>
         <IconButton icon="close" label="Close" onPress={onClose} />
       </View>
-      <Text style={s.dim}>{m ? `${m.brand} ${m.model}` : tr.model} · {tr.device ? "assigned" : "no device"} · at {fmtClock(t)}</Text>
+      <Text style={s.dim}>{m ? `${m.brand} ${m.model}` : tr.model} · {isCeiling(l) ? "on the ceiling" : "aimed"} · {tr.device ? "assigned" : "no device"} · at {fmtClock(t)}</Text>
       {rows.map(([k, v]) => (
         <View key={k} style={s.kv}>
           <Text style={s.dim}>{k}</Text>

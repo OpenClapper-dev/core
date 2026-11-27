@@ -7,8 +7,24 @@ import { effectName, modelOf, type EffectId } from "@openclapper/ext-hardware";
 import { playedKeyframes, sampleTrack, type FlowTrack } from "./flow.ts";
 import { lightColour } from "./look.ts";
 
-/** Where a light track's widget stands: its centre in fractions of the paper, and where it points (degrees, 0 = right, clockwise). */
-export interface StageLight { track: string; x: number; y: number; rot: number }
+/**
+ * How a light hangs (#426): "aimed" (absent; on a stand or a wall, pointing across the floor: a beam) or "ceiling"
+ * (overhead, looking down: a pool of light around it, no direction). "Aimed" rather than "wall": most such lights
+ * stand on a stand.
+ */
+export type StageMount = "aimed" | "ceiling";
+export const STAGE_MOUNTS: readonly StageMount[] = ["aimed", "ceiling"];
+/**
+ * Where a light track's widget stands: its centre in fractions of the paper, where it points (degrees, 0 = right,
+ * clockwise) and how it hangs. A ceiling light keeps its `rot` (switched back, it points where it did) but draws none.
+ */
+export interface StageLight { track: string; x: number; y: number; rot: number; mount?: StageMount }
+export const isCeiling = (l: Pick<StageLight, "mount">) => l.mount === "ceiling";
+/** A light hung another way: aimed is the default, so it is kept as no `mount` at all; the turn is kept either way. */
+export function setMount(l: StageLight, mount: StageMount): StageLight {
+  const { mount: _was, ...rest } = l;
+  return mount === "aimed" ? rest : { ...rest, mount };
+}
 /** A photo of the project under the drawing, fitted inside the paper, as the canvas's base photo lies under its drawing. */
 export interface StageUnderlay { photo: string; opacity: number }
 export interface FlowStage {
@@ -55,7 +71,7 @@ export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "
   if (!Array.isArray(v.lights)) return "stage.lights must be an array";
   const placed = new Set<string>();
   for (const [i, l] of v.lights.entries()) {
-    if (!isObj(l) || Object.keys(l).some((k) => !["track", "x", "y", "rot"].includes(k))) return `stage.lights[${i}] is { track, x, y, rot }`;
+    if (!isObj(l) || Object.keys(l).some((k) => !["track", "x", "y", "rot", "mount"].includes(k))) return `stage.lights[${i}] is { track, x, y, rot, mount? }`;
     const tr = tracks.find((t) => t.id === l.track);
     if (!tr) return `stage.lights[${i}] names a track that is not in the flow`;
     if (!isLightTrack(tr)) return `stage.lights[${i}]: only light tracks go on the stage`;
@@ -63,6 +79,7 @@ export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "
     placed.add(tr.id);
     if (!num(l.x, 0, 1) || !num(l.y, 0, 1)) return `stage.lights[${i}] stands on the paper (x and y 0 to 1)`;
     if (!num(l.rot, 0, 360)) return `stage.lights[${i}].rot is 0 to 360 degrees`;
+    if (l.mount !== undefined && !STAGE_MOUNTS.includes(l.mount as StageMount)) return `stage.lights[${i}].mount is ${STAGE_MOUNTS.join(" or ")}`;
   }
   const u = v.underlay;
   if (u != null && (!isObj(u) || Object.keys(u).some((k) => k !== "photo" && k !== "opacity") || typeof u.photo !== "string" || !UUID.test(u.photo) || !num(u.opacity, 0.05, 1))) return "stage.underlay is a photo and an opacity";
@@ -177,13 +194,44 @@ export const glowRadius = (g: WidgetShape, level: number) => g.glow[0] + (g.glow
 /** How strongly the light reads at a level: never quite gone while on, so a low level is still seen. */
 export const beamOpacity = (level: number) => 0.3 + 0.7 * level;
 
+/** A ceiling light's widget, seen from below around its centre: the lamp's body and how far its pool of light reaches. */
+export interface CeilingShape {
+  parts: WidgetPart[];
+  /** The body's radius (the pool starts under it). */
+  r: number;
+  /** The pool's radius on the floor, from off to full (stage units). */
+  pool: [number, number];
+}
+const circle = (r: number) => `M${-r} 0 A${r} ${r} 0 1 0 ${r} 0 A${r} ${r} 0 1 0 ${-r} 0 Z`;
+/**
+ * The shape of a model's widget hung from the ceiling (#426): the MC a small square panel, its face down; a NEEWER
+ * FS a round COB head inside its reflector (the FS300B larger, with a larger pool); each pool sized after its beam.
+ */
+export function ceilingShape(model: string): CeilingShape {
+  if (model.startsWith("neewer-fs")) {
+    const size = model === "neewer-fs300b" ? 1.2 : 1, r = 15 * size * WS;
+    return { parts: [{ kind: "path", d: circle(r), face: false }, { kind: "path", d: circle(r * 0.72), face: false }, { kind: "path", d: circle(r * 0.42), face: true }], r, pool: [60 * size, 150 * size] };
+  }
+  return { parts: [rect(-11, -11, 22, 22, 3, false, WS), rect(-8, -8, 16, 16, 1.5, true, WS)], r: 11 * WS, pool: [50, 110] };
+}
+/** The pool's radius at a level (0..1): wider the brighter, never smaller than the body. */
+export const poolRadius = (g: CeilingShape, level: number) => Math.max(g.r, g.pool[0] + (g.pool[1] - g.pool[0]) * level);
+
 /** A name tag's width (stage units) for its two lines: the name (18 units bold), what it shows (14 units mono). */
 export const tagWidth = (name: string, line: string) => Math.max(name.length * 10, line.length * 8.6) + 28;
-/** Where a widget's name tag of width `w` is centred (stage units): behind the light, away from its beam, kept on the paper. */
+/**
+ * Where a widget's name tag of width `w` is centred (stage units), kept on the paper: an aimed light's behind it,
+ * away from its beam; a ceiling light has no behind, so its tag sits under the body (above it at the paper's foot).
+ */
 export function tagAt(l: StageLight, aspect: number, w: number): [number, number] {
-  const a = (l.rot * Math.PI) / 180, H = STAGE_W / aspect, half = Math.min(STAGE_W / 2, w / 2 + 4);
-  const x = Math.min(STAGE_W - half, Math.max(half, l.x * STAGE_W - Math.cos(a) * 62)), y = Math.min(H - 26, Math.max(26, l.y * H - Math.sin(a) * 58));
-  return [x, y];
+  const H = STAGE_W / aspect, half = Math.min(STAGE_W / 2, w / 2 + 4);
+  const keepX = (x: number) => Math.min(STAGE_W - half, Math.max(half, x)), keepY = (y: number) => Math.min(H - 26, Math.max(26, y));
+  if (isCeiling(l)) {
+    const y = l.y * H, below = y + 56;
+    return [keepX(l.x * STAGE_W), keepY(below + 26 <= H ? below : y - 56)];
+  }
+  const a = (l.rot * Math.PI) / 180;
+  return [keepX(l.x * STAGE_W - Math.cos(a) * 62), keepY(l.y * H - Math.sin(a) * 58)];
 }
 
 /** The stage colours of the 8 track colours: the paper is dark in both themes (like a photo), so the dark theme's (Set) values. */
