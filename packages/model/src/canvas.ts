@@ -135,7 +135,8 @@ function lookError(l: unknown): string | null {
   return Object.keys(l).length === 3 ? null : "a look is exposure, contrast and saturation";
 }
 
-function objectError(o: unknown, ids: Set<string>, groups: Set<string>): string | null {
+/** Null when one object is valid; `ids` and `groups` collect what the objects before it took (a flow's stage checks its drawing with it). */
+export function canvasObjectError(o: unknown, ids: Set<string>, groups: Set<string>): string | null {
   if (!isObj(o)) return "an object is an object";
   if (typeof o.id !== "string" || !LOCAL_ID.test(o.id) || ids.has(o.id)) return "each object has its own id";
   ids.add(o.id);
@@ -196,7 +197,7 @@ export function canvasError(b: Record<string, unknown>, refs: readonly Ref[] | n
   if (!Array.isArray(b.objects) || b.objects.length > MAX_OBJECTS) return `at most ${MAX_OBJECTS} objects`;
   const ids = new Set<string>(), groups = new Set<string>();
   let points = 0;
-  for (const o of b.objects) { const e = objectError(o, ids, groups); if (e) return e; points += ((o as CanvasObject).pts?.length ?? 0) / 2; }
+  for (const o of b.objects) { const e = canvasObjectError(o, ids, groups); if (e) return e; points += ((o as CanvasObject).pts?.length ?? 0) / 2; }
   if (points > MAX_POINTS) return `at most ${MAX_POINTS} points in all`;
   for (const o of b.objects as CanvasObject[]) if (o.group && !groups.has(o.group)) return "an object names a group that is not there";
   if (!Array.isArray(b.frames) || b.frames.length > MAX_FRAMES) return `at most ${MAX_FRAMES} frames`;

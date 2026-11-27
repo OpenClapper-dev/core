@@ -1,7 +1,7 @@
 // What the canvas editor and its renderer share (docs/features/canvas.md): the editing shape of an object
 // (points as pairs), the kinds of pen, stroke paths, and where a frame sits on the photo. Pure, no DOM.
 import { aspectFrame, opticsFrame, opticsView, type FrameSize, type PhotoView } from "@openclapper/fov-math";
-import type { CanvasBody, CanvasFrame, CanvasObject, Look, PenType, PresetBody } from "@openclapper/model";
+import type { CanvasBody, CanvasFrame, CanvasObject, Look, PresetBody } from "@openclapper/model";
 import { frameOptics } from "../optics";
 
 export type P = [number, number];
@@ -22,28 +22,8 @@ export const toStore = (o: Obj): CanvasObject => {
 export const NO_LOOK: Look = { exposure: 0, contrast: 0, saturation: 0 };
 export const lookFilter = (l: Look | undefined) => (l && (l.exposure || l.contrast || l.saturation) ? `brightness(${Math.pow(2, l.exposure).toFixed(3)}) contrast(${(1 + l.contrast).toFixed(2)}) saturate(${(1 + l.saturation).toFixed(2)})` : undefined);
 
-/** The kinds of pen: how wide a stroke is against the chosen width, how it ends, how see-through it is. */
-export const PENS: Record<PenType, { label: string; scale: number; opacity: number; cap: "round" | "butt"; dash?: number[]; taper?: boolean; blend?: string }> = {
-  pen: { label: "Pen", scale: 1, opacity: 1, cap: "round" },
-  marker: { label: "Marker", scale: 3, opacity: 0.9, cap: "butt" },
-  highlighter: { label: "Highlighter", scale: 7, opacity: 0.4, cap: "butt", blend: "screen" },
-  brush: { label: "Brush", scale: 4, opacity: 1, cap: "round", taper: true },
-  dashed: { label: "Dashed", scale: 1, opacity: 1, cap: "round", dash: [2, 14] },
-};
-
-/** A stroke through its points with rounded corners: straight to the middle of each segment, curved around each point. */
-export const smooth = (q: P[]) => (q.length < 3 ? `M${q.map((x) => x.join(" ")).join(" L")}` : `M${q[0].join(" ")}` + q.slice(1, -1).map((x, i) => ` Q${x.join(" ")} ${((x[0] + q[i + 2][0]) / 2).toFixed(1)} ${((x[1] + q[i + 2][1]) / 2).toFixed(1)}`).join("") + ` L${q[q.length - 1].join(" ")}`);
-/** A brush stroke as a filled shape: thin at both ends, full width in the middle. */
-export function taper(q: P[], width: number): string {
-  if (q.length < 2) return "";
-  const left: P[] = [], right: P[] = [];
-  q.forEach((x, i) => {
-    const a = q[Math.max(0, i - 1)], b = q[Math.min(q.length - 1, i + 1)], len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
-    const n: P = [-(b[1] - a[1]) / len, (b[0] - a[0]) / len], w = (width / 2) * (0.15 + 0.85 * Math.sin((Math.PI * i) / (q.length - 1)));
-    left.push([x[0] + n[0] * w, x[1] + n[1] * w]); right.push([x[0] - n[0] * w, x[1] - n[1] * w]);
-  });
-  return `M${[...left, ...right.reverse()].map((x) => `${x[0].toFixed(1)} ${x[1].toFixed(1)}`).join(" L")}Z`;
-}
+// How objects are drawn is shared with the phone's stage (packages/model drawing.ts).
+export { PENS, smooth, taper } from "@openclapper/model";
 
 /** The base photo as the canvas needs it: its picture, pixel aspect and angle of view (null: no optics frames). */
 export interface BasePhoto { id: string; name: string; src: string; aspect: number; view: PhotoView | null }

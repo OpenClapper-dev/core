@@ -1,4 +1,5 @@
 import { CAMERA_CONTROLS, FADE_MAX_MS, modelOf, type Curve, type EffectId, type EffectSettings, type LightCommand, type Value } from "@openclapper/ext-hardware";
+import type { FlowStage } from "./stage.ts";
 
 /**
  * Flows (docs/features/flows.md; the first app's light sequences, #304). A flow has tracks; a track has a type (a
@@ -126,6 +127,8 @@ export interface Flow {
   tracks: FlowTrack[];
   /** Named checkpoints and ranges (#323); absent on sequences saved before them. */
   markers?: FlowMarker[];
+  /** The stage (#426, stage.ts): a drawing with a widget per placed light track; absent until one is drawn or placed. */
+  stage?: FlowStage;
   updatedAt: string;
 }
 

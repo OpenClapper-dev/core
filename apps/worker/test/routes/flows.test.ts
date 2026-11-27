@@ -22,6 +22,16 @@ describe("flows", () => {
     await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10, loop: true, tracks: [], markers: [] } }), 400);
   });
 
+  test("a stage is part of the body: kept, and checked (#426)", async () => {
+    const id = uuid();
+    await ok(api(u.token, "PUT", `/api/files/${id}`, { type: "flow", project_id: project }), 201);
+    const stage = { aspect: 1.78, objects: [{ id: "o1", kind: "rect", name: "Niche", x: 0.6, y: 0.7, w: 0.07, h: 0.05, stroke: "#8C8C8E", width: 3, opacity: 1, visible: true, locked: false }], lights: [{ track: "t1", x: 0.3, y: 0.3, rot: 90 }] };
+    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stage } }));
+    const got = await ok<{ file: { body: { stage: typeof stage } } }>(api(u.token, "GET", `/api/files/${id}`));
+    expect(got.file.body.stage).toEqual(stage);
+    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stage: { ...stage, lights: [{ track: "nope", x: 0.3, y: 0.3, rot: 0 }] } } }), 400);
+  });
+
   test("one editor at a time: another holder's save is refused while the lock is held", async () => {
     const id = uuid();
     await ok(api(u.token, "PUT", `/api/files/${id}`, { type: "flow", project_id: project }), 201);
