@@ -131,7 +131,8 @@ export function Slider({ label, value, min, max, step = 1, format = String, onCh
     r.current.last = next;
     r.current.onChange(next);
   };
-  const at = (x: number) => { const { min: lo, max: hi, width: w } = r.current; return w > 0 ? lo + (x / w) * (hi - lo) : lo; };
+  // The thumb's centre runs from THUMB/2 to width − THUMB/2, so it never leaves the track onto the − and + buttons.
+  const at = (x: number) => { const { min: lo, max: hi, width: w } = r.current; const run = w - THUMB; return run > 0 ? lo + ((x - THUMB / 2) / run) * (hi - lo) : lo; };
   const pan = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => !r.current.disabled,
     onMoveShouldSetPanResponder: () => !r.current.disabled,
@@ -141,6 +142,7 @@ export function Slider({ label, value, min, max, step = 1, format = String, onCh
     onPanResponderMove: (_, g) => emit(at(r.current.x0 + g.dx)),
   }).panHandlers, []);
   const frac = max > min ? (Math.min(max, Math.max(min, value)) - min) / (max - min) : 0;
+  const run = Math.max(0, width - THUMB);
   const nudge = (dir: 1 | -1) => emit(value + dir * step);
   return (
     <View style={s.wrap}>
@@ -154,8 +156,8 @@ export function Slider({ label, value, min, max, step = 1, format = String, onCh
           accessible accessibilityRole="adjustable" accessibilityLabel={label} accessibilityValue={{ min, max, now: value, text: format(value) }}
           accessibilityActions={[{ name: "increment" }, { name: "decrement" }]} onAccessibilityAction={(e) => nudge(e.nativeEvent.actionName === "increment" ? 1 : -1)}>
           <View pointerEvents="none" style={[s.rail, disabled && s.railOff]} />
-          <View pointerEvents="none" style={[s.fill, { width: frac * width }, disabled && s.fillOff]} />
-          <View pointerEvents="none" style={[s.thumb, { left: frac * width - THUMB / 2 }, disabled && s.thumbOff]} />
+          <View pointerEvents="none" style={[s.fill, { width: frac * run }, disabled && s.fillOff]} />
+          <View pointerEvents="none" style={[s.thumb, { left: frac * run }, disabled && s.thumbOff]} />
         </View>
         <IconButton icon="plus" label={`More ${label.toLowerCase()}`} onPress={() => nudge(1)} disabled={disabled || value >= max} />
       </View>
@@ -172,9 +174,9 @@ const useSliderStyles = makeStyles((c) => ({
   dim: { color: c.textDisabled },
   row: { flexDirection: "row", alignItems: "center", gap: 8 },
   track: { flex: 1, height: SIZE.touchMin, justifyContent: "center" },
-  rail: { position: "absolute", left: 0, right: 0, height: 6, borderRadius: 3, backgroundColor: c.surfaceSunken, borderWidth: 1, borderColor: c.border },
+  rail: { position: "absolute", left: THUMB / 2, right: THUMB / 2, height: 6, borderRadius: 3, backgroundColor: c.surfaceSunken, borderWidth: 1, borderColor: c.border },
   railOff: { borderColor: c.borderSubtle },
-  fill: { position: "absolute", left: 0, height: 6, borderRadius: 3, backgroundColor: c.accent },
+  fill: { position: "absolute", left: THUMB / 2, height: 6, borderRadius: 3, backgroundColor: c.accent },
   fillOff: { backgroundColor: c.textDisabled },
   thumb: { position: "absolute", width: THUMB, height: THUMB, borderRadius: THUMB / 2, backgroundColor: c.surface, borderWidth: 3, borderColor: c.accent },
   thumbOff: { borderColor: c.textDisabled },
