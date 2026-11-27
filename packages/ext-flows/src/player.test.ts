@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import type { LightCommand } from "@openclapper/ext-hardware";
-import { START_KEYFRAME, type Flow } from "./flow.ts";
+import { NATIVE_FADES, START_KEYFRAME, type Flow } from "./flow.ts";
 import { FlowPlayer } from "./player.ts";
 
 function clock() {
@@ -57,15 +57,17 @@ test("a loop starts over and sends every value again", () => {
   assert.equal(c.running, false);
 });
 
-test("a light that fades by itself gets one native fade for the tile", () => {
+test("native fades are off: a light that could fade by itself gets the fade in steps (#426)", () => {
+  assert.equal(NATIVE_FADES, false);
   const c = clock();
   const sent: LightCommand[] = [];
   const s = { ...seq(false, "aputure-mc") };
+  // fadeStepped stored false (absent) would have meant "the light runs it": ignored now.
   s.tracks = [{ ...s.tracks[0], keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.2, kelvin: 4000, gm: 0 }, { id: "k", at: 1000, intensity: 1, fadeIn: "linear" }] }];
   const p = new FlowPlayer(() => s, (_id, cmd) => sent.push(cmd), c);
   p.play(0);
   c.advance(900);
-  // The start state once, then one fade and nothing in between.
-  assert.equal(sent.filter((x) => x.op === "fade").length, 1);
-  assert.equal(sent.filter((x) => x.op === "intensity").length, 1);
+  // The start state, then one intensity per tick and no native fade.
+  assert.equal(sent.filter((x) => x.op === "fade").length, 0);
+  assert.equal(sent.filter((x) => x.op === "intensity").length, 10);
 });

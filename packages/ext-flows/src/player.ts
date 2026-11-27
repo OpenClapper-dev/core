@@ -1,5 +1,5 @@
 import { controlCommand, fixtureKind, modelOf, type LightCommand, type Value } from "@openclapper/ext-hardware";
-import { commandsFor, inFade, nativeStep, sampleControls, sampleTrack, FLOW_TICK_MS, type Flow, type SequenceSample } from "./flow.ts";
+import { commandsFor, inFade, nativeStep, sampleControls, sampleTrack, FLOW_TICK_MS, NATIVE_FADES, type Flow, type SequenceSample } from "./flow.ts";
 
 /**
  * Playing a flow (docs/features/flows.md; #304, shared since #321): the Studio's preview through the proxy and the
@@ -10,7 +10,7 @@ export type SendLight = (device: string, cmd: LightCommand) => void;
 
 /**
  * Samples every assigned, unmuted track at t and sends the difference to what its light last got.
- * While playing, a light that fades by itself gets one native fade per tile and nothing in between;
+ * While playing with NATIVE_FADES on, a light that fades by itself gets one native fade per tile and nothing in between;
  * a light with switchable smoothing (NEEWER) jumps at keyframes and smooths inside fades.
  */
 export class FlowEmitter {
@@ -47,7 +47,7 @@ export class FlowEmitter {
       }
       const caps = fixtureKind(tr.model)?.caps;
       const prev = this.sent.get(tr.id) ?? null;
-      const step = playback && caps?.fade
+      const step = playback && NATIVE_FADES && caps?.fade
         ? nativeStep(tr.keyframes, t, prev, this.fadeKeys.get(tr.id) ?? null)
         : { ...commandsFor(prev, sampleTrack(tr.keyframes, t)), key: null };
       if (caps?.smoothing) {
