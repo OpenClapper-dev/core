@@ -445,7 +445,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
           </div>
         </Popover>
         {/* What the account shows (#426): a light model's parameters, a keyframe panel's fields; kept with the account. */}
-        <Popover trigger={<Button size="sm" variant="quiet" icon="sliders" iconAfter="chevron-down">Customize</Button>}>
+        <Popover maxWidth={460} trigger={<Button size="sm" variant="quiet" icon="sliders" iconAfter="chevron-down">Customize</Button>}>
           <Customize models={[...new Set(body.tracks.map((t) => t.model))]} />
         </Popover>
         <Button size="sm" variant={stageLayout.on ? "secondary" : "quiet"} selected={stageLayout.on} icon="frame" title="Show the flow's stage above the tracks" onClick={() => setStageLayout({ ...stageLayout, on: !stageLayout.on })}>Stage</Button>
