@@ -182,3 +182,10 @@
 .sh-rec { width: 8px; height: 8px; border-radius: 50%; background: var(--over-rec); margin-left: var(--space-3); }
 .sh-noprog { display: grid; gap: var(--space-3); justify-items: start; padding: var(--space-4) var(--space-5); min-height: 96px; }
 .sh-noprog .sh-note { padding: 0; }
+/* The generator's photo cards: the shot's own first, the rest of the project below; one without an angle of view is shown but cannot be picked. */
+.sh-srcs { display: grid; gap: var(--space-3); max-height: min(34vh, 300px); overflow: auto; padding-right: 2px; }
+.sh-srcs h4 { margin: 0; color: var(--text-secondary); font: var(--weight-bold) var(--font-size-2xs)/1.4 var(--font-sans); }
+.sh-srcs__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--space-3); }
+.sh-src { cursor: pointer; }
+.sh-src.is-off { cursor: not-allowed; opacity: .55; }
+.sh-src .oc-thumb__meta, .sh-src small { font-size: 11px; }

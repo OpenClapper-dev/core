@@ -29,7 +29,7 @@ import { useEditLock, type EditLock } from "../lock";
 import { AddFiles } from "../shots/AddFiles";
 import { progChange, useDoc, useProgDoc, type Item, type ProgDoc } from "../shots/doc";
 import { coverOf, frameIdsOf, pictureOf, progressionsOf, timesOf } from "../shots/progression";
-import { Generator, type Made } from "../shots/Generator";
+import { Generator, zoomBlocker, type Made } from "../shots/Generator";
 import { Pic } from "../shots/Pic";
 import { see, type Mode, type PicCtx, type PicRef } from "../shots/picture";
 import { itemFor, itemKind, itemKindLabel, useProgressionEditor } from "../shots/ProgressionEditor";
@@ -97,7 +97,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   /** A content entry looked at on the stage instead of the playhead's picture. */
   const [preview, setPreview] = useState<string | null>(null);
   const [adding, setAdding] = useState<{ to: "content" } | { to: "prog"; gap: number } | null>(null);
-  const [gen, setGen] = useState<number | null>(null);
+  const [gen, setGen] = useState<{ gap: number; edit?: Item; start?: string } | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [lines, setLines] = useState("cards");
   const [name, setName] = useState(f.name);
@@ -125,13 +125,29 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
     const h = hist.current;
     if (!merge || merge !== h.merge) { h.past.push(pdoc); if (h.past.length > 100) h.past.shift(); }
     h.merge = merge ?? null; h.future = [];
-    pd.change(fn); bump((n) => n + 1);
+    const next = fn(pd.doc ?? pdoc);
+    pd.change(() => next); bump((n) => n + 1);
+    sweep(pd.doc ?? pdoc, next);
   };
   const jump = (from: "past" | "future") => {
     const h = hist.current, d = h[from].pop();
     if (!d || !pdoc || readonly) return;
     h[from === "past" ? "future" : "past"].push(pdoc); h.merge = null;
     pd.change(() => d); setSel([]); bump((n) => n + 1);
+    sweep(pdoc, d);
+  };
+  /**
+   * The progression's own canvases (its zooms) go to the bin with the last item that showed them, so none lingers
+   * unused; an undo that brings such an item back restores its canvas.
+   */
+  const sweep = (before: ProgDoc, after: ProgDoc) => {
+    if (!progFile) return;
+    const uses = (d: ProgDoc) => new Set([...d.items.map((i) => i.to), ...(d.overlay ? [d.overlay] : [])]);
+    const was = uses(before), now = uses(after), own = (id: string) => { const x = map.get(id); return x?.type === "canvas" && x.internal_of === progFile.id ? x : null; };
+    const gone = [...was].filter((id) => !now.has(id) && own(id) && !own(id)!.deleted_at);
+    const back = [...now].filter((id) => own(id)?.deleted_at);
+    if (gone.length) void store.bin({ project: projectId }, gone).catch(toastError);
+    if (back.length) void store.restore({ project: projectId }, back).catch(toastError);
   };
 
   // Playback runs on the clock from the playhead, so a smooth move takes the time it says.
@@ -246,11 +262,24 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
       edit(id);
     } catch (e) { toastError(e); }
   };
-  /** The generator's zoom: one canvas inside the progression and one zoom block, inserted at `gen`. */
+  /**
+   * The generator's zoom: one canvas inside the progression and one zoom block, inserted at `gen.gap`. Opened on a
+   * zoom block (`gen.edit`), it changes that block's canvas (photo, frames, name) and the block's time and mode.
+   */
   const generate = async (m: Made) => {
-    const gap = gen ?? items.length;
+    const gap = gen?.gap ?? items.length, editItem = gen?.edit;
     setGen(null);
     try {
+      // A changed zoom is a fresh canvas in place of the old one (which goes to the bin with its last item, and
+      // comes back on undo): a generated canvas is never drawn on, so it keeps showing its photo, not a render.
+      if (m.canvas && editItem && progFile) {
+        const id = crypto.randomUUID();
+        await api.createFile({ project: projectId }, id, { type: "canvas", name: m.name, internal_of: progFile.id, body: { ...emptyCanvas(), surface: { kind: "photo" }, frames: m.frames, picture: m.frames[0]?.id ?? null }, refs: [{ kind: "base", to: m.photo }] });
+        await store.loadRoot({ project: projectId });
+        editProg((d) => ({ ...d, items: d.items.map((x) => (x.key === editItem.key ? { ...x, to: id, data: m.item } : x)) }));
+        toast(`“${m.name}” changed`, { tone: "info" });
+        return;
+      }
       const pid = progFile?.id ?? await newProgressionFile();
       const id = crypto.randomUUID();
       const body: CanvasBody = { ...emptyCanvas(), surface: { kind: "photo" }, frames: m.frames, picture: m.frames[0]?.id ?? null };
@@ -262,6 +291,24 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
       toast(`A zoom from one internal canvas, “${m.name}”${doc.content.includes(m.photo) ? "" : `; ${map.get(m.photo)?.name ?? "its photo"} counts as content of this shot through it`}`, { tone: "info" });
     } catch (e) { toastError(e); }
   };
+  /** A zoom block in steps as single frames of its canvas, each its own item with its part of the time. */
+  const split = (it: Item) => {
+    const ids = frameIdsOf(map, it.to), n = ids.length;
+    if (it.data.zoom?.mode !== "steps" || n < 2) return;
+    const ms = Math.max(100, Math.round(it.data.ms / n / 100) * 100);
+    const parts: Item[] = ids.map((frame) => ({ key: `${it.key}-${frame}`, to: it.to, data: { ms, frame } }));
+    editProg((d) => ({ ...d, items: d.items.flatMap((x) => (x.key === it.key ? parts : [x])) }));
+    setSel(parts.map((p) => p.key));
+    toast(`${n} single frames of “${map.get(it.to)?.name ?? "the zoom"}”, each editable on its own`, { tone: "info" });
+  };
+  /** The photos that belong to the shot: listed in its content, shown by its progressions, or the base of such a canvas. */
+  const inShot = new Set<string>();
+  for (const id of [...doc.content, ...progs.flatMap((p) => (p.id === progFile?.id && pdoc ? pdoc.items.map((i) => i.to) : (p.refs ?? []).filter((r) => r.kind === "item").map((r) => r.to)))]) {
+    const x = map.get(id);
+    if (x?.type === "photo") inShot.add(id);
+    const base = x?.type === "canvas" ? x.refs?.find((r) => r.kind === "base")?.to : undefined;
+    if (base) inShot.add(base);
+  }
   const removeProgression = async (p: FileRec) => {
     if (!(await confirm({ danger: true, title: `Delete “${p.name}”?`, confirmLabel: "Delete", message: `Its zooms and its overlay go with it. Photos and canvases it shows stay in the project.${doc.content[thumbAt] === p.id ? " It is the shot's thumbnail: the next entry takes over." : ""}` }))) return;
     await pd.flush();
@@ -306,7 +353,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
     isThumb, useAsThumb: () => progFile && toTop(progFile.id),
     pick: pickProgression, addNew: () => void newProgressionFile().catch(toastError),
     rename: () => progFile && void renameProgression(progFile), duplicate: () => progFile && void duplicateProgression(progFile), remove: () => progFile && void removeProgression(progFile),
-    generate: (gap) => setGen(gap), addPictures: (gap) => setAdding({ to: "prog", gap }),
+    generate: (gap) => setGen({ gap }), editZoom: (it) => setGen({ gap: items.indexOf(it), edit: it }), split: (it) => split(it), addPictures: (gap) => setAdding({ to: "prog", gap }),
     addOverlay: () => void addOverlay(), editOverlay: () => pdoc?.overlay && (editing === pdoc.overlay ? done() : edit(pdoc.overlay)),
     editCanvas: edit, thumbFile: toTop, insertFiles,
   });
@@ -427,6 +474,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
         {k !== "zoom" && !it.data.move && frames.length > 0 && <PropertyRow label="Shows"><Select size="sm" value={it.data.frame ?? ""} onChange={(v) => patchItem(it.key, { frame: v || undefined })} options={[{ value: "", label: "The canvas as a whole" }, ...frames.map((x) => ({ value: x.id, label: `Frame ${x.name}` }))]} /></PropertyRow>}
         <PropertyRow label="Seen through" value={!focusSeen ? "–" : focusSeen.source === "none" ? (focusSeen.optics ? "No frame" : "No frame: it has no angle of view") : SOURCE[focusSeen.source]} />
         <PropertyRow label="In the shot" value={doc.content.includes(it.to) ? "An entry of the content" : `Counts as content through ${progs.filter((p) => (p.id === progFile!.id ? items.some((x) => x.to === it.to) : (p.refs ?? []).some((r) => r.to === it.to))).map((p) => p.name).join(", ")}`} />
+        {k === "zoom" && !readonly && <div className="sh-row"><Button size="sm" icon="edit" onClick={() => setGen({ gap: i, edit: it })}>Edit the zoom…</Button>{it.data.zoom!.mode === "steps" && <Button size="sm" variant="quiet" icon="columns" title="One item per frame, each editable on its own" onClick={() => split(it)}>Split into single frames</Button>}</div>}
       </PropertySection></div>
     );
   };
@@ -457,7 +505,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   const progBody = shot && (pdoc ? editor.body : (
     <div ref={noProg} className="sh-noprog" {...ro}>
       <p className="sh-note">This shot has no progression. Drop a photo or canvas of the content here to start one, or:</p>
-      <span className="sh-bar"><Button size="sm" icon="plus" onClick={() => void newProgressionFile().catch(toastError)}>New progression</Button><Button size="sm" variant="quiet" icon="frame" onClick={() => setGen(0)}>Generate a zoom…</Button></span>
+      <span className="sh-bar"><Button size="sm" icon="plus" onClick={() => void newProgressionFile().catch(toastError)}>New progression</Button><Button size="sm" variant="quiet" icon="frame" onClick={() => setGen({ gap: 0 })}>Generate a zoom…</Button></span>
     </div>
   ));
 
@@ -478,6 +526,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
       ...(x.type === "canvas" ? [{ id: "edit", label: "Edit here", icon: "edit" as const }] : []),
       { id: "open", label: `Open in the ${kindOf(x.type).label} app`, icon: "external" as const },
       ...(x.type === "photo" ? [{ id: "draw", label: "Draw or frame", icon: "brush" as const }] : []),
+      ...(shot && x.type === "photo" && !zoomBlocker(x) ? [{ id: "zoom", label: "Generate a zoom from it…", icon: "frame" as const }] : []),
       ...(shot && isPicture(x) ? [{ id: "prog", label: pdoc ? `Insert into ${progFile!.name} at the playhead` : "Start a progression with it", icon: "slideshow" as const }] : []),
       ...(x.internal_of === f.id ? [{ id: "release", label: "Make it a project file…", icon: "unlock" as const }] : []),
       { separator: true as const },
@@ -493,6 +542,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
     else if (a === "edit") { setPreview(id); edit(id); }
     else if (a === "open" && x) open(x);
     else if (a === "draw" && x) void newCanvas(x, i);
+    else if (a === "zoom") setGen({ gap: pdoc ? editor.playheadGap() : 0, start: id });
     else if (a === "release" && x) void release(x);
     else if (a === "prog") insertHere(id);
     else if (a === "remove") removeEntry(i);
@@ -611,7 +661,10 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
       </Dock>
       <StatusBar>{doc.content.length} in the content{through.length > 0 && <>, {through.length} more through progressions</>}{progFile && pdoc && <> · {progFile.name}: {items.length} {items.length === 1 ? "item" : "items"}, {clock(total)}{sel.length > 0 && <>, {sel.length} chosen</>}</>}{internal.length > 0 && <> · {internal.length} internal files</>}{playing && <> · playing <strong className="oc-num">{clock(tt)}</strong></>}{editing && <> · editing <strong>{editFile?.name}</strong> in place</>}{readonly && <> · read-only{lock.live ? ", live" : ", read again every 5 s"}</>}</StatusBar>
       {adding && <AddFiles title={adding.to === "prog" ? `Add pictures to ${progFile?.name ?? "a new progression"}` : `Add files to the content of ${f.name}`} pictures={adding.to === "prog"} files={files} ctx={ctx} self={f.id} onAdd={addRefs} onClose={() => setAdding(null)} />}
-      {gen != null && <Generator files={files} presets={presetList} ctx={ctx} start={entry?.type === "photo" ? entry.id : undefined} has={false} onMake={(m) => void generate(m)} onClose={() => setGen(null)} />}
+      {gen != null && <Generator files={files} presets={presetList} ctx={ctx} inShot={inShot} start={gen.start ?? (entry?.type === "photo" ? entry.id : undefined)}
+        editing={gen.edit && map.get(gen.edit.to) ? { canvas: map.get(gen.edit.to)!, data: gen.edit.data } : undefined}
+        where={gen.edit ? "in place of the block" : pdoc ? `inserted into ${progFile!.name} at ${clock(starts[gen.gap] ?? total)}` : "in a new progression"}
+        onMake={(m) => void generate(m)} onClose={() => setGen(null)} />}
     </div>
   );
 }

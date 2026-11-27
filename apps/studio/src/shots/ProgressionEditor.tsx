@@ -59,6 +59,10 @@ export interface EditorProps {
   isThumb: boolean; useAsThumb: () => void;
   pick: (id: string) => void; addNew: () => void; rename: () => void; duplicate: () => void; remove: () => void;
   generate: (gap: number) => void;
+  /** Reopens the generator on a zoom block. */
+  editZoom: (it: Item) => void;
+  /** A zoom block in steps as single frames. */
+  split: (it: Item) => void;
   addPictures: (gap: number) => void;
   addOverlay: () => void; editOverlay: () => void;
   editCanvas: (id: string) => void;
@@ -209,7 +213,8 @@ export function useProgressionEditor(p: EditorProps) {
       { id: "dup", label: "Duplicate", icon: "copy", kbd: "Ctrl+D", disabled: readonly, run: duplicate },
       { id: "del", label: sel.length > 1 ? `Delete ${sel.length} items` : "Delete", icon: "trash", kbd: "Del", danger: true, disabled: readonly, run: () => removeChosen() },
       { separator: true },
-      canvas && k !== "zoom" && { id: "edit", label: "Edit the canvas here", icon: "edit", disabled: !one, run: () => p.editCanvas(it.to) },
+      k === "zoom" ? { id: "zoom", label: "Edit the zoom…", icon: "edit", disabled: !one || readonly, run: () => p.editZoom(it) } : canvas && { id: "edit", label: "Edit the canvas here", icon: "edit", disabled: !one, run: () => p.editCanvas(it.to) },
+      k === "zoom" && it.data.zoom!.mode === "steps" && { id: "split", label: "Split into single frames", icon: "columns", disabled: !one || readonly, run: () => p.split(it) },
       { id: "thumb", label: "Use this file as the thumbnail", icon: "image", disabled: !one || readonly, run: () => p.thumbFile(it.to) },
     ]);
   };
@@ -255,7 +260,7 @@ export function useProgressionEditor(p: EditorProps) {
       <div key={it.key} data-key={it.key} className={cx("pg-clip", p.sel.includes(it.key) && "is-sel", i === atIndex && "is-cur", missing && "is-missing")}
         style={{ left: PAD + px(p.starts[i] ?? 0), width: w }} title={`${name}${sub ? ` · ${sub}` : ""} · ${KIND[k]} · ${clock(d)}`}
         onPointerDown={startClip(i)} onContextMenu={clipMenu(i)}
-        onDblClick={() => { p.seek(p.starts[i]); if (f?.type === "canvas" && k !== "zoom") p.editCanvas(it.to); }}>
+        onDblClick={() => { p.seek(p.starts[i]); if (k === "zoom") { if (!readonly) p.editZoom(it); } else if (f?.type === "canvas") p.editCanvas(it.to); }}>
         <span className="pg-clip__cells">{us.map((u, j) => { const at = pictureOf(it, files, u); return <span key={j} className="pg-cell">{j > 0 && smooth && <i className="pg-cell__arrow"><Icon name="arrow-right" size={10} /></i>}<span className="sh-box"><Pic seen={see(at.ref, ctx, body.frame, at.u)} overlay={body.overlayShown ? p.overlaySrc : null} /></span></span>; })}</span>
         <span className="pg-clip__label">{k === "zoom" ? <Icon name="zoom-in" size={12} /> : k === "move" ? <Icon name="arrow-right" size={12} /> : f && <AppIcon glyph={kindOf(f.type).glyph} color={kindOf(f.type).color} size={16} />}<b>{name}</b>{sub && <small>{sub}</small>}<i className="oc-num">{clock(d)}</i></span>
         {!readonly && <i className="pg-clip__trim" data-no-marquee title={each ? "Drag to change how long it holds" : "Drag to change how long it holds (the timing becomes each its own)"} onPointerDown={each ? startTrim(i) : (e) => { e.stopPropagation(); setTiming("each"); }} />}
