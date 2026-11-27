@@ -135,11 +135,21 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | --- | --- |
 | Space | Play from the playhead; again: stop and go back to where play started |
 | K | Stop where it is |
-| V | Select mode: clicks select, never add |
+| V | Select mode: clicks select, never add; on the stage, Move |
 | I | Insert mode: a click on a lane adds a keyframe |
 | M | A marker at the playhead |
 | Shift+M | A range marker: in, then out |
-| Delete | Delete the selected keyframes and markers |
+| Delete | Delete the selected keyframes and markers, or what is chosen on the stage |
+| ⌘Z | Undo (tracks and stage together) |
+| Mod+Shift+Z | Redo |
+| P | Stage: pen |
+| L | Stage: line |
+| A | Stage: arrow |
+| R | Stage: rectangle |
+| O | Stage: ellipse |
+| T | Stage: text |
+| S | Stage: stencil |
+| E | Stage: eraser |
 | ⌘A | Select every keyframe and marker |
 | Esc | Clear the selection |
 | Alt Click | Add a keyframe in Select mode too |

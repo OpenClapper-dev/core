@@ -9,7 +9,7 @@ import { lightColour } from "./look.ts";
 
 /** Where a light track's widget stands: its centre in fractions of the paper, and where it points (degrees, 0 = right, clockwise). */
 export interface StageLight { track: string; x: number; y: number; rot: number }
-/** A photo of the project under the drawing, covering the paper (whose aspect is then the photo's), as the canvas's base photo. */
+/** A photo of the project under the drawing, fitted inside the paper, as the canvas's base photo lies under its drawing. */
 export interface StageUnderlay { photo: string; opacity: number }
 export interface FlowStage {
   /** The paper's width over its height. */
@@ -97,6 +97,8 @@ export interface WidgetState {
   colour: string | null;
   effect: { id: EffectId; name: string; family: EffectFamily } | null;
   muted: boolean;
+  /** White or colour in words ("3200 K", "colour 0°"), whatever the power; null when nothing set it. */
+  tint: string | null;
   /** One line of what it shows: "70 % · 3200 K", "100 % · colour 0° · Fire", "off", "muted". */
   line: string;
 }
@@ -113,7 +115,7 @@ export function widgetState(tr: Pick<FlowTrack, "keyframes" | "locked" | "muted"
   const colour = lightColour(s);
   const tint = s.mode === "colour" ? `colour ${Math.round(s.hue ?? 0)}°` : s.kelvin !== undefined ? `${Math.round(s.kelvin / 50) * 50} K` : null;
   const line = muted ? "muted" : s.power === false ? "off" : [`${Math.round(level * 100)} %`, tint, fx?.name].filter(Boolean).join(" · ");
-  return { on, level: on ? level : 0, colour, effect: on ? fx : null, muted, line };
+  return { on, level: on ? level : 0, colour, tint, effect: on ? fx : null, muted, line };
 }
 
 /** The keyframes of a family's motion: [time 0..1 of its period, opacity], linear between them. */
@@ -175,10 +177,12 @@ export const glowRadius = (g: WidgetShape, level: number) => g.glow[0] + (g.glow
 /** How strongly the light reads at a level: never quite gone while on, so a low level is still seen. */
 export const beamOpacity = (level: number) => 0.3 + 0.7 * level;
 
-/** Where a widget's name tag sits (stage units): behind the light, away from its beam, kept on the paper. */
-export function tagAt(l: StageLight, aspect: number): [number, number] {
-  const a = (l.rot * Math.PI) / 180, H = STAGE_W / aspect;
-  const x = Math.min(STAGE_W - 100, Math.max(100, l.x * STAGE_W - Math.cos(a) * 62)), y = Math.min(H - 26, Math.max(26, l.y * H - Math.sin(a) * 58));
+/** A name tag's width (stage units) for its two lines: the name (18 units bold), what it shows (14 units mono). */
+export const tagWidth = (name: string, line: string) => Math.max(name.length * 10, line.length * 8.6) + 28;
+/** Where a widget's name tag of width `w` is centred (stage units): behind the light, away from its beam, kept on the paper. */
+export function tagAt(l: StageLight, aspect: number, w: number): [number, number] {
+  const a = (l.rot * Math.PI) / 180, H = STAGE_W / aspect, half = Math.min(STAGE_W / 2, w / 2 + 4);
+  const x = Math.min(STAGE_W - half, Math.max(half, l.x * STAGE_W - Math.cos(a) * 62)), y = Math.min(H - 26, Math.max(26, l.y * H - Math.sin(a) * 58));
   return [x, y];
 }
 

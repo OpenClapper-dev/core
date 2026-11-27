@@ -20,3 +20,6 @@ export const useTrackHeight = () => useLocal<number>("flows.trackHeight.v1", 64,
 /** What an intensity drag snaps to, in percent (#426): 1 keeps the old feel; any percent can still be typed in. */
 export const useLevelStep = () => useLocal<LevelStep>("flows.levelStep.v1", 1, (v) => (LEVEL_STEPS as readonly unknown[]).includes(v));
 
+/** The stage above the lanes (#426): shown or not, and its height (px), dragged at the divider. */
+export interface StageLayout { on: boolean; h: number }
+export const useStageLayout = () => useLocal<StageLayout>("flows.stage.v1", { on: true, h: 360 }, (v) => typeof v === "object" && v !== null && typeof (v as StageLayout).h === "number");
