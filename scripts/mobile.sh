@@ -30,15 +30,19 @@ fi
 start() {
   if [ "$reuse" = 1 ]; then
     echo "Reusing the local Worker on :$port; starting a quick tunnel to it (log: $log)…"
-    (cd "$root/apps/worker" && exec pnpm exec wrangler tunnel quick-start "http://localhost:$port") >"$log" 2>&1 &
+    setsid sh -c "cd \"$root/apps/worker\" && exec pnpm exec wrangler tunnel quick-start http://localhost:$port" >"$log" 2>&1 &
   else
     echo "Starting the local Worker with a quick tunnel (log: $log)…"
-    (cd "$root/apps/worker" && exec pnpm exec wrangler dev --port "$port" --inspector-port 9229 --tunnel) >"$log" 2>&1 &
+    setsid sh -c "cd \"$root/apps/worker\" && exec pnpm exec wrangler dev --port $port --inspector-port 9229 --tunnel" >"$log" 2>&1 &
   fi
+  # Its own process group: stopping it also stops the cloudflared that wrangler starts, which otherwise lingers.
   worker=$!
 }
+stop() { [ -n "$worker" ] && kill -- "-$worker" 2>/dev/null; wait "$worker" 2>/dev/null || true; worker=""; }
 worker=""
-trap '[ -n "$worker" ] && kill "$worker" 2>/dev/null; wait 2>/dev/null || true' EXIT
+trap stop EXIT
+# Ctrl+C, a closed terminal or a kill: leave through EXIT, so the Worker and its tunnel stop too.
+trap "exit 130" INT TERM HUP
 
 # The quick tunnel's address. Only a tunnel's own name counts: words joined by hyphens. Its errors name
 # https://api.trycloudflare.com, which once went to the phones as the server, so nothing connected.
@@ -56,14 +60,22 @@ for wait_s in 0 15 45 90; do
     sleep 1
   done
   [ -n "$url" ] && break
-  kill "$worker" 2>/dev/null; wait "$worker" 2>/dev/null || true; worker=""
+  stop
 done
 [ -n "$url" ] || { cat "$log" >&2; echo "No quick tunnel after four tries (Cloudflare's quick tunnels have no uptime guarantee); try again later." >&2; exit 1; }
 
-# The tunnel answers a few seconds after the URL is printed; a tunnel that never answers is no use.
+# The tunnel answers a little while after its address is printed. A new name is not in DNS at once, and a
+# resolver that asked too early may keep the "no such name" for minutes (seen in WSL): look the name up at
+# Cloudflare itself, then ask the tunnel at that address. Only a warning: the phones use their own DNS.
+host="${url#https://}"
 ok=0
-for _ in $(seq 1 30); do curl -fs -o /dev/null "$url/api/ping" 2>/dev/null && { ok=1; break; }; sleep 1; done
-[ "$ok" = 1 ] || { cat "$log" >&2; echo "The tunnel $url does not answer /api/ping." >&2; exit 1; }
+for _ in $(seq 1 60); do
+  ip="$(curl -fs --max-time 5 -H "accept: application/dns-json" "https://cloudflare-dns.com/dns-query?name=$host&type=A" 2>/dev/null | grep -oE "\"data\":\"[0-9.]+\"" | head -1 | cut -d\" -f4 || true)"
+  [ -n "$ip" ] && curl -fs --max-time 5 -o /dev/null --resolve "$host:443:$ip" "$url/api/ping" 2>/dev/null && { ok=1; break; }
+  kill -0 "$worker" 2>/dev/null || { cat "$log" >&2; echo "The local Worker stopped." >&2; exit 1; }
+  sleep 1
+done
+[ "$ok" = 1 ] || echo "Warning: the tunnel $url did not answer /api/ping within a minute; starting Metro anyway (log: $log)." >&2
 echo "Local Worker: $url  (Studio: make studio → http://localhost:5173)"
 
 # --clear: EXPO_PUBLIC_* values are inlined, and the URL is new on every run.
