@@ -1,8 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CATALOGUE } from "@openclapper/ext-hardware";
-import { addKeyframe, addMarker, addTrack, fmtSeconds, patchTrack, removeKeys, setDuration, setKeyframe, snapLevel } from "./edit.ts";
-import { START_KEYFRAME } from "./flow.ts";
+import { addKeyframe, addMarker, addTrack, fmtSeconds, moveKeyframes, patchTrack, removeKeys, setDuration, setKeyframe, setMargin, snapLevel } from "./edit.ts";
+import { START_KEYFRAME, type Keyframe } from "./flow.ts";
+import type { FlowBody } from "./index.ts";
 import { emptyFlow, flowError } from "./index.ts";
 
 const light = CATALOGUE.find((m) => m.type === "light")!.id;
@@ -78,4 +79,90 @@ test("an intensity drag snaps to the grid, from off the grid to the next line in
   // Within 0..100 %.
   assert.equal(snapLevel(0.98, 1.4, 5), 1);
   assert.equal(snapLevel(0.02, -0.3, 10), 0);
+});
+
+// Margins (#426): a track with keyframes at whole seconds, each with its margins ([before, after] in seconds).
+function track(ks: Record<string, [number, number?, number?]>, durationMs = 30_000): FlowBody {
+  const b = { ...emptyFlow(), durationMs, tracks: [] } as FlowBody;
+  const keyframes: Keyframe[] = Object.entries(ks).map(([id, [s, before, after]]) => ({
+    id, at: s * 1000, ...(before ? { marginBeforeMs: before * 1000 } : {}), ...(after ? { marginAfterMs: after * 1000 } : {}),
+  }));
+  return { ...b, tracks: [{ id: "t", name: "T", model: light, device: null, keyframes }] };
+}
+const times = (b: FlowBody | null) => Object.fromEntries((b?.tracks[0].keyframes ?? []).map((k) => [k.id, k.at / 1000]));
+
+test("margins are kept in the body and checked", () => {
+  const b = track({ [START_KEYFRAME]: [0, 0, 2], a: [5, 1, 3] });
+  assert.equal(flowError(b as unknown as Record<string, unknown>), null);
+  const bad = track({ [START_KEYFRAME]: [0, 2] });
+  assert.match(flowError(bad as unknown as Record<string, unknown>)!, /no margin before/);
+  const half = { ...b, tracks: [{ ...b.tracks[0], keyframes: [b.tracks[0].keyframes[0], { id: "a", at: 5000, marginAfterMs: 1500 }] }] };
+  assert.match(flowError(half as unknown as Record<string, unknown>)!, /whole seconds/);
+});
+
+test("moving into a neighbour's margin pushes it; those further away stay put", () => {
+  const b = track({ [START_KEYFRAME]: [0], a: [5, 0, 2], n: [10], far: [20] });
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 9000 }])), { [START_KEYFRAME]: 0, a: 9, n: 11, far: 20 });
+  // The neighbour's own margin before counts too.
+  const c = track({ [START_KEYFRAME]: [0], a: [5], n: [10, 3] });
+  assert.deepEqual(times(moveKeyframes(c, [{ trackId: "t", id: "a", at: 8000 }])), { [START_KEYFRAME]: 0, a: 8, n: 11 });
+});
+
+test("moving backward pushes the keyframes before it earlier", () => {
+  const b = track({ [START_KEYFRAME]: [0], p: [6], a: [10, 2] });
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 7000 }])), { [START_KEYFRAME]: 0, p: 5, a: 7 });
+});
+
+test("a push goes on through further keyframes, each with its own margins", () => {
+  const b = track({ [START_KEYFRAME]: [0], a: [2, 0, 2], n: [5, 0, 3], m: [8], z: [12, 1] });
+  // a to 4: n to 6, n's margin after pushes m to 9; z (12) is still 3 away, more than its 1 s.
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 4000 }])), { [START_KEYFRAME]: 0, a: 4, n: 6, m: 9, z: 12 });
+  // A pushed keyframe without a margin keeps a second from the one pushing it.
+  const c = track({ [START_KEYFRAME]: [0], a: [2, 0, 2], n: [5], m: [5.5] });
+  assert.deepEqual(times(moveKeyframes(c, [{ trackId: "t", id: "a", at: 4000 }])), { [START_KEYFRAME]: 0, a: 4, n: 6, m: 7 });
+});
+
+test("a push that would leave the flow cuts the move short", () => {
+  const b = track({ [START_KEYFRAME]: [0], a: [20, 0, 3], n: [25, 0, 2], m: [28] });
+  // a wants 26: n would go to 29 and m to 31, past 30. The farthest a can go: 25 (n 28, m 30).
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 26_000 }])), { [START_KEYFRAME]: 0, a: 25, n: 28, m: 30 });
+});
+
+test("the start keyframe never moves and its margin holds the others off", () => {
+  const b = track({ [START_KEYFRAME]: [0, 0, 3], p: [5], a: [9, 2] });
+  // a to 6 pushes p to 4, which keeps 3 from the start... a to 4 would need p at 2: inside the start's margin, so a stops at 5.
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 4000 }])), { [START_KEYFRAME]: 0, p: 3, a: 5 });
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: START_KEYFRAME, at: 4000 }])), times(b));
+  // A margin on the start pushes too, or is refused when nothing can make room.
+  assert.deepEqual(times(setMargin(b, "t", START_KEYFRAME, "after", 6000)), { [START_KEYFRAME]: 0, p: 6, a: 9 });
+  assert.deepEqual(times(setMargin(b, "t", START_KEYFRAME, "after", 29_000)), times(b));
+  assert.equal(setMargin(b, "t", START_KEYFRAME, "before", 2000).tracks[0].keyframes[0].marginBeforeMs, undefined);
+});
+
+test("a selection moves together and is cut short together", () => {
+  const b = track({ [START_KEYFRAME]: [0], a: [4], c: [6], n: [10, 2], far: [27, 0, 0] });
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 7000 }, { trackId: "t", id: "c", at: 9000 }])), { [START_KEYFRAME]: 0, a: 7, c: 9, n: 11, far: 27 });
+  // Further on, n is pushed into far (27), which goes a second after it; c past 27 would push far off the end.
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 30_000 }, { trackId: "t", id: "c", at: 32_000 }])), { [START_KEYFRAME]: 0, a: 25, c: 27, n: 29, far: 30 });
+  // A keyframe caught between two selected ones moving towards each other: cut short a second at a time until it fits.
+  const s = track({ [START_KEYFRAME]: [0], a: [2, 0, 2], m: [5], c: [8, 2] });
+  assert.deepEqual(times(moveKeyframes(s, [{ trackId: "t", id: "a", at: 3000 }, { trackId: "t", id: "c", at: 6000 }])), { [START_KEYFRAME]: 0, a: 2, m: 5, c: 7 });
+});
+
+test("without margins keyframes may pass each other but never share a time", () => {
+  const b = track({ [START_KEYFRAME]: [0], a: [4], n: [6] });
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 8000 }])), { [START_KEYFRAME]: 0, a: 8, n: 6 });
+  assert.deepEqual(times(moveKeyframes(b, [{ trackId: "t", id: "a", at: 6000 }])), { [START_KEYFRAME]: 0, a: 5, n: 6 });
+});
+
+test("setting a margin or a time through setKeyframe pushes the same way", () => {
+  const b = track({ [START_KEYFRAME]: [0], a: [5], n: [7] });
+  const m = setMargin(b, "t", "a", "after", 4000);
+  assert.deepEqual(times(m), { [START_KEYFRAME]: 0, a: 5, n: 9 });
+  assert.equal(m.tracks[0].keyframes.find((k) => k.id === "a")!.marginAfterMs, 4000);
+  assert.equal(setMargin(m, "t", "a", "after", 0).tracks[0].keyframes.find((k) => k.id === "a")!.marginAfterMs, undefined);
+  const a = m.tracks[0].keyframes.find((k) => k.id === "a")!;
+  assert.deepEqual(times(setKeyframe(m, "t", { ...a, at: 8000 })), { [START_KEYFRAME]: 0, a: 8, n: 12 });
+  // A keyframe added inside a margin pushes that neighbour away (here a, back to 4 s from it).
+  assert.deepEqual(times(addKeyframe(m, "t", 7000, "x").body), { [START_KEYFRAME]: 0, a: 3, n: 9, x: 7 });
 });

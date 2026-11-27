@@ -22,6 +22,19 @@ const Seconds = ({ label, value, min, max, onChange }: { label: string; value: n
   <label className="hw-ctl"><small>{label} (s)</small><NumberInput size="sm" value={value / 1000} step={1} min={min / 1000} max={max / 1000} onChange={(v: number) => { if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, snap(v * 1000)))); }} /></label>
 );
 
+/**
+ * A keyframe's margins (#426): the least distance to the keyframes before and after it on the track, in whole
+ * seconds; a neighbour inside one is pushed. 0 removes it; the start keyframe has none before.
+ */
+function Margins({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; onChange: (k: Keyframe) => void }) {
+  return (
+    <div className="fl-margins">
+      {kf.id !== START_KEYFRAME && <Seconds label="Margin before" value={kf.marginBeforeMs ?? 0} min={0} max={durationMs} onChange={(ms) => onChange({ ...kf, marginBeforeMs: ms })} />}
+      <Seconds label="Margin after" value={kf.marginAfterMs ?? 0} min={0} max={durationMs} onChange={(ms) => onChange({ ...kf, marginAfterMs: ms })} />
+    </div>
+  );
+}
+
 /** One keyframe of a light track: when, and which values it sets. */
 export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { kf: Keyframe; track: FlowTrack; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void }) {
   const kind = fixtureKind(track.model), caps = kind?.caps, m = modelOf(track.model);
@@ -36,6 +49,7 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
     <div className="fl-inspect">
       {isStart ? <p className="fl-note">What the light shows when the flow starts. It always sets power, intensity and the light, so a flow never starts from whatever the light showed before.</p>
         : <Seconds label="At" value={kf.at} min={SNAP_MS} max={durationMs} onChange={(at) => set({ at })} />}
+      <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
       <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))}>
         <Segmented label="Power" value={kf.power ? "on" : "off"} onChange={(v: string) => set({ power: v === "on" })} options={[{ value: "off", label: "Off" }, { value: "on", label: "On" }]} />
       </Channel>
@@ -96,6 +110,7 @@ export function CameraKeyframe({ kf, durationMs, onChange, onDelete }: { kf: Key
     <div className="fl-inspect">
       {isStart ? <p className="fl-note">What the camera does when the flow starts: it stops recording, so a flow never starts in the middle of a take.</p>
         : <Seconds label="At" value={kf.at} min={SNAP_MS} max={durationMs} onChange={(at) => onChange({ ...kf, at })} />}
+      <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
       {groups.map((g) => (
         <div key={g} className="fl-chan">
           <strong>{g}</strong>

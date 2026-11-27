@@ -74,6 +74,12 @@
 .fl-mark__edge.is-out { right: -3px; }
 .fl-mline { position: absolute; top: 0; bottom: 0; width: 0; border-left: var(--border-w) dashed var(--text-secondary); pointer-events: none; }
 .fl-mband { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--text) 6%, transparent); pointer-events: none; }
+/* A keyframe's margins (#426): a band under the marker strip, hatched in the track's colour; its trim handles. */
+.fl-margin { position: absolute; top: 14px; bottom: 0; pointer-events: none; background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--track-c) 22%, transparent) 0 4px, transparent 4px 8px); border-inline: var(--border-w) dashed color-mix(in srgb, var(--track-c) 60%, transparent); }
+.fl-margin.is-selected { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--accent) 28%, transparent) 0 4px, transparent 4px 8px); border-color: var(--accent); }
+.fl-trim { position: absolute; top: calc(50% - 2px); width: 6px; height: calc(var(--kf) + 10px); margin: calc(var(--kf) / -2 - 5px) 0 0 -3px; border-radius: 3px; background: var(--accent); border: var(--border-w) solid var(--surface); cursor: ew-resize; z-index: 3; touch-action: none; }
+.fl-trim.is-zero.is-before { margin-left: calc(var(--kf) / -2 - 12px); }
+.fl-trim.is-zero.is-after { margin-left: calc(var(--kf) / 2 + 6px); }
 .fl-empty { padding: var(--space-5) 0; color: var(--text-secondary); font-size: var(--font-size-sm); }
 .fl-add { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); padding: 0 var(--space-5) var(--space-5); }
 .fl-swatches { display: grid; grid-template-columns: repeat(3, 28px); gap: var(--space-2); padding: var(--space-3); }
@@ -89,5 +95,6 @@
 .fl-inspect { display: grid; gap: var(--space-4); padding: var(--space-4) var(--space-5); }
 .fl-inspect .hw-ctl--range { width: 100%; }
 .fl-chan { display: grid; gap: var(--space-3); }
+.fl-margins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 .fl-note { margin: 0; color: var(--text-secondary); font-size: var(--font-size-sm); }
 @media (max-width: 600px) { .fl-row { grid-template-columns: 150px 1fr; } .fl-lanes { padding-inline: var(--space-3); } .fl-label__kind { display: none; } }
