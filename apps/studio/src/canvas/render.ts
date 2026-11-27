@@ -2,7 +2,7 @@
 // every visible object), drawn on a 2D canvas with the editor's geometry and uploaded with each save, with
 // a thumbnail. Comments and frames are never part of it; viewers apply a frame themselves.
 import { GLYPHS } from "@openclapper/design/glyphs";
-import type { CanvasBody, Colour } from "@openclapper/model";
+import { arrowHead, type CanvasBody, type Colour } from "@openclapper/model";
 import { lookFilter, PENS, smooth, taper, toEdit, type BasePhoto, type Obj, type P } from "./geometry";
 
 /** A colour as the 2D canvas takes it: the design system's categorical colours are read from the page's tokens. */
@@ -71,15 +71,7 @@ export async function renderCanvas(inp: RenderInput, longEdge: number, crop?: Cr
         g.strokeStyle = colour; g.lineWidth = sw; g.lineJoin = "round"; g.lineCap = o.kind === "pen" ? pen.cap : "round";
         if (o.kind === "pen" && pen.dash) g.setLineDash(pen.dash.map((d) => d * unit));
         g.stroke(new Path2D(o.kind === "pen" ? smooth(q) : `M${q.map((x) => x.join(" ")).join(" L")}`));
-        if (o.kind === "arrow") {
-          const [a, b] = [q[q.length - 2], q[q.length - 1]], ang = Math.atan2(b[1] - a[1], b[0] - a[0]), len = 5 * sw;
-          g.setLineDash([]); g.fillStyle = colour; g.beginPath();
-          const tip: P = [b[0] + Math.cos(ang) * 0.75 * sw, b[1] + Math.sin(ang) * 0.75 * sw];
-          g.moveTo(...tip);
-          g.lineTo(tip[0] - Math.cos(ang) * len + Math.sin(ang) * len / 2, tip[1] - Math.sin(ang) * len - Math.cos(ang) * len / 2);
-          g.lineTo(tip[0] - Math.cos(ang) * len - Math.sin(ang) * len / 2, tip[1] - Math.sin(ang) * len + Math.cos(ang) * len / 2);
-          g.closePath(); g.fill();
-        }
+        if (o.kind === "arrow") { g.setLineDash([]); g.fillStyle = colour; g.fill(new Path2D(arrowHead(q[q.length - 2], q[q.length - 1], sw))); }
       }
     } else if (o.kind === "rect" || o.kind === "ellipse") {
       const x = o.x * W, y = o.y * H, w = o.w * W, h = o.h * H, bw = o.width * 1.3 * unit;

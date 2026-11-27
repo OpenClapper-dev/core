@@ -8,6 +8,7 @@ export * from "./exif.ts";
 export * from "./properties.ts";
 export * from "./filters.ts";
 export * from "./canvas.ts";
+export * from "./drawing.ts";
 export * from "./shot.ts";
 export * from "./timeline.ts";
 export * from "./layout.ts";

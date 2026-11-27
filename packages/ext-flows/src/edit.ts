@@ -3,6 +3,7 @@
 import { fixtureKind, modelOf } from "@openclapper/ext-hardware";
 import { sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam } from "./flow.ts";
 import type { FlowBody } from "./index.ts";
+import { withoutLight } from "./stage.ts";
 
 /** Times snap to half seconds (#426): keyframes, markers, margins, the length. Older times off that grid stay until moved. */
 export const SNAP_MS = 500;
@@ -48,7 +49,11 @@ export const setLock = (b: FlowBody, trackId: string, p: LightParam, on: boolean
   if (!locked.length) delete n.locked;
   return n;
 });
-export const removeTrack =(b: FlowBody, trackId: string): FlowBody => ({ ...b, tracks: b.tracks.filter((t) => t.id !== trackId), markers: (b.markers ?? []).filter((m) => m.trackId !== trackId) });
+/** A track removed with what belongs to it: its markers, and its widget on the stage (#426). */
+export const removeTrack = (b: FlowBody, trackId: string): FlowBody => ({
+  ...b, tracks: b.tracks.filter((t) => t.id !== trackId), markers: (b.markers ?? []).filter((m) => m.trackId !== trackId),
+  ...(b.stage ? { stage: withoutLight(b.stage, trackId) } : {}),
+});
 
 /**
  * A keyframe at a time on a track (snapped; none when one is there already): a light's carries the intensity the
