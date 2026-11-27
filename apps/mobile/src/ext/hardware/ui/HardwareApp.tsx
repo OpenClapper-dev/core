@@ -12,7 +12,7 @@ import { AddDevice } from "./AddDevice";
 import { ControlView, useHeld } from "./Controls";
 import { DeviceScreen } from "./Device";
 import { KeyBackup } from "./KeyBackup";
-import { BatteryBar, LinkMark, TypeTag, chargeOf, linkOf } from "./parts";
+import { BatteryBar, LinkMark, SleepButton, TypeTag, chargeOf, linkOf } from "./parts";
 
 /** How the list shows, kept on this device. */
 const view = persisted<"table" | "cards">("hardware.view.v1", "table");
@@ -70,10 +70,13 @@ function TableRow({ d, all, live, proxy, onPress }: { d: HardwareDevice; all: Ha
   const l = linkOf(d, live(d.id), proxy);
   const ch = chargeOf(d, all, live);
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [s.row, pressed && s.pressed, d.body.asleep && s.asleep]} accessibilityRole="button" accessibilityLabel={`${d.name}, ${l.label}`}>
-      <View style={s.rowMain}><Text style={s.name} numberOfLines={1}>{d.name}</Text><TypeTag kind={m.type} /></View>
-      <View style={s.rowSide}><LinkMark tone={l.tone} label={l.label} />{ch.charge !== undefined || ch.from ? <BatteryBar charge={ch.charge} minutes={ch.minutes} /> : null}</View>
-    </Pressable>
+    <View style={s.row}>
+      <Pressable onPress={onPress} style={({ pressed }) => [s.rowOpen, pressed && s.pressed, d.body.asleep && s.asleep]} accessibilityRole="button" accessibilityLabel={`${d.name}, ${l.label}`}>
+        <View style={s.rowMain}><Text style={s.name} numberOfLines={1}>{d.name}</Text><TypeTag kind={m.type} /></View>
+        <View style={s.rowSide}><LinkMark tone={l.tone} label={l.label} />{ch.charge !== undefined || ch.from ? <BatteryBar charge={ch.charge} minutes={ch.minutes} /> : null}</View>
+      </Pressable>
+      <SleepButton d={d} />
+    </View>
   );
 }
 
@@ -88,14 +91,18 @@ export function Card({ d, all, live, proxy, onOpen }: { d: HardwareDevice; all: 
   const first = controlGroups(m, "phone")[0]?.controls.filter((c) => c.kind === "switch" || c.kind === "range" || c.kind === "button").slice(0, 4) ?? [];
   return (
     <Block>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel={`Open ${d.name}`}>
-        <View style={s.rowMain}><Text style={s.name}>{d.name}</Text><TypeTag kind={m.type} /></View>
-        <Text style={s.meta}>{modelName(m)}</Text>
-        <View style={s.rowSide}><LinkMark tone={link.tone} label={link.label} />{ch.charge !== undefined || ch.from ? <BatteryBar charge={ch.charge} minutes={ch.minutes} /> : null}</View>
-      </Pressable>
-      {first.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={l?.link !== "ready"} send={(cmd) => command(d.id, cmd)} />)}
-      {m.feeds.length > 0 && <Button kind="secondary" icon="video" label="Show the picture" onPress={onOpen} />}
-      {!first.length && !m.feeds.length && <SectionLabel>{m.states.length ? "Open for its readings" : "Open"}</SectionLabel>}
+      <View style={s.cardHead}>
+        <Pressable onPress={onOpen} style={[s.rowOpen, d.body.asleep && s.asleep]} accessibilityRole="button" accessibilityLabel={`Open ${d.name}, ${link.label}`}>
+          <View style={s.rowMain}><Text style={s.name}>{d.name}</Text><TypeTag kind={m.type} /></View>
+          <Text style={s.meta}>{modelName(m)}</Text>
+          <View style={s.rowSide}><LinkMark tone={link.tone} label={link.label} />{ch.charge !== undefined || ch.from ? <BatteryBar charge={ch.charge} minutes={ch.minutes} /> : null}</View>
+        </Pressable>
+        <SleepButton d={d} />
+      </View>
+      {/* Asleep: the controls stay out of the way until it is woken. */}
+      {!d.body.asleep && first.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={l?.link !== "ready"} send={(cmd) => command(d.id, cmd)} />)}
+      {!d.body.asleep && m.feeds.length > 0 && <Button kind="secondary" icon="video" label="Show the picture" onPress={onOpen} />}
+      {!d.body.asleep && !first.length && !m.feeds.length && <SectionLabel>{m.states.length ? "Open for its readings" : "Open"}</SectionLabel>}
     </Block>
   );
 }
@@ -103,7 +110,9 @@ export function Card({ d, all, live, proxy, onOpen }: { d: HardwareDevice; all: 
 function KeepAwake() { useKeepAwake(); return null; }
 
 const useStyles = makeStyles((c) => ({
-  row: { paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.borderSubtle, gap: 4 },
+  row: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 16, paddingRight: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
+  rowOpen: { flex: 1, gap: 4, paddingVertical: 4 },
+  cardHead: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
   pressed: { backgroundColor: c.borderSubtle },
   asleep: { opacity: 0.6 },
   rowMain: { flexDirection: "row", alignItems: "center", gap: 8 },

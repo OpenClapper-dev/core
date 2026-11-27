@@ -1,15 +1,15 @@
 import { Text, View } from "react-native";
 import { modelOf, TYPE_LABELS, type FixtureLive, type HardwareType } from "@openclapper/ext-hardware";
-import { catColor, makeStyles, num, type, useTheme, type IconName } from "../../../ui";
-import type { HardwareDevice } from "../library";
+import { canCall } from "../../../api";
+import { catColor, IconButton, makeStyles, num, toast, type, useTheme, type IconName } from "../../../ui";
+import { setAsleep, type HardwareDevice } from "../library";
 
 /** The type's glyph and categorical colour (U6: a coloured tag per type). */
 export const TYPE_LOOK: Record<HardwareType, { icon: IconName; color: number }> = { light: { icon: "light-fixture", color: 3 }, battery: { icon: "battery", color: 4 }, camera: { icon: "video", color: 1 }, transmitter: { icon: "antenna", color: 8 } };
 
 /** How a device's connection reads, and its tone (U6: state in colour, not as text alone). */
 export function linkOf(d: HardwareDevice, live: FixtureLive | undefined, proxy: boolean): { label: string; tone: "ok" | "warn" | "danger" | "off" } {
-  if (d.body.asleep) return { label: "Asleep · not connecting", tone: "off" };
-  if (modelOf(d.body.model)?.transport === "wifi") return { label: "On the device's Wi-Fi", tone: "off" };
+  if (d.body.asleep) return { label: "Asleep · not connecting", tone: "off" };  if (modelOf(d.body.model)?.transport === "wifi") return { label: "On the device's Wi-Fi", tone: "off" };
   if (!proxy) return { label: "No proxy", tone: "off" };
   switch (live?.link) {
     case "ready": return { label: "Connected", tone: "ok" };
@@ -58,6 +58,18 @@ export function chargeOf(d: HardwareDevice, all: HardwareDevice[], live: (id: st
   const bat = d.body.poweredBy ? all.find((x) => x.id === d.body.poweredBy) : undefined;
   const t = bat ? live(bat.id)?.telemetry : undefined;
   return bat ? { charge: t?.battery, minutes: t?.minutesLeft, from: bat.name } : {};
+}
+
+/** Sleep or wake, from any of the phone's views: at once, also offline (library.ts setAsleep). */
+export function toggleSleep(d: HardwareDevice) {
+  const asleep = !d.body.asleep;
+  setAsleep(d, asleep);
+  toast(`${d.name} ${asleep ? "asleep" : "woken"}${canCall() ? "" : " · saved to the server when it answers"}`, "neutral");
+}
+
+/** The compact Sleep / Wake button of a table row or a card. */
+export function SleepButton({ d }: { d: HardwareDevice }) {
+  return <IconButton icon={d.body.asleep ? "sun" : "moon"} label={d.body.asleep ? `Wake ${d.name}` : `Sleep ${d.name}`} onPress={() => toggleSleep(d)} />;
 }
 
 const useStyles = makeStyles((c) => ({
