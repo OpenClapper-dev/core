@@ -4,6 +4,7 @@ import { useKeepAwake } from "expo-keep-awake";
 import { PROVISION_STAGE_LABELS, controlGroups, formatValue, modelName, modelOf, stateValue, type FixtureLive } from "@openclapper/ext-hardware";
 import { canCall } from "../../../api";
 import { Banner, Block, Button, confirm, Header, Hint, Input, ListRow, Row, Screen, SectionLabel, Sheet, SheetList, toast } from "../../../ui";
+import { usePrefs } from "../../../prefs";
 import { removeDevice, renameDevice, setPower, useDevices, type HardwareDevice } from "../library";
 import { command, request, useHardware } from "../proxy";
 import { ControlView, useHeld } from "./Controls";
@@ -18,6 +19,8 @@ import { Picture } from "./Picture";
  */
 export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void }) {
   const m = modelOf(d.body.model)!;
+  // What the account hides of this model (#426, Flows → Customize).
+  const hidden = usePrefs().lightParamsHidden?.[m.id];
   const all = useDevices();
   const { state, provision } = useHardware();
   const live = (id: string): FixtureLive | undefined => state?.devices.find((x) => x.id === id);
@@ -62,7 +65,7 @@ export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void 
         </Block>
       )}
 
-      {controlGroups(m, "phone").map((g) => (
+      {controlGroups(m, "phone", hidden).map((g) => (
         <Block key={g.group}>
           <SectionLabel>{g.group}</SectionLabel>
           {g.controls.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={!ready} send={(cmd) => command(d.id, cmd)} />)}

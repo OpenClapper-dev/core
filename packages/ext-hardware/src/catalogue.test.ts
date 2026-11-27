@@ -23,6 +23,9 @@ test("lights expose what their capabilities say", () => {
   assert.ok(ids("neewer-fs300b").includes("gm"));
   assert.deepEqual(ids("neewer-ps099s"), []);
   assert.deepEqual(modelOf("neewer-ps099s")!.states.map((s) => s.id), ["battery", "minutesLeft", "volts", "amps", "watts", "discharging"]);
+  // Hidden by the account (#426): left out of the groups; the effect takes its trigger along.
+  const shown = controlGroups(modelOf("aputure-mc")!, "everywhere", ["power", "effect"]).flatMap((g) => g.controls.map((c) => c.id));
+  assert.deepEqual(shown, ["intensity", "kelvin", "colour", "curve"]);
 });
 
 test("a light's white keeps its G/M, and G/M keeps its white", () => {

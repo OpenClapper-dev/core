@@ -17,6 +17,7 @@ import { useDevices } from "../../hardware/library";
 import { proxyRunning, startProxy, useHardware } from "../../hardware/proxy";
 import { loadFlows, saveFlow, usePendingOf, type LocalFlow } from "../store";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, TrackInspect } from "./Inspect";
+import { Customize, usePanelHides } from "./Customize";
 import { Lanes, MARKS_H, RULER_H, type AxisLock, type Mode, type Pick } from "./Lanes";
 
 const RENEW_MS = 30_000;
@@ -55,10 +56,11 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [live, setLive] = useState(true);
-  const [sheet, setSheet] = useState<"flow" | "track" | "view" | null>(null);
+  const [sheet, setSheet] = useState<"flow" | "track" | "view" | "customize" | null>(null);
   const [lock, setLock] = useState<Lock>({ state: "asking" });
   const devices = useDevices();
   const hw = useHardware();
+  const hidesOf = usePanelHides();
   const unsent = usePendingOf(flow.id);
   useBack(back, true);
 
@@ -161,8 +163,8 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
 
   const inspector = locked ? null
     : kf && track && pick?.kind === "kf" ? (camera
-      ? <CameraKeyframe kf={kf} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} />
-      : <LightKeyframe kf={kf} track={track} durationMs={body.durationMs} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} onLock={(p, on) => change((b) => lockParam(b, track.id, p, on))} />)
+      ? <CameraKeyframe kf={kf} durationMs={body.durationMs} hide={hidesOf(track.model)} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} />
+      : <LightKeyframe kf={kf} track={track} durationMs={body.durationMs} hide={hidesOf(track.model)} onChange={setKf} onDelete={() => { change((b) => removeKeys(b, new Set([`${track.id}/${kf.id}`]))); unpick(); }} onLock={(p, on) => change((b) => lockParam(b, track.id, p, on))} />)
     : kf && track && pick?.kind === "fade" ? <FadeInspect kf={kf} track={track} onChange={(curve) => { const n = { ...kf }; if (curve) n.fadeIn = curve; else delete n.fadeIn; setKf(n); }} onStepped={(st) => setKf({ ...kf, fadeStepped: st || undefined })} />
     : marker ? <MarkerInspect m={marker} durationMs={body.durationMs} onChange={(fn) => change((b) => patchMarker(b, marker.id, fn))} onDelete={() => { change((b) => removeKeys(b, new Set([`@m/${marker.id}`]))); unpick(); }} />
     : track && pick?.kind === "track" ? <TrackInspect t={track} devices={devices} onChange={(fn) => change((b) => patchTrack(b, track.id, fn))} onDelete={() => { change((b) => removeTrack(b, track.id)); unpick(); }} />
@@ -231,7 +233,12 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
           <Seg accessibilityLabel="Keyframe size" block value={dv.kfSize} onChange={(v) => setDv({ kfSize: v })} options={[{ id: "s", label: "Small · pen" }, { id: "m", label: "Medium" }, { id: "l", label: "Large · finger" }]} />
           <Text style={s.label}>Intensity snap while dragging</Text>
           <Seg accessibilityLabel="Intensity snap while dragging" block value={String(dv.levelStep ?? 1)} onChange={(v) => setDv({ levelStep: Number(v) as LevelStep })} options={LEVEL_STEPS.map((n) => ({ id: String(n), label: `${n} %` }))} />
+          {/* What the account shows of keyframes and lights (#426): with the account, so the Studio follows. */}
+          <Button kind="secondary" icon="sliders" label="Customize keyframes and lights" onPress={() => setSheet("customize")} />
         </View>
+      </Sheet>
+      <Sheet visible={sheet === "customize"} title="Customize" onClose={() => setSheet(null)} height={0.8}>
+        <Customize models={[...new Set(body.tracks.map((t) => t.model))]} />
       </Sheet>
       <Sheet visible={sheet === "flow"} title="Flow" onClose={() => setSheet(null)}>
         <View style={s.form}>

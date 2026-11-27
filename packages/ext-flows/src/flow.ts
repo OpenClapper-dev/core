@@ -79,6 +79,18 @@ export interface FlowTrack {
  */
 export const LIGHT_PARAMS = ["power", "intensity", "kelvin", "gm", "colour", "effect", "curve"] as const;
 export type LightParam = (typeof LIGHT_PARAMS)[number];
+/** The parameters a light model has: the catalogue controls it declares. */
+export const modelParams = (modelId: string): LightParam[] => LIGHT_PARAMS.filter((p) => modelOf(modelId)?.controls.some((c) => c.id === p));
+/** What a keyframe's panel shows besides the parameters (#426); each can be left out, like a parameter. */
+export const KEYFRAME_FIELDS = ["at", "marginBefore", "marginAfter"] as const;
+export type KeyframeField = (typeof KEYFRAME_FIELDS)[number] | LightParam;
+/**
+ * What the account leaves out (#426; preferences `lightParamsHidden`, `keyframeFieldsHidden`): a model's parameters
+ * everywhere (panels, locks, device cards), and fields of every keyframe panel. Only what is shown; values stay.
+ */
+export interface PanelHides { params: readonly LightParam[]; fields: readonly KeyframeField[] }
+export const NO_HIDES: PanelHides = { params: [], fields: [] };
+
 /** How the editors name them. */
 export const PARAM_LABELS: Record<LightParam, string> = {
   power: "Power", intensity: "Intensity", kelvin: "Colour temperature", gm: "Green / magenta", colour: "Colour", effect: "Effect", curve: "Dimming curve",

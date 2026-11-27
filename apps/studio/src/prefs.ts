@@ -34,11 +34,15 @@ export interface Prefs {
   canvasTakesFrame: boolean;
   /** The file browser's table per kind of list (folders, Photos, Shots, …): which columns show and how wide (#426). */
   columns: Record<string, ColumnSetup>;
+  /** A light's parameters hidden per catalogue model (#426): in flows and on device cards, here and on the phone. */
+  lightParamsHidden: Record<string, string[]>;
+  /** What every flow keyframe's panel leaves out (#426): its time, margins, parameters. */
+  keyframeFieldsHidden: string[];
 }
 export type TaskbarItem = "clock" | "account" | "theme" | "search" | "project";
 export interface ColumnSetup { visible?: string[]; widths?: Record<string, number> }
 
-export const DEFAULT_PREFS: Prefs = { columns: {}, taskbarHide: [], theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
+export const DEFAULT_PREFS: Prefs = { lightParamsHidden: {}, keyframeFieldsHidden: [], columns: {}, taskbarHide: [], theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
 export type PrefsState = "local" | "loading" | "saved" | "saving" | "unsaved";
 
 let prefs: Prefs = { ...DEFAULT_PREFS, theme: getTheme() };

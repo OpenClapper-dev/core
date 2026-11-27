@@ -17,6 +17,8 @@ Brand → model → type. Each model declares what it exposes, as data, so the S
 | Blackmagic Pocket Cinema Camera 6K | Camera | Bluetooth | Record, still; exposure; white balance; lens; image and codec; monitoring per output; colour correction; audio; slate; tally (every control of the first app's panel) | Recording, timecode, protocol, every reported parameter, the incoming log | | |
 | Hollyland Mars 400S Pro | Video transmitter | The phone joins its Wi-Fi | | Picture running | Picture, **on the phone only** | |
 
+The account can hide a light model's parameters (power, intensity, white, G/M, colour, effect, dimming curve) from its cards and panel, in the Studio and on the phone: Flows → Customize ([flows](flows.md), #426). Hidden controls only disappear; nothing is sent.
+
 A control is one of: switch, range, choice (a list or segments), number, text, button; three are drawn by hand on each client because they are more than one value: a light's colour, its effects with their options, and the camera's monitoring per output. Each control binds to the device's live state and to a command (`controlValue`, `controlCommand`), shared so both clients send the same: a light's white keeps its green/magenta, a camera parameter keeps the other values it carries (white balance with tint), switches on a bit field flip one bit.
 
 A part limited to where it works (`where: "phone"`) is shown only there; the transmitter's state shows everywhere.

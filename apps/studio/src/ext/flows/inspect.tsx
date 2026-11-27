@@ -3,7 +3,7 @@
 import type { ComponentChildren } from "preact";
 import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, Switch, TextInput } from "@openclapper/design";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
 import { CURVE_LABELS } from "./lanes";
 
 function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
@@ -37,22 +37,27 @@ const Seconds = ({ label, value, min, max, onChange }: { label: string; value: n
  * A keyframe's margins (#426): the least distance to the keyframes before and after it on the track, in half
  * seconds; a neighbour inside one is pushed. 0 removes it; the start keyframe has none before.
  */
-function Margins({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; onChange: (k: Keyframe) => void }) {
+function Margins({ kf, durationMs, hide, onChange }: { kf: Keyframe; durationMs: number; hide: PanelHides; onChange: (k: Keyframe) => void }) {
+  const before = kf.id !== START_KEYFRAME && !hide.fields.includes("marginBefore"), after = !hide.fields.includes("marginAfter");
+  if (!before && !after) return null;
   return (
     <div className="fl-margins">
-      {kf.id !== START_KEYFRAME && <Seconds label="Margin before" value={kf.marginBeforeMs ?? 0} min={0} max={durationMs} onChange={(ms) => onChange({ ...kf, marginBeforeMs: ms })} />}
-      <Seconds label="Margin after" value={kf.marginAfterMs ?? 0} min={0} max={durationMs} onChange={(ms) => onChange({ ...kf, marginAfterMs: ms })} />
+      {before && <Seconds label="Margin before" value={kf.marginBeforeMs ?? 0} min={0} max={durationMs} onChange={(ms) => onChange({ ...kf, marginBeforeMs: ms })} />}
+      {after && <Seconds label="Margin after" value={kf.marginAfterMs ?? 0} min={0} max={durationMs} onChange={(ms) => onChange({ ...kf, marginAfterMs: ms })} />}
     </div>
   );
 }
 
 /** One keyframe of a light track: when, and which values it sets. */
-export function LightKeyframe({ kf, track, durationMs, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LightParam, on: boolean) => void }) {
+export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; /** What the account leaves out (#426). */ hide?: PanelHides; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LightParam, on: boolean) => void }) {
   const kind = fixtureKind(track.model), caps = kind?.caps, m = modelOf(track.model);
   const isStart = kf.id === START_KEYFRAME;
   // The start keyframe sets the locks; on the others a locked parameter is not shown (the start's value holds).
+  // Hidden for the model or left out of the panel (#426): not shown, its lock neither; its value stays.
   const lock = (p: LightParam) => (isStart ? <Lock param={p} locked={track.locked} onLock={onLock} /> : null);
-  const shown = (p: LightParam) => isStart || !track.locked?.includes(p);
+  const shown = (p: LightParam) => !hide.params.includes(p) && !hide.fields.includes(p) && (isStart || !track.locked?.includes(p));
+  const forModel = (p: LightParam) => !hide.params.includes(p);
+  const inPanel = (p: LightParam) => forModel(p) && !hide.fields.includes(p);
   const lockedHere = isStart ? [] : (track.locked ?? []);
   const set = (patch: Partial<Keyframe>) => onChange({ ...kf, ...patch });
   const drop = (...keys: (keyof Keyframe)[]) => { const n = { ...kf }; for (const k of keys) delete n[k]; onChange(n); };
@@ -63,16 +68,16 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete, onLoc
   return (
     <div className="fl-inspect">
       {isStart ? <p className="fl-note">What the light shows when the flow starts. It always sets power, intensity and the light, so a flow never starts from whatever the light showed before.</p>
-        : <Seconds label="At" value={kf.at} min={SNAP_MS} max={durationMs} onChange={(at) => set({ at })} />}
-      <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
-      {lockedHere.length > 0 && <p className="fl-note">Locked on the start keyframe for the whole track: {lockedHere.map((p) => PARAM_LABELS[p]).join(", ")}.</p>}
+        : !hide.fields.includes("at") && <Seconds label="At" value={kf.at} min={SNAP_MS} max={durationMs} onChange={(at) => set({ at })} />}
+      <Margins kf={kf} durationMs={durationMs} hide={hide} onChange={onChange} />
+      {lockedHere.some(forModel) && <p className="fl-note">Locked on the start keyframe for the whole track: {lockedHere.filter(forModel).map((p) => PARAM_LABELS[p]).join(", ")}.</p>}
       {shown("power") && <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))} lock={lock("power")}>
         <Segmented label="Power" value={kf.power ? "on" : "off"} onChange={(v: string) => set({ power: v === "on" })} options={[{ value: "off", label: "Off" }, { value: "on", label: "On" }]} />
       </Channel>}
       {shown("intensity") && <Channel label="Intensity" fixed={isStart} on={kf.intensity !== undefined} toggle={(on) => (on ? set({ intensity: 0.5 }) : drop("intensity"))} lock={lock("intensity")}>
         <Range label="Intensity" value={Math.round((kf.intensity ?? 0.5) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ intensity: x / 100 })} />
       </Channel>}
-      {(cct || caps?.hsi) && (
+      {((cct && (inPanel("kelvin") || inPanel("gm"))) || (caps?.hsi && inPanel("colour"))) && (
         <div className="fl-chan">
           <strong>Light</strong>
           <Segmented label="White or colour" value={mode}
@@ -83,7 +88,7 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete, onLoc
               if (v === "colour") Object.assign(n, { hue: 0, sat: 1 });
               onChange(n);
             }}
-            options={[...(isStart ? [] : [{ value: "leave", label: "As before" }]), ...(cct ? [{ value: "white", label: "White" }] : []), ...(caps?.hsi ? [{ value: "colour", label: "Colour" }] : [])]} />
+            options={[...(isStart ? [] : [{ value: "leave", label: "As before" }]), ...(cct && (mode === "white" || inPanel("kelvin") || inPanel("gm")) ? [{ value: "white", label: "White" }] : []), ...(caps?.hsi && (mode === "colour" || inPanel("colour")) ? [{ value: "colour", label: "Colour" }] : [])]} />
           {mode === "white" && cct && <>
             {shown("kelvin") && <Locked lock={lock("kelvin")}><Range label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} /></Locked>}
             {cct.gm && shown("gm") && <Locked lock={lock("gm")}><Range label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} step={1} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} /></Locked>}
@@ -120,7 +125,7 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete, onLoc
 }
 
 /** One keyframe of a camera track: the controls it sets from here on (they jump). */
-export function CameraKeyframe({ kf, durationMs, onChange, onDelete }: { kf: Keyframe; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void }) {
+export function CameraKeyframe({ kf, durationMs, hide = NO_HIDES, onChange, onDelete }: { kf: Keyframe; durationMs: number; /** What the account leaves out (#426): its time and margins. */ hide?: PanelHides; onChange: (k: Keyframe) => void; onDelete: () => void }) {
   const isStart = kf.id === START_KEYFRAME;
   const controls = kf.controls ?? {};
   const put = (id: string, v: Value | undefined) => { const c = { ...controls }; if (v === undefined) delete c[id]; else c[id] = v; onChange({ ...kf, controls: c }); };
@@ -129,8 +134,8 @@ export function CameraKeyframe({ kf, durationMs, onChange, onDelete }: { kf: Key
   return (
     <div className="fl-inspect">
       {isStart ? <p className="fl-note">What the camera does when the flow starts: it stops recording, so a flow never starts in the middle of a take.</p>
-        : <Seconds label="At" value={kf.at} min={SNAP_MS} max={durationMs} onChange={(at) => onChange({ ...kf, at })} />}
-      <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
+        : !hide.fields.includes("at") && <Seconds label="At" value={kf.at} min={SNAP_MS} max={durationMs} onChange={(at) => onChange({ ...kf, at })} />}
+      <Margins kf={kf} durationMs={durationMs} hide={hide} onChange={onChange} />
       {groups.map((g) => (
         <div key={g} className="fl-chan">
           <strong>{g}</strong>

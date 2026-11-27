@@ -26,6 +26,7 @@ import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, NothingChose
 import { keyOf, Lanes, markKey, markOf, splitKey } from "./lanes";
 import { requestRun, useRun } from "./run";
 import { useFlowView, useKeyframeSize, useLevelStep, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
+import { Customize, usePanelHides } from "./customize";
 
 const SAVE_AFTER_MS = 400;
 const TRACK_MODELS = CATALOGUE.filter((m) => m.type === "light" || m.type === "camera");
@@ -178,6 +179,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const [kfSize, setKfSize] = useKeyframeSize();
   const [view, setView] = useFlowView();
   const [levelStep, setLevelStep] = useLevelStep();
+  const hidesOf = usePanelHides();
   const [trackHeight, setTrackHeight] = useTrackHeight();
   const [zoom, setZoom] = useZoom();
   const [heights, setHeights] = useState<Record<string, number>>({});
@@ -283,8 +285,8 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const chosen = readonly && (selKf || tileKf || marker || pickedTrack)
     ? <div className="fl-inspect"><p className="fl-note">{runsThis ? "Running on the device: locked until it stops." : "Read-only: Edit to change it."}</p></div>
     : selKf && selTrack ? (modelOf(selTrack.model)?.type === "camera"
-      ? <CameraKeyframe key={selKf.id} kf={selKf} durationMs={body.durationMs} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()} />
-      : <LightKeyframe key={selKf.id} kf={selKf} track={selTrack} durationMs={body.durationMs} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()}
+      ? <CameraKeyframe key={selKf.id} kf={selKf} durationMs={body.durationMs} hide={hidesOf(selTrack.model)} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()} />
+      : <LightKeyframe key={selKf.id} kf={selKf} track={selTrack} durationMs={body.durationMs} hide={hidesOf(selTrack.model)} onChange={setKf(selTrack, selKf)} onDelete={() => deleteSelected()}
         onLock={(p, on) => change((b) => setLock(b, selTrack.id, p, on))} />)
     : tileKf && tileTrack ? <FadeInspect kf={tileKf} track={tileTrack}
       onChange={(curve) => patchTrack(tileTrack.id, (t) => ({ ...t, keyframes: t.keyframes.map((k) => { if (k.id !== tileKf.id) return k; const n = { ...k }; if (curve) n.fadeIn = curve; else { delete n.fadeIn; delete n.fadeStepped; } return n; }) }))}
@@ -334,6 +336,10 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
             {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Switch key={k} checked={view[k]} onChange={(on: boolean) => setView({ ...view, [k]: on })}>{VIEW_LABELS[k]}</Switch>)}
             <label className="hw-ctl"><small>Keyframes</small><Segmented label="Keyframe size" value={kfSize} onChange={(v: string) => setKfSize(v as "s" | "m" | "l")} options={[{ value: "s", label: "S" }, { value: "m", label: "M" }, { value: "l", label: "L" }]} /></label>
           </div>
+        </Popover>
+        {/* What the account shows (#426): a light model's parameters, a keyframe panel's fields; kept with the account. */}
+        <Popover trigger={<Button size="sm" variant="quiet" icon="sliders" iconAfter="chevron-down">Customize</Button>}>
+          <Customize models={[...new Set(body.tracks.map((t) => t.model))]} />
         </Popover>
         {/* Size (#426): two grouped boxes in the bar, each a slider and its Fit. */}
         <div className="fl-size" role="group" aria-label="Timeline width">
