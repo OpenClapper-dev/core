@@ -38,6 +38,7 @@ export function neewerInfinity(opts: NeewerOptions = {}): Driver {
     id: "neewer-infinity",
     linkKey: (f) => f.address,
     rate: { minIntervalMs: MIN_INTERVAL_MS },
+    whiteCarriesIntensity: true,
     addressesFor: (key) => [key],
     async open(link: Link, fixtures: Fixture[], sink: (id: string, t: Telemetry) => void): Promise<Session> {
       const f = fixtures.find((x) => x.address === link.address) ?? fixtures[0];
@@ -89,7 +90,7 @@ export function neewerInfinity(opts: NeewerOptions = {}): Driver {
               if (effect) { white.set(fx.id, w); return write(effectFrame(fx.address, effect.id, w.intensity, effectSettingsOf(effect.id, effect.settings))); }
               break;
             }
-            case "cct": w.kelvin = cmd.kelvin; w.gm = cmd.gm; running.delete(fx.id); break;
+            case "cct": w.kelvin = cmd.kelvin; w.gm = cmd.gm; if (cmd.intensity !== undefined) w.intensity = cmd.intensity; running.delete(fx.id); break;
             case "curve": w.curve = cmd.curve; running.delete(fx.id); break;
             case "effect":
               white.set(fx.id, w);

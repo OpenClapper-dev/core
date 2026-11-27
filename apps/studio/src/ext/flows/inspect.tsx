@@ -3,7 +3,7 @@
 import type { ComponentChildren } from "preact";
 import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, Switch, TextInput } from "@openclapper/design";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
 import { CURVE_LABELS } from "./lanes";
 
 function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
@@ -139,7 +139,8 @@ export function CameraKeyframe({ kf, durationMs, onChange, onDelete }: { kf: Key
 
 /** The gap before a keyframe: jump at it, or fade into it with a curve; on a light that fades by itself, how. */
 export function FadeInspect({ kf, track, onChange, onStepped }: { kf: Keyframe; track: FlowTrack; onChange: (curve: Curve | null) => void; onStepped: (stepped: boolean) => void }) {
-  const native = !!fixtureKind(track.model)?.caps.fade;
+  // How the fade runs is a choice only while native fades are on (off since #426).
+  const native = NATIVE_FADES && !!fixtureKind(track.model)?.caps.fade;
   return (
     <div className="fl-inspect">
       <strong>Into {fmtSeconds(kf.at)} · {track.name}</strong>

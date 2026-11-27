@@ -67,6 +67,8 @@ interface LinkRec {
   link: Link | null;
   session: Session | null;
   queue: CommandQueue | null;
+  /** The commands still in the queue, by queue key: an intensity can join a queued white (Driver.whiteCarriesIntensity). */
+  waiting: Map<string, Command>;
   offDisconnect: (() => void) | null;
   timer: unknown;
   /** Bumped by every start and stop: an attempt that finishes after it was superseded is dropped. */
@@ -88,7 +90,7 @@ export function applyCommand(s: LightState, cmd: Command): LightState {
   switch (cmd.op) {
     case "power": return { ...s, power: cmd.on };
     case "intensity": return { ...s, intensity: cmd.value };
-    case "cct": return { ...s, cct: { kelvin: cmd.kelvin, gm: cmd.gm }, hsi: undefined, effect: null };
+    case "cct": return { ...s, cct: { kelvin: cmd.kelvin, gm: cmd.gm }, hsi: undefined, effect: null, ...(cmd.intensity !== undefined ? { intensity: cmd.intensity } : {}) };
     case "hsi": return { ...s, hsi: { h: cmd.h, s: cmd.s, i: cmd.i }, cct: undefined, intensity: cmd.i, effect: null };
     case "effect": return { ...s, effect: cmd.effect, ...(cmd.settings ? { effectSettings: cmd.settings } : {}) };
     case "curve": return { ...s, curve: cmd.curve };
@@ -151,7 +153,7 @@ export class Hub {
       if (!r) continue;
       let rec = this.links.get(r.key);
       if (!rec) {
-        rec = { key: r.key, driver: r.driver, leases: 0, state: "off", attempt: 0, error: null, link: null, session: null, queue: null, offDisconnect: null, timer: null, gen: 0 };
+        rec = { key: r.key, driver: r.driver, leases: 0, state: "off", attempt: 0, error: null, link: null, session: null, queue: null, waiting: new Map(), offDisconnect: null, timer: null, gen: 0 };
         this.links.set(r.key, rec);
       }
       if (keys.includes(r.key)) continue;
@@ -182,12 +184,21 @@ export class Hub {
     const rec = r ? this.links.get(r.key) : undefined;
     if (!f || !rec || rec.state !== "ready" || !rec.queue) return Promise.reject(new Error("not connected"));
     if (cmd.op !== "status") this.sentAt.set(fixtureId, this.d.clock.now());
+    // A white fade asks for white and intensity on every tick: where the white frame carries the intensity, it goes
+    // inside a queued white, one write instead of two. A newer white replacing that one keeps the intensity it carried.
+    const white = rec.driver.whiteCarriesIntensity ? rec.waiting.get(`${fixtureId}:cct`) : undefined;
+    let c = cmd;
+    if (white?.op === "cct" && cmd.op === "intensity") c = { ...white, intensity: cmd.value };
+    else if (white?.op === "cct" && cmd.op === "cct" && cmd.intensity === undefined && white.intensity !== undefined) c = { ...cmd, intensity: white.intensity };
     // Camera messages coalesce per parameter, not per op: a zebra change must not replace a queued ISO (#318).
-    const key = cmd.op === "ccu" ? `${fixtureId}:ccu:${cmd.message.category}.${cmd.message.parameter}` : `${fixtureId}:${cmd.op}`;
-    return rec.queue.push(key, async () => {
+    const key = c.op === "ccu" ? `${fixtureId}:ccu:${c.message.category}.${c.message.parameter}` : `${fixtureId}:${c.op}`;
+    const waiting = rec.waiting;
+    waiting.set(key, c);
+    return rec.queue.push(fixtureId, key, async () => {
+      if (waiting.get(key) === c) waiting.delete(key);
       if (!rec.session) throw new Error("not connected");
-      await rec.session.send(f, cmd);
-      this.states.set(fixtureId, applyCommand(this.states.get(fixtureId) ?? {}, cmd));
+      await rec.session.send(f, c);
+      this.states.set(fixtureId, applyCommand(this.states.get(fixtureId) ?? {}, c));
       this.notify();
     });
   }
@@ -380,6 +391,7 @@ export class Hub {
     rec.silentTimer = undefined;
     rec.readyAt = undefined;
     rec.queue?.close(reason);
+    rec.waiting = new Map();
     rec.offDisconnect?.();
     const { session, link } = rec;
     Object.assign(rec, { queue: null, offDisconnect: null, session: null, link: null });
