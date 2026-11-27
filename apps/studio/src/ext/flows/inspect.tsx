@@ -3,7 +3,7 @@
 import type { ComponentChildren } from "preact";
 import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, Switch, TextInput } from "@openclapper/design";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, MARKER_NAME_MAX, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
 import { CURVE_LABELS } from "./lanes";
 
 function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
@@ -19,11 +19,11 @@ function Channel({ label, on, fixed, toggle, children }: { label: string; on: bo
   );
 }
 const Seconds = ({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (ms: number) => void }) => (
-  <label className="hw-ctl"><small>{label} (s)</small><NumberInput size="sm" value={value / 1000} step={1} min={min / 1000} max={max / 1000} onChange={(v: number) => { if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, snap(v * 1000)))); }} /></label>
+  <label className="hw-ctl"><small>{label} (s)</small><NumberInput size="sm" value={value / 1000} step={SNAP_MS / 1000} min={min / 1000} max={max / 1000} onChange={(v: number) => { if (Number.isFinite(v)) onChange(Math.min(max, Math.max(min, snap(v * 1000)))); }} /></label>
 );
 
 /**
- * A keyframe's margins (#426): the least distance to the keyframes before and after it on the track, in whole
+ * A keyframe's margins (#426): the least distance to the keyframes before and after it on the track, in half
  * seconds; a neighbour inside one is pushed. 0 removes it; the start keyframe has none before.
  */
 function Margins({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; onChange: (k: Keyframe) => void }) {
@@ -72,10 +72,14 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
             <Range label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} />
             {cct.gm && <Range label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} step={1} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} />}
           </>}
-          {mode === "colour" && <>
-            <Range label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} step={1} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
-            <Range label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
-          </>}
+          {/* The colour the sliders make, live, drawn as the lanes draw it (#426). */}
+          {mode === "colour" && <div className="fl-colour">
+            <div className="fl-colour__sliders">
+              <Range label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} step={1} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
+              <Range label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
+            </div>
+            <i className="fl-colour__swatch" aria-hidden="true" style={{ background: lightColour({ mode: "colour", hue: kf.hue ?? 0, sat: kf.sat ?? 1 }) ?? undefined }} />
+          </div>}
         </div>
       )}
       {!!caps?.effects?.length && m && (

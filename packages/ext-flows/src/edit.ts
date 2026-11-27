@@ -4,10 +4,10 @@ import { fixtureKind, modelOf } from "@openclapper/ext-hardware";
 import { sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "./flow.ts";
 import type { FlowBody } from "./index.ts";
 
-/** Times snap to whole seconds (#426): keyframes, markers, the length. Older sub-second times stay until moved. */
-export const SNAP_MS = 1000;
+/** Times snap to half seconds (#426): keyframes, markers, margins, the length. Older times off that grid stay until moved. */
+export const SNAP_MS = 500;
 export const snap = (ms: number) => Math.round(ms / SNAP_MS) * SNAP_MS;
-/** A time in whole seconds; one that is not (kept from before #426) shows its tenths. */
+/** A time in seconds: "12 s" on a whole second, else its tenths ("12.5 s"; older times off the grid "2.3 s"). */
 export const fmtSeconds = (ms: number) => `${ms % 1000 === 0 ? ms / 1000 : (ms / 1000).toFixed(1)} s`;
 /** The playhead's time: tenths, since it runs between the seconds while playing. */
 export const fmtClock = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
@@ -60,7 +60,7 @@ export function addKeyframe(b: FlowBody, trackId: string, at: number, id: string
 
 /**
  * A keyframe replaced (the start keyframe stays at 0); a changed time snapped within the flow and kept off another's.
- * An unchanged time stays as stored, so editing a value never moves a keyframe set before whole seconds.
+ * An unchanged time stays as stored, so editing a value never moves a keyframe set off the grid before #426.
  */
 export function setKeyframe(b: FlowBody, trackId: string, k: Keyframe): FlowBody {
   const t = b.tracks.find((x) => x.id === trackId);
@@ -78,7 +78,7 @@ export function setKeyframe(b: FlowBody, trackId: string, k: Keyframe): FlowBody
   return at === was.at ? placed : moveKeyframes(placed, [{ trackId, id: k.id, at }]) ?? placed;
 }
 
-/** A keyframe's margin on one side set (whole seconds; 0 removes it), pushing neighbours; refused when they cannot fit. */
+/** A keyframe's margin on one side set (snapped; 0 removes it), pushing neighbours; refused when they cannot fit. */
 export function setMargin(b: FlowBody, trackId: string, id: string, side: "before" | "after", ms: number): FlowBody {
   const k = b.tracks.find((x) => x.id === trackId)?.keyframes.find((x) => x.id === id);
   return k ? setKeyframe(b, trackId, { ...k, [side === "before" ? "marginBeforeMs" : "marginAfterMs"]: ms }) : b;
@@ -95,7 +95,7 @@ export interface KeyframeMove { trackId: string; id: string; at: number }
  * (the larger of the two facing each other) is pushed along, and the push goes on through the next keyframes; those
  * further away stay put. Two keyframes without a margin between them may pass each other but never share a time; a
  * pushed one keeps at least SNAP_MS from the one pushing it. Nothing is pushed off the flow or onto the start
- * keyframe, which never moves: when the moves do not fit, they are cut short a second at a time (all together, so a
+ * keyframe, which never moves: when the moves do not fit, they are cut short a step (SNAP_MS) at a time (all together, so a
  * selection keeps its shape), down to none. Null only when not even that fits (the body was not valid before).
  */
 export function moveKeyframes(b: FlowBody, moves: readonly KeyframeMove[]): FlowBody | null {
@@ -106,7 +106,7 @@ export function moveKeyframes(b: FlowBody, moves: readonly KeyframeMove[]): Flow
     t.set(m.id, m.id === START_KEYFRAME ? 0 : m.at);
     byTrack.set(m.trackId, t);
   }
-  // The longest way any of them goes, in whole steps: cut short by one step after another until all tracks fit.
+  // The longest way any of them goes, in steps: cut short by one step after another until all tracks fit.
   let steps = 0;
   for (const [tid, ms] of byTrack) {
     const t = b.tracks.find((x) => x.id === tid);
@@ -135,7 +135,7 @@ export function moveKeyframes(b: FlowBody, moves: readonly KeyframeMove[]): Flow
 /** One track's keyframes with `moved` at their times and the pushes they cause, or null when that does not fit. */
 function resolve(keyframes: readonly Keyframe[], moved: ReadonlyMap<string, number>, durationMs: number): Keyframe[] | null {
   const pos = new Map(keyframes.map((k) => [k.id, moved.get(k.id) ?? k.at]));
-  // A moved one stays within the flow and off 0 (where it was may be off that, from before whole seconds).
+  // A moved one stays within the flow and off 0 (where it was may be off that, from before #426).
   for (const k of keyframes) { const at = moved.get(k.id); if (at !== undefined && at !== k.at && (at < SNAP_MS || at > durationMs)) return null; }
   // The order they stood in; a moved keyframe passes a neighbour only where no margin faces between them.
   const order = [...keyframes].sort((a, b) => a.at - b.at || (a.id === START_KEYFRAME ? -1 : b.id === START_KEYFRAME ? 1 : 0));
@@ -147,7 +147,7 @@ function resolve(keyframes: readonly Keyframe[], moved: ReadonlyMap<string, numb
   }
   const fixed = (k: Keyframe) => moved.has(k.id) || k.id === START_KEYFRAME;
   const pushed = new Set<string>();
-  // How far the later of two must stay from the earlier: their facing margins; a pushed one a second at least.
+  // How far the later of two must stay from the earlier: their facing margins; a pushed one a step (SNAP_MS) at least.
   const need = (a: Keyframe, b: Keyframe, pusher: Keyframe) => gapBetween(a, b) || (pushed.has(pusher.id) ? SNAP_MS : 0);
   for (let i = 0; i < order.length; i++) {
     if (!moved.has(order[i].id)) continue;
