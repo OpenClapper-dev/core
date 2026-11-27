@@ -59,6 +59,40 @@ export interface FlowTrack {
   /** One of TRACK_COLORS (#323): the label's stripe, the lane's tint, the keyframes' border. */
   color?: number;
   keyframes: Keyframe[];
+  /**
+   * A light's parameters locked on its start keyframe (#426): the start's value holds for the whole track. Other
+   * keyframes' values for them are kept but ignored (`playedKeyframes`), so unlocking brings them back.
+   */
+  locked?: LightParam[];
+}
+
+/**
+ * A light keyframe's parameters, by the ids of the catalogue's light controls (ext-hardware lightControls), so a
+ * lock or a hidden parameter means the same in a flow and on a device card. Colour is hue and saturation as one.
+ */
+export const LIGHT_PARAMS = ["power", "intensity", "kelvin", "gm", "colour", "effect", "curve"] as const;
+export type LightParam = (typeof LIGHT_PARAMS)[number];
+/** The keyframe fields each parameter is stored in. */
+export const PARAM_FIELDS: Record<LightParam, readonly (keyof Keyframe)[]> = {
+  power: ["power"], intensity: ["intensity"], kelvin: ["kelvin"], gm: ["gm"], colour: ["hue", "sat"], effect: ["effect"], curve: ["curve"],
+};
+
+/**
+ * A track's keyframes as they play (#426): where a parameter is locked, every keyframe that sets it takes the start
+ * keyframe's value instead (none, when the start leaves it unset). Taking the value rather than dropping the field
+ * keeps a keyframe's switch between white and colour. The stored keyframes are not changed.
+ */
+export function playedKeyframes(t: Pick<FlowTrack, "keyframes" | "locked">): Keyframe[] {
+  if (!t.locked?.length) return t.keyframes;
+  const start = t.keyframes.find((k) => k.id === START_KEYFRAME);
+  if (!start) return t.keyframes;
+  const fields = t.locked.flatMap((p) => PARAM_FIELDS[p] ?? []);
+  return t.keyframes.map((k) => {
+    if (k.id === START_KEYFRAME || !fields.some((f) => k[f] !== undefined)) return k;
+    const n: Record<string, unknown> = { ...k };
+    for (const f of fields) { if (n[f] === undefined) continue; if (start[f] === undefined) delete n[f]; else n[f] = start[f]; }
+    return n as unknown as Keyframe;
+  });
 }
 
 export interface Flow {
@@ -347,7 +381,14 @@ export function parseFlowTracks(v: unknown, durationMs: number, isKind: (id: str
     }
     if (!keyframes.some((k) => k.id === START_KEYFRAME && k.at === 0)) return { error: `${where} has no start keyframe at 0` };
     if (t.color != null && (!Number.isInteger(t.color) || !isNum(t.color, 0, TRACK_COLORS - 1))) return { error: `${where}.color is not a track colour` };
-    tracks.push({ id: t.id, name: t.name.trim(), model: t.model, device: (t.device as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), ...(t.color != null ? { color: t.color as number } : {}), keyframes });
+    // Locks (#426): known light parameters, each once; a camera track has none.
+    let locked: LightParam[] | undefined;
+    if (t.locked != null) {
+      if (!Array.isArray(t.locked) || t.locked.some((p) => !(LIGHT_PARAMS as readonly unknown[]).includes(p)) || new Set(t.locked).size !== t.locked.length) return { error: `${where}.locked must list light parameters (${LIGHT_PARAMS.join(", ")}), each once` };
+      if (camera && t.locked.length) return { error: `${where}: a camera track has no locks` };
+      if (t.locked.length) locked = t.locked as LightParam[];
+    }
+    tracks.push({ id: t.id, name: t.name.trim(), model: t.model, device: (t.device as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), ...(t.color != null ? { color: t.color as number } : {}), keyframes, ...(locked ? { locked } : {}) });
   }
   return { tracks };
 }

@@ -1,5 +1,5 @@
 import { controlCommand, fixtureKind, modelOf, type LightCommand, type Value } from "@openclapper/ext-hardware";
-import { commandsFor, inFade, nativeStep, sampleControls, sampleTrack, FLOW_TICK_MS, type Flow, type SequenceSample } from "./flow.ts";
+import { commandsFor, inFade, nativeStep, playedKeyframes, sampleControls, sampleTrack, FLOW_TICK_MS, type Flow, type SequenceSample } from "./flow.ts";
 
 /**
  * Playing a flow (docs/features/flows.md; #304, shared since #321): the Studio's preview through the proxy and the
@@ -47,11 +47,13 @@ export class FlowEmitter {
       }
       const caps = fixtureKind(tr.model)?.caps;
       const prev = this.sent.get(tr.id) ?? null;
+      // Locked parameters play the start keyframe's value (#426).
+      const ks = playedKeyframes(tr);
       const step = playback && caps?.fade
-        ? nativeStep(tr.keyframes, t, prev, this.fadeKeys.get(tr.id) ?? null)
-        : { ...commandsFor(prev, sampleTrack(tr.keyframes, t)), key: null };
+        ? nativeStep(ks, t, prev, this.fadeKeys.get(tr.id) ?? null)
+        : { ...commandsFor(prev, sampleTrack(ks, t)), key: null };
       if (caps?.smoothing) {
-        const smooth = !playback || inFade(tr.keyframes, t);
+        const smooth = !playback || inFade(ks, t);
         if (this.smoothSent.get(tr.id) !== smooth) { this.smoothSent.set(tr.id, smooth); send(tr.device, { op: "smooth", on: smooth }); }
       }
       this.sent.set(tr.id, step.sent);
