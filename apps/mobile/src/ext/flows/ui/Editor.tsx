@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Text, View, useWindowDimensions } from "react-native";
 import { persisted } from "../../../store";
 import { randomUUID } from "expo-crypto";
 import { CATALOGUE, modelOf } from "@openclapper/ext-hardware";
@@ -18,7 +18,7 @@ import { proxyRunning, startProxy, useHardware } from "../../hardware/proxy";
 import { loadFlows, saveFlow, usePendingOf, type LocalFlow } from "../store";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, TrackInspect } from "./Inspect";
 import { Customize, usePanelHides } from "./Customize";
-import { Lanes, MARKS_H, RULER_H, type AxisLock, type Mode, type Pick } from "./Lanes";
+import { Lanes, MARKS_H, RULER_H, type AxisFocus, type Mode, type Pick } from "./Lanes";
 import { MiniScrubber, StageView } from "./Stage";
 
 const RENEW_MS = 30_000;
@@ -27,7 +27,7 @@ const ZOOM_MAX = 32, HEIGHT_MIN = 48, HEIGHT_MAX = 240;
 interface DeviceView {
   view: FlowView; kfSize: KeyframeSize; zoom: number; height: number;
   /** Intensity drags snap to this many percent; absent (kept before it existed): 1. */ levelStep?: LevelStep;
-  /** A keyframe drag kept to one axis (a pen on set): "time" holds its time, "level" its intensity. */ axisLock?: AxisLock;
+  /** A keyframe drag kept to one axis (#426): "time" moves only its time, "level" only its intensity. (axisLock, the inverse, is left behind.) */ axisFocus?: AxisFocus;
   /** Track view (the lanes) or Stage view (#426, read only), kept on the device. */ pane?: "track" | "stage";
   /** The stage shown per flow (flow id → stage id; #426), when a flow has several. */ stages?: Record<string, string>;
 }
@@ -44,6 +44,9 @@ type Lock = { state: "mine"; holder: string } | { state: "offline" } | { state: 
 export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }) {
   const s = useStyles();
   const { c } = useTheme();
+  // Upright (portrait) the bar takes two rows; on its side one (#426).
+  const win = useWindowDimensions();
+  const upright = win.height > win.width;
   const [body, setBody] = useState<FlowBody>(flow.body);
   const [name, setName] = useState(flow.name);
   const [pick, setPick] = useState<Pick>(null);
@@ -184,23 +187,33 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
     <View style={s.screen}>
       <Header title={name || "Flow"} sub={`${fmtSeconds(body.durationMs)} · ${status}`} onBack={back}
         actions={[{ icon: "settings", label: "Flow settings", onPress: () => setSheet("flow") }]} />
-      <View style={s.bar}>
-        {/* Track or Stage (#426): the stage is read only here; it is drawn and lights are placed in the Studio. */}
-        <Seg accessibilityLabel="View" value={stageOn ? "stage" : "track"} onChange={(v) => setDv({ pane: v as "track" | "stage" })}
-          options={[{ id: "track", icon: "timeline", label: "Track" }, { id: "stage", icon: "frame", label: "Stage" }]} />
-        {!stageOn && <>
-        {/* Modes (#426): Select moves, Insert adds, Edit opens what is tapped; only Edit opens a sheet. */}
-        <Seg accessibilityLabel="Mode" value={mode} onChange={setMode} disabled={locked}
-          options={[{ id: "select", icon: "cursor", label: "Select" }, { id: "insert", icon: "plus", label: "Insert" }, { id: "edit", icon: "edit", label: "Edit" }]} />
-        <IconButton icon="eye" label="View" onPress={() => setSheet("view")} />
-        {/* Axis locks for dragging a keyframe (#426): the padlock shows what a drag holds; one at a time, since both would hold it still. */}
-        <Chip label="Time" icon={dv.axisLock === "time" ? "lock" : "unlock"} selected={dv.axisLock === "time"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "time" ? undefined : "time" })} />
-        <Chip label="Intensity" icon={dv.axisLock === "level" ? "lock" : "unlock"} selected={dv.axisLock === "level"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "level" ? undefined : "level" })} />
-        </>}
-        <View style={{ flex: 1 }} />
-        <Text style={s.time}>{fmtClock(playhead)}</Text>
-        <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
-        <IconButton icon={playing ? "pause" : "play"} label={playing ? "Pause" : holds ? "Play" : "Play on the stage"} onPress={play} color={playing ? c.danger : c.accent} />
+      {/* The bar (#426): in landscape one row; upright two: Track/Stage, the modes and View spread over the first,
+          the axis focus at the left and playing at the right of the second. */}
+      <View style={[s.bar, upright && s.barUpright]}>
+        <View style={[s.barRow, upright && s.spread]}>
+          {/* Track or Stage (#426): the stage is read only here; it is drawn and lights are placed in the Studio. */}
+          <Seg accessibilityLabel="View" value={stageOn ? "stage" : "track"} onChange={(v) => setDv({ pane: v as "track" | "stage" })}
+            options={[{ id: "track", icon: "timeline", label: "Track" }, { id: "stage", icon: "frame", label: "Stage" }]} />
+          {!stageOn && <>
+          {/* Modes (#426): Select moves, Insert adds, Edit opens what is tapped; only Edit opens a sheet. */}
+          <Seg accessibilityLabel="Mode" value={mode} onChange={setMode} disabled={locked}
+            options={[{ id: "select", icon: "cursor", label: "Select" }, { id: "insert", icon: "plus", label: "Insert" }, { id: "edit", icon: "edit", label: "Edit" }]} />
+          <IconButton icon="eye" label="View" onPress={() => setSheet("view")} />
+          </>}
+        </View>
+        <View style={[s.barRow, s.spread, !upright && s.grow]}>
+          {/* Axis focus for dragging a keyframe (#426): Time on, a drag moves only the time; Intensity on, only the intensity; one at a time. */}
+          {!stageOn ? <View style={s.barRow}>
+            <Chip label="Time" icon="arrows-horizontal" check={false} selected={dv.axisFocus === "time"} disabled={locked} onPress={() => setDv({ axisFocus: dv.axisFocus === "time" ? undefined : "time" })} />
+            <Chip label="Intensity" icon="arrows-vertical" check={false} selected={dv.axisFocus === "level"} disabled={locked} onPress={() => setDv({ axisFocus: dv.axisFocus === "level" ? undefined : "level" })} />
+          </View> : <View />}
+          <View style={s.barRow}>
+            <Text style={s.time}>{fmtClock(playhead)}</Text>
+            <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
+            <IconButton icon="repeat" label={body.loop ? "Loop: on" : "Loop: off"} on={body.loop} disabled={locked} onPress={() => change((b) => ({ ...b, loop: !b.loop }))} />
+            <IconButton icon={playing ? "pause" : "play"} label={playing ? "Pause" : holds ? "Play" : "Play on the stage"} onPress={play} color={playing ? c.danger : c.accent} />
+          </View>
+        </View>
       </View>
       {!stageOn && <>
       {/* Size (#426): two grouped boxes, each a slider and its Fit. */}
@@ -227,7 +240,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
         <MiniScrubber body={body} t={playhead} onSeek={(t) => { setPlayhead(t); if (playing) player.current?.play(t); }} />
       </> : (
       <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
-      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisLock={dv.axisLock} laneHeight={dv.height} mode={mode} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
+      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisFocus={dv.axisFocus} laneHeight={dv.height} mode={mode} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
         onPick={(p) => choose(p, p?.kind === "track" || mode === "edit")} onSeek={(t) => { if (!playing) setPlayhead(t); }}
         onAddKeyframe={(trackId, t) => { const r = addKeyframe(latest.current.body, trackId, t, randomUUID()); if (r.keyframe) { change(() => r.body); choose({ kind: "kf", track: trackId, id: r.keyframe.id }); if (!playing) setPlayhead(r.keyframe.at); } }}
         onAddMarker={(t) => { const r = addMarker(latest.current.body, t, randomUUID()); change(() => r.body); choose({ kind: "marker", id: r.marker.id }); }}
@@ -284,6 +297,10 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.bg },
   bar: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
+  barUpright: { flexDirection: "column", alignItems: "stretch", flexWrap: "nowrap" },
+  barRow: { flexDirection: "row", alignItems: "center", gap: 4 },
+  spread: { justifyContent: "space-between" },
+  grow: { flex: 1 },
   time: { ...type("label", "semibold"), color: c.text, fontVariant: ["tabular-nums"], marginRight: 4 },
   form: { gap: 14 },
   sizes: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },

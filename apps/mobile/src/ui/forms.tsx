@@ -17,14 +17,14 @@ export function Row({ label, children }: { label: string; children?: ReactNode }
 }
 
 /** Pill for choosing. Selected = accent fill + bold + check, so it never relies on colour alone. */
-export function Chip({ label, selected, onPress, danger, icon, swatch, disabled, block }: { label: string; selected?: boolean; onPress: () => void; danger?: boolean; icon?: IconName; /** A colour sample (e.g. frame colour). */ swatch?: string; disabled?: boolean; /** Fills its grid cell. */ block?: boolean }) {
+export function Chip({ label, selected, onPress, danger, icon, swatch, disabled, block, check = true }: { label: string; selected?: boolean; onPress: () => void; danger?: boolean; icon?: IconName; /** A colour sample (e.g. frame colour). */ swatch?: string; disabled?: boolean; /** Fills its grid cell. */ block?: boolean; /** A tick while selected (default); off where the filled chip says enough, a toggle beside its own icon. */ check?: boolean }) {
   const s = useStyles();
   const { c } = useTheme();
   const fg = disabled ? c.textDisabled : selected ? c.onAccent : danger ? c.danger : c.text;
   return (
     <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityState={{ selected: !!selected, disabled }}
       style={({ pressed }) => [s.chip, block && s.chipBlock, danger && { borderColor: c.danger }, pressed && !selected && s.chipPressed, selected && s.chipSelected, disabled && s.chipDisabled]}>
-      {selected && <Icon name="check" size={SIZE.iconSm} color={fg} />}
+      {selected && check && <Icon name="check" size={SIZE.iconSm} color={fg} />}
       {icon && <Icon name={icon} size={SIZE.iconSm} color={fg} />}
       {swatch && <View style={[s.swatch, { backgroundColor: swatch }]} />}
       <Text style={[s.chipText, selected && s.chipTextSelected, { color: fg }]} numberOfLines={1}>{label}</Text>
