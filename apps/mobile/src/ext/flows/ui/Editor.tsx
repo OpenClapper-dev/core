@@ -44,7 +44,8 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const setDv = (p: Partial<DeviceView>) => deviceView.set((x) => ({ ...x, ...p }));
   const zoom = dv.zoom;
   const [room, setRoom] = useState(0);
-  const fitHeight = () => setDv({ height: Math.round(Math.min(HEIGHT_MAX, Math.max(HEIGHT_MIN, (room - RULER_H - MARKS_H - 56) / Math.max(1, body.tracks.length)))) });
+  // What Fit height would set, computed once: its button is off while the height already is that, like Fit width at 1×.
+  const fitH = Math.round(Math.min(HEIGHT_MAX, Math.max(HEIGHT_MIN, (room - RULER_H - MARKS_H - 56) / Math.max(1, body.tracks.length))));
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [live, setLive] = useState(true);
@@ -182,7 +183,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
         </View>
         <View style={s.box}>
           <View style={{ flex: 1 }}><Slider label="Height" value={dv.height} min={HEIGHT_MIN} max={HEIGHT_MAX} step={4} format={(h) => `${h}`} onChange={(h) => setDv({ height: h })} /></View>
-          <Button kind="ghost" label="Fit" onPress={fitHeight} />
+          <Button kind="ghost" label="Fit" disabled={dv.height === fitH} onPress={() => setDv({ height: fitH })} />
         </View>
       </View>
       {lock.state === "theirs" && <Block><Banner kind="info" icon="lock" title="Read-only" meta={`${lock.by} is editing this flow. You can still play it.`} /></Block>}

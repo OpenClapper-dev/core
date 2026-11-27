@@ -11,6 +11,8 @@ export type Pick = { kind: "kf" | "fade"; track: string; id: string } | { kind: 
 export const LABEL_W = 112, RULER_H = 32, MARKS_H = 28;
 /** Keyframe sizes (#426): small for a pen, large for a finger. */
 export const DOT_SIZES: Record<KeyframeSize, number> = { s: 22, m: 30, l: 40 };
+/** The strip between two keyframes (the fade): thick enough to see and to tap with a finger. */
+const GAP_H = 14;
 /** The room above and below a keyframe in a lane with the graph: the dot's half, so it never leaves the lane. */
 const pad = (dot: number) => dot / 2 + 4;
 
@@ -119,8 +121,8 @@ function Lane({ t, x, at, width, h, dot, view, duration, insert, locked, pick, o
         if (i === 0 || camera) return null;
         const from = kfs[i - 1], on = pick?.kind === "fade" && pick.track === t.id && pick.id === k.id;
         return (
-          <Pressable key={`f${k.id}`} onPress={() => onPick({ kind: "fade", track: t.id, id: k.id })} hitSlop={{ top: 10, bottom: 10 }}
-            style={[s.gap, { top: h - 12, left: x(from.at) + dot / 2, width: Math.max(0, x(k.at) - x(from.at) - dot) }, k.fadeIn ? { backgroundColor: col, opacity: 0.55 } : { borderColor: col }, on && s.gapOn]} />
+          <Pressable key={`f${k.id}`} onPress={() => onPick({ kind: "fade", track: t.id, id: k.id })} hitSlop={{ top: 8, bottom: 8 }}
+            style={[s.gap, { top: h - GAP_H - 4, left: x(from.at) + dot / 2, width: Math.max(0, x(k.at) - x(from.at) - dot) }, k.fadeIn ? { backgroundColor: col, opacity: 0.55 } : { borderColor: col }, on && s.gapOn]} />
         );
       })}
       {kfs.map((k) => {
@@ -194,7 +196,7 @@ const useStyles = makeStyles((c) => ({
   markerOn: { backgroundColor: c.accent },
   markerText: { ...type("caption", "semibold"), color: c.text },
   lane: { borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
-  gap: { position: "absolute", height: 6, borderRadius: 3, borderWidth: 1, borderStyle: "dashed" },
+  gap: { position: "absolute", height: GAP_H, borderRadius: GAP_H / 2, borderWidth: 1, borderStyle: "dashed" },
   gapOn: { borderWidth: 2, borderStyle: "solid", borderColor: c.text },
   dot: { position: "absolute", borderWidth: 3 },
   dotOff: { borderStyle: "dashed", opacity: 0.6 },
