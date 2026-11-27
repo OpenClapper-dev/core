@@ -1,5 +1,5 @@
 /**
- * Properties (step B4, #376): the template of a new project, values with their rules, dependent
+ * Properties (step B4, #376): a new project without any (#426), values with their rules, dependent
  * choices, references, bulk edit, search over names and values, a definition that changes, naming
  * patterns, copies and purges.
  */
@@ -24,13 +24,15 @@ const setProps = (id: string, values: Record<string, unknown>, status: number | 
 const settings = async () => (await list("&type=folder")).find((f) => f.name === "Settings")!.id;
 const defBody = (more: Record<string, unknown>) => ({ field: "text", attached: [{ type: "shot" }], order: 50, ...more });
 const newDef = async (name: string, body: Record<string, unknown>) => { const id = uuid(); await put(id, { type: "property", project_id: project, name, container: await settings(), body: defBody(body) }, 201); return id; };
+/** A single choice with these labels; the option ids are the labels in lower case, spaces as dashes. */
+const choice = (...labels: string[]) => ({ field: "choice", options: labels.map((label, i) => ({ id: label.toLowerCase().replace(/ /g, "-"), label, color: i + 1 })) });
+const SET = { field: "reference", targets: ["set"], many: false };
 
 describe("a new project", () => {
-  test("starts with the template in Settings, which does not count as its files", async () => {
+  test("starts without properties; its Settings do not count as its files", async () => {
     await newProject();
-    const d = await defs();
-    expect(Object.keys(d).sort()).toEqual(["Address", "Angle", "Day / Night", "INT / EXT", "Kind", "Lens", "Locations", "Movement", "Position", "Scene", "Set", "Shot no.", "Shot size", "Support"]);
-    expect(d["Shot size"].body).toMatchObject({ field: "choice", section: "Camera", attached: [{ type: "shot" }] });
+    expect(await defs()).toEqual({});
+    expect((await list("&type=settings")).length).toBeGreaterThan(0);
     const { projects } = await ok<{ projects: { id: string; file_count: number }[] }>(api(u.token, "GET", "/api/projects"));
     expect(projects.find((p) => p.id === project)!.file_count).toBe(0);
     await ok(api(u.token, "DELETE", `/api/projects/${project}`), 200);
@@ -45,6 +47,9 @@ describe("a new project", () => {
 describe("values", () => {
   test("are checked against the definition, the file type and the project", async () => {
     await newProject();
+    await newDef("Scene", {});
+    await newDef("Shot size", choice("EWS", "WS", "MS"));
+    await newDef("Kind", { ...choice("Floor plan", "Storyboard"), attached: [{ type: "canvas" }] });
     const d = await defs();
     const s = await shot("Shot A");
     const size = d["Shot size"], kind = d.Kind;
@@ -62,6 +67,7 @@ describe("values", () => {
 
   test("a reference names live files of the project of its target types, and counts as a use", async () => {
     await newProject();
+    await newDef("Set", SET);
     const d = await defs();
     const set = d.Set;
     const s = await shot();
@@ -86,6 +92,7 @@ describe("values", () => {
 
   test("bulk edit sets the same values on many files, all or none", async () => {
     await newProject();
+    await newDef("Lens", {});
     const d = await defs();
     const a = await shot(), b = await shot();
     const out = await ok<{ values: Record<string, Record<string, unknown>> }>(api(u.token, "POST", "/api/properties/set", { ids: [a, b], values: { [d.Lens.id]: "35mm" } }));
@@ -101,6 +108,8 @@ describe("values", () => {
 describe("search", () => {
   test("looks at names and values, with case and accents folded", async () => {
     await newProject();
+    await newDef("Scene", {});
+    await newDef("INT / EXT", choice("INT", "EXT"));
     const d = await defs();
     const a = await shot("Über den Dächern"), b = await shot("Street");
     const ext = (d["INT / EXT"].body!.options as { id: string; label: string }[]).find((o) => o.label === "EXT")!.id;
@@ -117,6 +126,7 @@ describe("search", () => {
 describe("a definition that changes", () => {
   test("keeps values of renamed options and drops those of removed ones", async () => {
     await newProject();
+    await newDef("Shot size", choice("EWS", "WS", "MS"));
     const d = await defs();
     const size = d["Shot size"];
     const options = size.body!.options as { id: string; label: string; color: number }[];
@@ -135,6 +145,7 @@ describe("a definition that changes", () => {
 
   test("purged, its values and the references they kept go with it", async () => {
     await newProject();
+    await newDef("Set", SET);
     const d = await defs();
     const set = d.Set;
     await ok(api(u.token, "PUT", `/api/files/${set.id}`, { body: { ...set.body, targets: [] } }), 200);
@@ -167,6 +178,8 @@ describe("names", () => {
 describe("a copy", () => {
   test("takes its values; a reference to a file copied along points at the copy", async () => {
     await newProject();
+    await newDef("Set", SET);
+    await newDef("Lens", {});
     const d = await defs();
     const set = d.Set;
     await ok(api(u.token, "PUT", `/api/files/${set.id}`, { body: { ...set.body, targets: [] } }), 200);

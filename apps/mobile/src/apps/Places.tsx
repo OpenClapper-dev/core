@@ -79,7 +79,7 @@ function PlacesApp({ kind, active }: { kind: Kind; active: boolean }) {
       {kind === "location" && map ? (
         <View style={{ flex: 1 }}>
           <MapWeb pins={pins} onPick={setOpen} />
-          {pins.length < list.length && <Block style={{ paddingVertical: 6 }}><Hint>{list.length - pins.length} of {list.length} without a position: give one in a location's Position.</Hint></Block>}
+          {pins.length < list.length && <Block style={{ paddingVertical: 6 }}><Hint>{list.length - pins.length} of {list.length} without a position: {posDefs.length ? `give one in a location's ${posDefs[0].name}.` : "add a Position property in the Studio (its map offers it)."}</Hint></Block>}
         </View>
       ) : (
         <FlatList key={cols} data={list} numColumns={cols} keyExtractor={(f) => f.id} contentContainerStyle={{ paddingBottom: 24 }}

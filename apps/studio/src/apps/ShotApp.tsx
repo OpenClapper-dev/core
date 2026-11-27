@@ -20,7 +20,7 @@ import { confirm, toast, toastError } from "../hosts";
 import { presetsIn } from "../optics";
 import { usePeople } from "../people";
 import { PhotoFactsSections } from "../photoParts";
-import { definitionsIn } from "../props";
+import { addStarter, definitionsIn } from "../props";
 import { PropertySections } from "../propertyEditors";
 import { useProjects } from "../projects";
 import { useUser } from "../user";
@@ -233,7 +233,12 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
 
   // ---------- Side panel: the file of this window ----------
   const defs = definitionsIn(files);
-  const pointsHere = (type: string) => files.filter((x) => x.type === type && !x.internal_of && defs.some((d) => d.def.field === "reference" && (d.def.targets ?? []).includes(f.type) && d.def.attached.some((a) => a.type === type) && ((v) => (Array.isArray(v) ? v : [v]).includes(f.id))(x.values?.[d.id])));
+  // Who points here: a reference property of the other type that targets this one. A project starts without one (#426), so the section offers to add it.
+  const pointers = (type: string) => defs.filter((d) => d.def.field === "reference" && (d.def.targets ?? []).includes(f.type) && d.def.attached.some((a) => a.type === type));
+  const pointsHere = (type: string) => files.filter((x) => x.type === type && !x.internal_of && pointers(type).some((d) => ((v) => (Array.isArray(v) ? v : [v]).includes(f.id))(x.values?.[d.id])));
+  const offer = (which: "set" | "locations", label: string) => (
+    <p className="sh-note">No {which === "set" ? "shot" : "set"} property points at {which === "set" ? "sets" : "locations"} yet.{" "}<Button size="sm" icon="plus" onClick={() => void addStarter(projectId, files, which).catch(toastError)}>Add a {label} property</Button></p>
+  );
   const role = (x: FileRec) => (doc.overlay === x.id ? "The progression's overlay" : [items.some((i) => i.to === x.id) && ((n) => `${n} ${n === 1 ? "picture" : "pictures"} of the progression`)(items.filter((i) => i.to === x.id).length), doc.content.includes(x.id) && "in the content"].filter(Boolean).join(", ") || "Not used any more");
   const usedBy = uses.filter((x) => x.id !== f.id);
   const fileTab = (
@@ -245,8 +250,8 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
       </header>
       <PropertyList key={f.id}>
         <PropertySections projectId={projectId} targets={[f]} defs={defs} files={files} />
-        {f.type === "set" && <PropertySection title={`Shots that play here · ${pointsHere("shot").length}`} icon="slate">{pointsHere("shot").length ? <div className="sh-chips">{pointsHere("shot").map((x) => <Chip key={x.id} f={x} onOpen={open} />)}</div> : <p className="sh-note">No shot names this set yet. A shot's Set property points here.</p>}</PropertySection>}
-        {f.type === "location" && <PropertySection title={`Sets filmed here · ${pointsHere("set").length}`} icon="home">{pointsHere("set").length ? <div className="sh-chips">{pointsHere("set").map((x) => <Chip key={x.id} f={x} onOpen={open} />)}</div> : <p className="sh-note">No set names this location yet. A set's Locations property points here.</p>}</PropertySection>}
+        {f.type === "set" && <PropertySection title={`Shots that play here · ${pointsHere("shot").length}`} icon="slate">{pointsHere("shot").length ? <div className="sh-chips">{pointsHere("shot").map((x) => <Chip key={x.id} f={x} onOpen={open} />)}</div> : !pointers("shot").length ? offer("set", "Set") : <p className="sh-note">No shot names this set yet. A shot's {pointers("shot").map((d) => d.name).join(" or ")} property points here.</p>}</PropertySection>}
+        {f.type === "location" && <PropertySection title={`Sets filmed here · ${pointsHere("set").length}`} icon="home">{pointsHere("set").length ? <div className="sh-chips">{pointsHere("set").map((x) => <Chip key={x.id} f={x} onOpen={open} />)}</div> : !pointers("set").length ? offer("locations", "Locations") : <p className="sh-note">No set names this location yet. A set's {pointers("set").map((d) => d.name).join(" or ")} property points here.</p>}</PropertySection>}
         {internal.length > 0 && (
           <PropertySection title={`Internal files · ${internal.length}`} icon="lock">
             <ul className="sh-internal">{internal.map((x) => (

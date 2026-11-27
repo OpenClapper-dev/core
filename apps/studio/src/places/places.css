@@ -5,6 +5,7 @@
 .pl-dialog { width: min(760px, calc(100vw - 48px)); }
 .pl-coords { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .pl-note { position: absolute; left: 56px; top: var(--space-4); z-index: 500; padding: 2px var(--space-4); border-radius: var(--radius-control); background: var(--surface); color: var(--text-secondary); font-size: var(--font-size-2xs); box-shadow: 0 1px 4px rgba(0, 0, 0, .3); }
+.pl-note--add { display: flex; align-items: center; gap: var(--space-4); right: var(--space-4); max-width: max-content; padding: var(--space-3) var(--space-4); font-size: var(--font-size-sm); color: var(--text); }
 /* Dark theme: the tiles are turned dark too, so the map does not glare. */
 [data-theme="dark"] .pl-map .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.95) contrast(.9); }
 .pl-map .leaflet-control-attribution { background: var(--surface); color: var(--text-secondary); }

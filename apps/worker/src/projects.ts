@@ -27,7 +27,7 @@ export function registerProjectRoutes(r: Router<Ctx>) {
 
   // Names are unique case-insensitively within a workspace: a clash answers 409 + existing_id so the
   // client can adopt that project. A new project goes to `workspace_id` (default: the caller's own
-  // workspace) and gets its fixed folders and the default properties; an existing one never changes workspace.
+  // workspace) and gets its fixed folders and settings pages (no properties); an existing one never changes workspace.
   r.on("PUT", "/api/projects/:id", async (ctx, { id }) => {
     const { env, request, tenant } = ctx;
     const pid = assertUuid(id, "id");

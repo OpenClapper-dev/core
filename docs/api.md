@@ -81,7 +81,7 @@ Values of a project's properties on its files ([properties](features/properties.
 | PUT | `/api/files/:id/properties` | `{ values: { <property id>: value \| null } }` → `{ values }` |
 | POST | `/api/properties/set` | Bulk edit: `{ ids, values }` (files of one project, at most 500) → `{ values: { <file id>: values } }`. All or none |
 
-A new project starts with the default properties in its Settings folder (`PUT /api/projects/:id`); they are not counted in `file_count` and do not keep a project from being deleted.
+A new project (`PUT /api/projects/:id`) starts without property definitions (#426); the clients add them to its Settings folder. Definitions are not counted in `file_count` and do not keep a project from being deleted.
 
 ## Canvases and the edit lock (`canvas.ts`)
 

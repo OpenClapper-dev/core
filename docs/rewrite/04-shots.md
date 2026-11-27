@@ -88,7 +88,7 @@ Properties are the metadata of a file, apart from its content. The mechanism is 
 | Facts of the file type | A photo's size, time taken, angle of view, device | No | Yes |
 | Project-defined | Scene, shot size, status | Yes | Yes |
 
-- **Defaults are a template.** A new project starts with a default set per file type (for shots: a typical shot list, such as scene, shot number, shot size, angle, movement, support, lens, INT/EXT, day or night; the list is fixed in workshop 07). Every project-defined property can be hidden and shown again without losing its values, edited or deleted. There are no hard-coded fields beyond the system ones: no built-in note or description; a project adds a text property where it wants one.
+- **No defaults** (changed by #426 feedback 4; it was a default template per file type, a typical shot list for shots). A new project starts without properties; views offer to add what they need ([07](07-organisation.md)), project templates later. Every project-defined property can be hidden and shown again without losing its values, edited or deleted. There are no hard-coded fields beyond the system ones: no built-in note or description; a project adds a text property where it wants one.
 - **Field types:** text, long text, number, yes/no, single and multiple choice with colours, date. References to people or files may follow.
 - **AI import** of property definitions (a prompt that returns them as JSON) carries over from today's extra fields.
 
@@ -134,7 +134,7 @@ Shots and properties are core.
 
 - **A shot is an intent with content:** a file with properties and an ordered, generic list of references to files of any type. The shot stores nothing per entry; one file can be in many shots.
 - **Drawing on, adjusting or framing a picture is a canvas,** referenced by the shot ([05](05-composition.md)).
-- **Properties are generic for all files:** one catalogue per project, each property defined once and attached to file types; the system properties (name, type, created, updated, created by) are the only fixed ones; defaults are a template that can be hidden, changed or deleted; AI import stays.
+- **Properties are generic for all files:** one catalogue per project, each property defined once and attached to file types; the system properties (name, type, created, updated, created by) are the only fixed ones; a new project starts without them (#426), views offer what they need; AI import stays.
 - **Names** are generated at creation from a per-type pattern with tokens, editable and not unique.
 - **No review state** in the base; it can be modelled as a property.
 - **Capturing for a shot** on the phone is deferred; the Studio is where shots are assembled.

@@ -7,7 +7,7 @@ import { evaluate, fileTypes, matchesSearch, valueText, type FilterBody, type Fi
 import { Board, BOARD_DEFAULT, type BoardLayout } from "../Board";
 import { FilterBuilder, filterFields, ruleCount } from "../FilterBuilder";
 import { PropertySections } from "../propertyEditors";
-import { definitionsIn, type Definition } from "../props";
+import { addStarter, definitionsIn, type Definition } from "../props";
 import { fetchUses, type FileRec, type FileUse, type Root } from "../api";
 import { addToCollection, collectionOf, groupInto, photosOf, setOrder, takeOut, tintOf, ungroup } from "../collections";
 import { kindOf, lookOf, targetOf } from "../fileKinds";
@@ -471,7 +471,7 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
   const main = error && !files ? <EmptyState icon="cloud-off" title="Could not load the files" action={<Button onClick={() => void store.loadRoot(root).catch(toastError)}>Try again</Button>}>{error}</EmptyState>
     : !files ? null
     : !items.length ? empty
-    : shownView === "map" ? <MapView items={items} defs={defs} current={cur} onCurrent={selectOnly} onOpen={open} />
+    : shownView === "map" ? <MapView items={items} defs={defs} current={cur} onCurrent={selectOnly} onOpen={open} onAddPosition={home ? undefined : () => void addStarter(projectId, files, "position").catch(toastError)} />
     : shownView === "board" && !home ? <Board projectId={projectId} items={items} defs={defs} layout={board} onLayout={setBoard} selected={sel} card={card} />
     : shownView === "list" ? (
       <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => ({ ...rowDrag(map.get(id)!), "data-file-id": id })}

@@ -4,6 +4,7 @@
  */
 import { env } from "cloudflare:workers";
 import { beforeAll, describe, expect, test } from "vitest";
+import { STARTERS } from "@openclapper/model";
 import { addPhoto, api, newUser, ok, uuid, type User } from "./helpers.ts";
 
 let u: User;
@@ -75,18 +76,22 @@ describe("shots", () => {
 });
 
 describe("sets and locations", () => {
-  test("they hold a content list; a new project's template links shots to sets and sets to locations", async () => {
+  test("they hold a content list; the properties their views offer link shots to sets and sets to locations", async () => {
     await newProject();
     const set = uuid(), loc = uuid(), photo = await addPhoto(u.token, project);
     expect((await put(set, { type: "set", project_id: project }, 201)).file.name).toMatch(/^Set/);
     await put(loc, { type: "location", project_id: project, refs: [{ kind: "content", to: photo }] }, 201);
     await put(loc, { refs: [{ kind: "item", to: photo, data: { ms: 1000 } }] }, 400);
-    const defs = await ok<{ files: { name: string; body: { field: string; targets?: string[]; attached: { type: string }[] } }[] }>(api(u.token, "GET", `/api/files?project_id=${project}&type=property&body=1`));
-    const by = new Map(defs.files.map((f) => [f.name, f.body]));
-    expect(by.get("Set")).toMatchObject({ field: "reference", targets: ["set"], attached: [{ type: "shot" }] });
-    expect(by.get("Locations")).toMatchObject({ field: "reference", targets: ["location"], attached: [{ type: "set" }] });
-    expect(by.get("Position")).toMatchObject({ field: "position", attached: [{ type: "location" }] });
-    expect(by.get("Address")).toMatchObject({ attached: [{ type: "location" }] });
+    // A new project has none of them; the Studio adds them from STARTERS, in Settings.
+    const settings = (await ok<{ files: F[] }>(api(u.token, "GET", `/api/files?project_id=${project}&type=folder`))).files.find((f) => f.name === "Settings")!.id;
+    const ids: Record<string, string> = {};
+    for (const [k, t] of Object.entries(STARTERS)) { ids[k] = uuid(); await put(ids[k], { type: "property", project_id: project, name: t.name, container: settings, body: { ...t.def, order: 0 } }, 201); }
+    const shot = uuid();
+    await put(shot, { type: "shot", project_id: project }, 201);
+    const values = (v: Record<string, unknown>, id: string) => ok<{ values: Record<string, unknown> }>(api(u.token, "PUT", `/api/files/${id}/properties`, { values: v }));
+    expect((await values({ [ids.set]: [set] }, shot)).values).toEqual({ [ids.set]: [set] });
+    expect((await values({ [ids.locations]: [loc] }, set)).values).toEqual({ [ids.locations]: [loc] });
+    expect((await values({ [ids.position]: { lat: 52.5, lng: 13.4 } }, loc)).values).toEqual({ [ids.position]: { lat: 52.5, lng: 13.4 } });
   });
 });
 
