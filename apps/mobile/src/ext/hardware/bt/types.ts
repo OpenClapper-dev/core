@@ -60,4 +60,9 @@ export interface Driver {
    * heard within `firstMs` of the link coming up, or for `staleMs` since, shows as silent (#318).
    */
   answers?: { firstMs: number; staleMs: number };
+  /**
+   * The white frame carries the intensity (Sidus, NEEWER): an intensity for a fixture whose white command is
+   * still queued goes out inside it, one write instead of two (#426: a white fade on lights sharing a link).
+   */
+  whiteCarriesIntensity?: boolean;
 }

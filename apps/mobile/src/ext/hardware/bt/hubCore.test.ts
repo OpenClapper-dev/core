@@ -335,3 +335,53 @@ test("a mesh light that does not answer shows as silent while the link is up, un
   await time.advance(150_000);
   assert.deepEqual(["a", "b"].map((id) => hub.status(id).link), ["silent", "silent"]);
 });
+
+/** Two lights on one mesh link that takes one write per 120 ms, white frames carrying the intensity (Sidus). */
+function meshWorld() {
+  const time = fakeTime();
+  const sent: { at: number; id: string; cmd: Command }[] = [];
+  const driver: Driver = {
+    id: "mesh",
+    linkKey: () => "mesh:1",
+    rate: { minIntervalMs: 120 },
+    whiteCarriesIntensity: true,
+    addressesFor: (_key, fs) => fs.map((f) => f.address),
+    open: async () => ({ send: async (f, cmd) => { sent.push({ at: time.now, id: f.id, cmd }); }, close: async () => {} }),
+  };
+  const fixtures = [fixture("a", "AA:00:00:00:00:01", "mc"), fixture("b", "AA:00:00:00:00:02", "mc")];
+  const hub = new Hub({
+    fixtures: () => fixtures,
+    driverFor: (k) => (k === "mc" ? driver : undefined),
+    connect: async (address) => new FakeLink(address),
+    timers: time,
+    clock: { now: () => time.now, wait: (ms) => new Promise((r) => time.setTimeout(r, ms)) },
+    log: () => {},
+  });
+  return { hub, time, sent };
+}
+
+test("an intensity joins its light's queued white: one write per light (#426)", async () => {
+  const { hub, time, sent } = meshWorld();
+  hub.acquire(["a", "b"], "sequence");
+  await time.advance(0);
+  // One tick of a white fade on both lights, as the flow player sends it.
+  const all = ["a", "b"].flatMap((id) => [hub.send(id, { op: "cct", kelvin: 4000, gm: 0 }), hub.send(id, { op: "intensity", value: 0.3 })]);
+  await time.advance(1000);
+  await Promise.all(all);
+  // a's white went out at once, alone; its intensity followed. b's white waited and took its intensity along.
+  assert.deepEqual(sent.map((s) => [s.at, s.id, s.cmd]), [
+    [0, "a", { op: "cct", kelvin: 4000, gm: 0 }],
+    [120, "b", { op: "cct", kelvin: 4000, gm: 0, intensity: 0.3 }],
+    [240, "a", { op: "intensity", value: 0.3 }],
+  ]);
+  assert.equal(hub.status("b").state.intensity, 0.3);
+  // The next tick: a newer white replaces b's queued one and keeps the intensity it carried.
+  sent.length = 0;
+  const next = [hub.send("a", { op: "cct", kelvin: 4100, gm: 0 }), hub.send("b", { op: "cct", kelvin: 4100, gm: 0 }), hub.send("b", { op: "intensity", value: 0.35 }), hub.send("b", { op: "cct", kelvin: 4200, gm: 0 })];
+  await time.advance(1000);
+  await Promise.all(next);
+  assert.deepEqual(sent.map((s) => [s.id, s.cmd]), [
+    ["a", { op: "cct", kelvin: 4100, gm: 0 }],
+    ["b", { op: "cct", kelvin: 4200, gm: 0, intensity: 0.35 }],
+  ]);
+});
