@@ -183,9 +183,12 @@ export function StagePane(p: StagePaneProps) {
   const grabObj = (e: PointerEvent, o: Obj) => {
     if (e.button > 0 || !p.editing || tool !== "select") return;
     e.stopPropagation();
-    p.onSel({ kind: "obj", id: o.id });
+    // Alt: drag a copy, as on the canvas; the original stays where it is. (A light is one per track: never copied.)
+    const target: Obj = e.altKey ? { ...o, id: uid(), name: `${o.name} copy` } : o;
+    if (target !== o) setObjs((os) => [...os, target]);
+    p.onSel({ kind: "obj", id: target.id });
     capture(e);
-    act.current = { type: "obj", id: o.id, start: at(e), orig: o, moved: false };
+    act.current = { type: "obj", id: target.id, start: at(e), orig: target, moved: false };
   };
   const rub = (q: P) => {
     const h = paper.current!.getBoundingClientRect().height;
