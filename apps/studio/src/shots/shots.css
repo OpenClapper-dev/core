@@ -144,3 +144,41 @@
 .sh-readonly, .sh-readonly * { color: var(--text-disabled) !important; }
 .sh-readonly :is(.oc-btn, .oc-input, button, input, select) { border-style: dashed; border-color: var(--border-control); background: transparent; box-shadow: none; }
 .sh-viewing { display: inline-flex; align-items: center; gap: var(--space-3); padding-inline: var(--space-3); color: var(--text-secondary); }
+
+/* The progression editor (ProgressionEditor.tsx): a bar, then the ruler, one lane of clips and the playhead. */
+.pg { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.pg-head { border-bottom: 0; padding-block: 0; }
+.pg-bar .sh-bar { display: contents; }
+.pg-time { color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.pg-time strong { color: var(--text); }
+.pg-scroll { position: relative; flex: 1; min-height: 84px; overflow-x: auto; overflow-y: hidden; }
+.pg-inner { position: relative; height: 100%; min-height: 80px; }
+.pg-lane { position: relative; height: calc(100% - 34px); min-height: 48px; max-height: 120px; margin-top: 4px; }
+.pg-empty { position: absolute; left: 16px; top: 34px; margin: 0; color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.pg-clip { position: absolute; top: 0; height: calc(100% - 12px); box-sizing: border-box; display: flex; flex-direction: column; border-radius: 4px; overflow: hidden; background: var(--surface-sunken); outline: var(--border-w) solid var(--border-control); outline-offset: -1px; cursor: pointer; user-select: none; touch-action: none; }
+.pg-clip:hover { outline-color: var(--text); }
+.pg-clip.is-cur { background: color-mix(in srgb, var(--accent) 10%, var(--surface-sunken)); }
+.pg-clip.is-sel { outline: 2px solid var(--accent); outline-offset: -2px; z-index: 1; }
+.pg-clip.is-missing { outline-style: dashed; outline-color: var(--danger); }
+.pg-clip__cells { flex: 1; min-height: 0; display: flex; gap: 1px; padding: 2px 2px 0; }
+.pg-cell { position: relative; flex: 1; min-width: 0; display: flex; }
+.pg-cell > .sh-box { flex: 1; border-radius: 2px; }
+.pg-cell__arrow { position: absolute; left: -7px; top: 50%; z-index: 1; translate: 0 -50%; display: grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: var(--surface); color: var(--text); }
+.pg-clip__label { flex: none; display: flex; align-items: center; gap: 4px; padding: 2px 10px 2px 4px; font-size: var(--font-size-2xs); line-height: 18px; white-space: nowrap; overflow: hidden; }
+.pg-clip__label b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-weight: var(--weight-medium, 500); }
+.pg-clip__label small, .pg-clip__label i { flex: none; color: var(--text-secondary); font-style: normal; }
+.pg-clip__trim { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
+.pg-clip__trim::after { content: ""; position: absolute; right: 2px; top: 30%; bottom: 30%; width: 2px; border-radius: 1px; background: var(--text); opacity: 0; }
+.pg-clip:hover .pg-clip__trim::after, .pg-clip.is-sel .pg-clip__trim::after { opacity: .9; }
+.pg-insert { position: absolute; top: 26px; bottom: 4px; width: 3px; margin-left: -1px; border-radius: 2px; background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 35%, transparent); pointer-events: none; z-index: 4; }
+.pg-inner > .oc-playhead { bottom: 4px; }
+
+/* The content: what stands for the thumbnail, and the files that count through progressions. */
+.sh-tile__thumb { position: absolute; right: 3px; top: 3px; padding: 0 6px; border-radius: 3px; background: var(--accent); color: var(--text-on-accent); font: var(--weight-bold) 10px/16px var(--font-sans); }
+.sh-tile.is-active { box-shadow: inset 0 -3px 0 var(--accent); }
+.sh-tile__meta { padding: 0 26px 3px 6px; color: var(--text-secondary); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sh-through { margin: 0 var(--space-5) var(--space-4); }
+.sh-through summary { cursor: pointer; color: var(--text-secondary); font-size: var(--font-size-2xs); }
+.sh-rec { width: 8px; height: 8px; border-radius: 50%; background: var(--over-rec); margin-left: var(--space-3); }
+.sh-noprog { display: grid; gap: var(--space-3); justify-items: start; padding: var(--space-4) var(--space-5); min-height: 96px; }
+.sh-noprog .sh-note { padding: 0; }

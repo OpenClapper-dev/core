@@ -3,6 +3,8 @@ import { createPortal } from "preact/compat";
 import { useRef, useState } from "preact/hooks";
 
 interface Drag { from: number; to: number; x: number; y: number; w: number; h: number; size: number; root: Element }
+/** Where a dragged item can go besides its own list (`useSort`'s `out`). */
+export interface SortOut { over: (from: number, e: PointerEvent) => boolean; drop: (from: number, e: PointerEvent) => boolean }
 
 /**
  * Reordering a list by dragging, with the pointer and a ghost of our own (no native drag and drop):
@@ -12,8 +14,14 @@ interface Drag { from: number; to: number; x: number; y: number; w: number; h: n
  * `start(i)` goes on an item (or its handle) as `onPointerDown`, `style(i)` on the item, and
  * `ghost(render)` once next to the list. `keys(i, count)` goes on a focusable item or handle as
  * `onKeyDown`: Alt with an arrow along the axis moves it one place, so nothing needs a pointer.
+ *
+ * `out` lets an item be dragged out of the list onto something else (a content card onto a progression's
+ * track): while `over` says the pointer is there the list keeps its order, and when `drop` takes the item
+ * on release, the list is not reordered.
  */
-export function useSort(axis: "x" | "y", onMove: (from: number, to: number) => void) {
+export function useSort(axis: "x" | "y", onMove: (from: number, to: number) => void, out?: SortOut) {
+  const outRef = useRef(out);
+  outRef.current = out;
   const [drag, setDrag] = useState<Drag | null>(null);
   const live = useRef<Drag | null>(null);
   const start = (index: number) => (e: JSX.TargetedPointerEvent<HTMLElement>) => {
@@ -23,16 +31,17 @@ export function useSort(axis: "x" | "y", onMove: (from: number, to: number) => v
     const move = (m: PointerEvent) => {
       if (!rects) { if (Math.hypot(m.clientX - sx, m.clientY - sy) < 5) return; rects = [...list.querySelectorAll(":scope > [data-sort]")].map((c) => c.getBoundingClientRect()); }
       const r = rects[index], p = axis === "x" ? m.clientX : m.clientY;
-      const to = rects.filter((q, i) => i !== index && (axis === "x" ? q.left + q.width / 2 : q.top + q.height / 2) < p).length;
+      const away = outRef.current?.over(index, m) ?? false;
+      const to = away ? index : rects.filter((q, i) => i !== index && (axis === "x" ? q.left + q.width / 2 : q.top + q.height / 2) < p).length;
       const gap = rects.length > 1 ? (axis === "x" ? rects[1].left - rects[0].right : rects[1].top - rects[0].bottom) : 0;
       const d: Drag = { from: index, to, x: r.left + m.clientX - sx, y: r.top + m.clientY - sy, w: r.width, h: r.height, size: (axis === "x" ? r.width : r.height) + gap, root: el.closest("[data-theme]") ?? document.body };
       live.current = d; setDrag(d);
     };
-    const up = () => {
+    const up = (e: PointerEvent) => {
       removeEventListener("pointermove", move); removeEventListener("pointerup", up);
       const d = live.current; live.current = null; setDrag(null);
       if (!d) return;
-      if (d.to !== d.from) onMove(d.from, d.to);
+      if (outRef.current?.drop(d.from, e)) { /* taken by what it was dropped on */ } else if (d.to !== d.from) onMove(d.from, d.to);
       // The release of a drag is not a click on what lies under it.
       const eat = (c: MouseEvent) => { c.stopPropagation(); c.preventDefault(); };
       addEventListener("click", eat, { capture: true, once: true }); setTimeout(() => removeEventListener("click", eat, { capture: true }), 0);

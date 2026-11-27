@@ -114,3 +114,11 @@
 .oc-device__what{flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:flex-end;gap:var(--space-4) var(--space-6)}
 .oc-device__actions{flex:none;display:flex;gap:var(--space-2)}
 @media (max-width:720px){.oc-device{flex-direction:column}.oc-device__who{width:100%}}
+/* Time ruler and playhead (TimeRuler.tsx): shared by the Timeline, the master timeline and progressions. */
+.oc-ruler{position:relative;height:26px;border-bottom:var(--border-w) solid var(--border-divider);cursor:pointer;touch-action:none;user-select:none}
+.oc-ruler__tick{position:absolute;bottom:0;height:5px;border-left:var(--border-w) solid var(--border-control);pointer-events:none}
+.oc-ruler__tick.is-half{height:9px}
+.oc-ruler__tick.is-major{top:0;height:auto}
+.oc-ruler__tick em{position:absolute;top:4px;left:4px;color:var(--text-secondary);font:var(--font-size-2xs)/1 var(--font-mono);font-style:normal;white-space:nowrap}
+.oc-playhead{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--over-rec);pointer-events:none;z-index:3}
+.oc-playhead>b{position:absolute;top:0;left:-6px;width:14px;height:14px;border-radius:50%;background:var(--over-rec);pointer-events:auto;cursor:ew-resize;touch-action:none}

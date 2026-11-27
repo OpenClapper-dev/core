@@ -106,6 +106,29 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | Mod+Shift+Z | Redo |
 | ⇧Click | Choose several clips: Shift adds a range, Ctrl one more |
 
+## Shot · progression
+
+| Keys | What |
+| --- | --- |
+| Space | Play or pause the progression |
+| ← | Playhead 0.1 s back |
+| → | Playhead 0.1 s on |
+| Shift+← | Playhead 1 s back |
+| Shift+→ | Playhead 1 s on |
+| Home | Playhead to the start |
+| End | Playhead to the end |
+| Delete | Delete the chosen items |
+| ⌘X | Cut the chosen items |
+| ⌘C | Copy the chosen items |
+| ⌘V | Paste after the chosen items, or at the playhead |
+| ⌘D | Duplicate the chosen items |
+| ⌘A | Choose every item |
+| ⌘Z | Undo |
+| Mod+Shift+Z | Redo |
+| Esc | Clear the choice, or back to the playhead |
+| ⇧Click / Drag | Shift adds a range, Ctrl one more; drag over the track for a box, drag items to move them |
+| ⌘Wheel | Zoom the track |
+
 ## Flows (extension)
 
 | Keys | What |

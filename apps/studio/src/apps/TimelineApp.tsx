@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
   AppIcon, Badge, Banner, FileCard, Button, Checkbox, ColorChooser, colorCss, Dock, DropdownMenu, EmptyState, Icon, NumberInput, Popover, PropertyList, PropertyRow, PropertySection, SearchInput, Segmented, Slider, Spinner, StatusBar, Switch, TextInput, Toolbar, ToolbarSpacer,
   cx, dockCollapse, dockShow, useDockLayout, useSort, type DockPanel,
+  Playhead, TimeRuler, useTimeScrub,
 } from "@openclapper/design";
 import { emptyCanvas, HOLD_MS, timelineRefs, type CanvasBody, type Clip, type PresetBody, type TimelineBody } from "@openclapper/model";
 import * as api from "../api";
@@ -341,15 +342,14 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
   );
 
   // ---------- The strip ----------
-  const stepS = [1, 2, 5, 10, 15, 30, 60, 120, 300].find((x) => x * scale >= 64) ?? 600;
-  const ticks = Array.from({ length: Math.floor(total / 1000 / stepS) + 1 }, (_, i) => i * stepS);
-  const scrub = (e: PointerEvent) => { e.preventDefault(); const r = (e.currentTarget as HTMLElement).closest(".tl-lanes")!.querySelector(".tl-ruler")!.getBoundingClientRect(); const to = (m: PointerEvent) => seek(((m.clientX - r.left) / scale) * 1000); to(e); const up = () => { removeEventListener("pointermove", to); removeEventListener("pointerup", up); }; addEventListener("pointermove", to); addEventListener("pointerup", up); };
+
+  const scrub = useTimeScrub(scale, seek);
   const fit = () => { const w = view.current?.clientWidth; if (w && total) setScale(Math.max(2, (w - 34) / (total / 1000))); };
   const px = (ms: number) => (ms / 1000) * scale;
   const strip = !blocks.length ? <p className="sh-note">Nothing in this cut yet. Drag files here from the Files panel, double-click one, or add a placeholder.</p> : (
     <div className="tl-scroll" ref={view} onWheel={(e) => { if (e.ctrlKey) { e.preventDefault(); setScale((s) => Math.min(240, Math.max(2, s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)))); } }}>
       <div className="tl-lanes" style={{ width: px(total) }}>
-        <div className="tl-ruler" onPointerDown={scrub}>{ticks.map((s) => <span key={s} style={{ left: s * scale }}>{clock(s * 1000)}</span>)}</div>
+        <TimeRuler scale={scale} seconds={total / 1000} scrub={scrub} />
         <div className="tl-chapters">{chapters.map((c) => <button type="button" key={c.clip} style={{ left: px(c.start), width: px(c.len), "--c": colorCss(c.color) }} title={`Chapter “${c.title}”`} onClick={(e) => pick(blocks.find((b) => b.clip.id === c.clip)!, e)}><Icon name="bookmark" size={10} />{c.title}</button>)}</div>
         <div className="tl-track" ref={track}>
           {blocks.map((b, i) => {
@@ -375,7 +375,7 @@ function Cut({ f, files, bin, projectId, active, startAt, setRoute }: { f: FileR
           })}
           {sort.ghost((i) => <div className="tl-clip is-current" style={{ width: "100%" }}><span className="tl-clip__cells"><span className="tl-cell" style={{ flex: 1 }}><span className="sh-item__art sh-box">{(() => { const s = blocks[i].segs[0], sn = s.kind === "missing" ? null : seenOf(s); return sn ? <Pic seen={sn} /> : null; })()}</span></span></span><span className="tl-clip__label"><b>{labelOf(blocks[i])}</b></span></div>)}
         </div>
-        <i className="tl-playhead" style={{ left: px(Math.min(t, total)) }}><b onPointerDown={scrub} title="Drag to scrub" /></i>
+        <Playhead left={16 + px(Math.min(t, total))} scrub={scrub} />
       </div>
     </div>
   );

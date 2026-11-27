@@ -8,3 +8,4 @@ export * from "./Table";
 export * from "./useMarquee";
 export * from "./ThumbnailTile";
 export * from "./Device";
+export * from "./TimeRuler";
