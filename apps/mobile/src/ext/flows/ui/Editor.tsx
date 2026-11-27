@@ -19,6 +19,7 @@ import { loadFlows, saveFlow, usePendingOf, type LocalFlow } from "../store";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, TrackInspect } from "./Inspect";
 import { Customize, usePanelHides } from "./Customize";
 import { Lanes, MARKS_H, RULER_H, type AxisLock, type Mode, type Pick } from "./Lanes";
+import { MiniScrubber, StageView } from "./Stage";
 
 const RENEW_MS = 30_000;
 const ZOOM_MAX = 32, HEIGHT_MIN = 48, HEIGHT_MAX = 240;
@@ -27,6 +28,7 @@ interface DeviceView {
   view: FlowView; kfSize: KeyframeSize; zoom: number; height: number;
   /** Intensity drags snap to this many percent; absent (kept before it existed): 1. */ levelStep?: LevelStep;
   /** A keyframe drag kept to one axis (a pen on set): "time" holds its time, "level" its intensity. */ axisLock?: AxisLock;
+  /** Track view (the lanes) or Stage view (#426, read only), kept on the device. */ pane?: "track" | "stage";
 }
 const deviceView = persisted<DeviceView>("flows.view.v1", { view: DEFAULT_VIEW, kfSize: "m", zoom: 1, height: 64 },
   (v) => typeof v === "object" && v !== null && typeof (v as DeviceView).zoom === "number" && typeof (v as DeviceView).height === "number");
@@ -105,6 +107,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
     return () => { stop = true; clearInterval(h); clearTimeout(retry); ws?.close(); if (holderRef.current) void unlockFile(flow.id, holderRef.current).catch(() => undefined); };
   }, [flow.id]);
   const locked = lock.state === "theirs" || lock.state === "asking";
+  const stageOn = dv.pane === "stage";
   // Read-only, it shows the flow as its editor last saved it.
   useEffect(() => { if (lock.state === "theirs") { setBody(flow.body); setName(flow.name); } }, [flow.body, flow.name, lock.state]);
 
@@ -126,7 +129,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const seq = useMemo<Flow>(() => ({ id: flow.id, name, updatedAt: flow.updatedAt ?? "", ...body }), [body, name]);
   const seqRef = useRef(seq);
   seqRef.current = seq;
-  const send = (id: string, cmd: Parameters<typeof hub.send>[1]) => { hub.send(id, cmd).catch((e) => log("debug", "flow edit: not sent", { device: id, error: e })); };
+  const send = (id: string, cmd: Parameters<typeof hub.send>[1]) => { if (!proxyRunning()) return; hub.send(id, cmd).catch((e) => log("debug", "flow edit: not sent", { device: id, error: e })); };
   const player = useRef<FlowPlayer | null>(null);
   if (!player.current) {
     player.current = new FlowPlayer(() => seqRef.current, send,
@@ -138,7 +141,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const play = () => {
     if (!player.current) return;
     if (playing) { player.current.stop(); setPlaying(false); return; }
-    if (!proxyRunning()) return;
+    // Without the connections held here, Play drives the stage alone (#426): the player runs, nothing is sent.
     player.current.play(playhead >= body.durationMs ? 0 : playhead);
     setPlaying(true);
   };
@@ -178,6 +181,10 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       <Header title={name || "Flow"} sub={`${fmtSeconds(body.durationMs)} · ${status}`} onBack={back}
         actions={[{ icon: "settings", label: "Flow settings", onPress: () => setSheet("flow") }]} />
       <View style={s.bar}>
+        {/* Track or Stage (#426): the stage is read only here; it is drawn and lights are placed in the Studio. */}
+        <Seg accessibilityLabel="View" value={stageOn ? "stage" : "track"} onChange={(v) => setDv({ pane: v as "track" | "stage" })}
+          options={[{ id: "track", icon: "timeline", label: "Track" }, { id: "stage", icon: "frame", label: "Stage" }]} />
+        {!stageOn && <>
         {/* Modes (#426): Select moves, Insert adds, Edit opens what is tapped; only Edit opens a sheet. */}
         <Seg accessibilityLabel="Mode" value={mode} onChange={setMode} disabled={locked}
           options={[{ id: "select", icon: "cursor", label: "Select" }, { id: "insert", icon: "plus", label: "Insert" }, { id: "edit", icon: "edit", label: "Edit" }]} />
@@ -185,11 +192,13 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
         {/* Axis locks for dragging a keyframe (#426): the padlock shows what a drag holds; one at a time, since both would hold it still. */}
         <Chip label="Time" icon={dv.axisLock === "time" ? "lock" : "unlock"} selected={dv.axisLock === "time"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "time" ? undefined : "time" })} />
         <Chip label="Intensity" icon={dv.axisLock === "level" ? "lock" : "unlock"} selected={dv.axisLock === "level"} disabled={locked} onPress={() => setDv({ axisLock: dv.axisLock === "level" ? undefined : "level" })} />
+        </>}
         <View style={{ flex: 1 }} />
         <Text style={s.time}>{fmtClock(playhead)}</Text>
         <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
-        <IconButton icon={playing ? "stop" : "play"} label={playing ? "Stop" : "Play"} disabled={!holds && !playing} onPress={play} color={playing ? c.danger : c.accent} />
+        <IconButton icon={playing ? "pause" : "play"} label={playing ? "Pause" : holds ? "Play" : "Play on the stage"} onPress={play} color={playing ? c.danger : c.accent} />
       </View>
+      {!stageOn && <>
       {/* Size (#426): two grouped boxes, each a slider and its Fit. */}
       <View style={s.sizes}>
         <View style={s.box}>
@@ -201,9 +210,14 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
           <Button kind="ghost" label="Fit" disabled={dv.height === fitH} onPress={() => setDv({ height: fitH })} />
         </View>
       </View>
+      </>}
       {lock.state === "theirs" && <Block><Banner kind="info" icon="lock" title="Read-only" meta={`${lock.by} is editing this flow. You can still play it.`} /></Block>}
       {unsent?.error && <Block><Banner kind="warn" icon="warning" title="Not saved to the server" meta={`${unsent.error}. It stays on this device; change it to try again.`} /></Block>}
-      {!holds && <Block><Hint>Playing and Live drive the lights connected to this device: hold the connections here.</Hint><Button kind="secondary" icon="bluetooth" label="Hold the connections here" onPress={() => { startProxy(); }} /></Block>}
+      {!holds && <Block><Hint>Without the connections held here, Play drives the stage only. Playing and Live drive the lights connected to this device once it holds them.</Hint><Button kind="secondary" icon="bluetooth" label="Hold the connections here" onPress={() => { startProxy(); }} /></Block>}
+      {stageOn ? <>
+        <StageView body={body} t={playhead} onShowTrack={(id) => { setDv({ pane: "track" }); choose({ kind: "track", id }, true); }} />
+        <MiniScrubber body={body} t={playhead} onSeek={(t) => { setPlayhead(t); if (playing) player.current?.play(t); }} />
+      </> : (
       <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
       <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisLock={dv.axisLock} laneHeight={dv.height} mode={mode} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
         onPick={(p) => choose(p, p?.kind === "track" || mode === "edit")} onSeek={(t) => { if (!playing) setPlayhead(t); }}
@@ -217,6 +231,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
         onMoveKeyframe={(trackId, k, t, level) => change((b) => setKeyframe(b, trackId, { ...k, at: t, ...(level !== undefined ? { intensity: Math.round(level * 100) / 100, ...(level > 0 && k.power === false ? { power: true } : {}) } : {}) }))}
         onAddTrack={() => setSheet("track")} />
       </View>
+      )}
       <Sheet visible={open && !!inspector} title={pickTitle} onClose={() => setOpen(false)} height={0.6}>{inspector}</Sheet>
       <Sheet visible={sheet === "track"} title="Add a track" onClose={() => setSheet(null)} height={0.7}>
         <SheetList>
