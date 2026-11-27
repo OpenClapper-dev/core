@@ -33,6 +33,16 @@ function Choices<T extends string | number>({ value, options, onChange }: { valu
 const At = ({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; onChange: (at: number) => void }) => (
   <Slider label="At" value={kf.at} min={SNAP_MS} max={durationMs} step={SNAP_MS} format={fmtSeconds} onChange={(v) => onChange(snap(v))} />
 );
+/**
+ * A keyframe's margins (#426), whole seconds: the least distance to the keyframes before and after it on the track; a
+ * neighbour inside one is pushed. 0 removes it; the start keyframe has none before.
+ */
+const Margins = ({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; onChange: (k: Keyframe) => void }) => (
+  <>
+    {kf.id !== START_KEYFRAME && <Slider label="Margin before" value={kf.marginBeforeMs ?? 0} min={0} max={durationMs} step={SNAP_MS} format={(v) => (v ? fmtSeconds(v) : "none")} onChange={(v) => onChange({ ...kf, marginBeforeMs: v })} />}
+    <Slider label="Margin after" value={kf.marginAfterMs ?? 0} min={0} max={durationMs} step={SNAP_MS} format={(v) => (v ? fmtSeconds(v) : "none")} onChange={(v) => onChange({ ...kf, marginAfterMs: v })} />
+  </>
+);
 
 export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { kf: Keyframe; track: FlowTrack; durationMs: number; onChange: (k: Keyframe) => void; onDelete: () => void }) {
   const s = useStyles();
@@ -48,6 +58,7 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
     <View style={s.wrap}>
       {isStart ? <Hint>What the light shows when the flow starts: power, intensity and the light are always set, so a flow never starts from whatever the light showed before.</Hint>
         : <At kf={kf} durationMs={durationMs} onChange={(at) => set({ at })} />}
+      <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
       <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))}>
         <Seg accessibilityLabel="Power" value={kf.power ? "on" : "off"} onChange={(v) => set({ power: v === "on" })} options={[{ id: "off", label: "Off" }, { id: "on", label: "On" }]} block />
       </Channel>
@@ -106,6 +117,7 @@ export function CameraKeyframe({ kf, durationMs, onChange, onDelete }: { kf: Key
     <View style={s.wrap}>
       {isStart ? <Hint>What the camera does when the flow starts: it stops recording, so a flow never starts in the middle of a take.</Hint>
         : <At kf={kf} durationMs={durationMs} onChange={(at) => onChange({ ...kf, at })} />}
+      <Margins kf={kf} durationMs={durationMs} onChange={onChange} />
       {FLOW_CAMERA_CONTROLS.map((c) => {
         const on = controls[c.id] !== undefined, v = controls[c.id];
         return (

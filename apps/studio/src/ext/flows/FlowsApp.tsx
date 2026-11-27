@@ -10,7 +10,7 @@ import {
   cx, useDockLayout, type DockPanel,
 } from "@openclapper/design";
 import { CATALOGUE, fixtureKind, modelOf, type HardwareBody } from "@openclapper/ext-hardware";
-import { FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, sampleTrack, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
+import { addKeyframe as addKeyframeTo, FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, moveKeyframes, setKeyframe, setMargin, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
 import * as api from "../../api";
 import type { FileRec } from "../../api";
 import type { AppProps } from "../../apps/registry";
@@ -199,13 +199,12 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     });
   };
   const addKeyframe = (trackId: string, at: number) => {
-    const tr = latest.current.tracks.find((t) => t.id === trackId);
-    if (!tr || tr.keyframes.some((k) => k.at === at)) return;
-    const camera = modelOf(tr.model)?.type === "camera";
-    const k: Keyframe = camera ? { id: newId(), at, controls: {} } : { id: newId(), at, intensity: sampleTrack(tr.keyframes, at).intensity ?? 0.5 };
-    patchTrack(trackId, (t) => ({ ...t, keyframes: [...t.keyframes, k] }));
+    // The shared rule: snapped, never on another's time, pushing a neighbour whose margin it lands in.
+    const { body: next, keyframe: k } = addKeyframeTo(latest.current, trackId, at, newId());
+    if (!k) return;
+    change(() => next);
     select([keyOf(trackId, k.id)]);
-    if (!playing) setPlayhead(at);
+    if (!playing) setPlayhead(k.at);
   };
   const addMarker = (at: number, end?: number, trackId?: string) => {
     if (readonly) return;
@@ -279,7 +278,8 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const tileKf = tile && tileTrack ? tileTrack.keyframes.find((k) => k.id === tile.toId) ?? null : null;
   const pickedTrack = trackPick ? body.tracks.find((t) => t.id === trackPick) : undefined;
   const marker = selMarker ? body.markers?.find((m) => m.id === selMarker) : undefined;
-  const setKf = (tr: FlowTrack, k: Keyframe) => (next: Keyframe) => patchTrack(tr.id, (t) => ({ ...t, keyframes: t.keyframes.map((x) => (x.id === k.id ? next : x)) }));
+  // Through the shared rule, so a new time or margin pushes the neighbours as a drag does (#426).
+  const setKf = (tr: FlowTrack, _k: Keyframe) => (next: Keyframe) => change((b) => setKeyframe(b, tr.id, next));
   const chosen = readonly && (selKf || tileKf || marker || pickedTrack)
     ? <div className="fl-inspect"><p className="fl-note">{runsThis ? "Running on the device: locked until it stops." : "Read-only: Edit to change it."}</p></div>
     : selKf && selTrack ? (modelOf(selTrack.model)?.type === "camera"
@@ -300,11 +300,18 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
       playhead={runsThis ? runAt : playhead} playing={playing || runsThis} locked={readonly} sel={sel} tile={tile}
       onSeek={(t) => { if (!playing && !runsThis) setPlayhead(t); }} onAdd={addKeyframe}
       onSelect={(keys, add) => select(keys, add)} onToggle={(key) => { const n = new Set(sel); if (n.has(key)) n.delete(key); else n.add(key); setTile(null); setSel(n); }}
-      onMoveAll={(moves) => change((b) => ({
-        ...b,
-        markers: (b.markers ?? []).map((m) => { const at = moves.get(markKey(m.id)); return at === undefined ? m : { ...m, at, ...(m.end !== undefined ? { end: m.end + at - m.at } : {}) }; }),
-        tracks: b.tracks.map((t) => ({ ...t, keyframes: t.keyframes.map((k) => { const at = moves.get(keyOf(t.id, k.id)); return at === undefined ? k : { ...k, at }; }) })),
-      }))}
+      onMoveAll={(moves, base) => change((b) => {
+        // Keyframes from where the drag began, so a neighbour pushed along comes back when the drag does (#426).
+        const kfs = [...moves].filter(([k]) => !markOf(k)).map(([k, at]) => { const [trackId, id] = splitKey(k); return { trackId, id, at }; });
+        const involved = new Set(kfs.map((m) => m.trackId));
+        const from = { ...b, tracks: b.tracks.map((t) => (involved.has(t.id) ? { ...t, keyframes: base.find((x) => x.id === t.id)?.keyframes ?? t.keyframes } : t)) };
+        return {
+          ...b,
+          markers: (b.markers ?? []).map((m) => { const at = moves.get(markKey(m.id)); return at === undefined ? m : { ...m, at, ...(m.end !== undefined ? { end: m.end + at - m.at } : {}) }; }),
+          tracks: kfs.length ? (moveKeyframes(from, kfs) ?? b).tracks : b.tracks,
+        };
+      })}
+      onMargin={(trackId, id, side, ms, base) => change((b) => setMargin({ ...b, tracks: b.tracks.map((t) => (t.id === trackId ? base.find((x) => x.id === t.id) ?? t : t)) }, trackId, id, side, ms))}
       onLevel={(trackId, kfId, level) => patchTrack(trackId, (t) => ({ ...t, keyframes: t.keyframes.map((k) => (k.id === kfId ? { ...k, intensity: level } : k)) }))}
       onTile={(trackId, toId) => {
         const k = latest.current.tracks.find((t) => t.id === trackId)?.keyframes.find((x) => x.id === toId);

@@ -5,7 +5,7 @@
 import { useRef, useState } from "preact/hooks";
 import { Button, Icon, Popover, Select, cx } from "@openclapper/design";
 import { effectName, fixtureKind, modelOf, type FixtureLive } from "@openclapper/ext-hardware";
-import { fmtSeconds, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type LevelStep } from "@openclapper/ext-flows";
+import { fmtSeconds, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep } from "@openclapper/ext-flows";
 import type { FileRec } from "../../api";
 import { graphPoints, keyframeLevel, lightColour, shortLabel, type FlowView } from "./view";
 
@@ -23,7 +23,11 @@ export interface LanesProps {
   sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
   onSeek: (t: number) => void; onAdd: (trackId: string, at: number) => void;
   onSelect: (keys: string[], add: boolean) => void; onToggle: (key: string) => void;
-  onMoveAll: (moves: Map<string, number>) => void; onLevel: (trackId: string, kfId: string, level: number) => void;
+  /** Keyframes and markers dragged to times; `base`: the tracks as the drag began (pushes are worked out from there). */
+  onMoveAll: (moves: Map<string, number>, base: FlowTrack[]) => void;
+  /** A keyframe's margin dragged (whole seconds; 0 removes it), from the tracks as the drag began. */
+  onMargin: (trackId: string, kfId: string, side: "before" | "after", ms: number, base: FlowTrack[]) => void;
+  onLevel: (trackId: string, kfId: string, level: number) => void;
   onTile: (trackId: string, toId: string) => void; onPickTrack: (trackId: string) => void;
   onTrack: (trackId: string, fn: (t: FlowTrack) => FlowTrack) => void; onRemoveTrack: (trackId: string) => void; onMoveTrack: (trackId: string, before: string | null) => void;
   onHeight: (trackId: string, h: number) => void;
@@ -58,7 +62,7 @@ export function Lanes(p: LanesProps) {
   // A press on empty lane space: a click adds a keyframe (Insert, or Alt), else clears; a drag draws a selection box.
   const pressLanes = (e: PointerEvent) => {
     const target = e.target as HTMLElement;
-    if (e.button !== 0 || p.locked || target.closest(".fl-kf, .fl-gap, .fl-label, .fl-ruler, .fl-mark, button, input, select")) return;
+    if (e.button !== 0 || p.locked || target.closest(".fl-kf, .fl-trim, .fl-gap, .fl-label, .fl-ruler, .fl-mark, button, input, select")) return;
     const x0 = e.clientX, y0 = e.clientY, add = e.shiftKey, insert = p.mode === "insert" || e.altKey;
     const lane = target.closest<HTMLElement>(".fl-lane");
     let moved = false;
@@ -101,14 +105,14 @@ export function Lanes(p: LanesProps) {
     // Where the intensity starts: the snap goes from there (the View's intensity snap, #426).
     const pkf = ptrack?.keyframes.find((x) => x.id === pkid);
     const plevel = graphLane && ptrack && pkf ? keyframeLevel([...ptrack.keyframes].sort((a, b) => a.at - b.at), pkf) : null;
-    const x0 = e.clientX, y0 = e.clientY, perPx = msPerPx();
+    const x0 = e.clientX, y0 = e.clientY, perPx = msPerPx(), base = flow.tracks;
     const dMin = origin.size ? Math.max(...[...origin.values()].map((o) => o.min - o.at)) : 0, dMax = origin.size ? Math.min(...[...origin.values()].map((o) => flow.durationMs - o.reach)) : 0;
     let moved = false;
     gesture((ev) => {
       if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
       moved = true;
       // Each lands on a whole second (one kept from before whole seconds snaps once moved), within the flow.
-      if (origin.size) { const d = Math.min(dMax, Math.max(dMin, (ev.clientX - x0) * perPx)); p.onMoveAll(new Map([...origin].map(([k, o]) => [k, Math.min(flow.durationMs - (o.reach - o.at), Math.max(o.min, snap(o.at + d)))]))); }
+      if (origin.size) { const d = Math.min(dMax, Math.max(dMin, (ev.clientX - x0) * perPx)); p.onMoveAll(new Map([...origin].map(([k, o]) => [k, Math.min(flow.durationMs - (o.reach - o.at), Math.max(o.min, snap(o.at + d)))])), base); }
       if (graphLane && plevel !== null) {
         const r = graphLane.querySelector<SVGElement>(".fl-graph")?.getBoundingClientRect() ?? graphLane.getBoundingClientRect();
         p.onLevel(ptid, pkid, snapLevel(plevel, 1 - (ev.clientY - r.top) / r.height, p.levelStep));
@@ -210,6 +214,15 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
     const y0 = e.clientY, h0 = height;
     p.gesture((ev) => p.onHeight(tr.id, Math.round(Math.min(320, Math.max(40, h0 + ev.clientY - y0)))));
   };
+  // Trim handles (#426): in Select mode, on the keyframe pointed at or the one chosen, at the edges of its margins.
+  const [hover, setHover] = useState<string | null>(null);
+  const trims = (key: string) => p.mode === "select" && !p.locked && (hover === key || (p.sel.size === 1 && p.sel.has(key)));
+  const trim = (e: PointerEvent, k: Keyframe, side: "before" | "after") => {
+    e.stopPropagation();
+    if (e.button !== 0 || p.locked) return;
+    const base = flow.tracks;
+    p.gesture((ev) => { const t = p.timeAt(ev.clientX); p.onMargin(tr.id, k.id, side, Math.max(0, side === "before" ? k.at - t : t - k.at), base); });
+  };
 
   return (
     <div className={cx("fl-row", drag === "from" && "is-dragged")} data-row={tr.id} style={{ minHeight: `${height}px`, ...(tr.color !== undefined ? { "--track-c": `var(--cat-${tr.color + 1})` } : {}) }}>
@@ -239,9 +252,14 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
         </div>
         <span className="fl-resize" onPointerDown={resize} title="Drag to make this track taller or lower" />
       </div>
-      <div className={cx("fl-lane", !tr.device && "is-unassigned", tr.muted && "is-muted")} data-track={tr.id}>
+      <div className={cx("fl-lane", !tr.device && "is-unassigned", tr.muted && "is-muted")} data-track={tr.id} onPointerLeave={() => setHover(null)}>
         {global.map((m) => <span key={m.id} className={m.end !== undefined ? "fl-mband" : "fl-mline"} style={{ left: pct(m.at), ...(m.end !== undefined ? { width: pct(m.end - m.at) } : {}) }} />)}
         <MarkStrip {...p} markers={(flow.markers ?? []).filter((m) => m.trackId === tr.id)} trackId={tr.id} pct={pct} timeAt={p.timeAt} gesture={p.gesture} pressKf={p.pressKf} />
+        {/* Margins (#426): a band before and after a keyframe that has one; a neighbour inside it is pushed. */}
+        {ks.flatMap((k) => [
+          k.marginBeforeMs ? <span key={`mb-${k.id}`} className={cx("fl-margin", p.sel.has(keyOf(tr.id, k.id)) && "is-selected")} style={{ left: pct(Math.max(0, k.at - k.marginBeforeMs)), width: pct(Math.min(k.at, k.marginBeforeMs)) }} /> : null,
+          k.marginAfterMs ? <span key={`ma-${k.id}`} className={cx("fl-margin", p.sel.has(keyOf(tr.id, k.id)) && "is-selected")} style={{ left: pct(k.at), width: pct(Math.min(flow.durationMs - k.at, k.marginAfterMs)) }} /> : null,
+        ])}
         {p.view.graph && !camera && (
           <svg className="fl-graph" viewBox={`0 0 ${flow.durationMs} 1`} preserveAspectRatio="none" aria-hidden="true">
             <polyline points={graphPoints(tr.keyframes, flow.durationMs)} vector-effect="non-scaling-stroke" />
@@ -267,7 +285,14 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
             <button key={k.id} type="button" data-key={key}
               className={cx("fl-kf", k.id === START_KEYFRAME && "is-start", p.sel.has(key) && "is-selected", camera && "is-camera", camera && k.controls?.record === true && "is-rec", k.hue !== undefined && "is-colour", k.effect?.id && "is-effect", fill && "has-fill", p.view.badges && k.power === false && "is-off")}
               style={{ left: pct(k.at), ...(top ? { top } : {}), ...(fill ? { "--kf-fill": fill } : {}) }} title={`${k.id === START_KEYFRAME ? "Start · " : ""}${fmtSeconds(k.at)} · ${shortLabel(tr.model, k) || "sets nothing"}`}
-              onPointerDown={(e) => p.pressKf(e, key)} />,
+              onPointerDown={(e) => p.pressKf(e, key)} onPointerEnter={() => setHover(key)} />,
+            ...(trims(key) ? (["before", "after"] as const).filter((side) => side === "after" || k.id !== START_KEYFRAME).map((side) => {
+              const ms = (side === "before" ? k.marginBeforeMs : k.marginAfterMs) ?? 0;
+              return (
+                <span key={`t-${side}-${k.id}`} className={cx("fl-trim", `is-${side}`, ms === 0 && "is-zero")} style={{ left: pct(side === "before" ? Math.max(0, k.at - ms) : Math.min(flow.durationMs, k.at + ms)), ...(top ? { top } : {}) }}
+                  title={`Margin ${side}: ${fmtSeconds(ms)} (drag; to 0 removes it)`} onPointerDown={(e) => trim(e, k, side)} onPointerEnter={() => setHover(key)} />
+              );
+            }) : []),
             label ? <span key={`l-${k.id}`} className="fl-kf-label" style={{ left: pct(k.at), ...(top ? { top } : {}) }}>{label}</span> : null,
             p.view.badges && k.effect?.id ? <span key={`b-${k.id}`} className="fl-kf-badge" style={{ left: pct(k.at), ...(top ? { top } : {}) }}>{effectName(k.effect.id)}</span> : null,
           ];

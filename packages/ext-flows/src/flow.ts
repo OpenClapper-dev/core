@@ -39,6 +39,12 @@ export interface Keyframe {
   curve?: Curve;
   /** On a camera track: catalogue controls set from here on (record, ISO…), by control id; they jump, never fade. */
   controls?: Record<string, Value>;
+  /**
+   * Margins (#426), whole seconds in ms: the least distance to the keyframe before / after on the track. Moving a
+   * keyframe pushes a neighbour that would come inside one (edit.ts, moveKeyframes). The start keyframe has none before.
+   */
+  marginBeforeMs?: number;
+  marginAfterMs?: number;
 }
 
 export interface FlowTrack {
@@ -313,6 +319,12 @@ export function parseFlowTracks(v: unknown, durationMs: number, isKind: (id: str
         out[f] = k[f] as number;
       }
       if (k.curve != null) { if (!CURVE_IDS.includes(k.curve as string)) return { error: `${at}.curve is not a curve` }; out.curve = k.curve as Curve; }
+      for (const f of ["marginBeforeMs", "marginAfterMs"] as const) {
+        if (k[f] == null) continue;
+        if (!isNum(k[f], 0, durationMs) || (k[f] as number) % 1000 !== 0) return { error: `${at}.${f} must be whole seconds within the sequence` };
+        if (f === "marginBeforeMs" && k.id === START_KEYFRAME && k[f] !== 0) return { error: `${at}: the start keyframe has no margin before` };
+        if (k[f] !== 0) out[f] = k[f] as number;
+      }
       if (k.controls != null) {
         if (!camera || typeof k.controls !== "object" || Array.isArray(k.controls)) return { error: `${at}.controls belong to a camera track` };
         const controls: Record<string, Value> = {};

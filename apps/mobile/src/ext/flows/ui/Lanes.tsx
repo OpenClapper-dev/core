@@ -118,6 +118,15 @@ function Lane({ t, x, at, width, h, dot, view, levelStep, axisLock, duration, in
   const line = graph ? graphLine(kfs, duration).map(([time, y]) => `${x(time).toFixed(1)},${(pad(dot) + y * room).toFixed(1)}`).join(" ") : "";
   return (
     <Pressable style={[s.lane, { height: h, backgroundColor: c.surfaceSunken }, t.muted && { opacity: 0.4 }]} onPress={(e) => { if (insert) onAdd(at(e.nativeEvent.locationX)); else onPick(null); }}>
+      {/* Margins (#426): a band before and after a keyframe that has one, stronger on the chosen keyframe. */}
+      {kfs.flatMap((k) => {
+        const on = pick?.kind === "kf" && pick.track === t.id && pick.id === k.id;
+        const band = (key: string, from: number, to: number) => <View key={key} pointerEvents="none" style={[s.margin, { left: x(from), width: Math.max(0, x(to) - x(from)), borderColor: col }, on ? { backgroundColor: col, opacity: 0.3 } : { backgroundColor: col, opacity: 0.12 }]} />;
+        return [
+          k.marginBeforeMs ? band(`mb${k.id}`, Math.max(0, k.at - k.marginBeforeMs), k.at) : null,
+          k.marginAfterMs ? band(`ma${k.id}`, k.at, Math.min(duration, k.at + k.marginAfterMs)) : null,
+        ];
+      })}
       {graph && <Svg pointerEvents="none" width={width} height={h} style={{ position: "absolute", left: 0, top: 0 }}><Polyline points={line} fill="none" stroke={col} strokeWidth={2} /></Svg>}
       {kfs.map((k, i) => {
         if (i === 0 || camera) return null;
@@ -200,6 +209,7 @@ const useStyles = makeStyles((c) => ({
   markerOn: { backgroundColor: c.accent },
   markerText: { ...type("caption", "semibold"), color: c.text },
   lane: { borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
+  margin: { position: "absolute", top: 0, bottom: 0, borderLeftWidth: 1, borderRightWidth: 1, borderStyle: "dashed" },
   gap: { position: "absolute", height: GAP_H, borderRadius: GAP_H / 2, borderWidth: 1, borderStyle: "dashed" },
   gapOn: { borderWidth: 2, borderStyle: "solid", borderColor: c.text },
   dot: { position: "absolute", borderWidth: 3 },
