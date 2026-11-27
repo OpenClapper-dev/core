@@ -403,31 +403,6 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         <Segmented label="Click on a lane" value={mode} onChange={(v: string) => setMode(v as "select" | "insert")} options={[{ value: "select", icon: "cursor", title: "Select (V): clicks select, never add" }, { value: "insert", icon: "plus", title: "Insert (I): a click on a lane adds a keyframe; Alt+click adds in Select too" }]} />
         <Button size="sm" variant="quiet" icon="undo" label="Undo (Mod+Z): tracks and stage" disabled={readonly || !past.current.length} onClick={() => undo()} />
         <Button size="sm" variant="quiet" icon="redo" label="Redo (Mod+Shift+Z)" disabled={readonly || !future.current.length} onClick={() => redo()} />
-        <Popover trigger={<Button size="sm" variant="quiet" icon="eye" iconAfter="chevron-down">View</Button>}>
-          <div className="fl-menu">
-            {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Switch key={k} checked={view[k]} onChange={(on: boolean) => setView({ ...view, [k]: on })}>{VIEW_LABELS[k]}</Switch>)}
-            <label className="hw-ctl"><small>Keyframes</small><Segmented label="Keyframe size" value={kfSize} onChange={(v: string) => setKfSize(v as "s" | "m" | "l")} options={[{ value: "s", label: "S" }, { value: "m", label: "M" }, { value: "l", label: "L" }]} /></label>
-          </div>
-        </Popover>
-        {/* What the account shows (#426): a light model's parameters, a keyframe panel's fields; kept with the account. */}
-        <Popover trigger={<Button size="sm" variant="quiet" icon="sliders" iconAfter="chevron-down">Customize</Button>}>
-          <Customize models={[...new Set(body.tracks.map((t) => t.model))]} />
-        </Popover>
-        {/* Size (#426): two grouped boxes in the bar, each a slider and its Fit. */}
-        <div className="fl-size" role="group" aria-label="Timeline width">
-          <label className="hw-ctl hw-ctl--range"><small>Width<b>{zoom === 1 ? "fit" : `${zoom.toFixed(1)}×`}</b></small><Slider value={zoom} min={ZOOM_MIN} max={ZOOM_MAX} step={0.25} onChange={(v: number) => setZoom(v)} aria-label="Timeline width" /></label>
-          <Button size="sm" variant="quiet" disabled={zoom === 1} onClick={() => setZoom(1)}>Fit width</Button>
-        </div>
-        <div className="fl-size" role="group" aria-label="Track height">
-          <label className="hw-ctl hw-ctl--range"><small>Height<b>{trackHeight} px</b></small><Slider value={trackHeight} min={40} max={240} step={4} onChange={(v: number) => { setHeights({}); setTrackHeight(v); }} aria-label="Track height" /></label>
-          <Button size="sm" variant="quiet" onClick={fitHeight}>Fit height</Button>
-        </div>
-        {/* The intensity snap of a drag, in the bar where it is seen (#426; it was in View, where nobody found it). */}
-        <div className="fl-size" role="group" aria-label="Intensity snap while dragging" title="An intensity drag stops on this grid">
-          <small className="fl-size__label">Snap</small>
-          <Segmented label="Intensity snap while dragging" value={String(levelStep)} onChange={(v: string) => setLevelStep(Number(v) as LevelStep)} options={LEVEL_STEPS.map((n) => ({ value: String(n), label: `${n} %` }))} />
-        </div>
-        <Button size="sm" variant={stageLayout.on ? "secondary" : "quiet"} selected={stageLayout.on} icon="frame" title="Show the flow's stage above the tracks" onClick={() => setStageLayout({ ...stageLayout, on: !stageLayout.on })}>Stage</Button>
         <Switch checked={live} onChange={setLive}>Live</Switch>
         <ToolbarSpacer />
         <span className="fl-time">{fmtClock(runsThis ? runAt : playhead)} / {fmtSeconds(flow.durationMs)}</span>
@@ -458,6 +433,40 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     </div>
   );
 
+  // How the tracks are shown (#426): a dock panel of its own, so it can stand at a side (stacked) or below (in a row)
+  // instead of taking the width of the bar; the bar keeps only editing and playing.
+  const viewPanel = (
+    <div className="fl-view">
+      <div className="fl-view__row">
+        <Popover trigger={<Button size="sm" variant="quiet" icon="eye" iconAfter="chevron-down">View</Button>}>
+          <div className="fl-menu">
+            {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Switch key={k} checked={view[k]} onChange={(on: boolean) => setView({ ...view, [k]: on })}>{VIEW_LABELS[k]}</Switch>)}
+            <label className="hw-ctl"><small>Keyframes</small><Segmented label="Keyframe size" value={kfSize} onChange={(v: string) => setKfSize(v as "s" | "m" | "l")} options={[{ value: "s", label: "S" }, { value: "m", label: "M" }, { value: "l", label: "L" }]} /></label>
+          </div>
+        </Popover>
+        {/* What the account shows (#426): a light model's parameters, a keyframe panel's fields; kept with the account. */}
+        <Popover trigger={<Button size="sm" variant="quiet" icon="sliders" iconAfter="chevron-down">Customize</Button>}>
+          <Customize models={[...new Set(body.tracks.map((t) => t.model))]} />
+        </Popover>
+        <Button size="sm" variant={stageLayout.on ? "secondary" : "quiet"} selected={stageLayout.on} icon="frame" title="Show the flow's stage above the tracks" onClick={() => setStageLayout({ ...stageLayout, on: !stageLayout.on })}>Stage</Button>
+      </div>
+      {/* Size (#426): two grouped boxes, each a slider and its Fit. */}
+      <div className="fl-size" role="group" aria-label="Timeline width">
+        <label className="hw-ctl hw-ctl--range"><small>Width<b>{zoom === 1 ? "fit" : `${zoom.toFixed(1)}×`}</b></small><Slider value={zoom} min={ZOOM_MIN} max={ZOOM_MAX} step={0.25} onChange={(v: number) => setZoom(v)} aria-label="Timeline width" /></label>
+        <Button size="sm" variant="quiet" disabled={zoom === 1} onClick={() => setZoom(1)}>Fit width</Button>
+      </div>
+      <div className="fl-size" role="group" aria-label="Track height">
+        <label className="hw-ctl hw-ctl--range"><small>Height<b>{trackHeight} px</b></small><Slider value={trackHeight} min={40} max={240} step={4} onChange={(v: number) => { setHeights({}); setTrackHeight(v); }} aria-label="Track height" /></label>
+        <Button size="sm" variant="quiet" onClick={fitHeight}>Fit height</Button>
+      </div>
+      {/* The intensity snap of a drag, where it is seen (#426; it was in the View popover, where nobody found it). */}
+      <div className="fl-size" role="group" aria-label="Intensity snap while dragging" title="An intensity drag stops on this grid">
+        <small className="fl-size__label">Snap</small>
+        <Segmented label="Intensity snap while dragging" value={String(levelStep)} onChange={(v: string) => setLevelStep(Number(v) as LevelStep)} options={LEVEL_STEPS.map((n) => ({ value: String(n), label: `${n} %` }))} />
+      </div>
+    </div>
+  );
+
   const props = (
     <div className="fl-props">
       <label className="hw-ctl"><small>Name</small><TextInput size="sm" value={f.name} disabled={readonly} maxLength={120} onChange={(e) => { const n = e.currentTarget.value.trim(); if (n && n !== f.name) void store.rename(f, n).catch(toastError); }} /></label>
@@ -471,14 +480,20 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     </div>
   );
 
-  const [panels, setPanels] = useDockLayout("flows", { left: { tabs: ["flows"] }, right: { dir: "col", kids: [{ tabs: ["place"] }, { tabs: ["chosen"] }] } });
-  // A layout kept from before the stage has no "Place a light": it goes above Chosen once.
-  useEffect(() => { if (!JSON.stringify(panels).includes('"place"')) setPanels(dockMove(panels, "place", { panel: "chosen", side: "top" })); }, []);
+  const [panels, setPanels] = useDockLayout("flows", { left: { tabs: ["flows"] }, right: { dir: "col", kids: [{ tabs: ["view"] }, { tabs: ["place"] }, { tabs: ["chosen"] }] } });
+  // Layouts kept from before: "Place a light" goes above Chosen, the View panel above that, once each.
+  useEffect(() => {
+    let l = panels;
+    if (!JSON.stringify(l).includes('"place"')) l = dockMove(l, "place", { panel: "chosen", side: "top" });
+    if (!JSON.stringify(l).includes('"view"')) l = dockMove(l, "view", { panel: "place", side: "top" });
+    if (l !== panels) setPanels(l);
+  }, []);
   // What is chosen on the stage shows its panel.
   useEffect(() => { if (stageSel) setPanels(dockShow(panels, "chosen", false)); }, [stageSel?.kind, stageSel && (stageSel.kind === "light" ? stageSel.track : stageSel.id)]);
   const lightsPlaced = (body.stage?.lights ?? []).length;
   const dock: DockPanel[] = [
     { id: "flows", title: "Flows", icon: "timeline", actions: onNew ? <Button size="sm" variant="quiet" icon="plus" onClick={onNew}>New flow</Button> : undefined, body: <>{list}{props}</> },
+    { id: "view", title: "View", icon: "eye", fit: true, body: viewPanel },
     { id: "place", title: "Place a light", icon: "light-fixture", actions: <small className="fl-st__count">{lightsPlaced} placed</small>, body: <PlacePalette flow={flow} editing={!readonly} onPlace={place} onLocate={locate} /> },
     { id: "chosen", title: "Chosen", icon: "cursor", body: chosen },
   ];
