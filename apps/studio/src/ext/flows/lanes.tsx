@@ -5,13 +5,10 @@
 import { useRef, useState } from "preact/hooks";
 import { Button, Icon, Popover, Select, cx } from "@openclapper/design";
 import { effectName, fixtureKind, modelOf, type FixtureLive } from "@openclapper/ext-hardware";
-import { sampleTrack, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack } from "@openclapper/ext-flows";
+import { fmtSeconds, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type LevelStep } from "@openclapper/ext-flows";
 import type { FileRec } from "../../api";
 import { graphPoints, keyframeLevel, lightColour, shortLabel, type FlowView } from "./view";
 
-export const SNAP_MS = 100;
-export const snap = (ms: number) => Math.round(ms / SNAP_MS) * SNAP_MS;
-export const fmt = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 export const CURVE_LABELS = { linear: "Linear", exp: "Expo", log: "Log", s: "S-curve" } as const;
 
 /** A selected keyframe ("track/keyframe") or marker ("@m/id"): they share the selection. */
@@ -21,7 +18,7 @@ export const markKey = (id: string) => `@m/${id}`;
 export const markOf = (k: string) => (k.startsWith("@m/") ? k.slice(3) : null);
 
 export interface LanesProps {
-  flow: Flow; /** The time axis stretched this many times the window's width (1: fits). */ zoom: number; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; view: FlowView; trackHeight: number; heights: Record<string, number>;
+  flow: Flow; /** The time axis stretched this many times the window's width (1: fits). */ zoom: number; mode: "select" | "insert"; kfSize: "s" | "m" | "l"; view: FlowView; /** Intensity drags snap to this many percent. */ levelStep: LevelStep; trackHeight: number; heights: Record<string, number>;
   devices: FileRec[]; liveOf: (id: string) => FixtureLive | undefined; playhead: number; playing: boolean; locked: boolean;
   sel: ReadonlySet<string>; tile: { trackId: string; toId: string } | null;
   onSeek: (t: number) => void; onAdd: (trackId: string, at: number) => void;
@@ -101,16 +98,20 @@ export function Lanes(p: LanesProps) {
     const [ptid, pkid] = picked ? ["", ""] : splitKey(key);
     const ptrack = flow.tracks.find((t) => t.id === ptid);
     const graphLane = p.view.graph && ptrack && modelOf(ptrack.model)?.type === "light" ? (e.currentTarget as HTMLElement).closest<HTMLElement>(".fl-lane") : null;
+    // Where the intensity starts: the snap goes from there (the View's intensity snap, #426).
+    const pkf = ptrack?.keyframes.find((x) => x.id === pkid);
+    const plevel = graphLane && ptrack && pkf ? keyframeLevel([...ptrack.keyframes].sort((a, b) => a.at - b.at), pkf) : null;
     const x0 = e.clientX, y0 = e.clientY, perPx = msPerPx();
     const dMin = origin.size ? Math.max(...[...origin.values()].map((o) => o.min - o.at)) : 0, dMax = origin.size ? Math.min(...[...origin.values()].map((o) => flow.durationMs - o.reach)) : 0;
     let moved = false;
     gesture((ev) => {
       if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
       moved = true;
-      if (origin.size) { const d = Math.min(dMax, Math.max(dMin, snap((ev.clientX - x0) * perPx))); p.onMoveAll(new Map([...origin].map(([k, o]) => [k, o.at + d]))); }
-      if (graphLane) {
+      // Each lands on a whole second (one kept from before whole seconds snaps once moved), within the flow.
+      if (origin.size) { const d = Math.min(dMax, Math.max(dMin, (ev.clientX - x0) * perPx)); p.onMoveAll(new Map([...origin].map(([k, o]) => [k, Math.min(flow.durationMs - (o.reach - o.at), Math.max(o.min, snap(o.at + d)))]))); }
+      if (graphLane && plevel !== null) {
         const r = graphLane.querySelector<SVGElement>(".fl-graph")?.getBoundingClientRect() ?? graphLane.getBoundingClientRect();
-        p.onLevel(ptid, pkid, Math.round(Math.min(1, Math.max(0, 1 - (ev.clientY - r.top) / r.height)) * 100) / 100);
+        p.onLevel(ptid, pkid, snapLevel(plevel, 1 - (ev.clientY - r.top) / r.height, p.levelStep));
       }
     }, () => { if (!moved && picked) p.onMarkerPick(picked); });
   };
@@ -165,7 +166,7 @@ function MarkStrip(p: LanesProps & { markers: FlowMarker[]; trackId?: string; pc
         };
         return (
           <button key={m.id} type="button" data-key={markKey(m.id)} className={cx("fl-mark", m.end !== undefined ? "is-range" : "is-point", p.sel.has(markKey(m.id)) && "is-selected")}
-            style={{ left: p.pct(m.at), ...(m.end !== undefined ? { width: p.pct(m.end - m.at) } : {}) }} title={`${m.name || "Marker"} · ${fmt(m.at)}${m.end !== undefined ? `–${fmt(m.end)}` : ""} (drag to move)`}
+            style={{ left: p.pct(m.at), ...(m.end !== undefined ? { width: p.pct(m.end - m.at) } : {}) }} title={`${m.name || "Marker"} · ${fmtSeconds(m.at)}${m.end !== undefined ? `–${fmtSeconds(m.end)}` : ""} (drag to move)`}
             onPointerDown={(e) => p.pressKf(e, markKey(m.id))}>
             <span>{m.name || "Marker"}</span>
             {m.end !== undefined && <><span className="fl-mark__edge is-in" title="Drag the in point" onPointerDown={(e) => edge(e, "at")} /><span className="fl-mark__edge is-out" title="Drag the out point" onPointerDown={(e) => edge(e, "end")} /></>}
@@ -251,7 +252,7 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
           const on = p.tile?.trackId === tr.id && p.tile.toId === k.id;
           return (
             <button key={`gap-${k.id}`} type="button" className={cx("fl-gap", k.fadeIn && "is-fade", k.fadeIn && kind?.caps.fade && k.fadeStepped && "is-stepped", on && "is-selected")} style={{ left: pct(from.at), width: pct(k.at - from.at) }}
-              title={k.fadeIn ? `Fade ${fmt(from.at)}–${fmt(k.at)} (${CURVE_LABELS[k.fadeIn]})${kind?.caps.fade ? (k.fadeStepped ? ": in steps every 0.1 s" : ": the light runs it by itself") : ""}` : "Jump here; click to fade instead"}
+              title={k.fadeIn ? `Fade ${fmtSeconds(from.at)}–${fmtSeconds(k.at)} (${CURVE_LABELS[k.fadeIn]})${kind?.caps.fade ? (k.fadeStepped ? ": in steps every 0.1 s" : ": the light runs it by itself") : ""}` : "Jump here; click to fade instead"}
               disabled={p.locked} onPointerDown={(e) => e.stopPropagation()} onClick={() => p.onTile(tr.id, k.id)}>
               {k.fadeIn ? <span className="fl-gap__label">{CURVE_LABELS[k.fadeIn]}{kind?.caps.fade && k.fadeStepped ? " · steps" : ""}</span> : <span className="fl-gap__add">+ Fade</span>}
             </button>
@@ -265,7 +266,7 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
           return [
             <button key={k.id} type="button" data-key={key}
               className={cx("fl-kf", k.id === START_KEYFRAME && "is-start", p.sel.has(key) && "is-selected", camera && "is-camera", camera && k.controls?.record === true && "is-rec", k.hue !== undefined && "is-colour", k.effect?.id && "is-effect", fill && "has-fill", p.view.badges && k.power === false && "is-off")}
-              style={{ left: pct(k.at), ...(top ? { top } : {}), ...(fill ? { "--kf-fill": fill } : {}) }} title={`${k.id === START_KEYFRAME ? "Start · " : ""}${fmt(k.at)} · ${shortLabel(tr.model, k) || "sets nothing"}`}
+              style={{ left: pct(k.at), ...(top ? { top } : {}), ...(fill ? { "--kf-fill": fill } : {}) }} title={`${k.id === START_KEYFRAME ? "Start · " : ""}${fmtSeconds(k.at)} · ${shortLabel(tr.model, k) || "sets nothing"}`}
               onPointerDown={(e) => p.pressKf(e, key)} />,
             label ? <span key={`l-${k.id}`} className="fl-kf-label" style={{ left: pct(k.at), ...(top ? { top } : {}) }}>{label}</span> : null,
             p.view.badges && k.effect?.id ? <span key={`b-${k.id}`} className="fl-kf-badge" style={{ left: pct(k.at), ...(top ? { top } : {}) }}>{effectName(k.effect.id)}</span> : null,
