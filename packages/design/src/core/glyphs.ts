@@ -27,6 +27,10 @@ export const GLYPHS = {
   "chevron-right": ["chevron-right", "<path d=\"M9 6l6 6l-6 6\"/>"],
   "arrow-left": ["arrow-left", "<path d=\"M5 12l14 0\"/> <path d=\"M5 12l6 6\"/> <path d=\"M5 12l6 -6\"/>"],
   "arrow-right": ["arrow-right", "<path d=\"M5 12l14 0\"/> <path d=\"M13 18l6 -6\"/> <path d=\"M13 6l6 6\"/>"],
+  // A keyframe drag kept to one axis, and a flow that loops (#426).
+  "arrows-horizontal": ["arrows-horizontal", "<path d=\"M7 8l-4 4l4 4\"/> <path d=\"M17 8l4 4l-4 4\"/> <path d=\"M3 12l18 0\"/>"],
+  "arrows-vertical": ["arrows-vertical", "<path d=\"M8 7l4 -4l4 4\"/> <path d=\"M8 17l4 4l4 -4\"/> <path d=\"M12 3l0 18\"/>"],
+  "repeat": ["repeat", "<path d=\"M4 12v-3a3 3 0 0 1 3 -3h13m-3 -3l3 3l-3 3\"/> <path d=\"M20 12v3a3 3 0 0 1 -3 3h-13m3 3l-3 -3l3 -3\"/>"],
   "arrow-up": ["arrow-up", "<path d=\"M12 5l0 14\"/> <path d=\"M18 11l-6 -6\"/> <path d=\"M6 11l6 -6\"/>"],
   "arrow-down": ["arrow-down", "<path d=\"M12 5l0 14\"/> <path d=\"M18 13l-6 6\"/> <path d=\"M6 13l6 6\"/>"],
   "more": ["dots", "<path d=\"M4 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/> <path d=\"M11 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/> <path d=\"M18 12a1 1 0 1 0 2 0a1 1 0 1 0 -2 0\"/>"],

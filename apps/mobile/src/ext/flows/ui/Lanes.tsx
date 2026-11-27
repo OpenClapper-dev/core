@@ -7,7 +7,8 @@ import { catColor, Icon, makeStyles, num, type, useTheme } from "../../../ui";
 
 /** What is chosen in the lanes: one keyframe, the fade into one, a marker, or a track. */
 /** A keyframe drag held to one axis (#426): "time" keeps its time, "level" its intensity. */
-export type AxisLock = "time" | "level";
+/** A keyframe drag kept to one axis (a pen on set): "time" moves only its time, "level" only its intensity. */
+export type AxisFocus = "time" | "level";
 /** What a tap does (#426): Select chooses and drags, Insert adds, Edit opens what is tapped (no drags). */
 export type Mode = "select" | "insert" | "edit";
 export type Pick = { kind: "kf" | "fade"; track: string; id: string } | { kind: "marker"; id: string } | { kind: "track"; id: string } | null;
@@ -26,8 +27,8 @@ const pad = (dot: number) => dot / 2 + 4;
  * In Insert mode a tap on a lane adds a keyframe and a tap on the strip a marker; keyframes and markers are dragged
  * in Select and Insert, never in Edit, where a tap is for opening what it hits.
  */
-export function Lanes({ body, zoom, mode, playhead, pick, locked, view, kfSize, laneHeight, levelStep, axisLock, onPick, onSeek, onAddKeyframe, onAddMarker, onMoveMarker, onMoveKeyframe, onAddTrack, deviceName }: {
-  body: FlowBody; zoom: number; mode: Mode; playhead: number; pick: Pick; locked: boolean; view: FlowView; kfSize: KeyframeSize; laneHeight: number; /** Intensity drags snap to this many percent. */ levelStep: number; axisLock?: AxisLock;
+export function Lanes({ body, zoom, mode, playhead, pick, locked, view, kfSize, laneHeight, levelStep, axisFocus, onPick, onSeek, onAddKeyframe, onAddMarker, onMoveMarker, onMoveKeyframe, onAddTrack, deviceName }: {
+  body: FlowBody; zoom: number; mode: Mode; playhead: number; pick: Pick; locked: boolean; view: FlowView; kfSize: KeyframeSize; laneHeight: number; /** Intensity drags snap to this many percent. */ levelStep: number; axisFocus?: AxisFocus;
   onPick: (p: Pick) => void; onSeek: (t: number) => void; onAddKeyframe: (track: string, t: number) => void; onAddMarker: (t: number) => void; /** A marker dragged to a time (snapped). */ onMoveMarker: (id: string, t: number) => void;
   /** A keyframe dragged: to a time, and with the graph to a level (0..1; undefined: unchanged). */ onMoveKeyframe: (track: string, kf: Keyframe, t: number, level?: number) => void; onAddTrack: () => void; deviceName: (id: string | null) => string;
 }) {
@@ -68,7 +69,7 @@ export function Lanes({ body, zoom, mode, playhead, pick, locked, view, kfSize, 
               {markers.map((m) => <MarkerChip key={m.id} m={m} x={x} drags={drags} onDrop={(dx) => onMoveMarker(m.id, at(x(m.at) + dx))} on={pick?.kind === "marker" && pick.id === m.id} onPress={() => onPick({ kind: "marker", id: m.id })} />)}
             </Pressable>
             {body.tracks.map((t) => (
-              <Lane key={t.id} t={t} x={x} at={at} width={width} h={laneHeight} dot={DOT_SIZES[kfSize]} view={view} levelStep={levelStep} axisLock={axisLock} duration={body.durationMs} insert={insert} drags={drags} pick={pick} onPick={onPick} onAdd={(time) => onAddKeyframe(t.id, time)} onMove={(kf, time, level) => onMoveKeyframe(t.id, kf, time, level)} />
+              <Lane key={t.id} t={t} x={x} at={at} width={width} h={laneHeight} dot={DOT_SIZES[kfSize]} view={view} levelStep={levelStep} axisFocus={axisFocus} duration={body.durationMs} insert={insert} drags={drags} pick={pick} onPick={onPick} onAdd={(time) => onAddKeyframe(t.id, time)} onMove={(kf, time, level) => onMoveKeyframe(t.id, kf, time, level)} />
             ))}
             <View pointerEvents="none" style={[s.playhead, { left: x(playhead) }]} />
           </View>
@@ -122,8 +123,8 @@ function MarkerChip({ m, x, on, drags, onPress, onDrop }: { m: FlowMarker; x: (t
  * keyframes sit at their level on the line and dragging up or down sets it; light colour fills a dot with what the
  * light shows there; value labels and badges say what a keyframe sets.
  */
-function Lane({ t, x, at, width, h, dot, view, levelStep, axisLock, duration, insert, drags, pick, onPick, onAdd, onMove }: {
-  t: FlowTrack; x: (t: number) => number; at: (px: number) => number; width: number; h: number; dot: number; view: FlowView; levelStep: number; axisLock?: AxisLock; duration: number; insert: boolean; /** Keyframes may be dragged (not in Edit mode, not read-only). */ drags: boolean; pick: Pick;
+function Lane({ t, x, at, width, h, dot, view, levelStep, axisFocus, duration, insert, drags, pick, onPick, onAdd, onMove }: {
+  t: FlowTrack; x: (t: number) => number; at: (px: number) => number; width: number; h: number; dot: number; view: FlowView; levelStep: number; axisFocus?: AxisFocus; duration: number; insert: boolean; /** Keyframes may be dragged (not in Edit mode, not read-only). */ drags: boolean; pick: Pick;
   onPick: (p: Pick) => void; onAdd: (t: number) => void; onMove: (kf: Keyframe, t: number, level?: number) => void;
 }) {
   const s = useStyles();
@@ -164,7 +165,7 @@ function Lane({ t, x, at, width, h, dot, view, levelStep, axisLock, duration, in
         const label = view.labels || camera ? shortLabel(t.model, played.find((x) => x.id === k.id) ?? k, !view.badges) : "";
         return (
           <Dot key={k.id} k={k} left={x(k.at)} top={yOf(level)} size={dot} color={col} fill={fill} camera={camera} graph={graph} room={room} level={level} levelStep={levelStep}
-            fixTime={k.id === START_KEYFRAME || axisLock === "time"} fixLevel={axisLock === "level" || (levelLocked && k.id !== START_KEYFRAME)}
+            fixTime={k.id === START_KEYFRAME || axisFocus === "level"} fixLevel={axisFocus === "time" || (levelLocked && k.id !== START_KEYFRAME)}
             label={label} badge={view.badges && k.effect?.id ? effectName(k.effect.id) : null} off={view.badges && k.power === false}
             on={pick?.kind === "kf" && pick.track === t.id && pick.id === k.id} locked={!drags}
             onPress={() => onPick({ kind: "kf", track: t.id, id: k.id })} onDrop={(dx, dl) => onMove(k, dx === 0 ? k.at : at(x(k.at) + dx), dl === null ? undefined : snapLevel(level, level + dl, levelStep))} />
