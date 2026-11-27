@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Text, View } from "react-native";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, fmtSeconds, MARKER_NAME_MAX, NATIVE_FADES, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe } from "@openclapper/ext-flows";
 import { Button, catColor, Chip, Hint, Input, makeStyles, Seg, Slider, Toggle, type, useTheme } from "../../../ui";
 import type { HardwareDevice } from "../../hardware/library";
 
@@ -34,7 +34,7 @@ const At = ({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; on
   <Slider label="At" value={kf.at} min={SNAP_MS} max={durationMs} step={SNAP_MS} format={fmtSeconds} onChange={(v) => onChange(snap(v))} />
 );
 /**
- * A keyframe's margins (#426), whole seconds: the least distance to the keyframes before and after it on the track; a
+ * A keyframe's margins (#426), half seconds: the least distance to the keyframes before and after it on the track; a
  * neighbour inside one is pushed. 0 removes it; the start keyframe has none before.
  */
 const Margins = ({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; onChange: (k: Keyframe) => void }) => (
@@ -80,10 +80,14 @@ export function LightKeyframe({ kf, track, durationMs, onChange, onDelete }: { k
             <Slider label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} />
             {cct.gm && <Slider label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} />}
           </>}
-          {mode === "colour" && <>
-            <Slider label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
-            <Slider label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
-          </>}
+          {/* The colour the sliders make, live, drawn as the lanes draw it (#426). */}
+          {mode === "colour" && <View style={s.colour}>
+            <View style={s.colourSliders}>
+              <Slider label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
+              <Slider label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
+            </View>
+            <View style={[s.swatch, { backgroundColor: lightColour({ mode: "colour", hue: kf.hue ?? 0, sat: kf.sat ?? 1 }) ?? undefined }]} />
+          </View>}
         </Part>
       )}
       {!!caps?.effects?.length && m && (
@@ -189,4 +193,8 @@ const useStyles = makeStyles((c) => ({
   label: { ...type("label", "semibold"), color: c.text },
   note: { ...type("caption"), color: c.textDim },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  colour: { flexDirection: "row", alignItems: "stretch", gap: 12 },
+  colourSliders: { flex: 1, gap: 8 },
+  // A light's colour is content, like a photo: only its frame is a token.
+  swatch: { width: 80, minHeight: 64, borderRadius: 8, borderWidth: 1, borderColor: c.border },
 }));

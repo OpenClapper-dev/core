@@ -332,7 +332,6 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
           <div className="fl-menu">
             {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Switch key={k} checked={view[k]} onChange={(on: boolean) => setView({ ...view, [k]: on })}>{VIEW_LABELS[k]}</Switch>)}
             <label className="hw-ctl"><small>Keyframes</small><Segmented label="Keyframe size" value={kfSize} onChange={(v: string) => setKfSize(v as "s" | "m" | "l")} options={[{ value: "s", label: "S" }, { value: "m", label: "M" }, { value: "l", label: "L" }]} /></label>
-            <label className="hw-ctl"><small>Intensity snap</small><Segmented label="Intensity snap while dragging" value={String(levelStep)} onChange={(v: string) => setLevelStep(Number(v) as LevelStep)} options={LEVEL_STEPS.map((n) => ({ value: String(n), label: `${n} %` }))} /></label>
           </div>
         </Popover>
         {/* Size (#426): two grouped boxes in the bar, each a slider and its Fit. */}
@@ -343,6 +342,11 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         <div className="fl-size" role="group" aria-label="Track height">
           <label className="hw-ctl hw-ctl--range"><small>Height<b>{trackHeight} px</b></small><Slider value={trackHeight} min={40} max={240} step={4} onChange={(v: number) => { setHeights({}); setTrackHeight(v); }} aria-label="Track height" /></label>
           <Button size="sm" variant="quiet" onClick={fitHeight}>Fit height</Button>
+        </div>
+        {/* The intensity snap of a drag, in the bar where it is seen (#426; it was in View, where nobody found it). */}
+        <div className="fl-size" role="group" aria-label="Intensity snap while dragging" title="An intensity drag stops on this grid">
+          <small className="fl-size__label">Snap</small>
+          <Segmented label="Intensity snap while dragging" value={String(levelStep)} onChange={(v: string) => setLevelStep(Number(v) as LevelStep)} options={LEVEL_STEPS.map((n) => ({ value: String(n), label: `${n} %` }))} />
         </div>
         <Switch checked={live} onChange={setLive}>Live</Switch>
         <ToolbarSpacer />

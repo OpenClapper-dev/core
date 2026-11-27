@@ -25,7 +25,7 @@ export interface LanesProps {
   onSelect: (keys: string[], add: boolean) => void; onToggle: (key: string) => void;
   /** Keyframes and markers dragged to times; `base`: the tracks as the drag began (pushes are worked out from there). */
   onMoveAll: (moves: Map<string, number>, base: FlowTrack[]) => void;
-  /** A keyframe's margin dragged (whole seconds; 0 removes it), from the tracks as the drag began. */
+  /** A keyframe's margin dragged (half seconds; 0 removes it), from the tracks as the drag began. */
   onMargin: (trackId: string, kfId: string, side: "before" | "after", ms: number, base: FlowTrack[]) => void;
   onLevel: (trackId: string, kfId: string, level: number) => void;
   onTile: (trackId: string, toId: string) => void; onPickTrack: (trackId: string) => void;
@@ -111,7 +111,7 @@ export function Lanes(p: LanesProps) {
     gesture((ev) => {
       if (!moved && Math.hypot(ev.clientX - x0, ev.clientY - y0) < 4) return;
       moved = true;
-      // Each lands on a whole second (one kept from before whole seconds snaps once moved), within the flow.
+      // Each lands on the half-second grid (one kept from before snaps once moved), within the flow.
       if (origin.size) { const d = Math.min(dMax, Math.max(dMin, (ev.clientX - x0) * perPx)); p.onMoveAll(new Map([...origin].map(([k, o]) => [k, Math.min(flow.durationMs - (o.reach - o.at), Math.max(o.min, snap(o.at + d)))])), base); }
       if (graphLane && plevel !== null) {
         const r = graphLane.querySelector<SVGElement>(".fl-graph")?.getBoundingClientRect() ?? graphLane.getBoundingClientRect();

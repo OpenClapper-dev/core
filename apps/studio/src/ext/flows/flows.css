@@ -89,6 +89,7 @@
 .fl-menu { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-width: 220px; }
 .fl-size { display: inline-flex; align-items: center; gap: var(--space-3); padding: 2px var(--space-3); border: var(--border-w) solid var(--border-divider); border-radius: var(--radius-control); background: var(--surface-sunken); }
 .fl-size .hw-ctl--range { width: 120px; }
+.fl-size__label { color: var(--text-secondary); font-size: var(--font-size-2xs); }
 .fl-row > :first-child { position: sticky; left: 0; z-index: 3; background: var(--surface); }
 .fl-list { display: grid; }
 .fl-props { display: grid; gap: var(--space-3); padding: var(--space-3) var(--space-5) var(--space-5); border-bottom: var(--border-w) solid var(--border-divider); }
@@ -98,3 +99,7 @@
 .fl-margins { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
 .fl-note { margin: 0; color: var(--text-secondary); font-size: var(--font-size-sm); }
 @media (max-width: 600px) { .fl-row { grid-template-columns: 150px 1fr; } .fl-lanes { padding-inline: var(--space-3); } .fl-label__kind { display: none; } }
+/* A colour keyframe's sliders beside a large swatch of what they make (#426); the light's colour is content, not a token. */
+.fl-colour { display: grid; grid-template-columns: 1fr 72px; gap: var(--space-3); align-items: stretch; }
+.fl-colour__sliders { display: grid; gap: var(--space-3); min-width: 0; }
+.fl-colour__swatch { display: block; min-height: 56px; border-radius: var(--radius-control); border: var(--border-w) solid var(--border-control); }
