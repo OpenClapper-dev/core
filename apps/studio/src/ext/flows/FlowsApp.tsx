@@ -6,16 +6,16 @@ import "../hardware/hardware.css";
 import "./flows.css";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import {
-  Badge, Banner, Button, Dock, EmptyState, Icon, ListRow, List, NumberInput, Popover, Segmented, Select, Slider, Spinner, StatusBar, Switch, TextInput, Toolbar, ToolbarSpacer,
+  Badge, Banner, Button, Dock, DropdownMenu, EmptyState, Icon, ListRow, List, NumberInput, Popover, Segmented, Select, Slider, Spinner, StatusBar, Switch, TextInput, Toolbar, ToolbarSpacer,
   cx, dockMove, dockShow, useDockLayout, type DockPanel,
 } from "@openclapper/design";
 import { CATALOGUE, fixtureKind, modelOf, type HardwareBody } from "@openclapper/ext-hardware";
-import { addKeyframe as addKeyframeTo, emptyStage, setLock, withoutLight, FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, moveKeyframes, setKeyframe, setMargin, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type FlowStage, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
+import { addKeyframe as addKeyframeTo, copyStage, emptyStage, flowBodyOf, nextStageName, setLock, stageOf, STAGES_MAX, STAGE_NAME_MAX, withoutLight, FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, moveKeyframes, setKeyframe, setMargin, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type FlowStage, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
 import * as api from "../../api";
 import type { FileRec } from "../../api";
 import type { AppProps } from "../../apps/registry";
 import * as store from "../../files";
-import { confirm, toast, toastError } from "../../hosts";
+import { confirm, prompt, toast, toastError } from "../../hosts";
 import { bind, useKeys } from "../../keys";
 import { useEditLock } from "../../lock";
 import { usePeople } from "../../people";
@@ -25,7 +25,7 @@ import { command as sendCommand, setBusyDevices, useHardware } from "../hardware
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, NothingChosen, SelectionInspect, TrackInspect } from "./inspect";
 import { keyOf, Lanes, markKey, markOf, splitKey } from "./lanes";
 import { requestRun, useRun } from "./run";
-import { useFlowView, useKeyframeSize, useLevelStep, useStageLayout, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
+import { keepShown, useFlowView, useKeyframeSize, useLevelStep, useStageLayout, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
 import { Customize, usePanelHides } from "./customize";
 import { LightInspect, ObjectInspect, PlacePalette, placeLight, StagePane, type StageDrawing, type StagePhoto, type StageSel, type StageTool } from "./stage";
 import { imageUrl } from "../../media";
@@ -33,7 +33,8 @@ import { toEdit, toStore } from "../../canvas/geometry";
 
 const SAVE_AFTER_MS = 400;
 const TRACK_MODELS = CATALOGUE.filter((m) => m.type === "light" || m.type === "camera");
-const bodyOf = (f: FileRec): FlowBody => ({ durationMs: 30_000, loop: false, tracks: [], markers: [], ...(f.body as Partial<FlowBody>) });
+/** The flow as this code reads it, upgraded from the version it was saved at (a stored body is upgraded on its next save). */
+const bodyOf = (f: FileRec): FlowBody => flowBodyOf(f.body, f.body_version);
 
 export function FlowsApp({ projectId, setTitle, setRoute, resource, focused }: AppProps) {
   const { files } = store.useRoot({ project: projectId });
@@ -129,7 +130,20 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const undo = () => { if (readonly) return false; const b = past.current.pop(); if (!b) return false; future.current.push(latest.current); lastStep.current = 0; apply(b); };
   const redo = () => { if (readonly) return false; const b = future.current.pop(); if (!b) return false; past.current.push(latest.current); lastStep.current = 0; apply(b); };
   useEffect(() => { past.current = []; future.current = []; }, [lock.editing]);
-  const changeStage = (fn: (s: FlowStage) => FlowStage) => change((b) => { const s = b.stage ?? emptyStage(), n = fn(s); return n === s ? b : { ...b, stage: n }; });
+  // ---------- The stages (#426): which one is shown is kept per browser, per flow ----------
+  const [stageLayout, setStageLayout] = useStageLayout();
+  // A flow without stages shows an empty first one; the first change made on it (drawn, placed) stores it.
+  const blank = useMemo(() => emptyStage(crypto.randomUUID(), "Stage 1"), [f.id]);
+  const stages = body.stages?.length ? body.stages : [blank];
+  const stage = stageOf(stages, stageLayout.shown?.[f.id])!;
+  const showStageId = (id: string) => setStageLayout({ ...stageLayout, shown: keepShown(stageLayout.shown, f.id, id) });
+  /** A change of the stage shown; on the empty first one, that stage is stored with it. */
+  const changeStage = (fn: (s: FlowStage) => FlowStage) => change((b) => {
+    const list = b.stages?.length ? b.stages : [blank], cur = stageOf(list, stage.id)!, n = fn(cur);
+    return n === cur ? b : { ...b, stages: list.map((s) => (s.id === cur.id ? n : s)) };
+  });
+  /** A change of the list of stages (new, rename, duplicate, delete): one undo step like any other. */
+  const changeStages = (fn: (list: FlowStage[]) => FlowStage[]) => change((b) => ({ ...b, stages: fn(b.stages?.length ? b.stages : [blank]) }));
   const patchTrack = (id: string, fn: (t: FlowTrack) => FlowTrack) => change((b) => ({ ...b, tracks: b.tracks.map((t) => (t.id === id ? fn(t) : t)) }));
   const flow: Flow = { id: f.id, name: f.name, updatedAt: f.updated_at ?? "", ...body };
 
@@ -207,7 +221,6 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const newId = () => crypto.randomUUID();
 
   // ---------- The stage (#426) ----------
-  const [stageLayout, setStageLayout] = useStageLayout();
   const [drawing, setDrawing] = useState<StageDrawing>({ tool: "select", colour: "#ECECEA", stencil: "user" });
   const [stageSel, setStageSel] = useState<StageSel>(null);
   const [flash, setFlash] = useState<string | null>(null);
@@ -218,9 +231,9 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   useEffect(() => { if (sel.size || tile || trackPick) setStageSel(null); }, [sel, tile, trackPick]);
   // What is chosen on the stage must still be there (an undo, someone else's save).
   useEffect(() => {
-    if (stageSel?.kind === "light" && !body.stage?.lights.some((l) => l.track === stageSel.track)) setStageSel(null);
-    if (stageSel?.kind === "obj" && !body.stage?.objects.some((o) => o.id === stageSel.id)) setStageSel(null);
-  }, [body.stage, stageSel]);
+    if (stageSel?.kind === "light" && !stage.lights.some((l) => l.track === stageSel.track)) setStageSel(null);
+    if (stageSel?.kind === "obj" && !stage.objects.some((o) => o.id === stageSel.id)) setStageSel(null);
+  }, [stage, stageSel]);
   const pickOnStage = (s: StageSel) => { if (s) { setSel(new Set()); setTile(null); setTrackPick(null); } setStageSel(s); };
   const pointAt = (track: string) => { setFlash(track); setTimeout(() => setFlash((x) => (x === track ? null : x)), 2300); };
   const showStage = () => { if (!stageLayout.on) setStageLayout({ ...stageLayout, on: true }); };
@@ -248,10 +261,43 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     if (e.button !== 0) return;
     const el = e.currentTarget as HTMLElement, y0 = e.clientY, h0 = stageLayout.h, max = Math.max(160, (stageRef.current?.clientHeight ?? 800) - 180);
     el.setPointerCapture(e.pointerId); el.classList.add("is-drag");
-    el.onpointermove = (ev) => setStageLayout({ on: true, h: Math.round(Math.min(max, Math.max(140, h0 + ev.clientY - y0))) });
+    el.onpointermove = (ev) => setStageLayout({ ...stageLayout, on: true, h: Math.round(Math.min(max, Math.max(140, h0 + ev.clientY - y0))) });
     el.onpointerup = el.onpointercancel = () => { el.onpointermove = null; el.onpointerup = null; el.onpointercancel = null; el.classList.remove("is-drag"); };
   };
-  const removeTrackAll =(id: string) => change((b) => ({ ...b, tracks: b.tracks.filter((t) => t.id !== id), markers: (b.markers ?? []).map((m) => (m.trackId === id ? { id: m.id, at: m.at, name: m.name, ...(m.end !== undefined ? { end: m.end } : {}) } : m)), ...(b.stage ? { stage: withoutLight(b.stage, id) } : {}) }));
+  const removeTrackAll = (id: string) => change((b) => ({ ...b, tracks: b.tracks.filter((t) => t.id !== id), markers: (b.markers ?? []).map((m) => (m.trackId === id ? { id: m.id, at: m.at, name: m.name, ...(m.end !== undefined ? { end: m.end } : {}) } : m)), ...(b.stages ? { stages: b.stages.map((s) => withoutLight(s, id)) } : {}) }));
+
+  // The stage picker and its menu (#426): perspectives on the same tracks; the shown one is this browser's.
+  const pickStage = (id: string) => { setStageSel(null); showStageId(id); };
+  const newStage = () => { const id = newId(); changeStages((l) => [...l, emptyStage(id, nextStageName(l))]); pickStage(id); };
+  const duplicateStage = () => { const id = newId(); changeStages((l) => { const i = l.findIndex((s) => s.id === stage.id); return [...l.slice(0, i + 1), copyStage(l[i] ?? stage, id), ...l.slice(i + 1)]; }); pickStage(id); };
+  const renameStage = async () => {
+    const name = await prompt({ title: "Rename the stage", label: "Name", value: stage.name, confirmLabel: "Rename", check: (v) => (!v.trim() ? "A stage needs a name" : v.trim().length > STAGE_NAME_MAX ? `At most ${STAGE_NAME_MAX} characters` : null) });
+    if (name?.trim() && name.trim() !== stage.name) changeStages((l) => l.map((s) => (s.id === stage.id ? { ...s, name: name.trim() } : s)));
+  };
+  const deleteStage = async () => {
+    const what = [stage.objects.length && `${stage.objects.length} drawn`, stage.lights.length && `${stage.lights.length} lights placed`, stage.underlay && "an underlay"].filter(Boolean).join(", ");
+    if (!(await confirm({ title: `Delete “${stage.name}”?`, message: `${what ? `Its drawing and placements go with it (${what}). ` : ""}The tracks stay. Undo brings it back.`, confirmLabel: "Delete", danger: true }))) return;
+    const i = stages.findIndex((s) => s.id === stage.id), next = stages[i + 1] ?? stages[i - 1];
+    changeStages((l) => l.filter((s) => s.id !== stage.id));
+    if (next) pickStage(next.id); else setStageSel(null);
+  };
+  const full = stages.length >= STAGES_MAX;
+  const stageOps: Record<string, () => void> = { new: newStage, rename: () => void renameStage(), duplicate: duplicateStage, delete: () => void deleteStage() };
+  const stagePicker = (
+    <span className="fl-st__pick">
+      <Icon name="frame" size={15} />
+      {stages.length > 1
+        ? <Select size="sm" aria-label="Stage shown" value={stage.id} options={stages.map((s) => ({ value: s.id, label: s.name }))} onChange={pickStage} />
+        : <b className="fl-st__title">{stage.name}</b>}
+      <DropdownMenu size="sm" variant="quiet" icon="more" onSelect={(id) => stageOps[id]?.()} items={[
+        { id: "new", label: full ? `New stage (at most ${STAGES_MAX})` : "New stage", icon: "plus", disabled: readonly || full },
+        { id: "rename", label: "Rename…", icon: "edit", disabled: readonly },
+        { id: "duplicate", label: "Duplicate", icon: "copy", disabled: readonly || full },
+        { separator: true },
+        { id: "delete", label: "Delete…", icon: "trash", danger: true, disabled: readonly },
+      ]} />
+    </span>
+  );
 
   const addTrack = (modelId: string) => {
     const m = modelOf(modelId);
@@ -349,9 +395,9 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   // Through the shared rule, so a new time or margin pushes the neighbours as a drag does (#426).
   const setKf = (tr: FlowTrack, _k: Keyframe) => (next: Keyframe) => change((b) => setKeyframe(b, tr.id, next));
   const chosen = stageSel?.kind === "light"
-    ? <LightInspect flow={flow} track={stageSel.track} t={runsThis ? runAt : playhead} editing={!readonly} onLight={(fn) => changeStage((s) => ({ ...s, lights: s.lights.map((l) => (l.track === stageSel.track ? fn(l) : l)) }))} onShowTrack={() => showTrack(stageSel.track)} onRemove={() => removeStageSel()} />
+    ? <LightInspect flow={flow} stage={stage} track={stageSel.track} t={runsThis ? runAt : playhead} editing={!readonly} onLight={(fn) => changeStage((s) => ({ ...s, lights: s.lights.map((l) => (l.track === stageSel.track ? fn(l) : l)) }))} onShowTrack={() => showTrack(stageSel.track)} onRemove={() => removeStageSel()} />
     : stageSel?.kind === "obj"
-    ? <ObjectInspect flow={flow} id={stageSel.id} editing={!readonly} onChange={(fn) => changeStage((s) => ({ ...s, objects: s.objects.map((o) => (o.id === stageSel.id ? toStore(fn(toEdit(o))) : o)) }))} onDelete={() => removeStageSel()} />
+    ? <ObjectInspect stage={stage} id={stageSel.id} editing={!readonly} onChange={(fn) => changeStage((s) => ({ ...s, objects: s.objects.map((o) => (o.id === stageSel.id ? toStore(fn(toEdit(o))) : o)) }))} onDelete={() => removeStageSel()} />
     : readonly && (selKf || tileKf || marker || pickedTrack)
     ? <div className="fl-inspect"><p className="fl-note">{runsThis ? "Running on the device: locked until it stops." : "Read-only: Edit to change it."}</p></div>
     : selKf && selTrack ? (modelOf(selTrack.model)?.type === "camera"
@@ -397,7 +443,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
       onHeight={(id, h) => setHeights((x) => ({ ...x, [id]: h }))}
       onMarkerAdd={addMarker} onMarkerPick={(id) => pickMarker(id)} onMarkerResize={(id, edge, at) => patchMarker(id, (m) => ({ ...m, [edge]: at }))} marked={stageSel?.kind === "light" ? stageSel.track : null} />
   );
-  const stage = (
+  const centre = (
     <div className="fl-stage" ref={stageRef}>
       <div className="fl-bar">
         <Segmented label="Click on a lane" value={mode} onChange={(v: string) => setMode(v as "select" | "insert")} options={[{ value: "select", icon: "cursor", title: "Select (V): clicks select, never add" }, { value: "insert", icon: "plus", title: "Insert (I): a click on a lane adds a keyframe; Alt+click adds in Select too" }]} />
@@ -418,7 +464,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
       )}
       {run?.phase === "error" && run.flow === f.id && <div className="fl-run"><Banner tone="danger" title={run.error ?? "Not started on the device"} /></div>}
       {stageLayout.on && <>
-        <StagePane flow={flow} t={runsThis ? runAt : playhead} editing={!readonly} drawing={drawing} onDrawing={setDrawing} sel={stageSel} onSel={pickOnStage}
+        <StagePane flow={flow} stage={stage} picker={stagePicker} t={runsThis ? runAt : playhead} editing={!readonly} drawing={drawing} onDrawing={setDrawing} sel={stageSel} onSel={pickOnStage}
           marked={selTrack?.id ?? tileTrack?.id ?? pickedTrack?.id ?? null} flash={flash} height={stageLayout.h} photos={photos} onChange={changeStage} />
         <div className="fl-split" role="separator" aria-orientation="horizontal" title="Drag: share the room between the stage and the tracks" onPointerDown={splitDrag} />
       </>}
@@ -489,11 +535,11 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   }, []);
   // What is chosen on the stage shows its panel.
   useEffect(() => { if (stageSel) setPanels(dockShow(panels, "chosen", false)); }, [stageSel?.kind, stageSel && (stageSel.kind === "light" ? stageSel.track : stageSel.id)]);
-  const lightsPlaced = (body.stage?.lights ?? []).length;
+  const lightsPlaced = stage.lights.length;
   const dock: DockPanel[] = [
     { id: "flows", title: "Flows", icon: "timeline", actions: onNew ? <Button size="sm" variant="quiet" icon="plus" onClick={onNew}>New flow</Button> : undefined, body: <>{list}{props}</> },
     { id: "view", title: "View", icon: "eye", fit: true, body: viewPanel },
-    { id: "place", title: "Place a light", icon: "light-fixture", actions: <small className="fl-st__count">{lightsPlaced} placed</small>, body: <PlacePalette flow={flow} editing={!readonly} onPlace={place} onLocate={locate} /> },
+    { id: "place", title: "Place a light", icon: "light-fixture", actions: <small className="fl-st__count">{lightsPlaced} placed</small>, body: <PlacePalette flow={flow} stage={stage} editing={!readonly} onPlace={place} onLocate={locate} /> },
     { id: "chosen", title: "Chosen", icon: "cursor", body: chosen },
   ];
   return (
@@ -507,7 +553,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
           ? <Button size="sm" variant="quiet" icon="eye" title="Save, let the flow go and keep watching it: someone else can edit it now" onClick={() => void lock.stop(async () => { await flush(); })}>Stop editing</Button>
           : <span className="tl-viewing"><Icon name="eye" size={14} /><span>{lock.by === "You" ? "Editing in another window of yours" : lock.by ? `${lock.by} is editing` : "Nobody is editing"}</span><Button size="sm" variant="primary" icon="edit" disabled={!!lock.by} onClick={() => void lock.edit()}>Edit</Button></span>}
       </Toolbar>
-      <Dock panels={dock} layout={panels} onLayoutChange={setPanels} zoneSizes={{ left: 280, right: 340, bottom: 280 }}>{stage}</Dock>
+      <Dock panels={dock} layout={panels} onLayoutChange={setPanels} zoneSizes={{ left: 280, right: 340, bottom: 280 }}>{centre}</Dock>
       <StatusBar>{body.tracks.length} tracks · {body.tracks.reduce((n, t) => n + t.keyframes.length, 0)} keyframes · {(body.markers ?? []).length} markers{body.loop ? " · loops" : ""}{playing ? " · playing" : ""} · {!lock.editing ? (lock.live ? "Read-only, live" : "Read-only, read again every 5 s") : status === "saving" ? "Saving…" : status === "waiting" ? "Changed" : status === "failed" ? <strong>Not saved</strong> : "Saved"}</StatusBar>
     </div>
   );

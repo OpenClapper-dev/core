@@ -49,10 +49,10 @@ export const setLock = (b: FlowBody, trackId: string, p: LightParam, on: boolean
   if (!locked.length) delete n.locked;
   return n;
 });
-/** A track removed with what belongs to it: its markers, and its widget on the stage (#426). */
+/** A track removed with what belongs to it: its markers, and its widget on every stage (#426). */
 export const removeTrack = (b: FlowBody, trackId: string): FlowBody => ({
   ...b, tracks: b.tracks.filter((t) => t.id !== trackId), markers: (b.markers ?? []).filter((m) => m.trackId !== trackId),
-  ...(b.stage ? { stage: withoutLight(b.stage, trackId) } : {}),
+  ...(b.stages ? { stages: b.stages.map((s) => withoutLight(s, trackId)) } : {}),
 });
 
 /**

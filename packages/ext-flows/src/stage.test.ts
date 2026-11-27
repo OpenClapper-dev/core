@@ -1,17 +1,18 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { EFFECTS } from "@openclapper/ext-hardware";
-import { emptyFlow, flowError, FLOW, removeTrack, START_KEYFRAME, type FlowBody, type FlowTrack, type Keyframe } from "./index.ts";
-import { beamPath, ceilingShape, EFFECT_FAMILY, effectOpacity, emptyStage, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
+import { checkFile } from "@openclapper/model";
+import { emptyFlow, flowBodyOf, flowError, FLOW, removeTrack, START_KEYFRAME, type FlowBody, type FlowTrack, type Keyframe } from "./index.ts";
+import { beamPath, ceilingShape, copyStage, EFFECT_FAMILY, effectOpacity, emptyStage, nextStageName, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, STAGES_MAX, stageOf, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const lamp: FlowTrack = { id: "t1", name: "Lamp 1", model: "aputure-mc", device: null, keyframes: [kf(0, { power: false, intensity: 0.8, kelvin: 3200, gm: 0 }, START_KEYFRAME), kf(3000, { power: true }), kf(6000, { hue: 0, sat: 1, intensity: 1 }), kf(8000, { effect: { id: "fire" } })] };
 const cam: FlowTrack = { id: "c1", name: "A cam", model: "bmd-pocket-6k", device: null, keyframes: [kf(0, { controls: { record: false } }, START_KEYFRAME)] };
 const line = { id: "o1", kind: "line", name: "Wall", x: 0.1, y: 0.3, w: 0.8, h: 0, pts: [0, 0, 1, 0], stroke: "#8C8C8E", width: 4, opacity: 1, visible: true, locked: false };
-const withStage = (stage: unknown, tracks = [lamp, cam]) => ({ ...emptyFlow(), tracks, stage }) as unknown as Record<string, unknown>;
+const withStage = (stage: unknown, tracks = [lamp, cam]) => ({ ...emptyFlow(), tracks, stages: stage === undefined ? undefined : [stage] }) as unknown as Record<string, unknown>;
 
 test("a stage is part of the flow's body, checked on every save", () => {
-  const ok: FlowStage = { ...emptyStage(), objects: [line as FlowStage["objects"][number]], lights: [{ track: "t1", x: 0.3, y: 0.3, rot: 90 }] };
+  const ok: FlowStage = { ...emptyStage("s1", "Plan"), objects: [line as FlowStage["objects"][number]], lights: [{ track: "t1", x: 0.3, y: 0.3, rot: 90 }] };
   assert.equal(flowError(withStage(ok)), null);
   assert.equal(flowError(withStage(undefined)), null); // a flow without a stage
   assert.match(flowError(withStage({ ...ok, lights: [{ track: "c1", x: 0.5, y: 0.5, rot: 0 }] }))!, /only light tracks/);
@@ -26,12 +27,53 @@ test("a stage is part of the flow's body, checked on every save", () => {
   assert.match(flowError(withStage({ ...ok, underlay: { photo: "x", opacity: 0.6 } }))!, /underlay/);
 });
 
-test("removing a track takes its widget off the stage; a copy's underlay follows the copied photo", () => {
-  const b: FlowBody = { ...emptyFlow(), tracks: [lamp], stage: { ...emptyStage(), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0 }] } };
-  assert.deepEqual(removeTrack(b, "t1").stage!.lights, []);
+test("a flow has up to 12 stages, each with its own id and a name; a track once per stage, on several stages", () => {
+  const on = (id: string, x = 0.5): FlowStage => ({ ...emptyStage(id, `Stage ${id}`), lights: [{ track: "t1", x, y: 0.5, rot: 0 }] });
+  const flow = (stages: unknown) => ({ ...emptyFlow(), tracks: [lamp, cam], stages }) as unknown as Record<string, unknown>;
+  assert.equal(flowError(flow([on("a"), on("b", 0.2)])), null);
+  assert.equal(flowError(flow([])), null);
+  assert.match(flowError(flow([on("a"), on("a")]))!, /stages\[1\]: each stage has its own id/);
+  assert.match(flowError(flow(Array.from({ length: STAGES_MAX + 1 }, (_, i) => on(`s${i}`))))!, /at most 12/);
+  assert.match(flowError(flow([{ ...on("a"), name: " " }]))!, /stages\[0\]: stage.name/);
+  assert.match(flowError(flow([{ ...on("a"), id: "no spaces" }]))!, /stage.id/);
+  assert.match(flowError({ ...flow([]), stage: on("a") })!, /no "stage"/);
+});
+
+test("removing a track takes its widget off every stage; a copy's underlays follow the copied photos", () => {
+  const placed = (id: string): FlowStage => ({ ...emptyStage(id, id), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0 }] });
+  const b: FlowBody = { ...emptyFlow(), tracks: [lamp], stages: [placed("a"), placed("b")] };
+  assert.deepEqual(removeTrack(b, "t1").stages!.map((s) => s.lights), [[], []]);
   const old = "6f1c2c1e-1111-4111-8111-111111111111", neu = "6f1c2c1e-2222-4111-8111-111111111111";
-  const copied = FLOW.remap!({ ...b, stage: { ...b.stage!, underlay: { photo: old, opacity: 1 } } } as unknown as Record<string, unknown>, new Map([[old, neu]]));
-  assert.equal((copied.stage as FlowStage).underlay!.photo, neu);
+  const withPhoto = { ...b, stages: [b.stages![0], { ...b.stages![1], underlay: { photo: old, opacity: 1 } }] };
+  const copied = FLOW.remap!(withPhoto as unknown as Record<string, unknown>, new Map([[old, neu]]));
+  assert.equal((copied.stages as FlowStage[])[1].underlay!.photo, neu);
+  assert.equal((copied.stages as FlowStage[])[0], b.stages![0]);
+});
+
+test("a flow of version 1 (one stage) is upgraded to a list: its stage becomes Stage 1", () => {
+  const old = { aspect: 1.5, objects: [line], lights: [{ track: "t1", x: 0.3, y: 0.3, rot: 90 }] };
+  const v1 = { ...emptyFlow(), tracks: [lamp], stage: old };
+  const got = checkFile(FLOW, v1, 1, null);
+  assert.ok(got.ok);
+  assert.deepEqual(got.body.stages, [{ ...old, id: "s1", name: "Stage 1" }]);
+  assert.equal("stage" in got.body, false);
+  assert.equal(got.version, 2);
+  // Without a stage, nothing is added; a client reading the stored body upgrades it the same way.
+  assert.deepEqual(checkFile(FLOW, { ...emptyFlow() }, 1, null), { ok: true, body: emptyFlow(), version: 2, refs: null });
+  assert.deepEqual(flowBodyOf(v1, 1).stages, got.body.stages);
+  assert.deepEqual(flowBodyOf({ ...emptyFlow(), stages: [] }, 2).stages, []);
+});
+
+test("the stage shown, a new stage's name, a copy", () => {
+  const a = emptyStage("a", "Stage 1"), b = { ...emptyStage("b", "Plan"), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0 }] };
+  assert.equal(stageOf([a, b], "b"), b);
+  assert.equal(stageOf([a, b], "gone"), a);
+  assert.equal(stageOf([], "a"), null);
+  assert.equal(nextStageName([a, b]), "Stage 3");
+  assert.equal(nextStageName([a, { ...b, name: "Stage 3" }]), "Stage 4");
+  const c = copyStage(b, "c");
+  assert.deepEqual(c, { ...b, id: "c", name: "Plan copy" });
+  assert.notEqual(c.lights, b.lights);
 });
 
 test("a widget shows what the track plays: off, on, colour, the effect as a motion", () => {
@@ -73,14 +115,14 @@ test("the beam's shape follows the fixture: the MC soft and wide, the FS narrowe
 });
 
 test("a light hangs aimed (the default) or from the ceiling; nothing else", () => {
-  const at = (mount: unknown) => withStage({ ...emptyStage(), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 90, mount }] });
+  const at = (mount: unknown) => withStage({ ...emptyStage("s1", "Plan"), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 90, mount }] });
   assert.equal(flowError(at("ceiling")), null);
   assert.equal(flowError(at("aimed")), null);
   const hung = setMount({ track: "t1", x: 0.5, y: 0.5, rot: 90 }, "ceiling");
   assert.deepEqual(hung, { track: "t1", x: 0.5, y: 0.5, rot: 90, mount: "ceiling" });
   assert.deepEqual(setMount(hung, "aimed"), { track: "t1", x: 0.5, y: 0.5, rot: 90 }); // the default is no key; the turn kept
   assert.match(flowError(at("wall"))!, /mount is aimed or ceiling/);
-  assert.match(flowError(withStage({ ...emptyStage(), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0, tilt: 3 }] }))!, /is \{ track, x, y, rot, mount\? \}/);
+  assert.match(flowError(withStage({ ...emptyStage("s1", "Plan"), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0, tilt: 3 }] }))!, /is \{ track, x, y, rot, mount\? \}/);
 });
 
 test("a ceiling light: a pool growing with the level, its tag under it (above at the paper's foot), its turn ignored", () => {

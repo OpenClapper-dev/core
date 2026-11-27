@@ -1,6 +1,7 @@
-// A flow's stage (docs/features/flows.md, "The stage"; #426 feedback round 8): a drawing on dark paper, with a widget
-// per placed light track that shows what the track plays at the playhead. Part of the flow's body, not a file of its
-// own. Everything both editors draw comes from here, so the Studio and the phone show the same: what a widget shows
+// A flow's stages (docs/features/flows.md, "The stage"; #426 feedback round 8): drawings on dark paper, each with a
+// widget per light track placed on it that shows what the track plays at the playhead. Several stages are several
+// perspectives on the same tracks (a floor plan, a photo of the set, one light from another side). Part of the
+// flow's body, not files of their own. Everything both editors draw comes from here, so the Studio and the phone show the same: what a widget shows
 // (sampled exactly as the player samples), its shape per fixture model, its beam, and the motion of an effect.
 import { canvasObjectError, type CanvasObject, type ObjKind } from "@openclapper/model";
 import { effectName, modelOf, type EffectId } from "@openclapper/ext-hardware";
@@ -28,11 +29,14 @@ export function setMount(l: StageLight, mount: StageMount): StageLight {
 /** A photo of the project under the drawing, fitted inside the paper, as the canvas's base photo lies under its drawing. */
 export interface StageUnderlay { photo: string; opacity: number }
 export interface FlowStage {
+  /** The stage's own id in the flow (what a client keeps as the stage it shows). */
+  id: string;
+  name: string;
   /** The paper's width over its height. */
   aspect: number;
   /** The drawing: canvas objects (fractions of the paper), of the kinds a stage has. */
   objects: CanvasObject[];
-  /** One widget per placed light track, at most one per track. */
+  /** One widget per placed light track, at most one per track on this stage (a track may stand on several stages). */
   lights: StageLight[];
   underlay?: StageUnderlay | null;
 }
@@ -44,7 +48,10 @@ export const STAGE_POINTS_MAX = 40_000;
 export const STAGE_ASPECT = 16 / 9;
 /** The stage's units: the paper is this wide, as many high as its aspect gives; widgets are sized in them. */
 export const STAGE_W = 1000;
-export const emptyStage = (): FlowStage => ({ aspect: STAGE_ASPECT, objects: [], lights: [] });
+export const STAGES_MAX = 12;
+export const STAGE_NAME_MAX = 60;
+export const emptyStage = (id: string, name: string): FlowStage => ({ id, name, aspect: STAGE_ASPECT, objects: [], lights: [] });
+const STAGE_ID = /^[A-Za-z0-9_-]{1,40}$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -54,7 +61,9 @@ const isLightTrack = (t: Pick<FlowTrack, "model">) => modelOf(t.model)?.type ===
 /** Null when a stage is valid for these tracks: its drawing within limits, each widget on a light track of the flow, once. */
 export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "model">[]): string | null {
   if (!isObj(v)) return "stage is an object";
-  for (const k of Object.keys(v)) if (!["aspect", "objects", "lights", "underlay"].includes(k)) return `a stage has no "${k}"`;
+  for (const k of Object.keys(v)) if (!["id", "name", "aspect", "objects", "lights", "underlay"].includes(k)) return `a stage has no "${k}"`;
+  if (typeof v.id !== "string" || !STAGE_ID.test(v.id)) return "stage.id is 1 to 40 letters, digits, - or _";
+  if (typeof v.name !== "string" || !v.name.trim() || v.name.length > STAGE_NAME_MAX) return `stage.name is 1 to ${STAGE_NAME_MAX} characters`;
   if (!num(v.aspect, 0.25, 4)) return "stage.aspect is between 0.25 and 4";
   if (!Array.isArray(v.objects) || v.objects.length > STAGE_OBJECTS_MAX) return `a stage has at most ${STAGE_OBJECTS_MAX} drawn objects`;
   const ids = new Set<string>(), groups = new Set<string>();
@@ -84,6 +93,42 @@ export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "
   const u = v.underlay;
   if (u != null && (!isObj(u) || Object.keys(u).some((k) => k !== "photo" && k !== "opacity") || typeof u.photo !== "string" || !UUID.test(u.photo) || !num(u.opacity, 0.05, 1))) return "stage.underlay is a photo and an opacity";
   return null;
+}
+
+/** Null when a flow's stages are valid for these tracks: at most STAGES_MAX, each valid, each with its own id. */
+export function stagesError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "model">[]): string | null {
+  if (!Array.isArray(v) || v.length > STAGES_MAX) return `stages is a list of at most ${STAGES_MAX}`;
+  const ids = new Set<string>();
+  for (const [i, s] of v.entries()) {
+    const e = stageError(s, tracks);
+    if (e) return `stages[${i}]: ${e}`;
+    const id = (s as FlowStage).id;
+    if (ids.has(id)) return `stages[${i}]: each stage has its own id`;
+    ids.add(id);
+  }
+  return null;
+}
+
+/** The stage a client shows: the one it kept, else the first; null while the flow has none. */
+export const stageOf = (stages: readonly FlowStage[] | undefined, id: string | null | undefined): FlowStage | null => stages?.find((s) => s.id === id) ?? stages?.[0] ?? null;
+/** A new stage's name: "Stage N", the first N from the count up that is not taken. */
+export function nextStageName(stages: readonly Pick<FlowStage, "name">[]): string {
+  const taken = new Set(stages.map((s) => s.name));
+  let n = stages.length + 1;
+  while (taken.has(`Stage ${n}`)) n++;
+  return `Stage ${n}`;
+}
+/** A copy of a stage (its drawing, underlay and placements) under a new id, named after it. */
+export const copyStage = (s: FlowStage, id: string): FlowStage => ({ ...(JSON.parse(JSON.stringify(s)) as FlowStage), id, name: `${s.name} copy`.slice(0, STAGE_NAME_MAX) });
+
+/**
+ * A body of flow version 1 (one optional `stage`) brought to version 2 (`stages`, #426): the stage becomes the first
+ * of the list, "Stage 1", with a fixed id so every client upgrading the same body shows the same stage.
+ */
+export function stagesFromV1<T extends Record<string, unknown>>(body: T): T {
+  if (!("stage" in body)) return body;
+  const { stage, ...rest } = body;
+  return (stage && typeof stage === "object" ? { ...rest, stages: [{ ...(stage as object), id: "s1", name: "Stage 1" }] } : rest) as unknown as T;
 }
 
 /** A stage without a track's widget (the track removed), the same object when it had none. */

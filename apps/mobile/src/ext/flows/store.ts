@@ -1,5 +1,5 @@
 import { randomUUID } from "expo-crypto";
-import { emptyFlow, flowError, type FlowBody } from "@openclapper/ext-flows";
+import { FLOW, flowBodyOf, flowError, type FlowBody } from "@openclapper/ext-flows";
 import { ApiError, canCall, getFile, isRejection, listFiles, putFile, putLockedFile, type FileRec } from "../../api";
 import { log } from "../../log";
 import { persisted } from "../../store";
@@ -13,8 +13,8 @@ import { toast } from "../../ui";
  * flow changed meanwhile (the Studio edited it), or it is gone, the edit is saved as a copy beside it: nothing made
  * on the device is lost, nothing made elsewhere is overwritten.
  */
-export interface LocalFlow { id: string; projectId: string; name: string; body: FlowBody; /** The server's version; null: not on the server yet. */ updatedAt: string | null }
-interface Pending { id: string; projectId: string; name: string; body: FlowBody; /** The server version the edit started from; null: new here. */ base: string | null; rev: number; holder?: string; error?: string }
+export interface LocalFlow { id: string; projectId: string; name: string; body: FlowBody; /** The server's version; null: not on the server yet. */ updatedAt: string | null; /** The body's version (FLOW.version); absent: 1, kept before #426's stages. */ v?: number }
+interface Pending { id: string; projectId: string; name: string; body: FlowBody; /** As LocalFlow's. */ v?: number; /** The server version the edit started from; null: new here. */ base: string | null; rev: number; holder?: string; error?: string }
 
 const isList = (v: unknown) => Array.isArray(v);
 const isMap = (v: unknown) => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -22,7 +22,14 @@ const kept = persisted<LocalFlow[]>("flows.v1", [], isList);
 const pending = persisted<Record<string, Pending>>("flowEdits.v1", {}, isMap);
 let rev = 0;
 
-const fromFile = (f: FileRec, projectId: string): LocalFlow => ({ id: f.id, projectId, name: f.name, body: { ...emptyFlow(), ...(f.body as Partial<FlowBody>) }, updatedAt: f.updated_at });
+// Flows kept here at an older body version (before #426's stages) are brought up to date once, as the server
+// upgrades a stored body: an unsent edit then still saves.
+const stale = (x: { v?: number }) => (x.v ?? 1) < FLOW.version;
+const upgraded = <T extends { body: FlowBody; v?: number }>(x: T): T => (stale(x) ? { ...x, body: flowBodyOf(x.body, x.v ?? 1), v: FLOW.version } : x);
+if (kept.get().some(stale)) kept.set((all) => all.map(upgraded));
+if (Object.values(pending.get()).some(stale)) pending.set((all) => Object.fromEntries(Object.entries(all).map(([k, p]) => [k, upgraded(p)])));
+
+const fromFile = (f: FileRec, projectId: string): LocalFlow => ({ id: f.id, projectId, name: f.name, body: flowBodyOf(f.body, f.body_version), updatedAt: f.updated_at, v: FLOW.version });
 const upsert = (list: LocalFlow[], f: LocalFlow) => [...list.filter((x) => x.id !== f.id), f];
 
 /** The server's flows of a project, kept for offline use (the device's unsent edits stay on top of them). */
@@ -49,14 +56,14 @@ export const usePendingOf = (id: string): Pending | undefined => pending.use()[i
 export function saveFlow(f: { id: string; projectId: string; name: string; body: FlowBody }, holder?: string) {
   const was = pending.get()[f.id];
   const base = was ? was.base : kept.get().find((x) => x.id === f.id)?.updatedAt ?? null;
-  pending.set((all) => ({ ...all, [f.id]: { ...f, base, rev: ++rev, holder } }));
+  pending.set((all) => ({ ...all, [f.id]: { ...f, v: FLOW.version, base, rev: ++rev, holder } }));
   schedule();
 }
 
 /** A new flow, made here (also offline); it goes to the server with the next send. */
 export function newFlow(projectId: string, count: number): string {
   const id = randomUUID();
-  saveFlow({ id, projectId, name: `Flow ${count + 1}`, body: emptyFlow() });
+  saveFlow({ id, projectId, name: `Flow ${count + 1}`, body: flowBodyOf({}) });
   return id;
 }
 

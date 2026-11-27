@@ -22,14 +22,22 @@ describe("flows", () => {
     await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10, loop: true, tracks: [], markers: [] } }), 400);
   });
 
-  test("a stage is part of the body: kept, and checked (#426)", async () => {
+  test("stages are part of the body: kept, and checked (#426)", async () => {
     const id = uuid();
     await ok(api(u.token, "PUT", `/api/files/${id}`, { type: "flow", project_id: project }), 201);
-    const stage = { aspect: 1.78, objects: [{ id: "o1", kind: "rect", name: "Niche", x: 0.6, y: 0.7, w: 0.07, h: 0.05, stroke: "#8C8C8E", width: 3, opacity: 1, visible: true, locked: false }], lights: [{ track: "t1", x: 0.3, y: 0.3, rot: 90 }] };
-    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stage } }));
-    const got = await ok<{ file: { body: { stage: typeof stage } } }>(api(u.token, "GET", `/api/files/${id}`));
-    expect(got.file.body.stage).toEqual(stage);
-    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stage: { ...stage, lights: [{ track: "nope", x: 0.3, y: 0.3, rot: 0 }] } } }), 400);
+    const stage = { id: "s1", name: "Plan", aspect: 1.78, objects: [{ id: "o1", kind: "rect", name: "Niche", x: 0.6, y: 0.7, w: 0.07, h: 0.05, stroke: "#8C8C8E", width: 3, opacity: 1, visible: true, locked: false }], lights: [{ track: "t1", x: 0.3, y: 0.3, rot: 90 }] };
+    const other = { ...stage, id: "s2", name: "Photo", objects: [] };
+    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stages: [stage, other] } }));
+    const got = await ok<{ file: { body_version: number; body: { stages: (typeof stage)[] } } }>(api(u.token, "GET", `/api/files/${id}`));
+    expect(got.file.body.stages).toEqual([stage, other]);
+    expect(got.file.body_version).toBe(2);
+    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stages: [{ ...stage, lights: [{ track: "nope", x: 0.3, y: 0.3, rot: 0 }] }] } }), 400);
+    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stages: [stage, stage] } }), 400);
+    // A body of version 1 (one `stage`) is upgraded: its stage becomes "Stage 1".
+    const { id: _i, name: _n, ...v1 } = stage;
+    await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stage: v1 }, body_version: 1 }));
+    const up = await ok<{ file: { body: { stages: (typeof stage)[] } } }>(api(u.token, "GET", `/api/files/${id}`));
+    expect(up.file.body.stages).toEqual([{ ...v1, id: "s1", name: "Stage 1" }]);
   });
 
   test("one editor at a time: another holder's save is refused while the lock is held", async () => {
