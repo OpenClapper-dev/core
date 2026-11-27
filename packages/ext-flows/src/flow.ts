@@ -79,6 +79,10 @@ export interface FlowTrack {
  */
 export const LIGHT_PARAMS = ["power", "intensity", "kelvin", "gm", "colour", "effect", "curve"] as const;
 export type LightParam = (typeof LIGHT_PARAMS)[number];
+/** How the editors name them. */
+export const PARAM_LABELS: Record<LightParam, string> = {
+  power: "Power", intensity: "Intensity", kelvin: "Colour temperature", gm: "Green / magenta", colour: "Colour", effect: "Effect", curve: "Dimming curve",
+};
 /** The keyframe fields each parameter is stored in. */
 export const PARAM_FIELDS: Record<LightParam, readonly (keyof Keyframe)[]> = {
   power: ["power"], intensity: ["intensity"], kelvin: ["kelvin"], gm: ["gm"], colour: ["hue", "sat"], effect: ["effect"], curve: ["curve"],
