@@ -53,27 +53,30 @@ The content of a shot is a generic, ordered list. An entry is "a file of type X 
 
 ### Progression
 
-A shot is not always static. Its **progression** shows roughly how it develops: a zoom, a pan or tilt, a follow shot, one view under changing light.
+A shot is not always static. A **progression** shows roughly how it develops: a zoom, a pan or tilt, a follow shot, one view under changing light.
+
+> **Changed by #426 feedback 4.** A progression is a file of its own (type `progression`), made inside the shot as its internal file ([I1](i1-interjection.md)) and listed in the shot's content. A shot can hold several. Before, a shot had at most one progression, kept in the shot itself, and its files could be put into the content by hand.
 
 | Part | Meaning |
 | --- | --- |
-| Items | An ordered list of pictures, each with a time. A picture is a photo, a canvas, or one frame of a canvas ([05](05-composition.md)). An item holds its picture for its time, or is a **smooth move** from one frame of a canvas to another frame of the same canvas over that time |
-| Timing | Per item, or one total length split across the items (evenly or weighted to the first and last) |
+| Items | An ordered list of pictures, each with a time. A picture is a photo, a canvas, or one frame of a canvas ([05](05-composition.md)). An item holds its picture for its time, or is a **smooth move** from one frame of a canvas to another frame of the same canvas over that time, or a **zoom block**: a generated canvas run through all its frames, in steps or smoothly |
+| Timing | Per item, or one total length split across the pictures (evenly or weighted to the first and last; a zoom block in steps counts once per step) |
 | Overlay | Optional: one drawing shown over every item |
 | Default frame | Optional: one frame applied to items that can take it |
 
 - **Pictures only.** No non-visual files, no shots, no timelines, no other progression. That keeps the hierarchy flat: nothing can contain itself.
-- **Separate from the content list.** An item need not be in the shot's content; the content list has no timing.
+- **Not a first-class file.** A progression lives only inside its shot: it is not in the file browser or in search, cannot be made a project file, and is binned, restored and copied with the shot. Deleting it takes its zoom blocks' canvases and its overlay along.
+- **Its files count as the shot's content** without being listed: a photo or canvas a progression shows belongs to the shot. The content list holds the progression itself as one entry.
 - **It is a small timeline** and is built from the same components as one ([06](06-timeline.md)), opened inside the shot.
 - **The timing belongs to the progression.** A timeline that shows the shot plays it as the progression says.
-- **The overlay** is an internal canvas of the shot ([I1](i1-interjection.md)), drawn over every item and stretched to the item's picture. It has no ranges: it shows on every item or it is hidden.
+- **The overlay** is an internal canvas of the progression ([I1](i1-interjection.md)), drawn over every item and stretched to the item's picture. It has no ranges: it shows on every item or it is hidden.
 - **The default frame** is a set of frame values (free-form, an optics preset with a focal length, or an aspect ratio). It is applied, centred, to items that have an angle of view and no frame of their own: a photo, or a canvas with a base photo. An item that is one frame of a canvas keeps that frame; a blank canvas is not touched.
-- **A zoom in one step.** From one photo and either an optics preset or free-form values, a generator makes an internal canvas with that photo as its base. In steps: one frame per focal length (the ticked primes of a preset, common stops or every so many millimetres across a range, or a typed list) and one item per frame. Smooth: a start and an end frame and one item that moves between them over a time, optionally eased. The generator makes zooms only: a pan or a tilt cannot be derived from one photo, because the perspective changes. Frames at different positions can still be made by hand in the canvas.
+- **A zoom in one step.** From one photo and either an optics preset or free-form values, a generator makes an internal canvas of the progression with that photo as its base, and one zoom block that shows it. In steps: one frame per focal length (the ticked primes of a preset, common stops or every so many millimetres across a range, or a typed list), each held for an equal part of the block. Smooth: a start and an end frame, moved between over a time, optionally eased. A zoom block can be split into single frames. The generator makes zooms only: a pan or a tilt cannot be derived from one photo, because the perspective changes. Frames at different positions can still be made by hand in the canvas.
 - A progression has nothing to do with a flow (the lights extension). A flow may later be written to match one; they do not share a clock.
 
 ### Thumbnail
 
-A shot's thumbnail is the first picture of its progression, if it has one; otherwise the first photo or canvas in its content list; otherwise a placeholder.
+> **Changed by #426 feedback 4.** A shot's thumbnail is the first entry of its content that is a photo, a canvas or a progression; a progression shows its first picture (an empty one: a placeholder). "Use as thumbnail" moves an entry to the top. Before, the progression's first picture always won.
 
 ### Properties
 

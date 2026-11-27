@@ -55,8 +55,10 @@ A clip is a reference and a time, nothing more:
 | A photo | The photo | The clip's hold time (100 ms to 1 h) |
 | A canvas | Its picture: the frame marked as the picture, else the whole surface ([05](05-composition.md)) | The clip's hold time |
 | One frame of a canvas | The canvas seen through that frame | The clip's hold time |
-| A shot without a progression | The shot's thumbnail; the clip follows when the shot's content changes | The clip's hold time |
-| A shot with a progression | The progression, at its own timing ([04](04-shots.md)) | The progression's length; the clip has no hold time of its own |
+| A shot whose thumbnail is a photo or canvas | The shot's thumbnail; the clip follows when the shot's content changes | The clip's hold time |
+| A shot whose thumbnail is a progression | That progression, at its own timing ([04](04-shots.md)) | The progression's length; the clip has no hold time of its own |
+
+> **Changed by #426 feedback 4.** A shot can hold several progressions, each an entry of its content. A clip of a shot plays what the shot's thumbnail is: the progression when that comes first in the content, else it holds the first photo or canvas. The timeline does not cut inside a progression.
 | Nothing | A **placeholder**: a place in the cut where something is missing, with a title | The clip's hold time |
 
 - The same file can be in a timeline any number of times.

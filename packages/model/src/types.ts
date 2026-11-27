@@ -5,7 +5,7 @@
 import { registerFileType, type Body, type FileType, type Ref } from "./files.ts";
 import { canvasError, emptyCanvas, presetError, remapCanvas } from "./canvas.ts";
 import { filterError } from "./filters.ts";
-import { emptyShot, placeError, shotError } from "./shot.ts";
+import { emptyShot, newProgression, placeError, progressionError, shotError } from "./shot.ts";
 import { emptyTimeline, remapTimeline, timelineError } from "./timeline.ts";
 import { BUILTIN_LAYOUTS, copyLayout, layoutError } from "./layout.ts";
 import { defaultPattern, definitionError, MAX_DIGITS } from "./properties.ts";
@@ -267,17 +267,29 @@ export const FILTER: FileType = {
 };
 
 /**
- * A shot (04-shots.md): an intent, a file with properties, a content list ("content" references, in
- * order) and at most one progression (its "item" references, an "overlay" reference, and its settings
- * in the body). Items and the overlay show pictures only; the Worker checks the types (`refTargets`).
- * Version 2: the body went from {} to { progression }.
+ * A shot (04-shots.md): an intent, a file with properties and a content list ("content" references, in
+ * order). Its progressions are files of their own inside it (#426 feedback 4).
+ * Version 2: the body went from {} to { progression }. Version 3: back to {}; migration 0013 moved every
+ * stored progression into a progression file, so an older body has nothing left to keep.
  */
 export const SHOT: FileType = {
-  type: "shot", label: "Shot", plural: "Shots", roots: ["project"], refs: ["content", "item", "overlay"], version: 2, lockable: true,
-  refTargets: { item: ["photo", "canvas"], overlay: ["canvas"] },
+  type: "shot", label: "Shot", plural: "Shots", roots: ["project"], refs: ["content"], version: 3, lockable: true,
   empty: () => emptyShot() as unknown as Body,
   check: (body, refs) => shotError(body, refs),
-  upgrade: (body) => ({ progression: null, ...body }),
+  upgrade: () => ({}),
+};
+
+/**
+ * A progression (#426 feedback 4): pictures of one shot over time, an internal file of that shot listed in
+ * its content. Its items ("item" references, with their time and frame) show photos and canvases, its
+ * overlay is a canvas (`refTargets`); its body keeps the timing, the default frame and the overlay's switch.
+ * It is edited under its shot's lock (the Worker checks the parent's lock for it).
+ */
+export const PROGRESSION: FileType = {
+  type: "progression", label: "Progression", plural: "Progressions", roots: ["project"], refs: ["item", "overlay"], version: 1, insideOf: ["shot"],
+  refTargets: { item: ["photo", "canvas"], overlay: ["canvas"] },
+  empty: () => newProgression() as unknown as Body,
+  check: (body, refs) => progressionError(body, refs),
 };
 
 /** A set (09a-places.md): the place in the story where a scene plays (Motiv). Properties and a content list. */
@@ -298,6 +310,7 @@ registerFileType(PROPERTY);
 registerFileType(NAMING);
 registerFileType(FILTER);
 registerFileType(SHOT);
+registerFileType(PROGRESSION);
 registerFileType(SET);
 registerFileType(LOCATION);
 

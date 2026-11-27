@@ -13,8 +13,8 @@ A **timeline** is a rough cut, for deciding: one track of clips in order, each h
 | A photo | The photo | Its `ms` (100 ms to 1 h) |
 | A canvas | Its picture (the frame marked as the picture, else the whole surface) | Its `ms` |
 | One frame of a canvas (`frame`) | The canvas through that frame | Its `ms` |
-| A shot without a progression | The shot's cover | Its `ms` |
-| A shot with a progression | The progression, at its own timing | The progression's length |
+| A shot whose thumbnail is a photo or canvas | The shot's thumbnail | Its `ms` |
+| A shot whose thumbnail is a progression (#426 feedback 4) | That progression, at its own timing (a zoom block in steps one segment per step) | The progression's length |
 | `file: null` | A **placeholder** with a `title` | Its `ms` |
 
 - A clip carries nothing else: no frame, layers, view mode or notes of its own; what it shows is changed in the file (everywhere it is used).
@@ -37,7 +37,7 @@ One window per timeline (Files: New, Timeline; a double-click on one). The U4 la
 - **Files**: the project's shots, photos, canvases and collections, with a search and a type filter; a collection opens to its photos (never a clip itself), a canvas with frames opens to its frames. Drag a row into the strip (a line shows where it lands; over a **placeholder** it fills it, keeping its time and chapter), double-click it, or press its plus to add it after the chosen clips. A new clip holds the timeline's value, else the account's ("New clips … s": "This timeline has its own value"; the account's value is the `clipHoldMs` preference, 2 s to start with).
 - **In use**: the files this cut uses, with how often, and the placeholders; a click goes to the next clip that uses it.
 - **Chapters**: each with its start and length; a click goes there. "Chapter" (C) starts one at the chosen clip, or ends it; its title and colour are set in the Clip panel.
-- **The Clip panel**: the picture, the file's name (a placeholder's title is typed here), the hold time with ± 0.5 s (D focuses it), where it starts; a shot with a progression says it plays its progression. **Open in …** (or a double-click on the clip) opens the file's app in a window of its own; **Make a canvas from it** (a photo) makes a canvas on the photo next to it and points the clip at it; **Fill it** (a placeholder); **Remove**. Then where else the file is used, and its properties.
+- **The Clip panel**: the picture, the file's name (a placeholder's title is typed here), the hold time with ± 0.5 s (D focuses it), where it starts; a shot whose thumbnail is a progression says it plays it. **Open in …** (or a double-click on the clip) opens the file's app in a window of its own; **Make a canvas from it** (a photo) makes a canvas on the photo next to it and points the clip at it; **Fill it** (a placeholder); **Remove**. Then where else the file is used, and its properties.
 - **Missing files**: the clip keeps its place, shown dashed; the Clip panel offers to restore the file.
 - **Undo and redo** (Ctrl+Z, Ctrl+Shift+Z or Ctrl+Y; the buttons in the Cut's row): up to 100 steps, changes close together are one.
 - **Keys**: Space, ← →, Home, End, Alt+← →, - and +, D, P (a placeholder after the chosen clip), C, Delete, Ctrl+A ([shortcuts](../shortcuts.md)).

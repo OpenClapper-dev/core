@@ -10,7 +10,7 @@ import {
   AppIcon, Badge, Banner, Button, Checkbox, Dock, DropdownMenu, EmptyState, Icon, NumberInput, PropertyList, PropertyRow, PropertySection, Segmented, Select, Slider, Spinner, StatusBar, TextInput, Toolbar, ToolbarSpacer,
   cx, dockCollapse, moved, useDockLayout, useSort, type DockLayout, type DockPanel,
 } from "@openclapper/design";
-import { DEFAULT_ITEM_MS, emptyCanvas, itemTimes, newProgression, type CanvasBody, type ItemData, type PresetBody } from "@openclapper/model";
+import { DEFAULT_ITEM_MS, emptyCanvas, newProgression, type CanvasBody, type ItemData, type PresetBody, type Progression } from "@openclapper/model";
 import * as api from "../api";
 import type { FileRec, FileUse } from "../api";
 import { kindOf } from "../fileKinds";
@@ -26,10 +26,11 @@ import { useProjects } from "../projects";
 import { useUser } from "../user";
 import { useEditLock, type EditLock } from "../lock";
 import { AddFiles } from "../shots/AddFiles";
-import { itemKey, useDoc, type Doc, type Item } from "../shots/doc";
+import { itemKey, progChange, useDoc, useProgDoc, type Item, type ProgDoc } from "../shots/doc";
+import { coverOf, pictureOf, progressionsOf, timesOf } from "../shots/progression";
 import { Generator, type Made } from "../shots/Generator";
 import { Pic } from "../shots/Pic";
-import { see, type Mode, type PicCtx, type PicRef, type Seen } from "../shots/picture";
+import { see, type Mode, type PicCtx, type PicRef } from "../shots/picture";
 import { DefaultFrame, clock } from "../shots/progressionParts";
 import { Editing } from "./CanvasApp";
 import { StartScreen } from "./StartScreen";
@@ -64,8 +65,14 @@ function ShotView({ win, resource, projectId, setTitle, setRoute, focused }: App
 export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: FileRec; files: FileRec[]; bin: FileRec[]; projectId: string; active: boolean; hosted?: boolean }) {
   const shot = f.type === "shot", kind = kindOf(f.type);
   const lockRef = useRef<EditLock | null>(null);
-  const { doc, change, flush, reset } = useDoc(f, shot ? lockRef : undefined);
+  const { doc, change, flush: flushDoc, reset } = useDoc(f, shot ? lockRef : undefined);
   const map = useMemo(() => new Map([...bin, ...files].map((x) => [x.id, x])), [files, bin]);
+  // The shot's progressions: files inside it that its content lists (#426 feedback 4); one at a time in the panel.
+  const progs = shot ? progressionsOf({ refs: doc.content.map((to) => ({ kind: "content", to, data: null })) }, map) : [];
+  const [activeId, setActive] = useState<string | null>(null);
+  const progFile = progs.find((x) => x.id === activeId) ?? progs[0];
+  const pd = useProgDoc(progFile, lockRef);
+  const flush = async () => { await flushDoc(); await pd.flush(); };
   const presetList = presetsIn(files);
   const ctx: PicCtx = { files: map, presets: new Map(presetList.map((p) => [p.id, p.body as PresetBody])) };
   const user = useUser();
@@ -74,7 +81,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   const people = usePeople(project?.workspace_id);
   const nameOf = (u: string) => (u === me?.id ? "You" : people.get(u) ?? "Someone");
   // A shot is edited by one window at a time (one lock per file, whichever window edits it); others watch.
-  const lock = useEditLock(f, nameOf, (x) => reset(x), () => void flush(), { off: !shot, realtime: project?.canvas_live === "realtime", onRemote: (d) => reset({ body: d.body, refs: d.refs as FileRec["refs"] }) });
+  const lock = useEditLock(f, nameOf, (x) => { reset(x); void store.loadRoot({ project: projectId }); }, () => void flush(), { off: !shot, realtime: project?.canvas_live === "realtime", onRemote: (d) => reset({ body: d.body, refs: d.refs as FileRec["refs"] }) });
   lockRef.current = lock;
   const readonly = shot && !lock.editing;
   const ro = readonly ? { inert: true, className: "sh-readonly" } : {};
@@ -94,24 +101,29 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   useEffect(() => { void api.fetchUses(f.id).then(setUses, () => setUses([])); }, [f.id, f.updated_at]);
   const [panels, setPanels, resetPanels] = useDockLayout(`place-${shot ? "shot" : "place"}${hosted ? "-hosted" : ""}`, hosted ? HOSTED_PANELS : shot ? PANELS : PLACE_PANELS);
 
-  const prog = shot ? doc.progression : null;
-  const items = prog ? doc.items : [];
-  const times = prog ? itemTimes(prog.timing, items.map((i) => i.data)) : [];
+  const pdoc: ProgDoc | null = shot && progFile && pd.doc ? pd.doc : null;
+  const prog: Progression | null = pdoc?.body ?? null;
+  const items = pdoc?.items ?? [];
+  const times = prog ? timesOf(prog, items, map) : [];
   const total = times.reduce((a, b) => a + b, 0);
   const starts = times.map((_, i) => times.slice(0, i).reduce((a, b) => a + b, 0));
   const playing = t != null && prog ? Math.max(0, starts.findIndex((s, i) => t < s + times[i])) : null;
   const fallback: Pick | null = items.length ? { list: "prog", i: 0 } : doc.content.length ? { list: "content", i: 0 } : null;
   const sel: Pick | null = playing != null ? { list: "prog", i: playing } : picked && (picked.list === "prog" ? picked.i < items.length : picked.i < doc.content.length) ? picked : fallback;
   const item: Item | null = sel?.list === "prog" ? items[sel.i] : null;
-  const ref: PicRef | null = !sel ? null : item ? { to: item.to, frame: item.data.frame, move: item.data.move } : { to: doc.content[sel.i] };
-  const u = playing != null && t != null ? Math.min(1, (t - starts[playing]) / times[playing]) : scrub;
+  const uRaw = playing != null && t != null ? Math.min(1, (t - starts[playing]) / times[playing]) : scrub;
+  const pic = item ? pictureOf(item, map, uRaw) : null;
+  // A content entry that is a progression shows its first picture.
+  const entryRef = (id: string): PicRef => { const x = map.get(id); if (x?.type !== "progression") return { to: id }; const c = coverOf({ type: "shot", refs: [{ kind: "content", to: id, data: null }] }, map); return c?.ref ?? { to: id }; };
+  const ref: PicRef | null = !sel ? null : pic ? pic.ref : entryRef(doc.content[sel.i]);
+  const u = pic ? pic.u : 0;
   const seen = ref ? see(ref, ctx, item ? prog!.frame : null, u) : null;
   const entry = seen?.file && !seen.missing ? seen.file : null;
-  const overlayFile = prog && doc.overlay ? map.get(doc.overlay) : undefined;
+  const overlayFile = prog && pdoc?.overlay ? map.get(pdoc.overlay) : undefined;
   const overlaySrc = overlayFile && !overlayFile.deleted_at && overlayFile.updated_at !== overlayFile.created_at ? api.renderUrl(overlayFile, "render") : null;
   const over = item && prog?.overlayShown ? overlaySrc : null;
   const internal = files.filter((x) => x.internal_of === f.id);
-  const coverRef: PicRef | null = items[0] ? { to: items[0].to, frame: items[0].data.frame } : (() => { const c = doc.content.find((x) => isPicture(map.get(x)) && !map.get(x)!.deleted_at); return c ? { to: c } : null; })();
+  const cover = coverOf({ type: f.type, refs: doc.content.map((to) => ({ kind: "content", to, data: null })) }, map);
 
   // Playback runs on the clock, so a smooth move takes the time it says.
   const on = t != null;
@@ -123,33 +135,64 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
     return () => cancelAnimationFrame(raf);
   }, [on, total]);
 
-  const choose = (p: Pick) => { setT(null); setScrub(0); setPick(p); const id = p.list === "prog" ? items[p.i]?.to : doc.content[p.i]; if (editing) { if (map.get(id ?? "")?.type === "canvas") setEditing(id!); else done(); } };
+  const choose = (p: Pick) => {
+    setT(null); setScrub(0);
+    const id = p.list === "prog" ? items[p.i]?.to : doc.content[p.i];
+    // A progression of the content opens in the progression panel.
+    if (p.list === "content" && map.get(id ?? "")?.type === "progression") { if (id !== progFile?.id) setActive(id!); setPick({ list: "prog", i: 0 }); return; }
+    setPick(p);
+    if (editing) { if (map.get(id ?? "")?.type === "canvas") setEditing(id!); else done(); }
+  };
   // The canvas tool needs the room: the lists fold away while it is mounted and can be pulled up again.
   const fold = (c: boolean) => setPanels(dockCollapse(dockCollapse(panels, "prog", c), "content", c));
   const edit = (id: string) => { setT(null); if (!editing) fold(true); setEditing(id); };
   const done = () => { if (editing) fold(false); setEditing(null); };
   const open = (x: FileRec) => openFile(x, map);
-  const setItems = (next: Item[]) => change((d) => ({ ...d, items: next }));
-  const setProg = (p: Partial<NonNullable<Doc["progression"]>>) => change((d) => ({ ...d, progression: { ...(d.progression ?? newProgression()), ...p } }));
+  const changeProg = (fn: (d: ProgDoc) => ProgDoc) => pd.change(fn);
+  const setItems = (next: Item[]) => changeProg((d) => ({ ...d, items: next }));
+  const setProg = (p: Partial<Progression>) => changeProg((d) => ({ ...d, body: { ...d.body, ...p } }));
   const patchItem = (key: string, data: Partial<ItemData>) => setItems(items.map((i) => (i.key === key ? { ...i, data: { ...i.data, ...data } } : i)));
   const toItem = (r: PicRef): Item => ({ key: itemKey(), to: r.to, data: { ms: DEFAULT_ITEM_MS, ...(r.frame ? { frame: r.frame } : {}), ...(r.move ? { move: r.move } : {}) } });
 
-  /** An internal file no list of this shot points at any more goes to the bin. */
-  const dropIfUnused = (id: string, d: Doc) => { const x = map.get(id); if (x?.internal_of === f.id && !d.content.includes(id) && !d.items.some((i) => i.to === id) && d.overlay !== id) void store.bin({ project: projectId }, [id]).catch(toastError); };
+  /** Whether anything of this shot still points at a file: its content, or an item or the overlay of one of its progressions. */
+  const usedHere = (id: string, content: readonly string[], active?: ProgDoc) => content.includes(id)
+    || progs.some((p) => (p.id === progFile?.id && active ? [...active.items.map((i) => i.to), ...(active.overlay ? [active.overlay] : [])] : (p.refs ?? []).map((r) => r.to)).includes(id));
+  /** An internal file of this shot or of its progression that nothing points at any more goes to the bin. */
+  const dropIfUnused = (id: string, content: readonly string[], active?: ProgDoc) => {
+    const x = map.get(id);
+    if (x && (x.internal_of === f.id || (progFile && x.internal_of === progFile.id)) && x.type !== "progression" && !usedHere(id, content, active)) void store.bin({ project: projectId }, [id]).catch(toastError);
+  };
   const removeAt = (p: Pick) => {
-    const next: Doc = p.list === "prog" ? { ...doc, items: items.filter((_, i) => i !== p.i) } : { ...doc, content: doc.content.filter((_, i) => i !== p.i) };
-    const id = p.list === "prog" ? items[p.i].to : doc.content[p.i];
-    change(next); setPick(null); dropIfUnused(id, next);
+    if (p.list === "prog") {
+      const id = items[p.i].to, next = { ...pdoc!, items: items.filter((_, i) => i !== p.i) };
+      changeProg(() => next); setPick(null); dropIfUnused(id, doc.content, next);
+    } else {
+      const id = doc.content[p.i], content = doc.content.filter((_, i) => i !== p.i);
+      change({ content }); setPick(null);
+      // A progression goes with its entry: it lives only inside this shot.
+      if (map.get(id)?.type === "progression") void store.bin({ project: projectId }, [id]).catch(toastError);
+      else dropIfUnused(id, content, pdoc ?? undefined);
+    }
+  };
+  /** A new progression inside this shot, at the end of its content, with what it starts with; it opens in the panel. */
+  const newProgressionFile = async (start: Partial<ProgDoc> = {}) => {
+    const id = crypto.randomUUID(), n = progs.length + 1;
+    const d: ProgDoc = { body: newProgression(), items: [], overlay: null, ...start };
+    await api.putFileLocked(id, { type: "progression", project_id: projectId, internal_of: f.id, name: `Progression ${n}`, ...progChange(d) }, lock.holder);
+    change((x) => ({ content: [...x.content, id] }));
+    await store.loadRoot({ project: projectId });
+    setActive(id);
+    return id;
   };
   const addRefs = (refs: PicRef[]) => {
     if (adding === "content") {
       const ids = [...new Set(refs.map((r) => r.to))].filter((x) => !doc.content.includes(x));
-      change({ ...doc, content: [...doc.content, ...ids] });
+      change({ content: [...doc.content, ...ids] });
       toast(ids.length ? `${ids.length} added to the content` : "Already in the content", { tone: "info" });
-    } else {
-      change({ ...doc, progression: doc.progression ?? newProgression(), items: [...doc.items, ...refs.map(toItem)] });
+    } else if (pdoc) {
+      setItems([...items, ...refs.map(toItem)]);
       setPick({ list: "prog", i: items.length });
-    }
+    } else void newProgressionFile({ items: refs.map(toItem) }).then(() => setPick({ list: "prog", i: 0 }), toastError);
     setAdding(null);
   };
   /** A new canvas made inside this file (blank, or on a photo), put into its content after `after`, and edited here. */
@@ -159,32 +202,46 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
       const body = photo ? { ...emptyCanvas(), surface: { kind: "photo" }, ...takenFrame(photo, new Set([...files].filter((x) => x.type === "preset" && !x.deleted_at).map((x) => x.id)), getPrefs().canvasTakesFrame) } : emptyCanvas();
       await api.createFile({ project: projectId }, id, { type: "canvas", internal_of: f.id, body, ...(photo ? { refs: [{ kind: "base", to: photo.id }] } : {}) });
       const at = afterIndex == null ? doc.content.length : afterIndex + 1;
-      change({ ...doc, content: [...doc.content.slice(0, at), id, ...doc.content.slice(at)] });
+      change({ content: [...doc.content.slice(0, at), id, ...doc.content.slice(at)] });
       await store.loadRoot({ project: projectId });
       setPick({ list: "content", i: at }); edit(id);
     } catch (e) { toastError(e); }
   };
   const addOverlay = async () => {
+    if (!progFile) return;
     try {
       const id = crypto.randomUUID(), aspect = seen?.rect ? (seen.rect.w * seen.aspect) / seen.rect.h : seen?.aspect ?? 16 / 9;
       const body: CanvasBody = { ...emptyCanvas(Math.min(10, Math.max(0.1, aspect))), surface: { kind: "blank", aspect: Math.min(10, Math.max(0.1, aspect)), color: null } };
-      await api.createFile({ project: projectId }, id, { type: "canvas", name: "Overlay", internal_of: f.id, body });
-      change((d) => ({ ...d, overlay: id, progression: { ...(d.progression ?? newProgression()), overlayShown: true } }));
+      await api.createFile({ project: projectId }, id, { type: "canvas", name: "Overlay", internal_of: progFile.id, body });
+      changeProg((d) => ({ ...d, overlay: id, body: { ...d.body, overlayShown: true } }));
       await store.loadRoot({ project: projectId });
       edit(id);
     } catch (e) { toastError(e); }
   };
+  /** The generator's zoom: one canvas inside the progression and one zoom block; replacing drops the canvases nothing uses any more. */
   const generate = async (m: Made) => {
     try {
+      const pid = progFile?.id ?? await newProgressionFile();
       const id = crypto.randomUUID();
       const body: CanvasBody = { ...emptyCanvas(), surface: { kind: "photo" }, frames: m.frames, picture: m.frames[0]?.id ?? null };
-      await api.createFile({ project: projectId }, id, { type: "canvas", name: m.name, internal_of: f.id, body, refs: [{ kind: "base", to: m.photo }] });
-      const made = m.items.map((it): Item => ({ key: itemKey(), to: id, data: it }));
-      change((d) => ({ ...d, progression: m.add && d.progression ? d.progression : { ...(d.progression ?? newProgression()), timing: { mode: "each" } }, items: m.add ? [...d.items, ...made] : made }));
+      await api.createFile({ project: projectId }, id, { type: "canvas", name: m.name, internal_of: pid, body, refs: [{ kind: "base", to: m.photo }] });
+      const made: Item = { key: itemKey(), to: id, data: m.item };
+      const before = pdoc?.items ?? [];
+      const next = (d: ProgDoc): ProgDoc => ({ ...d, body: m.add ? d.body : { ...d.body, timing: { mode: "each" } }, items: m.add ? [...d.items, made] : [made] });
+      if (progFile) changeProg(next);
+      else await api.putFileLocked(pid, progChange(next({ body: newProgression(), items: [], overlay: null })), lock.holder);
       await store.loadRoot({ project: projectId });
-      setPick({ list: "prog", i: m.add ? items.length : 0 }); setGen(false);
-      toast(m.items[0]?.move ? `One moving picture from one internal canvas, “${m.name}”` : `${made.length} pictures from one internal canvas, “${m.name}”`, { tone: "info" });
+      if (!m.add) for (const x of new Set(before.map((i) => i.to))) { const c = map.get(x); if (c?.internal_of === pid && c.type === "canvas" && c.id !== pdoc?.overlay) void store.bin({ project: projectId }, [x]).catch(toastError); }
+      setPick({ list: "prog", i: m.add ? before.length : 0 }); setGen(false);
+      toast(`A zoom from one internal canvas, “${m.name}”`, { tone: "info" });
     } catch (e) { toastError(e); }
+  };
+  const removeProgression = async (p: FileRec) => {
+    if (!(await confirm({ danger: true, title: `Delete “${p.name}”?`, confirmLabel: "Delete", message: "Its zooms and its overlay go with it. Photos and canvases it shows stay in the project." }))) return;
+    await pd.flush();
+    change((x) => ({ content: x.content.filter((c) => c !== p.id) }));
+    setActive(null); setPick(null); setT(null);
+    try { await store.bin({ project: projectId }, [p.id]); } catch (e) { toastError(e); }
   };
   const release = async (x: FileRec) => {
     if (!(await confirm({ title: `Make “${x.name}” a project file?`, message: `It appears in the file browser and in search, and other files can use it. ${f.name} keeps pointing at it. This cannot be turned back.`, confirmLabel: "Make it a project file" }))) return;
@@ -199,12 +256,12 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   const stretch = (i: number) => (e: PointerEvent) => {
     e.preventDefault(); e.stopPropagation();
     const sx = e.clientX, orig = items[i].data.ms, key = items[i].key;
-    const move = (m: PointerEvent) => change((d) => ({ ...d, items: d.items.map((it) => (it.key === key ? { ...it, data: { ...it.data, ms: Math.min(600_000, Math.max(100, Math.round((orig + ((m.clientX - sx) / SCALE) * 1000) / 100) * 100)) } } : it)) }));
+    const move = (m: PointerEvent) => changeProg((d) => ({ ...d, items: d.items.map((it) => (it.key === key ? { ...it, data: { ...it.data, ms: Math.min(600_000, Math.max(100, Math.round((orig + ((m.clientX - sx) / SCALE) * 1000) / 100) * 100)) } } : it)) }));
     const up = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", up); };
     addEventListener("pointermove", move); addEventListener("pointerup", up);
   };
-  const sortC = useSort("x", (a, b) => { change({ ...doc, content: moved(doc.content, a, b) }); setPick({ list: "content", i: b }); });
-  const sortL = useSort("y", (a, b) => { change({ ...doc, content: moved(doc.content, a, b) }); setPick({ list: "content", i: b }); });
+  const sortC = useSort("x", (a, b) => { change({ content: moved(doc.content, a, b) }); setPick({ list: "content", i: b }); });
+  const sortL = useSort("y", (a, b) => { change({ content: moved(doc.content, a, b) }); setPick({ list: "content", i: b }); });
   const sortP = useSort("x", (a, b) => { setItems(moved(items, a, b)); setPick({ list: "prog", i: b }); });
 
   // ---------- The stage ----------
@@ -239,14 +296,18 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   const offer = (which: "set" | "locations", label: string) => (
     <p className="sh-note">No {which === "set" ? "shot" : "set"} property points at {which === "set" ? "sets" : "locations"} yet.{" "}<Button size="sm" icon="plus" onClick={() => void addStarter(projectId, files, which).catch(toastError)}>Add a {label} property</Button></p>
   );
-  const role = (x: FileRec) => (doc.overlay === x.id ? "The progression's overlay" : [items.some((i) => i.to === x.id) && ((n) => `${n} ${n === 1 ? "picture" : "pictures"} of the progression`)(items.filter((i) => i.to === x.id).length), doc.content.includes(x.id) && "in the content"].filter(Boolean).join(", ") || "Not used any more");
+  const role = (x: FileRec) => {
+    if (x.type === "progression") return doc.content.includes(x.id) ? "A progression, in the content" : "A progression, not in the content";
+    const inProgs = progs.filter((p) => (p.refs ?? []).some((r) => r.to === x.id)).map((p) => p.name);
+    return [inProgs.length && `in ${inProgs.join(", ")}`, doc.content.includes(x.id) && "in the content"].filter(Boolean).join(", ") || "Not used any more";
+  };
   const usedBy = uses.filter((x) => x.id !== f.id);
   const fileTab = (
     <>
       <header className="sh-head">
-        <span className="sh-head__art sh-box">{coverRef ? <Pic seen={see(coverRef, ctx, items[0] ? prog!.frame : null)} /> : <AppIcon glyph={kind.glyph} color={kind.color} size={48} />}</span>
+        <span className="sh-head__art sh-box">{cover ? <Pic seen={see(cover.ref, ctx, cover.def)} /> : <AppIcon glyph={kind.glyph} color={kind.color} size={48} />}</span>
         <TextInput size="sm" value={name} aria-label="Name" maxLength={120} onInput={(e) => setName(e.currentTarget.value)} onBlur={commitName} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { setName(f.name); e.currentTarget.blur(); } }} />
-        <span className="sh-head__type"><AppIcon glyph={kind.glyph} color={kind.color} size={20} />{kind.label}<small>{coverRef ? (items[0] ? " · thumbnail: the progression's first picture" : " · thumbnail: the content's first picture") : ""}</small></span>
+        <span className="sh-head__type"><AppIcon glyph={kind.glyph} color={kind.color} size={20} />{kind.label}<small>{cover ? (cover.progression ? ` · thumbnail: the first picture of ${map.get(cover.progression)?.name ?? "its progression"}` : " · thumbnail: the content's first picture") : ""}</small></span>
       </header>
       <PropertyList key={f.id}>
         <PropertySections projectId={projectId} targets={[f]} defs={defs} files={files} />
@@ -306,17 +367,18 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
       {prog.timing.mode !== "each" && <NumberInput size="sm" value={prog.timing.total / 1000} unit="s" min={0.1} max={3600} step={0.5} style={{ width: 92 }} aria-label="Total length" onChange={(v) => setProg({ timing: { mode: (prog.timing as { mode: "even" | "ends" }).mode, total: Math.min(3_600_000, Math.max(100, Math.round(v * 10) * 100)) } })} />}
       <span className="sh-sep" />
       <DefaultFrame value={prog.frame} presets={presetList} onChange={(fr) => setProg({ frame: fr })} />
-      {doc.overlay ? <span className="sh-bar"><Checkbox checked={prog.overlayShown} onChange={(c) => setProg({ overlayShown: c })}>Overlay</Checkbox><Button size="sm" variant="quiet" icon="edit" label="Edit the overlay here" onClick={() => edit(doc.overlay!)} /></span>
+      {pdoc?.overlay ? <span className="sh-bar"><Checkbox checked={prog.overlayShown} onChange={(c) => setProg({ overlayShown: c })}>Overlay</Checkbox><Button size="sm" variant="quiet" icon="edit" label="Edit the overlay here" onClick={() => edit(pdoc.overlay!)} /></span>
         : <Button size="sm" variant="quiet" icon="brush" title="One drawing shown over every picture" onClick={() => void addOverlay()}>Add an overlay</Button>}
       <span style={{ flex: 1 }} />
       <Button size="sm" variant="quiet" icon="frame" onClick={() => setGen(true)}>Generate…</Button>
       <Button size="sm" icon="plus" onClick={() => setAdding("prog")}>Add pictures</Button>
-      <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "content", label: "Put its files into the content too", icon: "files" }, { id: "remove", label: "Remove the progression", icon: "trash", danger: true }]}
+      <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[
+        ...progs.map((p) => ({ id: `go:${p.id}`, label: p.name, checked: p.id === progFile?.id })), { separator: true as const },
+        { id: "new", label: "New progression", icon: "plus" as const }, { id: "remove", label: "Delete this progression…", icon: "trash" as const, danger: true }]}
         onSelect={(x) => {
-          if (x === "content") { change({ ...doc, content: [...new Set([...doc.content, ...items.map((i) => i.to)])] }); return; }
-          const next: Doc = { ...doc, progression: null, items: [], overlay: null };
-          change(next); setPick(null); setT(null);
-          for (const id of new Set([...items.map((i) => i.to), ...(doc.overlay ? [doc.overlay] : [])])) dropIfUnused(id, next);
+          if (x.startsWith("go:")) { setActive(x.slice(3)); setPick(null); setT(null); }
+          else if (x === "new") void newProgressionFile().catch(toastError);
+          else if (progFile) void removeProgression(progFile);
         }} />
     </div>
   ) : (
@@ -330,29 +392,38 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
     <div className="sh-strip sh-strip--prog">
       {items.map((it, i) => {
         const on2 = playing === i || (playing == null && sel?.list === "prog" && sel.i === i);
-        const s = see({ to: it.to, frame: it.data.frame, move: it.data.move }, ctx, prog.frame, on2 ? u : 0);
+        const at = pictureOf(it, map, on2 ? uRaw : 0), s = see(at.ref, ctx, prog.frame, at.u);
         return (
           <div key={it.key} data-sort role="button" tabIndex={0} className={cx("sh-item", sel?.list === "prog" && sel.i === i && "is-current", s.missing && "is-missing", it.data.move && "is-move")} style={{ width: Math.max(44, (times[i] / 1000) * SCALE), ...sortP.style(i) }}
             title={`${s.file?.name ?? "Missing"}${s.name ? ` · ${s.name}` : ""}`} onPointerDown={readonly ? undefined : sortP.start(i)} onClick={() => choose({ list: "prog", i })} onDblClick={() => s.file?.type === "canvas" && edit(s.file.id)}>
             <span className="sh-item__art sh-box"><Pic seen={s} overlay={prog.overlayShown ? overlaySrc : null} /></span>
             <span className="sh-item__label"><b>{s.source === "own" && s.name ? s.name : s.file?.name ?? "Missing"}</b><i className="oc-num">{clock(times[i])}</i></span>
-            {i === 0 && <span className="sh-item__flag" title="The shot's thumbnail"><Icon name="star" size={10} /></span>}
-            {it.data.move && <span className="sh-item__move" title="A smooth move from one frame to another"><Icon name="arrow-right" size={10} />smooth</span>}
+            {(it.data.move || it.data.zoom) && <span className="sh-item__move" title={it.data.zoom ? "A generated zoom" : "A smooth move from one frame to another"}><Icon name={it.data.zoom ? "zoom-in" : "arrow-right"} size={10} />{it.data.zoom?.mode === "steps" ? "steps" : "smooth"}</span>}
             {!readonly && <button type="button" data-nodrag className="sh-item__x" aria-label="Remove from the progression" onClick={(e) => { e.stopPropagation(); removeAt({ list: "prog", i }); }}><Icon name="close" size={10} /></button>}
             {prog.timing.mode === "each" && !readonly && <i data-nodrag className="sh-item__grip" title="Drag to change how long it holds" onPointerDown={stretch(i)} />}
             {t != null && t >= starts[i] && t < starts[i] + times[i] && <i className="sh-playhead" style={{ left: `${((t - starts[i]) / times[i]) * 100}%` }} />}
           </div>
         );
       })}
-      {sortP.ghost((i) => <div className="sh-item is-current" style={{ width: "100%" }}><span className="sh-item__art sh-box"><Pic seen={see({ to: items[i].to, frame: items[i].data.frame }, ctx, prog.frame)} /></span></div>)}
+      {sortP.ghost((i) => <div className="sh-item is-current" style={{ width: "100%" }}><span className="sh-item__art sh-box"><Pic seen={see(pictureOf(items[i], map).ref, ctx, prog.frame)} /></span></div>)}
     </div>
   ) : <p className="sh-note">An empty progression. Add pictures, or generate a zoom from one photo.</p>);
 
   // ---------- The content ----------
+  /** A content entry: the picture standing for it (a progression's first picture) and its own file. */
+  const entryOf = (id: string) => {
+    const own = map.get(id), s = see(entryRef(id), ctx);
+    return own?.type === "progression" ? { s, x: own as FileRec | undefined, missing: !!own.deleted_at } : { s, x: s.file, missing: !!s.missing };
+  };
   const menuOf = (id: string, i: number) => {
-    const s = see({ to: id }, ctx), x = s.file;
+    const { x, missing } = entryOf(id);
+    if (readonly) return null;
+    if (x?.type === "progression" && !missing) return (
+      <DropdownMenu size="sm" variant="quiet" icon="more" align="end" className="sh-tile__menu" items={[{ id: "show", label: "Open in the progression panel", icon: "timeline" }, { separator: true }, { id: "remove", label: "Delete…", icon: "trash", danger: true }]}
+        onSelect={(a) => (a === "show" ? choose({ list: "content", i }) : void removeProgression(x))} />
+    );
     return (
-      readonly ? null : <DropdownMenu size="sm" variant="quiet" icon="more" align="end" className="sh-tile__menu" items={s.missing ? [{ id: "remove", label: "Remove the entry", icon: "close" }] : [
+      <DropdownMenu size="sm" variant="quiet" icon="more" align="end" className="sh-tile__menu" items={missing ? [{ id: "remove", label: "Remove the entry", icon: "close" }] : [
         ...(x!.type === "canvas" ? [{ id: "edit", label: "Edit here", icon: "edit" as const }] : []),
         { id: "open", label: `Open in the ${kindOf(x!.type).label} app`, icon: "external" as const },
         ...(x!.type === "photo" ? [{ id: "draw", label: "Draw or frame", icon: "brush" as const }] : []),
@@ -365,13 +436,13 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
         else if (a === "open") open(x!);
         else if (a === "draw") void newCanvas(x!, i);
         else if (a === "release") void release(x!);
-        else if (a === "prog") { change({ ...doc, progression: doc.progression ?? newProgression(), items: [...doc.items, toItem({ to: id })] }); toast(`“${x!.name}” added to the progression`, { tone: "info" }); }
+        else if (a === "prog") { if (pdoc) setItems([...items, toItem({ to: id })]); else void newProgressionFile({ items: [toItem({ to: id })] }).catch(toastError); toast(`“${x!.name}” added to ${progFile?.name ?? "a new progression"}`, { tone: "info" }); }
         else removeAt({ list: "content", i });
       }} />
     );
   };
-  const openEntry = (id: string) => { const x = map.get(id); if (x && !x.deleted_at) { if (x.type === "canvas") edit(id); else open(x); } };
-  const missingName = (s: Seen) => (s.file ? `${s.file.name} · in the bin` : "Missing file");
+  const openEntry = (id: string) => { const x = map.get(id); if (x && !x.deleted_at) { if (x.type === "progression") choose({ list: "content", i: doc.content.indexOf(id) }); else if (x.type === "canvas") edit(id); else open(x); } };
+  const missingName = (x?: FileRec) => (x ? `${x.name} · in the bin` : "Missing file");
   const contentActions = (
     <div className="sh-row" {...ro}>
       <span className="sh-count oc-num">{doc.content.length} {doc.content.length === 1 ? "file" : "files"}</span>
@@ -384,31 +455,31 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   const contentBody = !doc.content.length ? <p className="sh-note">Nothing yet. Any file of the project can be content: photos, canvases, later documents and flows.</p> : lines === "list" ? (
     <ul className="sh-lines">
       {doc.content.map((id, i) => {
-        const s = see({ to: id }, ctx), x = s.file;
+        const { s, x, missing } = entryOf(id);
         return (
-          <li key={id} data-sort role="button" tabIndex={0} className={cx("sh-line", sel?.list === "content" && sel.i === i && "is-current", s.missing && "is-missing")} style={sortL.style(i)} onPointerDown={readonly ? undefined : sortL.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
+          <li key={id} data-sort role="button" tabIndex={0} className={cx("sh-line", sel?.list === "content" && sel.i === i && "is-current", missing && "is-missing")} style={sortL.style(i)} onPointerDown={readonly ? undefined : sortL.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
             <Icon name="grip" size={12} /><span className="sh-line__art sh-box"><Pic seen={s} /></span>
-            <span className="sh-line__name">{s.missing ? missingName(s) : x!.name}</span>
-            <span className="sh-line__type">{x && !s.missing && <><AppIcon glyph={kindOf(x.type).glyph} color={kindOf(x.type).color} size={20} />{kindOf(x.type).label}{x.internal_of && <Badge icon="lock">internal</Badge>}</>}</span>
+            <span className="sh-line__name">{missing ? missingName(x) : x!.name}</span>
+            <span className="sh-line__type">{x && !missing && <><AppIcon glyph={kindOf(x.type).glyph} color={kindOf(x.type).color} size={20} />{kindOf(x.type).label}{x.internal_of && <Badge icon="lock">internal</Badge>}</>}</span>
             {menuOf(id, i)}
           </li>
         );
       })}
-      {sortL.ghost((i) => <div className="sh-line is-current"><Icon name="grip" size={12} /><span className="sh-line__art sh-box"><Pic seen={see({ to: doc.content[i] }, ctx)} /></span><span className="sh-line__name">{map.get(doc.content[i])?.name}</span></div>)}
+      {sortL.ghost((i) => <div className="sh-line is-current"><Icon name="grip" size={12} /><span className="sh-line__art sh-box"><Pic seen={entryOf(doc.content[i]).s} /></span><span className="sh-line__name">{map.get(doc.content[i])?.name}</span></div>)}
     </ul>
   ) : (
     <div className="sh-strip">
       {doc.content.map((id, i) => {
-        const s = see({ to: id }, ctx), x = s.file;
+        const { s, x, missing } = entryOf(id);
         return (
-          <div key={id} data-sort role="button" tabIndex={0} className={cx("sh-tile", sel?.list === "content" && sel.i === i && "is-current", s.missing && "is-missing")} style={sortC.style(i)} onPointerDown={readonly ? undefined : sortC.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
-            <span className="sh-tile__art sh-box"><Pic seen={s} />{x && !s.missing && x.type !== "photo" && <span className="sh-tile__type"><AppIcon glyph={kindOf(x.type).glyph} color={kindOf(x.type).color} size={20} /></span>}{x?.internal_of && <span className="sh-tile__lock" title="An internal file"><Icon name="lock" size={10} /></span>}</span>
-            <span className="sh-tile__name">{s.missing ? missingName(s) : x!.name}</span>
+          <div key={id} data-sort role="button" tabIndex={0} className={cx("sh-tile", sel?.list === "content" && sel.i === i && "is-current", missing && "is-missing")} style={sortC.style(i)} onPointerDown={readonly ? undefined : sortC.start(i)} onClick={() => choose({ list: "content", i })} onDblClick={() => openEntry(id)}>
+            <span className="sh-tile__art sh-box"><Pic seen={s} />{x && !missing && x.type !== "photo" && <span className="sh-tile__type"><AppIcon glyph={kindOf(x.type).glyph} color={kindOf(x.type).color} size={20} /></span>}{x?.internal_of && <span className="sh-tile__lock" title="An internal file"><Icon name="lock" size={10} /></span>}</span>
+            <span className="sh-tile__name">{missing ? missingName(x) : x!.name}</span>
             {menuOf(id, i)}
           </div>
         );
       })}
-      {sortC.ghost((i) => <div className="sh-tile is-current"><span className="sh-tile__art sh-box"><Pic seen={see({ to: doc.content[i] }, ctx)} /></span><span className="sh-tile__name">{map.get(doc.content[i])?.name}</span></div>)}
+      {sortC.ghost((i) => <div className="sh-tile is-current"><span className="sh-tile__art sh-box"><Pic seen={entryOf(doc.content[i]).s} /></span><span className="sh-tile__name">{map.get(doc.content[i])?.name}</span></div>)}
     </div>
   );
 

@@ -12,7 +12,7 @@ import { Pic } from "./Pic";
 import { seeBetween, seeFrame, type PicCtx } from "./picture";
 import { clock } from "./progressionParts";
 
-export interface Made { photo: string; name: string; frames: CanvasFrame[]; items: ItemData[]; add: boolean }
+export interface Made { photo: string; name: string; frames: CanvasFrame[]; item: ItemData; add: boolean }
 const MAX = 60;
 interface Free { format: [number, number]; multiplier: number; squeeze: number; delivery: number | null }
 
@@ -65,8 +65,9 @@ export function Generator({ files, presets, ctx, start, has, onMake, onClose }: 
   mms = mms.filter((v, i, a) => a.indexOf(v) === i);
   const many = mms.length > MAX;
   const frames = smooth ? [make(from, 0), make(to, 1)] : mms.slice(0, MAX).map(make);
-  const items: ItemData[] = smooth ? [{ ms: Math.round(length * 10) * 100, frame: frames[0].id, move: { to: frames[1].id, ease: eased } }] : frames.map((f) => ({ ms: Math.round(hold * 10) * 100, frame: f.id }));
-  const total = items.reduce((a, b) => a + b.ms, 0);
+  // One zoom block over the canvas's frames: in steps each frame holds its part, smooth it moves from the first to the last.
+  const item: ItemData = smooth ? { ms: Math.min(600_000, Math.round(length * 10) * 100), zoom: { mode: "smooth", ease: eased } } : { ms: Math.min(600_000, Math.round(hold * 10) * 100 * Math.max(1, frames.length)), zoom: { mode: "steps", ease: false } };
+  const total = item.ms;
   const pmap: ReadonlyMap<string, PresetBody> = ctx.presets;
   const seen = (f: CanvasFrame) => seeFrame(photo, f, pmap);
   const beyond = frames.filter((f) => { const r = seen(f).rect; return !!r && (r.w > 1 || r.h > 1); });
@@ -82,7 +83,7 @@ export function Generator({ files, presets, ctx, start, has, onMake, onClose }: 
 
   return (
     <Dialog fixed className="sh-gen" title="Generate a zoom" onClose={onClose}
-      footer={<><span className="sh-hint">{smooth ? `One internal canvas on ${photo.name} with the start and end frame, and one moving picture (${clock(total)}).` : `One internal canvas on ${photo.name} with ${frames.length} frames, and ${frames.length} pictures (${clock(total)}).`}</span><span style={{ flex: 1 }} /><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={() => onMake({ photo: photo.id, name: title, frames, items, add: add === "add" })}>Generate</Button></>}>
+      footer={<><span className="sh-hint">{smooth ? `One internal canvas on ${photo.name} with the start and end frame, and one moving picture (${clock(total)}).` : `One internal canvas on ${photo.name} with ${frames.length} frames, and one zoom block of ${frames.length} pictures (${clock(total)}).`}</span><span style={{ flex: 1 }} /><Button onClick={onClose}>Cancel</Button><Button variant="primary" disabled={!ok} onClick={() => onMake({ photo: photo.id, name: title, frames, item, add: add === "add" })}>Generate</Button></>}>
       <div className="sh-gen__grid">
         <div className="sh-gen__form">
           <FormField label="Photo" hint="Only photos with an angle of view can be framed."><Select value={photo.id} onChange={setPhoto} options={photos.map((p) => ({ value: p.id, label: p.name }))} /></FormField>

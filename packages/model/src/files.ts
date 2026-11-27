@@ -76,6 +76,11 @@ export interface FileType {
   made?: "upload" | "register" | "system";
   /** For these kinds of reference, the types a file pointed at may have (checked by the Worker, which knows them). Absent: any type. */
   refTargets?: Partial<Record<RefKind, readonly string[]>>;
+  /**
+   * Made only inside a file of these types, as its internal file (#426 feedback 4: a progression inside a
+   * shot); never a file of its own, so it cannot be released. Absent: anywhere its roots allow.
+   */
+  insideOf?: readonly string[];
   /** Edited by one person at a time (05-composition.md): a save needs the edit lock, when someone holds it. */
   lockable?: boolean;
   /** The version of the body this code writes. Starts at 1; raised when the shape changes. */
@@ -185,3 +190,9 @@ export function placementError(child: FileType, container: ContainerFacts | null
 
 /** Whether a file of this type can be an internal file: made inside another file, for its use (docs/rewrite/i1-interjection.md). */
 export const canBeInternal = (t: FileType): boolean => !t.holds && !t.onlyIn;
+
+/** Null when a file of `child` may be made inside a file of type `parent` (null: inside none), else why not. */
+export function insideError(child: FileType, parent: string | null): string | null {
+  if (!child.insideOf || (parent && child.insideOf.includes(parent))) return null;
+  return `a ${child.label.toLowerCase()} is made inside a ${child.insideOf.map((t) => (fileType(t)?.label ?? t).toLowerCase()).join(" or ")}`;
+}
