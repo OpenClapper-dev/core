@@ -166,7 +166,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   }, [playing]);
   const seek = (ms: number) => { setPreview(null); setT(Math.max(0, Math.min(ms, total))); };
   const togglePlay = () => { if (!items.length) return; setPreview(null); if (!playing && tt >= total - 1) setT(0); setPlaying(!playing); };
-  const pickProgression = (id: string) => { setActive(id); setSel([]); setT(0); setPlaying(false); setPreview(null); };
+  const pickProgression = (id: string) => { setActive(id); setSel([]); setT(0); setPlaying(false); setPreview(null); if (editing) done(); };
 
   // ---------- What the stage shows ----------
   /** What a content entry shows: a progression its first picture. */
@@ -191,9 +191,15 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
   const thumbAt = doc.content.findIndex((id) => { const x = map.get(id); return !!x && !x.deleted_at && COVER_TYPES.has(x.type); });
   const isThumb = !!progFile && doc.content[thumbAt] === progFile.id;
 
-  // The canvas tool needs the room: the lists fold away while it is mounted and can be pulled up again.
-  const fold = (c: boolean) => setPanels(dockCollapse(dockCollapse(panels, "prog", c), "content", c));
-  const edit = (id: string) => { setPlaying(false); if (!editing) fold(true); setEditing(id); };
+  // The canvas tool needs the room: the lists fold away while it is mounted and can be pulled up again. Drawing the
+  // overlay keeps the progression open: scrubbing it changes the picture seen behind the overlay.
+  const fold = (c: boolean, prog = c) => setPanels(dockCollapse(dockCollapse(panels, "prog", prog), "content", c));
+  const edit = (id: string) => { setPlaying(false); if (!editing) fold(true, id !== pdoc?.overlay); else if (id === pdoc?.overlay) setPanels(dockCollapse(panels, "prog", false)); setEditing(id); };
+  const [dim, setDim] = useState(true);
+  const overlayEditing = !!editing && editing === pdoc?.overlay;
+  // Behind the overlay while it is drawn: the picture at the playhead, through its frame.
+  const atPic = atI >= 0 ? pictureOf(items[atI], map, atU) : null;
+  const backdropSeen = atPic ? see(atPic.ref, ctx, prog!.frame, atPic.u) : null;
   const done = () => { if (editing) fold(false); setEditing(null); };
   const open = (x: FileRec) => openFile(x, map);
   const patchItem = (key: string, data: Partial<ItemData>) => editProg((d) => ({ ...d, items: d.items.map((i) => (i.key === key ? { ...i, data: { ...i.data, ...data } } : i)) }));
@@ -652,10 +658,13 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
               <span className="sh-host__crumb"><AppIcon glyph={kind.glyph} color={kind.color} size={20} />{f.name}{editFile.internal_of && editFile.internal_of !== f.id && <><Icon name="chevron-right" size={12} /><AppIcon glyph="slideshow" color={10} size={20} />{map.get(editFile.internal_of)?.name}</>}<Icon name="chevron-right" size={12} /><AppIcon glyph="brush" color={7} size={20} /><strong>{editFile.id === pdoc?.overlay ? "Overlay" : editFile.name}</strong></span>
               <span className="sh-host__note">{editFile.internal_of ? <><Icon name="lock" size={12} /> Internal file of this {kind.label.toLowerCase()}</> : <><Icon name="link" size={12} /> A project file: changes show everywhere it is used</>}</span>
               <span style={{ flex: 1 }} />
+              {overlayEditing && <Checkbox checked={dim} onChange={setDim}>Dim the backdrop</Checkbox>}
               <Button size="sm" variant="primary" icon="check" onClick={done}>Done</Button>
             </div>
+            {overlayEditing && <div className="sh-backnote"><Icon name="image" size={12} />{backdropSeen?.file && !backdropSeen.missing ? <>Behind the overlay: <strong>{backdropSeen.file.name}</strong>{backdropSeen.name && <> · {backdropSeen.name}</>} at <span className="oc-num">{clock(tt)}</span>. Not part of the overlay; scrub the progression below to draw against another picture.</> : "The progression is empty: nothing behind the overlay."}</div>}
             <Editing key={editFile.id} file={editFile} files={files} projectId={projectId} active={active} hosted live={project?.canvas_live}
-              me={{ id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" }} nameOf={nameOf} />
+              me={{ id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" }} nameOf={nameOf}
+              backdrop={overlayEditing && backdropSeen && !backdropSeen.missing ? <span className={cx("sh-box sh-backdrop", dim && "is-dim")}><Pic seen={backdropSeen} mode="crop" /></span> : undefined} />
           </div>
         ) : <div className={cx("sh-stage", (!seen || seen.missing) && "is-empty")}>{stage}</div>}
       </Dock>

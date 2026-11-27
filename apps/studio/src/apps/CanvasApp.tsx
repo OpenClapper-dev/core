@@ -2,6 +2,7 @@
 // (others watch the canvas read-only as it changes), saves every change on its own a moment after it was
 // made, uploads the render and thumbnail with each save, and keeps the history for undo and redo. Stop
 // editing lets the lock go and keeps the window open as a viewer; Edit takes it again when it is free.
+import type { ComponentChildren } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
 import { EmptyState, Spinner } from "@openclapper/design";
 import { canvasRefs, focalsOf, type CanvasBody, type PresetBody } from "@openclapper/model";
@@ -55,7 +56,7 @@ function CanvasView({ win, projectId, setTitle, setRoute, focused }: AppProps) {
   return <Editing key={file.id} live={project?.canvas_live} active={focused} file={file} files={files} projectId={projectId} me={{ id: me?.id ?? "", name: me?.name ?? me?.email ?? "You" }} nameOf={(u) => (u === me?.id ? "You" : people.get(u) ?? "Someone")} />;
 }
 
-export function Editing({ file, files, projectId, me, nameOf, active, hosted, live }: { file: FileRec; files: FileRec[]; projectId: string; me: { id: string; name: string }; nameOf: (u: string) => string; active: boolean; hosted?: boolean; live?: api.CanvasLive }) {
+export function Editing({ file, files, projectId, me, nameOf, active, hosted, live, backdrop }: { file: FileRec; files: FileRec[]; projectId: string; me: { id: string; name: string }; nameOf: (u: string) => string; active: boolean; hosted?: boolean; live?: api.CanvasLive; backdrop?: ComponentChildren }) {
   // The window's own token for the lock: a second window of the same person is someone else.
   const holder = useMemo(() => `w${crypto.randomUUID().replace(/-/g, "").slice(0, 24)}`, []);
   const [doc, setDoc] = useState<CanvasBody>(() => file.body as unknown as CanvasBody);
@@ -233,7 +234,7 @@ export function Editing({ file, files, projectId, me, nameOf, active, hosted, li
   return (
     <>
       <CanvasEditor body={doc} rev={rev} base={base} presets={presets} photos={photos} photoSrc={(pid) => imageUrl(pid, "preview")}
-        onChange={change} onBase={setBase} active={active} hosted={hosted} title={file.name} me={me} nameOf={nameOf}
+        onChange={change} onBase={setBase} active={active} hosted={hosted} title={file.name} me={me} nameOf={nameOf} backdrop={backdrop}
         access={editing ? { editing: true, onStop: () => void stop() } : { editing: false, by: lockedBy, onEdit: () => void take() }}
         onDraft={(d) => send({ draft: d })} remoteDraft={editing ? null : remoteDraft}
         undo={{ can: history.current.past.length > 0, run: () => jump("past") }} redo={{ can: history.current.future.length > 0, run: () => jump("future") }}

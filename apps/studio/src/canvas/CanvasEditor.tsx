@@ -79,6 +79,11 @@ export interface CanvasEditorProps {
   remoteDraft?: Draft | null;
   onNewPreset: (start: { format: [number, number]; multiplier: number; squeeze: number; delivery: number | null; focal: number } | null, then: (id: string, firstFocal: number) => void) => void;
   status?: ComponentChildren;
+  /**
+   * Something to see through transparent paper while drawing (#426 feedback 4: the picture at a progression's
+   * playhead behind its overlay). Not part of the canvas: never saved, never rendered.
+   */
+  backdrop?: ComponentChildren;
   /** Mounted in another app (the tablet's web view): its own key for the panel layout. */
   hosted?: boolean;
   /** Whether its window has the focus: keys act only then. */
@@ -687,7 +692,8 @@ export function CanvasEditor(props: CanvasEditorProps) {
               onPointerCancel={(e) => { touches.current.delete(e.pointerId); if (act.current?.type === "pinch" || act.current?.type === "pan") act.current = null; }}>
               <div className={cx("cv-stage", `cv-stage--${photo ? mode : "blank"}`, drawing && "is-drawing", tool === "eraser" && "is-erasing", scale < 1 && "is-beyond")} style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, "--inv": 1 / view.z }}>
                 <div className="cv-world" style={{ transform: crop, transformOrigin: "0 0" }}>
-                  <div ref={box} className={cx("cv-surface", surface.kind === "blank" && surface.color === null && "is-clear")} style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : surface.kind === "blank" && surface.color === null ? undefined : colorCss(surface.kind === "blank" ? surface.color ?? 0 : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={() => setEraserAt(null)}>
+                  <div ref={box} className={cx("cv-surface", surface.kind === "blank" && surface.color === null && !props.backdrop && "is-clear")} style={{ width: `${scale * 100}%`, height: `${scale * 100}%`, background: photo ? undefined : surface.kind === "blank" && surface.color === null ? undefined : colorCss(surface.kind === "blank" ? surface.color ?? 0 : 0) }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={() => setEraserAt(null)}>
+                    {props.backdrop && <div className="cv-backdrop" aria-hidden="true">{props.backdrop}</div>}
                     {photoImg}
                     {objs.filter((o) => o.kind !== "group" && shown(o)).map((o) => draw(o))}
                     {draft && drawDraft({ tool: draft.tool, pts: draft.pts, pen: penType, stroke, width: strokeW })}
