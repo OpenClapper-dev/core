@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import {
-  OUTPUT_ROWS, OUTPUTS, REPORT_HOLD_MS, controlCommand, controlValue, effectCommand, effectOptions, effectsOf, formatValue, optionShown, outputBits, outputCommand,
+  OUTPUT_ROWS, OUTPUTS, REPORT_HOLD_MS, controlCommand, controlValue, effectCommand, effectOptions, effectsOf, formatValue, hsiCss, optionShown, outputBits, outputCommand,
   type Control, type EffectId, type EffectSettings, type FixtureLive, type LightCommand, type Model, type Value,
 } from "@openclapper/ext-hardware";
-import { Button, Chip, ChipRow, Hint, Input, ListRow, makeStyles, Row, Seg, Sheet, SheetList, Slider, Toggle, type, useTheme, type IconName } from "../../../ui";
+import { Button, Chip, ChipRow, Hint, HueSatField, Input, ListRow, makeStyles, Row, Seg, Sheet, SheetList, Slider, Toggle, type, useTheme, type IconName } from "../../../ui";
 
 /**
  * The controls of a device as its catalogue model declares them (docs/features/hardware.md), in the phone's touch
@@ -78,9 +78,12 @@ function Colour({ live, send, held, disabled }: { live: FixtureLive | undefined;
   const st = { ...live?.telemetry?.state, ...live?.state };
   const h = Number(held.get("hue", st.hsi?.h ?? 0)), sat = Number(held.get("sat", st.hsi?.s ?? 1)), i = st.intensity ?? st.hsi?.i ?? 0.5;
   const go = (nh: number, ns: number) => send({ op: "hsi", h: nh, s: ns, i });
+  const [picking, setPicking] = useState(false);
   return (
     <View>
-      <View style={[s.swatch, { backgroundColor: `hsl(${h}, ${Math.round(sat * 100)}%, 50%)` }]} />
+      {/* A tap opens the field to pick the colour by eye (#426). */}
+      <Pressable style={[s.swatch, { backgroundColor: hsiCss(h, sat) }]} disabled={disabled} onPress={() => setPicking(!picking)} accessibilityRole="button" accessibilityLabel={picking ? "Close the colour field" : "Pick the colour"} />
+      {picking && <HueSatField hue={h} sat={sat} disabled={disabled} onChange={(nh, ns) => { held.set("hue", nh); held.set("sat", ns); go(nh, ns); }} />}
       <Slider label="Hue" value={h} min={0} max={360} step={1} format={(v) => `${Math.round(v)}°`} disabled={disabled} onChange={(v) => { held.set("hue", v); go(v, sat); }} />
       <Slider label="Saturation" value={sat} min={0} max={1} step={0.01} format={(v) => `${Math.round(v * 100)} %`} disabled={disabled} onChange={(v) => { held.set("sat", v); go(h, v); }} />
       <Hint>Setting a colour leaves white; setting white leaves the colour.</Hint>

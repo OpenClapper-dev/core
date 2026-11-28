@@ -1,6 +1,6 @@
 // What a flow's lanes show (docs/features/flows.md): a light's colour, the intensity graph, short labels of what a
 // keyframe sets, and the view switches. Shared by the Studio's and the device's editors.
-import { effectName, modelOf } from "@openclapper/ext-hardware";
+import { effectName, hsiCss, modelOf } from "@openclapper/ext-hardware";
 import { sampleTrack, type Keyframe, type SequenceSample } from "./flow.ts";
 
 export interface FlowView { graph: boolean; fill: boolean; labels: boolean; badges: boolean }
@@ -23,7 +23,7 @@ export function kelvinRgb(k: number): [number, number, number] {
 
 /** The colour a light shows (CSS and React Native) in this state, or null when nothing has set white or colour. */
 export function lightColour(s: SequenceSample): string | null {
-  if (s.mode === "colour") return `hsl(${Math.round(s.hue ?? 0)}, ${Math.round((s.sat ?? 1) * 100)}%, ${Math.round(100 - (s.sat ?? 1) * 50)}%)`;
+  if (s.mode === "colour") return hsiCss(s.hue ?? 0, s.sat ?? 1);
   if (s.mode === "white" && s.kelvin !== undefined) { const [r, g, b] = kelvinRgb(s.kelvin); return `rgb(${r}, ${g}, ${b})`; }
   return null;
 }

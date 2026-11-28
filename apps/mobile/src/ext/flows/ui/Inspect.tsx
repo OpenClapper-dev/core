@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
-import { Text, View } from "react-native";
-import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
-import { Button, catColor, Chip, Hint, Input, makeStyles, Seg, Slider, Toggle, type, useTheme } from "../../../ui";
+import { useState, type ReactNode } from "react";
+import { Pressable, Text, View } from "react-native";
+import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, hsiCss, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
+import { FLOW_CAMERA_CONTROLS, fmtSeconds, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
+import { Button, catColor, Chip, Hint, HueSatField, Input, makeStyles, Seg, Slider, Toggle, type, useTheme } from "../../../ui";
 import type { HardwareDevice } from "../../hardware/library";
 
 /**
@@ -63,6 +63,7 @@ const Margins = ({ kf, durationMs, hide, onChange }: { kf: Keyframe; durationMs:
 
 export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; /** What the account leaves out (#426). */ hide?: PanelHides; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LightParam, on: boolean) => void }) {
   const s = useStyles();
+  const [picking, setPicking] = useState(false);
   const kind = fixtureKind(track.model), caps = kind?.caps, m = modelOf(track.model);
   const isStart = kf.id === START_KEYFRAME;
   // The start keyframe sets the locks; on the others a locked parameter is not shown (the start's value holds).
@@ -106,12 +107,15 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
             {cct.gm && shown("gm") && <Locked lock={lock("gm")}><Slider label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} /></Locked>}
           </>}
           {/* The colour the sliders make, live, drawn as the lanes draw it (#426). */}
-          {mode === "colour" && shown("colour") && <Locked lock={lock("colour")}><View style={s.colour}>
+          {mode === "colour" && shown("colour") && <Locked lock={lock("colour")}><View style={s.colourWrap}><View style={s.colour}>
             <View style={s.colourSliders}>
               <Slider label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
               <Slider label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
             </View>
-            <View style={[s.swatch, { backgroundColor: lightColour({ mode: "colour", hue: kf.hue ?? 0, sat: kf.sat ?? 1 }) ?? undefined }]} />
+            {/* A tap opens the field to pick the colour by eye (#426). */}
+            <Pressable style={[s.swatch, { backgroundColor: hsiCss(kf.hue ?? 0, kf.sat ?? 1) }]} onPress={() => setPicking(!picking)} accessibilityRole="button" accessibilityLabel={picking ? "Close the colour field" : "Pick the colour"} />
+          </View>
+          {picking && <HueSatField hue={kf.hue ?? 0} sat={kf.sat ?? 1} onChange={(hue, sat) => set({ hue, sat })} />}
           </View></Locked>}
         </Part>
       )}
@@ -219,6 +223,7 @@ const useStyles = makeStyles((c) => ({
   label: { ...type("label", "semibold"), color: c.text },
   note: { ...type("caption"), color: c.textDim },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  colourWrap: { gap: 12 },
   colour: { flexDirection: "row", alignItems: "stretch", gap: 12 },
   colourSliders: { flex: 1, gap: 8 },
   // A light's colour is content, like a photo: only its frame is a token.
