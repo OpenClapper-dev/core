@@ -229,13 +229,14 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
             <Chip label="Time" icon="arrows-horizontal" check={false} selected={dv.axisFocus === "time"} disabled={locked} onPress={() => setDv({ axisFocus: dv.axisFocus === "time" ? undefined : "time" })} />
             <Chip label="Intensity" icon="arrows-vertical" check={false} selected={dv.axisFocus === "level"} disabled={locked} onPress={() => setDv({ axisFocus: dv.axisFocus === "level" ? undefined : "level" })} />
           </View> : <View />}
-          <View style={s.barRow}>
+          <View style={[s.barRow, !upright && s.center]}>
             <Text style={s.time}>{fmtClock(playhead)}</Text>
             <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
             <IconButton icon="repeat" label={body.loop ? "Loop: on" : "Loop: off"} on={body.loop} disabled={locked} onPress={() => change((b) => ({ ...b, loop: !b.loop }))} />
-            <IconButton icon="moon" label={passive ? "Passive: the flow's lights are at 0. Tap to let the flow drive them again" : "Passive: put the flow's lights to 0"} on={passive} onPress={() => setPassive(!passive)} />
             <IconButton icon={playing ? "pause" : "play"} label={playing ? "Pause" : holds ? "Play" : "Play on the stage"} onPress={play} color={playing ? c.danger : c.accent} />
           </View>
+          {/* Passive (#426): on its own at the very right, apart from the playing controls. */}
+          <IconButton icon="moon" label={passive ? "Passive: the flow's lights are at 0. Tap to let the flow drive them again" : "Passive: put the flow's lights to 0"} on={passive} onPress={() => setPassive(!passive)} />
         </View>
       </View>
       {!stageOn && <>
@@ -324,6 +325,7 @@ const useStyles = makeStyles((c) => ({
   barRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   spread: { justifyContent: "space-between" },
   grow: { flex: 1 },
+  center: { flex: 1, justifyContent: "center" },
   time: { ...type("label", "semibold"), color: c.text, fontVariant: ["tabular-nums"], marginRight: 4 },
   form: { gap: 14 },
   sizes: { flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 8, paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: c.borderSubtle },
