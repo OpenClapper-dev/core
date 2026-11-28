@@ -58,3 +58,5 @@
 .fl-num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 /* A track whose widget is chosen on the stage. */
 .fl-label.is-marked { background: var(--selection); }
+/* The chosen drawn object's handles (#426): as on the canvas, they take the pointer. */
+.fl-paper .cv-handle, .fl-paper .cv-node { pointer-events: auto; z-index: 3; }
