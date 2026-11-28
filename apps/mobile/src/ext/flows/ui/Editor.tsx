@@ -218,6 +218,8 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
           </>}
           {/* The stage turned on this device only (#426), 15° a tap; the degrees, tapped, turn it back. */}
           {stageOn && <View style={s.barRow}>
+            {/* The lights' labels on the stage (the View's switch, #426), at hand while looking at it. */}
+            <IconButton icon="tag" label={view.tags ? "Hide the lights' labels" : "Show the lights' labels"} on={view.tags} onPress={() => setDv({ view: { ...view, tags: !view.tags } })} />
             <IconButton icon="rotate" label="Turn the stage left" onPress={() => turnBy(-15)} />
             <Chip label={`${turn}°`} check={false} selected={turn !== 0} disabled={turn === 0} onPress={() => turnBy(-turn)} />
             <IconButton icon="rotate-cw" label="Turn the stage right" onPress={() => turnBy(15)} />
