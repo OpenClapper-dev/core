@@ -26,18 +26,20 @@ export interface ObjectViewProps {
   editing?: boolean; onText?: (text: string) => void;
   /** A double click on a text: start typing. */
   onEdit?: () => void;
+  /** The surface is this many times as large as the one widths are measured on (a flow stage's larger paper): strokes are drawn that much thinner. */
+  scale?: number;
 }
 
 /** One object: lines in a layer the size of the surface (so arrowheads and strokes keep their shape), the rest in its box. */
-export function ObjectView({ o, vh, photoSrc, onGrab, editing, onText, onEdit }: ObjectViewProps) {
-  const c = colorCss(o.stroke), common = { "data-obj": o.id, onPointerDown: onGrab };
+export function ObjectView({ o, vh: vh1, photoSrc, onGrab, editing, onText, onEdit, scale = 1 }: ObjectViewProps) {
+  const c = colorCss(o.stroke), common = { "data-obj": o.id, onPointerDown: onGrab }, W = 1000 * scale, vh = vh1 * scale;
   if (o.kind === "pen" || o.kind === "line" || o.kind === "arrow") {
-    const q = (o.pts ?? []).map((x): P => { const a = abs(o, x); return [Number((a[0] * 1000).toFixed(1)), Number((a[1] * vh).toFixed(1))]; });
+    const q = (o.pts ?? []).map((x): P => { const a = abs(o, x); return [Number((a[0] * W).toFixed(1)), Number((a[1] * vh).toFixed(1))]; });
     const pen = PENS[o.pen ?? "pen"], w = o.width * STROKE_UNIT * (o.kind === "pen" ? pen.scale : 1), d = o.kind === "pen" ? smooth(q) : `M${q.map((x) => x.join(" ")).join(" L")}`;
     return (
-      <svg {...common} className="cv-vec" viewBox={`0 0 1000 ${vh}`} preserveAspectRatio="none" style={{ opacity: o.opacity * (o.kind === "pen" ? pen.opacity : 1), mixBlendMode: o.kind === "pen" && pen.blend ? (pen.blend as "screen") : undefined }}>
+      <svg {...common} className="cv-vec" viewBox={`0 0 ${W} ${vh}`} preserveAspectRatio="none" style={{ opacity: o.opacity * (o.kind === "pen" ? pen.opacity : 1), mixBlendMode: o.kind === "pen" && pen.blend ? (pen.blend as "screen") : undefined }}>
         {o.kind === "arrow" && <defs><marker id={`m${o.id}`} viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill={c} /></marker></defs>}
-        <g transform={o.rot ? `rotate(${o.rot} ${(o.x + o.w / 2) * 1000} ${(o.y + o.h / 2) * vh})` : undefined}>
+        <g transform={o.rot ? `rotate(${o.rot} ${(o.x + o.w / 2) * W} ${(o.y + o.h / 2) * vh})` : undefined}>
           {o.kind === "pen" && pen.taper ? <path d={taper(q, w)} fill={c} /> : <path d={d} fill="none" stroke={c} stroke-width={w} stroke-linecap={o.kind === "pen" ? pen.cap : "round"} stroke-linejoin="round" stroke-dasharray={o.kind === "pen" && pen.dash ? pen.dash.join(" ") : undefined} marker-end={o.kind === "arrow" ? `url(#m${o.id})` : undefined} />}
           {onGrab && <path className="cv-vec__hit" d={d} fill="none" stroke="transparent" stroke-width={Math.max(18, w)} />}
         </g>
@@ -46,7 +48,7 @@ export function ObjectView({ o, vh, photoSrc, onGrab, editing, onText, onEdit }:
   }
   const st: JSX.CSSProperties = { left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, opacity: o.opacity, color: c, transform: o.rot ? `rotate(${o.rot}deg)` : undefined, pointerEvents: onGrab ? undefined : "none" };
   // Widths are thousandths of the surface's width, as in the render.
-  if (o.kind === "rect" || o.kind === "ellipse") return <div {...common} className={cx("cv-obj", `cv-obj--${o.kind}`)} style={{ ...st, border: `calc(${o.width * STROKE_UNIT * 0.1}cqw) solid ${c}`, background: o.fill != null ? colorCss(o.fill) : undefined }} />;
+  if (o.kind === "rect" || o.kind === "ellipse") return <div {...common} className={cx("cv-obj", `cv-obj--${o.kind}`)} style={{ ...st, border: `calc(${(o.width * STROKE_UNIT * 0.1) / scale}cqw) solid ${c}`, background: o.fill != null ? colorCss(o.fill) : undefined }} />;
   if (o.kind === "text") return editing
     ? <div key="edit" data-obj={o.id} className="cv-obj cv-obj--text is-editing" style={{ ...st, "--fs": o.h * 78 }} contentEditable spellcheck={false}
         ref={(el) => { if (el && document.activeElement !== el) { el.textContent = o.text ?? ""; el.focus(); const r = document.createRange(); r.selectNodeContents(el); const g = getSelection(); g?.removeAllRanges(); g?.addRange(r); } }}
@@ -61,11 +63,11 @@ export function ObjectView({ o, vh, photoSrc, onGrab, editing, onText, onEdit }:
 export interface Draft { tool: string; pts: [number, number][]; pen: PenType; stroke: Colour; width: number }
 
 /** A stroke or box as it is drawn (a comment's region dashed). */
-export function DraftView({ d, vh }: { d: Draft; vh: number }) {
-  if (d.tool === "pen" || d.tool === "line" || d.tool === "arrow") return <ObjectView o={{ id: "draft", kind: d.tool, name: "", x: 0, y: 0, w: 1, h: 1, pts: d.pts, pen: d.pen, stroke: d.stroke, width: d.width, opacity: 1, visible: true, locked: false }} vh={vh} />;
+export function DraftView({ d, vh, scale = 1 }: { d: Draft; vh: number; scale?: number }) {
+  if (d.tool === "pen" || d.tool === "line" || d.tool === "arrow") return <ObjectView o={{ id: "draft", kind: d.tool, name: "", x: 0, y: 0, w: 1, h: 1, pts: d.pts, pen: d.pen, stroke: d.stroke, width: d.width, opacity: 1, visible: true, locked: false }} vh={vh} scale={scale} />;
   const [a, b] = d.pts;
   if (!a || !b) return null;
-  return <div className={cx("cv-obj", d.tool === "comment" ? "cv-region" : `cv-obj--${d.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: d.tool === "comment" ? undefined : `calc(${d.width * STROKE_UNIT * 0.1}cqw) solid ${colorCss(d.stroke)}`, pointerEvents: "none" }} />;
+  return <div className={cx("cv-obj", d.tool === "comment" ? "cv-region" : `cv-obj--${d.tool}`)} style={{ left: `${Math.min(a[0], b[0]) * 100}%`, top: `${Math.min(a[1], b[1]) * 100}%`, width: `${Math.abs(b[0] - a[0]) * 100}%`, height: `${Math.abs(b[1] - a[1]) * 100}%`, border: d.tool === "comment" ? undefined : `calc(${(d.width * STROKE_UNIT * 0.1) / scale}cqw) solid ${colorCss(d.stroke)}`, pointerEvents: "none" }} />;
 }
 
 /**

@@ -17,7 +17,7 @@
 /* The paper keeps its aspect inside the room it has; its inside is the container the drawn objects are sized by. */
 /* Sized so the paper, turned by the stage's turn (--c, --s: |cos|, |sin|), still fits; zoom and pan on top (#426). */
 .fl-paper { position: relative; width: min(100cqw / (var(--c, 1) + var(--s, 0) / var(--aspect)), 100cqh / (var(--s, 0) + var(--c, 1) / var(--aspect))); transform-origin: center; aspect-ratio: var(--aspect); overflow: hidden; touch-action: none; user-select: none; border-radius: var(--radius-xs); background: var(--photo-bg); }
-.fl-paper__in { position: absolute; inset: 0; container-type: size; background-image: linear-gradient(var(--fl-grid) 1px, transparent 1px), linear-gradient(90deg, var(--fl-grid) 1px, transparent 1px); background-size: 4% calc(4% * var(--aspect)); }
+.fl-paper__in { position: absolute; inset: 0; container-type: size; background-image: linear-gradient(var(--fl-grid) 1px, transparent 1px), linear-gradient(90deg, var(--fl-grid) 1px, transparent 1px); background-size: calc(100% / var(--cols, 25)) calc(100% * var(--aspect) / var(--cols, 25)); }
 .fl-paper__under { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
 .fl-paper__hint { position: absolute; left: var(--space-4); bottom: var(--space-3); padding: 2px var(--space-3); border-radius: var(--radius-xs); background: var(--scrim); color: var(--grey-200); font-size: var(--font-size-2xs); pointer-events: none; }
 .fl-paper:not(.is-select):not(.is-view) { cursor: crosshair; }
@@ -69,3 +69,9 @@
 .fl-paper .cv-rot { pointer-events: auto; z-index: 3; }
 /* A box drawn from empty paper to choose several drawn objects (#426). */
 .fl-box { position: absolute; z-index: 3; border: var(--border-w) dashed var(--accent); background: var(--marquee); pointer-events: none; }
+/* The paper size dialog (#426): two sides and where the drawing sits. */
+.fl-paperdlg { display: grid; gap: var(--space-4); min-width: 300px; }
+.fl-paperdlg__sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
+.fl-paperdlg__anchor { display: grid; grid-template-columns: repeat(3, 24px); gap: 4px; }
+.fl-paperdlg__anchor > button { width: 24px; height: 24px; padding: 0; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; }
+.fl-paperdlg__anchor > button.is-on { background: var(--accent); border-color: var(--accent); }

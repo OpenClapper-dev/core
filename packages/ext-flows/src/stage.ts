@@ -44,6 +44,36 @@ export interface FlowStage {
    * the lights and the underlay turn together; nothing on it changes. Absent: 0.
    */
   turn?: number;
+  /**
+   * The paper's width in grid squares (#426; absent: STAGE_COLS). Its height is `cols / aspect`. Widgets, their tags
+   * and stroke widths have a fixed size in squares, so a larger paper is more room around the same drawing.
+   */
+  cols?: number;
+}
+
+/** The squares across a paper that names none; widgets and strokes are drawn at the size they have on such a paper. */
+export const STAGE_COLS = 25;
+/** The smallest and largest paper side in squares. */
+export const STAGE_SIDE_MIN = 5, STAGE_SIDE_MAX = 200;
+/** How much larger than a STAGE_COLS-wide paper this one is: widgets and strokes are drawn that much smaller on it. */
+export const stageScale = (s: Pick<FlowStage, "cols">) => (s.cols ?? STAGE_COLS) / STAGE_COLS;
+/** A paper's size in squares: [width, height]. */
+export const stageSize = (s: Pick<FlowStage, "cols" | "aspect">): [number, number] => { const c = s.cols ?? STAGE_COLS; return [c, c / s.aspect]; };
+
+/**
+ * The stage on a paper of `cols` × `rows` squares (#426), the old paper placed at `anchor` in the new one ([0, 0]: at
+ * the top left, so the room is added right and below; [0.5, 0.5]: in the middle): everything drawn and placed keeps its
+ * size and its place among the rest; what a smaller paper no longer holds is cut off (a light moves to its edge).
+ */
+export function resizeStage(s: FlowStage, cols: number, rows: number, anchor: [number, number]): FlowStage {
+  const [oc, or] = stageSize(s), dx = (cols - oc) * anchor[0], dy = (rows - or) * anchor[1];
+  const fx = (x: number) => (x * oc + dx) / cols, fy = (y: number) => (y * or + dy) / rows;
+  const r4 = (v: number) => Number(v.toFixed(4)), c01 = (v: number) => Math.min(1, Math.max(0, v));
+  const objects = s.objects.map((o) => ({ ...o, x: fx(o.x), y: fy(o.y), w: (o.w * oc) / cols, h: (o.h * or) / rows }));
+  const lights = s.lights.map((l) => ({ ...l, x: r4(c01(fx(l.x))), y: r4(c01(fy(l.y))) }));
+  const n: FlowStage = { ...s, objects, lights, aspect: cols / rows };
+  if (cols === STAGE_COLS) delete n.cols; else n.cols = cols;
+  return n;
 }
 
 /** What the stage draws: the canvas's shapes, text and stencils; no placed photos or groups (the phone draws it read-only). */
@@ -66,10 +96,11 @@ const isLightTrack = (t: Pick<FlowTrack, "model">) => modelOf(t.model)?.type ===
 /** Null when a stage is valid for these tracks: its drawing within limits, each widget on a light track of the flow, once. */
 export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "model">[]): string | null {
   if (!isObj(v)) return "stage is an object";
-  for (const k of Object.keys(v)) if (!["id", "name", "aspect", "objects", "lights", "underlay", "turn"].includes(k)) return `a stage has no "${k}"`;
+  for (const k of Object.keys(v)) if (!["id", "name", "aspect", "objects", "lights", "underlay", "turn", "cols"].includes(k)) return `a stage has no "${k}"`;
   if (typeof v.id !== "string" || !STAGE_ID.test(v.id)) return "stage.id is 1 to 40 letters, digits, - or _";
   if (typeof v.name !== "string" || !v.name.trim() || v.name.length > STAGE_NAME_MAX) return `stage.name is 1 to ${STAGE_NAME_MAX} characters`;
   if (!num(v.aspect, 0.25, 4)) return "stage.aspect is between 0.25 and 4";
+  if (v.cols !== undefined && !(num(v.cols, STAGE_SIDE_MIN, STAGE_SIDE_MAX) && Number.isInteger(v.cols))) return `stage.cols is whole squares, ${STAGE_SIDE_MIN} to ${STAGE_SIDE_MAX}`;
   if (v.turn !== undefined && !(num(v.turn, 0, 359) && Number.isInteger(v.turn))) return "stage.turn is whole degrees, 0 to 359";
   if (!Array.isArray(v.objects) || v.objects.length > STAGE_OBJECTS_MAX) return `a stage has at most ${STAGE_OBJECTS_MAX} drawn objects`;
   const ids = new Set<string>(), groups = new Set<string>();
@@ -274,15 +305,16 @@ export const tagWidth = (name: string, line: string) => Math.max(name.length * 1
  * Where a widget's name tag of width `w` is centred (stage units), kept on the paper: an aimed light's behind it,
  * away from its beam; a ceiling light has no behind, so its tag sits under the body (above it at the paper's foot).
  */
-export function tagAt(l: StageLight, aspect: number, w: number): [number, number] {
-  const H = STAGE_W / aspect, half = Math.min(STAGE_W / 2, w / 2 + 4);
-  const keepX = (x: number) => Math.min(STAGE_W - half, Math.max(half, x)), keepY = (y: number) => Math.min(H - 26, Math.max(26, y));
+export function tagAt(l: StageLight, aspect: number, w: number, scale = 1): [number, number] {
+  // On a paper `scale` times as large (stageScale) the units run to STAGE_W × scale, the tag keeping its size.
+  const W = STAGE_W * scale, H = W / aspect, half = Math.min(W / 2, w / 2 + 4);
+  const keepX = (x: number) => Math.min(W - half, Math.max(half, x)), keepY = (y: number) => Math.min(H - 26, Math.max(26, y));
   if (isCeiling(l)) {
     const y = l.y * H, below = y + 56;
-    return [keepX(l.x * STAGE_W), keepY(below + 26 <= H ? below : y - 56)];
+    return [keepX(l.x * W), keepY(below + 26 <= H ? below : y - 56)];
   }
   const a = (l.rot * Math.PI) / 180;
-  return [keepX(l.x * STAGE_W - Math.cos(a) * 62), keepY(l.y * H - Math.sin(a) * 58)];
+  return [keepX(l.x * W - Math.cos(a) * 62), keepY(l.y * H - Math.sin(a) * 58)];
 }
 
 /** The stage colours of the 8 track colours: the paper is dark in both themes (like a photo), so the dark theme's (Set) values. */
