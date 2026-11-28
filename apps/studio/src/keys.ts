@@ -8,6 +8,16 @@ export function isTyping(e: KeyboardEvent): boolean {
   return !!t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA" || t.isContentEditable);
 }
 
+/** Focus is in a field that edits text (not a checkbox, slider or list): it owns the text-editing keys. */
+function inText(e: KeyboardEvent): boolean {
+  const t = e.target as HTMLElement | null;
+  if (!t) return false;
+  if (t.tagName === "TEXTAREA" || t.isContentEditable) return true;
+  return t.tagName === "INPUT" && !["checkbox", "radio", "range", "button", "submit", "reset", "color", "file"].includes((t as HTMLInputElement).type);
+}
+/** Select all, copy, cut, paste, undo and redo act on the text being typed, not on what the app has selected (#426). */
+const TEXT_KEYS = new Set(["Mod+a", "Mod+c", "Mod+x", "Mod+v", "Mod+z", "Mod+Z", "Mod+y"]);
+
 let lastG = 0;
 /** True right after a plain "G": the next key is a section jump (G S, G R, …), not a page shortcut. */
 export const afterG = () => Date.now() - lastG < 1200;
@@ -42,7 +52,7 @@ function onKeyDown(e: KeyboardEvent) {
   const name = keyName(e);
   const typing = !mod && !e.altKey && isTyping(e) && e.key !== "Escape";
   if (name === "g" && !typing) lastG = Date.now();
-  if (typing) return;
+  if (typing || (inText(e) && TEXT_KEYS.has(name))) return;
   for (const map of liveMaps()) {
     const fn = map[name] ?? (e.shiftKey && e.key.length === 1 ? map[`Shift+${e.key.toUpperCase()}`] : undefined);
     if (!fn) continue;
@@ -56,7 +66,7 @@ let listening = false;
 /**
  * Keyboard shortcuts for one surface. Keys are matched against `e.key` with modifier prefixes
  * ("Alt+ArrowUp", "Shift+N", "Mod+s" where Mod is Ctrl or ⌘). Plain keys never fire while typing;
- * modified keys do (⌘S in the JSON editor). The handler returns false to let the event through.
+ * modified keys do (⌘S in the JSON editor), except the text-editing ones (select all, copy, cut, paste, undo, redo). The handler returns false to let the event through.
  * Inside a window the map only hears keys while that window has focus.
  */
 export function useKeys(map: Record<string, (e: KeyboardEvent) => void | boolean>, enabled = true) {

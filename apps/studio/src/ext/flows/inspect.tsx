@@ -5,6 +5,7 @@ import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, S
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
 import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
 import { ColourSwatch } from "../hardware/ColourSwatch";
+import { Draft } from "./draft";
 import { CURVE_LABELS } from "./lanes";
 
 function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
@@ -196,7 +197,7 @@ export function TrackInspect({ tr, custom, onChange, onRemove, onHeight }: { tr:
   const m = modelOf(tr.model);
   return (
     <div className="fl-inspect">
-      <label className="hw-ctl"><small>Name</small><TextInput size="sm" value={tr.name} maxLength={60} onInput={(e) => { const name = e.currentTarget.value.trim(); if (name) onChange((t) => ({ ...t, name })); }} /></label>
+      <label className="hw-ctl"><small>Name</small><Draft value={tr.name} commit={(v) => { const name = v.trim(); if (name) onChange((t) => ({ ...t, name })); }}>{(d) => <TextInput size="sm" maxLength={60} {...d} />}</Draft></label>
       <p className="fl-note">{m ? `${m.brand} ${m.model}` : tr.model} · {tr.keyframes.length} keyframe{tr.keyframes.length === 1 ? "" : "s"}{tr.muted ? " · muted" : ""}{tr.device ? "" : " · no device: it does not play"}</p>
       {custom && <div><Button size="sm" variant="secondary" onClick={onHeight}>Back to the common height</Button></div>}
       <div><Button size="sm" variant="danger" icon="trash" onClick={onRemove}>Remove the track</Button></div>

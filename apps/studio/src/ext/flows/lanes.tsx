@@ -8,6 +8,7 @@ import { effectName, fixtureKind, modelOf, type FixtureLive } from "@openclapper
 import { fmtSeconds, NATIVE_FADES, playedKeyframes, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep } from "@openclapper/ext-flows";
 import type { FileRec } from "../../api";
 import { graphPoints, keyframeLevel, lightColour, shortLabel, type FlowView } from "./view";
+import { Draft } from "./draft";
 
 export const CURVE_LABELS = { linear: "Linear", exp: "Expo", log: "Log", s: "S-curve" } as const;
 
@@ -242,7 +243,7 @@ function TrackRow(p: LanesProps & { tr: FlowTrack; pct: (t: number) => string; p
         <span className="fl-label__grip" onPointerDown={grip} title="Drag to reorder the tracks"><Icon name="grip" size={14} /></span>
         <div className="fl-label__text">
           <div className="fl-label__top">
-            <input className="fl-name" value={tr.name} aria-label="Track name" disabled={p.locked} maxLength={60} onChange={(e) => { const name = e.currentTarget.value.trim(); if (name) p.onTrack(tr.id, (t) => ({ ...t, name })); }} />
+            <Draft value={tr.name} commit={(v) => { const name = v.trim(); if (name) p.onTrack(tr.id, (t) => ({ ...t, name })); }}>{(d) => <input className="fl-name" aria-label="Track name" disabled={p.locked} maxLength={60} {...d} />}</Draft>
           </div>
           <span className="fl-label__kind">{model ? `${model.brand} ${model.model}` : tr.model}{onStages(flow, tr.id)}</span>
           <Select size="sm" aria-label={`Device for ${tr.name}`} value={tr.device ?? ""} disabled={p.locked}
