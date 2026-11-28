@@ -244,7 +244,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const newId = () => crypto.randomUUID();
 
   // ---------- The stage (#426) ----------
-  const [drawing, setDrawing] = useState<StageDrawing>({ tool: "select", colour: "#ECECEA", stencil: "user" });
+  const [drawing, setDrawing] = useState<StageDrawing>({ tool: "select", colour: "#ECECEA", stencil: "user", snap: true });
   const [stageSel, setStageSel] = useState<StageSel>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const { files: projectFiles } = store.useRoot({ project: projectId });
