@@ -1,7 +1,7 @@
 // Editing a flow (docs/features/flows.md): the changes both editors make, as pure functions on the body, so the
 // Studio's and the phone's editors follow the same rules. Ids come from the caller (each client has its own UUIDs).
 import { fixtureKind, modelOf } from "@openclapper/ext-hardware";
-import { sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam } from "./flow.ts";
+import { sampleTrack, START_KEYFRAME, startKeyframe, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, LIGHT_SUBLOCKS, type LockParam } from "./flow.ts";
 import type { FlowBody } from "./index.ts";
 import { withoutLight } from "./stage.ts";
 
@@ -42,9 +42,14 @@ export function addTrack(b: FlowBody, modelId: string, id: string): FlowBody {
 }
 
 export const patchTrack = (b: FlowBody, trackId: string, fn: (t: FlowTrack) => FlowTrack): FlowBody => ({ ...b, tracks: b.tracks.map((t) => (t.id === trackId ? fn(t) : t)) });
-/** A parameter locked on a track's start keyframe, or unlocked (#426); with no locks left, none is stored. */
-export const setLock = (b: FlowBody, trackId: string, p: LightParam, on: boolean): FlowBody => patchTrack(b, trackId, (t) => {
-  const locked = (t.locked ?? []).filter((x) => x !== p).concat(on ? [p] : []);
+/**
+ * A value locked on a track's start keyframe, or unlocked (#426); with no locks left, none is stored. The light's is a
+ * hierarchy: locking a value under it locks the light too, unlocking the light unlocks the values under it.
+ */
+export const setLock = (b: FlowBody, trackId: string, p: LockParam, on: boolean): FlowBody => patchTrack(b, trackId, (t) => {
+  let locked = (t.locked ?? []).filter((x) => x !== p).concat(on ? [p] : []);
+  if (on && LIGHT_SUBLOCKS.includes(p) && !locked.includes("light")) locked = ["light", ...locked];
+  if (!on && p === "light") locked = locked.filter((x) => !LIGHT_SUBLOCKS.includes(x));
   const n: FlowTrack = { ...t, locked };
   if (!locked.length) delete n.locked;
   return n;

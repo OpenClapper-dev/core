@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { CURVES, EFFECT_OPTIONS, effectHolds, effectLightKind, effectName, effectOptions, holdEffect, effectSettingsOf, fixtureKind, formatValue, hsiCss, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, fmtSeconds, heldLight, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, fmtSeconds, heldLight, LIGHT_PARAMS, LIGHT_SUBLOCKS, LOCK_LABELS, LOCK_PARAMS, type LockParam, MARKER_NAME_MAX, NATIVE_FADES, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
 import { Button, catColor, Chip, Hint, HueSatField, Input, makeStyles, Seg, Slider, Toggle, type, useTheme } from "../../../ui";
 import type { HardwareDevice } from "../../hardware/library";
 
@@ -20,7 +20,7 @@ function Part({ label, children }: { label: string; children: ReactNode }) {
  * A lock on the start keyframe (#426): locked, this value holds for the whole track and no other keyframe can set
  * it. The padlock shows the state.
  */
-function Lock({ param, locked, onLock }: { param: LightParam; locked?: readonly LightParam[]; onLock?: (p: LightParam, on: boolean) => void }) {
+function Lock({ param, locked, onLock }: { param: LockParam; locked?: readonly LockParam[]; onLock?: (p: LockParam, on: boolean) => void }) {
   if (!onLock) return null;
   const on = !!locked?.includes(param);
   return <Chip label={on ? "Locked" : "Lock"} icon={on ? "lock" : "unlock"} selected={on} onPress={() => onLock(param, !on)} />;
@@ -38,6 +38,8 @@ function Channel({ label, on, fixed, toggle, lock, children }: { label: string; 
     </View>
   );
 }
+/** A value held by the start keyframe's lock, on the other keyframes (#426). */
+const Held = () => <Chip label="Locked" icon="lock" check={false} selected disabled onPress={() => undefined} />;
 /** A slider with the start keyframe's lock beside it. */
 function Locked({ lock, children }: { lock?: ReactNode; children: ReactNode }) {
   const s = useStyles();
@@ -61,7 +63,7 @@ const Margins = ({ kf, durationMs, hide, onChange }: { kf: Keyframe; durationMs:
   </>
 );
 
-export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; /** What the account leaves out (#426). */ hide?: PanelHides; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LightParam, on: boolean) => void }) {
+export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; /** What the account leaves out (#426). */ hide?: PanelHides; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LockParam, on: boolean) => void }) {
   const s = useStyles();
   const [picking, setPicking] = useState(false);
   const [fxPicking, setFxPicking] = useState(false);
@@ -69,11 +71,17 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
   const isStart = kf.id === START_KEYFRAME;
   // The start keyframe sets the locks; on the others a locked parameter is not shown (the start's value holds).
   // Hidden for the model or left out of the sheet (#426): not shown, its lock neither; its value stays.
-  const lock = (p: LightParam) => (isStart ? <Lock param={p} locked={track.locked} onLock={onLock} /> : null);
+  const lock = (p: LockParam) => (isStart ? <Lock param={p} locked={track.locked} onLock={onLock} /> : null);
+  const isLocked = (p: LockParam) => !!track.locked?.includes(p);
+  // The light's locks (#426, a hierarchy): on the start keyframe a lock beside each; on the others what is held shows, disabled.
+  const start = track.keyframes.find((k) => k.id === START_KEYFRAME);
+  const lightHeld = !isStart && isLocked("light") ? heldLight(track) : null;
+  const sub = (p: LockParam) => (isStart ? lock(p) : lightHeld && isLocked(p) ? <Held /> : null);
+  const subHeld = (p: LockParam) => !isStart && !!lightHeld && isLocked(p);
   const forModel = (p: LightParam) => !hide.params.includes(p);
   const inPanel = (p: LightParam) => forModel(p) && !hide.fields.includes(p);
-  const shown = (p: LightParam) => inPanel(p) && (isStart || !track.locked?.includes(p));
-  const lockedHere = (isStart ? [] : (track.locked ?? [])).filter(forModel);
+  const shown = (p: LightParam) => inPanel(p) && (isStart || !(LOCK_PARAMS as readonly string[]).includes(p) || !isLocked(p as LockParam));
+  const lockedHere = (isStart ? [] : (track.locked ?? [])).filter((p): p is LightParam & LockParam => (LIGHT_PARAMS as readonly string[]).includes(p) && !LIGHT_SUBLOCKS.includes(p)).filter(forModel);
   const set = (patch: Partial<Keyframe>) => onChange({ ...kf, ...patch });
   const drop = (...keys: (keyof Keyframe)[]) => { const n = { ...kf }; for (const k of keys) delete n[k]; onChange(n); };
   const mode = kf.hue !== undefined ? "colour" : kf.kelvin !== undefined ? "white" : "leave";
@@ -83,8 +91,11 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
   const held = isStart ? null : heldLight(track);
   const holds = !!fx && !!held && effectHolds(fx, held);
   const settings = fx ? (holds ? effectSettingsOf(fx, holdEffect(fx, kf.effect?.settings, held!)) : effectSettingsOf(fx, kf.effect?.settings)) : {};
-  const heldText = held ? ("kelvin" in held ? `the locked white, ${held.kelvin} K` : `the locked colour, ${Math.round(held.h)}° · ${Math.round(held.s * 100)} %`) : "";
-  const isLightOpt = (id: string) => ["kelvin", "colorMode", "colorKelvin", "colorHue", "colorSat"].includes(id) || (id === "choice" && !!fx && effectLightKind(fx) === "whiteChoice");
+  const heldText = !held ? "" : held.mode === "white" ? `the locked white${held.kelvin !== undefined ? `, ${held.kelvin} K` : ""}`
+    : `the locked colour${[held.h !== undefined ? `hue ${Math.round(held.h)}°` : "", held.s !== undefined ? `saturation ${Math.round(held.s * 100)} %` : ""].filter(Boolean).map((x) => `, ${x}`).join("")}`;
+  // Which of the effect's light options the lock holds: white or colour always; a value where it is locked too.
+  const isLightOpt = (id: string) => !!held && (id === "colorMode" || ((id === "kelvin" || id === "colorKelvin") && held.mode === "white" && held.kelvin !== undefined)
+    || (id === "colorHue" && held.mode === "colour" && held.h !== undefined) || (id === "colorSat" && held.mode === "colour" && held.s !== undefined) || (id === "choice" && !!fx && effectLightKind(fx) === "whiteChoice"));
   const fxOpts = fx && m ? effectOptions(m, fx).filter((o) => optionShown(o, settings)) : [];
   const satOpt = fxOpts.find((o) => o.control.id === "colorSat");
   return (
@@ -92,7 +103,7 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
       {isStart ? <Hint>What the light shows when the flow starts: power, intensity and the light are always set, so a flow never starts from whatever the light showed before.</Hint>
         : !hide.fields.includes("at") && <At kf={kf} durationMs={durationMs} onChange={(at) => set({ at })} />}
       <Margins kf={kf} durationMs={durationMs} hide={hide} onChange={onChange} />
-      {lockedHere.length > 0 && <Hint>{`Locked on the start keyframe for the whole track: ${lockedHere.map((p) => PARAM_LABELS[p]).join(", ")}.`}</Hint>}
+      {lockedHere.length > 0 && <Hint>{`Locked on the start keyframe for the whole track: ${lockedHere.map((p) => LOCK_LABELS[p]).join(", ")}.`}</Hint>}
       {shown("power") && <Channel label="Power" fixed={isStart} on={kf.power !== undefined} toggle={(on) => (on ? set({ power: true }) : drop("power"))} lock={lock("power")}>
         <Seg accessibilityLabel="Power" value={kf.power ? "on" : "off"} onChange={(v) => set({ power: v === "on" })} options={[{ id: "off", label: "Off" }, { id: "on", label: "On" }]} block />
       </Channel>}
@@ -102,37 +113,51 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
       {/* A keyframe that turns an effect on (#426): the effect's own options are its light. */}
       {!(fx && !isStart) && ((cct && (inPanel("kelvin") || inPanel("gm"))) || (caps?.hsi && inPanel("colour"))) && (
         <Part label="Light">
-          <Seg accessibilityLabel="White or colour" value={mode} block
-            onChange={(v) => {
-              const n: Keyframe = { ...kf };
-              delete n.kelvin; delete n.gm; delete n.hue; delete n.sat;
-              if (v === "white") Object.assign(n, { kelvin: cct ? Math.round((cct.min + cct.max) / 200) * 100 : 5600, gm: 0 });
-              if (v === "colour") Object.assign(n, { hue: 0, sat: 1 });
-              onChange(n);
-            }}
-            options={[...(isStart ? [] : [{ id: "leave" as const, label: "As before" }]), ...(cct && (mode === "white" || inPanel("kelvin") || inPanel("gm")) ? [{ id: "white" as const, label: "White" }] : []), ...(caps?.hsi && (mode === "colour" || inPanel("colour")) ? [{ id: "colour" as const, label: "Colour" }] : [])]} />
-          {mode === "white" && cct && <>
-            {shown("kelvin") && <Locked lock={lock("kelvin")}><Slider label="White" value={kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} /></Locked>}
-            {cct.gm && shown("gm") && <Locked lock={lock("gm")}><Slider label="Green / magenta" value={kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} /></Locked>}
-          </>}
-          {/* The colour the sliders make, live, drawn as the lanes draw it (#426). */}
-          {mode === "colour" && shown("colour") && <Locked lock={lock("colour")}><View style={s.colourWrap}><View style={s.colour}>
-            <View style={s.colourSliders}>
-              <Slider label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
-              <Slider label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
+          <View style={s.head}>
+            <View style={{ flex: 1 }}>
+              <Seg accessibilityLabel="White or colour" value={mode} block
+                onChange={(v) => {
+                  const n: Keyframe = { ...kf };
+                  delete n.kelvin; delete n.gm; delete n.hue; delete n.sat;
+                  if (v === "white") Object.assign(n, { kelvin: start?.kelvin ?? (cct ? Math.round((cct.min + cct.max) / 200) * 100 : 5600), gm: start?.gm ?? 0 });
+                  if (v === "colour") Object.assign(n, { hue: start?.hue ?? 0, sat: start?.sat ?? 1 });
+                  onChange(n);
+                }}
+                options={[...(isStart ? [] : [{ id: "leave" as const, label: "As before" }]),
+                  ...(cct && (mode === "white" || inPanel("kelvin") || inPanel("gm")) && (!lightHeld || lightHeld.mode === "white") ? [{ id: "white" as const, label: "White" }] : []),
+                  ...(caps?.hsi && (mode === "colour" || inPanel("colour")) && (!lightHeld || lightHeld.mode === "colour") ? [{ id: "colour" as const, label: "Colour" }] : [])]} />
             </View>
-            {/* A tap opens the field to pick the colour by eye (#426). */}
-            <Pressable style={[s.swatch, { backgroundColor: hsiCss(kf.hue ?? 0, kf.sat ?? 1) }]} onPress={() => setPicking(!picking)} accessibilityRole="button" accessibilityLabel={picking ? "Close the colour field" : "Pick the colour"} />
+            {isStart ? lock("light") : lightHeld && <Held />}
           </View>
-          {picking && <HueSatField hue={kf.hue ?? 0} sat={kf.sat ?? 1} onChange={(hue, sat) => set({ hue, sat })} />}
-          </View></Locked>}
+          {lightHeld && mode === "leave" && <Hint>{lightHeld.mode === "white" ? "White" : "Colour"} is locked on the start keyframe: setting the light here sets {lightHeld.mode === "white" ? "white" : "a colour"}.</Hint>}
+          {mode === "white" && cct && <>
+            {inPanel("kelvin") && <Locked lock={sub("kelvin")}><Slider label="White" value={subHeld("kelvin") ? start?.kelvin ?? 5600 : kf.kelvin ?? 5600} min={cct.min} max={cct.max} step={100} disabled={subHeld("kelvin")} format={(x) => `${x} K`} onChange={(x) => set({ kelvin: x })} /></Locked>}
+            {cct.gm && inPanel("gm") && <Locked lock={sub("gm")}><Slider label="Green / magenta" value={subHeld("gm") ? start?.gm ?? 0 : kf.gm ?? 0} min={cct.gm.min} max={cct.gm.max} disabled={subHeld("gm")} format={(x) => (x > 0 ? `+${x} M` : x < 0 ? `${-x} G` : "neutral")} onChange={(x) => set({ gm: x })} /></Locked>}
+          </>}
+          {/* The colour the sliders make, live, drawn as the lanes draw it (#426); hue and saturation each lockable. */}
+          {mode === "colour" && inPanel("colour") && (() => {
+            const h = subHeld("hue") ? start?.hue ?? 0 : kf.hue ?? 0, sv = subHeld("sat") ? start?.sat ?? 1 : kf.sat ?? 1, both = subHeld("hue") && subHeld("sat");
+            return (
+              <View style={s.colourWrap}>
+                <View style={s.colour}>
+                  <View style={s.colourSliders}>
+                    <Locked lock={sub("hue")}><Slider label="Hue" value={Math.round(h)} min={0} max={360} disabled={subHeld("hue")} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} /></Locked>
+                    <Locked lock={sub("sat")}><Slider label="Saturation" value={Math.round(sv * 100)} min={0} max={100} disabled={subHeld("sat")} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} /></Locked>
+                  </View>
+                  {/* A tap opens the field to pick the colour by eye (#426). */}
+                  <Pressable style={[s.swatch, { backgroundColor: hsiCss(h, sv) }]} disabled={both} onPress={() => setPicking(!picking)} accessibilityRole="button" accessibilityLabel={picking ? "Close the colour field" : "Pick the colour"} />
+                </View>
+                {picking && !both && <HueSatField hue={h} sat={sv} onChange={(hue, sat) => set({ ...(subHeld("hue") ? {} : { hue }), ...(subHeld("sat") ? {} : { sat }) })} />}
+              </View>
+            );
+          })()}
         </Part>
       )}
       {!!caps?.effects?.length && m && shown("effect") && (
         <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))} lock={lock("effect")}>
           <Choices value={fx ?? "off"} onChange={(v) => { const id = v === "off" ? null : (v as EffectId); set({ effect: id ? { id, settings: effectSettingsOf(id) } : { id: null } }); }}
             options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => ({ value: id as string, label: effectName(id), disabled: !!held && !effectHolds(id, held) && id !== fx }))]} />
-          {held && !fx && <Hint>{"kelvin" in held ? "Effects that cannot show the locked white" : "Effects that cannot show the locked colour"} are greyed out.</Hint>}
+          {held && !fx && <Hint>{held.mode === "white" ? "Effects that cannot show the locked white" : "Effects that cannot show the locked colour"} are greyed out.</Hint>}
           {fx && held && !holds && <Hint>{effectName(fx)} brings its own light: it cannot show {heldText}. It plays as it is; pick another effect to keep the lock.</Hint>}
           {holds && <Hint>Its light is {heldText}, locked on the start keyframe.</Hint>}
           {fx && EFFECT_OPTIONS[fx] && fxOpts.map((o) => {

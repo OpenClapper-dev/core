@@ -52,13 +52,15 @@ test("each effect with options says how it takes its light, and holds a locked o
   assert.equal(effectLightKind("nw_candle"), "white");
   assert.equal(effectLightKind("nw_cct_loop"), "own");
   // A locked white: paparazzi takes its temperature, faulty bulb turns white at it, cop car cannot.
-  assert.equal(holdEffect("paparazzi", { kelvin: 3000, frequency: 2 }, { kelvin: 4600 })!.kelvin, 4600);
-  assert.deepEqual(holdEffect("faulty_bulb", { color: { h: 10, s: 1 } }, { kelvin: 4600 })!.color, { kelvin: 4600 });
-  assert.equal(effectHolds("cop_car", { kelvin: 4600 }), false);
-  assert.equal(holdEffect("fireworks", { choice: 2 }, { kelvin: 4600 })!.choice, 0);
-  // A locked colour: only an effect with a colour option.
-  assert.deepEqual(holdEffect("pulsing", { color: { kelvin: 3000 } }, { h: 200, s: 0.5 })!.color, { h: 200, s: 0.5 });
-  assert.equal(effectHolds("paparazzi", { h: 200, s: 0.5 }), false);
+  assert.equal(holdEffect("paparazzi", { kelvin: 3000, frequency: 2 }, { mode: "white", kelvin: 4600 })!.kelvin, 4600);
+  assert.equal(holdEffect("paparazzi", { kelvin: 3000, frequency: 2 }, { mode: "white" })!.kelvin, 3000);
+  assert.deepEqual(holdEffect("faulty_bulb", { color: { h: 10, s: 1 } }, { mode: "white", kelvin: 4600 })!.color, { kelvin: 4600 });
+  assert.equal(effectHolds("cop_car", { mode: "white" }), false);
+  assert.equal(holdEffect("fireworks", { choice: 2 }, { mode: "white" })!.choice, 0);
+  // A locked colour: only an effect with a colour option; a hue held, the saturation free.
+  assert.deepEqual(holdEffect("pulsing", { color: { kelvin: 3000 } }, { mode: "colour", h: 200, s: 0.5 })!.color, { h: 200, s: 0.5 });
+  assert.deepEqual(holdEffect("pulsing", { color: { h: 10, s: 0.3 } }, { mode: "colour", h: 200 })!.color, { h: 200, s: 0.3 });
+  assert.equal(effectHolds("paparazzi", { mode: "colour" }), false);
   // What is drawn while it runs.
   assert.deepEqual(effectLight("faulty_bulb", { color: { kelvin: 4600 } }), { kelvin: 4600 });
   assert.deepEqual(effectLight("cop_car", { choice: 1 }), { h: 228, s: 1 });

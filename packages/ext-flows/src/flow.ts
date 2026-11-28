@@ -1,4 +1,4 @@
-import { CAMERA_CONTROLS, FADE_MAX_MS, holdEffect, modelOf, type Curve, type HeldLight, type EffectId, type EffectSettings, type LightCommand, type Value } from "@openclapper/ext-hardware";
+import { CAMERA_CONTROLS, FADE_MAX_MS, holdEffect, modelOf, type Curve, type LightHold, type EffectId, type EffectSettings, type LightCommand, type Value } from "@openclapper/ext-hardware";
 import type { FlowStage } from "./stage.ts";
 
 /**
@@ -68,10 +68,10 @@ export interface FlowTrack {
   color?: number;
   keyframes: Keyframe[];
   /**
-   * A light's parameters locked on its start keyframe (#426): the start's value holds for the whole track. Other
-   * keyframes' values for them are kept but ignored (`playedKeyframes`), so unlocking brings them back.
+   * What is locked on its start keyframe (#426): the start's value holds for the whole track. Other keyframes'
+   * values for them are kept but ignored (`playedKeyframes`), so unlocking brings them back.
    */
-  locked?: LightParam[];
+  locked?: LockParam[];
 }
 
 /**
@@ -82,6 +82,19 @@ export const LIGHT_PARAMS = ["power", "intensity", "kelvin", "gm", "colour", "ef
 export type LightParam = (typeof LIGHT_PARAMS)[number];
 /** The parameters a light model has: the catalogue controls it declares. */
 export const modelParams = (modelId: string): LightParam[] => LIGHT_PARAMS.filter((p) => modelOf(modelId)?.controls.some((c) => c.id === p));
+/**
+ * What can be locked on a light track's start keyframe (#426). The light is a hierarchy: `light` locks white or colour;
+ * under it `kelvin` and `gm` (a white's) or `hue` and `sat` (a colour's), each on its own, lock the value too.
+ */
+export const LOCK_PARAMS = ["power", "intensity", "light", "kelvin", "gm", "hue", "sat", "effect", "curve"] as const;
+export type LockParam = (typeof LOCK_PARAMS)[number];
+/** The locks under the light's: one needs the light locked; unlocking the light unlocks them. */
+export const LIGHT_SUBLOCKS: readonly LockParam[] = ["kelvin", "gm", "hue", "sat"];
+export const LOCK_LABELS: Record<LockParam, string> = {
+  power: "Power", intensity: "Intensity", light: "White or colour", kelvin: "Colour temperature", gm: "Green / magenta", hue: "Hue", sat: "Saturation", effect: "Effect", curve: "Dimming curve",
+};
+/** The keyframe fields a lock that is not the light's holds. */
+const LOCK_FIELDS: Partial<Record<LockParam, readonly (keyof Keyframe)[]>> = { power: ["power"], intensity: ["intensity"], effect: ["effect"], curve: ["curve"] };
 /** What a keyframe's panel shows besides the parameters (#426); each can be left out, like a parameter. */
 export const KEYFRAME_FIELDS = ["at", "marginBefore", "marginAfter"] as const;
 export type KeyframeField = (typeof KEYFRAME_FIELDS)[number] | LightParam;
@@ -110,7 +123,7 @@ export function playedKeyframes(t: Pick<FlowTrack, "keyframes" | "locked">): Key
   if (!t.locked?.length) return t.keyframes;
   const start = t.keyframes.find((k) => k.id === START_KEYFRAME);
   if (!start) return t.keyframes;
-  const fields = t.locked.flatMap((p) => PARAM_FIELDS[p] ?? []);
+  const lk = t.locked, fields = lk.flatMap((p) => LOCK_FIELDS[p] ?? []);
   const held = heldLight(t);
   return t.keyframes.map((k) => {
     let n: Keyframe = k;
@@ -119,6 +132,14 @@ export function playedKeyframes(t: Pick<FlowTrack, "keyframes" | "locked">): Key
       for (const f of fields) { if (m[f] === undefined) continue; if (start[f] === undefined) delete m[f]; else m[f] = start[f]; }
       n = m as unknown as Keyframe;
     }
+    // The light (#426): a keyframe that sets one sets the held kind, with what is held under it and its own the rest.
+    if (k.id !== START_KEYFRAME && held && (n.kelvin !== undefined || n.hue !== undefined)) {
+      const m: Keyframe = { ...n };
+      const pick = <K extends keyof Keyframe>(f: K, lockedHere: boolean, own: boolean) => { const v = lockedHere || !own ? start[f] : n[f]; if (v === undefined) delete m[f]; else m[f] = v; };
+      if (held.mode === "white") { pick("kelvin", lk.includes("kelvin"), n.kelvin !== undefined); pick("gm", lk.includes("gm"), n.kelvin !== undefined); delete m.hue; delete m.sat; }
+      else { pick("hue", lk.includes("hue"), n.hue !== undefined); pick("sat", lk.includes("sat"), n.hue !== undefined); delete m.kelvin; delete m.gm; }
+      n = m;
+    }
     // An effect's own light options take the held white or colour too (#426), where the effect can show it.
     if (held && n.effect?.id) n = { ...n, effect: { ...n.effect, settings: holdEffect(n.effect.id, n.effect.settings, held) } };
     return n;
@@ -126,15 +147,40 @@ export function playedKeyframes(t: Pick<FlowTrack, "keyframes" | "locked">): Key
 }
 
 /**
- * The white or colour a track holds for its whole length (#426): the start keyframe's, where its white
- * (colour temperature) or its colour is locked; null without such a lock.
+ * What a track holds of the light for its whole length (#426): white or colour as the start keyframe sets it, where
+ * the light is locked, and under it each of its values that is locked too; null without the light's lock.
  */
-export function heldLight(t: Pick<FlowTrack, "keyframes" | "locked">): HeldLight | null {
+export function heldLight(t: Pick<FlowTrack, "keyframes" | "locked">): LightHold | null {
   const start = t.keyframes.find((k) => k.id === START_KEYFRAME);
-  if (!start || !t.locked?.length) return null;
-  if (t.locked.includes("kelvin") && start.kelvin !== undefined) return { kelvin: start.kelvin };
-  if (t.locked.includes("colour") && start.hue !== undefined) return { h: start.hue, s: start.sat ?? 1 };
+  if (!start || !t.locked?.includes("light")) return null;
+  const has = (p: LockParam) => t.locked!.includes(p);
+  if (start.hue !== undefined) return { mode: "colour", ...(has("hue") ? { h: start.hue } : {}), ...(has("sat") ? { s: start.sat ?? 1 } : {}) };
+  if (start.kelvin !== undefined) return { mode: "white", ...(has("kelvin") ? { kelvin: start.kelvin } : {}) };
   return null;
+}
+
+/**
+ * Version 3 of a flow's locks (#426): `colour` (hue and saturation together) became `hue` and `sat` under the light's
+ * lock; `kelvin` and `gm` came under it too. Each takes the light's lock where the start keyframe is of that kind;
+ * one that does not fit the start's kind is dropped.
+ */
+export function locksFromV2<T extends Record<string, unknown>>(body: T): T {
+  const tracks = body.tracks as (Omit<FlowTrack, "locked"> & { locked?: string[] })[] | undefined;
+  if (!Array.isArray(tracks)) return body;
+  return { ...body, tracks: tracks.map((t) => {
+    if (!t.locked?.length) return t;
+    const start = t.keyframes?.find((k) => k.id === START_KEYFRAME);
+    const white = start?.kelvin !== undefined, colour = start?.hue !== undefined;
+    const out = new Set<LockParam>();
+    for (const p of t.locked) {
+      if (p === "colour") { if (colour) { out.add("light"); out.add("hue"); out.add("sat"); } }
+      else if (p === "kelvin" || p === "gm") { if (white) { out.add("light"); out.add(p); } }
+      else if ((LOCK_PARAMS as readonly string[]).includes(p)) out.add(p as LockParam);
+    }
+    const n = { ...t, locked: [...out] };
+    if (!n.locked.length) delete (n as Partial<typeof n>).locked;
+    return n;
+  }) };
 }
 
 export interface Flow {
@@ -426,11 +472,12 @@ export function parseFlowTracks(v: unknown, durationMs: number, isKind: (id: str
     if (!keyframes.some((k) => k.id === START_KEYFRAME && k.at === 0)) return { error: `${where} has no start keyframe at 0` };
     if (t.color != null && (!Number.isInteger(t.color) || !isNum(t.color, 0, TRACK_COLORS - 1))) return { error: `${where}.color is not a track colour` };
     // Locks (#426): known light parameters, each once; a camera track has none.
-    let locked: LightParam[] | undefined;
+    let locked: LockParam[] | undefined;
     if (t.locked != null) {
-      if (!Array.isArray(t.locked) || t.locked.some((p) => !(LIGHT_PARAMS as readonly unknown[]).includes(p)) || new Set(t.locked).size !== t.locked.length) return { error: `${where}.locked must list light parameters (${LIGHT_PARAMS.join(", ")}), each once` };
+      if (!Array.isArray(t.locked) || t.locked.some((p) => !(LOCK_PARAMS as readonly unknown[]).includes(p)) || new Set(t.locked).size !== t.locked.length) return { error: `${where}.locked must list lockable values (${LOCK_PARAMS.join(", ")}), each once` };
       if (camera && t.locked.length) return { error: `${where}: a camera track has no locks` };
-      if (t.locked.length) locked = t.locked as LightParam[];
+      if (t.locked.some((p) => LIGHT_SUBLOCKS.includes(p as LockParam)) && !t.locked.includes("light")) return { error: `${where}: a lock on the white's or the colour's values needs the light's lock` };
+      if (t.locked.length) locked = t.locked as LockParam[];
     }
     tracks.push({ id: t.id, name: t.name.trim(), model: t.model, device: (t.device as string | null | undefined) ?? null, ...(t.muted === true ? { muted: true } : {}), ...(t.color != null ? { color: t.color as number } : {}), keyframes, ...(locked ? { locked } : {}) });
   }

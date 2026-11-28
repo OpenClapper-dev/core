@@ -30,7 +30,7 @@ describe("flows", () => {
     await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stages: [stage, other] } }));
     const got = await ok<{ file: { body_version: number; body: { stages: (typeof stage)[] } } }>(api(u.token, "GET", `/api/files/${id}`));
     expect(got.file.body.stages).toEqual([stage, other]);
-    expect(got.file.body_version).toBe(2);
+    expect(got.file.body_version).toBe(3);
     await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stages: [{ ...stage, lights: [{ track: "nope", x: 0.3, y: 0.3, rot: 0 }] }] } }), 400);
     await ok(api(u.token, "PUT", `/api/files/${id}`, { body: { durationMs: 10000, loop: false, tracks: [light], markers: [], stages: [stage, stage] } }), 400);
     // A body of version 1 (one `stage`) is upgraded: its stage becomes "Stage 1".
