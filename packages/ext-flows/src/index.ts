@@ -5,7 +5,7 @@
  */
 import { registerExtension, registerFileType, type ExtensionDef, type FileType } from "@openclapper/model";
 import { EFFECTS, modelOf } from "@openclapper/ext-hardware";
-import { FLOW_MAX_MS, parseFlowMarkers, parseFlowTracks, type Flow } from "./flow.ts";
+import { FLOW_MAX_MS, parseFlowMarkers, parseFlowTracks, type Flow, locksFromV2 } from "./flow.ts";
 import { stagesError, stagesFromV1, type FlowStage } from "./stage.ts";
 
 export const FLOWS: ExtensionDef = {
@@ -42,12 +42,13 @@ export const emptyFlow = (): FlowBody => ({ durationMs: 30_000, loop: false, tra
 /**
  * A flow: a file of a project, lockable like a timeline (one editor, the others watch).
  * Version 2 (#426): the one optional `stage` became a list of `stages` (stagesFromV1).
+ * Version 3 (#426): the light's locks became a hierarchy (locksFromV2).
  */
 export const FLOW: FileType = {
-  type: "flow", label: "Flow", plural: "Flows", roots: ["project"], version: 2, lockable: true,
+  type: "flow", label: "Flow", plural: "Flows", roots: ["project"], version: 3, lockable: true,
   empty: () => emptyFlow() as unknown as Record<string, unknown>,
   check: (body) => flowError(body),
-  upgrade: (body, from) => (from < 2 ? stagesFromV1(body) : body),
+  upgrade: (body, from) => { let b = body; if (from < 2) b = stagesFromV1(b); if (from < 3) b = locksFromV2(b); return b; },
   // A copy whose stages' underlay photos were copied along shows the copies.
   remap: (body, ids) => {
     const stages = body.stages as FlowStage[] | undefined;

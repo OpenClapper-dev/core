@@ -123,3 +123,5 @@
 .fl-row[data-row] { scroll-margin-top: 44px; }
 /* An effect that cannot show the locked light (#426). */
 .fl-warn { padding-left: var(--space-3); border-left: 3px solid var(--warning); color: var(--text); }
+/* A value held by the start keyframe's lock, on the other keyframes (#426). */
+.fl-held { display: inline-flex; align-items: center; gap: var(--space-1); flex: none; padding: 2px var(--space-3); border-radius: var(--radius-pill); background: var(--surface-sunken); color: var(--text-secondary); font-size: var(--font-size-2xs); white-space: nowrap; }

@@ -57,9 +57,9 @@ test("a flow of version 1 (one stage) is upgraded to a list: its stage becomes S
   assert.ok(got.ok);
   assert.deepEqual(got.body.stages, [{ ...old, id: "s1", name: "Stage 1" }]);
   assert.equal("stage" in got.body, false);
-  assert.equal(got.version, 2);
+  assert.equal(got.version, 3);
   // Without a stage, nothing is added; a client reading the stored body upgrades it the same way.
-  assert.deepEqual(checkFile(FLOW, { ...emptyFlow() }, 1, null), { ok: true, body: emptyFlow(), version: 2, refs: null });
+  assert.deepEqual(checkFile(FLOW, { ...emptyFlow() }, 1, null), { ok: true, body: emptyFlow(), version: 3, refs: null });
   assert.deepEqual(flowBodyOf(v1, 1).stages, got.body.stages);
   assert.deepEqual(flowBodyOf({ ...emptyFlow(), stages: [] }, 2).stages, []);
 });
@@ -181,8 +181,8 @@ test("a placed light's own beam angle: a wedge with an arc, whole degrees within
 
 test("a locked white plays in an effect's own light options, and the stage draws the effect's light", async () => {
   const { playedKeyframes, heldLight, lightColour, sampleTrack } = await import("./index.ts");
-  const tr = { keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4600 }, { id: "k2", at: 2000, effect: { id: "faulty_bulb" as const, settings: { color: { h: 0, s: 1 } } } }], locked: ["kelvin" as const] };
-  assert.deepEqual(heldLight(tr), { kelvin: 4600 });
+  const tr = { keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4600 }, { id: "k2", at: 2000, effect: { id: "faulty_bulb" as const, settings: { color: { h: 0, s: 1 } } } }], locked: ["light" as const, "kelvin" as const] };
+  assert.deepEqual(heldLight(tr), { mode: "white", kelvin: 4600 });
   const played = playedKeyframes(tr);
   assert.deepEqual(played[1].effect!.settings!.color, { kelvin: 4600 });
   // Without the lock the effect's red shows, not the white set before.

@@ -80,17 +80,24 @@ export function effectLightKind(effect: EffectId): EffectLightKind {
   return "own";
 }
 
-/** A white or a colour held on a whole track (the start keyframe's locked light). */
+/** A white or a colour as a light shows it. */
 export type HeldLight = { kelvin: number } | { h: number; s: number };
-/** Whether an effect can show a held light: a white one through any light option, a colour only through a colour option. */
-export const effectHolds = (effect: EffectId, held: HeldLight) => { const k = effectLightKind(effect); return "kelvin" in held ? k !== "own" : k === "either"; };
-/** An effect's settings with the held light in its light options (unchanged where it cannot hold it). */
-export function holdEffect(effect: EffectId, settings: EffectSettings | undefined, held: HeldLight): EffectSettings | undefined {
-  if (!effectHolds(effect, held)) return settings;
-  const s = { ...settings };
+/**
+ * What a track holds for its whole length (#426, a hierarchy): white or colour, and under it, each where locked, the
+ * white's temperature, or the colour's hue and saturation; what is not held stays free.
+ */
+export type LightHold = { mode: "white"; kelvin?: number } | { mode: "colour"; h?: number; s?: number };
+/** Whether an effect can show a held light: white through any light option, a colour only through a colour option. */
+export const effectHolds = (effect: EffectId, hold: LightHold) => { const k = effectLightKind(effect); return hold.mode === "white" ? k !== "own" : k === "either"; };
+/** An effect's settings with what is held in its light options (unchanged where it cannot hold it). */
+export function holdEffect(effect: EffectId, settings: EffectSettings | undefined, hold: LightHold): EffectSettings | undefined {
+  if (!effectHolds(effect, hold)) return settings;
+  const s = effectSettingsOf(effect, settings), c = s.color;
   switch (effectLightKind(effect)) {
-    case "white": return { ...s, kelvin: (held as { kelvin: number }).kelvin };
-    case "either": return { ...s, color: "kelvin" in held ? { kelvin: held.kelvin } : { h: held.h, s: held.s } };
+    case "white": return hold.mode === "white" && hold.kelvin !== undefined ? { ...s, kelvin: hold.kelvin } : s;
+    case "either":
+      if (hold.mode === "white") return { ...s, color: { kelvin: hold.kelvin ?? (c && "kelvin" in c ? c.kelvin : 5600) } };
+      return { ...s, color: { h: hold.h ?? (c && "h" in c ? c.h : 0), s: hold.s ?? (c && "s" in c ? c.s : 1) } };
     case "whiteChoice": return { ...s, choice: 0 };
     default: return settings;
   }
