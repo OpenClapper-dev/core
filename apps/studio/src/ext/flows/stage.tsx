@@ -139,7 +139,11 @@ type Act =
   | { type: "turn"; track: string }
   | { type: "obj"; id: string; start: P; orig: Obj; moved: boolean }
   | { type: "draw"; tool: "pen" | "line" | "arrow" | "rect" | "ellipse"; pts: P[] }
-  | { type: "erase" };
+  | { type: "erase" }
+  /** A corner of the chosen object dragged (#426): the opposite corner stays. */
+  | { type: "resize"; id: string; fixed: P }
+  /** An end of a chosen line or arrow dragged; the other end stays. */
+  | { type: "end"; id: string; which: 0 | 1; other: P };
 
 export interface StagePaneProps {
   /** The stage shown: one of the flow's, or the empty first one before anything is on it. */
@@ -228,6 +232,13 @@ export function StagePane(p: StagePaneProps) {
       const l = stage.lights.find((x) => x.track === a.track); if (!l) return;
       const deg = (Math.atan2((q[1] - l.y) / stage.aspect, q[0] - l.x) * 180) / Math.PI, step = e.shiftKey ? 1 : 15;
       setLight(a.track, (x) => ({ ...x, rot: ((Math.round(deg / step) * step) % 360 + 360) % 360 }));
+    } else if (a.type === "resize") {
+      const x = Math.min(a.fixed[0], q[0]), y = Math.min(a.fixed[1], q[1]), w = Math.max(0.01, Math.abs(q[0] - a.fixed[0])), h = Math.max(0.01, Math.abs(q[1] - a.fixed[1]));
+      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x, y, w, h } : o)));
+    } else if (a.type === "end") {
+      const ends: [P, P] = a.which === 0 ? [q, a.other] : [a.other, q];
+      const x = Math.min(ends[0][0], ends[1][0]), y = Math.min(ends[0][1], ends[1][1]), w = Math.abs(ends[1][0] - ends[0][0]), h = Math.abs(ends[1][1] - ends[0][1]);
+      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x, y, w: Math.max(w, 0.0005), h: Math.max(h, 0.0005), pts: ends.map((e): P => [w ? (e[0] - x) / w : 0, h ? (e[1] - y) / h : 0]) } : o)));
     } else if (a.type === "obj") {
       if (!a.moved && Math.hypot(q[0] - a.start[0], q[1] - a.start[1]) < 0.003) return;
       a.moved = true;
@@ -245,6 +256,20 @@ export function StagePane(p: StagePaneProps) {
   };
 
   const selObj = p.sel?.kind === "obj" ? objs.find((o) => o.id === (p.sel as { id: string }).id) : undefined;
+  // The chosen object's handles, as on the canvas (#426): corners resize it, a line's or an arrow's ends move.
+  const handles = !!selObj && p.editing && tool === "select" && typing !== selObj.id;
+  const isLine = !!selObj && (selObj.kind === "line" || selObj.kind === "arrow") && !!selObj.pts?.length;
+  const endOf = (o: Obj, k: 0 | 1): P => { const q = o.pts![k === 0 ? 0 : o.pts!.length - 1]; return [o.x + q[0] * o.w, o.y + q[1] * o.h]; };
+  const grabCorner = (e: PointerEvent, k: number) => {
+    if (e.button > 0 || !selObj) return;
+    e.stopPropagation(); capture(e);
+    act.current = { type: "resize", id: selObj.id, fixed: [k % 2 ? selObj.x : selObj.x + selObj.w, k >= 2 ? selObj.y : selObj.y + selObj.h] };
+  };
+  const grabEnd = (e: PointerEvent, k: 0 | 1) => {
+    if (e.button > 0 || !selObj) return;
+    e.stopPropagation(); capture(e);
+    act.current = { type: "end", id: selObj.id, which: k, other: endOf(selObj, k === 0 ? 1 : 0) };
+  };
   return (
     <div className="fl-st" style={{ height: `${p.height}px` }}>
       <div className="fl-st__bar">
@@ -280,7 +305,10 @@ export function StagePane(p: StagePaneProps) {
             {objs.filter((o) => o.visible).map((o) => <ObjectView key={o.id} o={o} vh={H} onGrab={p.editing && tool === "select" ? (e) => grabObj(e, o) : undefined}
               editing={typing === o.id} onText={(t) => { setObjs((os) => os.map((x) => (x.id === o.id ? { ...x, text: t } : x))); setTyping(null); }} onEdit={() => { if (p.editing && tool === "select") setTyping(o.id); }} />)}
             {draft && <DraftView d={{ ...draft, pen: "pen", stroke: colour, width: 3 }} vh={H} />}
-            {selObj && <span className="cv-sel" style={{ left: `${selObj.x * 100}%`, top: `${selObj.y * 100}%`, width: `${selObj.w * 100}%`, height: `${selObj.h * 100}%`, transform: selObj.rot ? `rotate(${selObj.rot}deg)` : undefined }} />}
+            {selObj && !(handles && isLine) && <span className="cv-sel" style={{ left: `${selObj.x * 100}%`, top: `${selObj.y * 100}%`, width: `${selObj.w * 100}%`, height: `${selObj.h * 100}%`, transform: selObj.rot ? `rotate(${selObj.rot}deg)` : undefined }}>
+              {handles && !isLine && [0, 1, 2, 3].map((k) => <i key={k} className={`cv-handle cv-handle--${k}`} title="Drag to resize" onPointerDown={(e) => grabCorner(e, k)} />)}
+            </span>}
+            {handles && isLine && ([0, 1] as const).map((k) => { const q = endOf(selObj!, k); return <i key={k} className="cv-node" title="Drag to move this end" style={{ left: `${q[0] * 100}%`, top: `${q[1] * 100}%` }} onPointerDown={(e) => grabEnd(e, k)} />; })}
             <Widgets flow={p.flow} stage={stage} t={p.t} sel={p.sel} marked={p.marked} flash={p.flash} editing={p.editing && tool === "select"} onGrab={grabLight} />
           </div>
           {!stage.lights.length && !stage.objects.length && <span className="fl-paper__hint">{p.editing ? "Draw a plan with the tools above; drag lights here from “Place a light”." : "Nothing on the stage yet."}</span>}
