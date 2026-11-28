@@ -381,22 +381,27 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
   const crumbs = media
     ? [{ id: "all", label: "Photos" }, ...(openColl ? [{ id: openColl.id, label: openColl.name }] : mnav === "collections" ? [{ id: "collections", label: "Collections" }] : mnav === "loose" ? [{ id: "loose", label: "Not in a collection" }] : [])]
     : [{ id: "root", label: rootLabel }, ...path.map((f) => ({ id: f.id, label: f.name }))];
-  // ---- Columns (#426): every column this kind of list can show, the ones shown and their widths, kept with the account
+  // ---- Columns (#426): every column this kind of list can show, the ones shown, their order and widths, kept with the account
   // per kind (folders, Photos, Shots, Sets, Locations). Properties are columns too; the Shots list starts with its own.
   const listKind = home ? "home" : entry;
   const typeDefs = (type: string) => defs.filter((d) => d.def.attached.some((a) => a.type === type));
   const propCols = (media ? typeDefs("photo") : only ? typeDefs(only) : defs).map((d) => ({ key: `p:${d.id}`, label: d.name, def: d }));
   const baseCols: { key: string; label: string; sortable?: boolean; mono?: boolean; numeric?: boolean; width?: number }[] = media
-    ? [{ key: "name", label: "Name", sortable: true }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 130 }, { key: "size", label: "Size", numeric: true, width: 110 }, { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]
-    : only ? [{ key: "name", label: "Name", sortable: true }, { key: "created", label: "Created", sortable: true, mono: true, width: 130 }]
-    : [{ key: "name", label: "Name", sortable: true }, { key: "type", label: "Type", sortable: true, width: 140 }, ...(flat ? [{ key: "where", label: "In" }] : []), { key: "created", label: "Created", sortable: true, mono: true, width: 130 }];
-  const allCols = [...baseCols.slice(0, 1), ...(only ? propCols.map((c) => ({ key: c.key, label: c.label })) : []), ...baseCols.slice(1), ...(only ? [] : propCols.map((c) => ({ key: c.key, label: c.label })))];
+    ? [{ key: "name", label: "Name", sortable: true, width: 280 }, { key: "coll", label: "Collection" }, { key: "taken", label: "Taken", sortable: true, mono: true, width: 150 }, { key: "size", label: "Size", numeric: true, width: 130 }, { key: "created", label: "Created", sortable: true, mono: true, width: 150 }]
+    : only ? [{ key: "name", label: "Name", sortable: true, width: 280 }, { key: "created", label: "Created", sortable: true, mono: true, width: 150 }]
+    : [{ key: "name", label: "Name", sortable: true, width: 280 }, { key: "type", label: "Type", sortable: true, width: 150 }, ...(flat ? [{ key: "where", label: "In" }] : []), { key: "created", label: "Created", sortable: true, mono: true, width: 150 }];
+  const defaultCols = [...baseCols.slice(0, 1), ...(only ? propCols.map((c) => ({ key: c.key, label: c.label })) : []), ...baseCols.slice(1), ...(only ? [] : propCols.map((c) => ({ key: c.key, label: c.label })))];
   const defaultVisible = media ? ["name", "coll", "taken", "size"] : only ? ["name", ...propCols.filter((c) => c.def.def.attached.some((a) => a.type === only && !a.hidden)).map((c) => c.key), "created"] : ["name", "type", "where", "created"];
   const setup = prefs.columns[listKind] ?? {};
+  // The user's order first; a column it does not name (a new property) keeps its default place after them.
+  const rank = (key: string, i: number) => { const at = setup.order?.indexOf(key) ?? -1; return at >= 0 ? at : 10_000 + i; };
+  const allCols = defaultCols.map((c, i) => ({ c, n: rank(c.key, i) })).sort((a, b) => a.n - b.n).map((x) => x.c);
   const visible = new Set(["name", ...(setup.visible ?? defaultVisible)]);
   const shownCols = allCols.filter((c) => visible.has(c.key)).map((c) => ({ ...c, width: setup.widths?.[c.key] ?? (c as { width?: number }).width }));
   const columnDefs = propCols.filter((c) => visible.has(c.key)).map((c) => c.def);
-  const setColumns = (patch: { visible?: string[]; widths?: Record<string, number> }) => setPrefs({ columns: { ...prefs.columns, [listKind]: { ...setup, ...patch } } });
+  const setColumns = (patch: { visible?: string[]; widths?: Record<string, number>; order?: string[] }) => setPrefs({ columns: { ...prefs.columns, [listKind]: { ...setup, ...patch } } });
+  // The shown columns in their new order, the hidden ones keeping their places among them.
+  const reorderColumns = (keys: string[]) => { let j = 0; setColumns({ order: allCols.map((c) => (visible.has(c.key) ? keys[j++] : c.key)) }); };
   const toggleColumn = (key: string) => setColumns({ visible: allCols.map((c) => c.key).filter((k) => k !== "name" && (k === key ? !visible.has(k) : visible.has(k))) });
   // A search that matched in a property whose column is hidden says so on the row (search covers every property).
   const hiddenMatch = (f: FileRec) => {
@@ -420,7 +425,7 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
       {!home && !shotsOnly && <Button size="sm" variant={media ? "primary" : "secondary"} icon="upload" onClick={() => picker.current?.click()}>Import</Button>}
       {!media && !shotsOnly && <DropdownMenu size="sm" variant="primary" icon="plus" label="New" align="end" items={[{ id: "folder", label: "Folder", icon: "folder-plus", kbd: "⇧N" }, ...(!home ? [{ id: "shot", label: "Shot", icon: "slate" as const }, { id: "set", label: "Set", icon: "home" as const }, { id: "location", label: "Location", icon: "location" as const }, { id: "canvas", label: "Canvas", icon: "brush" as const }, { id: "timeline", label: "Timeline", icon: "timeline" as const }] : [])]} onSelect={(id) => void (id === "shot" || id === "set" || id === "location" || id === "timeline" ? newOf(id) : id === "canvas" ? ops.newCanvas(root, here) : ops.newFolder(root, here))} />}
       {shownView === "list" && <DropdownMenu size="sm" variant="quiet" icon="columns" label="Columns" align="end" items={[{ heading: "Columns" }, ...allCols.filter((c) => c.key !== "name").map((c) => ({ id: c.key, label: c.label, checked: visible.has(c.key) })), { separator: true }, { id: "reset", label: "As they were", icon: "refresh" }]}
-        onSelect={(id: string) => (id === "reset" ? setColumns({ visible: undefined, widths: undefined }) : toggleColumn(id))} />}
+        onSelect={(id: string) => (id === "reset" ? setColumns({ visible: undefined, widths: undefined, order: undefined }) : toggleColumn(id))} />}
       <DropdownMenu size="sm" variant="quiet" icon="more" align="end" items={[{ id: "panels", label: "Panels back to their places", icon: "refresh" }]} onSelect={resetPanels} />
       <input ref={picker} type="file" accept={IMAGE_TYPES} multiple hidden onChange={(e) => { const t = e.currentTarget; if (t.files?.length) importAll(t.files); t.value = ""; }} />
     </Toolbar>
@@ -475,7 +480,7 @@ function Browser({ win, projectId, setTitle, setRoute, entry, start, onEntry }: 
     : shownView === "board" && !home ? <Board projectId={projectId} items={items} defs={defs} layout={board} onLayout={setBoard} selected={sel} card={card} />
     : shownView === "list" ? (
       <Table selectable selected={sel} onSelect={setSel} cursor={cur ?? undefined} onCursor={setCur} onOpen={(id) => open(map.get(id)!)} sort={openColl ? undefined : sort} onSort={(s) => setSort(s as Sort)} rowProps={(id) => ({ ...rowDrag(map.get(id)!), "data-file-id": id })}
-        columns={shownCols} onResize={(key, w) => setColumns({ widths: { ...setup.widths, [key]: w } })}
+        columns={shownCols} onResize={(key, w) => setColumns({ widths: { ...setup.widths, [key]: w } })} onReorder={reorderColumns}
         rows={items.map((f) => ({
           ...Object.fromEntries(columnDefs.map((d) => [`p:${d.id}`, valueCell(d, f)])),
           id: f.id, name: nameCell(f), type: kindOf(f.type).label, where: where(f), created: day(f.created_at), coll: collCell(f),
