@@ -2,14 +2,14 @@
 // fade tile, a marker, a track, or several things at once. The panel keeps its width whatever it shows.
 import type { ComponentChildren } from "preact";
 import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, Switch, TextInput } from "@openclapper/design";
-import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
+import { CURVES, EFFECT_OPTIONS, effectHolds, effectLightKind, effectName, effectOptions, holdEffect, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
+import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, heldLight, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
 import { ColourSwatch } from "../hardware/ColourSwatch";
 import { Draft } from "./draft";
 import { CURVE_LABELS } from "./lanes";
 
-function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
-  return <label className="hw-ctl hw-ctl--range"><small>{label}<b>{format(value)}</b></small><Slider value={value} min={min} max={max} step={step} onChange={onChange} aria-label={label} /></label>;
+function Range({ label, value, min, max, step, format, onChange, disabled }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void; disabled?: boolean }) {
+  return <label className="hw-ctl hw-ctl--range"><small>{label}<b>{format(value)}</b></small><Slider value={value} min={min} max={max} step={step} disabled={disabled} onChange={onChange} aria-label={label} /></label>;
 }
 /**
  * A lock on the start keyframe (#426): locked, this value holds for the whole track and no other keyframe can set
@@ -66,7 +66,14 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
   const mode = kf.hue !== undefined ? "colour" : kf.kelvin !== undefined ? "white" : "leave";
   const cct = caps?.cct;
   const fx = kf.effect?.id ?? null;
-  const settings = fx ? effectSettingsOf(fx, kf.effect?.settings) : {};
+  // A locked white or colour (#426) is the light of every effect that can show it; the others are not offered.
+  const held = isStart ? null : heldLight(track);
+  const holds = !!fx && !!held && effectHolds(fx, held);
+  const settings = fx ? (holds ? effectSettingsOf(fx, holdEffect(fx, kf.effect?.settings, held!)) : effectSettingsOf(fx, kf.effect?.settings)) : {};
+  const heldText = held ? ("kelvin" in held ? `the locked white, ${held.kelvin} K` : `the locked colour, ${Math.round(held.h)}° · ${Math.round(held.s * 100)} %`) : "";
+  const isLightOpt = (id: string) => ["kelvin", "colorMode", "colorKelvin", "colorHue", "colorSat"].includes(id) || (id === "choice" && !!fx && effectLightKind(fx) === "whiteChoice");
+  const fxOpts = fx && m ? effectOptions(m, fx).filter((o) => optionShown(o, settings)) : [];
+  const satOpt = fxOpts.find((o) => o.control.id === "colorSat");
   return (
     <div className="fl-inspect">
       {isStart ? <p className="fl-note">What the light shows when the flow starts. It always sets power, intensity and the light, so a flow never starts from whatever the light showed before.</p>
@@ -79,7 +86,8 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
       {shown("intensity") && <Channel label="Intensity" fixed={isStart} on={kf.intensity !== undefined} toggle={(on) => (on ? set({ intensity: 0.5 }) : drop("intensity"))} lock={lock("intensity")}>
         <Range label="Intensity" value={Math.round((kf.intensity ?? 0.5) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ intensity: x / 100 })} />
       </Channel>}
-      {((cct && (inPanel("kelvin") || inPanel("gm"))) || (caps?.hsi && inPanel("colour"))) && (
+      {/* A keyframe that turns an effect on (#426): the effect's own options are its light; the white or colour set before stays for when it stops. */}
+      {!(fx && !isStart) && ((cct && (inPanel("kelvin") || inPanel("gm"))) || (caps?.hsi && inPanel("colour"))) && (
         <div className="fl-chan">
           <strong>Light</strong>
           <Segmented label="White or colour" value={mode}
@@ -108,11 +116,27 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
       {!!caps?.effects?.length && m && shown("effect") && (
         <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))} lock={lock("effect")}>
           <Select size="sm" aria-label="Effect" value={fx ?? "off"} onChange={(v: string) => { const id = v === "off" ? null : (v as EffectId); set({ effect: id ? { id, settings: effectSettingsOf(id) } : { id: null } }); }}
-            options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => ({ value: id, label: effectName(id) }))]} />
-          {fx && EFFECT_OPTIONS[fx] && effectOptions(m, fx).filter((o) => optionShown(o, settings)).map((o) => o.control.kind === "choice"
-            ? <label key={o.control.id} className="hw-ctl"><small>{o.control.label}</small><Select size="sm" value={String(o.read(settings))} onChange={(v: string) => set({ effect: { id: fx, settings: o.write(settings, Number(v)) } })} options={o.control.options.map((x) => ({ value: String(x.value), label: x.label }))} /></label>
-            : o.control.kind === "range" ? <Range key={o.control.id} label={o.control.label} value={o.read(settings)} min={o.control.min} max={o.control.max} step={o.control.step}
-              format={(v) => ((o.control as { max: number }).max === 11 && v === 11 ? "Random" : formatValue((o.control as { format: "plain" }).format, v))} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} /> : null)}
+            options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => { const no = !!held && !effectHolds(id, held); return { value: id, label: no ? `${effectName(id)}: cannot show ${"kelvin" in held! ? "the locked white" : "the locked colour"}` : effectName(id), disabled: no && id !== fx }; })]} />
+          {fx && held && !holds && <p className="fl-note fl-warn">{effectName(fx)} brings its own light: it cannot show {heldText}. It plays as it is; pick another effect to keep the lock.</p>}
+          {holds && <p className="fl-note">Its light is {heldText}, locked on the start keyframe.</p>}
+          {fx && EFFECT_OPTIONS[fx] && fxOpts.map((o) => {
+            const off = holds && isLightOpt(o.control.id);
+            if (o.control.id === "colorSat") return null;
+            // The effect's colour as Light's (#426): hue and saturation beside the swatch that opens the colour field.
+            if (o.control.id === "colorHue" && satOpt) return (
+              <div key="fxcolour" className="fl-colour">
+                <div className="fl-colour__sliders">
+                  <Range label="Hue" value={Math.round(o.read(settings))} min={0} max={360} step={1} disabled={off} format={(x) => `${x}°`} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} />
+                  <Range label="Saturation" value={Math.round(satOpt.read(settings) * 100)} min={0} max={100} step={1} disabled={off} format={(x) => `${x} %`} onChange={(v) => set({ effect: { id: fx, settings: satOpt.write(settings, v / 100) } })} />
+                </div>
+                <ColourSwatch className="fl-colour__swatch" align="end" disabled={off} hue={o.read(settings)} sat={satOpt.read(settings)} onChange={(h, sv) => set({ effect: { id: fx, settings: { ...settings, color: { h, s: sv } } } })} />
+              </div>
+            );
+            return o.control.kind === "choice"
+              ? <label key={o.control.id} className="hw-ctl"><small>{o.control.label}</small><Select size="sm" disabled={off} value={String(o.read(settings))} onChange={(v: string) => set({ effect: { id: fx, settings: o.write(settings, Number(v)) } })} options={o.control.options.map((x) => ({ value: String(x.value), label: x.label }))} /></label>
+              : o.control.kind === "range" ? <Range key={o.control.id} label={o.control.label} value={o.read(settings)} min={o.control.min} max={o.control.max} step={o.control.step} disabled={off}
+                format={(v) => ((o.control as { max: number }).max === 11 && v === 11 ? "Random" : formatValue((o.control as { format: "plain" }).format, v))} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} /> : null;
+          })}
         </Channel>
       )}
       {caps?.curves && shown("curve") && (

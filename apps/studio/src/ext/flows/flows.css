@@ -121,3 +121,5 @@
 /* The time ruler stays at the top while the tracks scroll under it (#426). */
 .fl-row--ruler { position: sticky; top: 0; z-index: 5; background: var(--surface); }
 .fl-row[data-row] { scroll-margin-top: 44px; }
+/* An effect that cannot show the locked light (#426). */
+.fl-warn { padding-left: var(--space-3); border-left: 3px solid var(--warning); color: var(--text); }

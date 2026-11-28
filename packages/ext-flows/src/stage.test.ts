@@ -178,3 +178,15 @@ test("a placed light's own beam angle: a wedge with an arc, whole degrees within
   assert.match(at(BEAM_MAX + 5)!, /angle/);
   assert.match(at(45.5)!, /angle/);
 });
+
+test("a locked white plays in an effect's own light options, and the stage draws the effect's light", async () => {
+  const { playedKeyframes, heldLight, lightColour, sampleTrack } = await import("./index.ts");
+  const tr = { keyframes: [{ id: START_KEYFRAME, at: 0, power: true, intensity: 0.5, kelvin: 4600 }, { id: "k2", at: 2000, effect: { id: "faulty_bulb" as const, settings: { color: { h: 0, s: 1 } } } }], locked: ["kelvin" as const] };
+  assert.deepEqual(heldLight(tr), { kelvin: 4600 });
+  const played = playedKeyframes(tr);
+  assert.deepEqual(played[1].effect!.settings!.color, { kelvin: 4600 });
+  // Without the lock the effect's red shows, not the white set before.
+  const free = sampleTrack(playedKeyframes({ keyframes: tr.keyframes }), 3000);
+  assert.equal(lightColour(free), "rgb(255, 0, 0)");
+  assert.equal(lightColour(sampleTrack(played, 3000)), lightColour({ mode: "white", kelvin: 4600 }));
+});
