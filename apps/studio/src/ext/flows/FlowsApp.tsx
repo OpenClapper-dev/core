@@ -493,7 +493,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
       )}
       {run?.phase === "error" && run.flow === f.id && <div className="fl-run"><Banner tone="danger" title={run.error ?? "Not started on the device"} /></div>}
       {stageLayout.on && <>
-        <StagePane flow={flow} stage={stage} picker={stagePicker} t={runsThis ? runAt : playhead} editing={!readonly} drawing={drawing} onDrawing={setDrawing} sel={stageSel} onSel={pickOnStage}
+        <StagePane tags={view.tags} flow={flow} stage={stage} picker={stagePicker} t={runsThis ? runAt : playhead} editing={!readonly} drawing={drawing} onDrawing={setDrawing} sel={stageSel} onSel={pickOnStage}
           marked={selTrack?.id ?? tileTrack?.id ?? pickedTrack?.id ?? null} flash={flash} height={stageLayout.h} photos={photos} onChange={changeStage} />
         <div className="fl-split" role="separator" aria-orientation="horizontal" title="Drag: share the room between the stage and the tracks" onPointerDown={splitDrag} />
       </>}

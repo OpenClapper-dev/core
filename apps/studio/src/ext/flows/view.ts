@@ -10,7 +10,8 @@ function useLocal<T>(key: string, fallback: T, valid: (v: unknown) => boolean): 
   const [v, set] = useState(read);
   return [v, (next: T) => { set(next); try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* private window */ } }];
 }
-export const useFlowView = () => useLocal<FlowView>("flows.view.v1", DEFAULT_VIEW, (v) => typeof v === "object" && v !== null);
+/** The view switches; one added later (the stage's labels) starts at its default. */
+export const useFlowView = (): [FlowView, (v: FlowView) => void] => { const [v, set] = useLocal<FlowView>("flows.view.v1", DEFAULT_VIEW, (x) => typeof x === "object" && x !== null); return [{ ...DEFAULT_VIEW, ...v }, set]; };
 export const useKeyframeSize = () => useLocal<"s" | "m" | "l">("flows.kfSize.v1", "s", (v) => v === "s" || v === "m" || v === "l");
 /** The height of every track (px); a track sized by hand keeps its own until this is set again. */
 /** How far the time axis is stretched: 1 fits the flow's length into the window, more scrolls sideways (#426). */

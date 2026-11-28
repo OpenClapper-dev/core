@@ -55,6 +55,8 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const [mode, setMode] = useState<Mode>("select");
   const dv = deviceView.use();
   const setDv = (p: Partial<DeviceView>) => deviceView.set((x) => ({ ...x, ...p }));
+  // A switch added later (the stage's labels) starts at its default.
+  const view: FlowView = { ...DEFAULT_VIEW, ...dv.view };
   const zoom = dv.zoom;
   const [room, setRoom] = useState(0);
   // What Fit height would set, computed once: its button is off while the height already is that, like Fit width at 1×.
@@ -236,11 +238,11 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
         {stages.length > 1 && <View style={s.stages}>{stages.length <= 3
           ? <Seg accessibilityLabel="Stage shown" value={shownStage?.id ?? null} onChange={showStage} options={stages.map((x) => ({ id: x.id, label: x.name }))} />
           : <Chip icon="frame" label={`${shownStage?.name ?? "Stage"} · ${stages.length} stages`} selected onPress={() => setSheet("stages")} />}</View>}
-        <StageView body={body} stage={shownStage} t={playhead} onShowTrack={(id) => { setDv({ pane: "track" }); choose({ kind: "track", id }, true); }} />
+        <StageView body={body} stage={shownStage} t={playhead} tags={view.tags} onShowTrack={(id) => { setDv({ pane: "track" }); choose({ kind: "track", id }, true); }} />
         <MiniScrubber body={body} t={playhead} onSeek={(t) => { setPlayhead(t); if (playing) player.current?.play(t); }} />
       </> : (
       <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
-      <Lanes body={body} zoom={zoom} view={dv.view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisFocus={dv.axisFocus} laneHeight={dv.height} mode={mode} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
+      <Lanes body={body} zoom={zoom} view={view} kfSize={dv.kfSize} levelStep={dv.levelStep ?? 1} axisFocus={dv.axisFocus} laneHeight={dv.height} mode={mode} playhead={playhead} pick={pick} locked={locked} deviceName={deviceName}
         onPick={(p) => choose(p, p?.kind === "track" || mode === "edit")} onSeek={(t) => { if (!playing) setPlayhead(t); }}
         onAddKeyframe={(trackId, t) => { const r = addKeyframe(latest.current.body, trackId, t, randomUUID()); if (r.keyframe) { change(() => r.body); choose({ kind: "kf", track: trackId, id: r.keyframe.id }); if (!playing) setPlayhead(r.keyframe.at); } }}
         onAddMarker={(t) => { const r = addMarker(latest.current.body, t, randomUUID()); change(() => r.body); choose({ kind: "marker", id: r.marker.id }); }}
@@ -269,7 +271,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
       </Sheet>
       <Sheet visible={sheet === "view"} title="View" onClose={() => setSheet(null)}>
         <View style={s.form}>
-          {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Toggle key={k} label={VIEW_LABELS[k]} meta={k === "graph" ? "Drag a keyframe up or down to set its intensity" : undefined} value={dv.view[k]} onChange={(on) => setDv({ view: { ...dv.view, [k]: on } })} />)}
+          {(Object.keys(VIEW_LABELS) as (keyof FlowView)[]).map((k) => <Toggle key={k} label={VIEW_LABELS[k]} meta={k === "graph" ? "Drag a keyframe up or down to set its intensity" : undefined} value={view[k]} onChange={(on) => setDv({ view: { ...view, [k]: on } })} />)}
           <Text style={s.label}>Keyframes</Text>
           <Seg accessibilityLabel="Keyframe size" block value={dv.kfSize} onChange={(v) => setDv({ kfSize: v })} options={[{ id: "s", label: "Small · pen" }, { id: "m", label: "Medium" }, { id: "l", label: "Large · finger" }]} />
           <Text style={s.label}>Intensity snap while dragging</Text>

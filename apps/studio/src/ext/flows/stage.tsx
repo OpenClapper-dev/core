@@ -9,7 +9,7 @@ import { Button, cx, Dialog, Icon, NumberInput, Popover, Segmented, Slider, Text
 import type { ComponentChildren } from "preact";
 import { modelOf } from "@openclapper/ext-hardware";
 import {
-  beamOpacity, beamPath, ceilingShape, STAGE_COLS, STAGE_SIDE_MAX, STAGE_SIDE_MIN, stageScale, stageSize, effectOpacity, fmtClock, glowRadius, isCeiling, poolRadius, setMount, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
+  BEAM_MAX, BEAM_MIN, beamAngleOf, beamOpacity, beamPath, ceilingShape, STAGE_COLS, STAGE_SIDE_MAX, STAGE_SIDE_MIN, stageScale, stageSize, effectOpacity, fmtClock, glowRadius, isCeiling, poolRadius, setMount, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
   type Flow, type FlowStage, type FlowTrack, type StageLight, type StageMount, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { eraseAt } from "../../canvas/erase";
@@ -73,13 +73,13 @@ export function MiniWidget({ tr, mount }: { tr: FlowTrack; mount?: StageMount })
     : <g transform="translate(-10 0)"><Body shape={widgetShape(tr.model)} face={trackInk(tr)} /></g>}</svg>;
 }
 
-interface WidgetsProps { flow: Flow; stage: FlowStage; t: number; sel: StageSel; marked: string | null; flash: string | null; editing: boolean; onGrab: (e: PointerEvent, l: StageLight, how: "move" | "turn") => void }
+interface WidgetsProps { /** The lights' name tags shown (the View's switch). */ tags: boolean; flow: Flow; stage: FlowStage; t: number; sel: StageSel; marked: string | null; flash: string | null; editing: boolean; onGrab: (e: PointerEvent, l: StageLight, how: "move" | "turn") => void }
 
 /**
  * The widgets: beams (an aimed light's wedge, a ceiling light's pool) under bodies under tags, each sampled at the
  * playhead; the chosen one with a ring and, when aimed, a handle to turn it.
  */
-function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: WidgetsProps) {
+function Widgets({ tags, flow, stage, t, sel, marked, flash, editing, onGrab }: WidgetsProps) {
   // On a larger paper the units run further, so the widgets keep their size in squares.
   const k = stageScale(stage), W = STAGE_W * k, H = W / stage.aspect;
   const placed = stage.lights.map((l) => ({ l, tr: flow.tracks.find((x) => x.id === l.track) })).filter((x): x is { l: StageLight; tr: FlowTrack } => !!x.tr);
@@ -106,7 +106,7 @@ function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: Widget
               <radialGradient id={`${id}g`}><stop offset="0" stop-color={c} stop-opacity=".95" /><stop offset=".45" stop-color={c} stop-opacity=".45" /><stop offset="1" stop-color={c} stop-opacity="0" /></radialGradient>
               <linearGradient id={`${id}b`} x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color={c} stop-opacity=".7" /><stop offset="1" stop-color={c} stop-opacity="0" /></linearGradient>
             </defs>
-            <path d={beamPath(g, s.level)} fill={`url(#${id}b)`} />
+            <path d={beamPath(g, s.level, l.angle)} fill={`url(#${id}b)`} />
             <circle cx={g.front} r={glowRadius(g, s.level)} fill={`url(#${id}g)`} />
           </g>
         );
@@ -122,7 +122,7 @@ function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: Widget
           </g>
         );
       })}</g>
-      <g>{placed.map(({ l, tr }, i) => {
+      <g>{tags && placed.map(({ l, tr }, i) => {
         const s = states[i], w = tagWidth(tr.name, s.line), [tx, ty] = tagAt(l, stage.aspect, w, k), ink = trackInk(tr);
         return (
           <g key={tr.id} className={cx("fl-w", editing && "is-movable")} transform={`translate(${tx.toFixed(1)} ${ty.toFixed(1)})`} onPointerDown={(e) => onGrab(e, l, "move")}>
@@ -178,6 +178,8 @@ export interface StagePaneProps {
   flash: string | null;
   height: number;
   photos: readonly StagePhoto[];
+  /** The lights' name tags shown (the View's "Light labels on the stage"). */
+  tags: boolean;
   onChange: (fn: (s: FlowStage) => FlowStage) => void;
 }
 
@@ -435,7 +437,7 @@ export function StagePane(p: StagePaneProps) {
             {guides.h !== undefined && <span className="cv-guide cv-guide--h" style={{ top: `${guides.h * 100}%` }} />}
             {others.map((o) => <span key={o.id} className="cv-sel" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, transform: o.rot ? `rotate(${o.rot}deg)` : undefined }} />)}
             {box && <span className="fl-box" style={{ left: `${Math.min(box[0][0], box[1][0]) * 100}%`, top: `${Math.min(box[0][1], box[1][1]) * 100}%`, width: `${Math.abs(box[1][0] - box[0][0]) * 100}%`, height: `${Math.abs(box[1][1] - box[0][1]) * 100}%` }} />}
-            <Widgets flow={p.flow} stage={stage} t={p.t} sel={p.sel} marked={p.marked} flash={p.flash} editing={p.editing && tool === "select"} onGrab={grabLight} />
+            <Widgets tags={p.tags} flow={p.flow} stage={stage} t={p.t} sel={p.sel} marked={p.marked} flash={p.flash} editing={p.editing && tool === "select"} onGrab={grabLight} />
           </div>
           {!stage.lights.length && !stage.objects.length && <span className="fl-paper__hint">{p.editing ? "Draw a plan with the tools above; drag lights here from “Place a light”." : "Nothing on the stage yet."}</span>}
         </div>
@@ -510,6 +512,11 @@ export function LightInspect({ flow, stage, track, t, editing, onLight, onShowTr
         <dt>Model</dt><dd>{m ? `${m.brand} ${m.model}` : tr.model}</dd>
         <dt>Device</dt><dd>{tr.device ? "Assigned" : "None: the stage plays it anyway"}</dd>
         <dt>Mounted</dt><dd><Segmented label="Mounted" value={ceiling ? "ceiling" : "aimed"} disabled={!editing} options={MOUNTS} onChange={(v) => onLight((x) => setMount(x, v as StageMount))} /></dd>
+        {!ceiling && <><dt>Beam</dt><dd><span className="hw-row fl-beam">
+          <Slider aria-label="Beam angle" value={l.angle ?? beamAngleOf(widgetShape(tr.model))} min={BEAM_MIN} max={BEAM_MAX} step={5} disabled={!editing} onChange={(v: number) => onLight((x) => ({ ...x, angle: Math.round(v) }))} />
+          <b className="fl-num">{l.angle ?? beamAngleOf(widgetShape(tr.model))}°</b>
+          {editing && l.angle !== undefined && <Button size="sm" variant="quiet" title="The beam as this model draws it" onClick={() => onLight(({ angle: _a, ...x }) => x)}>As the light</Button>}
+        </span></dd></>}
         {!ceiling && <><dt>Turned</dt><dd>{editing ? <span className="hw-row"><Button size="sm" variant="quiet" icon="rotate" label="Turn left 15°" onClick={() => turn((l.rot + 345) % 360)} /><b className="fl-num">{l.rot}°</b><Button size="sm" variant="quiet" icon="rotate-cw" label="Turn right 15°" onClick={() => turn((l.rot + 15) % 360)} /></span> : `${l.rot}°`}</dd></>}
       </dl>
       <small className="fl-note">At the playhead, {fmtClock(t)}</small>

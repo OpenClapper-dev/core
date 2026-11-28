@@ -118,3 +118,5 @@
 .fl-view__row { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
 .fl-view .fl-size { flex: 1 1 260px; display: flex; min-width: 0; }
 .fl-view .fl-size .hw-ctl--range { flex: 1; width: auto; min-width: 96px; }
+/* The time ruler stays at the top while the tracks scroll under it (#426). */
+.fl-row--ruler { position: sticky; top: 0; z-index: 5; background: var(--surface); }

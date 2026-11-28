@@ -3,9 +3,9 @@
 import { effectName, hsiCss, modelOf } from "@openclapper/ext-hardware";
 import { sampleTrack, type Keyframe, type SequenceSample } from "./flow.ts";
 
-export interface FlowView { graph: boolean; fill: boolean; labels: boolean; badges: boolean }
-export const VIEW_LABELS: Record<keyof FlowView, string> = { graph: "Intensity graph", fill: "Light colour", labels: "Value labels", badges: "Effect and power badges" };
-export const DEFAULT_VIEW: FlowView = { graph: false, fill: true, labels: false, badges: true };
+export interface FlowView { graph: boolean; fill: boolean; labels: boolean; badges: boolean; /** The lights' name tags on the stage (#426). */ tags: boolean }
+export const VIEW_LABELS: Record<keyof FlowView, string> = { graph: "Intensity graph", fill: "Light colour", labels: "Value labels", badges: "Effect and power badges", tags: "Light labels on the stage" };
+export const DEFAULT_VIEW: FlowView = { graph: false, fill: true, labels: false, badges: true, tags: true };
 export type KeyframeSize = "s" | "m" | "l";
 
 /**

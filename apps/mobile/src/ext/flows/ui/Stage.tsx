@@ -19,7 +19,7 @@ const NONE = emptyStage("none", "Stage 1");
  * Studio and a widget per placed light showing what its track plays at the playhead, drawn from the same shared
  * shapes, beams and motions as the Studio's. Nothing is drawn, placed or moved here; a widget tapped shows its state.
  */
-export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBody; stage: FlowStage | null; t: number; onShowTrack: (track: string) => void }) {
+export function StageView({ body, stage: shown, t, tags = true, onShowTrack }: { body: FlowBody; stage: FlowStage | null; t: number; /** The lights' name tags (the View's switch). */ tags?: boolean; onShowTrack: (track: string) => void }) {
   const s = useStyles();
   const stage = shown ?? NONE;
   const [room, setRoom] = useState({ w: 0, h: 0 });
@@ -72,7 +72,7 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
                     <RadialGradient id={`${id}g`}><Stop offset="0" stopColor={c} stopOpacity={0.95} /><Stop offset="0.45" stopColor={c} stopOpacity={0.45} /><Stop offset="1" stopColor={c} stopOpacity={0} /></RadialGradient>
                     <LinearGradient id={`${id}b`} x1="0" y1="0" x2="1" y2="0"><Stop offset="0" stopColor={c} stopOpacity={0.7} /><Stop offset="1" stopColor={c} stopOpacity={0} /></LinearGradient>
                   </Defs>
-                  <Path d={beamPath(g, st.level)} fill={`url(#${id}b)`} />
+                  <Path d={beamPath(g, st.level, l.angle)} fill={`url(#${id}b)`} />
                   <Circle cx={g.front} cy={0} r={glowRadius(g, st.level)} fill={`url(#${id}g)`} />
                 </G>
               );
@@ -82,7 +82,7 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
                 <Body shape={isCeiling(l) ? ceilingShape(tr.model) : widgetShape(tr.model)} face={states[i].on ? states[i].colour ?? "#ffffff" : STAGE_INK.unlit} muted={states[i].muted} />
               </G>
             ))}
-            {placed.map(({ l, tr }, i) => {
+            {tags && placed.map(({ l, tr }, i) => {
               const st = states[i], tw = tagWidth(tr.name, st.line), [tx, ty] = tagAt(l, stage.aspect, tw, stageScale(stage)), ink = tr.color !== undefined ? STAGE_TRACK_COLOURS[tr.color] : STAGE_INK.rim;
               return (
                 <G key={`t${tr.id}`} transform={`translate(${tx} ${ty})`}>
