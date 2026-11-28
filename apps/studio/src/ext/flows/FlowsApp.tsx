@@ -21,7 +21,7 @@ import { useEditLock } from "../../lock";
 import { usePeople } from "../../people";
 import { useProjects } from "../../projects";
 import { useUser } from "../../user";
-import { command as sendCommand, setBusyDevices, useHardware } from "../hardware/link";
+import { claim as claimDevices, command as sendCommand, setBusyDevices, useHardware } from "../hardware/link";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, NothingChosen, SelectionInspect, TrackInspect } from "./inspect";
 import { keyOf, Lanes, markKey, markOf, splitKey } from "./lanes";
 import { requestRun, useRun } from "./run";
@@ -180,7 +180,11 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const proxy = !!hw.state;
   const proxyRef = useRef(proxy);
   proxyRef.current = proxy;
-  const send: SendLight = (id, cmd) => { if (proxyRef.current) sendCommand(id, cmd); };
+  // Passive (#426): the flow's lights go to 0 and stay there, Keep on or not, until switched off again.
+  const [passive, setPassive] = useState(false);
+  const passiveRef = useRef(passive);
+  passiveRef.current = passive;
+  const send: SendLight = (id, cmd) => { if (proxyRef.current && !passiveRef.current) sendCommand(id, cmd); };
   const player = useRef<FlowPlayer | null>(null);
   player.current ??= new FlowPlayer(() => flowRef.current, send, { now: () => performance.now(), setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>) },
     { tick: (t) => setPlayhead(t), end: (t) => { setPlayhead(t); setPlaying(false); } });
@@ -197,7 +201,14 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   // A proxy that (re)appears knows nothing of what was sent before: Live sends everything again.
   useEffect(() => { if (proxy) player.current?.emitter.reset(); }, [proxy, hw.state?.phone.id]);
   const tracksKey = JSON.stringify(body.tracks);
-  useEffect(() => { if (!playing && live && !runActive && proxy) player.current!.emitter.emit(flowRef.current, playhead, false, send); }, [playhead, tracksKey, live, playing, proxy, runActive]);
+  useEffect(() => { if (!playing && live && !runActive && proxy && !passive) player.current!.emitter.emit(flowRef.current, playhead, false, send); }, [playhead, tracksKey, live, playing, proxy, runActive, passive]);
+  // The flow holds the lights of its tracks while Live or playing (passive mode, #426); Passive puts them to 0.
+  const devicesKey = body.tracks.flatMap((t) => (t.device && !t.muted ? [t.device] : [])).join(",");
+  useEffect(() => {
+    claimDevices(`flow:${f.id}`, devicesKey && (passive || (proxy && (live || playing))) ? { flows: [{ devices: devicesKey.split(","), passive }] } : null);
+    if (!passive) player.current?.emitter.reset();
+  }, [devicesKey, passive, proxy, live, playing]);
+  useEffect(() => () => claimDevices(`flow:${f.id}`, null), []);
   // The phone's position, carried on between its reports.
   const [, tickRun] = useState(0);
   useEffect(() => { if (!runsThis) return; const h = setInterval(() => tickRun((n) => n + 1), 100); return () => clearInterval(h); }, [runsThis]);
@@ -505,6 +516,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         <Button size="sm" variant="quiet" icon="undo" label="Undo (Mod+Z): tracks and stage" disabled={readonly || !past.current.length} onClick={() => undo()} />
         <Button size="sm" variant="quiet" icon="redo" label="Redo (Mod+Shift+Z)" disabled={readonly || !future.current.length} onClick={() => redo()} />
         <Switch checked={live} onChange={setLive}>Live</Switch>
+        <Button size="sm" variant={passive ? "secondary" : "quiet"} selected={passive} icon="moon" label={passive ? "Passive: this flow's lights are at 0. Click to let the flow drive them again" : "Passive: put this flow's lights to 0 (Keep on or not)"} onClick={() => setPassive(!passive)} />
         <Button size="sm" variant={stageLayout.on ? "secondary" : "quiet"} selected={stageLayout.on} icon="frame" label={stageLayout.on ? "Hide the stage (Shift+S)" : "Show the stage (Shift+S)"} onClick={toggleStage} />
         <ToolbarSpacer />
         <span className="fl-time">{fmtClock(runsThis ? runAt : playhead)} / {fmtSeconds(flow.durationMs)}</span>

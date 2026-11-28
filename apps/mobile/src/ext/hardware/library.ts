@@ -109,6 +109,17 @@ function sendSleep(): Promise<void> {
   })().finally(() => { sending = null; });
   return sending;
 }
+/**
+ * Keep a light on while nothing else holds it (#426, passive mode's override). This phone's list changes now, so the
+ * proxy here acts at once; the flag is saved with the device for every client (online).
+ */
+export async function setKeepOn(d: HardwareDevice, keepOn: boolean) {
+  const body: HardwareBody = { ...d.body };
+  if (keepOn) body.keepOn = true; else delete body.keepOn;
+  cache.set((l) => l.map((x) => (x.id === d.id ? { ...x, body } : x)));
+  try { put(await putFile(d.id, { type: "device", home: true, body: body as unknown as Record<string, unknown> })); }
+  catch (e) { cache.set((l) => l.map((x) => (x.id === d.id ? d : x))); throw e; }
+}
 export async function renameDevice(d: HardwareDevice, name: string) {
   const f = await putFile(d.id, { type: "device", home: true, name: name.trim().slice(0, 120) });
   put(f);

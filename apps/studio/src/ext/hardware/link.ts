@@ -2,7 +2,7 @@
 // reports on the `hardware` channel, and requests to it. Slider drags are thinned to one command per device and op
 // every THIN_MS (the last value always goes); the phone's queue coalesces again.
 import { useEffect, useState } from "preact/hooks";
-import { HARDWARE_CHANNEL, type HardwareProvision, type HardwareRequest, type HardwareScan, type HardwareState, type LightCommand } from "@openclapper/ext-hardware";
+import { CLAIM_EVERY_MS, HARDWARE_CHANNEL, type HardwareClaim, type HardwareProvision, type HardwareRequest, type HardwareScan, type HardwareState, type LightCommand } from "@openclapper/ext-hardware";
 import { sendLink, usePhoneLink } from "../../phoneLink";
 
 const THIN_MS = 60;
@@ -24,6 +24,19 @@ function onMessage(m: Record<string, unknown>) {
 }
 
 export const request = (r: HardwareRequest) => sendLink({ ch: HARDWARE_CHANNEL, ...r });
+
+/* Passive mode (#426, ext-hardware passive.ts): what this tab holds goes to the proxy phone, again every CLAIM_EVERY_MS. */
+const CLIENT = `studio-${Math.random().toString(36).slice(2, 12)}`;
+const held = new Map<string, Partial<HardwareClaim>>();
+const ours = (): HardwareClaim => ({ hand: [...held.values()].some((c) => c.hand), flows: [...held.values()].flatMap((c) => c.flows ?? []) });
+const sendClaim = () => request({ type: "claim", client: CLIENT, ...ours() });
+/** What a part of this tab holds (`source`), or null when it lets go: hand control (the Devices app), a flow's lights. */
+export function claim(source: string, c: Partial<HardwareClaim> | null) {
+  const was = JSON.stringify(held.get(source) ?? null);
+  if (c) held.set(source, c); else held.delete(source);
+  if (JSON.stringify(c) !== was) sendClaim();
+}
+setInterval(() => { if (held.size) sendClaim(); }, CLAIM_EVERY_MS);
 
 /** Devices a flow drives while it plays from this Studio (the Flows extension sets them): their controls here are locked meanwhile. */
 let busy: ReadonlySet<string> = new Set();

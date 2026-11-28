@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  HARDWARE_CHANNEL, parseHardwareRequest, type FixtureLive, type HardwareProvision, type HardwareReport, type HardwareRequest, type HardwareScan, type HardwareState,
+  CLAIM_EVERY_MS, CLAIM_TTL_MS, HARDWARE_CHANNEL, holdModes, modelOf, PASSIVE_GRACE_MS, parseHardwareRequest, type FixtureLive, type HardwareClaim, type HoldMode, type HardwareProvision, type HardwareReport, type HardwareRequest, type HardwareScan, type HardwareState,
   type LightCommand, type ScannedDevice,
 } from "@openclapper/ext-hardware";
 import { canCall } from "../../api";
@@ -55,7 +55,7 @@ const changed = () => { for (const cb of listeners) cb(); };
 export const proxyRunning = () => running;
 export function snapshot(): HardwareState {
   const f = device.get().file;
-  const devices: FixtureLive[] = running ? getFixtures().map((x) => ({ id: x.id, ...hub.status(x.id), asleep: !!x.asleep })) : [];
+  const devices: FixtureLive[] = running ? getFixtures().map((x) => ({ id: x.id, ...hub.status(x.id), asleep: !!x.asleep, ...(modes.get(x.id) ? { hold: modes.get(x.id) } : {}) })) : [];
   return { type: "state", phone: { id: f?.id ?? "", name: f?.name ?? "" }, proxy: running, devices };
 }
 /** The state to show: this phone's when it is the proxy, else the last report of another phone that is. */
@@ -90,9 +90,13 @@ function handle(r: HardwareRequest) {
     case "reconnect": reconnectAll(); return;
     case "scan": if (r.on) void startScan(); else stopScan("idle"); return;
     case "provision": void provision(r.device, !!r.fresh); return;
-    case "command":
+    case "claim": claims.set(r.client, { claim: { hand: r.hand, flows: r.flows }, at: Date.now() }); reconcile(); return;
+    case "command": {
       if (!getDevices().some((d) => d.id === r.device)) { log("warn", "proxy: command for an unknown device", { device: r.device }); return; }
-      hub.send(r.device, r.command).catch((err) => log("info", "proxy: command not sent", { device: r.device, op: r.command.op, error: err }));
+      const c = keptDark(r.device, r.command);
+      if (!c) return;
+      hub.send(r.device, c).catch((err) => log("info", "proxy: command not sent", { device: r.device, op: r.command.op, error: err }));
+    }
   }
 }
 
@@ -113,6 +117,88 @@ onChannel(HARDWARE_CHANNEL, (m) => {
   if (!r) { log("warn", "proxy: request refused", { type: m.type }); return; }
   handle(r);
 });
+
+/* ---------- Passive mode (#426, packages/ext-hardware/src/passive.ts) ---------- */
+// The proxy keeps every awake light that nothing holds at intensity 0: no flow Live, playing or running with it, no
+// Hardware tab or Devices app open, no Keep on. What holds what comes from every client as claims (this phone's own
+// screens included); a client that stops sending its claim is forgotten after CLAIM_TTL_MS. A light keeps its last
+// intensity set by hand and gets it back once held by hand again.
+
+/** This phone's id as a client (for the run of the app). */
+const CLIENT = `phone-${Math.random().toString(36).slice(2, 12)}`;
+const claims = new Map<string, { claim: HardwareClaim; at: number }>();
+/** This phone's own claims, by the screen that makes them. */
+const local = new Map<string, Partial<HardwareClaim>>();
+let modes = new Map<string, HoldMode>();
+const lastLevel = new Map<string, number>(), zeroAt = new Map<string, number>(), restore = new Set<string>();
+let startedAt = 0;
+
+const localClaim = (): HardwareClaim => ({ hand: [...local.values()].some((c) => c.hand), flows: [...local.values()].flatMap((c) => c.flows ?? []) });
+/**
+ * What a screen of this phone holds (`source`: which screen), or null when it lets go: hand control (the Hardware
+ * tab in front), a flow's lights (Live, playing or running; `passive`: put to 0). Goes to the proxy at once.
+ */
+export function claim(source: string, c: Partial<HardwareClaim> | null) {
+  const was = JSON.stringify(local.get(source) ?? null);
+  if (c) local.set(source, c); else local.delete(source);
+  if (JSON.stringify(c) !== was) sendClaim();
+}
+function sendClaim() {
+  if (running) reconcile();
+  else sendLink({ ch: HARDWARE_CHANNEL, type: "claim", client: CLIENT, ...localClaim() });
+}
+// Claims are sent again while they hold anything, so the proxy can forget a client that went away.
+setInterval(() => { if (!running && local.size) sendClaim(); }, CLAIM_EVERY_MS);
+
+const isLight = (id: string) => { const d = getDevices().find((x) => x.id === id); return !!d && modelOf(d.body.model)?.type === "light"; };
+const dark = (m: HoldMode | undefined) => m === "passive" || m === "flowOff";
+const sendQuiet = (id: string, c: LightCommand) => hub.send(id, c).catch((e) => log("info", "proxy: passive command not sent", { device: id, op: c.op, error: e }));
+
+/** A command for a light kept dark goes without its light: what it would have lit is kept as its last intensity. */
+function keptDark(id: string, c: LightCommand): LightCommand | null {
+  const m = modes.get(id);
+  if (!isLight(id)) return c;
+  if (!dark(m)) { if (c.op === "intensity" && m === "hand") lastLevel.set(id, c.value); return c; }
+  if (c.op === "intensity") { if (m === "passive") lastLevel.set(id, c.value); return null; }
+  if (c.op === "hsi") return { ...c, i: 0 };
+  if (c.op === "fade") return { ...c, intensity: 0 };
+  return c;
+}
+
+/** Each light's mode now, and what it takes to get there: 0 for one that nothing holds, its last intensity back by hand. */
+function reconcile() {
+  if (!running || paused) return;
+  const now = Date.now();
+  for (const [k, v] of claims) if (k !== CLIENT && now - v.at > CLAIM_TTL_MS) claims.delete(k);
+  claims.set(CLIENT, { claim: localClaim(), at: now });
+  // Just started: the clients' claims are on their way.
+  if (now - startedAt < PASSIVE_GRACE_MS) return;
+  const lights = getDevices().filter((d) => !d.body.asleep && d.body.address && modelOf(d.body.model)?.type === "light").map((d) => ({ id: d.id, keepOn: d.body.keepOn }));
+  const next = holdModes(lights, [...claims.values()].map((x) => x.claim));
+  let changedAny = next.size !== modes.size;
+  for (const [id, mode] of next) {
+    const was = modes.get(id), st = hub.status(id), ready = st.link === "ready", level = st.state?.intensity;
+    if (was !== mode) changedAny = true;
+    if (dark(mode)) {
+      restore.delete(id);
+      if (ready && level !== 0 && now - (zeroAt.get(id) ?? 0) > 2000) {
+        // What it showed by hand (or on connecting) is what it comes back at.
+        if (level !== undefined && level > 0 && mode === "passive" && was !== "flow") lastLevel.set(id, level);
+        zeroAt.set(id, now);
+        void sendQuiet(id, { op: "intensity", value: 0 });
+      }
+    } else if (mode === "hand") {
+      if (was && was !== "hand") restore.add(id);
+      if (restore.has(id) && ready) { restore.delete(id); const v = lastLevel.get(id); if (v !== undefined && v > 0) void sendQuiet(id, { op: "intensity", value: v }); }
+    } else {
+      // A flow takes it: what it showed by hand is kept for later.
+      if (was === "hand" && level !== undefined && level > 0) lastLevel.set(id, level);
+      restore.delete(id);
+    }
+  }
+  modes = next;
+  if (changedAny) soon();
+}
 
 /* ---------- Pairing: a scan for nearby devices, and the mesh provisioning. ---------- */
 
@@ -194,11 +280,14 @@ export function startProxy(): () => void {
   if (running) return stopProxy;
   running = true;
   remote = null;
+  startedAt = Date.now();
   watchAppState();
   lease();
+  const tick = setInterval(reconcile, 1000);
   stopFns = [
     () => { release?.(); release = null; },
-    onDevicesChange(() => { if (!paused) lease(); soon(); }),
+    () => { clearInterval(tick); claims.clear(); modes = new Map(); restore.clear(); },
+    onDevicesChange(() => { if (!paused) lease(); reconcile(); soon(); }),
     hub.subscribe(soon),
     onLinkOpen(sendNow),
   ];

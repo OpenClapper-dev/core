@@ -24,3 +24,4 @@ export * from "./catalogue.ts";
 export * from "./device.ts";
 export * from "./protocol.ts";
 export * from "./effects.ts";
+export * from "./passive.ts";

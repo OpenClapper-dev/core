@@ -4,7 +4,7 @@
 import "./hardware.css";
 import { useEffect, useState } from "preact/hooks";
 import {
-  AppIcon, Banner, BatteryBar, Button, ConnectionMark, DeviceCard, Dialog, DropdownMenu, EmptyState, List, ListRow, PropertyList, PropertyRow, Select, Spinner, TextInput, cx, type IconName, type Tone,
+  AppIcon, Banner, BatteryBar, Button, ConnectionMark, DeviceCard, Dialog, DropdownMenu, EmptyState, List, ListRow, PropertyList, PropertyRow, Select, Spinner, Switch, TextInput, cx, type IconName, type Tone,
 } from "@openclapper/design";
 import {
   CATALOGUE, PROVISION_STAGE_LABELS, TYPE_LABELS, controlGroups, formatValue, modelName, modelOf, stateValue, CCU_PARAMS,
@@ -16,7 +16,7 @@ import { confirm, toast, toastError } from "../../hosts";
 import type { DeviceCells } from "../../devices";
 import { usePrefs } from "../../prefs";
 import { ControlView, useHeld } from "./Controls";
-import { command, isBusy, request, useHardware, type HardwareCtx } from "./link";
+import { claim, command, isBusy, request, useHardware, type HardwareCtx } from "./link";
 
 export const TYPE_LOOK: Record<HardwareType, { icon: IconName; color: number }> = { light: { icon: "light-fixture", color: 3 }, battery: { icon: "battery", color: 4 }, camera: { icon: "video", color: 1 }, transmitter: { icon: "antenna", color: 8 } };
 const bodyOf = (d: FileRec) => d.body as unknown as HardwareBody;
@@ -55,7 +55,30 @@ const powerText = (d: FileRec, all: FileRec[]) => {
   return m.states.some((s) => s.id === "battery") ? "Own battery" : "Own power";
 };
 
-export function useContext(_files: FileRec[]) { return useHardware(); }
+export function useContext(_files: FileRec[]) {
+  // While the Devices app is open, every light answers its controls (#426): no light is passive meanwhile.
+  useEffect(() => { claim("devices", { hand: true }); return () => claim("devices", null); }, []);
+  return useHardware();
+}
+
+/**
+ * Passive mode on a light (#426): Keep on holds it on while nothing else does (no flow Live, no Devices app or
+ * Hardware tab open); a line says when it is kept at 0 now.
+ */
+function KeepOn({ d, live }: { d: FileRec; live: FixtureLive | undefined }) {
+  const b = bodyOf(d), m = modelOf(b.model);
+  if (m?.type !== "light" || b.asleep) return null;
+  const set = async (on: boolean) => {
+    const n: Record<string, unknown> = { ...b }; if (on) n.keepOn = true; else delete n.keepOn;
+    try { await store.saveBody(d, n); request({ type: "sync" }); } catch (e) { toastError(e); }
+  };
+  return (
+    <div className="hw-keep">
+      <Switch checked={!!b.keepOn} onChange={(on: boolean) => void set(on)}>Keep on</Switch>
+      <small className="hw-note">{live?.hold === "flowOff" ? "Kept at 0 % by a flow set to Passive." : b.keepOn ? "Stays on when nothing holds it." : "Goes to 0 % when nothing holds it (passive)."}</small>
+    </div>
+  );
+}
 
 export function cells(d: FileRec, all: FileRec[], ctx: HardwareCtx): DeviceCells {
   const m = modelOf(bodyOf(d).model)!;
@@ -84,6 +107,7 @@ export function Card({ d, all, ctx }: { d: FileRec; all: FileRec[]; ctx: Hardwar
         actions={<DeviceMenu d={d} ctx={ctx} onOpen={() => setOpen(true)} />}>
         {quick.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={!ready} send={(cmd) => command(d.id, cmd)} />)}
         {isBusy(d.id) && <span className="hw-note">A flow drives it now</span>}
+        <KeepOn d={d} live={l} />
         {m.type === "camera" && l?.telemetry?.camera?.timecode && <span className="hw-tc">{l.telemetry.camera.timecode}</span>}
         {m.feeds.length > 0 && <span className="hw-note">{m.feeds.map((f) => `${f.label}: on the device only`).join(" · ")}</span>}
         {m.type === "battery" && <span className="hw-note">{powerText(d, all)}</span>}

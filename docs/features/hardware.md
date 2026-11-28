@@ -46,6 +46,17 @@ The phone provisions Aputure lights into a Bluetooth Mesh network of its own; th
 
 The core's phone link carries the channel unread. Requests (to the proxy phone): `command { device, command }`, `hello`, `sync`, `reconnect`, `scan { on }`, `provision { device, fresh? }`; the phone checks each (`parseHardwareRequest`). Reports: `state { phone, proxy, devices }` (link, telemetry and light state per device), `scan.state`, `provision.state`. A change made on one client holds back the device's reports for 1.5 s, so a slider does not jump back.
 
+## Passive mode (`packages/ext-hardware/src/passive.ts`, #426)
+
+On set the lights stay rigged and connected; whatever nothing holds goes dark to save their batteries. The proxy phone decides it for every awake light from what each client tells it it holds (a **claim** on the `hardware` channel: `{ type: "claim", client, hand, flows: [{ devices, passive }] }`, sent on every change and again every 4 s while it holds anything; a client silent for 11 s is forgotten):
+
+- **A flow** holds the lights of its tracks (assigned, not muted) while it is Live in an open editor, plays, or runs on the device. Switched to **Passive** (the moon in its bar, Studio and device) it puts them to 0 instead, whatever else holds them, Keep on included.
+- **Hand control** holds every light while the **Hardware tab** (phone, in front) or the **Devices app** (Studio, open) is: lights answer their cards.
+- **Keep on** (a switch on a light's card; on the phone also on its screen; `keepOn` in the device's body, saved for every client) holds the light by itself.
+- Anything else is **passive**: the proxy sets intensity 0 (and again once it connects), and remembers what it showed by hand; held by hand again (the tab or app opened, Keep on switched on) it gets that intensity back. A command for a light kept dark sets nothing that lights it (its intensity is kept for later).
+
+The proxy waits 6 s after it starts for the claims before it puts anything to 0. Each light's state carries how it is held (`hold`: flow, hand, flowOff, passive).
+
 ## In the Studio (`apps/studio/src/ext/hardware/`)
 
 The Devices app is the core's (`apps/studio/src/apps/DevicesApp.tsx`); the extension registers how its kinds show (`registerDeviceView` in `apps/studio/src/devices.ts`) and its phone app as a tab a phone can take (`registerPhoneTab`). With the extension off, its devices are left out and a line says how many need it.

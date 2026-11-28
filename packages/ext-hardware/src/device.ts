@@ -20,6 +20,8 @@ export interface HardwareBody {
   poweredBy: string | null;
   /** Asleep: the phone does not connect to it until woken. */
   asleep: boolean;
+  /** A light kept on while nothing else holds it (#426, passive mode's override); absent: off. */
+  keepOn?: boolean;
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -29,7 +31,7 @@ const whole = (v: unknown, min: number, max: number) => Number.isInteger(v) && (
 /** Null when the body is a valid hardware device. */
 export function hardwareError(input: object): string | null {
   const body = input as Record<string, unknown>;
-  for (const k of Object.keys(body)) if (!["kind", "model", "address", "mesh", "poweredBy", "asleep"].includes(k)) return `a ${String(body.kind)} has no "${k}"`;
+  for (const k of Object.keys(body)) if (!["kind", "model", "address", "mesh", "poweredBy", "asleep", "keepOn"].includes(k)) return `a ${String(body.kind)} has no "${k}"`;
   const m = modelOf(body.model);
   if (!m) return "model is not in the catalogue";
   if (m.type !== body.kind) return `${m.brand} ${m.model} is a ${m.type}, not a ${String(body.kind)}`;
@@ -44,6 +46,7 @@ export function hardwareError(input: object): string | null {
     if (typeof body.poweredBy !== "string" || !UUID.test(body.poweredBy)) return "poweredBy is a battery's id or null";
   }
   if (typeof body.asleep !== "boolean") return "asleep is true or false";
+  if (body.keepOn !== undefined && (typeof body.keepOn !== "boolean" || m.type !== "light")) return "keepOn is true or false, on a light";
   return null;
 }
 

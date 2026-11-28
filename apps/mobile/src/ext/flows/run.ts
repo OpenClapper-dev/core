@@ -4,7 +4,7 @@ import { getFile } from "../../api";
 import { onChannel, onLinkOpen, sendLink } from "../../link";
 import { log } from "../../log";
 import { hub } from "../hardware/hub";
-import { onLetGo, proxyRunning } from "../hardware/proxy";
+import { claim, onLetGo, proxyRunning } from "../hardware/proxy";
 
 /**
  * A flow running on the phone itself (docs/features/flows.md, "Running on the device"; #321): a client names a flow and
@@ -37,6 +37,8 @@ export const runState = (): RunState => (state.phase === "playing" ? { ...state,
 const report = () => { sendLink({ ch: FLOWS_CHANNEL, ...runState() }); changed(); };
 function set(patch: Partial<RunState>) {
   state = { ...state, ...patch };
+  // While it runs, the flow holds its lights (#426, passive mode).
+  claim("run", state.phase === "playing" && flow ? { flows: [{ devices: flow.tracks.flatMap((t) => (t.device && !t.muted ? [t.device] : [])), passive: false }] } : null);
   if (state.phase === "playing" && !reportTimer) reportTimer = setInterval(report, RUN_REPORT_MS);
   if (state.phase !== "playing" && reportTimer) { clearInterval(reportTimer); reportTimer = null; }
   report();

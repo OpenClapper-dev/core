@@ -1,8 +1,9 @@
+import { useState } from "react";
 import { Text, View } from "react-native";
 import { modelOf, TYPE_LABELS, type FixtureLive, type HardwareType } from "@openclapper/ext-hardware";
 import { canCall } from "../../../api";
-import { catColor, IconButton, makeStyles, num, toast, type, useTheme, type IconName } from "../../../ui";
-import { setAsleep, type HardwareDevice } from "../library";
+import { catColor, Hint, IconButton, makeStyles, num, toast, Toggle, type, useTheme, type IconName } from "../../../ui";
+import { setAsleep, setKeepOn, type HardwareDevice } from "../library";
 
 /** The type's glyph and categorical colour (U6: a coloured tag per type). */
 export const TYPE_LOOK: Record<HardwareType, { icon: IconName; color: number }> = { light: { icon: "light-fixture", color: 3 }, battery: { icon: "battery", color: 4 }, camera: { icon: "video", color: 1 }, transmitter: { icon: "antenna", color: 8 } };
@@ -84,3 +85,24 @@ const useStyles = makeStyles((c) => ({
   batFill: { height: 8 },
   batText: { ...type("caption"), color: c.textDim, ...num },
 }));
+
+/**
+ * Passive mode on a light's card and screen (#426): Keep on holds it on while nothing else does, and a line says
+ * when it is kept at 0 now (nothing holds it, or a flow switched to Passive).
+ */
+export function KeepOn({ d, live, request }: { d: HardwareDevice; live: FixtureLive | undefined; request: () => void }) {
+  const [busy, setBusy] = useState(false);
+  if (modelOf(d.body.model)?.type !== "light" || d.body.asleep) return null;
+  const on = !!d.body.keepOn;
+  const toggle = async (v: boolean) => {
+    setBusy(true);
+    try { await setKeepOn(d, v); request(); } catch (e) { toast(`Not saved: ${e instanceof Error ? e.message : String(e)}`); } finally { setBusy(false); }
+  };
+  return (
+    <View>
+      <Toggle label="Keep on" meta="Stays on when no flow, Hardware tab or Devices app holds it (passive mode)" value={on} disabled={busy} onChange={(v) => void toggle(v)} />
+      {live?.hold === "passive" && <Hint>Passive: kept at 0 % while nothing holds it.</Hint>}
+      {live?.hold === "flowOff" && <Hint>Kept at 0 % by a flow set to Passive.</Hint>}
+    </View>
+  );
+}

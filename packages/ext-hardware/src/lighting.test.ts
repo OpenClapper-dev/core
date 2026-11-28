@@ -66,3 +66,18 @@ test("each effect with options says how it takes its light, and holds a locked o
   assert.deepEqual(effectLight("cop_car", { choice: 1 }), { h: 228, s: 1 });
   assert.equal(effectLight("party_lights"), null);
 });
+
+test("passive mode: what holds a light, and what is left at 0", async () => {
+  const { holdModes, parseClaim } = await import("./passive.ts");
+  const a = "11111111-1111-4111-8111-111111111111", b = "22222222-2222-4222-8222-222222222222", c = "33333333-3333-4333-8333-333333333333";
+  const lights = [{ id: a }, { id: b, keepOn: true }, { id: c }];
+  // Nothing holds: passive, unless kept on.
+  assert.deepEqual([...holdModes(lights, []).values()], ["passive", "hand", "passive"]);
+  // The Hardware tab open: every light by hand.
+  assert.deepEqual([...holdModes(lights, [{ hand: true, flows: [] }]).values()], ["hand", "hand", "hand"]);
+  // A flow Live with a: a follows it; a passive flow puts b to 0 despite Keep on, and wins over another flow.
+  assert.deepEqual([...holdModes(lights, [{ hand: false, flows: [{ devices: [a], passive: false }] }, { hand: true, flows: [{ devices: [b, a], passive: true }] }]).values()], ["flowOff", "flowOff", "hand"]);
+  assert.deepEqual(parseClaim({ hand: true, flows: [{ devices: [a], passive: false }] }), { hand: true, flows: [{ devices: [a], passive: false }] });
+  assert.equal(parseClaim({ hand: "yes", flows: [] }), null);
+  assert.equal(parseClaim({ hand: false, flows: [{ devices: ["x"], passive: false }] }), null);
+});
