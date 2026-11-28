@@ -39,7 +39,7 @@ The Studio is a desktop scoped to one project: apps in windows, a taskbar, virtu
 - **Launcher** (the design system's `Launcher`): every app with a search field, extensions in their own group; right-click pins an app to the taskbar. Esc or a click beside it closes it.
 - **Search** (⌘K or the taskbar's search button; `wm/Search.tsx` on the design system's `CommandPalette` with `large`, #426): every file of the project and of the account home (by name and property values, with its picture, type and path; the newest first, at most 40 per group), the open windows and the apps. The matched part is marked (`--match`). Search only: no actions, no project switching.
 - **Desktop:** clicking it takes focus away from the windows (the URL shows `#/`). Its icons are the files of the project's Desktop folder and the recycle bin ([files](files.md#desktop-icons-wmdesktopiconstsx-wmgridts)).
-- **Hosts** (`hosts.tsx`): `toast`, `confirm`, `prompt` and `contextMenu`, callable from any app and drawn once above every window. No browser dialogs anywhere.
+- **Hosts** (`hosts.tsx`): `toast`, `confirm`, `prompt` and `contextMenu`, callable from any app and drawn once above every window. A toast has a tone (#426): info (the default, the accent), success, warning or danger, shown as a stripe down its side and its icon in a tinted ring; the same notice again replaces the one shown instead of stacking, and an error starts with a capital. No browser dialogs anywhere.
 
 ## Apps (`apps/registry.ts`)
 

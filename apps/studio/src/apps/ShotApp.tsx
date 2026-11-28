@@ -347,7 +347,7 @@ export function ShotWindow({ f, files, bin, projectId, active, hosted }: { f: Fi
     await flush();
     try { await store.bin({ project: projectId }, [f.id]); } catch (e) { toastError(e); }
   };
-  const commitName = () => { const to = name.trim(); if (!to || to === f.name) { setName(f.name); return; } void store.rename(f, to).catch((e) => { toastError(e); setName(f.name); }); };
+  const commitName = () => { const to = name.trim(); if (!to || to === f.name) { setName(f.name); return; } void store.rename(f, to, lock.editing ? lock.holder : undefined).catch((e) => { toastError(e); setName(f.name); }); };
 
   // ---------- The progression editor ----------
   const editor = useProgressionEditor({

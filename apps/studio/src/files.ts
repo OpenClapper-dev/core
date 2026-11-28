@@ -41,7 +41,8 @@ export const create = (r: Root, type: string, more: { id?: string; name?: string
   const { id = crypto.randomUUID(), ...rest } = more;
   return change(r, () => api.createFile(r, id, { type, ...rest }));
 };
-export const rename = (f: FileRec, name: string) => change(rootOf(f), () => api.putFile(f.id, { name }));
+/** Rename a file; `holder`: the edit lock this window holds on it (a flow or shot open for editing), else it counts as someone else. */
+export const rename = (f: FileRec, name: string, holder?: string) => change(rootOf(f), () => (holder ? api.putFileLocked(f.id, { name }, holder) : api.putFile(f.id, { name })));
 /** Save a file's body (a collection's colour or order); the type's rules are checked by the server. */
 export const saveBody = (f: FileRec, body: Record<string, unknown>) => change(rootOf(f), () => api.putFile(f.id, { body }));
 export const move = (r: Root, ids: string[], container: string | null) => change(r, () => api.moveFiles(ids, container));

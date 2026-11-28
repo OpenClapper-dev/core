@@ -514,7 +514,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
 
   const props = (
     <div className="fl-props">
-      <label className="hw-ctl"><small>Name</small><TextInput size="sm" value={f.name} disabled={readonly} maxLength={120} onChange={(e) => { const n = e.currentTarget.value.trim(); if (n && n !== f.name) void store.rename(f, n).catch(toastError); }} /></label>
+      <label className="hw-ctl"><small>Name</small><TextInput size="sm" value={f.name} disabled={readonly} maxLength={120} onChange={(e) => { const n = e.currentTarget.value.trim(); if (n && n !== f.name) void store.rename(f, n, lock.editing ? lock.holder : undefined).catch(toastError); }} /></label>
       <label className="hw-ctl"><small>Length (s)</small><NumberInput size="sm" value={body.durationMs / 1000} step={1} min={1} max={FLOW_MAX_MS / 1000} disabled={readonly}
         onChange={(v: number) => { if (v > 0) change((b) => { const d = Math.min(FLOW_MAX_MS, Math.max(1000, snap(v * 1000))); return { ...b, durationMs: d, tracks: b.tracks.map((t) => ({ ...t, keyframes: t.keyframes.filter((k) => k.at <= d) })), markers: (b.markers ?? []).filter((m) => m.at <= d).map((m) => (m.end !== undefined && m.end > d ? { ...m, end: d } : m)) }; }); }} /></label>
       <Switch checked={body.loop} disabled={readonly} onChange={(on: boolean) => change((b) => ({ ...b, loop: on }))}>Loop</Switch>

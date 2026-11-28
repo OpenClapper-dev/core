@@ -47,8 +47,14 @@
 .oc-banner--success{border-color:var(--success);background:var(--success-tint)}.oc-banner--success>.oc-icon{color:var(--success)}
 .oc-banner--warning{border-color:var(--warning);background:var(--warning-tint)}.oc-banner--warning>.oc-icon{color:var(--warning)}
 .oc-banner--danger{border-color:var(--danger);background:var(--danger-tint)}.oc-banner--danger>.oc-icon{color:var(--danger)}
-.oc-toast{display:inline-flex;align-items:center;gap:var(--space-4);min-height:48px;padding:0 var(--space-4) 0 var(--space-6);box-sizing:border-box;border:var(--border-w) solid var(--border-window);border-radius:var(--radius-control);background:var(--surface-raised);box-shadow:var(--shadow-toast);color:var(--text);font:var(--weight-medium) var(--font-size-md)/1 var(--font-sans);white-space:nowrap}
-.oc-toast__text{padding-right:var(--space-3)}
+.oc-toast{--oc-tone:var(--accent);--oc-tone-tint:var(--accent-tint);position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:var(--space-4);min-height:48px;max-width:min(440px,calc(100vw - 48px));padding:var(--space-3) var(--space-4) var(--space-3) calc(var(--space-5) + 4px);box-sizing:border-box;border:var(--border-w) solid var(--border-window);border-radius:var(--radius-control);background:var(--surface-raised);box-shadow:var(--shadow-toast);color:var(--text);font:var(--weight-medium) var(--font-size-md)/1.35 var(--font-sans)}
+/* The tone (#426): a stripe down the side and the icon in a tinted ring; info takes the accent. */
+.oc-toast::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--oc-tone)}
+.oc-toast--success{--oc-tone:var(--success);--oc-tone-tint:var(--success-tint)}
+.oc-toast--warning{--oc-tone:var(--warning);--oc-tone-tint:var(--warning-tint)}
+.oc-toast--danger{--oc-tone:var(--danger);--oc-tone-tint:var(--danger-tint)}
+.oc-toast__mark{flex:none;display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--oc-tone-tint);color:var(--oc-tone)}
+.oc-toast__text{flex:1;min-width:0;padding-right:var(--space-3);overflow-wrap:anywhere}
 .oc-toast__btn{display:inline-grid;place-items:center;min-width:var(--control-h-sm);height:var(--control-h-sm);padding:0 var(--space-3);border:var(--border-w) solid transparent;border-radius:var(--radius-control);background:transparent;color:inherit;font:var(--weight-bold) var(--font-size-md)/1 var(--font-sans);text-decoration:underline;text-underline-offset:2px;cursor:default}
 .oc-toast__btn:hover{border-color:currentColor}
 .oc-toast__btn:focus-visible{outline:var(--focus-w) solid currentColor;outline-offset:var(--focus-offset)}
