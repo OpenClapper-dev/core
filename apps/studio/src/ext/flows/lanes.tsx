@@ -48,7 +48,7 @@ export function Lanes(p: LanesProps) {
   const lanesRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
   // The ruler's labels as dense as the room allows (#426): the finest step (half a second up) that leaves a label
-  // at least 56 px; the ruler's width is followed as the window, the panels and the zoom change it.
+  // at least 36 px; the ruler's width is followed as the window, the panels and the zoom change it.
   const [rulerW, setRulerW] = useState(0);
   useEffect(() => {
     const el = rulerRef.current; if (!el) return;
@@ -56,7 +56,7 @@ export function Lanes(p: LanesProps) {
     return () => ro.disconnect();
   }, []);
   const perSec = rulerW / Math.max(1, flow.durationMs / 1000);
-  const step = RULER_STEPS.find((x) => x * perSec >= 56) ?? RULER_STEPS[RULER_STEPS.length - 1];
+  const step = RULER_STEPS.find((x) => x * perSec >= 36) ?? RULER_STEPS[RULER_STEPS.length - 1];
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const timeAt = (clientX: number) => { const r = rulerRef.current!.getBoundingClientRect(); return Math.min(flow.durationMs, Math.max(0, snap(((clientX - r.left) / r.width) * flow.durationMs))); };
   const msPerPx = () => flow.durationMs / rulerRef.current!.getBoundingClientRect().width;
