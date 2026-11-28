@@ -29,7 +29,8 @@ const notify = () => { for (const cb of listeners) cb(); };
 /** A short notice in the corner; with an action (Undo) it stays twice as long. */
 export function toast(text: string, opts: { tone?: Tone; action?: { label: string; onClick: () => void } } = {}) {
   const item: ToastItem = { id: ++seq, text, ...opts };
-  toasts = [...toasts.slice(-3), item];
+  // The same notice again (a save failing on every keystroke) replaces the one shown instead of stacking up.
+  toasts = [...toasts.filter((t) => !(t.text === text && t.tone === opts.tone && !t.action && !opts.action)).slice(-3), item];
   notify();
   setTimeout(() => dismiss(item.id), opts.action ? 8000 : 4000);
 }
@@ -39,7 +40,7 @@ function dismiss(id: number) {
   notify();
 }
 /** A failed request as a toast, with the server's own words. */
-export const toastError = (e: unknown) => toast(e instanceof Error ? e.message : String(e), { tone: "danger" });
+export const toastError = (e: unknown) => { const m = e instanceof Error ? e.message : String(e); toast(m.charAt(0).toUpperCase() + m.slice(1), { tone: "danger" }); };
 
 export function confirm(q: { title: string; message?: string; confirmLabel?: string; danger?: boolean }): Promise<boolean> {
   return new Promise((done) => { ask?.done(null as never); ask = { kind: "confirm", ...q, done }; notify(); });
