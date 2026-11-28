@@ -41,3 +41,26 @@ test("a light's colour is its hue mixed with white by the saturation", () => {
   assert.equal(hsiCss(77, 0), "rgb(255, 255, 255)");
   assert.equal(hsiCss(360, 1), hsiCss(0, 1));
 });
+
+test("each effect with options says how it takes its light, and holds a locked one where it can", async () => {
+  const { effectLightKind, effectHolds, holdEffect, effectLight } = await import("./effects.ts");
+  const { EFFECT_OPTIONS } = await import("./lighting.ts");
+  for (const id of Object.keys(EFFECT_OPTIONS) as (keyof typeof EFFECT_OPTIONS)[]) assert.ok(["white", "either", "whiteChoice", "own"].includes(effectLightKind(id)), id);
+  assert.equal(effectLightKind("paparazzi"), "white");
+  assert.equal(effectLightKind("faulty_bulb"), "either");
+  assert.equal(effectLightKind("cop_car"), "own");
+  assert.equal(effectLightKind("nw_candle"), "white");
+  assert.equal(effectLightKind("nw_cct_loop"), "own");
+  // A locked white: paparazzi takes its temperature, faulty bulb turns white at it, cop car cannot.
+  assert.equal(holdEffect("paparazzi", { kelvin: 3000, frequency: 2 }, { kelvin: 4600 })!.kelvin, 4600);
+  assert.deepEqual(holdEffect("faulty_bulb", { color: { h: 10, s: 1 } }, { kelvin: 4600 })!.color, { kelvin: 4600 });
+  assert.equal(effectHolds("cop_car", { kelvin: 4600 }), false);
+  assert.equal(holdEffect("fireworks", { choice: 2 }, { kelvin: 4600 })!.choice, 0);
+  // A locked colour: only an effect with a colour option.
+  assert.deepEqual(holdEffect("pulsing", { color: { kelvin: 3000 } }, { h: 200, s: 0.5 })!.color, { h: 200, s: 0.5 });
+  assert.equal(effectHolds("paparazzi", { h: 200, s: 0.5 }), false);
+  // What is drawn while it runs.
+  assert.deepEqual(effectLight("faulty_bulb", { color: { kelvin: 4600 } }), { kelvin: 4600 });
+  assert.deepEqual(effectLight("cop_car", { choice: 1 }), { h: 228, s: 1 });
+  assert.equal(effectLight("party_lights"), null);
+});

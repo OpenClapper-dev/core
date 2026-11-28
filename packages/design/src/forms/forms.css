@@ -36,6 +36,7 @@
 .oc-option__check{visibility:hidden}
 .oc-option[aria-selected="true"]{font-weight:var(--weight-bold)}
 .oc-option[aria-selected="true"] .oc-option__check{visibility:visible}
+.oc-option.is-disabled{color:var(--text-disabled);cursor:default}
 .oc-option.is-cursor{background:var(--surface-hover)}
 .oc-option--empty{padding-left:var(--space-4);color:var(--text-secondary)}
 .oc-check{position:relative;display:inline-flex;align-items:center;gap:var(--space-4);min-height:var(--row-h);color:var(--text);font:var(--weight-regular) var(--font-size-md)/1 var(--font-sans);cursor:default}

@@ -1,4 +1,4 @@
-import { CAMERA_CONTROLS, FADE_MAX_MS, modelOf, type Curve, type EffectId, type EffectSettings, type LightCommand, type Value } from "@openclapper/ext-hardware";
+import { CAMERA_CONTROLS, FADE_MAX_MS, holdEffect, modelOf, type Curve, type HeldLight, type EffectId, type EffectSettings, type LightCommand, type Value } from "@openclapper/ext-hardware";
 import type { FlowStage } from "./stage.ts";
 
 /**
@@ -111,12 +111,30 @@ export function playedKeyframes(t: Pick<FlowTrack, "keyframes" | "locked">): Key
   const start = t.keyframes.find((k) => k.id === START_KEYFRAME);
   if (!start) return t.keyframes;
   const fields = t.locked.flatMap((p) => PARAM_FIELDS[p] ?? []);
+  const held = heldLight(t);
   return t.keyframes.map((k) => {
-    if (k.id === START_KEYFRAME || !fields.some((f) => k[f] !== undefined)) return k;
-    const n: Record<string, unknown> = { ...k };
-    for (const f of fields) { if (n[f] === undefined) continue; if (start[f] === undefined) delete n[f]; else n[f] = start[f]; }
-    return n as unknown as Keyframe;
+    let n: Keyframe = k;
+    if (k.id !== START_KEYFRAME && fields.some((f) => k[f] !== undefined)) {
+      const m: Record<string, unknown> = { ...k };
+      for (const f of fields) { if (m[f] === undefined) continue; if (start[f] === undefined) delete m[f]; else m[f] = start[f]; }
+      n = m as unknown as Keyframe;
+    }
+    // An effect's own light options take the held white or colour too (#426), where the effect can show it.
+    if (held && n.effect?.id) n = { ...n, effect: { ...n.effect, settings: holdEffect(n.effect.id, n.effect.settings, held) } };
+    return n;
   });
+}
+
+/**
+ * The white or colour a track holds for its whole length (#426): the start keyframe's, where its white
+ * (colour temperature) or its colour is locked; null without such a lock.
+ */
+export function heldLight(t: Pick<FlowTrack, "keyframes" | "locked">): HeldLight | null {
+  const start = t.keyframes.find((k) => k.id === START_KEYFRAME);
+  if (!start || !t.locked?.length) return null;
+  if (t.locked.includes("kelvin") && start.kelvin !== undefined) return { kelvin: start.kelvin };
+  if (t.locked.includes("colour") && start.hue !== undefined) return { h: start.hue, s: start.sat ?? 1 };
+  return null;
 }
 
 export interface Flow {

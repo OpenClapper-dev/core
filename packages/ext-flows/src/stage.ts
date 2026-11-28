@@ -4,7 +4,7 @@
 // flow's body, not files of their own. Everything both editors draw comes from here, so the Studio and the phone show the same: what a widget shows
 // (sampled exactly as the player samples), its shape per fixture model, its beam, and the motion of an effect.
 import { canvasObjectError, type CanvasObject, type ObjKind } from "@openclapper/model";
-import { effectName, modelOf, type EffectId } from "@openclapper/ext-hardware";
+import { effectLight, effectName, modelOf, type EffectId } from "@openclapper/ext-hardware";
 import { playedKeyframes, sampleTrack, type FlowTrack } from "./flow.ts";
 import { lightColour } from "./look.ts";
 
@@ -216,7 +216,10 @@ export function widgetState(tr: Pick<FlowTrack, "keyframes" | "locked" | "muted"
   const on = !muted && s.power !== false && level > 0.001;
   const fx = s.effect?.id ? { id: s.effect.id, name: effectName(s.effect.id), family: EFFECT_FAMILY[s.effect.id] ?? "flicker" } : null;
   const colour = lightColour(s);
-  const tint = s.mode === "colour" ? `colour ${Math.round(s.hue ?? 0)}°` : s.kelvin !== undefined ? `${Math.round(s.kelvin / 50) * 50} K` : null;
+  // While an effect runs, what it shows (#426): its white or colour, or "colours" where it changes them by itself.
+  const fl = s.effect?.id ? effectLight(s.effect.id, s.effect.settings) : undefined;
+  const tint = fl === null ? "colours" : fl ? ("kelvin" in fl ? `${Math.round(fl.kelvin / 50) * 50} K` : `colour ${Math.round(fl.h)}°`)
+    : s.mode === "colour" ? `colour ${Math.round(s.hue ?? 0)}°` : s.kelvin !== undefined ? `${Math.round(s.kelvin / 50) * 50} K` : null;
   const line = muted ? "muted" : s.power === false ? "off" : [`${Math.round(level * 100)} %`, tint, fx?.name].filter(Boolean).join(" · ");
   return { on, level: on ? level : 0, colour, tint, effect: on ? fx : null, muted, line };
 }

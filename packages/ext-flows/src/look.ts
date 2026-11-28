@@ -1,6 +1,6 @@
 // What a flow's lanes show (docs/features/flows.md): a light's colour, the intensity graph, short labels of what a
 // keyframe sets, and the view switches. Shared by the Studio's and the device's editors.
-import { effectName, hsiCss, modelOf } from "@openclapper/ext-hardware";
+import { effectLight, effectName, hsiCss, modelOf, type HeldLight } from "@openclapper/ext-hardware";
 import { sampleTrack, type Keyframe, type SequenceSample } from "./flow.ts";
 
 export interface FlowView { graph: boolean; fill: boolean; labels: boolean; badges: boolean; /** The lights' name tags on the stage (#426). */ tags: boolean }
@@ -23,9 +23,17 @@ export function kelvinRgb(k: number): [number, number, number] {
 
 /** The colour a light shows (CSS and React Native) in this state, or null when nothing has set white or colour. */
 export function lightColour(s: SequenceSample): string | null {
+  // While an effect runs its own light shows (#426), not the white or colour set before it.
+  if (s.effect?.id) { const l = effectLight(s.effect.id, s.effect.settings); return l ? heldColour(l) : null; }
   if (s.mode === "colour") return hsiCss(s.hue ?? 0, s.sat ?? 1);
   if (s.mode === "white" && s.kelvin !== undefined) { const [r, g, b] = kelvinRgb(s.kelvin); return `rgb(${r}, ${g}, ${b})`; }
   return null;
+}
+
+/** A white or a colour as CSS (and React Native). */
+export function heldColour(l: HeldLight): string {
+  if ("kelvin" in l) { const [r, g, b] = kelvinRgb(l.kelvin); return `rgb(${r}, ${g}, ${b})`; }
+  return hsiCss(l.h, l.s);
 }
 
 /** The level the graph shows at t: off counts as 0. */

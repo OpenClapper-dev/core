@@ -9,7 +9,8 @@ import { cx } from "../util";
  * browser's menu, so it looks the same everywhere and in both themes. It floats above panels and dialogs and opens upward when there is no room below.
  */
 export interface SelectProps extends Omit<JSX.HTMLAttributes<HTMLButtonElement>, "size" | "value" | "onChange" | "style"> {
-  options: { value: string; label: string }[];
+  /** `disabled`: shown, not picked (an option that does not fit now, its label saying why). */
+  options: { value: string; label: string; disabled?: boolean }[];
   value?: string;
   onChange?: (value: string) => void;
   size?: "sm" | "md" | "lg";
@@ -28,7 +29,7 @@ export function Select({ options = [], value, onChange, size = "md", invalid, di
     setCursor(Math.max(0, options.findIndex(o => o.value === value)));
     setOpen(true);
   };
-  const pick = (i: number) => { const o = options[i]; if (o && onChange && o.value !== value) onChange(o.value); setOpen(false); };
+  const pick = (i: number) => { const o = options[i]; if (o?.disabled) return; if (o && onChange && o.value !== value) onChange(o.value); setOpen(false); };
   const onKey = (e: JSX.TargetedKeyboardEvent<HTMLButtonElement>) => {
     if (!open) { if (["ArrowDown", "ArrowUp", "Enter", " "].includes(e.key)) { e.preventDefault(); show(); } return; }
     if (e.key === "ArrowDown") { e.preventDefault(); setCursor(c => Math.min(c + 1, options.length - 1)); }
@@ -50,7 +51,7 @@ export function Select({ options = [], value, onChange, size = "md", invalid, di
       {open && (
         <Floating anchor={host} matchWidth onDismiss={() => setOpen(false)}><ul className="oc-listbox" role="listbox">
           {options.map((o, i) => (
-            <li key={o.value} role="option" aria-selected={o.value === value} className={cx("oc-option", i === cursor && "is-cursor")}
+            <li key={o.value} role="option" aria-selected={o.value === value} aria-disabled={o.disabled || undefined} className={cx("oc-option", i === cursor && "is-cursor", o.disabled && "is-disabled")}
               onMouseDown={e => { e.preventDefault(); pick(i); }} onMouseEnter={() => setCursor(i)}>
               <Icon name="check" className="oc-option__check" />{o.label}
             </li>

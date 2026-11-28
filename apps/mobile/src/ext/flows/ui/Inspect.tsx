@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
-import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, hsiCss, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, fmtSeconds, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
+import { CURVES, EFFECT_OPTIONS, effectHolds, effectLightKind, effectName, effectOptions, holdEffect, effectSettingsOf, fixtureKind, formatValue, hsiCss, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
+import { FLOW_CAMERA_CONTROLS, fmtSeconds, heldLight, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
 import { Button, catColor, Chip, Hint, HueSatField, Input, makeStyles, Seg, Slider, Toggle, type, useTheme } from "../../../ui";
 import type { HardwareDevice } from "../../hardware/library";
 
@@ -43,9 +43,9 @@ function Locked({ lock, children }: { lock?: ReactNode; children: ReactNode }) {
   const s = useStyles();
   return lock ? <View style={s.head}><View style={{ flex: 1 }}>{children}</View>{lock}</View> : <>{children}</>;
 }
-function Choices<T extends string | number>({ value, options, onChange }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void }) {
+function Choices<T extends string | number>({ value, options, onChange, disabled }: { value: T; options: { value: T; label: string; disabled?: boolean }[]; onChange: (v: T) => void; disabled?: boolean }) {
   const s = useStyles();
-  return <View style={s.chips}>{options.map((o) => <Chip key={String(o.value)} label={o.label} selected={o.value === value} onPress={() => onChange(o.value)} />)}</View>;
+  return <View style={s.chips}>{options.map((o) => <Chip key={String(o.value)} label={o.label} selected={o.value === value} disabled={disabled || o.disabled} onPress={() => onChange(o.value)} />)}</View>;
 }
 const At = ({ kf, durationMs, onChange }: { kf: Keyframe; durationMs: number; onChange: (at: number) => void }) => (
   <Slider label="At" value={kf.at} min={SNAP_MS} max={durationMs} step={SNAP_MS} format={fmtSeconds} onChange={(v) => onChange(snap(v))} />
@@ -64,6 +64,7 @@ const Margins = ({ kf, durationMs, hide, onChange }: { kf: Keyframe; durationMs:
 export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange, onDelete, onLock }: { kf: Keyframe; track: FlowTrack; durationMs: number; /** What the account leaves out (#426). */ hide?: PanelHides; onChange: (k: Keyframe) => void; onDelete: () => void; /** A track lock set or cleared (#426), from the start keyframe. */ onLock?: (p: LightParam, on: boolean) => void }) {
   const s = useStyles();
   const [picking, setPicking] = useState(false);
+  const [fxPicking, setFxPicking] = useState(false);
   const kind = fixtureKind(track.model), caps = kind?.caps, m = modelOf(track.model);
   const isStart = kf.id === START_KEYFRAME;
   // The start keyframe sets the locks; on the others a locked parameter is not shown (the start's value holds).
@@ -78,7 +79,14 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
   const mode = kf.hue !== undefined ? "colour" : kf.kelvin !== undefined ? "white" : "leave";
   const cct = caps?.cct;
   const fx = kf.effect?.id ?? null;
-  const settings = fx ? effectSettingsOf(fx, kf.effect?.settings) : {};
+  // A locked white or colour (#426) is the light of every effect that can show it; the others are not offered.
+  const held = isStart ? null : heldLight(track);
+  const holds = !!fx && !!held && effectHolds(fx, held);
+  const settings = fx ? (holds ? effectSettingsOf(fx, holdEffect(fx, kf.effect?.settings, held!)) : effectSettingsOf(fx, kf.effect?.settings)) : {};
+  const heldText = held ? ("kelvin" in held ? `the locked white, ${held.kelvin} K` : `the locked colour, ${Math.round(held.h)}° · ${Math.round(held.s * 100)} %`) : "";
+  const isLightOpt = (id: string) => ["kelvin", "colorMode", "colorKelvin", "colorHue", "colorSat"].includes(id) || (id === "choice" && !!fx && effectLightKind(fx) === "whiteChoice");
+  const fxOpts = fx && m ? effectOptions(m, fx).filter((o) => optionShown(o, settings)) : [];
+  const satOpt = fxOpts.find((o) => o.control.id === "colorSat");
   return (
     <View style={s.wrap}>
       {isStart ? <Hint>What the light shows when the flow starts: power, intensity and the light are always set, so a flow never starts from whatever the light showed before.</Hint>
@@ -91,7 +99,8 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
       {shown("intensity") && <Channel label="Intensity" fixed={isStart} on={kf.intensity !== undefined} toggle={(on) => (on ? set({ intensity: 0.5 }) : drop("intensity"))} lock={lock("intensity")}>
         <Slider label="Intensity" value={Math.round((kf.intensity ?? 0.5) * 100)} min={0} max={100} format={(x) => `${x} %`} onChange={(x) => set({ intensity: x / 100 })} />
       </Channel>}
-      {((cct && (inPanel("kelvin") || inPanel("gm"))) || (caps?.hsi && inPanel("colour"))) && (
+      {/* A keyframe that turns an effect on (#426): the effect's own options are its light. */}
+      {!(fx && !isStart) && ((cct && (inPanel("kelvin") || inPanel("gm"))) || (caps?.hsi && inPanel("colour"))) && (
         <Part label="Light">
           <Seg accessibilityLabel="White or colour" value={mode} block
             onChange={(v) => {
@@ -122,11 +131,31 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
       {!!caps?.effects?.length && m && shown("effect") && (
         <Channel label="Effect" on={kf.effect !== undefined} toggle={(on) => (on ? set({ effect: { id: caps.effects![0], settings: effectSettingsOf(caps.effects![0]) } }) : drop("effect"))} lock={lock("effect")}>
           <Choices value={fx ?? "off"} onChange={(v) => { const id = v === "off" ? null : (v as EffectId); set({ effect: id ? { id, settings: effectSettingsOf(id) } : { id: null } }); }}
-            options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => ({ value: id as string, label: effectName(id) }))]} />
-          {fx && EFFECT_OPTIONS[fx] && effectOptions(m, fx).filter((o) => optionShown(o, settings)).map((o) => o.control.kind === "choice"
-            ? <Part key={o.control.id} label={o.control.label}><Choices value={o.read(settings)} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} options={o.control.options.map((x) => ({ value: x.value as number, label: x.label }))} /></Part>
-            : o.control.kind === "range" ? <Slider key={o.control.id} label={o.control.label} value={o.read(settings)} min={o.control.min} max={o.control.max} step={o.control.step}
-              format={(v) => ((o.control as { max: number }).max === 11 && v === 11 ? "Random" : formatValue((o.control as { format: "plain" }).format, v))} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} /> : null)}
+            options={[{ value: "off", label: "Off (stop)" }, ...caps.effects.map((id) => ({ value: id as string, label: effectName(id), disabled: !!held && !effectHolds(id, held) && id !== fx }))]} />
+          {held && !fx && <Hint>{"kelvin" in held ? "Effects that cannot show the locked white" : "Effects that cannot show the locked colour"} are greyed out.</Hint>}
+          {fx && held && !holds && <Hint>{effectName(fx)} brings its own light: it cannot show {heldText}. It plays as it is; pick another effect to keep the lock.</Hint>}
+          {holds && <Hint>Its light is {heldText}, locked on the start keyframe.</Hint>}
+          {fx && EFFECT_OPTIONS[fx] && fxOpts.map((o) => {
+            const off = holds && isLightOpt(o.control.id);
+            if (o.control.id === "colorSat") return null;
+            // The effect's colour as Light's (#426): hue and saturation beside the swatch that opens the colour field.
+            if (o.control.id === "colorHue" && satOpt) return (
+              <View key="fxcolour" style={s.colourWrap}>
+                <View style={s.colour}>
+                  <View style={s.colourSliders}>
+                    <Slider label="Hue" value={Math.round(o.read(settings))} min={0} max={360} disabled={off} format={(x) => `${x}°`} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} />
+                    <Slider label="Saturation" value={Math.round(satOpt.read(settings) * 100)} min={0} max={100} disabled={off} format={(x) => `${x} %`} onChange={(v) => set({ effect: { id: fx, settings: satOpt.write(settings, v / 100) } })} />
+                  </View>
+                  <Pressable style={[s.swatch, { backgroundColor: hsiCss(o.read(settings), satOpt.read(settings)) }]} disabled={off} onPress={() => setFxPicking(!fxPicking)} accessibilityRole="button" accessibilityLabel={fxPicking ? "Close the colour field" : "Pick the effect's colour"} />
+                </View>
+                {fxPicking && !off && <HueSatField hue={o.read(settings)} sat={satOpt.read(settings)} onChange={(h, sv) => set({ effect: { id: fx, settings: { ...settings, color: { h, s: sv } } } })} />}
+              </View>
+            );
+            return o.control.kind === "choice"
+              ? <Part key={o.control.id} label={o.control.label}><Choices disabled={off} value={o.read(settings)} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} options={o.control.options.map((x) => ({ value: x.value as number, label: x.label }))} /></Part>
+              : o.control.kind === "range" ? <Slider key={o.control.id} label={o.control.label} value={o.read(settings)} min={o.control.min} max={o.control.max} step={o.control.step} disabled={off}
+                format={(v) => ((o.control as { max: number }).max === 11 && v === 11 ? "Random" : formatValue((o.control as { format: "plain" }).format, v))} onChange={(v) => set({ effect: { id: fx, settings: o.write(settings, v) } })} /> : null;
+          })}
         </Channel>
       )}
       {caps?.curves && shown("curve") && (

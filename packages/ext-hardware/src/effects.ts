@@ -65,3 +65,55 @@ export const optionShown = (o: EffectOption, s: EffectSettings) =>
 /** The command that runs an effect with its settings (defaults filled in), or stops it. */
 export const effectCommand = (effect: EffectId | null, settings?: EffectSettings): LightCommand =>
   effect ? { op: "effect", effect, settings: effectSettingsOf(effect, settings) } : { op: "effect", effect: null };
+
+// ---------- The light an effect shows (#426) ----------
+// While an effect runs, its own options decide the light, not the white or colour set before: some take a white
+// temperature, some white or a colour, the rest bring their own (tones, fixed colours, random colours, a range).
+
+/** How an effect takes its light: a white temperature, white or a colour, a first choice that is white (MC fireworks), or its own. */
+export type EffectLightKind = "white" | "either" | "whiteChoice" | "own";
+export function effectLightKind(effect: EffectId): EffectLightKind {
+  const keys = EFFECT_OPTIONS[effect]?.options.map((o) => o.key) ?? [];
+  if (keys.includes("color")) return "either";
+  if (keys.includes("kelvin")) return "white";
+  if (effect === "fireworks") return "whiteChoice";
+  return "own";
+}
+
+/** A white or a colour held on a whole track (the start keyframe's locked light). */
+export type HeldLight = { kelvin: number } | { h: number; s: number };
+/** Whether an effect can show a held light: a white one through any light option, a colour only through a colour option. */
+export const effectHolds = (effect: EffectId, held: HeldLight) => { const k = effectLightKind(effect); return "kelvin" in held ? k !== "own" : k === "either"; };
+/** An effect's settings with the held light in its light options (unchanged where it cannot hold it). */
+export function holdEffect(effect: EffectId, settings: EffectSettings | undefined, held: HeldLight): EffectSettings | undefined {
+  if (!effectHolds(effect, held)) return settings;
+  const s = { ...settings };
+  switch (effectLightKind(effect)) {
+    case "white": return { ...s, kelvin: (held as { kelvin: number }).kelvin };
+    case "either": return { ...s, color: "kelvin" in held ? { kelvin: held.kelvin } : { h: held.h, s: held.s } };
+    case "whiteChoice": return { ...s, choice: 0 };
+    default: return settings;
+  }
+}
+
+/** The tones of TV and Fire (warmer, natural, cooler) as whites, for drawing them. */
+const TONES: Partial<Record<EffectId, readonly number[]>> = { tv: [4300, 5600, 7000], fire: [1900, 2200, 2700] };
+/** Cop car's colour sets, by their first colour: red, blue, red, blue, red. */
+const COP: readonly HeldLight[] = [{ h: 0, s: 1 }, { h: 228, s: 1 }, { h: 0, s: 1 }, { h: 228, s: 1 }, { h: 0, s: 1 }];
+/**
+ * The light an effect shows while it runs, for the lanes and the stage: a white, a colour, or null where it changes
+ * colours by itself (party lights, colourful fireworks).
+ */
+export function effectLight(effect: EffectId, settings?: EffectSettings): HeldLight | null {
+  const s = effectSettingsOf(effect, settings);
+  switch (effectLightKind(effect)) {
+    case "white": return { kelvin: s.kelvin ?? 5600 };
+    case "either": return s.color && "kelvin" in s.color ? { kelvin: s.color.kelvin } : { h: s.color?.h ?? 0, s: s.color?.s ?? 1 };
+    case "whiteChoice": return (s.choice ?? 0) === 0 ? { kelvin: 5600 } : null;
+  }
+  const tones = TONES[effect];
+  if (tones) return { kelvin: tones[s.choice ?? 0] ?? tones[0] };
+  if (effect === "cop_car") return COP[s.choice ?? 2] ?? COP[0];
+  if (effect === "nw_cct_loop") return { kelvin: Math.round(((s.kelvin ?? 3200) + (s.kelvinMax ?? 5600)) / 2 / 50) * 50 };
+  return null;
+}
