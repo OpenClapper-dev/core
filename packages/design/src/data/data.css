@@ -14,8 +14,22 @@
 .oc-table{width:100%;border-collapse:collapse;color:var(--text);font:var(--weight-regular) var(--font-size-md)/1 var(--font-sans)}
 .oc-table th{position:sticky;top:0;z-index:1;height:var(--row-h-lg);padding:0 var(--space-4);border-bottom:var(--border-w) solid var(--border-control);background:var(--surface);color:var(--text-secondary);font-weight:var(--weight-medium);text-align:left;white-space:nowrap}
 .oc-table th.is-resizable{position:sticky}
-.oc-table__grip{position:absolute;top:6px;bottom:6px;right:-3px;z-index:2;width:7px;cursor:col-resize;border-right:var(--border-w) solid var(--border-divider)}
-.oc-table__grip:hover{border-right:2px solid var(--accent)}
+.oc-table.is-fixed{table-layout:fixed}
+.oc-table.is-fixed td,.oc-table.is-fixed th{box-sizing:border-box;overflow:hidden;text-overflow:ellipsis}
+.oc-table.is-fixed .oc-table__fill{padding:0}
+/* A header's right edge: a divider, and while the header is hovered a handle to drag (#426). */
+.oc-table__grip{position:absolute;top:0;bottom:0;right:0;z-index:2;width:12px;cursor:col-resize}
+.oc-table__grip::before{content:"";position:absolute;top:8px;bottom:8px;right:0;width:var(--border-w);background:var(--border-divider)}
+.oc-table__grip::after{content:"";position:absolute;top:50%;right:4px;width:5px;height:18px;margin-top:-9px;border-radius:var(--radius-pill);background:var(--border-control);opacity:0;transition:opacity var(--dur-fast) var(--ease)}
+.oc-table thead tr:hover .oc-table__grip::after{opacity:1}
+.oc-table__grip:hover::after,.oc-table__grip:active::after{background:var(--accent)}
+.oc-table__grip:hover::before,.oc-table__grip:active::before{background:var(--accent)}
+/* A header dragged to another place (#426): the column taken is dimmed, a line shows where it goes. */
+.oc-table th.is-movable{cursor:grab}
+.oc-table.is-moving,.oc-table.is-moving th{cursor:grabbing}
+.oc-table th.is-moved{color:var(--text-disabled)}
+.oc-table th.is-drop-before{box-shadow:inset 2px 0 0 var(--accent)}
+.oc-table th.is-drop-after{box-shadow:inset -2px 0 0 var(--accent)}
 .oc-table th[aria-sort]{color:var(--text);font-weight:var(--weight-bold)}
 .oc-table__sort{display:inline-flex;align-items:center;gap:var(--space-2);height:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:default}
 .oc-table__sort:hover{color:var(--text)}

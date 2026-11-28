@@ -32,7 +32,7 @@ export interface Prefs {
   clipHoldMs: number;
   /** A canvas made from a photo starts with the frame the photo was taken with. */
   canvasTakesFrame: boolean;
-  /** The file browser's table per kind of list (folders, Photos, Shots, …): which columns show and how wide (#426). */
+  /** The file browser's table per kind of list (folders, Photos, Shots, …): which columns show, in which order and how wide (#426). */
   columns: Record<string, ColumnSetup>;
   /** A light's parameters hidden per catalogue model (#426): in flows and on device cards, here and on the phone. */
   lightParamsHidden: Record<string, string[]>;
@@ -40,7 +40,7 @@ export interface Prefs {
   keyframeFieldsHidden: string[];
 }
 export type TaskbarItem = "clock" | "account" | "theme" | "search" | "project";
-export interface ColumnSetup { visible?: string[]; widths?: Record<string, number> }
+export interface ColumnSetup { visible?: string[]; widths?: Record<string, number>; /** Every column's key in the user's order (#426); absent: the default order. */ order?: string[] }
 
 export const DEFAULT_PREFS: Prefs = { lightParamsHidden: {}, keyframeFieldsHidden: [], columns: {}, taskbarHide: [], theme: "auto", taskbarEdge: "bottom", taskbarAlign: "start", pins: {}, icons: {}, binOnDesktop: true, collectionMark: "bar", clipHoldMs: 2000, canvasTakesFrame: true };
 export type PrefsState = "local" | "loading" | "saved" | "saving" | "unsaved";
