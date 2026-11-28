@@ -25,8 +25,11 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
   const [room, setRoom] = useState({ w: 0, h: 0 });
   const [chosen, setChosen] = useState<string | null>(null);
   const H = STAGE_W / stage.aspect;
-  // The paper keeps its aspect inside the room it has.
-  const w = Math.min(room.w, room.h * stage.aspect), h = w / stage.aspect;
+  // The paper keeps its aspect inside the room it has, turned as the stage is turned in the Studio (#426: the whole
+  // sheet, drawing, lights and underlay together); its box on screen is the turned paper's bounds.
+  const turn = stage.turn ?? 0, rad = (turn * Math.PI) / 180, cs = Math.abs(Math.cos(rad)), sn = Math.abs(Math.sin(rad));
+  const w = Math.max(0, Math.min(room.w / (cs + sn / stage.aspect), room.h / (sn + cs / stage.aspect))), h = w / stage.aspect;
+  const bw = w * cs + h * sn, bh = w * sn + h * cs;
   const placed = stage.lights.map((l) => ({ l, tr: body.tracks.find((x) => x.id === l.track) })).filter((x): x is { l: StageLight; tr: FlowTrack } => !!x.tr);
   const states = placed.map(({ tr }) => widgetState(tr, t));
   const now = useClock(states.some((x) => x.effect));
@@ -34,7 +37,10 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
   const onRoom = (e: LayoutChangeEvent) => setRoom({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
   // A tap: the widget nearest to it, within reach of a finger; elsewhere lets go.
   const tap = (e: GestureResponderEvent) => {
-    const x = (e.nativeEvent.locationX / w) * STAGE_W, y = (e.nativeEvent.locationY / h) * H, reach = (40 / w) * STAGE_W;
+    // The touch in the box, turned back onto the paper.
+    const dx = e.nativeEvent.locationX - bw / 2, dy = e.nativeEvent.locationY - bh / 2, c = Math.cos(-rad), si = Math.sin(-rad);
+    const px = dx * c - dy * si + w / 2, py = dx * si + dy * c + h / 2;
+    const x = (px / w) * STAGE_W, y = (py / h) * H, reach = (40 / w) * STAGE_W;
     const near = placed.map(({ l, tr }) => ({ id: tr.id, d: Math.hypot(l.x * STAGE_W - x, l.y * H - y) })).sort((a, b) => a.d - b.d)[0];
     setChosen(near && near.d < reach ? near.id : null);
   };
@@ -42,7 +48,8 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
   return (
     <View style={s.room} onLayout={onRoom}>
       {w > 0 && (
-        <Pressable onPress={tap} style={[s.paper, { width: w, height: h, backgroundColor: STAGE_INK.paper }]} accessibilityLabel="The flow's stage">
+        <Pressable onPress={tap} style={{ width: bw, height: bh }} accessibilityLabel="The flow's stage">
+        <View pointerEvents="none" style={[s.paper, { position: "absolute", left: (bw - w) / 2, top: (bh - h) / 2, width: w, height: h, backgroundColor: STAGE_INK.paper }, turn ? { transform: [{ rotate: `${turn}deg` }] } : null]}>
           {stage.underlay && <Image source={imageSource(stage.underlay.photo, "preview")} style={[s.fill, { opacity: stage.underlay.opacity }]} contentFit="contain" />}
           <Svg width={w} height={h} viewBox={`0 0 ${STAGE_W} ${H}`} style={s.fill}>
             {stage.objects.filter((o) => o.visible && o.kind !== "stencil").map((o) => <Drawn key={o.id} o={o} vh={H} />)}
@@ -94,6 +101,7 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
             </View>
           ))}
           {!placed.length && !stage.objects.length && <Text style={s.empty}>Nothing on the stage yet: it is drawn and lights are placed in the Studio.</Text>}
+        </View>
         </Pressable>
       )}
       {pick && <Card tr={pick.tr} l={pick.l} t={t} onShowTrack={() => onShowTrack(pick.tr.id)} onClose={() => setChosen(null)} />}

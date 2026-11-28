@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { EFFECTS } from "@openclapper/ext-hardware";
 import { checkFile } from "@openclapper/model";
 import { emptyFlow, flowBodyOf, flowError, FLOW, removeTrack, START_KEYFRAME, type FlowBody, type FlowTrack, type Keyframe } from "./index.ts";
-import { beamPath, ceilingShape, copyStage, EFFECT_FAMILY, effectOpacity, emptyStage, nextStageName, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, STAGES_MAX, stageOf, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
+import { beamPath, ceilingShape, copyStage, EFFECT_FAMILY, effectOpacity, emptyStage, nextStageName, stagesError, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, STAGES_MAX, stageOf, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const lamp: FlowTrack = { id: "t1", name: "Lamp 1", model: "aputure-mc", device: null, keyframes: [kf(0, { power: false, intensity: 0.8, kelvin: 3200, gm: 0 }, START_KEYFRAME), kf(3000, { power: true }), kf(6000, { hue: 0, sat: 1, intensity: 1 }), kf(8000, { effect: { id: "fire" } })] };
@@ -137,4 +137,13 @@ test("a ceiling light: a pool growing with the level, its tag under it (above at
   assert.ok(tagAt({ track: "t1", x: 0.5, y: 0.98, rot: 0, mount: "ceiling" }, 16 / 9, 120)[1] < 0.98 * H);
   // Aimed: behind the light, as before.
   assert.ok(tagAt({ track: "t1", x: 0.5, y: 0.5, rot: 0 }, 16 / 9, 120)[0] < 500);
+});
+
+test("a stage may be turned on screen: whole degrees 0 to 359, nothing else changes", () => {
+  const at = (turn: unknown) => stagesError([{ ...emptyStage("a", "Stage 1"), turn }], []);
+  assert.equal(at(90), null);
+  assert.equal(at(359), null);
+  assert.match(at(360)!, /stage.turn/);
+  assert.match(at(12.5)!, /stage.turn/);
+  assert.match(at(-15)!, /stage.turn/);
 });

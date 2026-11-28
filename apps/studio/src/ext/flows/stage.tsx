@@ -31,6 +31,20 @@ const isLight = (t: FlowTrack) => modelOf(t.model)?.type === "light";
 const trackInk = (t: FlowTrack | undefined) => (t?.color !== undefined ? STAGE_TRACK_COLOURS[t.color] : STAGE_INK.rim);
 const uid = () => `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+/** A vector turned by `deg` degrees clockwise (screen axes). */
+const turnBy = (v: P, deg: number): P => { const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a); return [v[0] * c - v[1] * s, v[0] * s + v[1] * c]; };
+/** The canvas's rotate cursor. */
+const ROTATE = `url("data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12a7 7 0 1 1 3 5.7" stroke="white" stroke-width="5"/><path d="M5 12a7 7 0 1 1 3 5.7"/><path d="M4 16l4 2l1 -4.5" stroke="white" stroke-width="5"/><path d="M4 16l4 2l1 -4.5"/></svg>')}") 12 12, crosshair`;
+
+/**
+ * The point of the paper (fractions of its width and height) under a screen point, through the view's zoom and the
+ * stage's turn (#426): the paper turns and scales about its centre, which stays the centre of its box on screen.
+ */
+export function paperAt(el: HTMLElement, x: number, y: number): P {
+  const r = el.getBoundingClientRect(), z = Number(el.dataset.zoom ?? 1);
+  const v = turnBy([x - (r.left + r.width / 2), y - (r.top + r.height / 2)], -Number(el.dataset.turn ?? 0));
+  return [v[0] / (el.offsetWidth * z) + 0.5, v[1] / (el.offsetHeight * z) + 0.5];
+}
 
 
 /** The frame clock while something on the stage moves by itself (an effect): a re-render each frame, nothing otherwise. */
@@ -141,7 +155,9 @@ type Act =
   | { type: "draw"; tool: "pen" | "line" | "arrow" | "rect" | "ellipse"; pts: P[] }
   | { type: "erase" }
   /** A corner of the chosen object dragged (#426): the opposite corner stays. */
-  | { type: "resize"; id: string; fixed: P }
+  | { type: "resize"; id: string; fixed: P; rot: number }
+  /** A chosen object turned by a handle outside its corner (in the paper's height units, as the canvas). */
+  | { type: "rotate"; id: string; centre: P; from: number; orig: number }
   /** An end of a chosen line or arrow dragged; the other end stays. */
   | { type: "end"; id: string; which: 0 | 1; other: P };
 
@@ -171,13 +187,35 @@ export function StagePane(p: StagePaneProps) {
   const [draft, setDraft] = useState<{ tool: string; pts: P[] } | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
   const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
+  // The view (#426): zoom and pan for this session, like the canvas's; the turn is the stage's own and is saved.
+  const [view, setView] = useState({ z: 1, x: 0, y: 0 });
+  const fitEl = useRef<HTMLDivElement>(null);
+  const panning = useRef<{ x: number; y: number; ox: number; oy: number } | null>(null);
+  const turn = stage.turn ?? 0;
+  useEffect(() => setView({ z: 1, x: 0, y: 0 }), [stage.id]);
+  const zoomAt = (to: number, cx?: number, cy?: number) => setView((v) => {
+    const z = Math.min(8, Math.max(0.25, to)), r = fitEl.current?.getBoundingClientRect();
+    if (!r) return { ...v, z };
+    const px = (cx ?? r.left + r.width / 2) - (r.left + r.width / 2), py = (cy ?? r.top + r.height / 2) - (r.top + r.height / 2), k = z / v.z;
+    return { z, x: px - (px - v.x) * k, y: py - (py - v.y) * k };
+  });
+  useEffect(() => {
+    const el = fitEl.current; if (!el) return;
+    // Ctrl or ⌘ with the wheel (a trackpad's pinch) zooms at the pointer; the wheel alone pans.
+    const wheel = (e: WheelEvent) => { e.preventDefault(); if (e.ctrlKey || e.metaKey) zoomAt(view.z * Math.exp(-e.deltaY * 0.0022), e.clientX, e.clientY); else setView((v) => ({ ...v, x: v.x - (e.shiftKey ? e.deltaY : e.deltaX), y: v.y - (e.shiftKey ? 0 : e.deltaY) })); };
+    el.addEventListener("wheel", wheel, { passive: false });
+    return () => el.removeEventListener("wheel", wheel);
+  });
+  const setTurn = (deg: number) => p.onChange((st) => { const t = ((Math.round(deg) % 360) + 360) % 360, n = { ...st }; if (t) n.turn = t; else delete n.turn; return n; });
   const objs = stage.objects.map(toEdit);
   const setTool = (t: StageTool) => p.onDrawing({ ...p.drawing, tool: t });
   const lights = p.flow.tracks.filter(isLight);
   const underlay = stage.underlay ? p.photos.find((x) => x.id === stage.underlay!.photo) : undefined;
   useEffect(() => { if (!p.editing) { setDraft(null); setTyping(null); act.current = null; } }, [p.editing]);
 
-  const at = (e: PointerEvent): P => { const r = paper.current!.getBoundingClientRect(); return [(e.clientX - r.left) / r.width, (e.clientY - r.top) / r.height]; };
+  const at = (e: PointerEvent): P => paperAt(paper.current!, e.clientX, e.clientY);
+  /** The paper's size on screen in px, zoomed (its box on screen is larger once turned). */
+  const onScreen = (): P => [paper.current!.offsetWidth * view.z, paper.current!.offsetHeight * view.z];
   const capture = (e: PointerEvent) => { try { paper.current?.setPointerCapture(e.pointerId); } catch { /* no pointer */ } };
   const setObjs = (fn: (os: Obj[]) => Obj[]) => p.onChange((s) => ({ ...s, objects: fn(s.objects.map(toEdit)).map(toStore) }));
   const setLight = (track: string, fn: (l: StageLight) => StageLight) => p.onChange((s) => ({ ...s, lights: s.lights.map((l) => (l.track === track ? fn(l) : l)) }));
@@ -189,13 +227,13 @@ export function StagePane(p: StagePaneProps) {
    */
   const snapTo = (e: PointerEvent, xs: number[], ys: number[], skip: { obj?: string; light?: string }) => {
     if (!p.drawing.snap || e.ctrlKey || e.metaKey) { setGuides({}); return { dx: 0, dy: 0 }; }
-    const r = paper.current!.getBoundingClientRect();
+    const [sw, sh] = onScreen();
     const boxes = objs.filter((o) => o.visible && o.id !== skip.obj);
     const lx = stage.lights.filter((l) => l.track !== skip.light);
     const tx = [0, 0.5, 1, ...boxes.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w]), ...lx.map((l) => l.x)];
     const ty = [0, 0.5, 1, ...boxes.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h]), ...lx.map((l) => l.y)];
     const near = (mine: number[], lines: number[], tol: number) => { let d = tol, at: number | undefined; for (const m of mine) for (const t of lines) if (Math.abs(t - m) < Math.abs(d)) { d = t - m; at = t; } return at === undefined ? { d: 0 } : { d, at }; };
-    const x = near(xs, tx, 6 / r.width), y = near(ys, ty, 6 / r.height);
+    const x = near(xs, tx, 6 / sw), y = near(ys, ty, 6 / sh);
     setGuides({ v: x.at, h: y.at });
     return { dx: x.d, dy: y.d };
   };
@@ -219,7 +257,7 @@ export function StagePane(p: StagePaneProps) {
     act.current = { type: "obj", id: target.id, start: at(e), orig: target, moved: false };
   };
   const rub = (q: P) => {
-    const h = paper.current!.getBoundingClientRect().height;
+    const h = onScreen()[1];
     setObjs((os) => eraseAt(os, q, 12 / h, stage.aspect, "partial", uid) as Obj[]);
   };
   const down = (e: PointerEvent) => {
@@ -253,10 +291,17 @@ export function StagePane(p: StagePaneProps) {
       const deg = (Math.atan2((q[1] - l.y) / stage.aspect, q[0] - l.x) * 180) / Math.PI, step = e.shiftKey ? 1 : 15;
       setLight(a.track, (x) => ({ ...x, rot: ((Math.round(deg / step) * step) % 360 + 360) % 360 }));
     } else if (a.type === "resize") {
-      const sn = snapTo(e, [q[0]], [q[1]], { obj: a.id });
-      q[0] += sn.dx; q[1] += sn.dy;
-      const x = Math.min(a.fixed[0], q[0]), y = Math.min(a.fixed[1], q[1]), w = Math.max(0.01, Math.abs(q[0] - a.fixed[0])), h = Math.max(0.01, Math.abs(q[1] - a.fixed[1]));
-      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x, y, w, h } : o)));
+      // In the paper's height units, so a turned object keeps its angles (the canvas's way); snapping only unturned.
+      if (!a.rot) { const sn = snapTo(e, [q[0]], [q[1]], { obj: a.id }); q[0] += sn.dx; q[1] += sn.dy; }
+      const A = stage.aspect, d = turnBy([q[0] * A - a.fixed[0], q[1] - a.fixed[1]], -a.rot), w = Math.max(0.01, Math.abs(d[0])), h = Math.max(0.01, Math.abs(d[1]));
+      const half = turnBy([(Math.sign(d[0]) || 1) * w / 2, (Math.sign(d[1]) || 1) * h / 2], a.rot), c: P = [a.fixed[0] + half[0], a.fixed[1] + half[1]];
+      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x: (c[0] - w / 2) / A, y: c[1] - h / 2, w: w / A, h } : o)));
+    } else if (a.type === "rotate") {
+      const A = stage.aspect, ang = (Math.atan2(q[1] - a.centre[1], q[0] * A - a.centre[0]) * 180) / Math.PI;
+      let rot = a.orig + ang - a.from;
+      if (e.shiftKey) rot = Math.round(rot / 15) * 15;
+      rot = Number((((rot % 360) + 360) % 360).toFixed(1));
+      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, rot } : o)));
     } else if (a.type === "end") {
       const sn = snapTo(e, [q[0]], [q[1]], { obj: a.id });
       q[0] += sn.dx; q[1] += sn.dy;
@@ -275,8 +320,8 @@ export function StagePane(p: StagePaneProps) {
     const a = act.current; act.current = null; setGuides({});
     if (a?.type !== "draw") return;
     setDraft(null);
-    const r = paper.current!.getBoundingClientRect();
-    const o = objectFromDraft(a.tool, a.pts, { id: uid(), pen: "pen", stroke: colour, width: 3, minStep: 2.5 / Math.max(r.width, r.height) });
+    const [sw, sh] = onScreen();
+    const o = objectFromDraft(a.tool, a.pts, { id: uid(), pen: "pen", stroke: colour, width: 3, minStep: 2.5 / Math.max(sw, sh) });
     if (o) { setObjs((os) => [...os, o]); p.onSel({ kind: "obj", id: o.id }); }
   };
 
@@ -285,10 +330,20 @@ export function StagePane(p: StagePaneProps) {
   const handles = !!selObj && p.editing && tool === "select" && typing !== selObj.id;
   const isLine = !!selObj && (selObj.kind === "line" || selObj.kind === "arrow") && !!selObj.pts?.length;
   const endOf = (o: Obj, k: 0 | 1): P => { const q = o.pts![k === 0 ? 0 : o.pts!.length - 1]; return [o.x + q[0] * o.w, o.y + q[1] * o.h]; };
+  const centreOf = (o: Obj): P => [(o.x + o.w / 2) * stage.aspect, o.y + o.h / 2];
   const grabCorner = (e: PointerEvent, k: number) => {
     if (e.button > 0 || !selObj) return;
     e.stopPropagation(); capture(e);
-    act.current = { type: "resize", id: selObj.id, fixed: [k % 2 ? selObj.x : selObj.x + selObj.w, k >= 2 ? selObj.y : selObj.y + selObj.h] };
+    // The opposite corner stays: in height units, turned with the object.
+    const rot = selObj.rot ?? 0, c = centreOf(selObj), sx = k % 2 ? 1 : -1, sy = k >= 2 ? 1 : -1;
+    const o = turnBy([(-sx * selObj.w * stage.aspect) / 2, (-sy * selObj.h) / 2], rot);
+    act.current = { type: "resize", id: selObj.id, fixed: [c[0] + o[0], c[1] + o[1]], rot };
+  };
+  const grabRotate = (e: PointerEvent) => {
+    if (e.button > 0 || !selObj) return;
+    e.stopPropagation(); capture(e);
+    const c = centreOf(selObj), q = at(e);
+    act.current = { type: "rotate", id: selObj.id, centre: c, from: (Math.atan2(q[1] - c[1], q[0] * stage.aspect - c[0]) * 180) / Math.PI, orig: selObj.rot ?? 0 };
   };
   const grabEnd = (e: PointerEvent, k: 0 | 1) => {
     if (e.button > 0 || !selObj) return;
@@ -323,8 +378,13 @@ export function StagePane(p: StagePaneProps) {
         <span className="fl-st__spacer" />
         <span className="fl-st__count">{stage.lights.length} of {lights.length} lights placed</span>
       </div>
-      <div className="fl-st__fit">
-        <div className={cx("fl-paper", `is-${p.editing ? tool : "view"}`)} ref={paper} style={{ "--aspect": stage.aspect, "--fl-grid": STAGE_INK.grid, background: STAGE_INK.paper }}
+      <div className="fl-st__fit" ref={fitEl}
+        onPointerDown={(e) => { if (e.button !== 1) return; e.preventDefault(); e.stopPropagation(); (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); panning.current = { x: e.clientX, y: e.clientY, ox: view.x, oy: view.y }; }}
+        onPointerMove={(e) => { const g = panning.current; if (g) setView((v) => ({ ...v, x: g.ox + e.clientX - g.x, y: g.oy + e.clientY - g.y })); }}
+        onPointerUp={() => { panning.current = null; }} onPointerCancel={() => { panning.current = null; }}>
+        <div className={cx("fl-paper", `is-${p.editing ? tool : "view"}`)} ref={paper} data-zoom={view.z} data-turn={turn}
+          onDblClick={() => { if (p.editing && tool === "select" && selObj?.kind === "text") setTyping(selObj.id); }}
+          style={{ "--aspect": stage.aspect, "--fl-grid": STAGE_INK.grid, "--c": Math.abs(Math.cos((turn * Math.PI) / 180)), "--s": Math.abs(Math.sin((turn * Math.PI) / 180)), "--inv": 1 / view.z, background: STAGE_INK.paper, transform: `translate(${view.x}px, ${view.y}px) scale(${view.z}) rotate(${turn}deg)` }}
           onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { act.current = null; setDraft(null); setGuides({}); }}>
           <div className="fl-paper__in">
             {stage.underlay && underlay && <img className="fl-paper__under" src={underlay.src} alt="" draggable={false} style={{ opacity: stage.underlay.opacity }} />}
@@ -332,7 +392,10 @@ export function StagePane(p: StagePaneProps) {
               editing={typing === o.id} onText={(t) => { setObjs((os) => os.map((x) => (x.id === o.id ? { ...x, text: t } : x))); setTyping(null); }} onEdit={() => { if (p.editing && tool === "select") setTyping(o.id); }} />)}
             {draft && <DraftView d={{ ...draft, pen: "pen", stroke: colour, width: 3 }} vh={H} />}
             {selObj && !(handles && isLine) && <span className="cv-sel" style={{ left: `${selObj.x * 100}%`, top: `${selObj.y * 100}%`, width: `${selObj.w * 100}%`, height: `${selObj.h * 100}%`, transform: selObj.rot ? `rotate(${selObj.rot}deg)` : undefined }}>
-              {handles && !isLine && [0, 1, 2, 3].map((k) => <i key={k} className={`cv-handle cv-handle--${k}`} title="Drag to resize" onPointerDown={(e) => grabCorner(e, k)} />)}
+              {handles && !isLine && [0, 1, 2, 3].map((k) => [
+                <i key={`r${k}`} className={`cv-rot cv-rot--${k}`} style={{ cursor: ROTATE }} title="Drag to turn (Shift: steps of 15°)" onPointerDown={(e) => grabRotate(e)} />,
+                <i key={`h${k}`} className={`cv-handle cv-handle--${k}`} title="Drag to resize" onPointerDown={(e) => grabCorner(e, k)} />,
+              ])}
             </span>}
             {handles && isLine && ([0, 1] as const).map((k) => { const q = endOf(selObj!, k); return <i key={k} className="cv-node" title="Drag to move this end" style={{ left: `${q[0] * 100}%`, top: `${q[1] * 100}%` }} onPointerDown={(e) => grabEnd(e, k)} />; })}
             {guides.v !== undefined && <span className="cv-guide cv-guide--v" style={{ left: `${guides.v * 100}%` }} />}
@@ -340,6 +403,16 @@ export function StagePane(p: StagePaneProps) {
             <Widgets flow={p.flow} stage={stage} t={p.t} sel={p.sel} marked={p.marked} flash={p.flash} editing={p.editing && tool === "select"} onGrab={grabLight} />
           </div>
           {!stage.lights.length && !stage.objects.length && <span className="fl-paper__hint">{p.editing ? "Draw a plan with the tools above; drag lights here from “Place a light”." : "Nothing on the stage yet."}</span>}
+        </div>
+        {/* The view (#426): turning the whole paper is the stage's own (saved, undoable); zoom is this window's. */}
+        <div className="fl-st__view" onPointerDown={(e) => e.stopPropagation()}>
+          <Button size="sm" variant="quiet" icon="rotate" label="Turn the stage 15° left (Shift: 90°)" disabled={!p.editing} onClick={(e: MouseEvent) => setTurn(turn - (e.shiftKey ? 90 : 15))} />
+          <button type="button" className="fl-st__now" title={turn ? "Turn the stage back to 0°" : "How far the stage is turned"} disabled={!p.editing || !turn} onClick={() => setTurn(0)}>{turn}°</button>
+          <Button size="sm" variant="quiet" icon="rotate-cw" label="Turn the stage 15° right (Shift: 90°)" disabled={!p.editing} onClick={(e: MouseEvent) => setTurn(turn + (e.shiftKey ? 90 : 15))} />
+          <span className="fl-st__sep" />
+          <Button size="sm" variant="quiet" icon="minus" label="Zoom out (Ctrl + wheel)" onClick={() => zoomAt(view.z / 1.25)} />
+          <button type="button" className="fl-st__now" title="Fit the stage into the view" onClick={() => setView({ z: 1, x: 0, y: 0 })}>{Math.round(view.z * 100)} %</button>
+          <Button size="sm" variant="quiet" icon="plus" label="Zoom in (Ctrl + wheel)" onClick={() => zoomAt(view.z * 1.25)} />
         </div>
       </div>
     </div>
@@ -359,8 +432,8 @@ export function PlacePalette({ flow, stage, editing, onPlace, onLocate }: { flow
       document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", end); ghost.remove();
       const el = (document.elementFromPoint(ev.clientX, ev.clientY) as HTMLElement | null)?.closest<HTMLElement>(".fl-paper");
       if (!el) return;
-      const r = el.getBoundingClientRect();
-      onPlace(tr.id, [clamp01((ev.clientX - r.left) / r.width), clamp01((ev.clientY - r.top) / r.height)]);
+      const q = paperAt(el, ev.clientX, ev.clientY);
+      onPlace(tr.id, [clamp01(q[0]), clamp01(q[1])]);
     };
     mv(e); document.addEventListener("pointermove", mv); document.addEventListener("pointerup", end);
   };

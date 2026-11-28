@@ -39,6 +39,11 @@ export interface FlowStage {
   /** One widget per placed light track, at most one per track on this stage (a track may stand on several stages). */
   lights: StageLight[];
   underlay?: StageUnderlay | null;
+  /**
+   * How the whole paper is turned on screen, in degrees clockwise (#426): like a sheet turned on a desk, the drawing,
+   * the lights and the underlay turn together; nothing on it changes. Absent: 0.
+   */
+  turn?: number;
 }
 
 /** What the stage draws: the canvas's shapes, text and stencils; no placed photos or groups (the phone draws it read-only). */
@@ -61,10 +66,11 @@ const isLightTrack = (t: Pick<FlowTrack, "model">) => modelOf(t.model)?.type ===
 /** Null when a stage is valid for these tracks: its drawing within limits, each widget on a light track of the flow, once. */
 export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "model">[]): string | null {
   if (!isObj(v)) return "stage is an object";
-  for (const k of Object.keys(v)) if (!["id", "name", "aspect", "objects", "lights", "underlay"].includes(k)) return `a stage has no "${k}"`;
+  for (const k of Object.keys(v)) if (!["id", "name", "aspect", "objects", "lights", "underlay", "turn"].includes(k)) return `a stage has no "${k}"`;
   if (typeof v.id !== "string" || !STAGE_ID.test(v.id)) return "stage.id is 1 to 40 letters, digits, - or _";
   if (typeof v.name !== "string" || !v.name.trim() || v.name.length > STAGE_NAME_MAX) return `stage.name is 1 to ${STAGE_NAME_MAX} characters`;
   if (!num(v.aspect, 0.25, 4)) return "stage.aspect is between 0.25 and 4";
+  if (v.turn !== undefined && !(num(v.turn, 0, 359) && Number.isInteger(v.turn))) return "stage.turn is whole degrees, 0 to 359";
   if (!Array.isArray(v.objects) || v.objects.length > STAGE_OBJECTS_MAX) return `a stage has at most ${STAGE_OBJECTS_MAX} drawn objects`;
   const ids = new Set<string>(), groups = new Set<string>();
   let points = 0;
