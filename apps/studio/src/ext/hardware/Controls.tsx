@@ -7,6 +7,7 @@ import {
   OUTPUT_ROWS, OUTPUTS, REPORT_HOLD_MS, controlCommand, controlValue, effectCommand, effectOptions, effectsOf, formatValue, optionShown, outputBits, outputCommand,
   type Control, type EffectId, type EffectSettings, type FixtureLive, type LightCommand, type Model, type Value,
 } from "@openclapper/ext-hardware";
+import { ColourSwatch } from "./ColourSwatch";
 
 export function useHeld() {
   const held = useRef(new Map<string, { v: Value; at: number }>());
@@ -67,7 +68,7 @@ function Colour({ live, send, held, disabled }: { live: FixtureLive | undefined;
   const go = (nh: number, ns: number) => send({ op: "hsi", h: nh, s: ns, i });
   return (
     <div className="hw-ctl hw-colour">
-      <i className="hw-swatch" style={{ background: `hsl(${h} ${Math.round(sat * 100)}% 50%)` }} />
+      <ColourSwatch hue={h} sat={sat} disabled={disabled} onChange={(nh, ns) => { held.set("hue", nh); held.set("sat", ns); go(nh, ns); }} />
       <Range label="Hue" value={h} min={0} max={360} step={1} format={(v) => `${Math.round(v)}°`} disabled={disabled} onChange={(v) => { held.set("hue", v); go(v, sat); }} />
       <Range label="Saturation" value={sat} min={0} max={1} step={0.01} format={(v) => `${Math.round(v * 100)} %`} disabled={disabled} onChange={(v) => { held.set("sat", v); go(h, v); }} />
     </div>

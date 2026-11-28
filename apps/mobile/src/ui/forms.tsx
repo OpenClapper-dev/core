@@ -1,6 +1,7 @@
 /** Form controls from the design system: chips, input, switch, toggle row, checkbox. */
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { PanResponder, Pressable, Text, TextInput, View, type TextInputProps } from "react-native";
+import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { IconButton } from "./actions";
 import { Icon , type IconName } from "./core";
 import { makeStyles, num, SIZE, type, useTheme } from "./theme";
@@ -181,3 +182,52 @@ const useSliderStyles = makeStyles((c) => ({
   thumb: { position: "absolute", width: THUMB, height: THUMB, borderRadius: THUMB / 2, backgroundColor: c.surface, borderWidth: 3, borderColor: c.accent },
   thumbOff: { borderColor: c.textDisabled },
 }));
+
+const HUES = [0, 60, 120, 180, 240, 300, 360];
+/**
+ * A colour as hue and saturation on one field (the Studio's HueSatField): hue across, saturation up (full at the
+ * top, white at the foot), for a light's colour whose brightness is its intensity. Drag anywhere; `onChange` fires
+ * on every step. The knob is a ring, so the field shows the colour. A light's colour is content: no tokens inside.
+ */
+export function HueSatField({ hue, sat, onChange, disabled }: { hue: number; sat: number; onChange: (hue: number, sat: number) => void; disabled?: boolean }) {
+  const { c } = useTheme();
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  const r = useRef({ box, onChange, disabled, x0: 0, y0: 0, last: "" });
+  r.current = { ...r.current, box, onChange, disabled };
+  const emit = (x: number, y: number) => {
+    const { w, h } = r.current.box;
+    if (!w || !h) return;
+    const nh = Math.round(Math.min(1, Math.max(0, x / w)) * 360), ns = Math.round(Math.min(1, Math.max(0, 1 - y / h)) * 100) / 100;
+    const key = `${nh}/${ns}`;
+    if (key === r.current.last) return;
+    r.current.last = key;
+    r.current.onChange(nh, ns);
+  };
+  const pan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => !r.current.disabled,
+    onMoveShouldSetPanResponder: () => !r.current.disabled,
+    // Inside a scroll view the field keeps the drag once it has it.
+    onPanResponderTerminationRequest: () => false,
+    onPanResponderGrant: (e) => { r.current.x0 = e.nativeEvent.locationX; r.current.y0 = e.nativeEvent.locationY; emit(r.current.x0, r.current.y0); },
+    onPanResponderMove: (_, g) => emit(r.current.x0 + g.dx, r.current.y0 + g.dy),
+  }).panHandlers, []);
+  const x = (((hue % 360) + 360) % 360) / 360 * box.w, y = (1 - Math.min(1, Math.max(0, sat))) * box.h;
+  return (
+    <View style={{ height: 180, borderRadius: 8, overflow: "hidden", borderWidth: 1, borderColor: c.border, opacity: disabled ? 0.5 : 1 }}
+      onLayout={(e) => setBox({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })} {...pan}
+      accessible accessibilityRole="adjustable" accessibilityLabel="Hue and saturation" accessibilityValue={{ text: `Hue ${Math.round(hue)}°, saturation ${Math.round(sat * 100)} %` }}>
+      {box.w > 0 && (
+        <Svg width={box.w} height={box.h} pointerEvents="none">
+          <Defs>
+            <LinearGradient id="hue" x1="0" y1="0" x2="1" y2="0">{HUES.map((h) => <Stop key={h} offset={h / 360} stopColor={`hsl(${h}, 100%, 50%)`} />)}</LinearGradient>
+            <LinearGradient id="white" x1="0" y1="0" x2="0" y2="1"><Stop offset="0" stopColor="#ffffff" stopOpacity={0} /><Stop offset="1" stopColor="#ffffff" stopOpacity={1} /></LinearGradient>
+          </Defs>
+          <Rect x={0} y={0} width={box.w} height={box.h} fill="url(#hue)" />
+          <Rect x={0} y={0} width={box.w} height={box.h} fill="url(#white)" />
+          <Circle cx={x} cy={y} r={11} fill="none" stroke="#000000" strokeOpacity={0.6} strokeWidth={5} />
+          <Circle cx={x} cy={y} r={11} fill="none" stroke="#ffffff" strokeWidth={3} />
+        </Svg>
+      )}
+    </View>
+  );
+}

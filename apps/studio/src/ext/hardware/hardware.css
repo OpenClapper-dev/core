@@ -5,7 +5,6 @@
 .hw-ctl--range { width: 200px; }
 .hw-ctl--switch, .hw-ctl--button { align-self: center; }
 .hw-colour { grid-template-columns: 24px 200px 200px; align-items: end; gap: var(--space-4); }
-.hw-swatch { display: block; width: 24px; height: 24px; border-radius: var(--radius-xs); border: var(--border-w) solid var(--border-control); }
 .hw-effects { flex: 1 1 100%; }
 .hw-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); }
 .hw-opts { display: flex; flex-wrap: wrap; gap: var(--space-4) var(--space-6); margin-top: var(--space-3); }
@@ -39,3 +38,11 @@
 .hw-add .oc-row__meta { flex: 1 0 100%; padding-left: 28px; line-height: 1.4; white-space: normal; }
 .hw-add__cols h4, .hw-add h4 { margin: 0 0 var(--space-3); font-size: var(--font-size-2xs); color: var(--text-secondary); text-transform: uppercase; letter-spacing: .04em; }
 @media (max-width: 720px) { .hw-add__cols { grid-template-columns: 1fr; } .hw-colour { grid-template-columns: 24px 1fr; } }
+/* A light's colour swatch and the field it opens (#426); the light's colour is content, not a token. */
+.hw-pick__swatch { display: block; width: 24px; height: 24px; padding: 0; border-radius: var(--radius-xs); border: var(--border-w) solid var(--border-control); cursor: pointer; }
+.hw-pick__swatch:disabled { cursor: default; }
+.hw-pick__swatch:focus-visible { outline: var(--border-w-strong) solid var(--focus); outline-offset: 2px; }
+.hw-pick { display: grid; gap: var(--space-3); width: 260px; }
+.hw-pick__now { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.hw-pick__now > i { width: 20px; height: 20px; border-radius: var(--radius-xs); box-shadow: inset 0 0 0 1px var(--border-control); }
+.hw-pick__now > span { color: var(--text-secondary); }

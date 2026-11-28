@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FIXTURE_KINDS, fixtureKind, isBleAddress } from "./lighting.ts";
+import { FIXTURE_KINDS, fixtureKind, hsiCss, isBleAddress } from "./lighting.ts";
 
 test("kind ids are unique and stable", () => {
   const ids = FIXTURE_KINDS.map((k) => k.id);
@@ -32,4 +32,12 @@ test("the MC offers nine of the fifteen effects, all of them known ids", async (
   assert.equal(mc.caps.effects?.length, 9);
   assert.ok(mc.caps.effects!.every((id) => EFFECTS.some((e) => e.id === id)));
   assert.ok(!mc.caps.effects!.includes("strobe"));
+});
+
+test("a light's colour is its hue mixed with white by the saturation", () => {
+  assert.equal(hsiCss(0, 1), "rgb(255, 0, 0)");
+  assert.equal(hsiCss(120, 1), "rgb(0, 255, 0)");
+  assert.equal(hsiCss(240, 0.5), "rgb(128, 128, 255)");
+  assert.equal(hsiCss(77, 0), "rgb(255, 255, 255)");
+  assert.equal(hsiCss(360, 1), hsiCss(0, 1));
 });

@@ -213,3 +213,15 @@ export const MESH_UNICAST_MAX = 0x7fff;
 
 /** A Bluetooth device address as Android reports it ("AA:BB:CC:DD:EE:FF"). */
 export const isBleAddress = (v: unknown): v is string => typeof v === "string" && /^[0-9A-F]{2}(:[0-9A-F]{2}){5}$/.test(v);
+
+/**
+ * The colour a light makes at hue `h` (degrees) and saturation `s` (0..1), as CSS for the web and the phone: the pure
+ * hue mixed with white, which is how an RGBWW light desaturates and how the colour field draws it (a hue gradient with
+ * white fading in towards no saturation). A light's colour is content, like a photo: not a theme token.
+ */
+export function hsiCss(h: number, s: number): string {
+  const sat = Math.min(1, Math.max(0, s));
+  // The pure hue's channel n (5 red, 3 green, 1 blue) as 0..1, then that much of it over white.
+  const ch = (n: number) => { const k = (n + (((h % 360) + 360) % 360) / 60) % 6; return Math.round((1 - sat * Math.max(0, Math.min(k, 4 - k, 1))) * 255); };
+  return `rgb(${ch(5)}, ${ch(3)}, ${ch(1)})`;
+}

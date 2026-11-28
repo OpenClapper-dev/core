@@ -3,7 +3,8 @@
 import type { ComponentChildren } from "preact";
 import { Button, Checkbox, EmptyState, NumberInput, Segmented, Select, Slider, Switch, TextInput } from "@openclapper/design";
 import { CURVES, EFFECT_OPTIONS, effectName, effectOptions, effectSettingsOf, fixtureKind, formatValue, modelOf, optionShown, type Control, type Curve, type EffectId, type Value } from "@openclapper/ext-hardware";
-import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, lightColour, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
+import { FLOW_CAMERA_CONTROLS, FLOW_MAX_MS, fmtSeconds, MARKER_NAME_MAX, NATIVE_FADES, PARAM_LABELS, snap, SNAP_MS, START_KEYFRAME, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LightParam, NO_HIDES, type PanelHides } from "@openclapper/ext-flows";
+import { ColourSwatch } from "../hardware/ColourSwatch";
 import { CURVE_LABELS } from "./lanes";
 
 function Range({ label, value, min, max, step, format, onChange }: { label: string; value: number; min: number; max: number; step: number; format: (v: number) => string; onChange: (v: number) => void }) {
@@ -99,7 +100,7 @@ export function LightKeyframe({ kf, track, durationMs, hide = NO_HIDES, onChange
               <Range label="Hue" value={Math.round(kf.hue ?? 0)} min={0} max={360} step={1} format={(x) => `${x}°`} onChange={(x) => set({ hue: x })} />
               <Range label="Saturation" value={Math.round((kf.sat ?? 1) * 100)} min={0} max={100} step={1} format={(x) => `${x} %`} onChange={(x) => set({ sat: x / 100 })} />
             </div>
-            <i className="fl-colour__swatch" aria-hidden="true" style={{ background: lightColour({ mode: "colour", hue: kf.hue ?? 0, sat: kf.sat ?? 1 }) ?? undefined }} />
+            <ColourSwatch className="fl-colour__swatch" align="end" hue={kf.hue ?? 0} sat={kf.sat ?? 1} onChange={(hue, sat) => set({ hue, sat })} />
           </div></Locked>}
         </div>
       )}
