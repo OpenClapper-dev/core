@@ -328,7 +328,7 @@ export function PlacePalette({ flow, stage, editing, onPlace, onLocate }: { flow
 
 const MOUNTS: { value: StageMount; label: string; title: string }[] = [
   { value: "aimed", label: "Aimed", title: "On a stand or a wall, pointing across the floor" },
-  { value: "ceiling", label: "Ceiling", title: "Hung overhead, looking down: a pool of light" },
+  { value: "ceiling", label: "Top-down", title: "Pointing straight down (from a ceiling, a boom or a stand): a pool of light" },
 ];
 
 /** The chosen widget: its track, how it hangs and where it points, what it shows at the playhead. */

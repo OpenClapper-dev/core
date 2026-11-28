@@ -50,7 +50,7 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
               const st = states[i], c = st.colour ?? "#ffffff", id = `w${i}`;
               if (!st.on) return null;
               const fade = beamOpacity(st.level) * (st.effect ? effectOpacity(st.effect.family, now) : 1);
-              // A ceiling light: a pool of light around it, no direction (as the Studio draws it).
+              // A top-down light: a pool of light around it, no direction (as the Studio draws it).
               if (isCeiling(l)) return (
                 <G key={`b${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H})`} opacity={fade}>
                   <Defs><RadialGradient id={`${id}p`}><Stop offset="0" stopColor={c} stopOpacity={0.8} /><Stop offset="0.4" stopColor={c} stopOpacity={0.4} /><Stop offset="1" stopColor={c} stopOpacity={0} /></RadialGradient></Defs>
@@ -166,7 +166,7 @@ function Card({ tr, l, t, onShowTrack, onClose }: { tr: FlowTrack; l: StageLight
         <Text style={s.cardTitle} numberOfLines={1}>{tr.name}</Text>
         <IconButton icon="close" label="Close" onPress={onClose} />
       </View>
-      <Text style={s.dim}>{m ? `${m.brand} ${m.model}` : tr.model} · {isCeiling(l) ? "on the ceiling" : "aimed"} · {tr.device ? "assigned" : "no device"} · at {fmtClock(t)}</Text>
+      <Text style={s.dim}>{m ? `${m.brand} ${m.model}` : tr.model} · {isCeiling(l) ? "top-down" : "aimed"} · {tr.device ? "assigned" : "no device"} · at {fmtClock(t)}</Text>
       {rows.map(([k, v]) => (
         <View key={k} style={s.kv}>
           <Text style={s.dim}>{k}</Text>
