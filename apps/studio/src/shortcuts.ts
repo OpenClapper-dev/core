@@ -206,7 +206,7 @@ export function shortcutsMarkdown(): string {
     "# Keyboard shortcuts (Studio)",
     "",
     "Generated from `apps/studio/src/shortcuts.ts`; `shortcuts.test.ts` fails when this file drifts. Regenerate with `node apps/studio/src/shortcuts.docs.ts > docs/shortcuts.md`.",
-    "The same list is in the app: `?`, and Settings › Shortcuts. Single keys never fire while you type in a field; plain letters wait while a G jump is pending.",
+    "The same list is in the app: `?`, and Settings › Shortcuts. Single keys never fire while you type in a field, nor do select all, copy, cut, paste, undo and redo (they act on the text); plain letters wait while a G jump is pending.",
     "",
   ];
   for (const id of Object.keys(SCOPES) as ScopeId[]) {

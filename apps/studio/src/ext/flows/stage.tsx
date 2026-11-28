@@ -13,6 +13,7 @@ import {
   type Flow, type FlowStage, type FlowTrack, type StageLight, type StageMount, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { eraseAt } from "../../canvas/erase";
+import { Draft } from "./draft";
 import { toEdit, toStore, type Obj, type P } from "../../canvas/geometry";
 import { DraftView, KIND, objectFromDraft, ObjectView, STENCILS } from "../../canvas/objects";
 
@@ -373,7 +374,7 @@ export function ObjectInspect({ stage, id, editing, onChange, onDelete }: { stag
       <span className="fl-st__swatches" role="radiogroup" aria-label="Colour">
         {STAGE_DRAW_COLOURS.map((c) => <button key={c} type="button" role="radio" aria-checked={o.stroke === c} aria-label={`Colour ${c}`} disabled={!editing} className={cx("fl-st__swatch", o.stroke === c && "is-on")} style={{ background: c }} onClick={() => onChange((x) => ({ ...x, stroke: c }))} />)}
       </span>
-      {o.kind === "text" && <label className="hw-ctl"><small>Text</small><TextInput size="sm" value={o.text ?? ""} disabled={!editing} maxLength={200} onChange={(e) => { const v = e.currentTarget.value; if (v.trim()) onChange((x) => ({ ...x, text: v })); }} /></label>}
+      {o.kind === "text" && <label className="hw-ctl"><small>Text</small><Draft value={o.text ?? ""} commit={(v) => { if (v.trim()) onChange((x) => ({ ...x, text: v })); }}>{(d) => <TextInput size="sm" disabled={!editing} maxLength={200} {...d} />}</Draft></label>}
       {o.kind === "stencil" && editing && <Popover trigger={<Button size="sm" icon={(o.icon ?? "camera") as IconName}>Change</Button>}><div className="cv-stencils">{STENCILS.map((s) => <button type="button" key={s} title={s} className={cx(o.icon === s && "is-on")} onClick={() => onChange((x) => ({ ...x, icon: s, name: `Stencil: ${s}` }))}><Icon name={s} size={20} /></button>)}</div></Popover>}
       {(o.kind === "text" || o.kind === "stencil") && editing && <label className="hw-ctl hw-ctl--range"><small>Size</small><Slider value={o.h} min={0.02} max={0.4} step={0.01} onChange={(v: number) => onChange((x) => { const k = v / x.h; return { ...x, w: x.w * k, h: v }; })} aria-label="Size" /></label>}
       {editing && <div className="hw-row"><Button size="sm" variant="danger" icon="trash" onClick={onDelete}>Delete</Button></div>}

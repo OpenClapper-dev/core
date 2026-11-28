@@ -68,7 +68,7 @@ Theme, taskbar position and alignment, the pins, how a collection's colour is dr
 
 - **Hash routes** are launch commands (`wm/routeBridge.ts`): `#/<app>[/<rest>]`, where `rest` is whatever the app reported with `setRoute` (a tab). On load and on every `hashchange` the hash opens or focuses its window. The address bar always shows the focused window's route (`history.replaceState`); the desktop is `#/`.
 - **Keys** (`keys.ts`, `wm/keyboard.ts`): one keydown listener. An app's keys reach it only while its window has focus. Global keys (⌘K, `?`, the G jumps) and the window keys work everywhere. An open dialog, palette or menu pauses them all (`[data-overlay]`).
-- Every shortcut is declared once in `src/shortcuts.ts`; apps bind handlers by action (`useKeys(bind(scope, { … }))`). The `?` sheet, Settings › Shortcuts and [docs/shortcuts.md](../shortcuts.md) are rendered from it; `pnpm -C apps/studio test` fails when a key does two things in scopes that are live together, and when the page drifts.
+- Every shortcut is declared once in `src/shortcuts.ts`; apps bind handlers by action (`useKeys(bind(scope, { … }))`). The `?` sheet, Settings › Shortcuts and [docs/shortcuts.md](../shortcuts.md) are rendered from it; `pnpm -C apps/studio test` fails when a key does two things in scopes that are live together, and when the page drifts. While focus is in a text field, plain keys go to the field, and so do its editing keys (Ctrl/⌘ + A, C, X, V, Z, Y, Shift+Z; #426: Ctrl+A in a track name selected every keyframe instead of the text).
 
 ## Styles
 
