@@ -67,6 +67,8 @@ export interface FixtureLive {
   state: LightState;
   /** Asleep as the phone knows it: the Studio reloads its list when this changes (sleep set on the phone). */
   asleep?: boolean;
+  /** How the light is held (passive.ts; #426): "passive" and "flowOff" mean it is kept at 0 now. */
+  hold?: "flow" | "hand" | "flowOff" | "passive";
 }
 
 /** A device the phone's scan found; `kinds` are the models it looks like (best first). */

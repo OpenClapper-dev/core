@@ -4,6 +4,7 @@
  * the Studio is trusted no more than any client. It replaces the first app's `lights.*` messages, which rode
  * on the layout preview's room.
  */
+import { parseClaim, type HardwareClaim } from "./passive.ts";
 import { parseLightCommand, type FixtureLive, type LightCommand, type ScannedDevice, type ProvisionStage } from "./lightProxy.ts";
 
 export const HARDWARE_CHANNEL = "hardware";
@@ -20,7 +21,9 @@ export type HardwareRequest =
   | { type: "sync" }
   | { type: "reconnect" }
   | { type: "scan"; on: boolean }
-  | { type: "provision"; device: string; fresh?: boolean };
+  | { type: "provision"; device: string; fresh?: boolean }
+  /** What a client holds (passive.ts), by its own random id: its hand control, its flows' lights. */
+  | ({ type: "claim"; client: string } & HardwareClaim);
 
 /** The proxy phone → every Studio and phone, on every change (a few times a second at most) and on `hello`. */
 export interface HardwareState {
@@ -44,6 +47,7 @@ export function parseHardwareRequest(v: unknown): HardwareRequest | null {
   switch (m.type) {
     case "hello": case "sync": case "reconnect": return { type: m.type };
     case "scan": return typeof m.on === "boolean" ? { type: "scan", on: m.on } : null;
+    case "claim": { if (typeof m.client !== "string" || !/^[A-Za-z0-9_-]{6,64}$/.test(m.client)) return null; const c = parseClaim(m); return c ? { type: "claim", client: m.client, ...c } : null; }
     case "provision": return typeof m.device === "string" && UUID.test(m.device) ? { type: "provision", device: m.device, ...(m.fresh === true ? { fresh: true } : {}) } : null;
     case "command": {
       if (typeof m.device !== "string" || !UUID.test(m.device)) return null;

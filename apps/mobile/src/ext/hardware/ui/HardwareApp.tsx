@@ -8,12 +8,12 @@ import { persisted } from "../../../store";
 import { Block, Button, Empty, Header, Hint, makeStyles, Screen, SectionLabel, Seg, toast, Toggle, type } from "../../../ui";
 import { usePrefs } from "../../../prefs";
 import { syncDevices, useDevices, type HardwareDevice } from "../library";
-import { command, hello, reconnectAll, startProxy, stopProxy, useHardware } from "../proxy";
+import { claim, command, hello, reconnectAll, request, startProxy, stopProxy, useHardware } from "../proxy";
 import { AddDevice } from "./AddDevice";
 import { ControlView, useHeld } from "./Controls";
 import { DeviceScreen } from "./Device";
 import { KeyBackup } from "./KeyBackup";
-import { BatteryBar, LinkMark, SleepButton, TypeTag, chargeOf, linkOf } from "./parts";
+import { BatteryBar, KeepOn, LinkMark, SleepButton, TypeTag, chargeOf, linkOf } from "./parts";
 
 /** How the list shows, kept on this device. */
 const view = persisted<"table" | "cards">("hardware.view.v1", "table");
@@ -32,6 +32,8 @@ export function HardwareApp({ active }: { active: boolean }) {
   const [page, setPage] = useState<string | null>(null);
   useBack(page ? () => setPage(null) : null, active);
   useEffect(() => { void syncDevices(); hello(); }, []);
+  // In front, every light answers its controls; elsewhere a light nothing else holds goes passive (#426).
+  useEffect(() => { claim("hardware", active ? { hand: true } : null); return () => claim("hardware", null); }, [active]);
   const live = (id: string): FixtureLive | undefined => state?.devices.find((x) => x.id === id);
 
   const open = page ? devices.find((d) => d.id === page) : undefined;
@@ -102,6 +104,7 @@ export function Card({ d, all, live, proxy, onOpen }: { d: HardwareDevice; all: 
       </View>
       {/* Asleep: the controls stay out of the way until it is woken. */}
       {!d.body.asleep && first.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={l?.link !== "ready"} send={(cmd) => command(d.id, cmd)} />)}
+      <KeepOn d={d} live={l} request={() => request({ type: "sync" })} />
       {!d.body.asleep && m.feeds.length > 0 && <Button kind="secondary" icon="video" label="Show the picture" onPress={onOpen} />}
       {!d.body.asleep && !first.length && !m.feeds.length && <SectionLabel>{m.states.length ? "Open for its readings" : "Open"}</SectionLabel>}
     </Block>

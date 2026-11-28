@@ -8,7 +8,7 @@ import { usePrefs } from "../../../prefs";
 import { removeDevice, renameDevice, setPower, useDevices, type HardwareDevice } from "../library";
 import { command, request, useHardware } from "../proxy";
 import { ControlView, useHeld } from "./Controls";
-import { BatteryBar, LinkMark, TypeTag, chargeOf, linkOf, toggleSleep } from "./parts";
+import { BatteryBar, KeepOn, LinkMark, TypeTag, chargeOf, linkOf, toggleSleep } from "./parts";
 import { Picture } from "./Picture";
 
 /**
@@ -65,10 +65,11 @@ export function DeviceScreen({ d, back }: { d: HardwareDevice; back: () => void 
         </Block>
       )}
 
-      {controlGroups(m, "phone", hidden).map((g) => (
+      {controlGroups(m, "phone", hidden).map((g, i) => (
         <Block key={g.group}>
           <SectionLabel>{g.group}</SectionLabel>
           {g.controls.map((c) => <ControlView key={c.id} m={m} c={c} live={l} held={held} disabled={!ready} send={(cmd) => command(d.id, cmd)} />)}
+          {i === 0 && <KeepOn d={d} live={l} request={() => request({ type: "sync" })} />}
         </Block>
       ))}
 

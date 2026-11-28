@@ -14,7 +14,7 @@ import { useBack } from "../../../shell/back";
 import { Banner, Block, Button, Chip, Header, Hint, IconButton, Input, ListRow, makeStyles, Seg, Sheet, SheetList, Slider, Toggle, type, useTheme } from "../../../ui";
 import { hub } from "../../hardware/hub";
 import { useDevices } from "../../hardware/library";
-import { proxyRunning, startProxy, useHardware } from "../../hardware/proxy";
+import { claim, proxyRunning, startProxy, useHardware } from "../../hardware/proxy";
 import { loadFlows, saveFlow, usePendingOf, type LocalFlow } from "../store";
 import { CameraKeyframe, FadeInspect, LightKeyframe, MarkerInspect, TrackInspect } from "./Inspect";
 import { Customize, usePanelHides } from "./Customize";
@@ -141,7 +141,10 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const seq = useMemo<Flow>(() => ({ id: flow.id, name, updatedAt: flow.updatedAt ?? "", ...body }), [body, name]);
   const seqRef = useRef(seq);
   seqRef.current = seq;
-  const send = (id: string, cmd: Parameters<typeof hub.send>[1]) => { if (!proxyRunning()) return; hub.send(id, cmd).catch((e) => log("debug", "flow edit: not sent", { device: id, error: e })); };
+  // Passive (#426): the flow's lights go to 0 and stay there, whatever else holds them, until switched off again.
+  const [passive, setPassive] = useState(false);
+  const passiveRef = useRef(passive); passiveRef.current = passive;
+  const send = (id: string, cmd: Parameters<typeof hub.send>[1]) => { if (!proxyRunning() || passiveRef.current) return; hub.send(id, cmd).catch((e) => log("debug", "flow edit: not sent", { device: id, error: e })); };
   const player = useRef<FlowPlayer | null>(null);
   if (!player.current) {
     player.current = new FlowPlayer(() => seqRef.current, send,
@@ -158,7 +161,15 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
     setPlaying(true);
   };
   // Live: while stopped, the lights show the flow at the playhead and follow every edit.
-  useEffect(() => { if (live && !playing && holds) player.current?.emitter.emit(seq, playhead, false, send); }, [live, playing, holds, seq, playhead]);
+  useEffect(() => { if (live && !playing && holds && !passive) player.current?.emitter.emit(seq, playhead, false, send); }, [live, playing, holds, seq, playhead, passive]);
+  // The flow holds the lights of its tracks while Live or playing here (#426, passive mode); Passive puts them to 0.
+  const devicesKey = body.tracks.flatMap((t) => (t.device && !t.muted ? [t.device] : [])).join(",");
+  useEffect(() => {
+    // Passive goes to the proxy from any phone; driving the lights only from the one that holds them.
+    claim(`flow:${flow.id}`, devicesKey && (passive || (holds && (live || playing))) ? { flows: [{ devices: devicesKey.split(","), passive }] } : null);
+    if (!passive) player.current?.emitter.reset();
+  }, [holds, live, playing, passive, devicesKey]);
+  useEffect(() => () => claim(`flow:${flow.id}`, null), []);
   useEffect(() => { player.current?.emitter.reset(); }, [holds]);
 
   // ---------- What is chosen ----------
@@ -222,6 +233,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
             <Text style={s.time}>{fmtClock(playhead)}</Text>
             <IconButton icon="skip-back" label="To the start" onPress={() => { player.current?.stop(); setPlaying(false); setPlayhead(0); }} />
             <IconButton icon="repeat" label={body.loop ? "Loop: on" : "Loop: off"} on={body.loop} disabled={locked} onPress={() => change((b) => ({ ...b, loop: !b.loop }))} />
+            <IconButton icon="moon" label={passive ? "Passive: the flow's lights are at 0. Tap to let the flow drive them again" : "Passive: put the flow's lights to 0"} on={passive} onPress={() => setPassive(!passive)} />
             <IconButton icon={playing ? "pause" : "play"} label={playing ? "Pause" : holds ? "Play" : "Play on the stage"} onPress={play} color={playing ? c.danger : c.accent} />
           </View>
         </View>
