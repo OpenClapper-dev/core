@@ -171,6 +171,8 @@ export const SHORTCUTS = [
   { scope: "flows", action: "stageText", keys: ["t"], label: "Stage: text" },
   { scope: "flows", action: "stageStencil", keys: ["s"], label: "Stage: stencil" },
   { scope: "flows", action: "stageEraser", keys: ["e"], label: "Stage: eraser" },
+  { scope: "flows", action: "stageToggle", keys: ["S"], display: "Shift+S", label: "Show or hide the stage" },
+  { scope: "flows", action: "zoomWheel", keys: ["Alt+Wheel"], info: true, label: "Over the tracks: the timeline wider or narrower, at the pointer" },
   { scope: "flows", action: "all", keys: ["Mod+a"], label: "Select every keyframe and marker" },
   { scope: "flows", action: "clear", keys: ["Escape"], pass: true, label: "Clear the selection" },
   { scope: "flows", action: "add", keys: ["Alt+Click"], info: true, label: "Add a keyframe in Select mode too" },

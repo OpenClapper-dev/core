@@ -150,6 +150,8 @@ The same list is in the app: `?`, and Settings › Shortcuts. Single keys never 
 | T | Stage: text |
 | S | Stage: stencil |
 | E | Stage: eraser |
+| Shift+S | Show or hide the stage |
+| Alt Wheel | Over the tracks: the timeline wider or narrower, at the pointer |
 | ⌘A | Select every keyframe and marker |
 | Esc | Clear the selection |
 | Alt Click | Add a keyframe in Select mode too |

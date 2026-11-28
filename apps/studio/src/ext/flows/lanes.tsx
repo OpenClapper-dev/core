@@ -2,7 +2,7 @@
 // and a lane per track with its keyframes (the start one square), the gaps between them (a fade tile where one is
 // set), its markers, the intensity graph; a selection box drawn over the lanes. One component for the Studio and the
 // phone's web view: pointer events, so a finger works like the mouse.
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Button, Icon, Popover, Select, cx } from "@openclapper/design";
 import { effectName, fixtureKind, modelOf, type FixtureLive } from "@openclapper/ext-hardware";
 import { fmtSeconds, NATIVE_FADES, playedKeyframes, sampleTrack, snap, snapLevel, SNAP_MS, START_KEYFRAME, TRACK_COLORS, type Flow, type FlowMarker, type FlowTrack, type Keyframe, type LevelStep } from "@openclapper/ext-flows";
@@ -38,13 +38,25 @@ export interface LanesProps {
 }
 type Gesture = (move: (e: PointerEvent) => void, up?: (e: PointerEvent) => void) => void;
 
+/** The ruler's steps in seconds, finest first; minutes are labelled m:ss. */
+const RULER_STEPS = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600];
+const fmtTick = (ms: number) => { const s = ms / 1000; return s >= 60 && Number.isInteger(s) ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : String(s); };
+
 export function Lanes(p: LanesProps) {
   const { flow } = p;
   const pct = (t: number) => `${(t / flow.durationMs) * 100}%`;
-  const seconds = Math.max(1, Math.floor(flow.durationMs / 1000));
-  const step = Math.max(1, Math.ceil(seconds / 12));
   const lanesRef = useRef<HTMLDivElement>(null);
   const rulerRef = useRef<HTMLDivElement>(null);
+  // The ruler's labels as dense as the room allows (#426): the finest step (half a second up) that leaves a label
+  // at least 56 px; the ruler's width is followed as the window, the panels and the zoom change it.
+  const [rulerW, setRulerW] = useState(0);
+  useEffect(() => {
+    const el = rulerRef.current; if (!el) return;
+    const ro = new ResizeObserver(() => setRulerW(el.clientWidth)); ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const perSec = rulerW / Math.max(1, flow.durationMs / 1000);
+  const step = RULER_STEPS.find((x) => x * perSec >= 56) ?? RULER_STEPS[RULER_STEPS.length - 1];
   const [box, setBox] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
   const timeAt = (clientX: number) => { const r = rulerRef.current!.getBoundingClientRect(); return Math.min(flow.durationMs, Math.max(0, snap(((clientX - r.left) / r.width) * flow.durationMs))); };
   const msPerPx = () => flow.durationMs / rulerRef.current!.getBoundingClientRect().width;
@@ -129,7 +141,7 @@ export function Lanes(p: LanesProps) {
       <div className="fl-row fl-row--ruler">
         <div className="fl-label" />
         <div className="fl-ruler" ref={rulerRef} onPointerDown={scrub}>
-          {Array.from({ length: Math.floor(seconds / step) + 1 }, (_, i) => i * step * 1000).filter((t) => t <= flow.durationMs).map((t) => <span key={t} className="fl-tick" style={{ left: pct(t) }}>{t / 1000}</span>)}
+          {Array.from({ length: Math.floor(flow.durationMs / 1000 / step) + 1 }, (_, i) => Math.round(i * step * 1000)).filter((t) => t <= flow.durationMs).map((t) => <span key={t} className="fl-tick" style={{ left: pct(t) }}>{fmtTick(t)}</span>)}
           <span className="fl-thumb" style={{ left: pct(p.playhead) }} title="Drag to scrub" />
           <span className="fl-playhead" style={{ left: pct(p.playhead) }} />
         </div>
