@@ -30,6 +30,7 @@ interface DeviceView {
   /** A keyframe drag kept to one axis (#426): "time" moves only its time, "level" only its intensity. (axisLock, the inverse, is left behind.) */ axisFocus?: AxisFocus;
   /** Track view (the lanes) or Stage view (#426, read only), kept on the device. */ pane?: "track" | "stage";
   /** The stage shown per flow (flow id → stage id; #426), when a flow has several. */ stages?: Record<string, string>;
+  /** How this device turns a stage on screen, per flow and stage ("flow/stage" → degrees; #426): its own, not the Studio's. */ turns?: Record<string, number>;
 }
 const deviceView = persisted<DeviceView>("flows.view.v1", { view: DEFAULT_VIEW, kfSize: "m", zoom: 1, height: 64 },
   (v) => typeof v === "object" && v !== null && typeof (v as DeviceView).zoom === "number" && typeof (v as DeviceView).height === "number");
@@ -116,6 +117,8 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
   const stageOn = dv.pane === "stage";
   // The stage shown (#426): one of the flow's perspectives, kept on the device per flow (the 50 most recent).
   const stages = body.stages ?? [], shownStage = stageOf(stages, dv.stages?.[flow.id]);
+  const turnKey = `${flow.id}/${shownStage?.id ?? "none"}`, turn = dv.turns?.[turnKey] ?? 0;
+  const turnBy = (d: number) => setDv({ turns: { ...dv.turns, [turnKey]: (((turn + d) % 360) + 360) % 360 } });
   const showStage = (id: string) => setDv({ stages: Object.fromEntries([...Object.entries(dv.stages ?? {}).filter(([k]) => k !== flow.id).slice(-49), [flow.id, id]]) });
   // Read-only, it shows the flow as its editor last saved it.
   useEffect(() => { if (lock.state === "theirs") { setBody(flow.body); setName(flow.name); } }, [flow.body, flow.name, lock.state]);
@@ -202,6 +205,12 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
             options={[{ id: "select", icon: "cursor", label: "Select" }, { id: "insert", icon: "plus", label: "Insert" }, { id: "edit", icon: "edit", label: "Edit" }]} />
           <IconButton icon="eye" label="View" onPress={() => setSheet("view")} />
           </>}
+          {/* The stage turned on this device only (#426), 15° a tap; the degrees, tapped, turn it back. */}
+          {stageOn && <View style={s.barRow}>
+            <IconButton icon="rotate" label="Turn the stage left" onPress={() => turnBy(-15)} />
+            <Chip label={`${turn}°`} check={false} selected={turn !== 0} disabled={turn === 0} onPress={() => turnBy(-turn)} />
+            <IconButton icon="rotate-cw" label="Turn the stage right" onPress={() => turnBy(15)} />
+          </View>}
         </View>
         <View style={[s.barRow, s.spread, !upright && s.grow]}>
           {/* Axis focus for dragging a keyframe (#426): Time on, a drag moves only the time; Intensity on, only the intensity; one at a time. */}
@@ -238,7 +247,7 @@ export function FlowEditor({ flow, back }: { flow: LocalFlow; back: () => void }
         {stages.length > 1 && <View style={s.stages}>{stages.length <= 3
           ? <Seg accessibilityLabel="Stage shown" value={shownStage?.id ?? null} onChange={showStage} options={stages.map((x) => ({ id: x.id, label: x.name }))} />
           : <Chip icon="frame" label={`${shownStage?.name ?? "Stage"} · ${stages.length} stages`} selected onPress={() => setSheet("stages")} />}</View>}
-        <StageView body={body} stage={shownStage} t={playhead} tags={view.tags} onShowTrack={(id) => { setDv({ pane: "track" }); choose({ kind: "track", id }, true); }} />
+        <StageView body={body} stage={shownStage} t={playhead} tags={view.tags} turn={turn} onShowTrack={(id) => { setDv({ pane: "track" }); choose({ kind: "track", id }, true); }} />
         <MiniScrubber body={body} t={playhead} onSeek={(t) => { setPlayhead(t); if (playing) player.current?.play(t); }} />
       </> : (
       <View style={{ flex: 1 }} onLayout={(e) => setRoom(e.nativeEvent.layout.height)}>
