@@ -88,6 +88,29 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const [status, setStatus] = useState<"saved" | "waiting" | "saving" | "failed">("saved");
   const lock = useEditLock(f, nameOf, (x) => { const b = bodyOf(x); latest.current = b; setBody(b); past.current = []; future.current = []; }, () => { if (pending.current) { clearTimeout(pending.current); void save(); } },
     { realtime: project?.canvas_live === "realtime", onRemote: (d) => { const b = { ...bodyOf(f), ...(d.body as Partial<FlowBody>) }; latest.current = b; setBody(b); } });
+  // The name as typed (#426): saved once typing settles, on Enter or on leaving the field, not on every key; the field
+  // shows the draft until the server has the name, so a reload in between does not put old text back.
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const nameWait = useRef<{ timer: ReturnType<typeof setTimeout> | null; draft: string | null }>({ timer: null, draft: null });
+  const saveName = () => {
+    const w = nameWait.current, v = w.draft;
+    if (w.timer) clearTimeout(w.timer);
+    w.timer = null; w.draft = null;
+    if (v === null) return;
+    const n = v.trim();
+    if (!n || n === f.name) { setNameDraft((d) => (d === v ? null : d)); return; }
+    void store.rename(f, n, lock.editing ? lock.holder : undefined).catch(toastError).finally(() => setNameDraft((d) => (d === v ? null : d)));
+  };
+  const typeName = (v: string) => {
+    setNameDraft(v);
+    const w = nameWait.current;
+    w.draft = v;
+    if (w.timer) clearTimeout(w.timer);
+    w.timer = setTimeout(saveName, 700);
+  };
+  const saveNameRef = useRef(saveName);
+  saveNameRef.current = saveName;
+  useEffect(() => () => saveNameRef.current(), []);
   async function save(): Promise<string | null> {
     pending.current = null;
     if (!lock.held()) return null;
@@ -514,7 +537,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
 
   const props = (
     <div className="fl-props">
-      <label className="hw-ctl"><small>Name</small><TextInput size="sm" value={f.name} disabled={readonly} maxLength={120} onChange={(e) => { const n = e.currentTarget.value.trim(); if (n && n !== f.name) void store.rename(f, n, lock.editing ? lock.holder : undefined).catch(toastError); }} /></label>
+      <label className="hw-ctl"><small>Name</small><TextInput size="sm" value={nameDraft ?? f.name} disabled={readonly} maxLength={120} onInput={(e) => typeName(e.currentTarget.value)} onBlur={() => saveName()} onKeyDown={(e) => { if (e.key === "Enter") saveName(); }} /></label>
       <label className="hw-ctl"><small>Length (s)</small><NumberInput size="sm" value={body.durationMs / 1000} step={1} min={1} max={FLOW_MAX_MS / 1000} disabled={readonly}
         onChange={(v: number) => { if (v > 0) change((b) => { const d = Math.min(FLOW_MAX_MS, Math.max(1000, snap(v * 1000))); return { ...b, durationMs: d, tracks: b.tracks.map((t) => ({ ...t, keyframes: t.keyframes.filter((k) => k.at <= d) })), markers: (b.markers ?? []).filter((m) => m.at <= d).map((m) => (m.end !== undefined && m.end > d ? { ...m, end: d } : m)) }; }); }} /></label>
       <Switch checked={body.loop} disabled={readonly} onChange={(on: boolean) => change((b) => ({ ...b, loop: on }))}>Loop</Switch>
