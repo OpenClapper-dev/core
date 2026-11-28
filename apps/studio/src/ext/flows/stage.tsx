@@ -25,7 +25,7 @@ export const STAGE_TOOLS: { id: StageTool; icon: IconName; label: string; kbd: s
 /** What is chosen on the stage: a light's widget (by its track) or a drawn object. */
 export type StageSel = { kind: "light"; track: string } | { kind: "obj"; id: string } | null;
 export interface StagePhoto { id: string; name: string; thumb: string; src: string }
-export interface StageDrawing { tool: StageTool; colour: string; stencil: IconName }
+export interface StageDrawing { tool: StageTool; colour: string; stencil: IconName; /** Moving, resizing and placing snap to the paper, the drawn objects and the lights (#426); Ctrl or ⌘ held: not this time. */ snap: boolean }
 
 const isLight = (t: FlowTrack) => modelOf(t.model)?.type === "light";
 const trackInk = (t: FlowTrack | undefined) => (t?.color !== undefined ? STAGE_TRACK_COLOURS[t.color] : STAGE_INK.rim);
@@ -170,6 +170,7 @@ export function StagePane(p: StagePaneProps) {
   const act = useRef<Act | null>(null);
   const [draft, setDraft] = useState<{ tool: string; pts: P[] } | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
+  const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
   const objs = stage.objects.map(toEdit);
   const setTool = (t: StageTool) => p.onDrawing({ ...p.drawing, tool: t });
   const lights = p.flow.tracks.filter(isLight);
@@ -180,6 +181,24 @@ export function StagePane(p: StagePaneProps) {
   const capture = (e: PointerEvent) => { try { paper.current?.setPointerCapture(e.pointerId); } catch { /* no pointer */ } };
   const setObjs = (fn: (os: Obj[]) => Obj[]) => p.onChange((s) => ({ ...s, objects: fn(s.objects.map(toEdit)).map(toStore) }));
   const setLight = (track: string, fn: (l: StageLight) => StageLight) => p.onChange((s) => ({ ...s, lights: s.lights.map((l) => (l.track === track ? fn(l) : l)) }));
+
+  /**
+   * Snapping, as on the canvas: within 6 px, a moved edge, middle or point jumps onto the paper's edges and middle, the
+   * edges and middles of the other drawn objects and the other lights' centres. `xs`/`ys`: the moving thing's own
+   * lines; the answer is how far to shift it on each axis and the guide lines to draw.
+   */
+  const snapTo = (e: PointerEvent, xs: number[], ys: number[], skip: { obj?: string; light?: string }) => {
+    if (!p.drawing.snap || e.ctrlKey || e.metaKey) { setGuides({}); return { dx: 0, dy: 0 }; }
+    const r = paper.current!.getBoundingClientRect();
+    const boxes = objs.filter((o) => o.visible && o.id !== skip.obj);
+    const lx = stage.lights.filter((l) => l.track !== skip.light);
+    const tx = [0, 0.5, 1, ...boxes.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w]), ...lx.map((l) => l.x)];
+    const ty = [0, 0.5, 1, ...boxes.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h]), ...lx.map((l) => l.y)];
+    const near = (mine: number[], lines: number[], tol: number) => { let d = tol, at: number | undefined; for (const m of mine) for (const t of lines) if (Math.abs(t - m) < Math.abs(d)) { d = t - m; at = t; } return at === undefined ? { d: 0 } : { d, at }; };
+    const x = near(xs, tx, 6 / r.width), y = near(ys, ty, 6 / r.height);
+    setGuides({ v: x.at, h: y.at });
+    return { dx: x.d, dy: y.d };
+  };
 
   const grabLight = (e: PointerEvent, l: StageLight, how: "move" | "turn") => {
     if (e.button > 0 || (p.editing && tool !== "select")) return;
@@ -227,27 +246,33 @@ export function StagePane(p: StagePaneProps) {
     else if (a.type === "light") {
       if (!a.moved && Math.hypot(q[0] - a.start[0], q[1] - a.start[1]) < 0.003) return;
       a.moved = true;
-      setLight(a.track, (l) => ({ ...l, x: Number(clamp01(a.orig[0] + q[0] - a.start[0]).toFixed(4)), y: Number(clamp01(a.orig[1] + q[1] - a.start[1]).toFixed(4)) }));
+      const nx = a.orig[0] + q[0] - a.start[0], ny = a.orig[1] + q[1] - a.start[1], sn = snapTo(e, [nx], [ny], { light: a.track });
+      setLight(a.track, (l) => ({ ...l, x: Number(clamp01(nx + sn.dx).toFixed(4)), y: Number(clamp01(ny + sn.dy).toFixed(4)) }));
     } else if (a.type === "turn") {
       const l = stage.lights.find((x) => x.track === a.track); if (!l) return;
       const deg = (Math.atan2((q[1] - l.y) / stage.aspect, q[0] - l.x) * 180) / Math.PI, step = e.shiftKey ? 1 : 15;
       setLight(a.track, (x) => ({ ...x, rot: ((Math.round(deg / step) * step) % 360 + 360) % 360 }));
     } else if (a.type === "resize") {
+      const sn = snapTo(e, [q[0]], [q[1]], { obj: a.id });
+      q[0] += sn.dx; q[1] += sn.dy;
       const x = Math.min(a.fixed[0], q[0]), y = Math.min(a.fixed[1], q[1]), w = Math.max(0.01, Math.abs(q[0] - a.fixed[0])), h = Math.max(0.01, Math.abs(q[1] - a.fixed[1]));
       setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x, y, w, h } : o)));
     } else if (a.type === "end") {
+      const sn = snapTo(e, [q[0]], [q[1]], { obj: a.id });
+      q[0] += sn.dx; q[1] += sn.dy;
       const ends: [P, P] = a.which === 0 ? [q, a.other] : [a.other, q];
       const x = Math.min(ends[0][0], ends[1][0]), y = Math.min(ends[0][1], ends[1][1]), w = Math.abs(ends[1][0] - ends[0][0]), h = Math.abs(ends[1][1] - ends[0][1]);
       setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x, y, w: Math.max(w, 0.0005), h: Math.max(h, 0.0005), pts: ends.map((e): P => [w ? (e[0] - x) / w : 0, h ? (e[1] - y) / h : 0]) } : o)));
     } else if (a.type === "obj") {
       if (!a.moved && Math.hypot(q[0] - a.start[0], q[1] - a.start[1]) < 0.003) return;
       a.moved = true;
-      const dx = q[0] - a.start[0], dy = q[1] - a.start[1];
-      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x: a.orig.x + dx, y: a.orig.y + dy } : o)));
+      const o0 = a.orig, mx = o0.x + q[0] - a.start[0], my = o0.y + q[1] - a.start[1];
+      const sn = snapTo(e, [mx, mx + o0.w / 2, mx + o0.w], [my, my + o0.h / 2, my + o0.h], { obj: a.id });
+      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x: mx + sn.dx, y: my + sn.dy } : o)));
     }
   };
   const up = () => {
-    const a = act.current; act.current = null;
+    const a = act.current; act.current = null; setGuides({});
     if (a?.type !== "draw") return;
     setDraft(null);
     const r = paper.current!.getBoundingClientRect();
@@ -282,6 +307,7 @@ export function StagePane(p: StagePaneProps) {
             onClick={() => { p.onDrawing({ ...p.drawing, colour: c }); if (selObj) setObjs((os) => os.map((o) => (o.id === selObj.id ? { ...o, stroke: c } : o))); }} />)}
         </span>
         <span className="fl-st__sep" />
+        <Button size="sm" variant={p.drawing.snap ? "secondary" : "quiet"} icon="crosshair" disabled={!p.editing} selected={p.drawing.snap} label={p.drawing.snap ? "Snap is on: to the paper, the drawing and the lights. Click to switch it off (or hold Ctrl while moving)" : "Snap is off. Click to switch it on"} onClick={() => p.onDrawing({ ...p.drawing, snap: !p.drawing.snap })} />
         <Popover maxWidth={420} trigger={<Button size="sm" variant="quiet" icon="image" iconAfter="chevron-down" disabled={!p.editing}>Underlay</Button>}>
           <div className="fl-st__under">
             {p.photos.length ? <div className="cv-photos">{p.photos.map((x) => <button type="button" key={x.id} title={x.name} className={cx(stage.underlay?.photo === x.id && "is-on")}
@@ -299,7 +325,7 @@ export function StagePane(p: StagePaneProps) {
       </div>
       <div className="fl-st__fit">
         <div className={cx("fl-paper", `is-${p.editing ? tool : "view"}`)} ref={paper} style={{ "--aspect": stage.aspect, "--fl-grid": STAGE_INK.grid, background: STAGE_INK.paper }}
-          onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { act.current = null; setDraft(null); }}>
+          onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { act.current = null; setDraft(null); setGuides({}); }}>
           <div className="fl-paper__in">
             {stage.underlay && underlay && <img className="fl-paper__under" src={underlay.src} alt="" draggable={false} style={{ opacity: stage.underlay.opacity }} />}
             {objs.filter((o) => o.visible).map((o) => <ObjectView key={o.id} o={o} vh={H} onGrab={p.editing && tool === "select" ? (e) => grabObj(e, o) : undefined}
@@ -309,6 +335,8 @@ export function StagePane(p: StagePaneProps) {
               {handles && !isLine && [0, 1, 2, 3].map((k) => <i key={k} className={`cv-handle cv-handle--${k}`} title="Drag to resize" onPointerDown={(e) => grabCorner(e, k)} />)}
             </span>}
             {handles && isLine && ([0, 1] as const).map((k) => { const q = endOf(selObj!, k); return <i key={k} className="cv-node" title="Drag to move this end" style={{ left: `${q[0] * 100}%`, top: `${q[1] * 100}%` }} onPointerDown={(e) => grabEnd(e, k)} />; })}
+            {guides.v !== undefined && <span className="cv-guide cv-guide--v" style={{ left: `${guides.v * 100}%` }} />}
+            {guides.h !== undefined && <span className="cv-guide cv-guide--h" style={{ top: `${guides.h * 100}%` }} />}
             <Widgets flow={p.flow} stage={stage} t={p.t} sel={p.sel} marked={p.marked} flash={p.flash} editing={p.editing && tool === "select"} onGrab={grabLight} />
           </div>
           {!stage.lights.length && !stage.objects.length && <span className="fl-paper__hint">{p.editing ? "Draw a plan with the tools above; drag lights here from “Place a light”." : "Nothing on the stage yet."}</span>}
