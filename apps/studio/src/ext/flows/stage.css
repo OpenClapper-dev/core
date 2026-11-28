@@ -68,7 +68,7 @@
 .fl-st__now:disabled { cursor: default; color: var(--text-secondary); }
 .fl-paper .cv-rot { pointer-events: auto; z-index: 3; }
 /* A box drawn from empty paper to choose several drawn objects (#426). */
-.fl-box { position: absolute; z-index: 3; border: var(--border-w) dashed var(--accent); background: var(--marquee); pointer-events: none; }
+.fl-st__box { position: absolute; z-index: 3; border: var(--border-w) dashed var(--accent); background: var(--marquee); pointer-events: none; }
 /* The paper size dialog (#426): two sides and where the drawing sits. */
 .fl-paperdlg { display: grid; gap: var(--space-4); min-width: 300px; }
 .fl-paperdlg__sides { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }

@@ -436,7 +436,7 @@ export function StagePane(p: StagePaneProps) {
             {guides.v !== undefined && <span className="cv-guide cv-guide--v" style={{ left: `${guides.v * 100}%` }} />}
             {guides.h !== undefined && <span className="cv-guide cv-guide--h" style={{ top: `${guides.h * 100}%` }} />}
             {others.map((o) => <span key={o.id} className="cv-sel" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, transform: o.rot ? `rotate(${o.rot}deg)` : undefined }} />)}
-            {box && <span className="fl-box" style={{ left: `${Math.min(box[0][0], box[1][0]) * 100}%`, top: `${Math.min(box[0][1], box[1][1]) * 100}%`, width: `${Math.abs(box[1][0] - box[0][0]) * 100}%`, height: `${Math.abs(box[1][1] - box[0][1]) * 100}%` }} />}
+            {box && <span className="fl-st__box" style={{ left: `${Math.min(box[0][0], box[1][0]) * 100}%`, top: `${Math.min(box[0][1], box[1][1]) * 100}%`, width: `${Math.abs(box[1][0] - box[0][0]) * 100}%`, height: `${Math.abs(box[1][1] - box[0][1]) * 100}%` }} />}
             <Widgets tags={p.tags} flow={p.flow} stage={stage} t={p.t} sel={p.sel} marked={p.marked} flash={p.flash} editing={p.editing && tool === "select"} onGrab={grabLight} />
           </div>
           {!stage.lights.length && !stage.objects.length && <span className="fl-paper__hint">{p.editing ? "Draw a plan with the tools above; drag lights here from “Place a light”." : "Nothing on the stage yet."}</span>}

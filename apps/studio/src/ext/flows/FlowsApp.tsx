@@ -372,7 +372,9 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     change((b) => ({ ...b, markers: (b.markers ?? []).filter((m) => !drop.has(markKey(m.id))), tracks: b.tracks.map((t) => ({ ...t, keyframes: t.keyframes.filter((k) => !drop.has(keyOf(t.id, k.id))) })) }));
     setSel(new Set());
   };
+  const toggleStage = () => setStageLayout({ ...stageLayout, on: !stageLayout.on });
   useKeys(bind("flows", {
+    stageToggle: () => toggleStage(),
     play: () => play(),
     stopHere: () => { if (!playing) return false; setPlaying(false); },
     selectMode: () => { setMode("select"); setDrawing((d) => ({ ...d, tool: "select" })); },
@@ -396,6 +398,30 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
    * padding, the add row) and what a row has beyond the track height (the graph's strip, borders) come off first.
    */
   const stageRef = useRef<HTMLDivElement>(null);
+  // Alt with the wheel over the tracks (#426): the timeline wider or narrower, the time under the pointer kept in place.
+  const zoomNow = useRef(zoom); zoomNow.current = zoom;
+  useEffect(() => {
+    const scroll = stageRef.current?.querySelector<HTMLElement>(".fl-scroll"); if (!scroll) return;
+    const wheel = (e: WheelEvent) => {
+      if (!e.altKey) return;
+      e.preventDefault();
+      const z0 = zoomNow.current, z = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(z0 * Math.exp(-(e.deltaY || e.deltaX) * 0.0025) * 100) / 100));
+      if (z === z0) return;
+      const ruler = scroll.querySelector<HTMLElement>(".fl-ruler");
+      const r0 = ruler?.getBoundingClientRect();
+      // The pointer's place in the ruler, as a share of it, stays under the pointer once the ruler is wider.
+      const frac = r0 ? (e.clientX - r0.left) / r0.width : 0;
+      setZoom(z);
+      requestAnimationFrame(() => { const r1 = ruler?.getBoundingClientRect(); if (r1) scroll.scrollLeft += r1.left + frac * r1.width - e.clientX; });
+    };
+    scroll.addEventListener("wheel", wheel, { passive: false });
+    return () => scroll.removeEventListener("wheel", wheel);
+  }, [stageLayout.on]);
+  // A light chosen on the stage (#426): its track is brought into view in the lanes.
+  useEffect(() => {
+    if (stageSel?.kind !== "light") return;
+    stageRef.current?.querySelector<HTMLElement>(`.fl-scroll .fl-row[data-row="${stageSel.track}"]`)?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [stageSel?.kind === "light" ? stageSel.track : null]);
   const fitHeight = () => {
     const scroll = stageRef.current?.querySelector<HTMLElement>(".fl-scroll");
     const rows = [...(scroll?.querySelectorAll<HTMLElement>(".fl-row[data-row]") ?? [])];
@@ -479,6 +505,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         <Button size="sm" variant="quiet" icon="undo" label="Undo (Mod+Z): tracks and stage" disabled={readonly || !past.current.length} onClick={() => undo()} />
         <Button size="sm" variant="quiet" icon="redo" label="Redo (Mod+Shift+Z)" disabled={readonly || !future.current.length} onClick={() => redo()} />
         <Switch checked={live} onChange={setLive}>Live</Switch>
+        <Button size="sm" variant={stageLayout.on ? "secondary" : "quiet"} selected={stageLayout.on} icon="frame" label={stageLayout.on ? "Hide the stage (Shift+S)" : "Show the stage (Shift+S)"} onClick={toggleStage} />
         <ToolbarSpacer />
         <span className="fl-time">{fmtClock(runsThis ? runAt : playhead)} / {fmtSeconds(flow.durationMs)}</span>
         <Button size="sm" variant="quiet" icon="skip-back" label="To the start" disabled={runsThis} onClick={() => { setPlaying(false); setPlayhead(0); }} />
@@ -522,15 +549,19 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         <Popover maxWidth={460} trigger={<Button size="sm" variant="quiet" icon="sliders" iconAfter="chevron-down">Customize</Button>}>
           <Customize models={[...new Set(body.tracks.map((t) => t.model))]} />
         </Popover>
-        <Button size="sm" variant={stageLayout.on ? "secondary" : "quiet"} selected={stageLayout.on} icon="frame" title="Show the flow's stage above the tracks" onClick={() => setStageLayout({ ...stageLayout, on: !stageLayout.on })}>Stage</Button>
+        <Button size="sm" variant={stageLayout.on ? "secondary" : "quiet"} selected={stageLayout.on} icon="frame" title="Show the flow's stage above the tracks (Shift+S)" onClick={toggleStage}>Stage</Button>
       </div>
       {/* Size (#426): two grouped boxes, each a slider and its Fit. */}
       <div className="fl-size" role="group" aria-label="Timeline width">
+        <Button size="sm" variant="quiet" icon="minus" label="Narrower" disabled={zoom <= ZOOM_MIN} onClick={() => setZoom(Math.max(ZOOM_MIN, Math.round((zoom / 1.25) * 4) / 4))} />
         <label className="hw-ctl hw-ctl--range"><small>Width<b>{zoom === 1 ? "fit" : `${zoom.toFixed(1)}×`}</b></small><Slider value={zoom} min={ZOOM_MIN} max={ZOOM_MAX} step={0.25} onChange={(v: number) => setZoom(v)} aria-label="Timeline width" /></label>
+        <Button size="sm" variant="quiet" icon="plus" label="Wider (Alt + wheel over the tracks)" disabled={zoom >= ZOOM_MAX} onClick={() => setZoom(Math.min(ZOOM_MAX, Math.round(zoom * 1.25 * 4) / 4))} />
         <Button size="sm" variant="quiet" disabled={zoom === 1} onClick={() => setZoom(1)}>Fit width</Button>
       </div>
       <div className="fl-size" role="group" aria-label="Track height">
+        <Button size="sm" variant="quiet" icon="minus" label="Lower tracks" disabled={trackHeight <= 40} onClick={() => { setHeights({}); setTrackHeight(Math.max(40, trackHeight - 8)); }} />
         <label className="hw-ctl hw-ctl--range"><small>Height<b>{trackHeight} px</b></small><Slider value={trackHeight} min={40} max={240} step={4} onChange={(v: number) => { setHeights({}); setTrackHeight(v); }} aria-label="Track height" /></label>
+        <Button size="sm" variant="quiet" icon="plus" label="Taller tracks" disabled={trackHeight >= 240} onClick={() => { setHeights({}); setTrackHeight(Math.min(240, trackHeight + 8)); }} />
         <Button size="sm" variant="quiet" onClick={fitHeight}>Fit height</Button>
       </div>
       {/* The intensity snap of a drag, where it is seen (#426; it was in the View popover, where nobody found it). */}
