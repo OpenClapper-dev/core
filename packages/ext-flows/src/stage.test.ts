@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { EFFECTS } from "@openclapper/ext-hardware";
 import { checkFile } from "@openclapper/model";
 import { emptyFlow, flowBodyOf, flowError, FLOW, removeTrack, START_KEYFRAME, type FlowBody, type FlowTrack, type Keyframe } from "./index.ts";
-import { beamPath, ceilingShape, copyStage, EFFECT_FAMILY, effectOpacity, emptyStage, nextStageName, stagesError, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, STAGES_MAX, stageOf, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
+import { beamPath, ceilingShape, copyStage, EFFECT_FAMILY, effectOpacity, emptyStage, nextStageName, resizeStage, stageScale, stageSize, stagesError, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, STAGES_MAX, stageOf, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const lamp: FlowTrack = { id: "t1", name: "Lamp 1", model: "aputure-mc", device: null, keyframes: [kf(0, { power: false, intensity: 0.8, kelvin: 3200, gm: 0 }, START_KEYFRAME), kf(3000, { power: true }), kf(6000, { hue: 0, sat: 1, intensity: 1 }), kf(8000, { effect: { id: "fire" } })] };
@@ -146,4 +146,24 @@ test("a stage may be turned on screen: whole degrees 0 to 359, nothing else chan
   assert.match(at(360)!, /stage.turn/);
   assert.match(at(12.5)!, /stage.turn/);
   assert.match(at(-15)!, /stage.turn/);
+});
+
+test("a larger paper is more room: everything keeps its size and place among the rest", () => {
+  const s: FlowStage = { ...emptyStage("a", "Stage 1"), aspect: 25 / 10, objects: [], lights: [{ track: "t1", x: 0.2, y: 0.5, rot: 0 }] };
+  s.objects = [{ id: "o1", kind: "rect", name: "Rectangle", x: 0.2, y: 0.1, w: 0.4, h: 0.5, stroke: "#ECECEA", width: 3, opacity: 1, visible: true, locked: false }];
+  assert.deepEqual(stageSize(s), [25, 10]);
+  // 40 squares wide, the old paper on the left: x and w shrink to 25/40, y and h stay.
+  const wide = resizeStage(s, 40, 10, [0, 0]);
+  assert.equal(wide.cols, 40); assert.equal(wide.aspect, 4); assert.equal(stageScale(wide), 1.6);
+  assert.deepEqual([wide.objects[0].x, wide.objects[0].w, wide.objects[0].y, wide.objects[0].h], [0.125, 0.25, 0.1, 0.5]);
+  assert.deepEqual([wide.lights[0].x, wide.lights[0].y], [0.125, 0.5]);
+  // In the middle of a paper twice as large each way.
+  const mid = resizeStage(s, 50, 20, [0.5, 0.5]);
+  assert.deepEqual([mid.objects[0].x, mid.objects[0].y], [(0.2 * 25 + 12.5) / 50, (0.1 * 10 + 5) / 20]);
+  // Back to 25 squares: no cols stored; a smaller paper moves a light to its edge.
+  assert.equal(resizeStage(wide, 25, 10, [0, 0]).cols, undefined);
+  assert.equal(resizeStage(s, 25, 10, [1, 0]).lights[0].x, 0.2);
+  assert.equal(resizeStage(s, 10, 10, [1, 0]).lights[0].x, 0);
+  assert.equal(stagesError([{ ...wide }], [{ id: "t1", model: "aputure-mc" }]), null);
+  assert.match(stagesError([{ ...s, cols: 4 }], [{ id: "t1", model: "aputure-mc" }])!, /stage.cols/);
 });

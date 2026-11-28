@@ -10,12 +10,12 @@ import {
   cx, dockMove, dockShow, useDockLayout, type DockPanel,
 } from "@openclapper/design";
 import { CATALOGUE, fixtureKind, modelOf, type HardwareBody } from "@openclapper/ext-hardware";
-import { addKeyframe as addKeyframeTo, copyStage, emptyStage, flowBodyOf, nextStageName, setLock, stageOf, STAGES_MAX, STAGE_NAME_MAX, withoutLight, FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, moveKeyframes, setKeyframe, setMargin, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type FlowStage, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
+import { addKeyframe as addKeyframeTo, copyStage, resizeStage, emptyStage, flowBodyOf, nextStageName, setLock, stageOf, STAGES_MAX, STAGE_NAME_MAX, withoutLight, FlowPlayer, FLOW_MAX_MS, fmtClock, fmtSeconds, inFade, LEVEL_STEPS, moveKeyframes, setKeyframe, setMargin, snap, SNAP_MS, START_KEYFRAME, startKeyframe, TRACK_COLORS, type Flow, type FlowBody, type FlowMarker, type FlowTrack, type FlowStage, type Keyframe, type LevelStep, type SendLight } from "@openclapper/ext-flows";
 import * as api from "../../api";
 import type { FileRec } from "../../api";
 import type { AppProps } from "../../apps/registry";
 import * as store from "../../files";
-import { confirm, prompt, toast, toastError } from "../../hosts";
+import { confirm, openDialog, prompt, toast, toastError } from "../../hosts";
 import { bind, useKeys } from "../../keys";
 import { useEditLock } from "../../lock";
 import { usePeople } from "../../people";
@@ -27,7 +27,7 @@ import { keyOf, Lanes, markKey, markOf, splitKey } from "./lanes";
 import { requestRun, useRun } from "./run";
 import { keepShown, useFlowView, useKeyframeSize, useLevelStep, useStageLayout, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
 import { Customize, usePanelHides } from "./customize";
-import { LightInspect, ObjectInspect, ObjectsInspect, PlacePalette, placeLight, StagePane, type StageDrawing, type StagePhoto, type StageSel, type StageTool } from "./stage";
+import { LightInspect, ObjectInspect, ObjectsInspect, PaperDialog, PlacePalette, placeLight, StagePane, type StageDrawing, type StagePhoto, type StageSel, type StageTool } from "./stage";
 import { imageUrl } from "../../media";
 import { toEdit, toStore } from "../../canvas/geometry";
 
@@ -308,7 +308,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     if (next) pickStage(next.id); else setStageSel(null);
   };
   const full = stages.length >= STAGES_MAX;
-  const stageOps: Record<string, () => void> = { new: newStage, rename: () => void renameStage(), duplicate: duplicateStage, delete: () => void deleteStage() };
+  const stageOps: Record<string, () => void> = { paper: () => openDialog((close) => <PaperDialog stage={stage} close={close} onApply={(c, rws, a) => changeStage((s) => resizeStage(s, c, rws, a))} />), new: newStage, rename: () => void renameStage(), duplicate: duplicateStage, delete: () => void deleteStage() };
   const stagePicker = (
     <span className="fl-st__pick">
       <Icon name="frame" size={15} />
@@ -319,6 +319,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
         { id: "new", label: full ? `New stage (at most ${STAGES_MAX})` : "New stage", icon: "plus", disabled: readonly || full },
         { id: "rename", label: "Rename…", icon: "edit", disabled: readonly },
         { id: "duplicate", label: "Duplicate", icon: "copy", disabled: readonly || full },
+        { id: "paper", label: "Paper size…", icon: "maximize", disabled: readonly },
         { separator: true },
         { id: "delete", label: "Delete…", icon: "trash", danger: true, disabled: readonly },
       ]} />

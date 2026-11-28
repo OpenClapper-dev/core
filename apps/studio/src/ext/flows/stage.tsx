@@ -5,11 +5,11 @@
 import "../../canvas/canvas.css";
 import "./stage.css";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { Button, cx, Icon, Popover, Segmented, Slider, TextInput, type IconName } from "@openclapper/design";
+import { Button, cx, Dialog, Icon, NumberInput, Popover, Segmented, Slider, TextInput, type IconName } from "@openclapper/design";
 import type { ComponentChildren } from "preact";
 import { modelOf } from "@openclapper/ext-hardware";
 import {
-  beamOpacity, beamPath, ceilingShape, effectOpacity, fmtClock, glowRadius, isCeiling, poolRadius, setMount, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
+  beamOpacity, beamPath, ceilingShape, STAGE_COLS, STAGE_SIDE_MAX, STAGE_SIDE_MIN, stageScale, stageSize, effectOpacity, fmtClock, glowRadius, isCeiling, poolRadius, setMount, STAGE_DRAW_COLOURS, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
   type Flow, type FlowStage, type FlowTrack, type StageLight, type StageMount, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { eraseAt } from "../../canvas/erase";
@@ -80,14 +80,15 @@ interface WidgetsProps { flow: Flow; stage: FlowStage; t: number; sel: StageSel;
  * playhead; the chosen one with a ring and, when aimed, a handle to turn it.
  */
 function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: WidgetsProps) {
-  const H = STAGE_W / stage.aspect;
+  // On a larger paper the units run further, so the widgets keep their size in squares.
+  const k = stageScale(stage), W = STAGE_W * k, H = W / stage.aspect;
   const placed = stage.lights.map((l) => ({ l, tr: flow.tracks.find((x) => x.id === l.track) })).filter((x): x is { l: StageLight; tr: FlowTrack } => !!x.tr);
   const states = placed.map(({ tr }) => widgetState(tr, t));
   const now = useFrames(states.some((s) => s.effect));
-  const at = (l: StageLight) => [l.x * STAGE_W, l.y * H] as const;
+  const at = (l: StageLight) => [l.x * W, l.y * H] as const;
   const ring = sel?.kind === "light" ? sel.track : marked;
   return (
-    <svg className="fl-widgets" viewBox={`0 0 ${STAGE_W} ${H}`} preserveAspectRatio="none">
+    <svg className="fl-widgets" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
       <g>{placed.map(({ l, tr }, i) => {
         const s = states[i], [x, y] = at(l), c = s.colour ?? "#ffffff", id = `w${tr.id}`;
         if (!s.on) return null;
@@ -122,7 +123,7 @@ function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: Widget
         );
       })}</g>
       <g>{placed.map(({ l, tr }, i) => {
-        const s = states[i], w = tagWidth(tr.name, s.line), [tx, ty] = tagAt(l, stage.aspect, w), ink = trackInk(tr);
+        const s = states[i], w = tagWidth(tr.name, s.line), [tx, ty] = tagAt(l, stage.aspect, w, k), ink = trackInk(tr);
         return (
           <g key={tr.id} className={cx("fl-w", editing && "is-movable")} transform={`translate(${tx.toFixed(1)} ${ty.toFixed(1)})`} onPointerDown={(e) => onGrab(e, l, "move")}>
             <rect x={-w / 2} y={-23} width={w} height={46} rx={6} fill={STAGE_INK.tag} stroke={ink} stroke-width={1.5} />
@@ -286,7 +287,7 @@ export function StagePane(p: StagePaneProps) {
     if (tool === "text" || tool === "stencil") {
       // No focus change from this press: the text typed in place keeps it.
       e.preventDefault();
-      const size: P = tool === "text" ? [0.22, 0.06] : [0.06, 0.06 * stage.aspect];
+      const k = stageScale(stage), size: P = tool === "text" ? [0.22 / k, 0.06 / k] : [0.06 / k, (0.06 * stage.aspect) / k];
       const o: Obj = { id: uid(), kind: tool, name: tool === "text" ? "Text" : `Stencil: ${stencil}`, x: q[0] - size[0] / 2, y: q[1] - size[1] / 2, w: size[0], h: size[1], stroke: colour, width: 3, opacity: 1, visible: true, locked: false, ...(tool === "text" ? { text: "Text" } : { icon: stencil }) };
       setObjs((os) => [...os, o]); setTool("select"); p.onSel({ kind: "obj", ids: [o.id] }); if (tool === "text") setTyping(o.id);
       return;
@@ -416,13 +417,13 @@ export function StagePane(p: StagePaneProps) {
         onPointerUp={() => { panning.current = null; }} onPointerCancel={() => { panning.current = null; }}>
         <div className={cx("fl-paper", `is-${p.editing ? tool : "view"}`)} ref={paper} data-zoom={view.z} data-turn={turn}
           onDblClick={() => { if (p.editing && tool === "select" && selObj?.kind === "text") setTyping(selObj.id); }}
-          style={{ "--aspect": stage.aspect, "--fl-grid": STAGE_INK.grid, "--c": Math.abs(Math.cos((turn * Math.PI) / 180)), "--s": Math.abs(Math.sin((turn * Math.PI) / 180)), "--inv": 1 / view.z, background: STAGE_INK.paper, transform: `translate(${view.x}px, ${view.y}px) scale(${view.z}) rotate(${turn}deg)` }}
+          style={{ "--aspect": stage.aspect, "--cols": stage.cols ?? STAGE_COLS, "--fl-grid": STAGE_INK.grid, "--c": Math.abs(Math.cos((turn * Math.PI) / 180)), "--s": Math.abs(Math.sin((turn * Math.PI) / 180)), "--inv": 1 / view.z, background: STAGE_INK.paper, transform: `translate(${view.x}px, ${view.y}px) scale(${view.z}) rotate(${turn}deg)` }}
           onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { act.current = null; setDraft(null); setGuides({}); setBox(null); }}>
           <div className="fl-paper__in">
             {stage.underlay && underlay && <img className="fl-paper__under" src={underlay.src} alt="" draggable={false} style={{ opacity: stage.underlay.opacity }} />}
-            {objs.filter((o) => o.visible).map((o) => <ObjectView key={o.id} o={o} vh={H} onGrab={p.editing && tool === "select" ? (e) => grabObj(e, o) : undefined}
+            {objs.filter((o) => o.visible).map((o) => <ObjectView key={o.id} o={o} vh={H} scale={stageScale(stage)} onGrab={p.editing && tool === "select" ? (e) => grabObj(e, o) : undefined}
               editing={typing === o.id} onText={(t) => { setObjs((os) => os.map((x) => (x.id === o.id ? { ...x, text: t } : x))); setTyping(null); }} onEdit={() => { if (p.editing && tool === "select") setTyping(o.id); }} />)}
-            {draft && <DraftView d={{ ...draft, pen: "pen", stroke: colour, width: 3 }} vh={H} />}
+            {draft && <DraftView d={{ ...draft, pen: "pen", stroke: colour, width: 3 }} vh={H} scale={stageScale(stage)} />}
             {selObj && !(handles && isLine) && <span className="cv-sel" style={{ left: `${selObj.x * 100}%`, top: `${selObj.y * 100}%`, width: `${selObj.w * 100}%`, height: `${selObj.h * 100}%`, transform: selObj.rot ? `rotate(${selObj.rot}deg)` : undefined }}>
               {handles && !isLine && [0, 1, 2, 3].map((k) => [
                 <i key={`r${k}`} className={`cv-rot cv-rot--${k}`} style={{ cursor: ROTATE }} title="Drag to turn (Shift: steps of 15°)" onPointerDown={(e) => grabRotate(e)} />,
@@ -543,6 +544,35 @@ export function ObjectInspect({ stage, id, editing, onChange, onDelete }: { stag
       {editing && <div className="hw-row"><Button size="sm" variant="danger" icon="trash" onClick={onDelete}>Delete</Button></div>}
       <p className="fl-note">Drawn with the canvas’s tools, kept in the flow.</p>
     </div>
+  );
+}
+
+/**
+ * The paper's size in squares (#426): more paper is more room around the same drawing, which keeps its size and its
+ * place among the rest; where the old paper sits in the new one says on which sides the room is added or taken.
+ */
+export function PaperDialog({ stage, close, onApply }: { stage: FlowStage; close: () => void; onApply: (cols: number, rows: number, anchor: [number, number]) => void }) {
+  const [w0, h0] = stageSize(stage);
+  const [w, setW] = useState(w0), [h, setH] = useState(Math.round(h0));
+  const [anchor, setAnchor] = useState<[number, number]>([0.5, 0.5]);
+  const wrong = !Number.isInteger(w) || !Number.isInteger(h) || w < STAGE_SIDE_MIN || h < STAGE_SIDE_MIN || w > STAGE_SIDE_MAX || h > STAGE_SIDE_MAX ? `Each side is ${STAGE_SIDE_MIN} to ${STAGE_SIDE_MAX} squares`
+    : w / h > 4 || h / w > 4 ? "At most four times as long as wide" : null;
+  const smaller = w < w0 || h < Math.round(h0);
+  return (
+    <Dialog fixed title="Paper size" onClose={close} footer={<><Button variant="quiet" onClick={close}>Cancel</Button><Button variant="primary" disabled={!!wrong} onClick={() => { onApply(w, h, anchor); close(); }}>Apply</Button></>}>
+      <div className="fl-paperdlg">
+        <div className="fl-paperdlg__sides">
+          <label className="hw-ctl"><small>Width (squares)</small><NumberInput size="sm" value={w} min={STAGE_SIDE_MIN} max={STAGE_SIDE_MAX} step={1} onChange={(v: number) => setW(Math.round(v))} /></label>
+          <label className="hw-ctl"><small>Height (squares)</small><NumberInput size="sm" value={h} min={STAGE_SIDE_MIN} max={STAGE_SIDE_MAX} step={1} onChange={(v: number) => setH(Math.round(v))} /></label>
+        </div>
+        <div className="hw-ctl"><small>The drawing sits</small>
+          <span className="fl-paperdlg__anchor" role="radiogroup" aria-label="Where the drawing sits on the new paper">
+            {[0, 0.5, 1].flatMap((ay) => [0, 0.5, 1].map((ax) => <button key={`${ax}${ay}`} type="button" role="radio" aria-checked={anchor[0] === ax && anchor[1] === ay} aria-label={`${ay === 0 ? "top" : ay === 1 ? "bottom" : "middle"} ${ax === 0 ? "left" : ax === 1 ? "right" : "centre"}`} className={cx(anchor[0] === ax && anchor[1] === ay && "is-on")} onClick={() => setAnchor([ax, ay])} />))}
+          </span>
+        </div>
+        <p className="fl-note">{wrong ?? `Now ${w0} × ${Math.round(h0)} squares. Everything keeps its size and place; the room is added (or taken) around it.${smaller ? " What a smaller paper no longer holds is cut off; lights move to its edge." : ""}`}</p>
+      </div>
+    </Dialog>
   );
 }
 

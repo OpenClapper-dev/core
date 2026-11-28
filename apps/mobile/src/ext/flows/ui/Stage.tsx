@@ -5,7 +5,7 @@ import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, RadialGradient, Re
 import { modelOf } from "@openclapper/ext-hardware";
 import { arrowHead, PENS, smooth, STROKE_UNIT, taper, TEXT_SIZE, type CanvasObject, type DrawPoint } from "@openclapper/model";
 import {
-  beamOpacity, beamPath, ceilingShape, effectOpacity, emptyStage, fmtClock, fmtSeconds, glowRadius, isCeiling, poolRadius, START_KEYFRAME, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, tagAt, tagWidth, widgetShape, widgetState,
+  beamOpacity, beamPath, ceilingShape, effectOpacity, emptyStage, fmtClock, fmtSeconds, glowRadius, isCeiling, poolRadius, START_KEYFRAME, STAGE_INK, STAGE_TRACK_COLOURS, STAGE_W, stageScale, tagAt, tagWidth, widgetShape, widgetState,
   type FlowBody, type FlowStage, type FlowTrack, type StageLight, type WidgetPart,
 } from "@openclapper/ext-flows";
 import { imageSource } from "../../../media/cache";
@@ -24,7 +24,8 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
   const stage = shown ?? NONE;
   const [room, setRoom] = useState({ w: 0, h: 0 });
   const [chosen, setChosen] = useState<string | null>(null);
-  const H = STAGE_W / stage.aspect;
+  // A larger paper (#426: its size in squares) runs to more units, so widgets, tags and strokes keep their size in squares.
+  const W = STAGE_W * stageScale(stage), H = W / stage.aspect;
   // The paper keeps its aspect inside the room it has, turned as the stage is turned in the Studio (#426: the whole
   // sheet, drawing, lights and underlay together); its box on screen is the turned paper's bounds.
   const turn = stage.turn ?? 0, rad = (turn * Math.PI) / 180, cs = Math.abs(Math.cos(rad)), sn = Math.abs(Math.sin(rad));
@@ -40,8 +41,8 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
     // The touch in the box, turned back onto the paper.
     const dx = e.nativeEvent.locationX - bw / 2, dy = e.nativeEvent.locationY - bh / 2, c = Math.cos(-rad), si = Math.sin(-rad);
     const px = dx * c - dy * si + w / 2, py = dx * si + dy * c + h / 2;
-    const x = (px / w) * STAGE_W, y = (py / h) * H, reach = (40 / w) * STAGE_W;
-    const near = placed.map(({ l, tr }) => ({ id: tr.id, d: Math.hypot(l.x * STAGE_W - x, l.y * H - y) })).sort((a, b) => a.d - b.d)[0];
+    const x = (px / w) * W, y = (py / h) * H, reach = (40 / w) * W;
+    const near = placed.map(({ l, tr }) => ({ id: tr.id, d: Math.hypot(l.x * W - x, l.y * H - y) })).sort((a, b) => a.d - b.d)[0];
     setChosen(near && near.d < reach ? near.id : null);
   };
 
@@ -51,22 +52,22 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
         <Pressable onPress={tap} style={{ width: bw, height: bh }} accessibilityLabel="The flow's stage">
         <View pointerEvents="none" style={[s.paper, { position: "absolute", left: (bw - w) / 2, top: (bh - h) / 2, width: w, height: h, backgroundColor: STAGE_INK.paper }, turn ? { transform: [{ rotate: `${turn}deg` }] } : null]}>
           {stage.underlay && <Image source={imageSource(stage.underlay.photo, "preview")} style={[s.fill, { opacity: stage.underlay.opacity }]} contentFit="contain" />}
-          <Svg width={w} height={h} viewBox={`0 0 ${STAGE_W} ${H}`} style={s.fill}>
-            {stage.objects.filter((o) => o.visible && o.kind !== "stencil").map((o) => <Drawn key={o.id} o={o} vh={H} />)}
+          <Svg width={w} height={h} viewBox={`0 0 ${W} ${H}`} style={s.fill}>
+            {stage.objects.filter((o) => o.visible && o.kind !== "stencil").map((o) => <Drawn key={o.id} o={o} W={W} vh={H} />)}
             {placed.map(({ l, tr }, i) => {
               const st = states[i], c = st.colour ?? "#ffffff", id = `w${i}`;
               if (!st.on) return null;
               const fade = beamOpacity(st.level) * (st.effect ? effectOpacity(st.effect.family, now) : 1);
               // A top-down light: a pool of light around it, no direction (as the Studio draws it).
               if (isCeiling(l)) return (
-                <G key={`b${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H})`} opacity={fade}>
+                <G key={`b${tr.id}`} transform={`translate(${l.x * W} ${l.y * H})`} opacity={fade}>
                   <Defs><RadialGradient id={`${id}p`}><Stop offset="0" stopColor={c} stopOpacity={0.8} /><Stop offset="0.4" stopColor={c} stopOpacity={0.4} /><Stop offset="1" stopColor={c} stopOpacity={0} /></RadialGradient></Defs>
                   <Circle cx={0} cy={0} r={poolRadius(ceilingShape(tr.model), st.level)} fill={`url(#${id}p)`} />
                 </G>
               );
               const g = widgetShape(tr.model);
               return (
-                <G key={`b${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H}) rotate(${l.rot})`} opacity={fade}>
+                <G key={`b${tr.id}`} transform={`translate(${l.x * W} ${l.y * H}) rotate(${l.rot})`} opacity={fade}>
                   <Defs>
                     <RadialGradient id={`${id}g`}><Stop offset="0" stopColor={c} stopOpacity={0.95} /><Stop offset="0.45" stopColor={c} stopOpacity={0.45} /><Stop offset="1" stopColor={c} stopOpacity={0} /></RadialGradient>
                     <LinearGradient id={`${id}b`} x1="0" y1="0" x2="1" y2="0"><Stop offset="0" stopColor={c} stopOpacity={0.7} /><Stop offset="1" stopColor={c} stopOpacity={0} /></LinearGradient>
@@ -77,12 +78,12 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
               );
             })}
             {placed.map(({ l, tr }, i) => (
-              <G key={`w${tr.id}`} transform={`translate(${l.x * STAGE_W} ${l.y * H})${isCeiling(l) ? "" : ` rotate(${l.rot})`}`}>
+              <G key={`w${tr.id}`} transform={`translate(${l.x * W} ${l.y * H})${isCeiling(l) ? "" : ` rotate(${l.rot})`}`}>
                 <Body shape={isCeiling(l) ? ceilingShape(tr.model) : widgetShape(tr.model)} face={states[i].on ? states[i].colour ?? "#ffffff" : STAGE_INK.unlit} muted={states[i].muted} />
               </G>
             ))}
             {placed.map(({ l, tr }, i) => {
-              const st = states[i], tw = tagWidth(tr.name, st.line), [tx, ty] = tagAt(l, stage.aspect, tw), ink = tr.color !== undefined ? STAGE_TRACK_COLOURS[tr.color] : STAGE_INK.rim;
+              const st = states[i], tw = tagWidth(tr.name, st.line), [tx, ty] = tagAt(l, stage.aspect, tw, stageScale(stage)), ink = tr.color !== undefined ? STAGE_TRACK_COLOURS[tr.color] : STAGE_INK.rim;
               return (
                 <G key={`t${tr.id}`} transform={`translate(${tx} ${ty})`}>
                   <Rect x={-tw / 2} y={-23} width={tw} height={46} rx={6} fill={STAGE_INK.tag} stroke={ink} strokeWidth={1.5} />
@@ -92,7 +93,7 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
                 </G>
               );
             })}
-            {pick && <Circle cx={pick.l.x * STAGE_W} cy={pick.l.y * H} r={42} fill="none" stroke={STAGE_INK.select} strokeWidth={2} strokeDasharray="5 4" />}
+            {pick && <Circle cx={pick.l.x * W} cy={pick.l.y * H} r={42} fill="none" stroke={STAGE_INK.select} strokeWidth={2} strokeDasharray="5 4" />}
           </Svg>
           {/* Stencils: the design system's glyphs, as the Studio draws them, in their boxes. */}
           {stage.objects.filter((o) => o.visible && o.kind === "stencil").map((o) => (
@@ -112,13 +113,13 @@ export function StageView({ body, stage: shown, t, onShowTrack }: { body: FlowBo
 /** A colour of the drawing: its own, or a categorical one (1–8) as the dark paper shows it. */
 const ink = (c: CanvasObject["stroke"] | null | undefined) => (typeof c === "string" ? c : c ? STAGE_TRACK_COLOURS[c - 1] ?? STAGE_INK.rim : STAGE_INK.rim);
 
-/** One drawn object, in the paper's units (1000 wide), as the Studio's canvas draws it. */
-function Drawn({ o, vh }: { o: CanvasObject; vh: number }) {
-  const c = ink(o.stroke), cx = (o.x + o.w / 2) * 1000, cy = (o.y + o.h / 2) * vh;
+/** One drawn object, in the paper's units (W wide: 1000 on a paper of STAGE_COLS squares), as the Studio's canvas draws it. */
+function Drawn({ o, W, vh }: { o: CanvasObject; W: number; vh: number }) {
+  const c = ink(o.stroke), cx = (o.x + o.w / 2) * W, cy = (o.y + o.h / 2) * vh;
   const turn = o.rot ? `rotate(${o.rot} ${cx} ${cy})` : undefined;
   if (o.kind === "pen" || o.kind === "line" || o.kind === "arrow") {
     const flat = o.pts ?? [], q: DrawPoint[] = [];
-    for (let i = 0; i + 1 < flat.length; i += 2) q.push([Number(((o.x + flat[i] * o.w) * 1000).toFixed(1)), Number(((o.y + flat[i + 1] * o.h) * vh).toFixed(1))]);
+    for (let i = 0; i + 1 < flat.length; i += 2) q.push([Number(((o.x + flat[i] * o.w) * W).toFixed(1)), Number(((o.y + flat[i + 1] * o.h) * vh).toFixed(1))]);
     if (q.length < 2) return null;
     const pen = PENS[o.pen ?? "pen"], sw = o.width * STROKE_UNIT * (o.kind === "pen" ? pen.scale : 1);
     return (
@@ -130,7 +131,7 @@ function Drawn({ o, vh }: { o: CanvasObject; vh: number }) {
     );
   }
   if (o.kind === "rect" || o.kind === "ellipse") {
-    const bw = o.width * STROKE_UNIT, x = o.x * 1000, y = o.y * vh, ww = o.w * 1000, hh = o.h * vh;
+    const bw = o.width * STROKE_UNIT, x = o.x * W, y = o.y * vh, ww = o.w * W, hh = o.h * vh;
     const fill = o.fill != null ? ink(o.fill) : "none";
     return o.kind === "rect"
       ? <Rect x={x + bw / 2} y={y + bw / 2} width={Math.max(0, ww - bw)} height={Math.max(0, hh - bw)} fill={fill} stroke={c} strokeWidth={bw} opacity={o.opacity} transform={turn} />
@@ -138,7 +139,7 @@ function Drawn({ o, vh }: { o: CanvasObject; vh: number }) {
   }
   if (o.kind === "text") {
     const size = o.h * TEXT_SIZE * vh, lines = (o.text ?? "").split("\n");
-    return <G transform={turn} opacity={o.opacity}>{lines.map((line, i) => <SvgText key={i} x={o.x * 1000} y={cy + (i - (lines.length - 1) / 2) * size * 1.05} fontSize={size} fontWeight="700" fill={c} alignmentBaseline="middle">{line}</SvgText>)}</G>;
+    return <G transform={turn} opacity={o.opacity}>{lines.map((line, i) => <SvgText key={i} x={o.x * W} y={cy + (i - (lines.length - 1) / 2) * size * 1.05} fontSize={size} fontWeight="700" fill={c} alignmentBaseline="middle">{line}</SvgText>)}</G>;
   }
   return null;
 }
