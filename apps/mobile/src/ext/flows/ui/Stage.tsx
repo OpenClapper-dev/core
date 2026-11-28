@@ -19,16 +19,16 @@ const NONE = emptyStage("none", "Stage 1");
  * Studio and a widget per placed light showing what its track plays at the playhead, drawn from the same shared
  * shapes, beams and motions as the Studio's. Nothing is drawn, placed or moved here; a widget tapped shows its state.
  */
-export function StageView({ body, stage: shown, t, tags = true, onShowTrack }: { body: FlowBody; stage: FlowStage | null; t: number; /** The lights' name tags (the View's switch). */ tags?: boolean; onShowTrack: (track: string) => void }) {
+export function StageView({ body, stage: shown, t, tags = true, turn = 0, onShowTrack }: { body: FlowBody; stage: FlowStage | null; t: number; /** The lights' name tags (the View's switch). */ tags?: boolean; /** How this device turns the stage (its own, not the Studio's). */ turn?: number; onShowTrack: (track: string) => void }) {
   const s = useStyles();
   const stage = shown ?? NONE;
   const [room, setRoom] = useState({ w: 0, h: 0 });
   const [chosen, setChosen] = useState<string | null>(null);
   // A larger paper (#426: its size in squares) runs to more units, so widgets, tags and strokes keep their size in squares.
   const W = STAGE_W * stageScale(stage), H = W / stage.aspect;
-  // The paper keeps its aspect inside the room it has, turned as the stage is turned in the Studio (#426: the whole
-  // sheet, drawing, lights and underlay together); its box on screen is the turned paper's bounds.
-  const turn = stage.turn ?? 0, rad = (turn * Math.PI) / 180, cs = Math.abs(Math.cos(rad)), sn = Math.abs(Math.sin(rad));
+  // The paper keeps its aspect inside the room it has, turned as this device turns it (#426: the whole sheet, drawing,
+  // lights and underlay together; the Studio's turn is the Studio's); its box on screen is the turned paper's bounds.
+  const rad = (turn * Math.PI) / 180, cs = Math.abs(Math.cos(rad)), sn = Math.abs(Math.sin(rad));
   const w = Math.max(0, Math.min(room.w / (cs + sn / stage.aspect), room.h / (sn + cs / stage.aspect))), h = w / stage.aspect;
   const bw = w * cs + h * sn, bh = w * sn + h * cs;
   const placed = stage.lights.map((l) => ({ l, tr: body.tracks.find((x) => x.id === l.track) })).filter((x): x is { l: StageLight; tr: FlowTrack } => !!x.tr);
