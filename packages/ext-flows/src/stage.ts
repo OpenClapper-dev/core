@@ -19,7 +19,10 @@ export const STAGE_MOUNTS: readonly StageMount[] = ["aimed", "ceiling"];
  * Where a light track's widget stands: its centre in fractions of the paper, where it points (degrees, 0 = right,
  * clockwise) and how it hangs. A ceiling light keeps its `rot` (switched back, it points where it did) but draws none.
  */
-export interface StageLight { track: string; x: number; y: number; rot: number; mount?: StageMount }
+/** A placed light: where, how it is turned and hung, and how wide its beam is drawn (`angle`, full degrees; absent: as the model's). */
+export interface StageLight { track: string; x: number; y: number; rot: number; mount?: StageMount; angle?: number }
+/** The narrowest and widest beam a placed light can be given (#426: a wide, diffused key). */
+export const BEAM_MIN = 10, BEAM_MAX = 170;
 export const isCeiling = (l: Pick<StageLight, "mount">) => l.mount === "ceiling";
 /** A light hung another way: aimed is the default, so it is kept as no `mount` at all; the turn is kept either way. */
 export function setMount(l: StageLight, mount: StageMount): StageLight {
@@ -117,7 +120,7 @@ export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "
   if (!Array.isArray(v.lights)) return "stage.lights must be an array";
   const placed = new Set<string>();
   for (const [i, l] of v.lights.entries()) {
-    if (!isObj(l) || Object.keys(l).some((k) => !["track", "x", "y", "rot", "mount"].includes(k))) return `stage.lights[${i}] is { track, x, y, rot, mount? }`;
+    if (!isObj(l) || Object.keys(l).some((k) => !["track", "x", "y", "rot", "mount", "angle"].includes(k))) return `stage.lights[${i}] is { track, x, y, rot, mount?, angle? }`;
     const tr = tracks.find((t) => t.id === l.track);
     if (!tr) return `stage.lights[${i}] names a track that is not in the flow`;
     if (!isLightTrack(tr)) return `stage.lights[${i}]: only light tracks go on the stage`;
@@ -125,6 +128,7 @@ export function stageError(v: unknown, tracks: readonly Pick<FlowTrack, "id" | "
     placed.add(tr.id);
     if (!num(l.x, 0, 1) || !num(l.y, 0, 1)) return `stage.lights[${i}] stands on the paper (x and y 0 to 1)`;
     if (!num(l.rot, 0, 360)) return `stage.lights[${i}].rot is 0 to 360 degrees`;
+    if (l.angle !== undefined && !(num(l.angle, BEAM_MIN, BEAM_MAX) && Number.isInteger(l.angle))) return `stage.lights[${i}].angle is whole degrees, ${BEAM_MIN} to ${BEAM_MAX}`;
     if (l.mount !== undefined && !STAGE_MOUNTS.includes(l.mount as StageMount)) return `stage.lights[${i}].mount is ${STAGE_MOUNTS.join(" or ")}`;
   }
   const u = v.underlay;
@@ -268,9 +272,12 @@ export function widgetShape(model: string): WidgetShape {
 }
 
 /** The beam at a level (0..1): a wedge from the face outwards, longer and wider the brighter, as SVG path data. */
-export function beamPath(g: WidgetShape, level: number): string {
+export function beamPath(g: WidgetShape, level: number, angle?: number): string {
   const len = g.len[0] + (g.len[1] - g.len[0]) * level, hw = g.spread[0] + (g.spread[1] - g.spread[0]) * level, f = g.front, e = (f + len).toFixed(1);
-  return `M${f} ${-g.half} L${e} ${(-hw).toFixed(1)} L${e} ${hw.toFixed(1)} L${f} ${g.half} Z`;
+  if (angle === undefined) return `M${f} ${-g.half} L${e} ${(-hw).toFixed(1)} L${e} ${hw.toFixed(1)} L${f} ${g.half} Z`;
+  // A beam of its own angle (#426): from the face's edges out at half the angle each way, its far end an arc.
+  const th = (angle * Math.PI) / 360, ex = f + len * Math.cos(th), ey = g.half + len * Math.sin(th), rad = Math.hypot(ex - f, ey).toFixed(1);
+  return `M${f} ${-g.half} L${ex.toFixed(1)} ${(-ey).toFixed(1)} A${rad} ${rad} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)} L${f} ${g.half} Z`;
 }
 export const glowRadius = (g: WidgetShape, level: number) => g.glow[0] + (g.glow[1] - g.glow[0]) * level;
 /** How strongly the light reads at a level: never quite gone while on, so a low level is still seen. */
@@ -296,6 +303,8 @@ export function ceilingShape(model: string): CeilingShape {
   }
   return { parts: [rect(-11, -11, 22, 22, 3, false, WS), rect(-8, -8, 16, 16, 1.5, true, WS)], r: 11 * WS, pool: [50, 110] };
 }
+/** The full angle (degrees) of a model's beam as drawn at full intensity without an angle of its own: what the slider starts at. */
+export const beamAngleOf = (g: WidgetShape) => Math.round((2 * Math.atan((g.spread[1] - g.half) / g.len[1]) * 180) / Math.PI);
 /** The pool's radius at a level (0..1): wider the brighter, never smaller than the body. */
 export const poolRadius = (g: CeilingShape, level: number) => Math.max(g.r, g.pool[0] + (g.pool[1] - g.pool[0]) * level);
 

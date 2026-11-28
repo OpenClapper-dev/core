@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { EFFECTS } from "@openclapper/ext-hardware";
 import { checkFile } from "@openclapper/model";
 import { emptyFlow, flowBodyOf, flowError, FLOW, removeTrack, START_KEYFRAME, type FlowBody, type FlowTrack, type Keyframe } from "./index.ts";
-import { beamPath, ceilingShape, copyStage, EFFECT_FAMILY, effectOpacity, emptyStage, nextStageName, resizeStage, stageScale, stageSize, stagesError, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, STAGES_MAX, stageOf, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
+import { BEAM_MAX, beamAngleOf, beamPath, ceilingShape, copyStage, EFFECT_FAMILY, effectOpacity, emptyStage, nextStageName, resizeStage, stageScale, stageSize, stagesError, poolRadius, setMount, STAGE_OBJECTS_MAX, STAGE_W, STAGES_MAX, stageOf, tagAt, widgetShape, widgetState, type FlowStage } from "./stage.ts";
 
 const kf = (at: number, x: Omit<Keyframe, "id" | "at">, id = `k${at}`): Keyframe => ({ id, at, ...x });
 const lamp: FlowTrack = { id: "t1", name: "Lamp 1", model: "aputure-mc", device: null, keyframes: [kf(0, { power: false, intensity: 0.8, kelvin: 3200, gm: 0 }, START_KEYFRAME), kf(3000, { power: true }), kf(6000, { hue: 0, sat: 1, intensity: 1 }), kf(8000, { effect: { id: "fire" } })] };
@@ -122,7 +122,7 @@ test("a light hangs aimed (the default) or from the ceiling; nothing else", () =
   assert.deepEqual(hung, { track: "t1", x: 0.5, y: 0.5, rot: 90, mount: "ceiling" });
   assert.deepEqual(setMount(hung, "aimed"), { track: "t1", x: 0.5, y: 0.5, rot: 90 }); // the default is no key; the turn kept
   assert.match(flowError(at("wall"))!, /mount is aimed or ceiling/);
-  assert.match(flowError(withStage({ ...emptyStage("s1", "Plan"), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0, tilt: 3 }] }))!, /is \{ track, x, y, rot, mount\? \}/);
+  assert.match(flowError(withStage({ ...emptyStage("s1", "Plan"), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0, tilt: 3 }] }))!, /is \{ track, x, y, rot, mount\?, angle\? \}/);
 });
 
 test("a ceiling light: a pool growing with the level, its tag under it (above at the paper's foot), its turn ignored", () => {
@@ -166,4 +166,15 @@ test("a larger paper is more room: everything keeps its size and place among the
   assert.equal(resizeStage(s, 10, 10, [1, 0]).lights[0].x, 0);
   assert.equal(stagesError([{ ...wide }], [{ id: "t1", model: "aputure-mc" }]), null);
   assert.match(stagesError([{ ...s, cols: 4 }], [{ id: "t1", model: "aputure-mc" }])!, /stage.cols/);
+});
+
+test("a placed light's own beam angle: a wedge with an arc, whole degrees within the bounds", () => {
+  const mc = widgetShape("aputure-mc");
+  assert.ok(beamAngleOf(mc) > 20 && beamAngleOf(mc) < 50);
+  assert.match(beamPath(mc, 1, 90), /^M10.5 -13.5 L\S+ \S+ A\S+ \S+ 0 0 1 \S+ \S+ L10.5 13.5 Z$/);
+  assert.notEqual(beamPath(mc, 1, 120), beamPath(mc, 1, 30));
+  const at = (angle: unknown) => stagesError([{ ...emptyStage("a", "Stage 1"), lights: [{ track: "t1", x: 0.5, y: 0.5, rot: 0, angle }] }], [{ id: "t1", model: "aputure-mc" }]);
+  assert.equal(at(120), null);
+  assert.match(at(BEAM_MAX + 5)!, /angle/);
+  assert.match(at(45.5)!, /angle/);
 });

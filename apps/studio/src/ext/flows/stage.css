@@ -75,3 +75,4 @@
 .fl-paperdlg__anchor { display: grid; grid-template-columns: repeat(3, 24px); gap: 4px; }
 .fl-paperdlg__anchor > button { width: 24px; height: 24px; padding: 0; border: var(--border-w) solid var(--border-control); border-radius: var(--radius-xs); background: var(--surface); cursor: pointer; }
 .fl-paperdlg__anchor > button.is-on { background: var(--accent); border-color: var(--accent); }
+.fl-beam { flex-wrap: nowrap; } .fl-beam .oc-slider { flex: 1; min-width: 80px; }
