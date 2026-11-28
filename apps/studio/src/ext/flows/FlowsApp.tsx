@@ -27,7 +27,7 @@ import { keyOf, Lanes, markKey, markOf, splitKey } from "./lanes";
 import { requestRun, useRun } from "./run";
 import { keepShown, useFlowView, useKeyframeSize, useLevelStep, useStageLayout, useTrackHeight, useZoom, VIEW_LABELS, ZOOM_MAX, ZOOM_MIN, type FlowView } from "./view";
 import { Customize, usePanelHides } from "./customize";
-import { LightInspect, ObjectInspect, PlacePalette, placeLight, StagePane, type StageDrawing, type StagePhoto, type StageSel, type StageTool } from "./stage";
+import { LightInspect, ObjectInspect, ObjectsInspect, PlacePalette, placeLight, StagePane, type StageDrawing, type StagePhoto, type StageSel, type StageTool } from "./stage";
 import { imageUrl } from "../../media";
 import { toEdit, toStore } from "../../canvas/geometry";
 
@@ -255,7 +255,10 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   // What is chosen on the stage must still be there (an undo, someone else's save).
   useEffect(() => {
     if (stageSel?.kind === "light" && !stage.lights.some((l) => l.track === stageSel.track)) setStageSel(null);
-    if (stageSel?.kind === "obj" && !stage.objects.some((o) => o.id === stageSel.id)) setStageSel(null);
+    if (stageSel?.kind === "obj") {
+      const left = stageSel.ids.filter((id) => stage.objects.some((o) => o.id === id));
+      if (left.length !== stageSel.ids.length) setStageSel(left.length ? { kind: "obj", ids: left } : null);
+    }
   }, [stage, stageSel]);
   const pickOnStage = (s: StageSel) => { if (s) { setSel(new Set()); setTile(null); setTrackPick(null); } setStageSel(s); };
   const pointAt = (track: string) => { setFlash(track); setTimeout(() => setFlash((x) => (x === track ? null : x)), 2300); };
@@ -275,7 +278,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const removeStageSel = () => {
     if (readonly || !stageSel) return false;
     if (stageSel.kind === "light") changeStage((s) => withoutLight(s, stageSel.track));
-    else changeStage((s) => ({ ...s, objects: s.objects.filter((o) => o.id !== stageSel.id) }));
+    else changeStage((s) => ({ ...s, objects: s.objects.filter((o) => !stageSel.ids.includes(o.id)) }));
     setStageSel(null);
   };
   const stageTool = (tool: StageTool) => () => { if (!stageLayout.on || readonly) return false; setDrawing((d) => ({ ...d, tool })); };
@@ -419,8 +422,10 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
   const setKf = (tr: FlowTrack, _k: Keyframe) => (next: Keyframe) => change((b) => setKeyframe(b, tr.id, next));
   const chosen = stageSel?.kind === "light"
     ? <LightInspect flow={flow} stage={stage} track={stageSel.track} t={runsThis ? runAt : playhead} editing={!readonly} onLight={(fn) => changeStage((s) => ({ ...s, lights: s.lights.map((l) => (l.track === stageSel.track ? fn(l) : l)) }))} onShowTrack={() => showTrack(stageSel.track)} onRemove={() => removeStageSel()} />
+    : stageSel?.kind === "obj" && stageSel.ids.length === 1
+    ? <ObjectInspect stage={stage} id={stageSel.ids[0]} editing={!readonly} onChange={(fn) => changeStage((s) => ({ ...s, objects: s.objects.map((o) => (o.id === stageSel.ids[0] ? toStore(fn(toEdit(o))) : o)) }))} onDelete={() => removeStageSel()} />
     : stageSel?.kind === "obj"
-    ? <ObjectInspect stage={stage} id={stageSel.id} editing={!readonly} onChange={(fn) => changeStage((s) => ({ ...s, objects: s.objects.map((o) => (o.id === stageSel.id ? toStore(fn(toEdit(o))) : o)) }))} onDelete={() => removeStageSel()} />
+    ? <ObjectsInspect stage={stage} ids={stageSel.ids} editing={!readonly} onChange={(fn) => changeStage((s) => ({ ...s, objects: s.objects.map((o) => (stageSel.ids.includes(o.id) ? toStore(fn(toEdit(o))) : o)) }))} onDelete={() => removeStageSel()} />
     : readonly && (selKf || tileKf || marker || pickedTrack)
     ? <div className="fl-inspect"><p className="fl-note">{runsThis ? "Running on the device: locked until it stops." : "Read-only: Edit to change it."}</p></div>
     : selKf && selTrack ? (modelOf(selTrack.model)?.type === "camera"
@@ -557,7 +562,7 @@ function FlowEditor({ f, projectId, active, list, onNew, onGone }: { f: FileRec;
     if (l !== panels) setPanels(l);
   }, []);
   // What is chosen on the stage shows its panel.
-  useEffect(() => { if (stageSel) setPanels(dockShow(panels, "chosen", false)); }, [stageSel?.kind, stageSel && (stageSel.kind === "light" ? stageSel.track : stageSel.id)]);
+  useEffect(() => { if (stageSel) setPanels(dockShow(panels, "chosen", false)); }, [stageSel?.kind, stageSel && (stageSel.kind === "light" ? stageSel.track : stageSel.ids.join(","))]);
   const lightsPlaced = stage.lights.length;
   const dock: DockPanel[] = [
     { id: "flows", title: "Flows", icon: "timeline", actions: onNew ? <Button size="sm" variant="quiet" icon="plus" onClick={onNew}>New flow</Button> : undefined, body: <>{list}{props}</> },

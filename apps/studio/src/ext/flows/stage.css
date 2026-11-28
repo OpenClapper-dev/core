@@ -67,3 +67,5 @@
 .fl-st__now:hover:not(:disabled) { background: var(--surface-hover); }
 .fl-st__now:disabled { cursor: default; color: var(--text-secondary); }
 .fl-paper .cv-rot { pointer-events: auto; z-index: 3; }
+/* A box drawn from empty paper to choose several drawn objects (#426). */
+.fl-box { position: absolute; z-index: 3; border: var(--border-w) dashed var(--accent); background: var(--marquee); pointer-events: none; }

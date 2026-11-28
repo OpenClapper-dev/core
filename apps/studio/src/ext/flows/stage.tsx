@@ -23,7 +23,8 @@ export const STAGE_TOOLS: { id: StageTool; icon: IconName; label: string; kbd: s
   { id: "rect", icon: "square", label: "Rectangle", kbd: "R" }, { id: "ellipse", icon: "circle", label: "Ellipse", kbd: "O" }, { id: "text", icon: "text", label: "Text", kbd: "T" }, { id: "stencil", icon: "stencil", label: "Stencil", kbd: "S" }, { id: "eraser", icon: "eraser", label: "Eraser", kbd: "E" },
 ];
 /** What is chosen on the stage: a light's widget (by its track) or a drawn object. */
-export type StageSel = { kind: "light"; track: string } | { kind: "obj"; id: string } | null;
+/** What is chosen on the stage: a light, or one or more drawn objects (#426: several by Shift-click or a box). */
+export type StageSel = { kind: "light"; track: string } | { kind: "obj"; ids: string[] } | null;
 export interface StagePhoto { id: string; name: string; thumb: string; src: string }
 export interface StageDrawing { tool: StageTool; colour: string; stencil: IconName; /** Moving, resizing and placing snap to the paper, the drawn objects and the lights (#426); Ctrl or ⌘ held: not this time. */ snap: boolean }
 
@@ -151,7 +152,9 @@ function Widgets({ flow, stage, t, sel, marked, flash, editing, onGrab }: Widget
 type Act =
   | { type: "light"; track: string; start: P; orig: P; moved: boolean }
   | { type: "turn"; track: string }
-  | { type: "obj"; id: string; start: P; orig: Obj; moved: boolean }
+  | { type: "obj"; ids: string[]; start: P; orig: Record<string, Obj>; moved: boolean }
+  /** A box drawn from empty paper with Move: chooses the drawn objects it touches (Shift: adds to them). */
+  | { type: "box"; start: P; end: P; add: string[] }
   | { type: "draw"; tool: "pen" | "line" | "arrow" | "rect" | "ellipse"; pts: P[] }
   | { type: "erase" }
   /** A corner of the chosen object dragged (#426): the opposite corner stays. */
@@ -187,6 +190,8 @@ export function StagePane(p: StagePaneProps) {
   const [draft, setDraft] = useState<{ tool: string; pts: P[] } | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
   const [guides, setGuides] = useState<{ v?: number; h?: number }>({});
+  const [box, setBox] = useState<[P, P] | null>(null);
+  const chosenIds = p.sel?.kind === "obj" ? p.sel.ids : [];
   // The view (#426): zoom and pan for this session, like the canvas's; the turn is the stage's own and is saved.
   const [view, setView] = useState({ z: 1, x: 0, y: 0 });
   const fitEl = useRef<HTMLDivElement>(null);
@@ -225,10 +230,10 @@ export function StagePane(p: StagePaneProps) {
    * edges and middles of the other drawn objects and the other lights' centres. `xs`/`ys`: the moving thing's own
    * lines; the answer is how far to shift it on each axis and the guide lines to draw.
    */
-  const snapTo = (e: PointerEvent, xs: number[], ys: number[], skip: { obj?: string; light?: string }) => {
+  const snapTo = (e: PointerEvent, xs: number[], ys: number[], skip: { objs?: string[]; light?: string }) => {
     if (!p.drawing.snap || e.ctrlKey || e.metaKey) { setGuides({}); return { dx: 0, dy: 0 }; }
     const [sw, sh] = onScreen();
-    const boxes = objs.filter((o) => o.visible && o.id !== skip.obj);
+    const boxes = objs.filter((o) => o.visible && !skip.objs?.includes(o.id));
     const lx = stage.lights.filter((l) => l.track !== skip.light);
     const tx = [0, 0.5, 1, ...boxes.flatMap((o) => [o.x, o.x + o.w / 2, o.x + o.w]), ...lx.map((l) => l.x)];
     const ty = [0, 0.5, 1, ...boxes.flatMap((o) => [o.y, o.y + o.h / 2, o.y + o.h]), ...lx.map((l) => l.y)];
@@ -249,12 +254,19 @@ export function StagePane(p: StagePaneProps) {
   const grabObj = (e: PointerEvent, o: Obj) => {
     if (e.button > 0 || !p.editing || tool !== "select") return;
     e.stopPropagation();
-    // Alt: drag a copy, as on the canvas; the original stays where it is. (A light is one per track: never copied.)
-    const target: Obj = e.altKey ? { ...o, id: uid(), name: `${o.name} copy` } : o;
-    if (target !== o) setObjs((os) => [...os, target]);
-    p.onSel({ kind: "obj", id: target.id });
+    // Shift, Ctrl or ⌘: add it to what is chosen, or take it out.
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      const next = chosenIds.includes(o.id) ? chosenIds.filter((x) => x !== o.id) : [...chosenIds, o.id];
+      p.onSel(next.length ? { kind: "obj", ids: next } : null);
+      return;
+    }
+    // A chosen one drags all that are chosen; Alt drags copies of them, as on the canvas (a light is never copied).
+    let group = chosenIds.includes(o.id) ? objs.filter((x) => chosenIds.includes(x.id)) : [o];
+    if (e.altKey) { const copies = group.map((x) => ({ ...x, id: uid(), name: `${x.name} copy` })); setObjs((os) => [...os, ...copies]); group = copies; }
+    const ids = group.map((x) => x.id);
+    p.onSel({ kind: "obj", ids });
     capture(e);
-    act.current = { type: "obj", id: target.id, start: at(e), orig: target, moved: false };
+    act.current = { type: "obj", ids, start: at(e), orig: Object.fromEntries(group.map((x) => [x.id, x])), moved: false };
   };
   const rub = (q: P) => {
     const h = onScreen()[1];
@@ -262,15 +274,21 @@ export function StagePane(p: StagePaneProps) {
   };
   const down = (e: PointerEvent) => {
     if (e.button > 0) return;
-    if (!p.editing || tool === "select") { p.onSel(null); return; }
+    if (!p.editing) { p.onSel(null); return; }
     const q = at(e);
+    if (tool === "select") {
+      const add = e.shiftKey ? chosenIds : [];
+      if (!add.length) p.onSel(null);
+      capture(e); act.current = { type: "box", start: q, end: q, add };
+      return;
+    }
     if (tool === "eraser") { capture(e); act.current = { type: "erase" }; rub(q); return; }
     if (tool === "text" || tool === "stencil") {
       // No focus change from this press: the text typed in place keeps it.
       e.preventDefault();
       const size: P = tool === "text" ? [0.22, 0.06] : [0.06, 0.06 * stage.aspect];
       const o: Obj = { id: uid(), kind: tool, name: tool === "text" ? "Text" : `Stencil: ${stencil}`, x: q[0] - size[0] / 2, y: q[1] - size[1] / 2, w: size[0], h: size[1], stroke: colour, width: 3, opacity: 1, visible: true, locked: false, ...(tool === "text" ? { text: "Text" } : { icon: stencil }) };
-      setObjs((os) => [...os, o]); setTool("select"); p.onSel({ kind: "obj", id: o.id }); if (tool === "text") setTyping(o.id);
+      setObjs((os) => [...os, o]); setTool("select"); p.onSel({ kind: "obj", ids: [o.id] }); if (tool === "text") setTyping(o.id);
       return;
     }
     capture(e);
@@ -292,7 +310,7 @@ export function StagePane(p: StagePaneProps) {
       setLight(a.track, (x) => ({ ...x, rot: ((Math.round(deg / step) * step) % 360 + 360) % 360 }));
     } else if (a.type === "resize") {
       // In the paper's height units, so a turned object keeps its angles (the canvas's way); snapping only unturned.
-      if (!a.rot) { const sn = snapTo(e, [q[0]], [q[1]], { obj: a.id }); q[0] += sn.dx; q[1] += sn.dy; }
+      if (!a.rot) { const sn = snapTo(e, [q[0]], [q[1]], { objs: [a.id] }); q[0] += sn.dx; q[1] += sn.dy; }
       const A = stage.aspect, d = turnBy([q[0] * A - a.fixed[0], q[1] - a.fixed[1]], -a.rot), w = Math.max(0.01, Math.abs(d[0])), h = Math.max(0.01, Math.abs(d[1]));
       const half = turnBy([(Math.sign(d[0]) || 1) * w / 2, (Math.sign(d[1]) || 1) * h / 2], a.rot), c: P = [a.fixed[0] + half[0], a.fixed[1] + half[1]];
       setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x: (c[0] - w / 2) / A, y: c[1] - h / 2, w: w / A, h } : o)));
@@ -303,7 +321,7 @@ export function StagePane(p: StagePaneProps) {
       rot = Number((((rot % 360) + 360) % 360).toFixed(1));
       setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, rot } : o)));
     } else if (a.type === "end") {
-      const sn = snapTo(e, [q[0]], [q[1]], { obj: a.id });
+      const sn = snapTo(e, [q[0]], [q[1]], { objs: [a.id] });
       q[0] += sn.dx; q[1] += sn.dy;
       const ends: [P, P] = a.which === 0 ? [q, a.other] : [a.other, q];
       const x = Math.min(ends[0][0], ends[1][0]), y = Math.min(ends[0][1], ends[1][1]), w = Math.abs(ends[1][0] - ends[0][0]), h = Math.abs(ends[1][1] - ends[0][1]);
@@ -311,21 +329,35 @@ export function StagePane(p: StagePaneProps) {
     } else if (a.type === "obj") {
       if (!a.moved && Math.hypot(q[0] - a.start[0], q[1] - a.start[1]) < 0.003) return;
       a.moved = true;
-      const o0 = a.orig, mx = o0.x + q[0] - a.start[0], my = o0.y + q[1] - a.start[1];
-      const sn = snapTo(e, [mx, mx + o0.w / 2, mx + o0.w], [my, my + o0.h / 2, my + o0.h], { obj: a.id });
-      setObjs((os) => os.map((o) => (o.id === a.id ? { ...o, x: mx + sn.dx, y: my + sn.dy } : o)));
-    }
+      // All that are chosen move together; their joint bounds snap.
+      const os0 = Object.values(a.orig), bx = Math.min(...os0.map((o) => o.x)), by = Math.min(...os0.map((o) => o.y));
+      const bw = Math.max(...os0.map((o) => o.x + o.w)) - bx, bh = Math.max(...os0.map((o) => o.y + o.h)) - by;
+      const dx = q[0] - a.start[0], dy = q[1] - a.start[1], mx = bx + dx, my = by + dy;
+      const sn = snapTo(e, [mx, mx + bw / 2, mx + bw], [my, my + bh / 2, my + bh], { objs: a.ids });
+      setObjs((os) => os.map((o) => (a.orig[o.id] ? { ...o, x: a.orig[o.id].x + dx + sn.dx, y: a.orig[o.id].y + dy + sn.dy } : o)));
+    } else if (a.type === "box") { a.end = q; setBox([a.start, q]); }
   };
   const up = () => {
     const a = act.current; act.current = null; setGuides({});
+    if (a?.type === "box") {
+      setBox(null);
+      const x0 = Math.min(a.start[0], a.end[0]), x1 = Math.max(a.start[0], a.end[0]), y0 = Math.min(a.start[1], a.end[1]), y1 = Math.max(a.start[1], a.end[1]);
+      if (x1 - x0 < 0.003 && y1 - y0 < 0.003) return;
+      const hit = objs.filter((o) => o.visible && o.x < x1 && o.x + o.w > x0 && o.y < y1 && o.y + o.h > y0).map((o) => o.id);
+      const ids = [...a.add, ...hit.filter((id) => !a.add.includes(id))];
+      p.onSel(ids.length ? { kind: "obj", ids } : null);
+      return;
+    }
     if (a?.type !== "draw") return;
     setDraft(null);
     const [sw, sh] = onScreen();
     const o = objectFromDraft(a.tool, a.pts, { id: uid(), pen: "pen", stroke: colour, width: 3, minStep: 2.5 / Math.max(sw, sh) });
-    if (o) { setObjs((os) => [...os, o]); p.onSel({ kind: "obj", id: o.id }); }
+    if (o) { setObjs((os) => [...os, o]); p.onSel({ kind: "obj", ids: [o.id] }); }
   };
 
-  const selObj = p.sel?.kind === "obj" ? objs.find((o) => o.id === (p.sel as { id: string }).id) : undefined;
+  // One chosen object has handles; several show their outlines and move, recolour and delete together.
+  const selObj = chosenIds.length === 1 ? objs.find((o) => o.id === chosenIds[0]) : undefined;
+  const others = chosenIds.length > 1 ? objs.filter((o) => chosenIds.includes(o.id)) : [];
   // The chosen object's handles, as on the canvas (#426): corners resize it, a line's or an arrow's ends move.
   const handles = !!selObj && p.editing && tool === "select" && typing !== selObj.id;
   const isLine = !!selObj && (selObj.kind === "line" || selObj.kind === "arrow") && !!selObj.pts?.length;
@@ -359,7 +391,7 @@ export function StagePane(p: StagePaneProps) {
         <span className="fl-st__sep" />
         <span className="fl-st__swatches" role="radiogroup" aria-label="Drawing colour">
           {STAGE_DRAW_COLOURS.map((c) => <button key={c} type="button" role="radio" aria-checked={colour === c} aria-label={`Colour ${c}`} disabled={!p.editing} className={cx("fl-st__swatch", colour === c && "is-on")} style={{ background: c }}
-            onClick={() => { p.onDrawing({ ...p.drawing, colour: c }); if (selObj) setObjs((os) => os.map((o) => (o.id === selObj.id ? { ...o, stroke: c } : o))); }} />)}
+            onClick={() => { p.onDrawing({ ...p.drawing, colour: c }); if (chosenIds.length) setObjs((os) => os.map((o) => (chosenIds.includes(o.id) ? { ...o, stroke: c } : o))); }} />)}
         </span>
         <span className="fl-st__sep" />
         <Button size="sm" variant={p.drawing.snap ? "secondary" : "quiet"} icon="crosshair" disabled={!p.editing} selected={p.drawing.snap} label={p.drawing.snap ? "Snap is on: to the paper, the drawing and the lights. Click to switch it off (or hold Ctrl while moving)" : "Snap is off. Click to switch it on"} onClick={() => p.onDrawing({ ...p.drawing, snap: !p.drawing.snap })} />
@@ -385,7 +417,7 @@ export function StagePane(p: StagePaneProps) {
         <div className={cx("fl-paper", `is-${p.editing ? tool : "view"}`)} ref={paper} data-zoom={view.z} data-turn={turn}
           onDblClick={() => { if (p.editing && tool === "select" && selObj?.kind === "text") setTyping(selObj.id); }}
           style={{ "--aspect": stage.aspect, "--fl-grid": STAGE_INK.grid, "--c": Math.abs(Math.cos((turn * Math.PI) / 180)), "--s": Math.abs(Math.sin((turn * Math.PI) / 180)), "--inv": 1 / view.z, background: STAGE_INK.paper, transform: `translate(${view.x}px, ${view.y}px) scale(${view.z}) rotate(${turn}deg)` }}
-          onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { act.current = null; setDraft(null); setGuides({}); }}>
+          onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={() => { act.current = null; setDraft(null); setGuides({}); setBox(null); }}>
           <div className="fl-paper__in">
             {stage.underlay && underlay && <img className="fl-paper__under" src={underlay.src} alt="" draggable={false} style={{ opacity: stage.underlay.opacity }} />}
             {objs.filter((o) => o.visible).map((o) => <ObjectView key={o.id} o={o} vh={H} onGrab={p.editing && tool === "select" ? (e) => grabObj(e, o) : undefined}
@@ -400,6 +432,8 @@ export function StagePane(p: StagePaneProps) {
             {handles && isLine && ([0, 1] as const).map((k) => { const q = endOf(selObj!, k); return <i key={k} className="cv-node" title="Drag to move this end" style={{ left: `${q[0] * 100}%`, top: `${q[1] * 100}%` }} onPointerDown={(e) => grabEnd(e, k)} />; })}
             {guides.v !== undefined && <span className="cv-guide cv-guide--v" style={{ left: `${guides.v * 100}%` }} />}
             {guides.h !== undefined && <span className="cv-guide cv-guide--h" style={{ top: `${guides.h * 100}%` }} />}
+            {others.map((o) => <span key={o.id} className="cv-sel" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, transform: o.rot ? `rotate(${o.rot}deg)` : undefined }} />)}
+            {box && <span className="fl-box" style={{ left: `${Math.min(box[0][0], box[1][0]) * 100}%`, top: `${Math.min(box[0][1], box[1][1]) * 100}%`, width: `${Math.abs(box[1][0] - box[0][0]) * 100}%`, height: `${Math.abs(box[1][1] - box[0][1]) * 100}%` }} />}
             <Widgets flow={p.flow} stage={stage} t={p.t} sel={p.sel} marked={p.marked} flash={p.flash} editing={p.editing && tool === "select"} onGrab={grabLight} />
           </div>
           {!stage.lights.length && !stage.objects.length && <span className="fl-paper__hint">{p.editing ? "Draw a plan with the tools above; drag lights here from “Place a light”." : "Nothing on the stage yet."}</span>}
@@ -508,6 +542,22 @@ export function ObjectInspect({ stage, id, editing, onChange, onDelete }: { stag
       {(o.kind === "text" || o.kind === "stencil") && editing && <label className="hw-ctl hw-ctl--range"><small>Size</small><Slider value={o.h} min={0.02} max={0.4} step={0.01} onChange={(v: number) => onChange((x) => { const k = v / x.h; return { ...x, w: x.w * k, h: v }; })} aria-label="Size" /></label>}
       {editing && <div className="hw-row"><Button size="sm" variant="danger" icon="trash" onClick={onDelete}>Delete</Button></div>}
       <p className="fl-note">Drawn with the canvas’s tools, kept in the flow.</p>
+    </div>
+  );
+}
+
+/** Several drawn objects chosen: their colour together, Delete. */
+export function ObjectsInspect({ stage, ids, editing, onChange, onDelete }: { stage: FlowStage; ids: string[]; editing: boolean; onChange: (fn: (o: Obj) => Obj) => void; onDelete: () => void }) {
+  const os = stage.objects.filter((o) => ids.includes(o.id)).map(toEdit);
+  const one = os.every((o) => o.stroke === os[0]?.stroke) ? os[0]?.stroke : undefined;
+  return (
+    <div className="fl-inspect">
+      <h3 className="fl-chosen__title"><Icon name="layers" size={16} />{os.length} drawn objects</h3>
+      <span className="fl-st__swatches" role="radiogroup" aria-label="Colour">
+        {STAGE_DRAW_COLOURS.map((c) => <button key={c} type="button" role="radio" aria-checked={one === c} aria-label={`Colour ${c}`} disabled={!editing} className={cx("fl-st__swatch", one === c && "is-on")} style={{ background: c }} onClick={() => onChange((x) => ({ ...x, stroke: c }))} />)}
+      </span>
+      {editing && <div className="hw-row"><Button size="sm" variant="danger" icon="trash" onClick={onDelete}>Delete {os.length}</Button></div>}
+      <p className="fl-note">Drag one of them to move them all, Alt to drag copies. Shift-click adds or takes one out; a box drawn from empty paper chooses what it touches.</p>
     </div>
   );
 }
